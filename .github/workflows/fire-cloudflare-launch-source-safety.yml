@@ -1,0 +1,289 @@
+name: FIRE Independent Cloudflare Launch — Source Only
+
+on:
+  push:
+    branches:
+      - work/fire-cloudflare-launch-isolation-2026-11-01
+    paths:
+      - 'business-app-parity/cloudflare-launch/**'
+      - '.github/workflows/fire-cloudflare-launch-source-safety.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/**'
+      - '.github/workflows/fire-cloudflare-launch-source-safety.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-source:
+    name: Access JWT / independent D1 mapping / local materialization only
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic Access JWT and resource isolation tests
+        run: node --test business-app-parity/cloudflare-launch/launch-source.test.mjs
+      - name: Redacted Access failure-code security regression tests
+        run: node --test business-app-parity/cloudflare-launch/access-diagnostic.test.mjs
+      - name: Access certificate phase diagnostic tests (no provider and no authorization changes)
+        run: node --test business-app-parity/cloudflare-launch/access-key-probe.test.mjs
+      - name: Offline public key fallback signed-JWT guard tests (no provider calls)
+        run: node --test business-app-parity/cloudflare-launch/access-pinned-jwks.test.mjs
+      - name: Parse build-time PUBLIC JWKS HTTPS capture script (never run)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/capture-access-public-jwks.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $s=Get-Content -LiteralPath $path -Raw
+          foreach($v in @('restless-unit-ad5b.cloudflareaccess.com','cdn-cgi/access/certs','MaximumRedirection 0','access-public-keys.mjs','ToUnixTimeMilliseconds','keys=$safeKeys')) { if(-not $s.Contains($v)){throw 'Missing public-JWKS capture guard: '+$v} }
+          if($s -match '(?im)^\s*(?:&\s*)?wrangler(?:\.cmd)?\s|secret put|d1 execute|r2 create|stripe\.com') {throw 'JWKS capture script must have no hosted provider mutation'}
+          Write-Host 'PASS: public JWKS capture script parsed and safety checked; no network or cloud actions executed.'
+      - name: Parse proposed 14-day TLS public-JWKS TEST deploy script (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-public-jwks-fallback-review-only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $s=Get-Content -LiteralPath $path -Raw
+          foreach($must in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','capture-access-public-jwks.ps1','PINNED_MAX_AGE_MS=14*24*60*60*1000','safePinnedKeys(snapshot,teamDomain)','FIRE_STRIPE_MODE','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
+            if(-not $s.Contains($must)) {throw ('Missing proposed fallback deployment guard: '+$must)}
+          }
+          if(($s.Split([string[]]@("Pnpm @('exec','wrangler','deploy','--config',`$review,'--strict')"),[System.StringSplitOptions]::None)).Count -ne 2) { throw 'Expected one hosted deploy command only' }
+          Write-Host 'PASS: public-JWKS fallback deployment script parsed and safety checked. NOT EXECUTED.'
+      - name: Live-only Access JWKS proof cannot reuse pinned cache and rejects cross-host redirects
+        run: node --test business-app-parity/cloudflare-launch/access-live-jwks.test.mjs
+      - name: Parse review-only TEST live JWT key retrieval probe deployment script (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-live-jwks-test-review-only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $text=Get-Content -LiteralPath $path -Raw
+          foreach($needle in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_STRIPE_MODE','FIRE_ACCESS_REQUIRED','getFireLiveJwksProof()','allowPinned:false,forceRefresh:true','global_fetch_strictly_public','$activeVersions[0].version_id -eq $PriorVersion','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100','--dry-run')){
+             if(-not $text.Contains($needle)){throw ('Missing review-only TEST live JWKS guard: '+$needle)}
+          }
+          $pattern="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
+          if(($text.Split([string[]]@($pattern),[System.StringSplitOptions]::None)).Count -ne 2){throw 'Exactly one hosted deployment command required'}
+          Write-Host 'PASS: live-JWKS TEST review script parses; NO deploy or hosted actions executed.'
+      - name: Permanent JWT source MUST exclude temporary build-time signing keys
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const root="business-app-parity/cloudflare-launch/";
+            const jwt=fs.readFileSync(root+"access-jwt.mjs","utf8");
+            const auth=fs.readFileSync(root+"app-auth.ts","utf8");
+            const mat=fs.readFileSync(root+"materialize-cloudflare.py","utf8");
+            for(const forbidden of ["pinnedAccessPublicKeys","PINNED_MAX_AGE_MS","safePinnedKeys","pinnedSnapshot","allowPinned"]) {
+              if(jwt.includes(forbidden)||auth.includes(forbidden))throw Error("Obsolete temporary auth fallback remains: "+forbidden);
+            }
+            if(mat.includes("app/access-public-keys.mjs"))throw Error("Generated app still bundles pinned public keys");
+            if(!jwt.includes("subtle.verify(")||!jwt.includes("cdn-cgi/access/certs"))throw Error("Live RSA signature verification missing");
+            console.log("PASS: JWT authentication uses live Cloudflare RSA keys only. No bundled key fallback.");
+          '
+      - name: Parse permanent TEST JWKS-only deployment candidate (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-permanent-jwks-test-review-only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $s=Get-Content -LiteralPath $path -Raw
+          foreach($v in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_STRIPE_MODE','FIRE_ACCESS_REQUIRED','--dry-run','NO 14-day fallback','global_fetch_strictly_public','$activeVersions[0].version_id -eq $PriorVersion','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
+            if(-not $s.Contains($v)){throw ('Missing fail-closed TEST rollout preflight: '+$v)}
+          }
+          $needle="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
+          if(($s.Split([string[]]@($needle),[System.StringSplitOptions]::None)).Count -ne 2){throw 'Exactly one hosted deploy command is allowed'}
+          if($s -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') {throw 'Forbidden database, paid storage or secret mutation'}
+          Write-Host 'PASS: Final live-only TEST rollout is one-pass, target-locked, no mutation tests invoked.'
+      - name: Customer-facing Access path exceptions and owner-only boundaries
+        run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
+      - name: Assert isolated Stripe test Worker has NO public route or data access
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-private-stub.mjs
+      - name: Source-only TEST app resource identity, owner auth, no-billing preflight
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-app-identity.test.mjs
+      - name: TEST app generated-manifest conversion fails closed against paid/photo/Stripe and foreign D1
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
+      - name: Exact Stripe TEST signed callback review, no Access policy changes
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+      - name: Guard one-time TEST D1 hosted initializer (NO Cloudflare access)
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v2.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v3.test.mjs
+      - name: Validate Windows PowerShell initializer syntax without executing
+        shell: bash
+        run: |
+          if command -v pwsh >/dev/null 2>&1; then
+            pwsh -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v3.ps1",[ref]$tokens,[ref]$errors) | Out-Null; if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }'
+          else
+            echo 'PowerShell unavailable; static contract checked, execution must remain owner Acer only.'
+          fi
+      - name: Parse exact-sha TEST auth-fix deploy PowerShell safely (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-approved-access-cookie-fix.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $script=Get-Content -LiteralPath $path -Raw
+          foreach($must in @('fire-stripe-test-20261101','120f6239-1560-423f-a77c-d8c8e0691317','dba421ba-fc66-4cf8-9c31-51616f8249ba','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','Assert ($actual -eq $ExpectedCommit.ToLowerInvariant())')) {
+            if(-not $script.Contains($must)) { throw ('Missing exact target/read-only guard: '+$must) }
+          }
+          foreach($guard in @('$activeVersions.Count -eq 1','$activeVersions[0].version_id -eq $PriorVersion','[int]$activeVersions[0].percentage -eq 100')) {
+            if(-not $script.Contains($guard)) { throw ('Active 100-percent predecessor guard absent: '+$guard) }
+          }
+          if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation in TEST auth-fix deployment script' }
+          Write-Host 'PASS: Acer TEST-only access fix script parses; exact target, SHA, secret, Access and no-billing guards found. NOT EXECUTED.'
+      - name: Parse owner-approved REDACTED TEST diagnostic Acer deploy script (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-approved-access-diagnostic.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $script=Get-Content -LiteralPath $path -Raw
+          foreach($must in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','getFireAccessDiagnostic()','FIRE-A04-TOKEN-ABSENT','FIRE-A10-CRYPTO-OR-KEY','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
+            if(-not $script.Contains($must)) { throw ('Required owner, exact version or fail-closed guard missing: '+$must) }
+          }
+          if(($script.Split([string[]]@("Pnpm @('exec','wrangler','deploy','--config',`$review,'--strict')"),[System.StringSplitOptions]::None)).Count -ne 2) { throw 'Exactly one hosted deployment command required' }
+          if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation' }
+          Write-Host 'PASS: Diagnostic-only Acer PowerShell parser and one-deploy safety guards; NOTHING executed.'
+      - name: Parse owner-approved TEST Access RSA key probe deploy script (never execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-approved-access-key-probe.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $script=Get-Content -LiteralPath $path -Raw
+          foreach($must in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','probeFireAccessCrypto(token,cfg)','FIRE-A11-CERTS-FETCH','FIRE-A17-VERIFY-MISMATCH','$activeVersions[0].version_id -eq $PriorVersion','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
+            if(-not $script.Contains($must)) { throw ('Required fail-closed guard missing: '+$must) }
+          }
+          if(($script.Split([string[]]@("Pnpm @('exec','wrangler','deploy','--config',`$review,'--strict')"),[System.StringSplitOptions]::None)).Count -ne 2) { throw 'Exactly one hosted deploy command required' }
+          if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation' }
+          Write-Host 'PASS: TEST-only crypto probe script parsed and safety guarded. NOT EXECUTED.'
+      - name: Execute V3 PowerShell GitHub REST list normalization with 25 synthetic entries (NO cloud)
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test-rest-migration-array-v3.ps1
+      - name: Rehearse all 25 schema migrations in NEW empty local database only
+        run: python3 business-app-parity/cloudflare-launch/stripe-test-worker/rehearse-new-db-migrations.py
+      - name: Staging and production materializers are source only and private
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py staging "$root/staging"
+          python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py production "$root/production"
+          python3 - "$root" <<'PY'
+          import pathlib,sys
+          root=pathlib.Path(sys.argv[1])
+          for environment in ('staging','production'):
+              p=root/environment
+              assert (p/'app/chatgpt-auth.ts').exists()
+              text=(p/'app/chatgpt-auth.ts').read_text()
+              assert 'verifyFireAccessJWT' in text
+              assert 'oai-authenticated-user-email' not in text
+              assert (p/'app/access-jwt.mjs').exists()
+              assert (p/'app/access-required/page.tsx').exists()
+              assert not (p/'app/owner-auth.ts').exists()
+              assert not (p/'app/api/auth/login/route.ts').exists()
+              assert (p/'vite.config.ts').exists()
+              assert '00000000-0000-4000-8000-000000000000' in (p/'vite.config.ts').read_text()
+              assert not (p/'dist').exists()
+          assert 'environment="STAGING"' in (root/'staging/app/page.tsx').read_text()
+          assert 'environment="STAGING"' not in (root/'production/app/page.tsx').read_text()
+          print('PASS: Both private local candidates use signed Access auth; built manifests absent, local D1 placeholder retained.')
+          PY
+          if python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py staging "$root/staging"; then
+            echo 'FAIL: materializer overwrote an existing directory' >&2; exit 1
+          fi
+          echo 'PASS: No hosted writes, Stripe, secrets, D1 creation, routes, or deployments.'
+
+  compile-proposed-launch:
+    name: Compile independent Access-auth ${{ matrix.target }} source (NO deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [staging, production, stripe-test]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize local proposed target only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.target }}" = "stripe-test" ]; then
+            python3 business-app-parity/cloudflare-launch/materialize-stripe-test.py "$RUNNER_TEMP/fire-launch-stripe-test-src"
+          else
+            python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
+          fi
+          grep -q '00000000-0000-4000-8000-000000000000' "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src/vite.config.ts"
+          if [ "${{ matrix.target }}" = "stripe-test" ]; then
+            for route in app/api/payments/checkout/route.ts app/api/payments/refund/route.ts app/api/payments/webhook/route.ts app/api/payments/checkout/reconcile/route.ts app/api/payments/connection/route.ts; do
+              grep -q 'FIRE_STRIPE_MODE !== "test"' "$RUNNER_TEMP/fire-launch-stripe-test-src/$route"
+            done
+            echo 'PASS: TEST app hard-refuses all five Stripe routes while FIRE_STRIPE_MODE=disabled.'
+          fi
+      - name: Install pinned dependencies and typecheck real Cloudflare Access adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit --incremental false
+      - name: Local compile only (artifact deliberately discarded)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
+          pnpm run build
+          test -e dist/server/wrangler.json
+          grep -q '00000000-0000-4000-8000-000000000000' dist/server/wrangler.json
+          if [ "${{ matrix.target }}" = "stripe-test" ]; then
+            node "$GITHUB_WORKSPACE/business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs" \
+              "$PWD/dist/server/wrangler.json" "$PWD/dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json"
+            node --input-type=module -e '
+              import fs from "node:fs";
+              const dir="dist/server/";
+              const original=JSON.parse(fs.readFileSync(dir+"wrangler.json","utf8"));
+              const candidate=JSON.parse(fs.readFileSync(dir+"wrangler.FIRE_TEST_REVIEW_ONLY.json","utf8"));
+              if (original.d1_databases[0].database_id!=="00000000-0000-4000-8000-000000000000"
+                  || candidate.d1_databases[0].database_id!=="dba421ba-fc66-4cf8-9c31-51616f8249ba"
+                  || candidate.name!=="fire-stripe-test-20261101"
+                  || "r2_buckets" in candidate || "kv_namespaces" in candidate
+                  || candidate.vars.FIRE_STRIPE_MODE!=="disabled"
+                  || candidate.preview_urls!==false) throw Error("STOP: Unsafe generated TEST manifest");
+              console.log("PASS: Actual Vite compiled TEST app manifest is isolated, Access-ready and R2/Stripe disabled. NOT DEPLOYED.");
+            '
+            echo 'FIRE TEST Wrangler deployment DRY RUN only — no Cloudflare login, API call or publication.'
+            pnpm exec wrangler deploy --config dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json --dry-run --outdir "$RUNNER_TEMP/fire-test-dry-run"
+            echo 'PASS: Exact owner-protected Stripe TEST manifest accepted by Wrangler locally; no Worker deployed.'
+            rm -f dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json
+          fi
+          echo 'PASS: Source compiles locally. Bundle contains fake D1 and MUST NEVER DEPLOY.'
+      - name: Delete nondeployable compiled output
+        if: always()
+        shell: bash
+        run: rm -rf -- "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
