@@ -30,6 +30,8 @@ for source,target in [
     ('app-auth.ts','app/chatgpt-auth.ts'),
     ('access-jwt.mjs','app/access-jwt.mjs'),
     ('access-jwt.d.mts','app/access-jwt.d.mts'),
+    ('access-token.mjs','app/access-token.mjs'),
+    ('access-token.d.mts','app/access-token.d.mts'),
     ('access-required-page.tsx','app/access-required/page.tsx')
 ]:
     to=destination/target
