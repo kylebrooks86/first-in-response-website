@@ -177,7 +177,22 @@ try {
     $publishedVersions = @($published.versions)
     Require ($publishedVersions.Count -eq 1 -and [double]$publishedVersions[0].percentage -eq 100) 'Post-upload traffic is not exactly one 100-percent QA version. Do not repeat deploy.'
     $newActiveVersion = [string]$publishedVersions[0].version_id
-    Require ($newActiveVersion -cmatch '^[0-9a-f]{8}-[0-9a-f-]{27,}
+    Require ($newActiveVersion -cmatch '^[0-9a-f]{8}-[0-9a-f-]{27,} 'New QA version is absent or unverified. Do not repeat deploy.'
+    $newBindingRaw = @(& $wrangler.Source versions view $newActiveVersion --name $workerName --json)
+    Require-Exit 'Fresh post-upload physical QA D1 binding'
+    $newBinding = & $bindingHelper -Json ($newBindingRaw -join [Environment]::NewLine) -ExpectedVersion $newActiveVersion -ExpectedDatabaseId $dbId
+    Require ($newBinding.bindingVerified -eq $true -and $newBinding.remoteWrites -eq $false) 'New QA version does not prove physical D1 isolation and no R2. Do not repeat deploy.'
+    Write-Host ('PASS: One NEW 100-percent active QA Worker version: ' + $newActiveVersion)
+    Write-Host ('PASS: New version physically binds only QA D1 ' + $dbId + ' with no R2.')
+    Write-Host ('Previously working code rollback version: ' + $expectedOldVersion)
+    Write-Host ('Reviewed local Git source: ' + $head)
+    Write-Warning 'LIMIT: Wrangler version/D1 metadata does NOT prove remote Worker bytes equal local Git source. Exact source-to-binary attestation remains OPEN.'
+    Write-Host 'Verify only changed payment links and Void on iPhone; preserve earlier customer, photo and Voice acceptance.'
+} catch {
+    if ($script:qaUploadAttempted) {
+        Write-Warning 'FIRE QA UPLOAD MAY HAVE OCCURRED. DO NOT REPEAT PUBLISH. Inspect Wrangler deployments status and versions view READ ONLY. Preserve original rollback and D1; no automatic retry, rollback or migration.'
+    }
+    throw
 } finally {
     if (Test-Path -LiteralPath $temporaryManifest -PathType Leaf) {
         Remove-Item -LiteralPath $temporaryManifest -Force
