@@ -41,11 +41,13 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const approved = signed&&["approved","scheduled","completed"].includes(row.status);
   const paymentType: "deposit"|"balance" = row.status==="completed"?"balance":"deposit";
   const dueNow = paymentType==="deposit"?depositRemaining:balance;
-  const canPay = billingNumbersSafe&&!paymentReviewPending&&dueNow>0&&approved&&(paymentType==="deposit"||row.status==="completed");
+  const runtime=env as Cloudflare.Env & {STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KEY?:string;CASH_APP_HANDLE?:string;VENMO_HANDLE?:string};
+  const paymentsReady=Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
+  const canPay = paymentsReady&&billingNumbersSafe&&!paymentReviewPending&&dueNow>0&&approved&&(paymentType==="deposit"||row.status==="completed");
   const manualPaymentEligible=canOfferManualPayment({status:row.status,acceptedAt:row.acceptedAt,signedAt:row.signedAt,billingVerified:billingNumbersSafe,balanceCents:balance,reviewPending:paymentReviewPending});
   const showReviewInvitation=billingNumbersSafe&&shouldOfferReviewAfterPayment({status:row.status,totalCents:Number(row.totalCents),paidCents,paymentReviewPending});
   const showRecordedSuccess=paid==="1"&&showReviewInvitation;
-  const handles = paymentHandles(env as Cloudflare.Env & { CASH_APP_HANDLE?:string; VENMO_HANDLE?:string });
+  const handles = paymentHandles(runtime);
   return <main className="pay-page"><section className="pay-card">
     <header><div className="pay-logo">F</div><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     {showRecordedSuccess ? <div className="paid-state"><CheckCircle2 /><h1>Job paid in full</h1><p>Thank you, {row.customer}. Our saved records show this completed job is paid in full.</p><CustomerReviewInvitation/></div> : <>
@@ -58,8 +60,8 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
       {!billingNumbersSafe&&<p className="pay-note" role="status">Billing details need verification. Please contact First In Response Exteriors before paying again.</p>}
       {paid==="1"&&!showRecordedSuccess&&<p className="pay-note" role="status">The link alone cannot confirm a new payment. Please review the recorded balance below or contact us if your payment is not yet reflected.</p>}
       {showReviewInvitation&&<CustomerReviewInvitation/>}
-      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} dueAmountCents={dueNow} tipBaseCents={Number(row.totalCents)} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:paymentReviewPending?<p className="pay-note">Payment or refund review in progress. Contact us before another payment.</p>:billingNumbersSafe&&balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
-      <div className="secure-note"><ShieldCheck /> Card details are handled securely by Stripe.</div>
+      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} dueAmountCents={dueNow} tipBaseCents={Number(row.totalCents)} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:paymentReviewPending?<p className="pay-note">Payment or refund review in progress. Contact us before another payment.</p>:billingNumbersSafe&&balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:!paymentsReady&&dueNow>0?<p className="pay-note">Online card payments are unavailable. Please contact First In Response Exteriors to arrange payment.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
+      {paymentsReady&&<div className="secure-note"><ShieldCheck /> Card details are handled securely by Stripe.</div>}
     </>}
   </section></main>;
 }
