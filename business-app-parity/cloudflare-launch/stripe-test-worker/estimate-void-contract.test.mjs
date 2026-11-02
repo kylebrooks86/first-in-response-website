@@ -42,8 +42,17 @@ test('owner UI confirms non-destructive void and blocks stale editor/send/pay co
 });
 
 test('voided customer page removes signing widget and payment instructions',()=>{
-  assert.match(customer,/row\.status==="declined"\?<p className="pay-note"/);
+  assert.match(customer,/if\(row\.status==="declined"\)return <main className="pay-page"/);
   assert.match(customer,/Estimate no longer available/);
   assert.match(customer,/!\["superseded","declined"\]\.includes\(row\.status\)/);
   assert.match(accept,/\!\["draft","sent"\]\.includes\(estimate\.status\)/);
+});
+
+
+test('unsigned customer estimates never advertise manual payment handles',()=>{
+  const paymentAdvice=customer.split('<strong>Manual payment options:</strong>')[0].split('\n').at(-1);
+  assert.ok(paymentAdvice.includes('estimateApproved&&Boolean(row.acceptedAt)&&Boolean(row.signedAt)'),
+    'Manual payment guidance requires persisted signed approval');
+  assert.ok(paymentAdvice.includes('!paymentReviewPending&&balance>0'),
+    'Only show manual payment guidance when billing is safe and balance remains');
 });
