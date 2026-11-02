@@ -49,3 +49,9 @@ jobs:
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
       - name: Regress real New Estimate manual services, 50 QuoteIQ rates, mobile CSS, and no duplicate saves
         run: node scripts/test-reuse-estimate-editor-browser.mjs
+      - name: Gate 8 narrow QA Void + signed-only manual-pay contract
+        run: node ../cloudflare-launch/stripe-test-worker/estimate-void-contract.test.mjs
+      - name: Gate 8 narrow QA actual Void SQL eligibility and linked-ledger protection
+        run: python3 ../cloudflare-launch/stripe-test-worker/estimate-void-sql-rehearsal.py
+      - name: Gate 6 public customer approval/change-request request-boundary guard
+        run: node ../cloudflare-launch/customer-write-guard.test.mjs
