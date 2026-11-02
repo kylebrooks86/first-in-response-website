@@ -6,6 +6,7 @@ import {headers} from "next/headers";
 import {redirect} from "next/navigation";
 import {verifyFireAccessJWT} from "./access-jwt.mjs";
 import {getFireAccessToken} from "./access-token.mjs";
+import {classifyFireAccessProblem} from "./access-diagnostic.mjs";
 
 export type ChatGPTUser={
   userId:string;
@@ -45,6 +46,24 @@ export async function getChatGPTUser():Promise<ChatGPTUser|null>{
   // Ignore untrusted email/login headers and reject all unsigned identities.
   const asserted=getFireAccessToken(h);
   return await verifyFireAccessJWT(asserted,cfg);
+}
+// Owner-visible, non-sensitive reason code only. Never used to authorize access.
+// Cloudflare Access continues to enforce every route at the edge.
+export async function getFireAccessDiagnostic():Promise<string>{
+  const current=env as typeof env & AccessEnv;
+  const cfg=accessSettings();
+  const h=await headers();
+  const token=getFireAccessToken(h);
+  const validated=cfg?await verifyFireAccessJWT(token,cfg):null;
+  return classifyFireAccessProblem({
+    runtime:{
+      fireEnv:current.FIRE_ENV,
+      accessRequired:current.FIRE_ACCESS_REQUIRED,
+      syntheticEnabled:current.FIRE_QA_SYNTHETIC_ONLY,
+      origin:current.SITE_ORIGIN,
+    },
+    config:cfg,token,identity:validated,
+  });
 }
 export async function requireChatGPTUser(_returnTo:string):Promise<ChatGPTUser>{
   const user=await getChatGPTUser();
