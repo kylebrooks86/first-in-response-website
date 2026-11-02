@@ -53,6 +53,16 @@ Owner-backed provider evidence (November 1, 2026): dedicated `fire-stripe-test-2
 
 **This is a Gate 9 staging-path milestone, not Gate 9 acceptance.** User's final LIVE app remains entirely separate.
 
+## November 1 isolated TEST Worker authentication — owner-confirmed
+
+The owner successfully ran `wrangler secret bulk --name fire-stripe-test-20261101` on the Acer. Wrangler reported **3 secrets successfully created**, and a subsequent `secret list` reported only: `FIRE_ACCESS_TEAM_DOMAIN`, `FIRE_ACCESS_AUD`, `FIRE_ACCESS_OWNER_EMAIL`. Cloudflare Access all-traffic login and owner successful sign-in were previously confirmed; public JWKS was reachable and returned RSA signing keys. **Do not rerun these secret updates.** No raw secret values/tokens or full audience ID are committed here.
+
+Only the existing isolated deny-all Worker was updated; all physical TEST D1 migrations were independently completed earlier. The full FIRE Business App has **not** been deployed; no Stripe secrets, paid R2/other photo storage or public Access exceptions exist. Owner's requirement remains **$0 subscription / no billable services**. All customer-photo endpoints already return a fail-closed 503 without `BUCKET`; this is **not** a permanent photo storage solution and cannot close the photos gate.
+
+The new `stripe-test-worker/test-app-identity-contract.mjs` source-only proposal validates the exact isolated Worker, existing D1 UUID, authenticated `workers.dev` origin, 25 remote migrations, known Access secret **names only**, four necessary future nonsecret app vars (`FIRE_ENV`, `FIRE_ACCESS_REQUIRED`, `FIRE_STRIPE_MODE`, `SITE_ORIGIN`), and absence of R2/KV, custom domains, Stripe keys or wide routes. The contract deliberately emits `SOURCE_MAPPING_OK_NOT_DEPLOYED`, with `hostBindingsVerified=false`. It never deploys, sets vars or adds cost.
+
+**Next deployment blocker:** The TEST app source still compiles with a fake local D1 ID and an inherited local R2 binding; its compiled output **MUST NOT** be uploaded as is. A separately reviewed, owner-approved provider-verified TEST-only manifest that removes the local R2 binding, binds only the real isolated D1, retains the three existing Access secrets, configures required nonsecret auth variables, and disables Stripe is essential. The whole app cannot earn Gate 6 until its real hosted JWT owner sign-in and private-route negative checks pass. Gate 9 requires separately approved TEST Stripe HMAC webhook and checkout/refund proofs after this stage. Existing QA/LIVE/old staging/DR remain unchanged.
+
 ## Critical open launch decisions — must be verified, not assumed
 
 1. Obtain actual owned **Cloudflare account**, two distinct fresh D1 UUIDs, new separately named Workers, and owner-controlled HTTPS custom domains. **Cloudflare Access must protect all owner screens and owner/private APIs**, while explicit token-bearing customer estimate/invoice/payment URLs, their required public API operations, and static assets must be reachable without owner login under a narrowly scoped, verified public-path policy. Do not bypass Access on `/`, `/api/*`, or all of `/api/public/*`. See the customer-access review contract below. Check authenticated binding and domain routing *before* any deploy. The source-level verifier is defense-in-depth, not a substitute for Access configuration.
