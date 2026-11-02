@@ -165,7 +165,7 @@ for(const mismatch of ['total','deposit']){
  await page.getByRole('status').filter({hasText:'Save was not confirmed.'}).waitFor();
  check(saves===before+1,'Mismatch '+mismatch+' made a single server write attempt');
  check(await page.getByRole('button',{name:'Save $220 estimate'}).isDisabled(),'Mismatch '+mismatch+' blocks duplicate save');
- check(await page.getByText('Saved estimate amounts or 50% deposit did not match this reviewed quote.',{exact:false}).count()===1,'Mismatch '+mismatch+' shows correct safety warning');
+ check(await page.getByText('Saved estimate totals or deposit did not match this reviewed quote.',{exact:false}).count()===1,'Mismatch '+mismatch+' shows correct safety warning');
  check(await page.getByRole('button',{name:'Review stored estimates'}).count()===1,'Mismatch '+mismatch+' provides recovery path');
  const pendingId=await page.evaluate(()=>localStorage.getItem('fire:estimate:create-request:v1'));
  check(typeof pendingId==='string'&&/^[a-f0-9-]{36}$/i.test(pendingId),'Mismatch '+mismatch+' persists only an opaque ID');
