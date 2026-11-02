@@ -7,7 +7,7 @@ const conf={teamDomain:"synthetic-fire.cloudflareaccess.com"};
 const pair=await subtle.generateKey({name:"RSASSA-PKCS1-v1_5",modulusLength:2048,
   publicExponent:new Uint8Array([1,0,1]),hash:"SHA-256"},true,["sign","verify"]);
 const key={...await subtle.exportKey("jwk",pair.publicKey),kid:"synthetic-kid-for-testing",alg:"RS256",use:"sig"};
-const b64=x=>Buffer.from(typeof x==="string"?x:JSON.stringify(x)).toString("base64url");
+const b64=x=>Buffer.from(x instanceof Uint8Array?x:(typeof x==="string"?x:JSON.stringify(x))).toString("base64url");
 async function token({kid=key.kid,claims={}}={}){
   const header=b64({alg:"RS256",kid,typ:"JWT"});
   const payload=b64({iss:"https://"+conf.teamDomain,aud:["synthetic-app"],email:"private@example.test",
