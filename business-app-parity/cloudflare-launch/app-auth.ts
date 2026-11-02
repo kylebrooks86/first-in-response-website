@@ -7,6 +7,7 @@ import {redirect} from "next/navigation";
 import {verifyFireAccessJWT} from "./access-jwt.mjs";
 import {getFireAccessToken} from "./access-token.mjs";
 import {classifyFireAccessProblem} from "./access-diagnostic.mjs";
+import {probeFireAccessCrypto} from "./access-key-probe.mjs";
 
 export type ChatGPTUser={
   userId:string;
@@ -55,7 +56,7 @@ export async function getFireAccessDiagnostic():Promise<string>{
   const h=await headers();
   const token=getFireAccessToken(h);
   const validated=cfg?await verifyFireAccessJWT(token,cfg):null;
-  return classifyFireAccessProblem({
+  const code=classifyFireAccessProblem({
     runtime:{
       fireEnv:current.FIRE_ENV,
       accessRequired:current.FIRE_ACCESS_REQUIRED,
@@ -64,6 +65,9 @@ export async function getFireAccessDiagnostic():Promise<string>{
     },
     config:cfg,token,identity:validated,
   });
+  // Only if the token's untrusted metadata looked compatible but signature
+  // validation failed, run a NON-AUTHORIZING, redacted phase probe.
+  return code==="FIRE-A10-CRYPTO-OR-KEY" ? await probeFireAccessCrypto(token,cfg) : code;
 }
 export async function requireChatGPTUser(_returnTo:string):Promise<ChatGPTUser>{
   const user=await getChatGPTUser();
