@@ -9,7 +9,7 @@ import {validateTestAppIdentity,PROPOSED_TEST_MAPPING} from './test-app-identity
 
 const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
 const ALLOWED_KEYS=new Set([
- 'name','main','compatibility_date','compatibility_flags','d1_databases','r2_buckets',
+ 'name','topLevelName','main','compatibility_date','compatibility_flags','d1_databases','r2_buckets',
  'vars','assets','workers_dev','preview_urls','routes','observability',
  'rules','triggers','upload_source_maps'
 ]);
@@ -62,6 +62,7 @@ export function prepareStripeTestManifest(generated){
   insist(noHiddenTokens(generated),'Secrets must not be embedded in Wrangler config');
   const result={...generated,
     name:PROPOSED_TEST_MAPPING.worker,
+    topLevelName:PROPOSED_TEST_MAPPING.worker,
     workers_dev:true, // EXACT previously Access-protected workers.dev host
     preview_urls:false,
     routes:[],
