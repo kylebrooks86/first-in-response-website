@@ -111,4 +111,27 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         self.assertLess(S.index("$afterBindingRaw ="), S.index("deploy --dry-run --config $temporaryManifest"))
         self.assertLess(S.index("$afterBindingRaw ="), S.index("deploy --config $temporaryManifest --name"))
 
+
+    def test_new_worker_is_proven_after_upload_and_uncertain_upload_never_retried(self):
+        """The provider must show a different single 100%-serving QA version and exact D1."""
+        attempt = S.index("$script:qaUploadAttempted = $true")
+        upload = S.index("& $wrangler.Source deploy --config $temporaryManifest --name $workerName")
+        new_status = S.index("$publishedRaw = @(& $wrangler.Source deployments status --name $workerName --json)")
+        new_version = S.index("& $wrangler.Source versions view $newActiveVersion --name $workerName --json")
+        checked = S.index("$newBinding.bindingVerified -eq $true")
+        success = S.index("PASS: One NEW 100-percent active QA Worker version")
+        for a,b in ((attempt,upload),(upload,new_status),(new_status,new_version),(new_version,checked),(checked,success)):
+            self.assertLess(a,b)
+        self.assertIn("$publishedVersions.Count -eq 1 -and [double]$publishedVersions[0].percentage -eq 100", S)
+        self.assertIn("$newActiveVersion -cne $expectedOldVersion", S)
+        self.assertIn("-ExpectedVersion $newActiveVersion -ExpectedDatabaseId $dbId", S)
+        self.assertIn("$newBinding.remoteWrites -eq $false", S)
+        self.assertIn("DO NOT REPEAT PUBLISH", S)
+        self.assertIn("if ($script:qaUploadAttempted)", S)
+        self.assertIn("source-to-binary attestation remains OPEN", S)
+        self.assertNotIn("git reset", S)
+        self.assertNotIn("d1 migrations apply", S)
+        self.assertEqual(len(re.findall(r"&\\s*\\$wrangler\\.Source\\s+deploy --config",S)),1)
+
+
 if __name__=="__main__":unittest.main(verbosity=2)
