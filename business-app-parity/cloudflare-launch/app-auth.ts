@@ -78,7 +78,7 @@ export async function getFireLiveJwksProof():Promise<string>{
   const jwt=getFireAccessToken(await headers());
   const session=await verifyFireAccessJWT(jwt,cfg);
   if(!session)return "FIRE-LIVE-UNAUTHENTICATED";
-  const live=await verifyFireAccessJWT(jwt,cfg,{allowPinned:false,forceRefresh:true});
+  const live=await verifyFireAccessJWT(jwt,cfg,{forceRefresh:true});
   return live?"FIRE-LIVE-JWKS-VERIFIED":"FIRE-LIVE-JWKS-UNAVAILABLE";
 }
 export async function requireChatGPTUser(_returnTo:string):Promise<ChatGPTUser>{
