@@ -60,8 +60,11 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
           if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
           $script=Get-Content -LiteralPath $path -Raw
-          foreach($must in @('fire-stripe-test-20261101','120f6239-1566-423f-a77c-d8c8e0691317','dba421ba-fc66-4cf8-9c31-51616f8249ba','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','Assert ($actual -eq $ExpectedCommit.ToLowerInvariant())')) {
+          foreach($must in @('fire-stripe-test-20261101','120f6239-1560-423f-a77c-d8c8e0691317','dba421ba-fc66-4cf8-9c31-51616f8249ba','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','Assert ($actual -eq $ExpectedCommit.ToLowerInvariant())')) {
             if(-not $script.Contains($must)) { throw ('Missing exact target/read-only guard: '+$must) }
+          }
+          foreach($guard in @('$activeVersions.Count -eq 1','$activeVersions[0].version_id -eq $PriorVersion','[int]$activeVersions[0].percentage -eq 100')) {
+            if(-not $script.Contains($guard)) { throw ('Active 100-percent predecessor guard absent: '+$guard) }
           }
           if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation in TEST auth-fix deployment script' }
           Write-Host 'PASS: Acer TEST-only access fix script parses; exact target, SHA, secret, Access and no-billing guards found. NOT EXECUTED.'
