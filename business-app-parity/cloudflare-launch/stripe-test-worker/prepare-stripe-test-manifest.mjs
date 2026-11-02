@@ -81,6 +81,11 @@ export function prepareStripeTestManifest(generated){
     'Unexpected development configuration');
   insist(typeof generated.main==='string'&&generated.main.length>0&&
     !generated.main.includes('..')&&!generated.main.startsWith('/'),'Compiled Worker main must be relative');
+  insist(Array.isArray(generated.compatibility_flags)&&
+    generated.compatibility_flags.length>=1&&generated.compatibility_flags.length<=4&&
+    generated.compatibility_flags.every(x=>['nodejs_compat','nodejs_compat_v2','global_fetch_strictly_public'].includes(x))&&
+    new Set(generated.compatibility_flags).size===generated.compatibility_flags.length,
+    'Unexpected generated compatibility flags; do not weaken network or auth controls');
   insist(typeof generated.compatibility_date==='string','Missing compatibility date');
   insist(Array.isArray(generated.d1_databases)&&generated.d1_databases.length===1,
     'Exactly one local placeholder D1 required');
