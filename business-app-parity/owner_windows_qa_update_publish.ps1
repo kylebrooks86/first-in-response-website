@@ -152,6 +152,7 @@ Require ($afterBinding.bindingVerified -eq $true -and $afterBinding.remoteWrites
 # Normalize ONLY the obsolete, default legacy_env=true. The build's original
 # manifest and all D1 customer rows must be preserved. No secrets are read,
 # written, generated, displayed, or submitted during a code-only QA update.
+$script:qaUploadAttempted = $false
 $temporaryManifest = Join-Path (Split-Path -Parent $manifest) (
     'wrangler.fire-qa-firstpublish-' + [Guid]::NewGuid().ToString('D') + '.json')
 try {
@@ -162,12 +163,37 @@ try {
         & $wrangler.Source deploy --dry-run --config $temporaryManifest --name $workerName
         Require-Exit 'Local, no-upload pre-update verification'
         Write-Host 'PASS: No-upload pre-update verification. Owner confirmation and remote identity rechecked.'
+        # A CLI error may follow a committed write; NEVER auto-retry.
+        $script:qaUploadAttempted = $true
         & $wrangler.Source deploy --config $temporaryManifest --name $workerName
         Require-Exit 'Authorized existing synthetic QA Worker code update'
     } finally { Pop-Location }
-    Write-Host ('PASS: Existing synthetic QA Worker code updated from ' + $head)
+    # The upload command alone does not prove the new code is serving requests.
+    $publishedRaw = @(& $wrangler.Source deployments status --name $workerName --json)
+    Require-Exit 'Fresh post-upload active QA Worker deployment'
+    try { $published = ConvertFrom-Json -InputObject ($publishedRaw -join [Environment]::NewLine) }
+    catch { throw 'FIRE QA POST-DEPLOY UNCERTAIN: Invalid active deployment JSON.' }
+    Require ($null -ne $published -and $null -ne $published.versions) 'Post-upload deployment status missing; inspect read-only. Do not repeat deploy.'
+    $publishedVersions = @($published.versions)
+    Require ($publishedVersions.Count -eq 1 -and [double]$publishedVersions[0].percentage -eq 100) 'Post-upload traffic is not exactly one 100-percent QA version. Do not repeat deploy.'
+    $newActiveVersion = [string]$publishedVersions[0].version_id
+    Require ($newActiveVersion -cmatch '^[0-9a-f]{8}-[0-9a-f-]{27,}$' -and
+        $newActiveVersion -cne $expectedOldVersion) 'New QA version is absent or unverified. Do not repeat deploy.'
+    $newBindingRaw = @(& $wrangler.Source versions view $newActiveVersion --name $workerName --json)
+    Require-Exit 'Fresh post-upload physical QA D1 binding'
+    $newBinding = & $bindingHelper -Json ($newBindingRaw -join [Environment]::NewLine) -ExpectedVersion $newActiveVersion -ExpectedDatabaseId $dbId
+    Require ($newBinding.bindingVerified -eq $true -and $newBinding.remoteWrites -eq $false) 'New QA version does not prove physical D1 isolation and no R2. Do not repeat deploy.'
+    Write-Host ('PASS: One NEW 100-percent active QA Worker version: ' + $newActiveVersion)
+    Write-Host ('PASS: New version physically binds only QA D1 ' + $dbId + ' with no R2.')
     Write-Host ('Previously working code rollback version: ' + $expectedOldVersion)
-    Write-Host 'Verify hosted owner sign-in and synthetic customer persistence before any additional release gate advances.'
+    Write-Host ('Reviewed local Git source: ' + $head)
+    Write-Warning 'LIMIT: Wrangler version/D1 metadata does NOT prove remote Worker bytes equal local Git source. Exact source-to-binary attestation remains OPEN.'
+    Write-Host 'Verify only changed payment links and Void on iPhone; preserve earlier customer, photo and Voice acceptance.'
+} catch {
+    if ($script:qaUploadAttempted) {
+        Write-Warning 'FIRE QA UPLOAD MAY HAVE OCCURRED. DO NOT REPEAT PUBLISH. Inspect Wrangler deployments status and versions view READ ONLY. Preserve original rollback and D1; no automatic retry, rollback or migration.'
+    }
+    throw
 } finally {
     if (Test-Path -LiteralPath $temporaryManifest -PathType Leaf) {
         Remove-Item -LiteralPath $temporaryManifest -Force

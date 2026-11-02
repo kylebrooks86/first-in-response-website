@@ -144,7 +144,7 @@ await page.getByRole('button',{name:'Save $25 estimate'}).click();
 await page.getByText('Estimate ready',{exact:true}).waitFor();
 check(saves===beforeSmallSaves+1&&posted.items.length===1&&posted.items[0].totalCents===2500,
   'Small custom quote saved once at $25, with zero automatic price minimum');
-check(await page.getByText('$25 total.',{exact:false}).count()===1,
+check(await page.getByText('$25 total',{exact:false}).count()===1,
   'Small quote confirmation shows its saved $25 total, not a minimum');
 // A 2xx response can still be an uncertain save. Show the user how to inspect
 // stored estimates, and block duplicate retries even without a bundle discount.
@@ -165,7 +165,7 @@ for(const mismatch of ['total','deposit']){
  await page.getByRole('status').filter({hasText:'Save was not confirmed.'}).waitFor();
  check(saves===before+1,'Mismatch '+mismatch+' made a single server write attempt');
  check(await page.getByRole('button',{name:'Save $220 estimate'}).isDisabled(),'Mismatch '+mismatch+' blocks duplicate save');
- check(await page.getByText('Saved estimate amounts or 50% deposit did not match this reviewed quote.',{exact:false}).count()===1,'Mismatch '+mismatch+' shows correct safety warning');
+ check(await page.getByText('Saved estimate totals or deposit did not match this reviewed quote.',{exact:false}).count()===1,'Mismatch '+mismatch+' shows correct safety warning');
  check(await page.getByRole('button',{name:'Review stored estimates'}).count()===1,'Mismatch '+mismatch+' provides recovery path');
  const pendingId=await page.evaluate(()=>localStorage.getItem('fire:estimate:create-request:v1'));
  check(typeof pendingId==='string'&&/^[a-f0-9-]{36}$/i.test(pendingId),'Mismatch '+mismatch+' persists only an opaque ID');
