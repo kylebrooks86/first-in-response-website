@@ -37,6 +37,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Parse actual QA publisher with Windows PowerShell 5.1, never execute it
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile('business-app-parity/owner_windows_qa_update_publish.ps1', [ref]$tokens, [ref]$parseErrors)
+          if ($null -ne $parseErrors -and $parseErrors.Count -gt 0) {
+            foreach ($parseError in $parseErrors) {
+              Write-Output ('BLOCKED: QA publisher syntax at line ' + $parseError.Extent.StartLineNumber + ': ' + $parseError.Message)
+            }
+            exit 1
+          }
+          Write-Output 'PASS: QA publisher syntax valid in Windows PowerShell 5.1. No script executed.'
       - name: Install Python
         uses: actions/setup-python@v5
         with:
