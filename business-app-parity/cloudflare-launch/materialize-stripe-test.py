@@ -104,6 +104,29 @@ remaining = [
 if remaining or len(changed) < 30:
     raise SystemExit("STOP: incomplete owner-email isolation: " +
                      ", ".join(remaining) + "; converted: " + str(len(changed)))
+# Additional TEST-only kill switch: even if a Stripe credential were later
+# added accidentally, these routes refuse to call Stripe while the reviewed
+# Worker manifest says FIRE_STRIPE_MODE=disabled. Not applied to QA/LIVE/DR.
+stripe_routes = {
+    "app/api/payments/checkout/route.ts": "export async function POST(request: Request) {",
+    "app/api/payments/refund/route.ts": "export async function POST(request:Request){",
+    "app/api/payments/webhook/route.ts": "export async function POST(request:Request) {",
+    "app/api/payments/checkout/reconcile/route.ts": "export async function POST(request:Request){",
+    "app/api/payments/connection/route.ts": "export async function GET(){",
+}
+stop_line = (
+    '\n  if ((env as typeof env & { FIRE_STRIPE_MODE?:string }).FIRE_STRIPE_MODE !== "test")'
+    ' return Response.json({error:"Stripe TEST is intentionally disabled."},'
+    '{status:503,headers:{"cache-control":"no-store"}});'
+)
+for relative, signature in stripe_routes.items():
+    p = destination / relative
+    original = p.read_text(encoding="utf-8")
+    if original.count(signature) != 1 or "FIRE_STRIPE_MODE" in original:
+        raise SystemExit("STOP: Stripe TEST mode kill-switch injection changed: " + relative)
+    p.write_text(original.replace(signature, signature + stop_line), encoding="utf-8")
+print("PASS: Five Stripe-only routes fail closed until a separately approved TEST mode switch.")
+
 print("PASS: migrated " + str(len(changed)) +
       " remaining historical Sites owner-email references ONLY in isolated generated TEST files.")
 print("PASS: SOURCE ONLY isolated Stripe TEST candidate; Access owner identity + staging mode.")
