@@ -120,6 +120,12 @@ jobs:
             python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
           fi
           grep -q '00000000-0000-4000-8000-000000000000' "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src/vite.config.ts"
+          if [ "${{ matrix.target }}" = "stripe-test" ]; then
+            for route in app/api/payments/checkout/route.ts app/api/payments/refund/route.ts app/api/payments/webhook/route.ts app/api/payments/checkout/reconcile/route.ts app/api/payments/connection/route.ts; do
+              grep -q 'FIRE_STRIPE_MODE !== "test"' "$RUNNER_TEMP/fire-launch-stripe-test-src/$route"
+            done
+            echo 'PASS: TEST app hard-refuses all five Stripe routes while FIRE_STRIPE_MODE=disabled.'
+          fi
       - name: Install pinned dependencies and typecheck real Cloudflare Access adapter
         shell: bash
         run: |
