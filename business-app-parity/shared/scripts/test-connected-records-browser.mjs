@@ -57,6 +57,10 @@ let reads=0,writes=0,mode='ok',signMode='ready',reviewMode='ready',taskMode='rea
  }if(mode==='error'){send(503,{error:'Synthetic read interrupted'});return;}if(mode==='badCustomer'&&req.url==='/api/customers'){send(200,{...payload,customers:payload.customers.map((row,i)=>i===0?{...row,estimateTotal:'1.5'}:row)});return;}if(mode==='corrupt'&&req.url.startsWith('/api/estimate-history')){send(200,{estimates:[{...scheduled[0],totalCents:'1.75'}],nextCursor:null});return;}send(200,req.url.startsWith('/api/estimate-history')?{estimates:scheduled,nextCursor:null}:payload);return;}res.setHeader('content-type','text/html; charset=utf-8');res.end('<!doctype html><html data-theme="light"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;let browser,checks=0;const errors=[],outside=[];const check=(ok,label)=>{assert.ok(ok,label);checks++;};
 try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();
+ // Synthetic fixture is pinned to October 20, 2026. The real calendar uses
+ // new Date(), so freeze browser time rather than depending on CI wall date.
+ // This changes only the local Chrome test clock, never the app or server time.
+ await page.clock.setFixedTime(new Date('2026-10-20T14:00:00Z'));
  await page.addInitScript(()=>{
    window.__fireCopiedMessages=[];
    window.__fireCopyShouldFail=false;
