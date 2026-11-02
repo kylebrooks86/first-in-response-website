@@ -70,6 +70,20 @@ jobs:
           }
           if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation in TEST auth-fix deployment script' }
           Write-Host 'PASS: Acer TEST-only access fix script parses; exact target, SHA, secret, Access and no-billing guards found. NOT EXECUTED.'
+      - name: Parse owner-approved REDACTED TEST diagnostic Acer deploy script (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-approved-access-diagnostic.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $script=Get-Content -LiteralPath $path -Raw
+          foreach($must in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','getFireAccessDiagnostic()','FIRE-A04-TOKEN-ABSENT','FIRE-A10-CRYPTO-OR-KEY','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
+            if(-not $script.Contains($must)) { throw ('Required owner, exact version or fail-closed guard missing: '+$must) }
+          }
+          if(($script.Split([string[]]@("Pnpm @('exec','wrangler','deploy','--config',`$review,'--strict')"),[System.StringSplitOptions]::None)).Count -ne 2) { throw 'Exactly one hosted deployment command required' }
+          if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation' }
+          Write-Host 'PASS: Diagnostic-only Acer PowerShell parser and one-deploy safety guards; NOTHING executed.'
       - name: Execute V3 PowerShell GitHub REST list normalization with 25 synthetic entries (NO cloud)
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test-rest-migration-array-v3.ps1
