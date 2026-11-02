@@ -21,9 +21,11 @@ function configOK(c){
     &&c.ownerEmail===c.ownerEmail.trim().toLowerCase();
 }
 function validJwk(k) {
-  const permitted=["kid","kty","alg","use","e","n"];
+  const permitted=["kid","kty","alg","use","e","n","key_ops","ext"];
   return k&&typeof k==="object"&&!Array.isArray(k)
     &&Object.keys(k).every(x=>permitted.includes(x))
+    &&(k.key_ops===undefined||Array.isArray(k.key_ops)&&k.key_ops.length===1&&k.key_ops[0]==="verify")
+    &&(k.ext===undefined||k.ext===true||k.ext===false)
     &&k.kty==="RSA"&&(k.alg===undefined||k.alg==="RS256")
     &&(k.use===undefined||k.use==="sig")
     &&typeof k.kid==="string"&&k.kid.length>=8&&k.kid.length<160
