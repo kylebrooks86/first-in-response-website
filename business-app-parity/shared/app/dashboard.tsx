@@ -840,7 +840,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         throw new Error(result.error||'The estimate could not be saved.');
       }
       if(promotionEvidence&&result.promotionAttributionSaved!==true){setUncertainSave(true);throw new Error("Verified saved promotion receipt was not confirmed. Review stored estimates before another attempt.");}
-      if(!matchesReviewedEstimateReceipt(result,{subtotalCents:subtotal,discountCents:discount.appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents:bundleInputCents??0})){setUncertainSave(true);throw new Error('Saved estimate amounts or 50% deposit did not match this reviewed quote. Review stored estimates before another attempt.');}
+      if(!matchesReviewedEstimateReceipt(result,{subtotalCents:subtotal,discountCents:discount.appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents:bundleInputCents??0})){setUncertainSave(true);throw new Error('Saved estimate totals or deposit did not match this reviewed quote. Review stored estimates before another attempt.');}
       if(result.id!==requestId||result.requestId!==requestId||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
       if(!releasePendingEstimateCreate(estimateCreateStorage(),requestId)){setUncertainSave(true);throw new Error("Estimate was saved but its on-device recovery marker could not be cleared. Check stored estimates before sending another quote.");}
       createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);
@@ -892,7 +892,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         :<p role="alert">Browser recovery storage is unavailable. New quote creation is disabled to prevent untraceable repeat saves.</p>}
         {createStorageError&&<p role="alert">{createStorageError}</p>}
       </section>}
-      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2>{jobNumberLabel(savedReceipt?.jobNumber)&&<p className="mt-2 font-semibold">{jobNumberLabel(savedReceipt?.jobNumber)}</p>}<p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
+      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2>{jobNumberLabel(savedReceipt?.jobNumber)&&<p className="mt-2 font-semibold">{jobNumberLabel(savedReceipt?.jobNumber)}</p>}<p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total · {money(savedReceipt?.deposit??deposit)} deposit. The remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
       :step===1?<div className="space-y-5 px-6 py-6">
         <CustomerLookup disabled={Boolean(revisionSource)||saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
         {customerLoading&&<p role="status">Checking saved customer information…</p>}{revisionSource&&revisionBundle.error&&<div role="alert"><p>{revisionBundle.error}</p><Button variant="outline" onClick={()=>void revisionBundle.reload()}>Retry saved discounts</Button></div>}
@@ -2144,6 +2144,26 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       setError("The saved report could not be verified. Reconnect and reopen this job before trying again. Job status was not changed.");
     }finally{closeoutLock.current=false;setCheckingCloseout(false);}
   };
+  // Non-destructive owner action: keep the quote and history in the Lost lane.
+  // Server guards actual D1 dependencies again inside its conditional UPDATE.
+  const canVoidUnaccepted=(["draft","sent"].includes(estimate.status))
+    && !estimate.acceptedAt && !estimate.signedAt && !estimate.scheduledAt
+    && !estimate.invoiceId && Number(estimate.paidCents)===0
+    && Number(estimate.pendingRefundCount)===0 && Number(estimate.openCheckoutCount)===0;
+  const voidUnaccepted=async()=>{
+    if(!canVoidUnaccepted||saving||mutationLock.current||closeoutLock.current)return;
+    if(!window.confirm(`Void this unaccepted estimate for ${estimate.customer}? Its customer link will no longer allow signing. FIRE will retain the quote under Lost for your records. This does NOT permanently delete it.`))return;
+    mutationLock.current=true;setSaving(true);setError("");
+    try{
+      const response=await fetch(`/api/estimates/${estimate.id}/void`,{method:"POST"});
+      const result=await response.json() as {ok?:boolean;estimate?:{id?:string;status?:string;scheduledAt?:string|null};error?:string};
+      if(!response.ok||result.ok!==true||result.estimate?.id!==estimate.id||result.estimate.status!=="declined")
+        throw new Error(result.error||"Void was not confirmed. Refresh this estimate before retrying.");
+      onChanged({...estimate,status:"declined",scheduledAt:null});
+    }catch(error){
+      setError((error instanceof Error?error.message:"Void confirmation unavailable.")+" Refresh this estimate before any further change.");
+    }finally{mutationLock.current=false;setSaving(false);}
+  };
   const createInvoice = async () => {
     if(mutationLock.current||closeoutLock.current)return;
     mutationLock.current=true;setSaving(true); setError("");
@@ -2172,9 +2192,9 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
-      <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>
+      {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>}
       {estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
-      {estimate.status!=="superseded"&&estimate.customerId&&<MessageComposer
+      {!["superseded","declined"].includes(estimate.status)&&estimate.customerId&&<MessageComposer
         customer={messageCustomer}
         estimate={estimate}
         initialTemplate={estimate.invoiceId?"invoice":"estimate"}
@@ -2189,7 +2209,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}</div></div>}
       {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
-      {estimate.status!=="superseded"&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
+      {!["superseded","declined"].includes(estimate.status)&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
     {workingOnJob?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
     <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
@@ -2197,9 +2217,15 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     <details className="detail-more-tools">
       <summary>More tools</summary>
       <QuoteVersions key={estimate.id} estimateId={estimate.id}/>
+      {canVoidUnaccepted&&<div className="detail-context-tools" role="group" aria-label="Estimate removal">
+        <Button type="button" variant="outline" className="min-h-11" disabled={saving||checkingCloseout} onClick={()=>void voidUnaccepted()}>
+          Void unaccepted estimate
+        </Button>
+        <p className="service-description-help">Moves this quote to Lost and blocks signing. Preserves history; does not permanently delete the record.</p>
+      </div>}
       {estimate.status==='approved'&&estimate.acceptedAt&&estimate.signedAt&&estimate.paidCents===0&&!estimate.invoiceId&&<details className="ui-help"><summary>Revise approved quote</summary><p>Saving replaces the original quote immediately and disables its old payment link. The original scope and signature stay in history; the replacement needs a new signature. Available before any payment, checkout or invoice.</p><NewEstimate customer={messageCustomer} revisionSource={estimate} onSaved={next=>window.location.assign('/?openEstimate='+encodeURIComponent(next.id))}/></details>}
       <div className="detail-actions">
-        {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
+        {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
         {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
         {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
         {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
