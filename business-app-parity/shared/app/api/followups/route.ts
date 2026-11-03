@@ -57,15 +57,30 @@ export async function GET(request:Request){
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
       `).bind(...(focusedId!==null?[focusedId,2]:[cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1])).all<{id:string;createdAt:string}>();
   const base=result.results.slice(0,size),last=base.at(-1);
+  // Follow-ups opens the same editable estimate detail as Estimates and
+  // Customers. Its summary-only rows previously omitted the actual service
+  // lines, allowing the shared editor to invent one discounted-price line.
+  // Attach every persisted line in database order, even when no repeat-
+  // cadence preferences are saved. The query is bounded to THIS page/ID.
+  type SavedLine={id:string;estimateId:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
+  const grouped=new Map<string,SavedLine[]>();
+  if(base.length){
+    const lines=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id IN (${base.map(()=>'?').join(',')}) ORDER BY rowid ASC`)
+      .bind(...base.map(e=>e.id)).all<SavedLine>();
+    for(const raw of lines.results){
+      const line={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};
+      grouped.set(line.estimateId,[...(grouped.get(line.estimateId)??[]),line]);
+    }
+  }
   const prefRow=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>();
-  let estimates:unknown[]=base;
+  let estimates:unknown[]=base.map(e=>({...e,items:grouped.get(e.id)??[]}));
   if(prefRow&&base.length){
-    const prefs=decodeBusinessPreferences(prefRow),items=await env.DB.prepare(`SELECT estimate_id AS estimateId,name FROM estimate_items WHERE estimate_id IN (${base.map(()=>'?').join(',')})`).bind(...base.map(e=>e.id)).all<{estimateId:string;name:string}>();
+    const prefs=decodeBusinessPreferences(prefRow);
     const rateRows=await env.DB.prepare('SELECT key,body FROM message_templates WHERE key LIKE ?').bind(SERVICE_RATE_PREFIX+'%').all<{key:string;body:string}>();
     const rateMap=new Map(rateRows.results.map(r=>[r.key.slice(SERVICE_RATE_PREFIX.length),r]));
     const ids=[...FIRE_SERVICES.map(s=>s.id),...Array.from(rateMap.keys()).filter(customServiceId)];
     const identities=catalogServices(ids.map(id=>decodeServiceRate(id,rateMap.get(id)??null)),true);
-    estimates=base.map(e=>({...e,repeatMonths:repeatIntervalFor(items.results.filter(i=>i.estimateId===e.id).map(i=>i.name),prefs.repeatMonths,identities)}));
+    estimates=base.map(e=>({...e,items:grouped.get(e.id)??[],repeatMonths:repeatIntervalFor((grouped.get(e.id)??[]).map(i=>i.name),prefs.repeatMonths,identities)}));
   }
   const nextCursor=result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
   return Response.json({estimates,nextCursor,pageSize:size,...(focusedId!==null?{estimateId:focusedId}:{})});

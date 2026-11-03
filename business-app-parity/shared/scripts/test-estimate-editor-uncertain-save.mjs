@@ -15,7 +15,7 @@ function walk(n){
 }
 walk(fn);assert.ok(helpers.save&&helpers.checkSaved,'Extract actual Save and Check saved callbacks');
 const source=fn.getText(ast);
-assert.ok(source.includes('disabled={saving||uncertain||!bundle.ready||!changedSinceOpen}'),'Uncertain state disables iPhone Save');
+assert.ok(source.includes('disabled={saving||uncertain||!bundle.ready||!savedLinesVerified||!changedSinceOpen}'),'Uncertain state disables iPhone Save');
 assert.ok(source.includes('Check saved estimate'),'Read-only recovery action is accessible');
 const code=ts.transpileModule('exports.save='+helpers.save.getText(ast)+';exports.checkSaved='+helpers.checkSaved.getText(ast)+';',{
  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
@@ -26,7 +26,7 @@ function fixture(kind){
  const row={id:'estimate-uuid',customerId:'customer-uuid',customer:'Synthetic Customer',service:'Wash',
   status:'draft',subtotalCents:20001,discountCents:0,totalCents:20001,depositCents:10001,
   items:[{id:'saved-real-uuid',name:'Synthetic Wash',description:'Exact charge',quantity:3,unit:'job',totalCents:20001}]};
- const ctx={exports:{},saveLock:{current:false},saving:false,uncertain:false,bundle:{ready:true},
+ const ctx={exports:{},saveLock:{current:false},saving:false,uncertain:false,savedLinesVerified:true,bundle:{ready:true},
   estimate:{id:'estimate-uuid',customerId:'customer-uuid'},items:[{id:'saved-real-uuid',name:'Synthetic Wash',description:'Exact charge',quantity:3,unit:'job',unitRateCents:6667,preservedLineTotalCents:20001}],
   editableLineTotalCents:()=>20001,validEditablePrice:()=>true,subtotal:20001,bundleInvalid:false,
   discountInputCents:0,bundleInputCents:0,discountMode:'percent',discount:{total:20001,deposit:10001,appliedDiscount:0},

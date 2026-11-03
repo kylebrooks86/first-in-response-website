@@ -1,0 +1,42 @@
+name: FIRE Follow-ups Saved Estimate Scope and Safe Edit (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/followups/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-followup-saved-service-lines-sqlite.mjs'
+      - 'business-app-parity/shared/scripts/test-estimate-editor-save-recovery.mjs'
+      - '.github/workflows/fire-followup-estimate-actual-service-lines.yml'
+permissions:
+  contents: read
+jobs:
+  full-saved-scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline project dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing FIRE Business App
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Verify real Follow-ups saved UUID and original quote scope in SQLite
+        run: node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
+      - name: Preserve exact owner lookup and cursor authorization
+        run: node scripts/test-followup-exact-lookup.mjs
+      - name: Reject fabricated missing or mismatched service-line edits
+        run: node scripts/test-estimate-editor-save-recovery.mjs

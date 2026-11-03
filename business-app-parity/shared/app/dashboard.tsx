@@ -1931,14 +1931,29 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const [discountValue,setDiscountValue]=useState("");
   const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const [uncertain,setUncertain]=useState(false);
+  const [savedLinesVerified,setSavedLinesVerified]=useState(false);
   const hydrate=()=>{
-    const source=estimate.items?.length?estimate.items:[{id:"",name:estimate.service,description:estimate.serviceDescription||serviceDescriptionFor(estimate.service),quantity:1,unit:"job",totalCents:estimate.totalCents}];
-    const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};});
+    const source=Array.isArray(estimate.items)?estimate.items:[];
+    // All entry screens must supply durable saved service rows. A summary
+    // is NEVER an editable one-service estimate; totalCents might include
+    // discounts and the comma-separated names are not genuine D1 line IDs.
+    const verified=source.length>0&&Number.isSafeInteger(estimate.subtotalCents)&&
+      Number(estimate.subtotalCents)>=0&&
+      source.every(item=>item&&typeof item.id==="string"&&item.id.length>0&&
+        typeof item.name==="string"&&item.name.trim().length>0&&
+        typeof item.description==="string"&&typeof item.unit==="string"&&item.unit.length>0&&
+        Number.isFinite(Number(item.quantity))&&Number(item.quantity)>0&&
+        Number.isSafeInteger(Number(item.totalCents))&&Number(item.totalCents)>=0)&&
+      new Set(source.map(item=>item.id)).size===source.length&&
+      source.reduce((sum,item)=>sum+Number(item.totalCents),0)===Number(estimate.subtotalCents);
+    setSavedLinesVerified(verified);
+    const nextItems=verified?source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};}):[];
     setItems(nextItems);
     const appreciation=Boolean(Number(estimate.appreciationDiscount||0));setAppreciationDiscount(appreciation);
     const mode:DiscountMode=estimate.additionalDiscountType==="dollar"?"dollar":"percent";setDiscountMode(mode);
     const stored=Number(estimate.additionalDiscountValue||0);const input=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";
-    setDiscountValue(input);setError("");
+    setDiscountValue(input);
+    setError(verified?"":"Saved estimate services could not be verified. Reopen this job in Estimates before editing; saved prices are unchanged.");
     initialEditSnapshot.current=JSON.stringify({items:nextItems,appreciationDiscount:appreciation,discountMode:mode,discountValue:input});
   };
   const currentEditSnapshot=JSON.stringify({items,appreciationDiscount,discountMode,discountValue});
@@ -1958,9 +1973,10 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const bundleInvalid=bundleInputCents===null||bundleInputCents>subtotal;
   const discountInvalid=discountInputCents===null||(discountMode==="dollar"&&discountInputCents>subtotal);
   const discount=discountMath(subtotal,appreciationDiscount,discountMode,discountInputCents===null?0:discountInputCents/100,items.some(item=>Boolean(item.name)&&item.quantity>0&&validEditablePrice(item)),bundleInputCents??0);
-  const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
+  const addService=()=>{if(savedLinesVerified)setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);};
   const save=async()=>{
     if(saveLock.current||!bundle.ready)return;
+    if(!savedLinesVerified){setError("Saved service details are missing. Reopen this job in Estimates before editing.");return;}
     if(uncertain){setError("Check the saved estimate first; another Save could repeat a completed edit.");return;}
     if(!Number.isSafeInteger(subtotal)||!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!validEditablePrice(item))){setError("Every service needs a service, quantity, and valid price.");return;}
     if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
@@ -2046,7 +2062,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit estimate</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit estimate</DialogTitle></DialogHeader></div>
     <div className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex={0}>
     {bundle.error&&<div role="alert"><p>{bundle.error}</p><Button variant="outline" onClick={()=>void bundle.reload()}>Retry saved discounts</Button></div>}{!bundle.ready&&!bundle.error&&<p role="status">Verifying saved discount components…</p>}
-    <fieldset disabled={saving||!bundle.ready} className="contents"><details className="ui-help estimate-editor-help"><summary>Pricing help</summary><p className="service-description-help">Saved line totals stay unchanged while you edit. Choose Per unit or Reset to standard to recalculate.</p></details>
+    <fieldset disabled={saving||!bundle.ready||!savedLinesVerified} className="contents"><details className="ui-help estimate-editor-help"><summary>Pricing help</summary><p className="service-description-help">Saved line totals stay unchanged while you edit. Choose Per unit or Reset to standard to recalculate.</p></details>
     {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header><div><Label htmlFor={`edit-estimate-service-${index}`}>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});}}><SelectTrigger id={`edit-estimate-service-${index}`} className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker" position="popper" sideOffset={6} collisionPadding={16}>{estimateServicePickerOptions(services).map((svc)=><SelectItem className="estimate-service-picker-item" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label htmlFor={`edit-estimate-description-${index}`}>Scope &amp; description</Label><Textarea id={`edit-estimate-description-${index}`} rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label htmlFor={`edit-estimate-quantity-${index}`}>Quantity</Label><Input id={`edit-estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
     <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
     <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
@@ -2055,7 +2071,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     {error&&<p className="save-error" role="alert">{error}</p>}
     </fieldset>
     </div>
-    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||uncertain||!bundle.ready||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button>{uncertain&&<Button type="button" variant="outline" disabled={saving} onClick={()=>void checkSaved()}>{saving?"Checking saved estimate…":"Check saved estimate"}</Button>}</div>
+    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||uncertain||!bundle.ready||!savedLinesVerified||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button>{uncertain&&<Button type="button" variant="outline" disabled={saving} onClick={()=>void checkSaved()}>{saving?"Checking saved estimate…":"Check saved estimate"}</Button>}</div>
   </DialogContent></Dialog>;
 }
 
