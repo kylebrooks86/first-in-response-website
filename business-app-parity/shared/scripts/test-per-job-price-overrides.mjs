@@ -17,7 +17,11 @@ const slices=[
 let checks=0;
 assert.equal(FIRE_SERVICES.length,58,'All 58 services must remain available');checks++;
 for(const [label,editor] of slices){
-  assert.ok(editor.includes('services.map((svc)=><SelectItem'),
+  // New Estimate / Edit Estimate / Edit Invoice now use a pure custom-first
+  // UI order, while still receiving the *entire* services catalog unchanged.
+  // The dedicated iPhone service-picker test verifies this helper is lossless.
+  assert.ok(editor.includes('services.map((svc)=><SelectItem')||
+    editor.includes('estimateServicePickerOptions(services).map((svc)=><SelectItem'),
     label+' must offer all current services from the shared catalog');checks++;
   assert.ok(editor.includes('unitRateCents:svc.rate||0'),
     label+' must prefill the quoted line with the shared starting rate');checks++;
