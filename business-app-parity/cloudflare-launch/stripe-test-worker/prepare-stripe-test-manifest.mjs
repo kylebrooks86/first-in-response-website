@@ -124,6 +124,22 @@ export function prepareStripeTestManifest(generated){
     insist(generated.observability.redact_query_string===false,
       'TEST observability redaction setting differs from original dashboard');
   }
+  // Authenticated owner read-only Cloudflare script and serving-version GETs
+  // (Nov 3): enabled=true, logs.enabled=true, logs.invocation_logs=true.
+  // Preserve those exact settings. The earlier candidate only set redaction,
+  // which could silently disable logs on the new version.
+  const existingObservability=generated.observability||{};
+  insist(!Object.hasOwn(existingObservability,'enabled')||
+    existingObservability.enabled===true,
+    'TEST remote observability is enabled; refusing a contradictory build');
+  insist(!Object.hasOwn(existingObservability,'logs')||
+    isObject(existingObservability.logs),
+    'TEST log settings must be an object when present');
+  const existingLogs=existingObservability.logs||{};
+  for(const key of ['enabled','invocation_logs']){
+    insist(!Object.hasOwn(existingLogs,key)||existingLogs[key]===true,
+      'TEST log setting '+key+' contradicts verified remote true');
+  }
   insist(noHiddenTokens(generated),'Secrets must not be embedded in Wrangler config');
   const result={...generated,
     name:PROPOSED_TEST_MAPPING.worker,
@@ -142,9 +158,11 @@ export function prepareStripeTestManifest(generated){
       database_id:PROPOSED_TEST_MAPPING.d1.uuid
     }],
     vars:{...PROPOSED_TEST_MAPPING.vars},
-    // Keep exact existing remote setting seen in Cloudflare's own drift diff.
-    // Other generated observability fields (e.g. logs enabled) stay unchanged.
-    observability:{...(generated.observability||{}),redact_query_string:false}
+    // Keep every known existing remote logging on/off bit unchanged. Other
+    // generated observability properties (sampling, destinations) are retained.
+    observability:{...existingObservability,enabled:true,
+      logs:{...existingLogs,enabled:true,invocation_logs:true},
+      redact_query_string:false}
   };
   delete result.r2_buckets;
   for(const key of [...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS),'dev','build','python_modules']){

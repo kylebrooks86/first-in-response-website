@@ -1,0 +1,92 @@
+name: FIRE Gate9 INACTIVE TEST Version Upload Guard (OFFLINE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs'
+      - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
+permissions:
+  contents: read
+jobs:
+  offline-inactive-version-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Parse exact Windows script and prove no immediate deployment or unsafe hosted operation
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -ne 0){$errors|ForEach-Object{Write-Error $_.Message};throw 'PowerShell syntax invalid'}
+          $s=Get-Content -LiteralPath $path -Raw
+          foreach($must in @(
+            '[switch]$Upload',
+            'if(-not $Upload)',
+            '48c61a2e62df4857bc525c51b5f6f0717b5551d8',
+            'fire-stripe-test-20261101',
+            'dba421ba-fc66-4cf8-9c31-51616f8249ba',
+            'FIRE_ACCESS_AUD,FIRE_ACCESS_OWNER_EMAIL,FIRE_ACCESS_TEAM_DOMAIN,STRIPE_WEBHOOK_SECRET',
+            'redact_query_string',
+            '$cfg.observability.logs.enabled -ceq $true',
+            '$cfg.observability.logs.invocation_logs -ceq $true',
+            'Get-StrictVersionIds',
+            'VerifyVersion $newId',
+            'DO NOT RETRY',
+            "SetEnvironmentVariable('CI','true','Process')",
+            'GetEnvironmentVariable',
+            'Pnpm @(''exec'',''wrangler'',''versions'',''upload'',''--config'',$review,''--keep-vars'',''--strict'')',
+            'Original TEST version still 100%',
+            'THIS SCRIPT DOES NOT ACTIVATE ANY VERSION'
+          )){
+            if(-not $s.Contains($must)){throw ('Missing inactive-only safety invariant: '+$must)}
+          }
+          if(([regex]::Matches($s,"Pnpm @\('exec','wrangler','versions','upload'")).Count -ne 1) {
+            throw 'Require exactly ONE inactive-version upload'
+          }
+          if($s.Contains("Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--keep-vars','--strict')")) {
+            throw 'Immediate Worker deploy forbidden'
+          }
+          if($s -match 'wrangler.{0,30}versions.{0,15}deploy|wrangler (?:secret|d1|r2) (?:put|bulk|delete|execute|create)|--yes'){
+            throw 'Unsafe hosted operation forbidden in inactive uploader'
+          }
+          if(-not $s.Contains('Get-StrictVersionIds') -or -not $s.Contains('$lv[0].percentage -eq 100') -or
+             -not $s.Contains('$served[0].percentage -eq 100')){
+            throw 'Serving predecessor must remain at 100 percent before and after'
+          }
+          Write-Host 'PASS: Offline PowerShell syntax and one inactive-only upload verified; NO hosted action.'
+      - name: Test exact read-only binding helper and reject any enabled/missing/secret-text Stripe mode
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
+          $src=Get-Content -LiteralPath $path -Raw
+          if (-not $src.Contains("function Assert-FireStripeTestModeDisabled") -or
+              -not $src.Contains("mode.text -cne 'disabled'")) {
+            throw 'Pinned isolated TEST disabled-mode helper missing'
+          }
+          . "./$path"
+          $good=@([pscustomobject]@{name='FIRE_STRIPE_MODE';type='plain_text';text='disabled'})
+          if (-not (Assert-FireStripeTestModeDisabled -Bindings $good)) {throw 'Expected mode disabled'}
+          foreach($bad in @(
+            @(),
+            @([pscustomobject]@{name='FIRE_STRIPE_MODE';type='plain_text';text='test'}),
+            @([pscustomobject]@{name='FIRE_STRIPE_MODE';type='secret_text';text='disabled'}),
+            @([pscustomobject]@{name='FIRE_STRIPE_MODE';type='plain_text';value='disabled'}),
+            @($good[0],$good[0])
+          )){
+            $refused=$false
+            try{$null=Assert-FireStripeTestModeDisabled -Bindings $bad}catch{$refused=$true}
+            if(-not $refused){throw 'Must refuse an invalid or ambiguous Stripe mode'}
+          }
+          Write-Host 'PASS: Exact audited Stripe-disabled helper and 5 fail-closed cases; no provider calls.'
+      - name: Exercise eight synthetic version ID list cases (no cloud)
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1
+      - name: Assert all authenticated remote logging bits preserved in isolated TEST manifest
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs

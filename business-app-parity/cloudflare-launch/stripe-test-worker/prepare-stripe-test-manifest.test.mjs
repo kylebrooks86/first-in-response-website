@@ -41,8 +41,9 @@ test('compiles exact isolated test manifest locally with no billable storage and
  assert.equal(result.vars.FIRE_ACCESS_REQUIRED,'enabled');
  assert.deepEqual(Object.keys(result.vars).sort(),['FIRE_ACCESS_REQUIRED','FIRE_ENV','FIRE_STRIPE_MODE','SITE_ORIGIN']);
  assert.deepEqual(result.assets,generated.assets);
- assert.deepEqual(result.observability,{redact_query_string:false},
-   'TEST-only manifest must preserve original remote logging-redaction setting');
+ assert.deepEqual(result.observability,{
+   enabled:true,logs:{enabled:true,invocation_logs:true},redact_query_string:false
+ },'TEST-only manifest must retain all four authenticated remote logging settings');
  assert.doesNotMatch(JSON.stringify(result),/FIRE_ACCESS_AUD|FIRE_ACCESS_OWNER_EMAIL|FIRE_ACCESS_TEAM_DOMAIN|sk_test_|rk_test_|whsec_/);
 });
 test('Cloudflare Vite empty generated provider defaults are stripped without enabling new resources',()=>{
@@ -109,8 +110,27 @@ test('Remote Gate9 TEST observability setting retained, without changing unrelat
  const withoutExplicit=local();
  withoutExplicit.observability={enabled:true,logs:{enabled:true}};
  const same=prepareStripeTestManifest(withoutExplicit);
- assert.deepEqual(same.observability,{enabled:true,logs:{enabled:true},redact_query_string:false});
+ assert.deepEqual(same.observability,{
+   enabled:true,logs:{enabled:true,invocation_logs:true},redact_query_string:false
+ });
  const contradiction=local();
  contradiction.observability={enabled:true,redact_query_string:true};
  assert.throws(()=>prepareStripeTestManifest(contradiction),/FIRE TEST BUILD BLOCKED/);
+ for(const contradictory of [
+   {enabled:false},
+   {enabled:true,logs:{enabled:false,invocation_logs:true}},
+   {enabled:true,logs:{enabled:true,invocation_logs:false}},
+   {enabled:true,logs:null}
+ ]) {
+   const candidate=local();
+   candidate.observability=contradictory;
+   assert.throws(()=>prepareStripeTestManifest(candidate),/FIRE TEST BUILD BLOCKED/,
+     'Contradictory compiled logging metadata must stop before hosted upload');
+ }
+ const preserved=local();
+ preserved.observability={enabled:true,head_sampling_rate:0.5,
+   logs:{enabled:true,invocation_logs:true,head_sampling_rate:0.25},
+   redact_query_string:false};
+ assert.deepEqual(prepareStripeTestManifest(preserved).observability,preserved.observability,
+   'Existing extra sampling settings must be preserved, not reset');
 });
