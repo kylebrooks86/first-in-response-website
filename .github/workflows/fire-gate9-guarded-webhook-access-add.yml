@@ -1,0 +1,63 @@
+name: FIRE Gate 9 Exact TEST Webhook Access Change Guard (NO HOSTED WRITE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_add_exact_gate9_webhook_access_override.ps1'
+      - '.github/workflows/fire-gate9-guarded-webhook-access-add.yml'
+permissions:
+  contents: read
+jobs:
+  offline-owner-access-mutation-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Parse existing owner-approved guarded PowerShell and verify exact access-scope requirements
+        shell: pwsh
+        run: |
+          $f='business-app-parity/cloudflare-launch/stripe-test-worker/owner_add_exact_gate9_webhook_access_override.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($f,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -ne 0){ $errors | ForEach-Object { Write-Error $_.Message }; throw 'Syntax parse error' }
+          $s=Get-Content -LiteralPath $f -Raw
+          foreach($needle in @(
+            'bfc00939cfb2f8dfd8581a7a7f5f1307',
+            '09dbb414-997f-494f-85a5-a3a65a5a92ef',
+            '72f9cab371974bc8811da05f44976fa9',
+            'fire-stripe-test-20261101 - Cloudflare Workers',
+            "'/api/payments/webhook'",
+            "'/estimate/*'","'/invoice/*'","'/pay/*'","'/_next/static/*'",
+            "'/assets/*'","'/fire-app-logo.png'","'/favicon.ico'",
+            "    \$beforePaths=\$seven",
+            "    \$afterPaths=\$eight",
+            "    \$mode='ADD'",
+            "    \$confirm=Read-Host",
+            "'ADD WEBHOOK TEST ONLY'",
+            'Assert-ExactPaths $current $beforePaths',
+            'Assert-ExactPaths $last.result $beforePaths',
+            'Get-FireFingerprint $last.result',
+            "ProtectedData]::Protect",
+            "ProtectedData]::Unprotect",
+            'Assert-ExactPaths $fresh $afterPaths',
+            'Assert-ExactPaths $probe.result $beforePaths',
+            "Read-Host 'Paste temporary Cloudflare Access TEST edit token' -AsSecureString",
+            "FIRE-Access-TEST-before-Gate9-webhook-"
+          )){
+            if(-not $s.Contains($needle)){throw ('FAIL: Missing safety invariant: '+$needle)}
+          }
+          foreach($bad in @(
+            '/api/public/estimates/8bd90bf2eb6f420d9372794a34aa5124/accept',
+            "'/api/payments/checkout'",
+            "'/api/payments/refund'",
+            "'/*'",
+            'wrangler deploy','d1 migrations apply','stripe.com/v1/'
+          )){
+            if($s.Contains($bad)){throw ('FAIL: Unapproved mutation or public bypass: '+$bad)}
+          }
+          $puts=[regex]::Matches($s,'Invoke-RestMethod -Method Put -Uri \$uri').Count
+          if($puts -ne 2){throw 'Require exactly one guarded Access PUT and one rollback PUT'}
+          $gets=[regex]::Matches($s,'Invoke-RestMethod -Method Get -Uri \$uri').Count
+          if($gets -lt 4){throw 'Must verify Access pre-state, pre-PUT freshness, post-state and rollback'}
+          Write-Host 'PASS: Scope pinned to exact TEST Worker + 7 existing view paths + 1 callback, encrypted backup and bounded rollback. NO cloud calls.'
