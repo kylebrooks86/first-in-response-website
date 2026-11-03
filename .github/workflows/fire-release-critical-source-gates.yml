@@ -1,0 +1,109 @@
+name: FIRE Release-Critical Source Gates (NO HOSTED ACTIONS)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fire-release-critical-source-gates.yml'
+      - 'business-app-parity/shared/app/**'
+      - 'business-app-parity/shared/lib/**'
+      - 'business-app-parity/shared/scripts/**'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/**'
+      - 'business-app-parity/LIVE_REFUND_GAP_READ_ONLY.sql'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
+      - 'business-app-parity/test_triage_live_refund_gap.py'
+      - 'business-app-parity/test_release_schema_capture.py'
+      - 'business-app-parity/test_verify_qa_current25_d1_export.py'
+permissions:
+  contents: read
+jobs:
+  critical-business-safety:
+    name: Prices, discounts, invoices, Job IDs, notifications, refunds (synthetic only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies only
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: No auto-minimum and accurate editable custom service rates
+        run: |
+          node --experimental-sqlite scripts/test-custom-service-pricing.mjs
+          node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
+      - name: Stacked discount exact cents, partial/edge cases
+        run: |
+          node --experimental-sqlite scripts/test-stacked-estimate-discounts.mjs
+          node --experimental-sqlite scripts/test-per-job-price-overrides.mjs
+      - name: Job identity and cross-record numbering, no hosted migration
+        run: |
+          node scripts/test-job-numbering.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
+      - name: Notification Bell persistence in local SQLite
+        run: |
+          node --experimental-sqlite scripts/test-notification-mark-all-sqlite.mjs
+          node scripts/test-notification-read-recovery.mjs
+      - name: Missing refund schema and Stripe financial guard source
+        run: |
+          node --experimental-sqlite scripts/test-refund-ledger-readiness.mjs
+          node --experimental-sqlite scripts/test-stripe-isolation.mjs
+  gate9-callback-contract:
+    name: TEST webhook scope, HMAC, assets config and inactive-upload safety (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Cloudflare TEST webhook path and Access isolation
+        run: |
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs
+      - name: Exact isolated TEST Worker manifest and no Stripe activation
+        run: |
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-app-identity.test.mjs
+  hosted-evidence-verifiers:
+    name: Gate 4/5/9 evidence rejection and QA offline recovery (NO provider access)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Gate 5 missing LIVE refunds, nonprefix journals and anomaly cases
+        run: |
+          python -m unittest discover -s business-app-parity -p 'test_triage_live_refund_gap.py' -v
+          python -m unittest discover -s business-app-parity -p 'test_release_schema_capture.py' -v
+      - name: Gate 9 synthetic evidence blocks unverified provider claims
+        run: python -m unittest discover -s business-app-parity -p 'test_gate9_staging_preflight.py' -v
+      - name: Guard QA current-25 recovery and numbering historical state
+        run: |
+          python -m unittest discover -s business-app-parity -p 'test_verify_qa_current25_d1_export.py' -v
+          python -m unittest discover -s business-app-parity -p 'test_job_numbering_schema.py' -v
