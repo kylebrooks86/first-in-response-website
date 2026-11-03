@@ -42,3 +42,30 @@ test('this candidate cannot by itself authorize payments or release',()=>{
   assert.doesNotMatch(manifest,/wrangler\.cmd\s+deploy|secret\s+put/);
   assert.equal(true,true);
 });
+
+test('Gate 9 disabled TEST webhook checks HMAC before returning retryable 503, with NO ledger delivery',()=>{
+  // The generated Stripe TEST candidate alone changes; shared/LIVE handler is untouched.
+  assert.doesNotMatch(materializer,/"app\/api\/payments\/webhook\/route\.ts": "export async function POST/);
+  for(const relative of [
+    'app/api/payments/checkout/route.ts',
+    'app/api/payments/refund/route.ts',
+    'app/api/payments/checkout/reconcile/route.ts',
+    'app/api/payments/connection/route.ts',
+  ]) assert.ok(materializer.includes('"' + relative + '":'), 'Missing early disabled guard on '+relative);
+  for(const needed of [
+    'webhook_anchor = "  let event:StripeEvent;"',
+    'required_signature = "verifyStripeSignature(rawBody, signature, runtime.STRIPE_WEBHOOK_SECRET)"',
+    'webhook_source.index(required_signature) > webhook_source.index(webhook_anchor)',
+    '"FIRE_STRIPE_MODE" in webhook_source',
+    'webhook_guard + webhook_anchor',
+    'Stripe TEST is intentionally disabled.',
+    'status:503',
+    'cache-control',
+  ]) assert.ok(materializer.includes(needed), 'Missing disabled webhook fail-closed invariant: '+needed);
+  assert.ok(webhook.indexOf('if (!await verifyStripeSignature(') < webhook.indexOf('  let event:StripeEvent;'),
+    'Webhook signature validation must run before any event handling');
+  assert.ok(webhook.indexOf('  let event:StripeEvent;') < webhook.indexOf('recordRefundUpdate('),
+    'TEST injection anchor must come before refund reconciliation');
+  assert.ok(webhook.indexOf('  let event:StripeEvent;') < webhook.indexOf('reconcileStripeCheckout('),
+    'TEST injection anchor must come before checkout reconciliation');
+});
