@@ -34,7 +34,14 @@ function ReadJson([string[]]$argsToRun){
   $raw=(& $script:wrangler @argsToRun 2>$null | Out-String).Trim()
   Require ($LASTEXITCODE -eq 0) 'Wrangler read command failed; no retry or write authorized'
   Require ($raw.Length -gt 2) 'Empty Wrangler response'
-  try{return ConvertFrom-Json -InputObject $raw -ErrorAction Stop}
+  try{
+    $parsed=ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+    # PowerShell's pipeline normally unwraps arrays, and one JSON list item
+    # may appear as a scalar object to GetVersionEntries. Preserve the actual
+    # top-level JSON array shape, including a single version in the list.
+    if($raw.TrimStart().StartsWith('[')){return ,@($parsed)}
+    return $parsed
+  }
   catch{throw 'STOP READ ONLY: Wrangler JSON format changed; raw output withheld'}
 }
 try{
