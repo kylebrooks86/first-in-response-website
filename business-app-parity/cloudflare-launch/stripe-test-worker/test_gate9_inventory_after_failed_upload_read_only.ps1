@@ -21,7 +21,7 @@ foreach($required in @(
 Check (-not ($s -match '(?i)\bInvoke-(RestMethod|WebRequest)\b|\bStart-Process\b|\bd1 execute\b|\bsecret put\b|wrangler deploy|wrangler versions deploy|--yes')) 'Forbidden hosted mutation/reference'
 Check (-not ($s -match '& \$wrangler versions upload --(?!help)')) 'Upload may only run --help'
 Check (([regex]::Matches($s,'ReadJson @\(')).Count -eq 2) 'Exactly two authenticated provider read calls'
-$names=@('Require','GetVersionEntries')
+$names=@('Require','GetVersionEntries','ReadJson')
 foreach($name in $names){
   $def=@($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true))
   Check ($def.Count -eq 1) ('Exactly one safe helper '+$name)
@@ -50,4 +50,29 @@ foreach($case in $bad){
   try{$null=GetVersionEntries $case.data}catch{$blocked=$true}
   Check $blocked ('Refuse '+$case.why)
 }
-Write-Host 'PASS: One-shot TEST inventory PowerShell parsed; 2 Wrangler read-only commands, 5 valid version-list scenarios, 5 refusal scenarios, no hosted actions.'
+# Exercise the ACTUAL PowerShell Wrangler JSON read wrapper, not merely the
+# direct helper with already-materialized arrays. These are synthetic
+# function outputs only: no Wrangler executable or Cloudflare network.
+function MockWrangler { $script:syntheticOutput }
+$script:wrangler='MockWrangler'
+$global:LASTEXITCODE=0
+$script:syntheticOutput='[{"id":"'+$a+'"}]'
+$one=ReadJson @('versions','list','--json')
+Check ($one -is [array] -and $one.Count -eq 1) 'One-version JSON remains a real array after ReadJson'
+Check ((@(GetVersionEntries $one) -join ',') -ceq $a) 'One-version JSON parsed to exact immutable ID'
+$script:syntheticOutput='[{"id":"'+$a+'"},{"id":"'+$b+'"}]'
+$two=ReadJson @('versions','list','--json')
+Check ($two -is [array] -and $two.Count -eq 2) 'Two-version JSON remains a flat array'
+Check ((@(GetVersionEntries $two) -join ',') -ceq ($a+','+$b)) 'Two-version JSON parsed exactly'
+$script:syntheticOutput='{"versions":[{"id":"'+$a+'"}]}'
+$wrapped=ReadJson @('versions','list','--json')
+Check ($wrapped -isnot [array]) 'Wrapped object shape preserved without false list nesting'
+Check ((@(GetVersionEntries $wrapped) -join ',') -ceq $a) 'Single-version envelope parsed'
+$script:syntheticOutput='{"versions":[{"version_id":"'+$a+'"},{"version_id":"'+$b+'"}]}'
+$multiWrapped=ReadJson @('versions','list','--json')
+Check ((@(GetVersionEntries $multiWrapped) -join ',') -ceq ($a+','+$b)) 'Two-version envelope parsed'
+$script:syntheticOutput='not valid JSON'
+$rejected=$false
+try{$null=ReadJson @('versions','list','--json')}catch{$rejected=$true}
+Check $rejected 'Malformed Wrangler JSON refused without printing raw data'
+Write-Host 'PASS: One-shot TEST inventory PowerShell parsed; synthetic array 1/2, wrapper 1/2 and malformed JSON checks, zero hosted actions.'

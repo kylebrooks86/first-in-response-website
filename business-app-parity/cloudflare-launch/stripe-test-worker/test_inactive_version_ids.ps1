@@ -53,4 +53,32 @@ Check ($scriptText.Contains('$lv[0].version_id -ceq $PriorVersion') -and
        $scriptText.Contains('$served[0].version_id -ceq $PriorVersion')) '100%-serving predecessor separately verified'
 Check (-not $scriptText.Contains('$beforeIds -contains $PriorVersion')) 'Do not demand serving predecessor in recent version window'
 Write-Host 'PASS: Recent 10-version window rotates without falsely rejecting old active predecessor; one added inactive version detected.'
+# The real upload helper also consumes JSON from a native CLI pipeline.
+# Only extract its isolated function definitions and supply synthetic text.
+# Never load/execute the owner script's top-level code.
+foreach($name in @('Assert','ExitCheck','WranglerJson')){
+  $matched=@($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true))
+  Check ($matched.Count -eq 1) ('One expected pure/offline helper '+$name)
+  . ([scriptblock]::Create($matched[0].Extent.Text))
+}
+function MockWrangler { $script:mockJson }
+$script:Wrangler='MockWrangler'
+$global:LASTEXITCODE=0
+$script:mockJson='[{"id":"'+$a+'"}]'
+$fromOne=WranglerJson @('versions','list','--json')
+Check ($fromOne -is [array] -and $fromOne.Count -eq 1) 'Upload preflight preserves one-version CLI JSON array'
+Check ((@(Get-StrictVersionIds $fromOne) -join ',') -ceq $a) 'Upload preflight reads exact single version UUID'
+$script:mockJson='[{"id":"'+$a+'"},{"id":"'+$b+'"}]'
+$fromTwo=WranglerJson @('versions','list','--json')
+Check ($fromTwo -is [array] -and $fromTwo.Count -eq 2) 'Upload preflight preserves two-version CLI JSON array'
+Check ((@(Get-StrictVersionIds $fromTwo) -join ',') -ceq ($a+','+$b)) 'Upload preflight reads exact two UUIDs'
+$script:mockJson='{"versions":[{"id":"'+$a+'"}]}'
+$fromWrapped=WranglerJson @('versions','list','--json')
+Check ((@(Get-StrictVersionIds $fromWrapped) -join ',') -ceq $a) 'Wrapped one-version JSON remains supported'
+$script:mockJson='not-json'
+$blocked=$false
+try{$null=WranglerJson @('versions','list','--json')}catch{$blocked=$true}
+Check $blocked 'Malformed version JSON fails closed, without any provider call'
+Write-Host 'PASS: Synthetic Wrangler JSON CLI 1-item/2-item/wrapped shapes and malformed refusal; no provider activity.'
+
 
