@@ -121,7 +121,13 @@ function SecretNamesPretty(){
 function Assert-InactiveUploadCli([string]$version,[string]$help){
   # Owner-confirmed standalone Wrangler v4.151.0 on Acer, separate from
   # project-local pnpm Wrangler 4.92.0 (which lacks versions upload --strict).
-  Assert ($version -match '(?i)\bwrangler\s+4\.151\.0\b') 'Global Wrangler 4.151.0 not verified. STOP before authorizing any upload.'
+  # Standalone `wrangler.cmd --version` on the owner's Acer prints just
+  # "4.151.0" (not "wrangler 4.151.0"). The previous label-required regex
+  # caused a false STOP despite the independently verified CLI and flags.
+  $reported=$version.Trim()
+  $exactBare=$reported -ceq '4.151.0'
+  $exactLabeled=$reported -match '(?i)\A(?:⛅\s*)?wrangler\s+4\.151\.0\z'
+  Assert ($exactBare -or $exactLabeled) 'Global Wrangler 4.151.0 not verified. STOP before authorizing any upload.'
   foreach($flag in @('--strict','--keep-vars','--config')){
     Assert ($help.Contains($flag)) ('Global versions upload CLI does not support required '+$flag+' safety capability.')
   }
