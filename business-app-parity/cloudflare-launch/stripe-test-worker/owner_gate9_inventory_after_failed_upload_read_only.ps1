@@ -10,6 +10,9 @@ $previous='96e32262-fa33-4f04-a161-bee11f0353e2'
 function Require([bool]$ok,[string]$message){if(-not $ok){throw ('STOP READ ONLY: '+$message)}}
 function GetVersionEntries($data){
   if($data -is [array]){$entries=@($data)}
+  # PowerShell functions emit individual pipeline objects: even if the
+  # provider's JSON is an array, a single version can arrive unwrapped.
+  elseif($null -ne $data -and ((@($data.PSObject.Properties.Name) -contains 'id') -or (@($data.PSObject.Properties.Name) -contains 'version_id'))){$entries=@($data)}
   elseif($null -ne $data -and @($data.PSObject.Properties.Name) -contains 'versions'){$entries=@($data.versions)}
   elseif($null -ne $data -and @($data.PSObject.Properties.Name) -contains 'result'){
     if($data.result -is [array]){$entries=@($data.result)}
