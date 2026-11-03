@@ -264,8 +264,12 @@ try{
   Assert ($lv.Count -eq 1 -and $lv[0].version_id -ceq $PriorVersion -and [int]$lv[0].percentage -eq 100) 'Serving version drifted. STOP'
   VerifyVersion $PriorVersion
   Assert ((SecretNamesPretty) -ceq $ExpectedSecrets) 'Existing four secrets changed. STOP'
+  # Wrangler versions list is a RECENT-version window, not the complete
+  # immutable history. A legitimate 100%-serving predecessor can be older
+  # than the list window. Its identity was already authenticated above via
+  # deployments status + versions view; never infer a missing deployed version.
   $beforeIds=@(Get-StrictVersionIds (WranglerJson @('versions','list','--name',$Worker,'--json')))
-  Assert ($beforeIds -contains $PriorVersion) 'Cannot establish prior version inventory. STOP'
+  Assert ($beforeIds.Count -gt 0) 'Cannot establish recent version inventory. STOP'
 
   # Wrangler strict noninteractive must reject conflicting dashboard configuration;
   # never accept a prompt, force overwrite or auto-shift traffic.
