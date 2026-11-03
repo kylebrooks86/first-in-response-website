@@ -85,13 +85,15 @@ export async function POST(request: Request) {
           return Response.json({error:'This estimate request was already used or the saved quote has changed. Review the saved estimate; no new quote was created.'},{status:409});
         const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
         const incoming=rawItems.map(item=>({name:String(item.name??'').trim(),description:String(item.description??'').trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??'job').trim()||'job',totalCents:Math.round(Number(item.totalCents))}));
-        const savedRows=await env.DB.prepare('SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC').bind(requestId).all();
-        const persisted=savedRows.results.map(row=>({name:String(row.name),description:String(row.description),quantity:Number(row.quantity),unit:String(row.unit),totalCents:Number(row.totalCents)}));
-        if(JSON.stringify(incoming)!==JSON.stringify(persisted))return Response.json({error:'The saved service scope changed after this request. Review the existing estimate; no duplicate created.'},{status:409});
+        const savedRows=await env.DB.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC').bind(requestId).all();
+        const persisted=savedRows.results.map(row=>({id:String(row.id),name:String(row.name),description:String(row.description),quantity:Number(row.quantity),unit:String(row.unit),totalCents:Number(row.totalCents)}));
+        if(persisted.some(row=>!row.id)||new Set(persisted.map(row=>row.id)).size!==persisted.length)
+          return Response.json({error:'Saved estimate service IDs are unavailable. Reopen the saved estimate.',saveUncertain:true},{status:503,headers:{'cache-control':'private, no-store'}});
+        if(JSON.stringify(incoming)!==JSON.stringify(persisted.map(({id:ignored,...item})=>{void ignored;return item;})))return Response.json({error:'The saved service scope changed after this request. Review the existing estimate; no duplicate created.'},{status:409});
         if(proof.promotionAttributionSaved&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+requestId).first())return Response.json({error:'Original promotion audit is unavailable. Review saved estimate.'},{status:409});
         if(proof.bundleDiscountCents>0&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+requestId).first())return Response.json({error:'Original bundle discount audit is unavailable. Review saved estimate.'},{status:409});
         const replayJobNumber=await savedJobReference(requestId);
-        return Response.json({id:requestId,requestId,replayed:true,...(replayJobNumber!==null?{jobNumber:replayJobNumber}:{}),customerId:proof.customerId,customer:String(body.customer??'').trim(),email:String(body.email??'').trim(),phone:String(body.phone??'').trim(),address:String(body.address??'').trim(),propertyId:proof.propertyId,propertyRevision:proof.propertyRevision,shareToken:existing.shareToken,customerPath:'/estimate/'+existing.shareToken,subtotalCents:proof.subtotalCents,discountCents:proof.discountCents,totalCents:proof.totalCents,depositCents:proof.depositCents,appreciationDiscount:proof.appreciationDiscount,additionalDiscountType:proof.additionalDiscountType,additionalDiscountValue:proof.additionalDiscountValue,bundleDiscountCents:proof.bundleDiscountCents,promotionAttributionSaved:proof.promotionAttributionSaved},{status:200,headers:{'cache-control':'private, no-store'}});
+        return Response.json({id:requestId,requestId,replayed:true,...(replayJobNumber!==null?{jobNumber:replayJobNumber}:{}),customerId:proof.customerId,customer:String(body.customer??'').trim(),email:String(body.email??'').trim(),phone:String(body.phone??'').trim(),address:String(body.address??'').trim(),propertyId:proof.propertyId,propertyRevision:proof.propertyRevision,shareToken:existing.shareToken,customerPath:'/estimate/'+existing.shareToken,subtotalCents:proof.subtotalCents,discountCents:proof.discountCents,totalCents:proof.totalCents,depositCents:proof.depositCents,appreciationDiscount:proof.appreciationDiscount,additionalDiscountType:proof.additionalDiscountType,additionalDiscountValue:proof.additionalDiscountValue,bundleDiscountCents:proof.bundleDiscountCents,promotionAttributionSaved:proof.promotionAttributionSaved,items:persisted},{status:200,headers:{'cache-control':'private, no-store'}});
       }
     }
     const existingCustomerId = String(body.customerId ?? "").trim();
@@ -172,6 +174,9 @@ export async function POST(request: Request) {
           return Response.json({error:'Original Job # not verified. No replacement quote was created.'},{status:409});
       }
     }
+    // Allocate real immutable IDs before the atomic D1 batch, never after
+    // its acknowledgment or in the iPhone optimistic UI.
+    const persistedItems=items.map(item=>({...item,id:crypto.randomUUID()}));
     const statements=[];
     if(revisionSource){
       statements.push(supersedeQuoteStatement(env.DB,revisionSource));
@@ -203,14 +208,35 @@ export async function POST(request: Request) {
     }
     if(serviceLocationsEnabled(env))statements.push(env.DB.prepare("INSERT INTO estimate_service_locations(estimate_id,customer_id,address,captured_at) VALUES(?,?,?,?)").bind(estimateId,customerId,serviceAddress,now));
     if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
-    for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
+    for(const item of persistedItems)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id,estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
     if(bundleDiscountCents>0)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(DISCOUNT_SNAPSHOT_PREFIX+estimateId,JSON.stringify(discountSnapshot(estimateId,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),now));
     if(promotionAttribution)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+estimateId,JSON.stringify(promotionAttribution),now));
     if(requestId&&requestHash){const proof:EstimateCreateProof={version:1,requestId,requestHash,customerId,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,promotionAttributionSaved:Boolean(promotionAttribution)};
       statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(ESTIMATE_CREATE_PROOF_PREFIX+requestId,JSON.stringify(proof),now));}
-    await env.DB.batch(statements);
+    const uncertainReceipt=()=>Response.json({error:'Estimate creation was not fully confirmed. Check the same pending request before creating another estimate.',saveUncertain:true},
+      {status:503,headers:{'cache-control':'private, no-store'}});
+    const batch=await env.DB.batch(statements);
+    if(!Array.isArray(batch)||batch.length!==statements.length||
+      batch.some(row=>(row as {success?:boolean})?.success===false))return uncertainReceipt();
+    // The transaction includes customer, quote, line IDs, optional permanent
+    // numbers and immutable create proof. Confirm exact persisted DB amounts
+    // and all service IDs before returning a new estimate in the owner UI.
+    const savedEstimate=await env.DB.prepare('SELECT id,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,deposit_cents AS depositCents,share_token AS shareToken FROM estimates WHERE id=?')
+      .bind(estimateId).first<{id:string;customerId:string;subtotalCents:number;discountCents:number;totalCents:number;depositCents:number;shareToken:string}>();
+    const savedItems=await env.DB.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC')
+      .bind(estimateId).all<{id:string;name:string;description:string;quantity:number;unit:string;totalCents:number}>();
+    if(!savedEstimate||savedEstimate.id!==estimateId||savedEstimate.customerId!==customerId||
+      Number(savedEstimate.subtotalCents)!==subtotal||Number(savedEstimate.discountCents)!==appliedDiscount||
+      Number(savedEstimate.totalCents)!==total||Number(savedEstimate.depositCents)!==deposit||
+      savedEstimate.shareToken!==shareToken||
+      !Array.isArray(savedItems.results)||savedItems.results.length!==persistedItems.length||
+      savedItems.results.some((row,i)=>{
+        const expected=persistedItems[i];
+        return row.id!==expected.id||row.name!==expected.name||row.description!==expected.description||
+          Number(row.quantity)!==expected.quantity||row.unit!==expected.unit||Number(row.totalCents)!==expected.totalCents;
+      }))return uncertainReceipt();
     const savedJobNumber=await savedJobReference(estimateId);
-    return Response.json({id:estimateId,...(savedJobNumber!==null?{jobNumber:savedJobNumber}:{}),...(requestId?{requestId,replayed:false}:{}),customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution)},{status:201,headers:{'cache-control':'private, no-store'}});
+    return Response.json({id:estimateId,...(savedJobNumber!==null?{jobNumber:savedJobNumber}:{}),...(requestId?{requestId,replayed:false}:{}),customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution),items:savedItems.results},{status:201,headers:{'cache-control':'private, no-store'}});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }
