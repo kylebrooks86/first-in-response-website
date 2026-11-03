@@ -256,7 +256,17 @@ try{
   $review=Join-Path $App 'dist\server\wrangler.FIRE_TEST_REVIEW_ONLY.json'
   & node $manifestScript $local $review
   ExitCheck 'Strict test manifest preparation'
+  # Wrangler 4.151.0 rejects the retired legacy_env field even when true.
+  # The historical pinned generator only permits legacy_env=true (former
+  # default); this independently SHA-verified local helper rejects anything
+  # else, then deletes that ONE obsolete key in the isolated TEST review JSON.
+  # No other config property or remote resource may be changed here.
+  $finalizer=Join-Path $PSScriptRoot 'finalize-stripe-test-legacy-env.mjs'
+  Assert (Test-Path -LiteralPath $finalizer -PathType Leaf) 'Audited local legacy_env compatibility finalizer missing; no upload'
+  & node $finalizer $review
+  ExitCheck 'Local-only Wrangler legacy_env compatibility finalization'
   $cfg=Get-Content -LiteralPath $review -Raw | ConvertFrom-Json
+  Assert (-not ($cfg.PSObject.Properties.Name -contains 'legacy_env')) 'Removed legacy_env is still present: STOP before upload'
   Assert ($cfg.name -eq $Worker -and $cfg.topLevelName -eq $Worker) 'Wrong Worker target in generated config'
   Assert ($cfg.d1_databases.Count -eq 1 -and $cfg.d1_databases[0].database_id -eq $DatabaseId -and $cfg.d1_databases[0].database_name -eq $Database) 'Wrong D1 binding'
   Assert ($cfg.vars.FIRE_ACCESS_REQUIRED -eq 'enabled' -and $cfg.vars.FIRE_STRIPE_MODE -eq 'disabled' -and $cfg.vars.FIRE_ENV -eq 'cloudflare-staging' -and $cfg.vars.SITE_ORIGIN -eq $Origin) 'Auth, origin, or Stripe mode mismatch'
@@ -271,7 +281,14 @@ try{
   }
   $dry=Join-Path $Scratch 'dry-run'
   Pnpm @('exec','wrangler','deploy','--config',$review,'--dry-run','--outdir',$dry)
-  Write-Host 'PASS: Gate9 HMAC-first TEST build/dry-run; existing observability redaction preserved; no routes, R2 or Stripe activation.'
+  # Independently test this exact finalized manifest with the SAME new
+  # standalone Wrangler that would perform the inactive upload. The pinned
+  # app-local Wrangler 4.92.0 silently accepted legacy_env and previously
+  # failed to detect this 4.151.0 incompatibility. Both dry runs are LOCAL.
+  $standaloneDry=Join-Path $Scratch 'dry-run-standalone-wrangler-4.151'
+  & $Wrangler deploy --config $review --dry-run --outdir $standaloneDry
+  ExitCheck 'Standalone Wrangler 4.151.0 isolated TEST config dry-run (NO UPLOAD)'
+  Write-Host 'PASS: Both pinned and standalone Wrangler TEST dry-runs; no routes, R2, Stripe activation or hosted upload.'
   if(-not $Upload){
     Write-Host ('REVIEW PASS ONLY. No Cloudflare/Stripe writes. Pinned candidate '+$ExpectedCommit)
     Write-Host ('Pinned active version '+$PriorVersion)
