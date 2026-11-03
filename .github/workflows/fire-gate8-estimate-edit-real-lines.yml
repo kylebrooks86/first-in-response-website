@@ -1,0 +1,40 @@
+name: FIRE Gate8 Estimate Edit Saved Service IDs (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/[id]/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-estimate-edit-confirmed-lines-sqlite.mjs'
+      - 'business-app-parity/shared/scripts/test-estimate-editor-save-recovery.mjs'
+      - '.github/workflows/fire-gate8-estimate-edit-real-lines.yml'
+permissions:
+  contents: read
+jobs:
+  real-estimate-saved-line-ids:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies with no Cloudflare credentials
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing FIRE app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Verify owner estimate PATCH real persisted IDs and cents against disposable SQLite
+        run: node --experimental-sqlite scripts/test-estimate-edit-confirmed-lines-sqlite.mjs
+      - name: Verify real iPhone estimate and invoice editor response/retry guard behaviors
+        run: node scripts/test-estimate-editor-save-recovery.mjs
