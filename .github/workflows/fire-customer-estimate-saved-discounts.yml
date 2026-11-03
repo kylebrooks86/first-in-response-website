@@ -1,0 +1,38 @@
+name: FIRE Customers Saved Estimate Discount Terms (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/customers/route.ts'
+      - 'business-app-parity/shared/scripts/test-customer-estimate-discount-metadata-sqlite.mjs'
+      - '.github/workflows/fire-customer-estimate-saved-discounts.yml'
+permissions:
+  contents: read
+jobs:
+  confirm-customer-estimate-terms:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing FIRE Business App
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Actual owner Customers GET and immutable saved discount components
+        run: node --experimental-sqlite scripts/test-customer-estimate-discount-metadata-sqlite.mjs
+      - name: Existing customer/job/invoice accounting balances
+        run: node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
