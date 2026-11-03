@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs'
@@ -60,6 +61,30 @@ jobs:
             throw 'Serving predecessor must remain at 100 percent before and after'
           }
           Write-Host 'PASS: Offline PowerShell syntax and one inactive-only upload verified; NO hosted action.'
+      - name: Test exact read-only binding helper and reject any enabled/missing/secret-text Stripe mode
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
+          $src=Get-Content -LiteralPath $path -Raw
+          if (-not $src.Contains("function Assert-FireStripeTestModeDisabled") -or
+              -not $src.Contains("mode.text -cne 'disabled'")) {
+            throw 'Pinned isolated TEST disabled-mode helper missing'
+          }
+          . "./$path"
+          $good=@([pscustomobject]@{name='FIRE_STRIPE_MODE';type='plain_text';text='disabled'})
+          if (-not (Assert-FireStripeTestModeDisabled -Bindings $good)) {throw 'Expected mode disabled'}
+          foreach($bad in @(
+            @(),
+            @([pscustomobject]@{name='FIRE_STRIPE_MODE';type='plain_text';text='test'}),
+            @([pscustomobject]@{name='FIRE_STRIPE_MODE';type='secret_text';text='disabled'}),
+            @([pscustomobject]@{name='FIRE_STRIPE_MODE';type='plain_text';value='disabled'}),
+            @($good[0],$good[0])
+          )){
+            $refused=$false
+            try{$null=Assert-FireStripeTestModeDisabled -Bindings $bad}catch{$refused=$true}
+            if(-not $refused){throw 'Must refuse an invalid or ambiguous Stripe mode'}
+          }
+          Write-Host 'PASS: Exact audited Stripe-disabled helper and 5 fail-closed cases; no provider calls.'
       - name: Exercise eight synthetic version ID list cases (no cloud)
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1
