@@ -50,10 +50,10 @@ const js=result.outputFiles[0].text;
 const inputs=Object.keys(result.metafile.inputs);
 const outputs=Object.values(result.metafile.outputs);
 assert.equal(outputs.length,1,'No static assets or HTML/CSS emitted');
-assert.ok(inputs.some(p=>p.endsWith('/app/api/payments/webhook/route.ts')),'Bundle MUST contain the real generated webhook route');
-assert.ok(inputs.some(p=>p.endsWith('/lib/stripe-payments.ts')),'Real checkout reconciliation source included, unchanged');
-assert.ok(inputs.some(p=>p.endsWith('/lib/stripe-refunds.ts')),'Real refund reconciliation source included, unchanged');
-assert.ok(inputs.some(p=>p.endsWith('/app/local-customer-deployment.ts')),'Exact staging deployment identity is included');
+assert.ok(inputs.some(p=>p.endsWith('app/api/payments/webhook/route.ts')),'Bundle MUST contain the real generated webhook route');
+assert.ok(inputs.some(p=>p.endsWith('lib/stripe-payments.ts')),'Real checkout reconciliation source included, unchanged');
+assert.ok(inputs.some(p=>p.endsWith('lib/stripe-refunds.ts')),'Real refund reconciliation source included, unchanged');
+assert.ok(inputs.some(p=>p.endsWith('app/local-customer-deployment.ts')),'Exact staging deployment identity is included');
 assert.ok(inputs.every(p=>!/\.css$|\.html$|\.(png|jpg|jpeg|webp|ico|woff2)$/.test(p)),'No UI asset inputs');
 assert.ok(!/\bASSETS\b/.test(js),'Bundled webhook code does not bind the full Vite static assets namespace');
 assert.ok(js.includes('Stripe TEST is intentionally disabled.')&&js.includes('Invalid Stripe signature.'),
