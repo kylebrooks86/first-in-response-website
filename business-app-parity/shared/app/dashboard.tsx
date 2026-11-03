@@ -1989,12 +1989,13 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const [revisions,setRevisions]=useState<InvoiceRevisionRow[]>([]);
   const [expandedRevisionId,setExpandedRevisionId]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  const [uncertain,setUncertain]=useState(false);
   const loadRequest=useRef(0);
   const loadedInvoice=useRef<string|null>(null);
   const invoiceKey=JSON.stringify([estimate.id,estimate.invoiceId,estimate.customerId||null]);
   const currentInvoice=useRef(invoiceKey);currentInvoice.current=invoiceKey;
   const [loadError,setLoadError]=useState("");
-  useEffect(()=>{currentInvoice.current=invoiceKey;loadedInvoice.current=null;setOpen(false);setItems([]);setRevisions([]);setLoadError("");setLoading(false);return()=>{loadRequest.current++;loadedInvoice.current=null;if(currentInvoice.current===invoiceKey)currentInvoice.current="";};},[invoiceKey]);
+  useEffect(()=>{currentInvoice.current=invoiceKey;loadedInvoice.current=null;setOpen(false);setItems([]);setRevisions([]);setLoadError("");setLoading(false);setUncertain(false);return()=>{loadRequest.current++;loadedInvoice.current=null;if(currentInvoice.current===invoiceKey)currentInvoice.current="";};},[invoiceKey]);
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const invoiceDiscountInputCents=parseDiscountCents(discountValue,discountMode);
   const invoiceDiscountInvalid=invoiceDiscountInputCents===null||(discountMode==="dollar"&&invoiceDiscountInputCents>subtotal);
@@ -2019,35 +2020,45 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
       const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);const nextDueMode=!rawDue||(createdDay&&dueDay===createdDay)?"receipt":"date";const nextDueDate=nextDueMode==="receipt"?"":dueDay;setDueMode(nextDueMode);setDueDate(nextDueDate);
       initialInvoiceEditSnapshot.current=JSON.stringify({items:nextItems,discountMode:mode,discountValue:nextDiscount,dueMode:nextDueMode,dueDate:nextDueDate});
       setRevisions((result.invoice.revisions??[]).map((revision)=>({...revision,subtotalCents:Number(revision.subtotalCents||0),totalCents:Number(revision.totalCents||0),discountCents:Number(revision.discountCents||0),discountValue:Number(revision.discountValue||0),discountType:revision.discountType==="percent"?"percent":"dollar",items:Array.isArray(revision.items)?revision.items:[]})));
-      setExpandedRevisionId(null);loadedInvoice.current=key;setError("");
+      setExpandedRevisionId(null);loadedInvoice.current=key;setUncertain(false);setError("");
     }catch{if(request===loadRequest.current&&currentInvoice.current===key){loadedInvoice.current=null;setItems([]);setLoadError("The saved invoice could not be loaded. Reconnect and try again. No invoice changes were submitted.");}}finally{if(request===loadRequest.current&&currentInvoice.current===key)setLoading(false);}
   };
   const currentInvoiceEditSnapshot=JSON.stringify({items,discountMode,discountValue,dueMode,dueDate});
   const invoiceHasUnsavedChanges=Boolean(initialInvoiceEditSnapshot.current&&loadedInvoice.current===invoiceKey&&initialInvoiceEditSnapshot.current!==currentInvoiceEditSnapshot);
   const setOpenSafe=(value:boolean)=>{
     if(saveLock.current||saving)return;
-    if(!value&&invoiceHasUnsavedChanges&&!window.confirm("Discard unsaved invoice changes? The current saved invoice and recorded payments will stay unchanged."))return;
+    if(!value&&(invoiceHasUnsavedChanges||uncertain)&&!window.confirm(uncertain
+      ?"The last invoice save may already have committed. Closing discards only these local entries; reopen and check the saved invoice before another edit. Close?"
+      :"Discard unsaved invoice changes? The current saved invoice and recorded payments will stay unchanged."))return;
     if(!value){loadRequest.current++;loadedInvoice.current=null;initialInvoiceEditSnapshot.current="";setLoading(false);}
     setOpen(value);if(value)void hydrate();
   };
   const save=async()=>{
     if(saveLock.current)return;
+    if(uncertain){setError("Check the saved invoice from the server before trying another update. No second save was sent.");return;}
     if(!estimate.invoiceId)return;
     if(loadedInvoice.current!==invoiceKey||currentInvoice.current!==invoiceKey){setError("Load the saved invoice before making changes.");return;}
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setError("Every invoice service needs a service, quantity, and valid price.");return;}
     if(invoiceDiscountInputCents===null){setError("Enter a valid nonnegative invoice discount with at most two decimals and no more than 50%.");return;}
     if(discountMode==="dollar"&&invoiceDiscountInputCents>subtotal){setError("Dollar discount cannot exceed the invoice subtotal.");return;}
     const key=invoiceKey;saveLock.current=true;setSaving(true);setError("");
+    let responseStatus=0;
     try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       if(dueMode==="date"&&!dueDate){setError("Choose an invoice due date or select Due on receipt.");setSaving(false);return;}
       const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:invoiceDiscountInputCents,dueAt:dueMode==="receipt"?"receipt":dueDate})});
+      responseStatus=response.status;
       const result=await response.json() as {invoice?:{id?:string;totalCents?:number};error?:string};
       if(currentInvoice.current!==key)return;
       if(!response.ok)throw new Error(result?.error||"Invoice changes could not be saved.");
       if(!result?.invoice||result.invoice.id!==estimate.invoiceId||!Number.isSafeInteger(result.invoice.totalCents)||Number(result.invoice.totalCents)<0)throw new Error("The save response could not be verified. Reopen this invoice to check its saved values before trying again.");
-      onSaved(Number(result.invoice.totalCents));setOpen(false);
-    }catch(saveError){if(currentInvoice.current===key)setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
+      setUncertain(false);onSaved(Number(result.invoice.totalCents));setOpen(false);
+    }catch(saveError){if(currentInvoice.current===key){
+      setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");
+      // 503/transport/lost-JSON or an unverified HTTP 200 can hide an already
+      // committed invoice revision. Never let another tap repeat the write.
+      if(responseStatus===0||responseStatus>=500||(responseStatus>=200&&responseStatus<300))setUncertain(true);
+    }}finally{saveLock.current=false;setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit invoice</button></DialogTrigger><DialogContent className="estimate-edit-dialog invoice-edit-fields sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit final invoice</DialogTitle></DialogHeader></div>
     <div className="estimate-edit-scroll-area" role="region" aria-label="Invoice services and payment terms" tabIndex={0}>
@@ -2063,7 +2074,9 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     {revisions.length>0&&<section className="edit-discount-card"><Label>Invoice revision history</Label><div className="invoice-revision-list">{revisions.slice(0,5).map((revision)=>{const expanded=expandedRevisionId===revision.id;return <div className={expanded?"invoice-revision-row expanded":"invoice-revision-row"} key={revision.id}><button type="button" className="invoice-revision-summary" onClick={()=>setExpandedRevisionId(expanded?null:revision.id)} aria-expanded={expanded}><span><strong>{money(revision.totalCents)}</strong><small>{revision.status} · {dateTime(revision.createdAt)}</small></span><span className="invoice-revision-due"><small>{revision.dueAt?`Due ${new Date(revision.dueAt).toLocaleDateString()}`:"Due on receipt"}</small><ChevronRight className={expanded?"revision-chevron open":"revision-chevron"}/></span></button>{expanded&&<div className="invoice-revision-details"><div className="revision-item-list">{revision.items.map((item,index)=><div key={`${revision.id}-${item.id||index}`}><span><strong>{item.name}</strong><small>{item.description||"No description"}</small></span><small>{Number(item.quantity)||0} {item.unit} · {money(Number(item.totalCents)||0)}</small></div>)}</div><div className="revision-totals"><span>Subtotal<strong>{money(revision.subtotalCents)}</strong></span><span>Discount<strong>−{money(revision.discountCents)}</strong></span><span>Discount mode<strong>{revision.discountType==="percent"?`${(revision.discountValue/100).toFixed(2).replace(/\.00$/,'')}%`:`${money(revision.discountValue)}`}</strong></span><span>Total<strong>{money(revision.totalCents)}</strong></span></div></div>}</div>;})}</div></section>}
     </>}
     </fieldset></div>
-    <div className="estimate-edit-modal-footer">{error&&<p className="save-error" role="alert">{error}</p>}<div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button>{!loading&&!loadError&&loadedInvoice.current===invoiceKey&&<Button className="brand-button" onClick={()=>void save()} disabled={saving||!invoiceHasUnsavedChanges}>{saving?"Saving…":"Save invoice changes"}</Button>}</div></div>
+    <div className="estimate-edit-modal-footer">{error&&<p className="save-error" role="alert">{error}</p>}<div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button>{!loading&&!loadError&&loadedInvoice.current===invoiceKey&&<Button className="brand-button" onClick={()=>void save()} disabled={saving||uncertain||!invoiceHasUnsavedChanges}>{saving?"Saving…":"Save invoice changes"}</Button>}{uncertain&&<Button type="button" variant="outline" disabled={saving||loading} onClick={()=>{
+      if(window.confirm("Reload the saved invoice from the server? This replaces any unsaved fields in this editor and does not send a second invoice update."))void hydrate();
+    }}>Check saved invoice</Button>}</div></div>
   </DialogContent></Dialog>;
 }
 
