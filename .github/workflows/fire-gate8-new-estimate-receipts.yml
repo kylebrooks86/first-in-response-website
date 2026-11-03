@@ -1,0 +1,39 @@
+name: FIRE Gate8 New Estimate Service ID Receipts (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-new-estimate-confirmed-lines-sqlite.mjs'
+      - '.github/workflows/fire-gate8-new-estimate-receipts.yml'
+permissions:
+  contents: read
+jobs:
+  verify-new-estimate-ids:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned local dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile FIRE app actual source
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Verify actual New Estimate POST and idempotent replay on disposable SQLite
+        run: node --experimental-sqlite scripts/test-new-estimate-confirmed-lines-sqlite.mjs
+      - name: Verify original request-ID recovery and creation guards
+        run: node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
