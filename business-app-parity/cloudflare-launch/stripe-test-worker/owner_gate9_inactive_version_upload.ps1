@@ -43,7 +43,14 @@ function WranglerJson([string[]]$params){
   $raw=(& $script:Wrangler @params | Out-String).Trim()
   ExitCheck ('wrangler '+($params -join ' '))
   Assert ($raw.Length -gt 0) 'Unexpected empty Wrangler JSON'
-  try{return ConvertFrom-Json -InputObject $raw}
+  try{
+    $parsed=ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+    # Wrangler versions list may legitimately return ONE result. Preserve the
+    # provider's top-level JSON array instead of letting PowerShell unwrap it
+    # into a single PSCustomObject that looks like an unknown response schema.
+    if($raw.TrimStart().StartsWith('[')){return ,@($parsed)}
+    return $parsed
+  }
   catch{throw "STOP: Cannot parse Wrangler response. No deploy."}
 }
 function Assert-VersionSecretBindings([object[]]$bindings){
