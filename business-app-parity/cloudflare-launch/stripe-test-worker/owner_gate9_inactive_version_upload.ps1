@@ -1,7 +1,9 @@
 # Gate 9 HMAC-first: stage an INACTIVE TEST Worker version; NEVER serve new traffic.
 # Default is read-only review. -Upload needs separate explicit owner consent and never deploys traffic.
 # No Stripe mode enabling, webhook endpoint/Access changes, database, migration, R2, LIVE, QA or DR writes.
-# Stop on uncertainty: NEVER retry automatically after a deploy attempt.
+# Stop on uncertainty: NEVER retry automatically after an inactive upload attempt.
+# Prior approved upload attempt used project-local Wrangler 4.92.0 and failed on unsupported --strict.
+# THIS REVISED SOURCE REQUIRES A NEW SEPARATE OWNER APPROVAL; the earlier one-upload approval is consumed.
 [CmdletBinding()]
 param(
   [switch]$Upload,
@@ -96,6 +98,15 @@ function SecretNamesPretty(){
   Assert ($names.Count -eq 4 -and @($names|Sort-Object -Unique).Count -eq 4) 'Wrong or duplicate TEST secret-name inventory'
   return (($names|Sort-Object) -join ',')
 }
+function Assert-InactiveUploadCli([string]$version,[string]$help){
+  # Owner-confirmed standalone Wrangler v4.151.0 on Acer, separate from
+  # project-local pnpm Wrangler 4.92.0 (which lacks versions upload --strict).
+  Assert ($version -match '(?i)\bwrangler\s+4\.151\.0\b') 'Global Wrangler 4.151.0 not verified. STOP before authorizing any upload.'
+  foreach($flag in @('--strict','--keep-vars','--config')){
+    Assert ($help.Contains($flag)) ('Global versions upload CLI does not support required '+$flag+' safety capability.')
+  }
+  return $true
+}
 function Pnpm([string[]]$argsToRun){
   $tool=$script:PkgCommand
   $prefix=$script:PkgPrefix
@@ -105,6 +116,15 @@ function Pnpm([string[]]$argsToRun){
 try{
   Write-Host 'STEP 1/5: Gate9 existing TEST Worker, predecessor, FOUR encrypted secrets, Access, isolated D1'
   $Wrangler=(Get-Command wrangler.cmd -ErrorAction Stop).Source
+  # Pure CLI help/version preflight BEFORE any owner write authorization.
+  # These invocations perform NO remote writes and must use standalone
+  # Wrangler, NOT the app-local pnpm wrangler locked at 4.92.0.
+  $globalVersion=(& $Wrangler --version | Out-String).Trim()
+  ExitCheck 'Standalone Wrangler version preflight'
+  $globalHelp=(& $Wrangler versions upload --help | Out-String)
+  ExitCheck 'Standalone Wrangler inactive-upload capabilities'
+  Assert ([bool](Assert-InactiveUploadCli $globalVersion $globalHelp)) 'Unsupported standalone Wrangler for safe version staging'
+  Write-Host 'PASS: Standalone Wrangler 4.151.0 supports --strict and --keep-vars (separate from app build CLI).'
   $null=Get-Command git.exe -ErrorAction Stop
   $null=Get-Command node.exe -ErrorAction Stop
   $python=Get-Command py.exe -ErrorAction SilentlyContinue
@@ -253,7 +273,9 @@ try{
   $UploadStarted=$true
   try {
     [Environment]::SetEnvironmentVariable('CI','true','Process')
-    Pnpm @('exec','wrangler','versions','upload','--config',$review,'--keep-vars','--strict')
+    # ONE upload on standalone v4.151.0; NEVER use pnpm-local v4.92.0.
+    & $Wrangler versions upload --config $review --keep-vars --strict
+    ExitCheck 'Standalone Wrangler one inactive-only upload (strict/no traffic)'
   }
   finally {
     [Environment]::SetEnvironmentVariable('CI',$priorCI,'Process')
