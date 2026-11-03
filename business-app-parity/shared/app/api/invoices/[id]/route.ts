@@ -118,7 +118,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
       saveUncertain:true
     },{status:503,headers:{"Cache-Control":"no-store, private"}});
     if(!Array.isArray(acknowledged)||acknowledged.length!==statements.length||
-      acknowledged.some(result=>result?.success===false))return uncertain();
+      acknowledged.some(result=>(result as {success?:boolean})?.success===false))return uncertain();
     const saved=await env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,status,due_at AS dueAt FROM invoices WHERE id=?")
       .bind(id).first<{id:string;subtotalCents:number;discountCents:number;discountType:string;discountValue:number;totalCents:number;status:string;dueAt:string|null}>();
     const savedLines=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC")
