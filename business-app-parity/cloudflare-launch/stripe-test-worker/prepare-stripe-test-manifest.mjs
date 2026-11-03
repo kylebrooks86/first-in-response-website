@@ -115,6 +115,15 @@ export function prepareStripeTestManifest(generated){
       Array.isArray(generated.triggers.crons)&&generated.triggers.crons.length===0),'Unexpected cron/event trigger');
   insist(!generated.observability||isObject(generated.observability),
     'Unexpected observability configuration');
+  // Existing isolated TEST Worker dashboard/remote diff (owner Acer Nov 3):
+  // observability.redact_query_string is explicitly false. Preserve that value
+  // rather than silently deleting a remote observability setting on deploy.
+  // Any incompatible value in compiled candidate must STOP; no preference flip.
+  if (Object.hasOwn(generated,'observability') &&
+      Object.hasOwn(generated.observability,'redact_query_string')) {
+    insist(generated.observability.redact_query_string===false,
+      'TEST observability redaction setting differs from original dashboard');
+  }
   insist(noHiddenTokens(generated),'Secrets must not be embedded in Wrangler config');
   const result={...generated,
     name:PROPOSED_TEST_MAPPING.worker,
@@ -132,7 +141,10 @@ export function prepareStripeTestManifest(generated){
       database_name:PROPOSED_TEST_MAPPING.d1.name,
       database_id:PROPOSED_TEST_MAPPING.d1.uuid
     }],
-    vars:{...PROPOSED_TEST_MAPPING.vars}
+    vars:{...PROPOSED_TEST_MAPPING.vars},
+    // Keep exact existing remote setting seen in Cloudflare's own drift diff.
+    // Other generated observability fields (e.g. logs enabled) stay unchanged.
+    observability:{...(generated.observability||{}),redact_query_string:false}
   };
   delete result.r2_buckets;
   for(const key of [...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS),'dev','build','python_modules']){
