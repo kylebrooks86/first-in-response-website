@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath $bindingGuard -PathType Leaf)) {
 }
 . $bindingGuard
 # Fixed accepted QA-parity TEST code; script cannot publish a different commit.
-$ExpectedCommit='99acdbf910ba2095f1f37ff5cfed5522488c9594'
+$ExpectedCommit='48c61a2e62df4857bc525c51b5f6f0717b5551d8'
 $Worker='fire-stripe-test-20261101'
 $Database='fire-stripe-test-db-20261101'
 $DatabaseId='dba421ba-fc66-4cf8-9c31-51616f8249ba'
@@ -215,7 +215,9 @@ try{
   Assert ($cfg.d1_databases.Count -eq 1 -and $cfg.d1_databases[0].database_id -eq $DatabaseId -and $cfg.d1_databases[0].database_name -eq $Database) 'Wrong D1 binding'
   Assert ($cfg.vars.FIRE_ACCESS_REQUIRED -eq 'enabled' -and $cfg.vars.FIRE_STRIPE_MODE -eq 'disabled' -and $cfg.vars.FIRE_ENV -eq 'cloudflare-staging' -and $cfg.vars.SITE_ORIGIN -eq $Origin) 'Auth, origin, or Stripe mode mismatch'
   Assert ($cfg.workers_dev -eq $true -and $cfg.preview_urls -eq $false -and $cfg.routes.Count -eq 0) 'Public routing/preview mismatch'
-  Assert ($null -ne $cfg.observability -and $cfg.observability.PSObject.Properties.Name -contains 'redact_query_string' -and $cfg.observability.redact_query_string -ceq $false) 'Original TEST observability redact_query_string:false missing; STOP before remote config overwrite'
+  Assert ($null -ne $cfg.observability -and $cfg.observability.PSObject.Properties.Name -contains 'redact_query_string' -and $cfg.observability.redact_query_string -ceq $false -and
+    $cfg.observability.enabled -ceq $true -and $cfg.observability.logs.enabled -ceq $true -and
+    $cfg.observability.logs.invocation_logs -ceq $true) 'TEST remote observability, logs or invocation logs settings mismatch; STOP before any upload'
   Assert ($cfg.compatibility_flags -contains 'global_fetch_strictly_public' -and $cfg.compatibility_flags -contains 'nodejs_compat') 'Reviewed public Worker fetch flag is absent'
 
   foreach($forbidden in @('r2_buckets','kv_namespaces','durable_objects','services','queues','env','account_id','zone_id')){
