@@ -6,6 +6,8 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_upload_cli_capabilities.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inventory_after_failed_upload_read_only.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_inventory_after_failed_upload_read_only.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs'
       - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
@@ -96,5 +98,8 @@ jobs:
       - name: Prove global Wrangler version and flag compatibility checks reject stale local CLI
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_upload_cli_capabilities.ps1
+      - name: Verify a future owner can inspect post-error versions without uploading or touching secrets
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_inventory_after_failed_upload_read_only.ps1
       - name: Assert all authenticated remote logging bits preserved in isolated TEST manifest
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
