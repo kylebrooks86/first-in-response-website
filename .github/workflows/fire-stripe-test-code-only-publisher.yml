@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_update_qa_parity_code_only.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_stripe_disabled_binding.ps1'
       - '.github/workflows/fire-stripe-test-code-only-publisher.yml'
 permissions:
   contents: read
@@ -14,6 +16,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Test exact Cloudflare version binding field and safe rejection cases, offline
+        shell: pwsh
+        run: |
+          $dir='business-app-parity/cloudflare-launch/stripe-test-worker'
+          & (Join-Path $dir 'test_stripe_disabled_binding.ps1')
+          if($LASTEXITCODE -ne 0) { throw 'Stripe TEST binding regression failed' }
       - name: Parse TEST-only Acer PowerShell source without executing
         shell: pwsh
         run: |
@@ -28,6 +36,7 @@ jobs:
             'dba421ba-fc66-4cf8-9c31-51616f8249ba',
             'FIRE_STRIPE_MODE',
             "'disabled'",
+            'Assert-FireStripeTestModeDisabled -Bindings $bindings',
             'VerifyVersion $PriorVersion',
             'VerifyVersion $newId',
             'Active TEST version differs from pinned predecessor',
@@ -40,6 +49,7 @@ jobs:
           )) {
             if(-not $s.Contains($needle)) {throw ('Missing exact source/custody guard: '+$needle)}
           }
+          if($s.Contains('$mode[0].value')){throw 'Obsolete Cloudflare binding .value lookup is forbidden'}
           $needle="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
           if($s.Split([string[]]@($needle),[System.StringSplitOptions]::None).Count -ne 2){throw 'Exactly one possible hosted Worker deploy invocation required'}
           foreach($forbidden in @('secret put','secret bulk','migrations apply','d1 create','r2 create','stripe.com/v1/','wrangler rollback')) {
