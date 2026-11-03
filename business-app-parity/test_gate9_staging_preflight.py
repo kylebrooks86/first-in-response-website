@@ -115,6 +115,35 @@ class Gate9ReadOnlyPreflight(unittest.TestCase):
             with self.subTest(code=code):
                 self.assert_blocked(patch, code)
 
+    def test_historical_doomsday_worker_is_always_excluded_even_if_mislabeled(self):
+        # Reproduce a dangerously inaccurate owner packet that omits the known
+        # Doomsday origin from otherTargetOrigins. The immutable exclusion pin
+        # must still reject the old Worker independently of owner metadata.
+        d = fixture()
+        d["staging"]["workerOrigin"] = gate.PROTECTED_DR_ORIGIN
+        d["stripe"]["webhooks"][0]["url"] = gate.PROTECTED_DR_ORIGIN + "/api/payments/webhook"
+        result = self.review(d, origin=gate.PROTECTED_DR_ORIGIN)
+        self.assertIn("HISTORICAL_DR_WORKER_FORBIDDEN_FOR_REFUND_STAGING", result["blockers"])
+        self.assertFalse(result["metadataChecklistPassed"])
+        self.assertFalse(result["gate9Accepted"])
+
+    def test_historical_doomsday_d1_is_always_excluded_even_if_mislabeled(self):
+        # A different-looking new Worker must not be allowed to reuse the
+        # historical Doomsday physical database when a packet omits that ID.
+        self.assert_blocked(
+            lambda d: d["staging"].update(boundD1Uuid=gate.PROTECTED_DR_D1),
+            "HISTORICAL_DR_D1_FORBIDDEN_FOR_REFUND_STAGING")
+
+    def test_protected_legacy_worker_and_d1_rejected_together(self):
+        d = fixture()
+        d["staging"].update(workerOrigin=gate.PROTECTED_DR_ORIGIN,
+                            boundD1Uuid=gate.PROTECTED_DR_D1)
+        d["stripe"]["webhooks"][0]["url"] = gate.PROTECTED_DR_ORIGIN + "/api/payments/webhook"
+        result = self.review(d, origin=gate.PROTECTED_DR_ORIGIN)
+        self.assertIn("HISTORICAL_DR_WORKER_FORBIDDEN_FOR_REFUND_STAGING", result["blockers"])
+        self.assertIn("HISTORICAL_DR_D1_FORBIDDEN_FOR_REFUND_STAGING", result["blockers"])
+        self.assertFalse(result["paymentOrRemoteWriteAuthorized"])
+
     def test_reject_synthetic_qa_and_legacy_sites_as_staging(self):
         for origin in ("https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev",
                        "https://fire-app.kylebrooks8605.chatgpt.site"):
