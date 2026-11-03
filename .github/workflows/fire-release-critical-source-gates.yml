@@ -47,6 +47,10 @@ jobs:
           node --experimental-sqlite scripts/test-stacked-estimate-discounts.mjs
           node --experimental-sqlite scripts/test-per-job-price-overrides.mjs
           node scripts/test-iphone-estimate-service-picker.mjs
+      - name: October offer cutoff and saved-date promotion contract
+        run: |
+          node --experimental-sqlite scripts/test-saved-promotions.mjs
+          node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
       - name: Job identity and cross-record numbering, no hosted migration
         run: |
           node scripts/test-job-numbering.mjs
