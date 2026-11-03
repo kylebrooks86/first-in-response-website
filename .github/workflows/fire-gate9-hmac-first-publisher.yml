@@ -37,7 +37,7 @@ jobs:
             "webhook signature-before-kill-switch",
             '--keep-vars',
             "[Environment]::SetEnvironmentVariable('CI','true','Process')",
-            "[Environment]::SetEnvironmentVariable('CI',$priorCI,'Process')",
+            "[Environment]::SetEnvironmentVariable('CI',`$priorCI,'Process')",
             'ExpectedPreviousVersion',
             'deployments status',
             'versions view',
