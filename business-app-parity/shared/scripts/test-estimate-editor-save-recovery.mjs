@@ -27,7 +27,7 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
    ...Object.fromEntries([...tags].map(t=>[t,()=>null])),useEffect(){},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},fetch:(url,options)=>{requests.push({url,options});return fetcher(url,options);}};
   const code=readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discount.getText(ast)+'\n'+discountParser.getText(ast)+'\n'+fn.getText(ast)+`\nexports.view=${name};`;
   vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-  const estimate={id:'synthetic-job',invoiceId:'synthetic-invoice',customerId:'synthetic-customer',service:'Wash',totalCents:20001,paidCents:5000,items:[]};
+  const estimate={id:'synthetic-job',invoiceId:'synthetic-invoice',customerId:'synthetic-customer',service:'Wash',subtotalCents:20001,totalCents:20001,paidCents:5000,items:[]};
   const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved:v=>saved.push(v)});};
   const set=(key,value)=>state[names.indexOf(key)]=value;
   render();set('open',true);set('items',[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity:3,unit:'job',unitRateCents:6667,preservedLineTotalCents:20001}]);
