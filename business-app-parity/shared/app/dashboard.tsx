@@ -832,7 +832,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ requestId,...(revisionSource?{revisionOf:revisionSource.id}:{}),customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, ...(promotionEvidence?{promotionEvidence}:{} ) }),
       });
-      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;jobNumber?:number|null;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
+      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;jobNumber?:number|null;address?:string;propertyId?:string|null;propertyRevision?:number|null;items?:EstimateItemRow[];error?: string };
       if(!response.ok){
         safelyRejected=response.status>=400&&response.status<500;
         if(response.status>=500)setUncertainSave(true);
@@ -842,13 +842,25 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       if(promotionEvidence&&result.promotionAttributionSaved!==true){setUncertainSave(true);throw new Error("Verified saved promotion receipt was not confirmed. Review stored estimates before another attempt.");}
       if(!matchesReviewedEstimateReceipt(result,{subtotalCents:subtotal,discountCents:discount.appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents:bundleInputCents??0})){setUncertainSave(true);throw new Error('Saved estimate totals or deposit did not match this reviewed quote. Review stored estimates before another attempt.');}
       if(result.id!==requestId||result.requestId!==requestId||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
+      const confirmedItems=result.items;
+      if(!Array.isArray(confirmedItems)||confirmedItems.length!==payloadItems.length||
+        confirmedItems.some((row,index)=>{
+          const requested=payloadItems[index];
+          return !row||typeof row.id!=="string"||!row.id||row.id.startsWith("new-")||
+            row.name!==requested.name||row.description!==requested.description||
+            Number(row.quantity)!==requested.quantity||row.unit!==requested.unit||
+            Number(row.totalCents)!==requested.totalCents;
+        })||new Set(confirmedItems.map(row=>row.id)).size!==confirmedItems.length){
+        setUncertainSave(true);
+        throw new Error("Saved estimate services were not confirmed. Review the existing estimate before submitting another quote.");
+      }
       if(!releasePendingEstimateCreate(estimateCreateStorage(),requestId)){setUncertainSave(true);throw new Error("Estimate was saved but its on-device recovery marker could not be cleared. Check stored estimates before sending another quote.");}
       createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);
       const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
       const savedJobNumber=jobNumberLabel(result.jobNumber)?Number(result.jobNumber):undefined;
       setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit),jobNumber:savedJobNumber});
       const createdAt = new Date().toISOString();
-      onSaved?.({ id: result.id,jobNumber:savedJobNumber, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
+      onSaved?.({ id: result.id,jobNumber:savedJobNumber, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:confirmedItems, status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
       setSaved(true);
     } catch (saveError) { if(!safelyRejected)setUncertainSave(true);setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
     finally { setSaving(false);saveLock.current=false; }
