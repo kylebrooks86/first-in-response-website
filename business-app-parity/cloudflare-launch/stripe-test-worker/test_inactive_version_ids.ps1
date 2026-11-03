@@ -31,3 +31,26 @@ MustReject @([pscustomobject]@{id=$a},[pscustomobject]@{id=$a}) 'duplicate versi
 MustReject @([pscustomobject]@{id='not-a-version'}) 'malformed version ID must fail'
 MustReject @() 'empty version list must fail'
 Write-Host 'PASS: Eight OFFLINE version ID parser cases. No network, no hosted write.'
+# Cloudflare versions list is a recent window (10 most recent in the CLI docs).
+# An old *active* version can validly be absent from this window. The
+# upload script separately verifies the 100%-active predecessor through
+# deployments status and immutable versions view. Do not fail merely because
+# that old version has rolled off the recent-list response.
+$window=@(1..10|ForEach-Object {
+  [pscustomobject]@{id=('11111111-2222-4333-8444-'+('{0:d12}' -f $_))}
+})
+$oldWindow=@(Get-StrictVersionIds $window)
+Check ($oldWindow.Count -eq 10 -and $a -notin $oldWindow) 'Old serving predecessor legitimately absent from most-recent window'
+$newUuid='22222222-3333-4444-8555-666666666666'
+$newWindow=@([pscustomobject]@{id=$newUuid})+@($window|Select-Object -First 9)
+$afterWindow=@(Get-StrictVersionIds $newWindow)
+$added=@($afterWindow|Where-Object{$_ -notin $oldWindow})
+Check ($added.Count -eq 1 -and $added[0] -eq $newUuid) 'One new inactive version detected across rotating ten-entry window'
+# Static cross-check: retain serving predecessor's independently verified
+# identity even when versions list has rotated it out.
+$scriptText=Get-Content -LiteralPath $src -Raw
+Check ($scriptText.Contains('$lv[0].version_id -ceq $PriorVersion') -and
+       $scriptText.Contains('$served[0].version_id -ceq $PriorVersion')) '100%-serving predecessor separately verified'
+Check (-not $scriptText.Contains('$beforeIds -contains $PriorVersion')) 'Do not demand serving predecessor in recent version window'
+Write-Host 'PASS: Recent 10-version window rotates without falsely rejecting old active predecessor; one added inactive version detected.'
+
