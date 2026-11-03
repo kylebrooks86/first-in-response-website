@@ -165,13 +165,36 @@ export async function PATCH(request: Request) {
       duplicateEmail?"This email is already on another customer. Nothing was changed.":
       "This phone number is already on another customer. Nothing was changed."},{status:409});
 
-    await env.DB.prepare("UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=? WHERE id=?")
-      .bind(name, email || null, phone || null, address || null, leadSource, id).run();
-    const customer = await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,lead_source AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1")
-      .bind(id).first();
+    // A nonthrowing D1 write, including an ambiguous/zero-change ACK, does
+    // NOT prove the new contact details were saved. Read back the exact row
+    // separately before telling the owner that the edit succeeded.
+    // If the UPDATE committed but the network acknowledgement was lost, the
+    // readback can still confirm success without repeating the write.
+    try {
+      await env.DB.prepare("UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=? WHERE id=?")
+        .bind(name, email || null, phone || null, address || null, leadSource, id).run();
+    } catch {
+      // Do not automatically retry a possibly committed UPDATE.
+      // A separate authoritative SELECT below decides the result.
+    }
+    let customer: {id:string;name:string;email:string;phone:string;address:string;leadSource:string;createdAt:string}|null;
+    try {
+      customer = await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,COALESCE(lead_source,'Unknown') AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1")
+        .bind(id).first<{id:string;name:string;email:string;phone:string;address:string;leadSource:string;createdAt:string}>();
+    } catch {
+      return Response.json({error:"Customer save confirmation is unavailable. Reopen this record to check before retrying.",saveUncertain:true},
+        {status:503,headers:{"Cache-Control":"no-store, private"}});
+    }
+    if(!customer || customer.id!==id || customer.name!==name ||
+      customer.email!==email || customer.phone!==phone ||
+      customer.address!==address || customer.leadSource!==leadSource) {
+      return Response.json({error:"Customer changes could not be confirmed. Reopen this record to check before retrying.",saveUncertain:true},
+        {status:503,headers:{"Cache-Control":"no-store, private"}});
+    }
     const customerNumber=await customerNumberForCustomer(env.DB,id,env);
     return Response.json({ customer:{...customer,customerNumber} },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
-    return Response.json({ error: "We couldn't update this customer. Please try again." }, { status: 500 });
+    return Response.json({ error: "Customer save confirmation is uncertain. Reopen this record to check before retrying.",saveUncertain:true },
+      {status:503,headers:{"Cache-Control":"no-store, private"}});
   }
 }
