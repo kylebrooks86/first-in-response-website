@@ -11,9 +11,19 @@ if($defs.Count -ne 1){throw 'Require one immutable CLI version/capability guard'
 function Assert([bool]$value,[string]$errorText){if(-not $value){throw $errorText}}
 function Check([bool]$ok,[string]$why){if(-not $ok){throw ('TEST: '+$why)}}
 $help='Wrangler versions upload --config [string] --keep-vars [boolean] --strict [boolean]'
+Check ([bool](Assert-InactiveUploadCli '4.151.0' $help)) 'Real Acer bare wrangler.cmd --version is supported'
+Check ([bool](Assert-InactiveUploadCli ' 4.151.0 ' $help)) 'Whitespace-trimmed bare CLI version supported'
 Check ([bool](Assert-InactiveUploadCli 'wrangler 4.151.0' $help)) 'Exact owner-confirmed global CLI supported'
 Check ([bool](Assert-InactiveUploadCli '⛅ wrangler 4.151.0' $help)) 'Decorated version label supported'
 $cases=@(
+  [pscustomobject]@{v='4.92.0';h=$help;reason='project-local bare 4.92.0'},
+  [pscustomobject]@{v='4.151.1';h=$help;reason='unapproved bare 4.151.1'},
+  [pscustomobject]@{v='4.151.0-beta';h=$help;reason='version with suffix'},
+  [pscustomobject]@{v='pre 4.151.0 post';h=$help;reason='unanchored embedded version'},
+  [pscustomobject]@{v="4.151.0`nunauthorized";h=$help;reason='extra output after bare version'},
+  [pscustomobject]@{v='4.151.0';h='--config --keep-vars';reason='bare version missing strict'},
+  [pscustomobject]@{v='4.151.0';h='--config --strict';reason='bare version missing keep-vars'},
+  [pscustomobject]@{v='4.151.0';h='--strict --keep-vars';reason='bare version missing config'},
   [pscustomobject]@{v='wrangler 4.92.0';h=$help;reason='project-local 4.92.0'},
   [pscustomobject]@{v='wrangler 4.151.1';h=$help;reason='unexpected global upgrade'},
   [pscustomobject]@{v='wrangler 4.151.0';h='--config --keep-vars';reason='missing strict'},
@@ -27,4 +37,4 @@ foreach($c in $cases){
   try{$null=Assert-InactiveUploadCli $c.v $c.h}catch{$rejected=$true}
   Check $rejected ('must refuse '+$c.reason)
 }
-Write-Host 'PASS: Exact global Wrangler CLI supported; seven unsafe capability/version variants refused. No cloud.'
+Write-Host ('PASS: Bare owner Acer 4.151.0 plus labeled CLI supported; '+$cases.Count+' wrong-version/flag variants refused. No cloud.')
