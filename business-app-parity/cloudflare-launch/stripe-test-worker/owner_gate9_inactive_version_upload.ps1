@@ -152,6 +152,25 @@ function Remove-LegacyEnvFromTempReview([string]$reviewFile){
   Assert (-not ($after.PSObject.Properties.Name -contains 'legacy_env')) 'Wrangler 4.151.0 review still carries forbidden legacy_env'
   return $true
 }
+function Assert-RemoteAssetsNotChanged([string]$version,[object]$candidate){
+  # Hosted configuration drift must be caught BEFORE the exact owner upload
+  # phrase, not by Wrangler at the only authorized write attempt. Versions
+  # capture static assets as well as code. The current immutable TEST Worker
+  # has script/script_runtime/bindings and NO static assets resource.
+  $raw=(& $script:Wrangler versions view $version --name $script:Worker --json | Out-String).Trim()
+  ExitCheck 'Read-only existing immutable version assets'
+  try{$old=ConvertFrom-Json -InputObject $raw -ErrorAction Stop}
+  catch{throw 'STOP: Could not parse existing Worker assets metadata.'}
+  Assert ([string]$old.id -ceq $version -and $null -ne $old.resources) 'Wrong/missing remote asset provenance'
+  $keys=@($old.resources.PSObject.Properties.Name)
+  Assert ($keys -contains 'script' -and $keys -contains 'script_runtime' -and $keys -contains 'bindings') 'Unknown remote Worker version resource schema'
+  $oldHasAssets=($keys -contains 'assets') -or ($keys -contains 'static_assets')
+  $candidateHasAssets=($candidate.PSObject.Properties.Name -contains 'assets')
+  if($oldHasAssets -or $candidateHasAssets){
+    throw 'STOP BEFORE CONSENT: Current TEST version and candidate have unsupported static assets parity. The full Vite build requests assets but the existing TEST Worker is code-only. Never remove --strict or drop assets to bypass this drift.'
+  }
+  return $true
+}
 function Pnpm([string[]]$argsToRun){
   $tool=$script:PkgCommand
   $prefix=$script:PkgPrefix
@@ -297,7 +316,8 @@ try{
   $globalDry=Join-Path $Scratch 'dry-run-standalone-v4151'
   & $Wrangler deploy --config $review --dry-run --outdir $globalDry
   ExitCheck 'Standalone Wrangler 4.151.0 strict TEST config dry-run'
-  Write-Host 'PASS: Gate9 HMAC-first TEST dry-runs with both CLI versions; legacy_env removed only in local TEST review, no routes, R2 or Stripe activation.'
+  Assert ([bool](Assert-RemoteAssetsNotChanged $PriorVersion $cfg)) 'Remote-versus-local static assets drift must be resolved separately'
+  Write-Host 'PASS: Gate9 HMAC-first TEST dry-runs with both CLI versions AND remote asset compatibility; no routes, R2 or Stripe activation.'
   if(-not $Upload){
     Write-Host ('REVIEW PASS ONLY. No Cloudflare/Stripe writes. Pinned candidate '+$ExpectedCommit)
     Write-Host ('Pinned active version '+$PriorVersion)
