@@ -80,6 +80,22 @@ function Get-StrictVersionIds($data){
   if($ids.Count -lt 1 -or $ids.Count -ne @($ids|Sort-Object -Unique).Count){throw 'STOP: Empty/duplicate version list'}
   return $ids
 }
+function SecretNamesPretty(){
+  # Wrangler 4.151.0 owner-proven form, NO values: "Secret Name: NAME"
+  # Exact equality below blocks missing, unexpected, or duplicate names.
+  $raw=(& $script:Wrangler secret list --name $script:Worker --format pretty 2>$null | Out-String)
+  ExitCheck 'Read-only Wrangler pretty secret inventory'
+  $lines=@($raw -split '\r?\n'|Where-Object {$_ -match '^\s*Secret Name:'})
+  $names=@()
+  foreach($line in $lines){
+    if($line -notmatch '^\s*Secret Name:\s*([A-Z][A-Z0-9_]*)\s*$'){
+      throw 'STOP: Unexpected Wrangler pretty-format secret entry'
+    }
+    $names+= $Matches[1]
+  }
+  Assert ($names.Count -eq 4 -and @($names|Sort-Object -Unique).Count -eq 4) 'Wrong or duplicate TEST secret-name inventory'
+  return (($names|Sort-Object) -join ',')
+}
 function Pnpm([string[]]$argsToRun){
   $tool=$script:PkgCommand
   $prefix=$script:PkgPrefix
@@ -98,8 +114,7 @@ try{
   Assert ([bool]($corepack -or $pnpm)) 'Neither corepack nor pnpm is installed'
   if($corepack){$PkgCommand=$corepack.Source;$PkgPrefix=@('pnpm')}
   else{$PkgCommand=$pnpm.Source;$PkgPrefix=@()}
-  $secretList=@(WranglerJson @('secret','list','--name',$Worker))
-  $actualSecretNames=(@($secretList | ForEach-Object {$_.name} | Sort-Object) -join ',')
+  $actualSecretNames=SecretNamesPretty
   Assert ($actualSecretNames -eq $ExpectedSecrets) 'Unexpected Worker secrets (no secret mutation authorized)'
   # Avoid fragile account-wide D1 JSON array handling; verify the actual
   # serving Worker version's physical D1 UUID instead (stronger evidence).
@@ -226,8 +241,7 @@ try{
   $lv=@((ConvertFrom-Json -InputObject $last -ErrorAction Stop).versions)
   Assert ($lv.Count -eq 1 -and $lv[0].version_id -ceq $PriorVersion -and [int]$lv[0].percentage -eq 100) 'Serving version drifted. STOP'
   VerifyVersion $PriorVersion
-  $secretsAgain=@(WranglerJson @('secret','list','--name',$Worker))
-  Assert ((@($secretsAgain|ForEach-Object {$_.name}|Sort-Object) -join ',') -eq $ExpectedSecrets) 'Existing four secrets changed. STOP'
+  Assert ((SecretNamesPretty) -ceq $ExpectedSecrets) 'Existing four secrets changed. STOP'
   $beforeIds=@(Get-StrictVersionIds (WranglerJson @('versions','list','--name',$Worker,'--json')))
   Assert ($beforeIds -contains $PriorVersion) 'Cannot establish prior version inventory. STOP'
 
@@ -253,8 +267,7 @@ try{
   Assert ($newIds.Count -eq 1 -and $newIds[0] -cne $PriorVersion) 'No UNIQUE new inactive version found. DO NOT RETRY.'
   $newId=[string]$newIds[0]
   VerifyVersion $newId
-  $secretsAfter=@(WranglerJson @('secret','list','--name',$Worker))
-  Assert ((@($secretsAfter|ForEach-Object {$_.name}|Sort-Object) -join ',') -eq $ExpectedSecrets) 'Secret names changed after inactive upload'
+  Assert ((SecretNamesPretty) -ceq $ExpectedSecrets) 'Secret names changed after inactive upload'
   $h=(& curl.exe --silent --show-error --max-time 20 --dump-header - --output NUL $Origin | Out-String)
   ExitCheck 'Owner-only Access after inactive upload'
   Assert ($h -match '(?im)^location:\s*https://restless-unit-ad5b\.cloudflareaccess\.com/') 'Owner Access redirect changed!'
