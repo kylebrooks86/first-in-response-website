@@ -36,6 +36,28 @@ test('correct TEST callback and provider metadata are required, but always remai
     assert.equal(result[k],false,'No hosted evidence or approval can be inferred: '+k);
 });
 
+test('preserves the EXACT seven already accepted TEST customer-view/asset paths, not an imaginary 11-path deploy',()=>{
+  // Prior owner-verified Cloudflare Access OPEN/CLOSE finished with these
+  // seven public view/asset exceptions, and the temporary signing POST
+  // exception was REMOVED. This is an offline prior-evidence fixture only.
+  const acceptedSeven=[
+    '/estimate/*','/invoice/*','/pay/*',
+    '/_next/static/*','/assets/*','/fire-app-logo.png','/favicon.ico',
+  ];
+  const orig={type:'worker',worker_id:workerId,
+    overrides:acceptedSeven.map(path_pattern=>({behavior:'public',path_pattern}))};
+  const proposal={...orig,overrides:[...orig.overrides,{...STRIPE_TEST_PROPOSED_OVERRIDE}]};
+  const result=reviewWebhookAccessDelta({expectedWorkerId:workerId,before:orig,after:proposal});
+  assert.equal(result.existingExceptionsPreserved,7);
+  assert.equal(result.cloudflarePolicyApplied,false);
+  assert.equal(result.gate9Accepted,false);
+  // The once-open synthetic signing POST exception cannot be implicitly
+  // reinstated when preparing the unrelated Stripe callback.
+  const reopens={...proposal,overrides:[...proposal.overrides,
+    {behavior:'public',path_pattern:'/api/public/estimates/fake-test-only-token/accept'}]};
+  blocked(()=>reviewWebhookAccessDelta({expectedWorkerId:workerId,before:orig,after:reopens}));
+});
+
 test('Access changes fail closed on wrong Worker, missing/duplicated paths, broad or private bypass',()=>{
   for(const mutate of [
     x=>x.after.worker_id='another-worker',
