@@ -46,6 +46,18 @@ function WranglerJson([string[]]$params){
   try{return ConvertFrom-Json -InputObject $raw}
   catch{throw "STOP: Cannot parse Wrangler response. No deploy."}
 }
+function Assert-VersionSecretBindings([object[]]$bindings){
+  # Worker-level "secret list" alone is NOT evidence that a newly uploaded
+  # INACTIVE version inherited the secrets. Check the immutable version itself.
+  $names=@($bindings|Where-Object {
+    $null -ne $_ -and $_.PSObject.Properties.Name -contains 'type' -and $_.type -ceq 'secret_text'
+  }|ForEach-Object {
+    Assert ($_.PSObject.Properties.Name -contains 'name') 'Version secret has no name'
+    [string]$_.name
+  }|Sort-Object)
+  Assert ($names.Count -eq 4 -and ($names -join ',') -ceq $script:ExpectedSecrets) 'Immutable version missing or unexpectedly adding encrypted secret bindings'
+  return $true
+}
 function VerifyVersion([string]$id){
   $raw=(& $script:Wrangler versions view $id --name $script:Worker --json | Out-String).Trim()
   ExitCheck 'Immutable Worker version bindings'
@@ -60,7 +72,8 @@ function VerifyVersion([string]$id){
   # Cloudflare returns {name, type:'plain_text', text:'disabled'}; .value is NOT a binding field.
   # The isolated helper rejects missing, secret-typed, duplicate or enabled modes.
   Assert ([bool](Assert-FireStripeTestModeDisabled -Bindings $bindings)) 'TEST Stripe-disabled version binding could not be established'
-  Write-Host ('PASS: Active version '+$id+' physically bound to isolated TEST DB; no R2, Stripe disabled.')
+  Assert ([bool](Assert-VersionSecretBindings -bindings $bindings)) 'TEST Worker version secrets are not inherited correctly'
+  Write-Host ('PASS: Immutable version '+$id+' uses isolated TEST DB, no R2, Stripe disabled and four encrypted secrets by NAME.')
 }
 function Get-StrictVersionIds($data){
   if($data -is [array]){$items=@($data)}
