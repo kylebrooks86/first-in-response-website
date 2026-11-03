@@ -11,6 +11,8 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_immutable_secret_bindings.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/finalize-stripe-test-legacy-env.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/finalize-stripe-test-legacy-env.test.mjs'
       - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
 permissions:
   contents: read
@@ -47,6 +49,10 @@ jobs:
             'GetEnvironmentVariable',
             '& $Wrangler versions upload --config $review --keep-vars --strict',
             'Assert-InactiveUploadCli $globalVersion $globalHelp',
+            'finalize-stripe-test-legacy-env.mjs',
+            'Local-only Wrangler legacy_env compatibility finalization',
+            'Removed legacy_env is still present',
+            '& $Wrangler deploy --config $review --dry-run --outdir $standaloneDry'
             'Original TEST version still 100%',
             'THIS SCRIPT DOES NOT ACTIVATE ANY VERSION'
           )){
@@ -105,5 +111,7 @@ jobs:
       - name: Require all 4 immutable secrets in both old and newly uploaded TEST versions
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_immutable_secret_bindings.ps1
+      - name: Reject deprecated Wrangler legacy_env and test only exact local one-field correction
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/finalize-stripe-test-legacy-env.test.mjs
       - name: Assert all authenticated remote logging bits preserved in isolated TEST manifest
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
