@@ -133,6 +133,25 @@ function Assert-InactiveUploadCli([string]$version,[string]$help){
   }
   return $true
 }
+function Remove-LegacyEnvFromTempReview([string]$reviewFile){
+  # Wrangler 4.151.0 rejects legacy_env even when true; Vite's generated
+  # compiled manifest includes the historical default. The historical true
+  # value already means separate named Workers, so dropping ONLY that
+  # deprecated key preserves the existing isolated TEST Worker identity.
+  # Never modify the pinned source or any provider config; only this temporary
+  # manually reviewed JSON file. Fail on false/unexpected/missing schema.
+  Assert (Test-Path -LiteralPath $reviewFile -PathType Leaf) 'Missing temporary TEST review manifest'
+  $before=Get-Content -LiteralPath $reviewFile -Raw | ConvertFrom-Json -ErrorAction Stop
+  Assert ($before.PSObject.Properties.Name -contains 'legacy_env' -and
+    $before.legacy_env -ceq $true) 'Unexpected legacy_env value: cannot safely normalize pinned TEST config'
+  $before.PSObject.Properties.Remove('legacy_env')
+  $serialized=ConvertTo-Json -InputObject $before -Depth 100
+  Assert ($serialized -notmatch '"legacy_env"\s*:') 'Legacy env removal failed'
+  [System.IO.File]::WriteAllText($reviewFile,$serialized+[Environment]::NewLine,[System.Text.UTF8Encoding]::new($false))
+  $after=Get-Content -LiteralPath $reviewFile -Raw | ConvertFrom-Json -ErrorAction Stop
+  Assert (-not ($after.PSObject.Properties.Name -contains 'legacy_env')) 'Wrangler 4.151.0 review still carries forbidden legacy_env'
+  return $true
+}
 function Pnpm([string[]]$argsToRun){
   $tool=$script:PkgCommand
   $prefix=$script:PkgPrefix
@@ -256,6 +275,7 @@ try{
   $review=Join-Path $App 'dist\server\wrangler.FIRE_TEST_REVIEW_ONLY.json'
   & node $manifestScript $local $review
   ExitCheck 'Strict test manifest preparation'
+  Assert ([bool](Remove-LegacyEnvFromTempReview $review)) 'Global CLI TEST manifest compatibility'
   $cfg=Get-Content -LiteralPath $review -Raw | ConvertFrom-Json
   Assert ($cfg.name -eq $Worker -and $cfg.topLevelName -eq $Worker) 'Wrong Worker target in generated config'
   Assert ($cfg.d1_databases.Count -eq 1 -and $cfg.d1_databases[0].database_id -eq $DatabaseId -and $cfg.d1_databases[0].database_name -eq $Database) 'Wrong D1 binding'
@@ -271,7 +291,13 @@ try{
   }
   $dry=Join-Path $Scratch 'dry-run'
   Pnpm @('exec','wrangler','deploy','--config',$review,'--dry-run','--outdir',$dry)
-  Write-Host 'PASS: Gate9 HMAC-first TEST build/dry-run; existing observability redaction preserved; no routes, R2 or Stripe activation.'
+  # The actual one-upload CLI is standalone Wrangler 4.151.0, not the pinned
+  # project-local 4.92.0. Validate THIS EXACT TEMP REVIEW CONFIG against
+  # the standalone CLI's parser before any owner confirmation or hosted write.
+  $globalDry=Join-Path $Scratch 'dry-run-standalone-v4151'
+  & $Wrangler deploy --config $review --dry-run --outdir $globalDry
+  ExitCheck 'Standalone Wrangler 4.151.0 strict TEST config dry-run'
+  Write-Host 'PASS: Gate9 HMAC-first TEST dry-runs with both CLI versions; legacy_env removed only in local TEST review, no routes, R2 or Stripe activation.'
   if(-not $Upload){
     Write-Host ('REVIEW PASS ONLY. No Cloudflare/Stripe writes. Pinned candidate '+$ExpectedCommit)
     Write-Host ('Pinned active version '+$PriorVersion)
