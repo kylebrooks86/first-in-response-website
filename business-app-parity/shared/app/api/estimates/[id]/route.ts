@@ -12,6 +12,7 @@ type EditItem={id?:string;name:string;description:string;quantity:number;unit:st
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   let guardedSchedule=false;
+  let estimateWriteAttempted=false;
   try {
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
@@ -52,6 +53,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         totalCents:Math.round(Number(item.totalCents)),
       }));
       if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return Response.json({error:"Every service needs a name, quantity, and valid price."},{status:400});
+      // Generate the exact database IDs before the atomic batch. Never return
+      // temporary UI ids or pretend an unpersisted line has a stable identity.
+      const persistedItems=items.map(item=>({...item,id:item.id||crypto.randomUUID()}));
       const subtotal=items.reduce((sum,item)=>sum+item.totalCents,0);
       if(!Number.isSafeInteger(subtotal))return Response.json({error:"The estimate total is too large to store safely."},{status:400});
       const appreciationDiscount=body.appreciationDiscount===true?1:0;
@@ -64,7 +68,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       try{pricing=quoteDiscounts(subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents);}catch(error){return Response.json({error:error instanceof Error?error.message:'Invalid discounts.'},{status:400});}
       const {total,appliedDiscount,deposit}=pricing;
       statements.push(env.DB.prepare("DELETE FROM estimate_items WHERE estimate_id=?").bind(id));
-      for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id||crypto.randomUUID(),id,item.name,item.description,item.quantity,item.unit,item.totalCents));
+      for(const item of persistedItems)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents));
       statements.push(env.DB.prepare("UPDATE estimates SET subtotal_cents=?,discount_cents=?,appreciation_discount=?,additional_discount_type=?,additional_discount_value=?,total_cents=?,deposit_cents=? WHERE id=?").bind(subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,id));
       const savedPromotion=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+id).first<{body:string}>();
       if(savedPromotion){
@@ -74,7 +78,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           statements.push(env.DB.prepare("DELETE FROM message_templates WHERE key=?").bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+id));
       }
       if(bundleDiscountCents>0||savedDiscount)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at").bind(DISCOUNT_SNAPSHOT_PREFIX+id,JSON.stringify(discountSnapshot(id,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),new Date().toISOString()));
-      responseFields={...responseFields,bundleDiscountCents,subtotalCents:subtotal,discountCents:appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,totalCents:total,depositCents:deposit,items,service:items.map((item)=>item.name).join(", "),serviceDescription:items[0]?.description??""};
+      responseFields={...responseFields,bundleDiscountCents,subtotalCents:subtotal,discountCents:appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,totalCents:total,depositCents:deposit,items:persistedItems,service:items.map((item)=>item.name).join(", "),serviceDescription:items[0]?.description??""};
     }
 
     const changingStatus=Boolean(status)||Object.prototype.hasOwnProperty.call(body,"scheduledAt");
@@ -128,10 +132,42 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(!latest||latest.signedAt||latest.acceptedAt||["approved","scheduled","completed"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
       if(!Number.isSafeInteger(Number(latest.paidCents))||Number(latest.paidCents)<0)return Response.json({error:"This estimate's payment state is outside FIRE's safe accounting range. Stop and review the job before editing the estimate."},{status:409});
     }
-    if(statements.length){const results=await env.DB.batch(statements);if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'Deposit, payment or approval changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});}
-    return Response.json({ estimate: responseFields });
+    if(statements.length){
+      estimateWriteAttempted=Array.isArray(body.items);
+      const results=await env.DB.batch(statements);
+      if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'Deposit, payment or approval changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});
+      if(estimateWriteAttempted){
+        const uncertain=()=>Response.json({error:'Estimate save confirmation is uncertain. Reopen the saved estimate and check its services and amounts before another edit.',saveUncertain:true},
+          {status:503,headers:{'Cache-Control':'no-store, private'}});
+        if(!Array.isArray(results)||results.length!==statements.length||
+          results.some(result=>(result as {success?:boolean})?.success===false))return uncertain();
+        // Read the durable row and EVERY line in original order before
+        // telling the owner a changed quote was saved. Do not let an
+        // accidentally stale or empty D1 result become a successful 200.
+        const actual=await env.DB.prepare('SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,appreciation_discount AS appreciationDiscount,additional_discount_type AS additionalDiscountType,additional_discount_value AS additionalDiscountValue,total_cents AS totalCents,deposit_cents AS depositCents FROM estimates WHERE id=?')
+          .bind(id).first<{id:string;subtotalCents:number;discountCents:number;appreciationDiscount:number;additionalDiscountType:string;additionalDiscountValue:number;totalCents:number;depositCents:number}>();
+        const lines=await env.DB.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC')
+          .bind(id).all<Required<EditItem>>();
+        const expected=responseFields as Record<string,any>;
+        if(!actual||actual.id!==id||
+          ['subtotalCents','discountCents','appreciationDiscount','additionalDiscountValue','totalCents','depositCents'].some(key=>
+            !Number.isSafeInteger(Number(actual[key as keyof typeof actual]))||
+            Number(actual[key as keyof typeof actual])!==Number(expected[key]))||
+          actual.additionalDiscountType!==expected.additionalDiscountType||
+          !Array.isArray(lines.results)||lines.results.length!==(expected.items as EditItem[]).length||
+          lines.results.some((row,i)=>{
+            const submitted=(expected.items as EditItem[])[i];
+            return row.id!==submitted.id||row.name!==submitted.name||
+              row.description!==submitted.description||Number(row.quantity)!==submitted.quantity||
+              row.unit!==submitted.unit||Number(row.totalCents)!==submitted.totalCents;
+          }))return uncertain();
+        responseFields={...responseFields,items:lines.results};
+      }
+    }
+    return Response.json({ estimate: responseFields },{headers:{'Cache-Control':'no-store, private'}});
   } catch {
     if(guardedSchedule)return Response.json({error:'Schedule confirmation is uncertain. Refresh the job before another attempt; the schedule may already have saved. No payment was initiated.',saveUncertain:true},{status:503});
+    if(estimateWriteAttempted)return Response.json({error:'Estimate save confirmation is unavailable. Reopen the saved estimate and verify its services and amounts before retrying.',saveUncertain:true},{status:503,headers:{'Cache-Control':'no-store, private'}});
     return Response.json({ error: "We couldn't update this estimate. Please try again." }, { status: 500 });
   }
 }
