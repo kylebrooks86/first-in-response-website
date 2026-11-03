@@ -41,15 +41,26 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
   const body=JSON.parse(f.requests[0].options.body);eq(body.items[0].totalCents,20001,'Original cents preserved');
   eq(f.requests[0].url,name==='EditInvoiceDialog'?'/api/invoices/synthetic-invoice':'/api/estimates/synthetic-job');
   if(outcome==='network')pending.reject(Error('Synthetic connection lost'));
-  else if(outcome==='bad-json')pending.resolve({ok:true,json:async()=>{throw Error('Synthetic invalid response');}});
-  else pending.resolve({ok:outcome==='success',json:async()=>outcome==='success'?(name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:verifiedEstimateReceipt(f.requests[0].options.body)):{error:'Synthetic save failed'}});
+  else if(outcome==='bad-json')pending.resolve({ok:true,status:200,json:async()=>{throw Error('Synthetic invalid response');}});
+  else pending.resolve({ok:outcome==='success',status:outcome==='success'?200:503,json:async()=>outcome==='success'?(name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:verifiedEstimateReceipt(f.requests[0].options.body)):{error:'Synthetic save failed'}});
   await flush();eq(f.get('saving'),false,'Save lock state recovers');
   if(outcome==='success'){eq(f.saved.length,1);eq(f.get('open'),false);}
   else {
    eq(f.saved.length,0);eq(f.get('open'),true);eq(Boolean(f.get('error')),true,'Failure remains visible');
    eq(nodes(f.render()).some(n=>n.type==='fieldset'&&n.props.disabled===false),true,'Inputs recover after failure');
-   const retry=deferred();f.setFetcher(()=>retry.promise);f.button().props.onClick();eq(f.requests.length,2,'Retry releases synchronous guard');
-   retry.resolve({ok:false,json:async()=>({error:'Synthetic retry failed'})});await flush();
+   const retry=deferred();f.setFetcher(()=>retry.promise);
+   f.button().props.onClick();
+   if(name==='EditInvoiceDialog'){
+     // A 503, network interruption or malformed 200 can follow a committed
+     // invoice revision. The previous retry assertion predates the reviewed
+     // fail-closed #112 fix. Never send a second financial PATCH here.
+     eq(f.get('uncertain'),true,'Invoice response is uncertain after '+outcome);
+     eq(f.requests.length,1,'Uncertain invoice must NOT permit duplicate Save');
+     eq(f.button().props.disabled,true,'Invoice Save button is disabled until verified server reload');
+   }else{
+     eq(f.requests.length,2,'Estimates-only retry releases synchronous guard');
+     retry.resolve({ok:false,status:503,json:async()=>({error:'Synthetic retry failed'})});await flush();
+   }
    f.render().props.onOpenChange(false);eq(f.get('open'),false,'Failed edit can be closed safely');
   }
  }
