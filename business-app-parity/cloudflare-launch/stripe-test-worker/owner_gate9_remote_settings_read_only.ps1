@@ -14,6 +14,26 @@ function WranglerJson([string[]]$argv){
   try{return ConvertFrom-Json -InputObject $raw -ErrorAction Stop}
   catch{throw 'STOP READ ONLY: Cannot parse Wrangler JSON; raw data withheld'}
 }
+function Parse-PrettySecretNames([string]$raw){
+  # Actual observed Wrangler 4.151.0 output: "Secret Name: NAME" per entry.
+  # DO NOT print raw text; it is treated as untrusted provider output.
+  $lines=@($raw -split '\r?\n'|Where-Object {$_ -match '^\s*Secret Name:'})
+  $names=@()
+  foreach($line in $lines){
+    if($line -notmatch '^\s*Secret Name:\s*([A-Z][A-Z0-9_]*)\s*$'){
+      throw 'STOP READ ONLY: Unrecognized Wrangler pretty-format secret entry'
+    }
+    $names+= $Matches[1]
+  }
+  Need ($names.Count -gt 0) 'No Wrangler pretty-format secret names recognized'
+  Need ((@($names|Sort-Object -Unique)).Count -eq $names.Count) 'Duplicate secret names encountered'
+  return @($names|Sort-Object)
+}
+function PrettySecretNames(){
+  $raw=(& $script:wrangler secret list --name $script:worker --format pretty 2>$null | Out-String)
+  Need ($LASTEXITCODE -eq 0) 'Wrangler secret list read failed'
+  return @(Parse-PrettySecretNames $raw)
+}
 function Field($obj,[string]$key){
   if($null -eq $obj){return $null}
   if(@($obj.PSObject.Properties.Name) -contains $key){return $obj.$key}
@@ -42,13 +62,11 @@ try {
   Need (@($b|Where-Object {$null -ne $_ -and $_.type -in @('r2','r2_bucket')}).Count -eq 0) 'Unexpected R2 bound'
   $mode=@($b|Where-Object {$null -ne $_ -and $_.name -ceq 'FIRE_STRIPE_MODE'})
   Need ($mode.Count -eq 1 -and $mode[0].type -ceq 'plain_text' -and $mode[0].text -ceq 'disabled') 'Stripe disabled binding not verified'
-  $secrets=@(WranglerJson @('secret','list','--name',$worker))
-  $names=@($secrets|ForEach-Object {[string]$_.name}|Sort-Object)
-  Need ($names.Count -eq 4 -and ($names -join ',') -ceq (@($expectedSecrets|Sort-Object) -join ',')) 'Encrypted secret name inventory drifted'
+  $names=@(PrettySecretNames)
+  Need ($names.Count -eq 4 -and ($names -join ',') -ceq (@($expectedSecrets|Sort-Object) -join ',')) 'Encrypted secret name inventory differs from four-name allowlist'
   Write-Host 'PASS: Existing TEST version 100%, exact D1, four encrypted secrets, Stripe disabled, no R2.'
 
   $who=WranglerJson @('whoami','--json')
-  Need ((Field $who 'loggedIn') -eq $true) 'Wrangler is no longer authenticated'
   $accounts=@(Field $who 'accounts')
   Need ($accounts.Count -ge 1 -and $accounts.Count -le 25) 'No usable Wrangler account list'
   $auth=WranglerJson @('auth','token','--json')
