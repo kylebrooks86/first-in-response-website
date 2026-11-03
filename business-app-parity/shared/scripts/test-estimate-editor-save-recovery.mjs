@@ -31,7 +31,7 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
   const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved:v=>saved.push(v)});};
   const set=(key,value)=>state[names.indexOf(key)]=value;
   render();set('open',true);set('items',[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity:3,unit:'job',unitRateCents:6667,preservedLineTotalCents:20001}]);
-  return {render,set,requests,saved,async load(quantity=3){if(name!=='EditInvoiceDialog'){estimate.items=[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity,unit:'hour',totalCents:20001}];render().props.onOpenChange(true);return;}fetcher=async()=>({ok:true,json:async()=>({invoice:{id:estimate.invoiceId,estimateId:estimate.id,customerId:estimate.customerId,items:[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity,unit:'job',totalCents:20001}],revisions:[]}})});render().props.onOpenChange(true);await flush();requests.length=0;},setFetcher:f=>fetcher=f,get:key=>state[names.indexOf(key)],button:()=>nodes(render()).find(n=>n.type===context.Button&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.startsWith('Save ')))};
+  return {render,set,requests,saved,estimate,async load(quantity=3){if(name!=='EditInvoiceDialog'){estimate.items=[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity,unit:'hour',totalCents:20001}];render().props.onOpenChange(true);return;}fetcher=async()=>({ok:true,json:async()=>({invoice:{id:estimate.invoiceId,estimateId:estimate.id,customerId:estimate.customerId,items:[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity,unit:'job',totalCents:20001}],revisions:[]}})});render().props.onOpenChange(true);await flush();requests.length=0;},setFetcher:f=>fetcher=f,get:key=>state[names.indexOf(key)],button:()=>nodes(render()).find(n=>n.type===context.Button&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.startsWith('Save ')))};
  }
  for(const outcome of ['success','http','network','bad-json']){
   const f=fixture(),pending=deferred();await f.load();f.setFetcher(()=>pending.promise);const button=f.button();
@@ -63,6 +63,24 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
   const f=fixture();await f.load(quantity);eq(f.get('items')[0].quantity,quantity,name+' hydration preserves fractional work');
   f.setFetcher(async(_url,options)=>{const payload=JSON.parse(options.body);eq(payload.items[0].quantity,quantity);eq(payload.items[0].totalCents,20001);return {ok:true,json:async()=>name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:verifiedEstimateReceipt(f.requests[0].options.body)};});
   f.button().props.onClick();await flush();eq(f.saved.length,1);
+ }
+ if(name==='EditEstimateDialog'){
+  for(const kind of ['missing','empty','wrong-total','duplicate-id','missing-id']){
+   const f=fixture(),line={id:'real-line',name:'Wash',description:'Synthetic actual scope',quantity:3,unit:'job',totalCents:20001};
+   f.estimate.items=kind==='missing'?undefined:kind==='empty'?[]:
+    kind==='wrong-total'?[{...line,totalCents:20000}]:
+    kind==='duplicate-id'?[{...line,totalCents:10000},{...line,totalCents:10001}]:
+    [{...line,id:''}];
+   f.render().props.onOpenChange(true);
+   eq(f.get('savedLinesVerified'),false,kind+' missing/wrong persisted scope never becomes editable');
+   eq(f.get('items').length,0,kind+' does not invent a one-line quote from the discounted amount');
+   eq(Boolean(f.get('error')?.includes('Saved estimate services')),true,kind+' warns about unverified service data');
+   eq(f.button().props.disabled,true,kind+' Save button stays disabled in the real JSX');
+   eq(nodes(f.render()).some(n=>n.type==='fieldset'&&n.props.disabled===true),true,kind+' pricing fields cannot be edited');
+   f.set('items',[{id:'fabricated',name:'Synthetic',description:'Not real',quantity:1,unit:'job',unitRateCents:20001}]);
+   f.button().props.onClick();
+   eq(f.requests.length,0,kind+' direct Save handler also refuses to send an estimate PATCH');
+  }
  }
 
 }
