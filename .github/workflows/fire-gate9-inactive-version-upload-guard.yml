@@ -1,0 +1,63 @@
+name: FIRE Gate9 INACTIVE TEST Version Upload Guard (OFFLINE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
+      - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
+permissions:
+  contents: read
+jobs:
+  offline-inactive-version-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Parse exact Windows script and prove no immediate deployment or unsafe hosted operation
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -ne 0){$errors|ForEach-Object{Write-Error $_.Message};throw 'PowerShell syntax invalid'}
+          $s=Get-Content -LiteralPath $path -Raw
+          foreach($must in @(
+            '[switch]$Upload',
+            'if(-not $Upload)',
+            '808159e239fddff77a6f32d7aebcc8e85c6ebb6d',
+            '99acdbf910ba2095f1f37ff5cfed5522488c9594',
+            '96e32262',
+            'fire-stripe-test-20261101',
+            'dba421ba-fc66-4cf8-9c31-51616f8249ba',
+            'FIRE_ACCESS_AUD,FIRE_ACCESS_OWNER_EMAIL,FIRE_ACCESS_TEAM_DOMAIN,STRIPE_WEBHOOK_SECRET',
+            'redact_query_string',
+            'Get-StrictVersionIds',
+            'VerifyVersion $newId',
+            'DO NOT RETRY',
+            "SetEnvironmentVariable('CI','true','Process')",
+            'GetEnvironmentVariable',
+            'Pnpm @(''exec'',''wrangler'',''versions'',''upload'',''--config'',$review,''--keep-vars'',''--strict'')',
+            'Original TEST version still 100%',
+            'NO TRAFFIC ROLLOUT AUTHORIZED'
+          )){
+            # The old producer SHA is intentionally pinned in this script. Exact
+            # postupload version check is distinct from a source commit SHA.
+            if($must -eq '96e32262'){continue}
+            if($must -eq 'NO TRAFFIC ROLLOUT AUTHORIZED'){continue}
+            if(-not $s.Contains($must)){throw ('Missing inactive-only safety invariant: '+$must)}
+          }
+          if(([regex]::Matches($s,"Pnpm @\('exec','wrangler','versions','upload'")).Count -ne 1) {
+            throw 'Require exactly ONE inactive-version upload'
+          }
+          if($s.Contains("Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--keep-vars','--strict')")) {
+            throw 'Immediate Worker deploy forbidden'
+          }
+          if($s -match 'wrangler.{0,30}versions.{0,15}deploy|wrangler (?:secret|d1|r2) (?:put|bulk|delete|execute|create)|--yes'){
+            throw 'Unsafe hosted operation forbidden in inactive uploader'
+          }
+          if(-not $s.Contains('Get-StrictVersionIds') -or -not $s.Contains('$lv[0].percentage -eq 100') -or
+             -not $s.Contains('$served[0].percentage -eq 100')){
+            throw 'Serving predecessor must remain at 100 percent before and after'
+          }
+          Write-Host 'PASS: Offline PowerShell syntax and one inactive-only upload verified; NO hosted action.'
