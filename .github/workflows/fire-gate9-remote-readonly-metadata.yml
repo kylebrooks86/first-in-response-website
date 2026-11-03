@@ -1,0 +1,21 @@
+name: FIRE Gate9 Cloudflare Exact Read-Only Metadata Inspector
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_remote_settings_read_only.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_owner_gate9_remote_settings_read_only.ps1'
+      - '.github/workflows/fire-gate9-remote-readonly-metadata.yml'
+permissions:
+  contents: read
+jobs:
+  no-hosted-writes:
+    name: PowerShell syntax and mock Cloudflare GET endpoints ONLY
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: All remote requests mocked; no Wrangler credentials or Cloudflare access in CI
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_owner_gate9_remote_settings_read_only.ps1
