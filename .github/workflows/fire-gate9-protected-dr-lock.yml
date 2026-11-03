@@ -4,6 +4,8 @@ on:
     paths:
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
+      - 'business-app-parity/gate9_owner_cloudflare_inventory_readonly.py'
+      - 'business-app-parity/test_gate9_owner_cloudflare_inventory_readonly.py'
       - 'business-app-parity/GATE9_STAGING_RELEASE_LOCK_20261030.md'
       - '.github/workflows/fire-gate9-protected-dr-lock.yml'
 permissions:
@@ -18,6 +20,10 @@ jobs:
           persist-credentials: false
       - name: Validate real Gate 9 metadata fail-closed logic with synthetic fixtures
         run: python3 business-app-parity/test_gate9_staging_preflight.py
+      - name: Gate 9 owner-local D1 inventory is read-only and never authorizes provisioning
+        run: |
+          python3 -m py_compile business-app-parity/gate9_owner_cloudflare_inventory_readonly.py
+          python3 business-app-parity/test_gate9_owner_cloudflare_inventory_readonly.py
       - name: Verify historical DR exclusions are pinned to existing adapter identity
         run: |
           python3 - <<'PY'
