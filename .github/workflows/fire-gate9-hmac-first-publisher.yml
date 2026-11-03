@@ -1,0 +1,62 @@
+name: FIRE Gate9 Guarded HMAC-First TEST Publisher (SOURCE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_hmac_first_code_only.ps1'
+      - 'business-app-parity/cloudflare-launch/materialize-stripe-test.py'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/checkout-activation-safety.test.mjs'
+      - '.github/workflows/fire-gate9-hmac-first-publisher.yml'
+permissions:
+  contents: read
+jobs:
+  guarded-publisher-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Parse exact Gate 9 Windows PowerShell and verify read-only/secret safeguards
+        shell: pwsh
+        run: |
+          $sPath='business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_hmac_first_code_only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($sPath,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -ne 0){$errors | ForEach-Object {Write-Error $_.Message};throw 'PowerShell parse failed'}
+          $s=Get-Content -LiteralPath $sPath -Raw
+          foreach($needle in @(
+            "808159e239fddff77a6f32d7aebcc8e85c6ebb6d",
+            "fire-stripe-test-20261101",
+            "dba421ba-fc66-4cf8-9c31-51616f8249ba",
+            "FIRE_ACCESS_AUD,FIRE_ACCESS_OWNER_EMAIL,FIRE_ACCESS_TEAM_DOMAIN,STRIPE_WEBHOOK_SECRET",
+            'FIRE_STRIPE_MODE',
+            "FIRE_STRIPE_MODE !== `"test`"",
+            'STRIPE_WEBHOOK_SECRET',
+            'webhook_guard + webhook_anchor',
+            "webhook signature-before-kill-switch",
+            '--keep-vars',
+            'ExpectedPreviousVersion',
+            'deployments status',
+            'versions view',
+            'restless-unit-ad5b',
+            'No deployment attempted',
+            'DEPLOY MAY HAVE OCCURRED',
+            'no R2',
+            'REVIEW PASS ONLY'
+          )) {
+            if(-not $s.Contains($needle)) {throw ('Required Gate 9 safeguard missing: '+$needle)}
+          }
+          $deployString="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--keep-vars','--strict')"
+          if($s.Split([string[]]@($deployString),[StringSplitOptions]::None).Count -ne 2) {
+            throw 'Exactly one guarded hosted TEST deploy permitted'
+          }
+          foreach($bad in @('secret put','secret bulk','d1 migrations apply','d1 execute',
+             'r2 create','stripe.com/v1/','FIRE_STRIPE_MODE=test','-Publish:$true')) {
+            if($s.Contains($bad)) {throw ('Unapproved write in TEST publisher: '+$bad)}
+          }
+          Write-Host 'PASS: Exact-pinned TEST HMAC-first publisher parses, defaults read-only, guards four secrets incl webhook, keeps vars and requires owner approval. NO HOSTED WRITE.'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Focused Gate 9 HMAC-first kill-switch source contract only
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/checkout-activation-safety.test.mjs

@@ -110,7 +110,6 @@ if remaining or len(changed) < 30:
 stripe_routes = {
     "app/api/payments/checkout/route.ts": "export async function POST(request: Request) {",
     "app/api/payments/refund/route.ts": "export async function POST(request:Request){",
-    "app/api/payments/webhook/route.ts": "export async function POST(request:Request) {",
     "app/api/payments/checkout/reconcile/route.ts": "export async function POST(request:Request){",
     "app/api/payments/connection/route.ts": "export async function GET(){",
 }
@@ -125,7 +124,32 @@ for relative, signature in stripe_routes.items():
     if original.count(signature) != 1 or "FIRE_STRIPE_MODE" in original:
         raise SystemExit("STOP: Stripe TEST mode kill-switch injection changed: " + relative)
     p.write_text(original.replace(signature, signature + stop_line), encoding="utf-8")
-print("PASS: Five Stripe-only routes fail closed until a separately approved TEST mode switch.")
+# The webhook is the ONLY exception to the *early* TEST kill-switch: it must
+# reject missing/invalid signatures with HTTP 400 before checking Stripe mode.
+# While mode is disabled, even correctly signed events still receive retryable
+# HTTP 503 before ANY JSON event processing, checkout/refund reconciliation,
+# database writes, or success acknowledgment. No Stripe mode change is made.
+# This override is confined to the generated TEST candidate, never shared/LIVE.
+webhook_path = destination / "app/api/payments/webhook/route.ts"
+webhook_source = webhook_path.read_text(encoding="utf-8")
+webhook_anchor = "  let event:StripeEvent;"
+required_signature = "verifyStripeSignature(rawBody, signature, runtime.STRIPE_WEBHOOK_SECRET)"
+if (webhook_source.count(webhook_anchor) != 1 or
+        webhook_source.count(required_signature) != 1 or
+        "FIRE_STRIPE_MODE" in webhook_source or
+        webhook_source.index(required_signature) > webhook_source.index(webhook_anchor)):
+    raise SystemExit("STOP: exact TEST webhook signature-before-mode injection changed")
+webhook_guard = (
+    '  // TEST-only: validate Stripe HMAC before refusing disabled-mode delivery.\n'
+    '  // Never acknowledge or reconcile signed events while Stripe TEST is disabled.\n'
+    '  if ((env as typeof env & { FIRE_STRIPE_MODE?:string }).FIRE_STRIPE_MODE !== "test")\n'
+    '    return Response.json({error:"Stripe TEST is intentionally disabled."},\n'
+    '      {status:503,headers:{"cache-control":"no-store"}});\n'
+)
+webhook_path.write_text(webhook_source.replace(webhook_anchor, webhook_guard + webhook_anchor), encoding="utf-8")
+print("PASS: Four Stripe money/connection routes retain the original early 503 kill-switch.")
+print("PASS: TEST webhook checks signed HMAC first, then returns retryable 503 while Stripe disabled; no ledger write.")
+
 
 print("PASS: migrated " + str(len(changed)) +
       " remaining historical Sites owner-email references ONLY in isolated generated TEST files.")
