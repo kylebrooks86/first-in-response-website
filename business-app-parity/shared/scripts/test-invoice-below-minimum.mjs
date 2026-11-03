@@ -7,12 +7,13 @@ import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
 let owner={email:'kylebrooks8605@gmail.com'},remoteCalls=0,checks=0;
-let skipNextBatch=false,loseNextInvoiceRead=false,distortNextInvoiceRead=false,distortNextLineRead=false,hideNextRevision=false;
+let skipNextBatch=false,loseNextInvoiceRead=false,distortNextInvoiceRead=false,distortNextLineRead=false,hideNextRevision=false,postBatchRead=false;
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async()=>{remoteCalls++;throw Error('Synthetic invoice test forbids all remote provider requests');};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
 const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
   async first(){
+    if(sql.startsWith('SELECT id,estimate_id AS estimateId,status,first_viewed_at'))postBatchRead=false;
     if(sql.startsWith('SELECT id,subtotal_cents AS subtotalCents')){
       if(loseNextInvoiceRead){loseNextInvoiceRead=false;throw Error('Synthetic lost invoice readback');}
       const row=db.prepare(sql).get(...args)??null;
@@ -24,7 +25,7 @@ const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
   },
   async all(){
     const rows=db.prepare(sql).all(...args);
-    if(sql.startsWith('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items')&&distortNextLineRead&&rows.length){
+    if(postBatchRead&&sql.startsWith('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items')&&distortNextLineRead&&rows.length){
       distortNextLineRead=false;return {results:[{...rows[0],name:'Not actual stored line'},...rows.slice(1)]};
     }
     return {results:rows};
@@ -33,7 +34,7 @@ const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
 const env={DB:{prepare:statement,async batch(statements){
   if(skipNextBatch){skipNextBatch=false;return statements.map(()=>({success:true,meta:{changes:0}}));}
   db.exec('BEGIN');
-  try{const results=statements.map(s=>s.sql.trimStart().startsWith('SELECT')?{results:db.prepare(s.sql).all(...s.args)}:{meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}});db.exec('COMMIT');return results;}
+  try{const results=statements.map(s=>s.sql.trimStart().startsWith('SELECT')?{results:db.prepare(s.sql).all(...s.args)}:{meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}});db.exec('COMMIT');postBatchRead=true;return results;}
   catch(error){db.exec('ROLLBACK');throw error;}
 }}};
 const loader=createRouteFixtureLoader(process.cwd(),env,()=>owner);
