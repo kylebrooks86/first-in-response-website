@@ -36,6 +36,8 @@ jobs:
             "redact_query_string -ceq `$false",
             "webhook signature-before-kill-switch",
             '--keep-vars',
+            "[Environment]::SetEnvironmentVariable('CI','true','Process')",
+            "[Environment]::SetEnvironmentVariable('CI',$priorCI,'Process')",
             'ExpectedPreviousVersion',
             'deployments status',
             'versions view',
@@ -52,7 +54,7 @@ jobs:
             throw 'Exactly one guarded hosted TEST deploy permitted'
           }
           foreach($bad in @('secret put','secret bulk','d1 migrations apply','d1 execute',
-             'r2 create','stripe.com/v1/','FIRE_STRIPE_MODE=test','-Publish:$true')) {
+             'r2 create','stripe.com/v1/','FIRE_STRIPE_MODE=test','-Publish:$true','--yes')) {
             if($s.Contains($bad)) {throw ('Unapproved write in TEST publisher: '+$bad)}
           }
           Write-Host 'PASS: Exact-pinned TEST HMAC-first publisher parses, defaults read-only, guards four secrets incl webhook, keeps vars and requires owner approval. NO HOSTED WRITE.'
