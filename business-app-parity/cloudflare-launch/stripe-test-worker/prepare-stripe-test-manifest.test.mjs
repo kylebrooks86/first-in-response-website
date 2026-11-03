@@ -41,6 +41,8 @@ test('compiles exact isolated test manifest locally with no billable storage and
  assert.equal(result.vars.FIRE_ACCESS_REQUIRED,'enabled');
  assert.deepEqual(Object.keys(result.vars).sort(),['FIRE_ACCESS_REQUIRED','FIRE_ENV','FIRE_STRIPE_MODE','SITE_ORIGIN']);
  assert.deepEqual(result.assets,generated.assets);
+ assert.deepEqual(result.observability,{redact_query_string:false},
+   'TEST-only manifest must preserve original remote logging-redaction setting');
  assert.doesNotMatch(JSON.stringify(result),/FIRE_ACCESS_AUD|FIRE_ACCESS_OWNER_EMAIL|FIRE_ACCESS_TEAM_DOMAIN|sk_test_|rk_test_|whsec_/);
 });
 test('Cloudflare Vite empty generated provider defaults are stripped without enabling new resources',()=>{
@@ -95,4 +97,20 @@ test('incorrect inherited identity, flags, routes, paid resources and keys fail 
   const cfg=local();mutate(cfg);
   assert.throws(()=>prepareStripeTestManifest(cfg),/FIRE TEST BUILD BLOCKED/);
  }
+});
+
+test('Remote Gate9 TEST observability setting retained, without changing unrelated log options',()=>{
+ const generated=local();
+ generated.observability={enabled:true,logs:{enabled:true,invocation_logs:true},redact_query_string:false};
+ const before=JSON.parse(JSON.stringify(generated.observability));
+ const result=prepareStripeTestManifest(generated);
+ assert.deepEqual(result.observability,before);
+ assert.deepEqual(generated.observability,before,'must not mutate source config');
+ const withoutExplicit=local();
+ withoutExplicit.observability={enabled:true,logs:{enabled:true}};
+ const same=prepareStripeTestManifest(withoutExplicit);
+ assert.deepEqual(same.observability,{enabled:true,logs:{enabled:true},redact_query_string:false});
+ const contradiction=local();
+ contradiction.observability={enabled:true,redact_query_string:true};
+ assert.throws(()=>prepareStripeTestManifest(contradiction),/FIRE TEST BUILD BLOCKED/);
 });
