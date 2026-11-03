@@ -10,6 +10,12 @@
 2. Stripe `GET /v1/events?delivery_success=false&limit=100` returned **one** event and `has_more=false`: `evt_1UOIpm7ND12rd1wI9zV8ZOIC`, `checkout.session.completed`, `pending_webhooks=1`, `livemode=false`. This is a historical event **predating the creation of the separate TEST endpoint**. This response alone cannot determine which individual endpoint owes that pending delivery, whether FIRE's database recorded anything, or whether a fresh TEST event has been accepted.
 3. The original TEST Worker identity was owner-confirmed in earlier authenticated read-only Wrangler: `fire-stripe-test-20261101`, physical D1 `dba421ba-fc66-4cf8-9c31-51616f8249ba`, four required encrypted secret **names**, `FIRE_STRIPE_MODE=disabled`, and immutable version `96e32262-fa33-4f04-a161-bee11f0353e2` serving 100% at that checkpoint. **These are historical owner receipts, not refreshed Cloudflare state from the Stripe GET.**
 
+## Additional complete account event-history cross-check
+
+A separate first-party **GET** `/v1/events?limit=100` returned **21** Stripe sandbox events with `has_more=false`, and **zero** events whose creation time is on or after the dedicated TEST webhook's actual provider creation timestamp `1793677600` (**2026-11-03T03:46:40Z**). The newest account event was created `1792032400` (**2026-10-15T02:46:40Z**). The old pending checkout event itself was created `1791471734` (**2026-10-08T15:02:14Z**). The 21 events include ordinary account payout/charge/refund events as well as Checkout events; **none** has a creation time after the new endpoint was created. No event payloads, customer information, payment IDs, amounts or invoice details were collected in this receipt.
+
+**Gate 9 consequence:** There is no fresh genuine sandbox event available to prove the new five-event webhook has successfully delivered anything to FIRE. Historical Stripe receipts must not be reused as evidence of current real signed delivery, downstream D1 ledger reconciliation, or test refund receipt. Any new synthetic Checkout/refund must require **fresh and bounded owner approval**, after TEST Worker version/DB isolation and Stripe-disabled activation controls are verified.
+
 ## What this evidence does and does not establish
 
 **Stripe-side setup PASS:** The *separate* required five-event TEST webhook exists, is enabled, points to the expected isolated worker route, uses TEST mode and the required API version, and did not replace the original. **Stop recommending creation of another webhook or adding the same missing events to the old Sites webhook.**
