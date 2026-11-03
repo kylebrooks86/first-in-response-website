@@ -21,6 +21,18 @@ The old owner inactive uploader had no immutable remote-assets parity gate befor
 3. **Cloudflare dashboard's Save as inactive version** is an officially documented workflow (Edit code → down-arrow next to Deploy → Save). It does not by itself prove that saving this multi-module Vinext build would preserve bindings/assets without changes; must separately inspect its workflow, exact code bundle, owner Access and resulting version before seeking bounded approval. Source: https://developers.cloudflare.com/workers/versions-and-deployments/deployment-management/
 4. **New separately isolated asset-enabled TEST Worker** might avoid changing the current one, but would create a new route/identity and require new Access, Stripe webhook routing, storage, secrets, expense and separate owner authorization. Do not default to this. **Never** repoint the existing five-event webhook or touch LIVE/QA/DR without approval.
 
+## SOURCE-ONLY result: existing webhook can compile without assets (Nov 3 CI PASS)
+
+On candidate commit `81461b452a06e964c77ee3062e886842a95331af`, [offline CI 41723620870](https://github.com/kylebrooks86/first-in-response-website/actions/runs/41723620870) **SUCCESS**:
+
+- Python materialized the *actual* existing isolated Stripe TEST app source, with the prior HMAC-first generator and `FIRE_STRIPE_MODE=disabled` guards (not a handwritten substitute).
+- esbuild imported the actual generated `app/api/payments/webhook/route.ts` and its original Stripe checkout/refund modules into **one 32,262-byte ESM Worker module**. It emitted NO static assets, HTML/CSS, R2/UI routes or Vite `ASSETS` references.
+- A second local esbuild pass injected only a synthetic `cloudflare:workers` environment and executed the real bundled Worker entrypoint. **Missing/bad signature gave 400; valid signed synthetic request gave 503 with `Cache-Control: no-store`; non-webhook routes returned 404; there were ZERO D1 calls and ZERO external fetches.**
+- The original full Vite app is **NOT** replaced or deployed by this exercise; if this minimal module were later activated on the same Worker it would intentionally remove business-app UI and all non-webhook endpoints. Treat that as a *separate scope decision*, not a drop-in full-app release.
+- The D1 binding's remote metadata name discrepancy, pinned version-specific secret/Access inheritance, preview-URL security, actual Stripe-signed live endpoint delivery, and real TEST ledger remain **unverified**. This build **cannot be uploaded or activated on current approval** and does not by itself establish remote configuration parity.
+
+The source-only **remote-assets pre-consent guard** also passed focused [CI 41723621047](https://github.com/kylebrooks86/first-in-response-website/actions/runs/41723621047), as did [independent Cloudflare source checks 41723620946](https://github.com/kylebrooks86/first-in-response-website/actions/runs/41723620946). Unrelated public website content verification remains red; this Gate 9 work made no website edits. All three are source-only, no provider changes.
+
 ## What is NOT an acceptable workaround
 
 - Removing `--strict` and clicking through remote overwrite warnings.
