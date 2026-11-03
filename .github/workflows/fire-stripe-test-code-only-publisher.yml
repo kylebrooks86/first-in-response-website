@@ -1,0 +1,61 @@
+name: FIRE Stripe TEST Code-Only Publisher Guard (no deploy)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_update_qa_parity_code_only.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_stripe_disabled_binding.ps1'
+      - '.github/workflows/fire-stripe-test-code-only-publisher.yml'
+permissions:
+  contents: read
+jobs:
+  exact-owner-target-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test exact Cloudflare version binding field and safe rejection cases, offline
+        shell: pwsh
+        run: |
+          $dir='business-app-parity/cloudflare-launch/stripe-test-worker'
+          # Pure PowerShell script does not launch a native process; $LASTEXITCODE
+          # may be a stale value from git/checkout and must NOT determine success.
+          $ErrorActionPreference='Stop'
+          & (Join-Path $dir 'test_stripe_disabled_binding.ps1')
+          if(-not $?) { throw 'Stripe TEST binding regression failed' }
+      - name: Parse TEST-only Acer PowerShell source without executing
+        shell: pwsh
+        run: |
+          $f='business-app-parity/cloudflare-launch/stripe-test-worker/owner_update_qa_parity_code_only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($f,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $s=Get-Content -LiteralPath $f -Raw
+          foreach($needle in @(
+            'd19abb4e54bae7418b606996209213db511e7b19',
+            'fire-stripe-test-20261101',
+            'dba421ba-fc66-4cf8-9c31-51616f8249ba',
+            'FIRE_STRIPE_MODE',
+            "'disabled'",
+            'Assert-FireStripeTestModeDisabled -Bindings $bindings',
+            'VerifyVersion $PriorVersion',
+            'VerifyVersion $newId',
+            'Active TEST version differs from pinned predecessor',
+            'Read-Host',
+            'if(-not $Publish)',
+            '$DeployStarted=$true',
+            'one active version',
+            '100%',
+            'No Cloudflare/Stripe writes'
+          )) {
+            if(-not $s.Contains($needle)) {throw ('Missing exact source/custody guard: '+$needle)}
+          }
+          if($s.Contains('$mode[0].value')){throw 'Obsolete Cloudflare binding .value lookup is forbidden'}
+          $needle="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
+          if($s.Split([string[]]@($needle),[System.StringSplitOptions]::None).Count -ne 2){throw 'Exactly one possible hosted Worker deploy invocation required'}
+          foreach($forbidden in @('secret put','secret bulk','migrations apply','d1 create','r2 create','stripe.com/v1/','wrangler rollback')) {
+            if($s.Contains($forbidden)){throw ('Forbidden remote mutation in release source: '+$forbidden)}
+          }
+          Write-Host 'PASS: Exact TEST candidate, owner approval, version/binding and Stripe-off protection all parse; NO DEPLOY.'
