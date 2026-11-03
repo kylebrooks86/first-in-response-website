@@ -22,7 +22,7 @@ test('checkout reservations and provider acknowledgment must retain exact cents 
     'metadata[expected_charge_cents]', 'metadata[expected_amount_cents]',
     'metadata[tip_amount_cents]', 'remote.amount_total===session.amountCents',
     'remote.client_reference_id===estimateId',
-    'remote.payment_status==="unpaid"', 'remote.livemode===sandbox',
+    'remote.payment_status==="unpaid"', 'remote.livemode===!sandbox',
   ])assert.ok(route.includes(expected), 'Missing exact session check: '+expected);
   assert.match(route,/WHERE id=\? AND estimate_id=\? AND type=\? AND amount_cents=\? AND status='open'/);
 });
