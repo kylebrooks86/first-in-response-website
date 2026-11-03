@@ -1930,6 +1930,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
   const [discountValue,setDiscountValue]=useState("");
   const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  const [uncertain,setUncertain]=useState(false);
   const hydrate=()=>{
     const source=estimate.items?.length?estimate.items:[{id:"",name:estimate.service,description:estimate.serviceDescription||serviceDescriptionFor(estimate.service),quantity:1,unit:"job",totalCents:estimate.totalCents}];
     const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};});
@@ -1945,7 +1946,9 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const changedSinceOpen=Boolean(initialEditSnapshot.current&&currentEditSnapshot!==initialEditSnapshot.current)||(bundle.ready&&(bundleCents===null||bundleCents!==Number(estimate.bundleDiscountCents??0)));
   const setOpenSafe=(value:boolean)=>{
     if(saveLock.current||saving)return;
-    if(!value&&changedSinceOpen&&!window.confirm("Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged."))return;
+    if(!value&&(changedSinceOpen||uncertain)&&!window.confirm(uncertain
+      ?"The last estimate save may already have committed. Closing discards only local editor entries. Check the saved estimate before another edit. Close?"
+      :"Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged."))return;
     setOpen(value);if(value)hydrate();
   };
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
@@ -1958,14 +1961,19 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const save=async()=>{
     if(saveLock.current||!bundle.ready)return;
+    if(uncertain){setError("Check the saved estimate first; another Save could repeat a completed edit.");return;}
     if(!Number.isSafeInteger(subtotal)||!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!validEditablePrice(item))){setError("Every service needs a service, quantity, and valid price.");return;}
     if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
     if(discountInputCents===null){setError("Enter a valid nonnegative discount with at most two decimals and within the percentage limit.");return;}
     if(discountMode==="dollar"&&discountInputCents>subtotal){setError("Dollar discount cannot exceed the service subtotal.");return;}
-    saveLock.current=true;setSaving(true);setError("");try{
+    saveLock.current=true;setSaving(true);setError("");
+    let responseStatus=0;let responseUncertain=false;
+    try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,appreciationDiscount,additionalDiscountType:discountMode,additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents})});
-      const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string};
+      responseStatus=response.status;
+      const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string;saveUncertain?:boolean};
+      responseUncertain=result?.saveUncertain===true;
       if(!response.ok||!result?.estimate||result.estimate.id!==estimate.id||
         result.estimate.totalCents!==discount.total||
         result.estimate.depositCents!==discount.deposit||
@@ -1985,8 +1993,55 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
         throw new Error(result?.error||"Estimate save could not be confirmed. Reopen the saved job and check its services before trying another edit.");
       // Use only server-confirmed D1 item IDs, never synthetic `new-N`
       // placeholders that could be treated as real IDs on the next edit.
-      onSaved({...estimate,...result.estimate,items:result.estimate.items});setOpen(false);
-    }catch(saveError){setError(saveError instanceof Error?saveError.message:"Estimate changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
+      setUncertain(false);onSaved({...estimate,...result.estimate,items:result.estimate.items});setOpen(false);
+    }catch(saveError){
+      setError(saveError instanceof Error?saveError.message:"Estimate changes could not be saved.");
+      // D1 might have committed despite a lost response or conflicting 200.
+      // A deterministic validation 4xx is different: it cannot claim success.
+      if(responseUncertain||responseStatus===0||responseStatus>=500||
+        responseStatus>=200&&responseStatus<300)setUncertain(true);
+    }finally{saveLock.current=false;setSaving(false);}
+  };
+  const checkSaved=async()=>{
+    if(saveLock.current||saving||!uncertain)return;
+    saveLock.current=true;setSaving(true);setError("");
+    try{
+      // The owner-only history endpoint is a read, never another estimate
+      // PATCH. It carries the exact persisted lines, customer and status.
+      const response=await fetch("/api/estimate-history?focus="+encodeURIComponent(estimate.id),{cache:"no-store"});
+      const body=await response.json() as {estimates?:EstimateRow[]};
+      const saved=body?.estimates?.[0];
+      if(!response.ok||body.estimates?.length!==1||!saved||
+        saved.id!==estimate.id||(estimate.customerId&&saved.customerId!==estimate.customerId)||
+        !Number.isSafeInteger(saved.subtotalCents)||Number(saved.subtotalCents)<0||
+        !Number.isSafeInteger(saved.discountCents)||Number(saved.discountCents)<0||
+        !Number.isSafeInteger(saved.totalCents)||saved.totalCents<0||
+        !Number.isSafeInteger(saved.depositCents)||saved.depositCents<0||
+        Number(saved.subtotalCents)!==saved.totalCents+Number(saved.discountCents)||
+        !Array.isArray(saved.items)||!saved.items.length||
+        saved.items.some(item=>!item||typeof item.id!=="string"||!item.id||
+          typeof item.name!=="string"||!item.name||
+          !Number.isFinite(Number(item.quantity))||Number(item.quantity)<=0||
+          !Number.isSafeInteger(Number(item.totalCents))||Number(item.totalCents)<0)||
+        new Set(saved.items.map(item=>item.id)).size!==saved.items.length||
+        saved.items.reduce((sum,item)=>sum+Number(item.totalCents),0)!==saved.subtotalCents)
+        throw Error("The saved estimate could not be verified.");
+      // Discount components are recorded separately and must match the
+      // exact saved total. Never turn an unverified bundle into $0.
+      const discountResponse=await fetch("/api/estimates/"+encodeURIComponent(estimate.id)+"/discounts",{cache:"no-store"});
+      const discounts=await discountResponse.json() as {estimateId?:string;totalCents?:number;bundleDiscountCents?:number};
+      if(!discountResponse.ok||discounts?.estimateId!==estimate.id||
+        discounts.totalCents!==saved.totalCents||
+        !Number.isSafeInteger(discounts.bundleDiscountCents)||
+        Number(discounts.bundleDiscountCents)<0||
+        Number(discounts.bundleDiscountCents)>Number(saved.subtotalCents))
+        throw Error("Saved estimate discounts could not be verified.");
+      setUncertain(false);
+      onSaved({...estimate,...saved,bundleDiscountCents:discounts.bundleDiscountCents});
+      setOpen(false);
+    }catch{
+      setError("Saved estimate not verified yet. Check your connection and try Check saved estimate again. No new save was sent.");
+    }finally{saveLock.current=false;setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit estimate</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit estimate</DialogTitle></DialogHeader></div>
     <div className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex={0}>
@@ -2000,7 +2055,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     {error&&<p className="save-error" role="alert">{error}</p>}
     </fieldset>
     </div>
-    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||!bundle.ready||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button></div>
+    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||uncertain||!bundle.ready||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button>{uncertain&&<Button type="button" variant="outline" disabled={saving} onClick={()=>void checkSaved()}>{saving?"Checking saved estimate…":"Check saved estimate"}</Button>}</div>
   </DialogContent></Dialog>;
 }
 

@@ -50,17 +50,12 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
    eq(nodes(f.render()).some(n=>n.type==='fieldset'&&n.props.disabled===false),true,'Inputs recover after failure');
    const retry=deferred();f.setFetcher(()=>retry.promise);
    f.button().props.onClick();
-   if(name==='EditInvoiceDialog'){
-     // A 503, network interruption or malformed 200 can follow a committed
-     // invoice revision. The previous retry assertion predates the reviewed
-     // fail-closed #112 fix. Never send a second financial PATCH here.
-     eq(f.get('uncertain'),true,'Invoice response is uncertain after '+outcome);
-     eq(f.requests.length,1,'Uncertain invoice must NOT permit duplicate Save');
-     eq(f.button().props.disabled,true,'Invoice Save button is disabled until verified server reload');
-   }else{
-     eq(f.requests.length,2,'Estimates-only retry releases synchronous guard');
-     retry.resolve({ok:false,status:503,json:async()=>({error:'Synthetic retry failed'})});await flush();
-   }
+   // Neither an invoice nor an estimate can be safely resubmitted after
+   // a possibly committed 503/network/malformed 200. The new source requires
+   // read-only confirmation before another edit.
+   eq(f.get('uncertain'),true,name+' uncertain write is locked after '+outcome);
+   eq(f.requests.length,1,name+' uncertainty must NOT permit duplicate Save');
+   eq(f.button().props.disabled,true,name+' iPhone Save button stays disabled until verified read');
    f.render().props.onOpenChange(false);eq(f.get('open'),false,'Failed edit can be closed safely');
   }
  }
