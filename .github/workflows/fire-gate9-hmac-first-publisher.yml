@@ -38,7 +38,7 @@ jobs:
             'ExpectedPreviousVersion',
             'deployments status',
             'versions view',
-            'access.cloudflare',
+            'restless-unit-ad5b',
             'No deployment attempted',
             'DEPLOY MAY HAVE OCCURRED',
             'no R2',
