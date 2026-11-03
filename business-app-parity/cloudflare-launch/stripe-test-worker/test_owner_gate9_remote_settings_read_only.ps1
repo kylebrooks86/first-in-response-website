@@ -17,8 +17,8 @@ foreach($needle in @(
   "WranglerJson @('whoami','--json')",
   "WranglerJson @('auth','token','--json')",
   'Invoke-RestMethod -Method Get',
-  "($suffix -in @('settings','script-settings'))",
-  "(@($expectedSecrets|Sort-Object) -join ',')",
+  '($suffix -in @(''settings'',''script-settings''))',
+  '(@($expectedSecrets|Sort-Object) -join '','')',
   'SCRIPT_REDACT_QUERY_STRING:',
   'REMOTE_WRITES=ZERO'
 )){Req ($source.Contains($needle)) ('Missing guard: '+$needle)}
