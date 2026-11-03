@@ -1,0 +1,39 @@
+name: FIRE Gate9 Asset-Free Webhook Bundle Feasibility (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_webhook_only_bundle_no_assets.mjs'
+      - 'business-app-parity/cloudflare-launch/materialize-stripe-test.py'
+      - '.github/workflows/fire-gate9-webhook-only-source-feasibility.yml'
+permissions:
+  contents: read
+jobs:
+  offline-actual-hmac-first-module:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned local build/test modules (no cloud credentials)
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Materialize the existing exact TEST app in an outside-repo temp folder (not deployable)
+        run: |
+          python3 ../cloudflare-launch/materialize-stripe-test.py "$RUNNER_TEMP/fire-gate9-webhook-only-$GITHUB_RUN_ID"
+      - name: Build and inspect only the real signed TEST webhook handler as one asset-free ESM module
+        env:
+          FIRE_GATE9_GENERATED_TEST_APP: ${{ runner.temp }}/fire-gate9-webhook-only-${{ github.run_id }}
+        run: node ../cloudflare-launch/stripe-test-worker/test_webhook_only_bundle_no_assets.mjs
