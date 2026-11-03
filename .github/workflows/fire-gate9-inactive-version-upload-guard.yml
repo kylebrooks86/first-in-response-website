@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1'
       - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
 permissions:
   contents: read
@@ -55,3 +56,6 @@ jobs:
             throw 'Serving predecessor must remain at 100 percent before and after'
           }
           Write-Host 'PASS: Offline PowerShell syntax and one inactive-only upload verified; NO hosted action.'
+      - name: Exercise eight synthetic version ID list cases (no cloud)
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1
