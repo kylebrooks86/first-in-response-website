@@ -5,6 +5,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/assert_stripe_disabled_binding.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_upload_cli_capabilities.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs'
       - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
@@ -41,14 +42,18 @@ jobs:
             'DO NOT RETRY',
             "SetEnvironmentVariable('CI','true','Process')",
             'GetEnvironmentVariable',
-            'Pnpm @(''exec'',''wrangler'',''versions'',''upload'',''--config'',$review,''--keep-vars'',''--strict'')',
+            '& $Wrangler versions upload --config $review --keep-vars --strict',
+            'Assert-InactiveUploadCli $globalVersion $globalHelp',
             'Original TEST version still 100%',
             'THIS SCRIPT DOES NOT ACTIVATE ANY VERSION'
           )){
             if(-not $s.Contains($must)){throw ('Missing inactive-only safety invariant: '+$must)}
           }
-          if(([regex]::Matches($s,"Pnpm @\('exec','wrangler','versions','upload'")).Count -ne 1) {
-            throw 'Require exactly ONE inactive-version upload'
+          if(([regex]::Matches($s,'& \$Wrangler versions upload --config \$review --keep-vars --strict')).Count -ne 1) {
+            throw 'Require exactly ONE standalone Wrangler inactive-version upload'
+          }
+          if($s.Contains("Pnpm @('exec','wrangler','versions','upload'")){
+            throw 'Project-local Wrangler 4.92.0 upload forbidden'
           }
           if($s.Contains("Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--keep-vars','--strict')")) {
             throw 'Immediate Worker deploy forbidden'
@@ -88,5 +93,8 @@ jobs:
       - name: Exercise eight synthetic version ID list cases (no cloud)
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_version_ids.ps1
+      - name: Prove global Wrangler version and flag compatibility checks reject stale local CLI
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_inactive_upload_cli_capabilities.ps1
       - name: Assert all authenticated remote logging bits preserved in isolated TEST manifest
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
