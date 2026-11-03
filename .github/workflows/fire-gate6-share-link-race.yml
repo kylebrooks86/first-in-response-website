@@ -1,0 +1,37 @@
+name: FIRE Gate6 Owner Share Links — Real SQLite Race Safety
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/[id]/share/route.ts'
+      - 'business-app-parity/shared/app/api/invoices/[id]/share/route.ts'
+      - 'business-app-parity/shared/scripts/test-share-link-concurrent-confirmation.mjs'
+      - '.github/workflows/fire-gate6-share-link-race.yml'
+permissions:
+  contents: read
+jobs:
+  customer-share-token-reliability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact project dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Test actual estimate and invoice share handlers, denied auth and concurrent CAS (synthetic D1)
+        run: node --experimental-sqlite scripts/test-share-link-concurrent-confirmation.mjs
+      - name: Verify app TypeScript compilation after route changes
+        run: pnpm exec tsc --noEmit
