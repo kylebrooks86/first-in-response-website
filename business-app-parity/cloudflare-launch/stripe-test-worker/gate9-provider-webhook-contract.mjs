@@ -63,7 +63,12 @@ export function reviewWebhookAccessDelta({expectedWorkerId,before,after}={}){
   const next=assertWorkerDestination(after,expectedWorkerId);
   if(!Array.isArray(next)||next.length!==existing.length+1)
     stop('Access must add exactly ONE new exception without removing existing rules');
-  const webhook=next.filter(x=>x?.path_pattern===STRIPE_TEST_WEBHOOK_PATH);
+  for(const entry of next){
+    if(!exactKeys(entry,['behavior','path_pattern'])||entry.behavior!=='public'||
+       typeof entry.path_pattern!=='string')
+      stop('Invalid new public override, no Access write permitted');
+  }
+  const webhook=next.filter(x=>x.path_pattern===STRIPE_TEST_WEBHOOK_PATH);
   if(webhook.length!==1)stop('Exactly one exact Stripe TEST callback exception required');
   reviewTestWebhookOverride(webhook[0]);
   const other=reviewedOverrides(next.filter(x=>x.path_pattern!==STRIPE_TEST_WEBHOOK_PATH));
