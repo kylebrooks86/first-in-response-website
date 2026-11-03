@@ -57,9 +57,12 @@ try{
  corruptHeader=true;
  response=await r.patch(id,request([{...payload.items[0],totalCents:12500}]));
  eq(response.status,503,'Post-commit total mismatch blocks successful receipt');
+ // Restore ONLY the synthetic corruption; the next scenario must test the
+ // incomplete batch ACK, not fail an unrelated prior-history integrity guard.
+ r.db.prepare('UPDATE estimates SET total_cents=? WHERE id=?').run(12500,id);
  badAck=true;
  response=await r.patch(id,request([{...payload.items[0],totalCents:15500}]));
- eq(response.status,503,'Incomplete D1 batch ACK refuses success');
+ eq(response.status,503,'Incomplete D1 batch ACK refuses success: '+JSON.stringify(await response.clone().json()));
  eq((await response.json()).saveUncertain,true,'Incomplete ACK is not mistaken for saved success');
  r.setOwner(null);
  response=await r.patch(id,request([payload.items[0]]));
