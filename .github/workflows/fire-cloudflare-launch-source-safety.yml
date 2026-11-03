@@ -118,6 +118,8 @@ jobs:
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
       - name: Exact Stripe TEST signed callback review, no Access policy changes
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+      - name: TEST checkout signed-only, exact-cent duplicate safeguards (source-only)
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/checkout-activation-safety.test.mjs
       - name: Guard one-time TEST D1 hosted initializer (NO Cloudflare access)
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v2.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v3.test.mjs
       - name: Validate Windows PowerShell initializer syntax without executing
