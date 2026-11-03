@@ -115,7 +115,35 @@ try{
  assert.equal(noOtherPath.status,404,'No other Stripe money route exported by this minimal proof');
  const noGet=await post('',null,url,'GET');
  assert.equal(noGet.status,404,'Only POST requests to the webhook are routed');
- assert.equal(dbCalls,0,'Disabled-mode webhook performed ZERO SQLite/D1 operations');
+ // Even if someone later enables TEST mode on this isolated Worker, a signed
+ // LIVE event, a contradictory object envelope or a LIVE Checkout ID must
+ // fail before touching D1. These are negative-control tests only: no valid
+ // TEST money event is reconciled and no real Stripe request is ever sent.
+ const testEnv=globalThis.__FIRE_GATE9_SYNTHETIC_ENV;
+ const signedHeader=(body,when=stamp)=>'t='+when+',v1='+
+  createHmac('sha256',secret).update(String(when)+'.'+body).digest('hex');
+ const stale=await post(raw,signedHeader(raw,stamp-3600));
+ assert.equal(stale.status,400,'Stale signed Stripe timestamp must be rejected');
+ testEnv.FIRE_STRIPE_MODE='test';
+ try{
+  const event=JSON.parse(raw);
+  const liveEnvelope=JSON.stringify({...event,livemode:true});
+  const liveResponse=await post(liveEnvelope,signedHeader(liveEnvelope));
+  assert.equal(liveResponse.status,400,'LIVE-mode event must not enter isolated TEST DB');
+
+  const contradictoryObject=JSON.stringify({...event,
+   data:{object:{...event.data.object,livemode:true}}});
+  const objectResponse=await post(contradictoryObject,signedHeader(contradictoryObject));
+  assert.equal(objectResponse.status,400,'LIVE-mode object inside TEST envelope must be refused');
+
+  const liveSession=JSON.stringify({...event,
+   data:{object:{...event.data.object,id:'cs_live_synthetic123'}}});
+  const sessionResponse=await post(liveSession,signedHeader(liveSession));
+  assert.equal(sessionResponse.status,400,'LIVE Checkout ID must never enter isolated TEST DB');
+ }finally{
+  testEnv.FIRE_STRIPE_MODE='disabled';
+ }
+ assert.equal(dbCalls,0,'TEST-mode negative controls and disabled webhook performed ZERO SQLite/D1 operations');
  assert.equal(networkCalls,0,'Disabled-mode webhook performed ZERO Stripe/provider requests');
  console.log('PASS: Actual asset-free TEST Worker route handles synthetic missing/bad HMAC=400; signed HMAC=503 with no-store; other routes=404; ZERO D1/network calls. No hosted interaction.');
 } finally {
