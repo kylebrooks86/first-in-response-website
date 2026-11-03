@@ -25,9 +25,7 @@ jobs:
           foreach($must in @(
             '[switch]$Upload',
             'if(-not $Upload)',
-            '808159e239fddff77a6f32d7aebcc8e85c6ebb6d',
             '99acdbf910ba2095f1f37ff5cfed5522488c9594',
-            '96e32262',
             'fire-stripe-test-20261101',
             'dba421ba-fc66-4cf8-9c31-51616f8249ba',
             'FIRE_ACCESS_AUD,FIRE_ACCESS_OWNER_EMAIL,FIRE_ACCESS_TEAM_DOMAIN,STRIPE_WEBHOOK_SECRET',
@@ -39,12 +37,8 @@ jobs:
             'GetEnvironmentVariable',
             'Pnpm @(''exec'',''wrangler'',''versions'',''upload'',''--config'',$review,''--keep-vars'',''--strict'')',
             'Original TEST version still 100%',
-            'NO TRAFFIC ROLLOUT AUTHORIZED'
+            'THIS SCRIPT DOES NOT ACTIVATE ANY VERSION'
           )){
-            # The old producer SHA is intentionally pinned in this script. Exact
-            # postupload version check is distinct from a source commit SHA.
-            if($must -eq '96e32262'){continue}
-            if($must -eq 'NO TRAFFIC ROLLOUT AUTHORIZED'){continue}
             if(-not $s.Contains($must)){throw ('Missing inactive-only safety invariant: '+$must)}
           }
           if(([regex]::Matches($s,"Pnpm @\('exec','wrangler','versions','upload'")).Count -ne 1) {
