@@ -16,7 +16,7 @@ const code=['const OWNER_EMAIL="qa-owner@example.invalid";',getContact('usableCu
 assert.ok(code.includes('GET(')&&code.includes('PATCH('),'Could not extract actual customer route source');
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
-let writes=0,reads=0,authorized=true,throwAfterWrite=false;
+let writes=0,reads=0,authorized=true,throwAfterWrite=false,skipNextUpdate=false,throwAfterUpdate=false,distortNextReadback=false,missingNextReadback=false;
 const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,customerNumberForCustomer,
   getChatGPTUser:async()=>authorized?{email:'qa-owner@example.invalid'}:null,
   env:{DB:{prepare(sql){return {bind(...values){
@@ -26,7 +26,10 @@ const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,cu
         if(sql.includes('SELECT id FROM customers'))return rows.has(values[0])?{id:values[0]}:null;
         if(/FROM customers(?: c)? WHERE (?:c\.)?id=\? LIMIT 1/.test(sql)) {
           if(throwAfterWrite){throwAfterWrite=false;throw Error('Synthetic lost readback after commit');}
-          return rows.get(values[0])??null;
+          if(missingNextReadback){missingNextReadback=false;return null;}
+          const saved=rows.get(values[0])??null;
+          if(distortNextReadback&&saved){distortNextReadback=false;return {...saved,name:'Stale response, not stored row'};}
+          return saved;
         }
         throw Error('Unexpected read ' + sql.slice(0,65));
       },
@@ -38,9 +41,11 @@ const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,cu
       async run(){
         assert.ok(sql.startsWith('UPDATE customers SET'));
         writes++;
+        if(skipNextUpdate){skipNextUpdate=false;return {success:true,meta:{changes:0}};}
         const [name,email,phone,address,leadSource,id]=values;
         if(!rows.has(id))throw Error('Missing record');
         rows.set(id,{...rows.get(id),name,email:email??'',phone:phone??'',address:address??'',leadSource});
+        if(throwAfterUpdate){throwAfterUpdate=false;throw Error('Synthetic lost UPDATE acknowledgement after commit');}
         return {meta:{changes:1}};
       }
     };
@@ -74,9 +79,40 @@ eq(writes,before+1,'Exactly one update');
 result=await read('first');eq((await result.json()).customer.phone,'9185550134','Readback sees newest saved field');
 eq(writes,before+1,'Confirmation GET never writes');
 throwAfterWrite=true;
-result=await patch({name:'Already committed; reply lost'});eq(result.status,500,'Lost readback makes PATCH outcome uncertain');
-eq(writes,before+2,'Update was already committed despite 500');
+result=await patch({name:'Already committed; reply lost'});eq(result.status,503,'Lost readback must NOT claim edit success');
+eq((await result.json()).saveUncertain,true,'Unconfirmed write has explicit recovery flag');
+eq(writes,before+2,'Update was already committed despite uncertain response');
 result=await read('first');eq(result.status,200,'GET can recover committed edit');
 eq((await result.json()).customer.name,'Already committed; reply lost','Recovery reports authoritative saved fields');
 eq(writes,before+2,'Recovery does not resend update');
-console.log('PASS: '+tests+' real customer API source checks; synthetic rows only and zero provider writes');
+// A nonthrowing D1 result with zero changes must not convert the pre-edit
+// customer into a false successful save.
+skipNextUpdate=true;
+result=await patch({address:'999 Not Actually Saved'});
+eq(result.status,503,'Silent nonwrite fails before claiming success');
+eq((await result.json()).saveUncertain,true,'Silent nonwrite marks uncertain');
+eq(rows.get('first').address,'123 Synthetic','Failed UPDATE leaves original address');
+// An UPDATE may commit but return a broken/stale or missing result; the owner
+// must re-read it rather than trusting a mismatched response.
+distortNextReadback=true;
+result=await patch({leadSource:'Yelp'});
+eq(result.status,503,'Mismatched readback blocks false customer success');
+eq(rows.get('first').leadSource,'Yelp','Actual persisted value is preserved');
+missingNextReadback=true;
+result=await patch({address:'444 Confirm Later'});
+eq(result.status,503,'Missing authoritative row blocks success');
+eq((await read('first')).status,200,'Independent GET recovers after missing post-PATCH row');
+throwAfterUpdate=true;
+result=await patch({name:'Ack Lost But Confirmed'});
+eq(result.status,200,'Confirmed committed data is success even if UPDATE ACK was lost');
+eq((await result.json()).customer.name,'Ack Lost But Confirmed','Authoritative readback, never guessed value');
+eq(result.headers.get('cache-control'),'no-store, private','Saved customer receipt must not cache');
+result=await patch({phone:'',email:''});
+eq(result.status,200,'Clearing phone/email to blank is a supported edit');
+const cleared=(await result.json()).customer;
+eq(cleared.phone,'');eq(cleared.email,'');
+authorized=false;
+const beforeDeniedWrites=writes;
+eq((await patch({name:'Forbidden'})).status,401,'Nonowner cannot PATCH customer');
+eq(writes,beforeDeniedWrites,'Nonowner never touches D1');
+console.log('PASS: '+tests+' real customer API source checks; confirmed success, silent no-write, stale/missing readback, lost ACK, nullable fields and owner-only controls; synthetic rows only.');
