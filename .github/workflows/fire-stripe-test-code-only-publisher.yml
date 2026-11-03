@@ -30,7 +30,7 @@ jobs:
             "'disabled'",
             'VerifyVersion $PriorVersion',
             'VerifyVersion $newId',
-            'Existing TEST Worker version',
+            'Active TEST version differs from pinned predecessor',
             'Read-Host',
             'if(-not $Publish)',
             '$DeployStarted=$true',
