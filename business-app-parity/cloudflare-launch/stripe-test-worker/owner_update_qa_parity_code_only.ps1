@@ -11,6 +11,12 @@ param(
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+# Offline-only validated handler for actual Cloudflare plain_text .text schema.
+$bindingGuard=Join-Path $PSScriptRoot 'assert_stripe_disabled_binding.ps1'
+if (-not (Test-Path -LiteralPath $bindingGuard -PathType Leaf)) {
+  throw 'STOP: Exact Stripe-disabled Worker binding validator missing; no deploy.'
+}
+. $bindingGuard
 # Fixed accepted QA-parity TEST code; script cannot publish a different commit.
 $ExpectedCommit='d19abb4e54bae7418b606996209213db511e7b19'
 $Worker='fire-stripe-test-20261101'
@@ -49,8 +55,9 @@ function VerifyVersion([string]$id){
   $r2=@($bindings | Where-Object {$null -ne $_ -and $_.type -in @('r2','r2_bucket')})
   Assert ($d1.Count -eq 1 -and [string]$d1[0].name -ceq 'DB' -and [string]$d1[0].id -ceq $script:DatabaseId) 'Wrong isolated TEST D1 physical UUID'
   Assert ($r2.Count -eq 0) 'Unexpected R2 storage'
-  $mode=@($bindings | Where-Object {$null -ne $_ -and $_.name -ceq 'FIRE_STRIPE_MODE'})
-  Assert ($mode.Count -eq 1 -and [string]$mode[0].value -ceq 'disabled') 'TEST payment mode must remain disabled'
+  # Cloudflare returns {name, type:'plain_text', text:'disabled'}; .value is NOT a binding field.
+  # The isolated helper rejects missing, secret-typed, duplicate or enabled modes.
+  Assert ([bool](Assert-FireStripeTestModeDisabled -Bindings $bindings)) 'TEST Stripe-disabled version binding could not be established'
   Write-Host ('PASS: Active version '+$id+' physically bound to isolated TEST DB; no R2, Stripe disabled.')
 }
 function Pnpm([string[]]$argsToRun){
