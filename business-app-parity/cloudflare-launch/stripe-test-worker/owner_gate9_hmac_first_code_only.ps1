@@ -221,36 +221,7 @@ try{
   $newVersions=@($newDeployment.versions)
   Assert ($newVersions.Count -eq 1 -and [int]$newVersions[0].percentage -eq 100) 'New active version not uniquely serving 100%'
   $newId=[string]$newVersions[0].version_id
-  Assert ($newId -match '^[0-9a-f-]{36}
-  VerifyVersion $newId
-  Write-Host ('PASS: NEW 100% active TEST version '+$newId+' with original D1 and Stripe disabled.') -ForegroundColor Green
-  $post=@(WranglerJson @('secret','list','--name',$Worker))
-  $postNames=(@($post | ForEach-Object {$_.name} | Sort-Object) -join ',')
-  Assert ($postNames -eq $ExpectedSecrets) 'Secret inventory changed: stop, do not rerun'
-  $after=(& curl.exe --silent --show-error --max-time 20 --dump-header - --output NUL $Origin | Out-String)
-  ExitCheck 'Postdeploy Access probe'
-  Assert ($after -match '(?im)^location:\s*https://restless-unit-ad5b\.cloudflareaccess\.com/') 'Owner-only Access redirect missing; review immediately'
-  Write-Host 'PASS: Owner-only TEST Worker Access redirect preserved; four encrypted secret names retained.' -ForegroundColor Green
-  Write-Host "Verified previous version: $PriorVersion"
-  Write-Host "Rollback metadata: $backup"
-  Write-Host "TEST URL: $Origin"
-  Write-Warning 'Worker version metadata does NOT prove compiled assets match Git bytes; source-to-binary attestation remains open.'
-  Write-Host 'No Stripe, customer messages, database writes/migrations or QA/LIVE/DR changes authorized here.'
-}
-catch{
-  Write-Host $_.Exception.Message -ForegroundColor Red
-  if($DeployStarted){
-    Write-Host 'DEPLOY MAY HAVE OCCURRED. DO NOT RUN SCRIPT AGAIN. Inspect TEST Worker Deployments.' -ForegroundColor Yellow
-  }else{
-    Write-Host 'No deployment attempted. Do not rerun without reviewing the failure.' -ForegroundColor Yellow
-  }
-  exit 1
-}
-finally{
-  if($InApp){Pop-Location}
-  Write-Host "Local review copy: $Scratch"
-}
- -and $newId -cne $PriorVersion) 'Post-deploy version unchanged (possible declined Wrangler config warning) or invalid; NO new active version proven. Do not retry'
+  Assert ($newId -match '^[0-9a-f-]{36}$' -and $newId -cne $PriorVersion) 'Post-deploy version unchanged (possible declined Wrangler config warning) or invalid; NO new active version proven. Do not retry'
   VerifyVersion $newId
   Write-Host ('PASS: NEW 100% active TEST version '+$newId+' with original D1 and Stripe disabled.') -ForegroundColor Green
   $post=@(WranglerJson @('secret','list','--name',$Worker))
