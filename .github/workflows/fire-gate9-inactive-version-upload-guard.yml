@@ -10,6 +10,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_inventory_after_failed_upload_read_only.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_immutable_secret_bindings.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_legacy_env_normalizer.ps1'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_remote_assets_preconsent.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs'
       - '.github/workflows/fire-gate9-inactive-version-upload-guard.yml'
@@ -109,5 +110,8 @@ jobs:
       - name: Remove only unsupported legacy_env true from temp TEST review and dry-run global CLI before consent
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_legacy_env_normalizer.ps1
+      - name: Stop unsupported TEST Worker static asset differences BEFORE owner consent
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_remote_assets_preconsent.ps1
       - name: Assert all authenticated remote logging bits preserved in isolated TEST manifest
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
