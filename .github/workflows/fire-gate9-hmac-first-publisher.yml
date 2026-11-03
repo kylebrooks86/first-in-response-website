@@ -25,7 +25,7 @@ jobs:
           if($errors.Count -ne 0){$errors | ForEach-Object {Write-Error $_.Message};throw 'PowerShell parse failed'}
           $s=Get-Content -LiteralPath $sPath -Raw
           foreach($needle in @(
-            "808159e239fddff77a6f32d7aebcc8e85c6ebb6d",
+            "99acdbf910ba2095f1f37ff5cfed5522488c9594",
             "fire-stripe-test-20261101",
             "dba421ba-fc66-4cf8-9c31-51616f8249ba",
             "FIRE_ACCESS_AUD,FIRE_ACCESS_OWNER_EMAIL,FIRE_ACCESS_TEAM_DOMAIN,STRIPE_WEBHOOK_SECRET",
@@ -33,8 +33,11 @@ jobs:
             "FIRE_STRIPE_MODE !== `"test`"",
             'STRIPE_WEBHOOK_SECRET',
             'webhook_guard + webhook_anchor',
+            "redact_query_string -ceq `$false",
             "webhook signature-before-kill-switch",
             '--keep-vars',
+            "[Environment]::SetEnvironmentVariable('CI','true','Process')",
+            "[Environment]::SetEnvironmentVariable('CI',`$priorCI,'Process')",
             'ExpectedPreviousVersion',
             'deployments status',
             'versions view',
@@ -51,7 +54,7 @@ jobs:
             throw 'Exactly one guarded hosted TEST deploy permitted'
           }
           foreach($bad in @('secret put','secret bulk','d1 migrations apply','d1 execute',
-             'r2 create','stripe.com/v1/','FIRE_STRIPE_MODE=test','-Publish:$true')) {
+             'r2 create','stripe.com/v1/','FIRE_STRIPE_MODE=test','-Publish:$true','--yes')) {
             if($s.Contains($bad)) {throw ('Unapproved write in TEST publisher: '+$bad)}
           }
           Write-Host 'PASS: Exact-pinned TEST HMAC-first publisher parses, defaults read-only, guards four secrets incl webhook, keeps vars and requires owner approval. NO HOSTED WRITE.'

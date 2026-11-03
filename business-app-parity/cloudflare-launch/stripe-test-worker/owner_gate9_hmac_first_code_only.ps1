@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath $bindingGuard -PathType Leaf)) {
 }
 . $bindingGuard
 # Fixed accepted QA-parity TEST code; script cannot publish a different commit.
-$ExpectedCommit='808159e239fddff77a6f32d7aebcc8e85c6ebb6d'
+$ExpectedCommit='99acdbf910ba2095f1f37ff5cfed5522488c9594'
 $Worker='fire-stripe-test-20261101'
 $Database='fire-stripe-test-db-20261101'
 $DatabaseId='dba421ba-fc66-4cf8-9c31-51616f8249ba'
@@ -180,6 +180,7 @@ try{
   Assert ($cfg.d1_databases.Count -eq 1 -and $cfg.d1_databases[0].database_id -eq $DatabaseId -and $cfg.d1_databases[0].database_name -eq $Database) 'Wrong D1 binding'
   Assert ($cfg.vars.FIRE_ACCESS_REQUIRED -eq 'enabled' -and $cfg.vars.FIRE_STRIPE_MODE -eq 'disabled' -and $cfg.vars.FIRE_ENV -eq 'cloudflare-staging' -and $cfg.vars.SITE_ORIGIN -eq $Origin) 'Auth, origin, or Stripe mode mismatch'
   Assert ($cfg.workers_dev -eq $true -and $cfg.preview_urls -eq $false -and $cfg.routes.Count -eq 0) 'Public routing/preview mismatch'
+  Assert ($null -ne $cfg.observability -and $cfg.observability.PSObject.Properties.Name -contains 'redact_query_string' -and $cfg.observability.redact_query_string -ceq $false) 'Original TEST observability redact_query_string:false missing; STOP before remote config overwrite'
   Assert ($cfg.compatibility_flags -contains 'global_fetch_strictly_public' -and $cfg.compatibility_flags -contains 'nodejs_compat') 'Reviewed public Worker fetch flag is absent'
 
   foreach($forbidden in @('r2_buckets','kv_namespaces','durable_objects','services','queues','env','account_id','zone_id')){
@@ -187,7 +188,7 @@ try{
   }
   $dry=Join-Path $Scratch 'dry-run'
   Pnpm @('exec','wrangler','deploy','--config',$review,'--dry-run','--outdir',$dry)
-  Write-Host 'PASS: Gate9 HMAC-first TEST build/dry-run; no routes, R2 or Stripe activation.'
+  Write-Host 'PASS: Gate9 HMAC-first TEST build/dry-run; existing observability redaction preserved; no routes, R2 or Stripe activation.'
   if(-not $Publish){
     Write-Host ('REVIEW PASS ONLY. No Cloudflare/Stripe writes. Pinned candidate '+$ExpectedCommit)
     Write-Host ('Pinned active version '+$PriorVersion)
@@ -209,9 +210,20 @@ try{
   $secretsAgain=@(WranglerJson @('secret','list','--name',$Worker))
   $namesAgain=(@($secretsAgain | ForEach-Object {$_.name} | Sort-Object) -join ',')
   Assert ($namesAgain -eq $ExpectedSecrets) 'Access secret inventory changed after approval'
+  # Wrangler --strict refuses conflicting remote settings when run non-interactively.
+  # Force CI mode FOR THIS ONE COMMAND ONLY, to eliminate Y/n prompts which
+  # Wrangler 4.92.0 previously treated as success after the owner typed NO.
+  # A conflict must STOP (no automatic retry or override), never prompt.
+  $priorCI=[Environment]::GetEnvironmentVariable('CI','Process')
   $DeployStarted=$true
-  Pnpm @('exec','wrangler','deploy','--config',$review,'--keep-vars','--strict')
-  Write-Host 'Worker deploy returned success. Verifying NEW 100-percent version now.' -ForegroundColor Cyan
+  try {
+    [Environment]::SetEnvironmentVariable('CI','true','Process')
+    Pnpm @('exec','wrangler','deploy','--config',$review,'--keep-vars','--strict')
+  }
+  finally {
+    [Environment]::SetEnvironmentVariable('CI',$priorCI,'Process')
+  }
+  Write-Host 'Wrangler exited successfully. Verifying a NEW active 100-percent version; exit success alone is insufficient.' -ForegroundColor Cyan
   $newRaw=(& $Wrangler deployments status --name $Worker --json | Out-String).Trim()
   ExitCheck 'Post-deploy serving version'
   try{$newDeployment=ConvertFrom-Json -InputObject $newRaw -ErrorAction Stop}
@@ -219,7 +231,7 @@ try{
   $newVersions=@($newDeployment.versions)
   Assert ($newVersions.Count -eq 1 -and [int]$newVersions[0].percentage -eq 100) 'New active version not uniquely serving 100%'
   $newId=[string]$newVersions[0].version_id
-  Assert ($newId -match '^[0-9a-f-]{36}$' -and $newId -cne $PriorVersion) 'Post-deploy version unchanged or invalid; do not retry'
+  Assert ($newId -match '^[0-9a-f-]{36}$' -and $newId -cne $PriorVersion) 'Post-deploy version unchanged (possible declined Wrangler config warning) or invalid; NO new active version proven. Do not retry'
   VerifyVersion $newId
   Write-Host ('PASS: NEW 100% active TEST version '+$newId+' with original D1 and Stripe disabled.') -ForegroundColor Green
   $post=@(WranglerJson @('secret','list','--name',$Worker))
