@@ -1,0 +1,45 @@
+name: FIRE Notification Uncertain Mark All Refresh Real Browser (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-notification-read-recovery.mjs'
+      - 'business-app-parity/shared/scripts/test-notification-persistence-browser.mjs'
+      - '.github/workflows/fire-notification-uncertain-refresh-browser.yml'
+permissions:
+  contents: read
+jobs:
+  notification-uncertain-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned isolated dependencies and real browser driver
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Compile existing FIRE app TypeScript
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Run actual Bell uncertain-read handler controls
+        run: node scripts/test-notification-read-recovery.mjs
+      - name: Run real mobile Chrome Bell, SQLite, authenticated owner route tests
+        run: node --experimental-sqlite scripts/test-notification-persistence-browser.mjs
