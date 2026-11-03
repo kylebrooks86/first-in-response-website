@@ -4960,7 +4960,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
     <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div><div className="notification-header-actions"><button type="button" disabled={busy||needsRecheck||unread===0} title={needsRecheck?"Refresh activity to verify the previous update":"Marks recent activity read; does not complete business reminders"} onClick={()=>void updateRead({all:true})}>Mark all as read</button><button type="button" className="notification-header-close" aria-label="Close notifications" title="Close notifications" onClick={()=>setOpen(false)}><X aria-hidden="true"/></button></div></header>
     {error&&<p className="save-error" role="alert">{error}</p>}
     {error&&<button type="button" className="notification-activity-toggle" disabled={busy} onClick={()=>void load()}><RefreshCw aria-hidden="true"/> Refresh activity</button>}
-    {readNotice&&<p className="notification-read-notice" role="status">{readNotice}</p>
+    {readNotice&&<p className="notification-read-notice" role="status">{readNotice}</p>}
     {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
     {unread===0&&attentionCount>0&&<p className="notification-read-hint">No unread activity. Reminders stay until handled.</p>}
     <NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>
