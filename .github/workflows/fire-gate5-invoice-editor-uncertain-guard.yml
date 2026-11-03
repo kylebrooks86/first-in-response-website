@@ -1,0 +1,36 @@
+name: FIRE Gate5 Invoice Editor Uncertain-Save Guard (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-invoice-editor-uncertain-save.mjs'
+      - '.github/workflows/fire-gate5-invoice-editor-uncertain-guard.yml'
+permissions:
+  contents: read
+jobs:
+  invoice-ui-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned local dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing FIRE app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Run actual iPhone invoice Save handler with synthetic HTTP outcomes
+        run: node scripts/test-invoice-editor-uncertain-save.mjs
