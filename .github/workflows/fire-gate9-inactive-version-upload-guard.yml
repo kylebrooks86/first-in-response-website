@@ -50,7 +50,9 @@ jobs:
             '& $Wrangler versions upload --config $review --keep-vars --strict',
             'Assert-InactiveUploadCli $globalVersion $globalHelp',
             'finalize-stripe-test-legacy-env.mjs',
-            'Legacy env'
+            'Local-only Wrangler legacy_env compatibility finalization',
+            'Removed legacy_env is still present',
+            '& $Wrangler deploy --config $review --dry-run --outdir $standaloneDry'
             'Original TEST version still 100%',
             'THIS SCRIPT DOES NOT ACTIVATE ANY VERSION'
           )){
