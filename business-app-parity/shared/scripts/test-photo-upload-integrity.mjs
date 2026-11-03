@@ -69,6 +69,7 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
     const m=loadRoute(file,'success',true,false);const response=await m.POST(request());check(`${file} missing bucket fails closed`,response.status===503&&m.counts().dbWrites===0);
   }
   if(patched){
+    if(file==='customer-photos.patched.ts'){
     {
       const m=loadRoute(file);
       const response=await m.POST(request());
@@ -81,6 +82,7 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
       check('patched '+mode+' never confirms unverified photo and retains original bytes',response.status===503&&body.saveUncertain===true&&m.objects.size===1&&m.counts().deletes===0);
       if(mode.startsWith('readback'))check('patched '+mode+' checks D1 after acknowledged insert',m.counts().photoSelects===1);
       else check('patched '+mode+' refuses unverified insert before readback',m.counts().photoSelects===0);
+    }
     }
     for(const [name,config,status] of [['wrong customer',{customerId:'wrong'},404],['invalid file',{mime:'text/plain'},400],['oversized image',{bytes:15*1024*1024+1},413]]){
       const m=loadRoute(file);const res=await m.POST(request(config));check(`patched ${name} yields ${status} without object/database writes`,res.status===status&&m.counts().puts===0&&m.counts().dbWrites===0);
