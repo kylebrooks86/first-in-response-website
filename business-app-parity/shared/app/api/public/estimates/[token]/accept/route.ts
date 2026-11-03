@@ -1,9 +1,12 @@
 import { env } from "cloudflare:workers";
+import { readCustomerWriteJson } from "../../../../../../lib/customer-write-request-guard.mjs";
 
 export async function POST(request:Request,context:{params:Promise<{token:string}>}){
   try{
+    const parsed=await readCustomerWriteJson(request,["signedName","photoRelease","acceptedTerms"],2048);
+    if(parsed.response)return parsed.response;
     const {token}=await context.params;
-    const body=await request.json() as {signedName?:string;photoRelease?:string;acceptedTerms?:boolean};
+    const body=parsed.value as {signedName?:string;photoRelease?:string;acceptedTerms?:boolean};
     const signedName=String(body.signedName??"").trim();
     const photoRelease=body.photoRelease==="yes"?"yes":body.photoRelease==="no"?"no":"";
     if(signedName.length<2||signedName.length>120||!photoRelease||body.acceptedTerms!==true)return Response.json({error:"Please choose photo permission, type your full name, and accept the service agreement."},{status:400});

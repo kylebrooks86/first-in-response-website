@@ -1,0 +1,39 @@
+name: FIRE Public Payment Link Safety (focused)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/pay/[id]/page.tsx'
+      - 'business-app-parity/shared/app/estimate/[token]/page.tsx'
+      - 'business-app-parity/shared/app/api/payments/checkout/route.ts'
+      - 'business-app-parity/shared/scripts/test-checkout-atomic-reservation.mjs'
+      - 'business-app-parity/shared/app/invoice/[token]/page.tsx'
+      - 'business-app-parity/shared/lib/public-payment-visibility.mjs'
+      - 'business-app-parity/shared/scripts/test-public-payment-visibility.mjs'
+      - '.github/workflows/fire-public-payment-visibility.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-public-pay-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  public-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Public link eligibility and stale-link contract
+        run: node scripts/test-public-payment-visibility.mjs
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Regress actual Stripe checkout route with synthetic races and unsigned/retired quotes
+        run: node scripts/test-checkout-atomic-reservation.mjs
+      - name: Check server-side TypeScript source
+        run: pnpm exec tsc --noEmit

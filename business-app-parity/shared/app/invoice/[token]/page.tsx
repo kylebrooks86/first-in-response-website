@@ -12,6 +12,7 @@ import {customerNumberLabel,customerNumberForCustomer} from "../../../lib/custom
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
 import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
+import { canOfferManualPayment } from "../../../lib/public-payment-visibility.mjs";
 
 export const dynamic = "force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -34,14 +35,14 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const ownerPreview=previewOwner?.email?.toLowerCase()==='kylebrooks8605@gmail.com';
   const row = await env.DB.prepare(`
     SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.total_cents AS totalCents,
-      inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,
+      inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,e.accepted_at AS estimateAcceptedAt,e.signed_at AS estimateSignedAt,
       COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=inv.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
       (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount,
       (SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=inv.estimate_id AND s.status='open') AS openCheckoutCount
     FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id
     WHERE inv.share_token=? LIMIT 1
-  `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
+  `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;estimateAcceptedAt:string|null;estimateSignedAt:string|null;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
   if (!row) return <main className="pay-page invoice-page"><section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   const customerLabel=customerNumberLabel(await customerNumberForCustomer(env.DB,row.customerId,env));
   const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
@@ -59,6 +60,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const state=invoicePaymentState(row);
   const balance=state.balanceCents??0;
   const paymentReviewPending=state.review||Number(row.openCheckoutCount??0)>0;
+  const manualPaymentEligible=canOfferManualPayment({status:row.estimateStatus,acceptedAt:row.estimateAcceptedAt,signedAt:row.estimateSignedAt,billingVerified:state.safe,balanceCents:balance,reviewPending:paymentReviewPending});
   const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
   const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
   const close=ownerPreview?<><OwnerPreviewTheme/><a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Close"><X aria-hidden="true"/></a></>:null;
@@ -79,8 +81,8 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
     </div>
     <p className="invoice-due"><CalendarDays/> {paymentReviewPending?"Account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
     {showReviewInvitation&&<CustomerReviewInvitation/>}
-    {balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={Number(row.totalCents)} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
-    {balance>0&&!paymentReviewPending&&<>
+    {manualPaymentEligible&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={Number(row.totalCents)} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
+    {manualPaymentEligible&&<>
       {row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="invoice-payment-divider"><span/>OR<span/></div>}
       <section className="invoice-other-payments" aria-label="Other payment options">
         <h2>Other Payment Options</h2><p>You can also pay manually using Cash App or Venmo. Please include your name in the payment note.</p>
