@@ -28,7 +28,7 @@ import{useServicePricing}from'./components/service-pricing';import{EstimateLineP
 import{editMoneyLine,editableLineTotalCents,restoreEditableLineMoney,validEditablePrice}from'./lib/editable-line-totals';
 const money=cents=>'$'+(cents/100).toFixed(2);
 ${discount}\n${editor}\n${invoiceEditor}
-const estimate={id:'synthetic-editor-only',invoiceId:'synthetic-invoice',customerId:'synthetic-editor-customer',service:services[0].name,totalCents:20000,paidCents:0,items:Array.from({length:16},(_,i)=>({id:'item-'+i,name:services[0].name,description:'Synthetic long description '+i+' '+('Cleaning and flushing; excluded repairs and inaccessible areas. '.repeat(6)),quantity:1,unit:'job',totalCents:1250}))};
+const estimate={id:'synthetic-editor-only',invoiceId:'synthetic-invoice',customerId:'synthetic-editor-customer',service:services[0].name,subtotalCents:20000,totalCents:20000,paidCents:0,items:Array.from({length:16},(_,i)=>({id:'item-'+i,name:services[0].name,description:'Synthetic long description '+i+' '+('Cleaning and flushing; excluded repairs and inaccessible areas. '.repeat(6)),quantity:1,unit:'job',totalCents:1250}))};
 function Fixture(){const[theme,setTheme]=useState('dark');window.setTheme=setTheme;document.documentElement.dataset.theme=theme;
 return <Dialog defaultOpen><DialogContent className="estimate-detail sm:max-w-[650px]"><DialogTitle>Synthetic $200 estimate</DialogTitle><div style={{height:120}}>Existing synthetic estimate details</div><EditEstimateDialog estimate={estimate} onSaved={value=>window.savedEstimate=value}/><EditInvoiceDialog estimate={estimate} onSaved={value=>window.savedInvoiceCents=value}/></DialogContent></Dialog>}
 createRoot(document.getElementById('app')).render(<Fixture/>);`;
