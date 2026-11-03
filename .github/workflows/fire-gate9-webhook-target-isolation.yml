@@ -1,0 +1,23 @@
+name: FIRE Gate 9 TEST Webhook Destination Guard (source-only)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path-contract.mjs'
+      - 'business-app-parity/cloudflare-launch/public-access-contract.mjs'
+      - '.github/workflows/fire-gate9-webhook-target-isolation.yml'
+permissions:
+  contents: read
+jobs:
+  exact-test-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate exact TEST endpoint, original Sites preservation and narrow Worker Access path
+        run: |
+          node --check business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.mjs
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs
