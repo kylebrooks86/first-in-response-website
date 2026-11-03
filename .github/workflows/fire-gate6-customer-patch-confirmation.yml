@@ -1,0 +1,39 @@
+name: FIRE Gate6 Customer Edit Confirmed D1 Save (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/customers/route.ts'
+      - 'business-app-parity/shared/scripts/test-customer-edit-route.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-edit-readback-sqlite.mjs'
+      - '.github/workflows/fire-gate6-customer-patch-confirmation.yml'
+permissions:
+  contents: read
+jobs:
+  verify-saved-fields:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Verify actual route TypeScript
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Exercise actual customer PATCH and owner-only confirmation with fault injection
+        run: node scripts/test-customer-edit-route.mjs
+      - name: Exercise actual route against disposable native SQLite
+        run: node --experimental-sqlite scripts/test-customer-edit-readback-sqlite.mjs
