@@ -140,11 +140,11 @@ if (webhook_source.count(webhook_anchor) != 1 or
         webhook_source.index(required_signature) > webhook_source.index(webhook_anchor)):
     raise SystemExit("STOP: exact TEST webhook signature-before-mode injection changed")
 webhook_guard = (
-    '  // TEST-only: validate Stripe HMAC before refusing disabled-mode delivery.\\n'
-    '  // Never acknowledge or reconcile signed events while Stripe TEST is disabled.\\n'
-    '  if ((env as typeof env & { FIRE_STRIPE_MODE?:string }).FIRE_STRIPE_MODE !== "test")\\n'
-    '    return Response.json({error:"Stripe TEST is intentionally disabled."},\\n'
-    '      {status:503,headers:{"cache-control":"no-store"}});\\n'
+    '  // TEST-only: validate Stripe HMAC before refusing disabled-mode delivery.\n'
+    '  // Never acknowledge or reconcile signed events while Stripe TEST is disabled.\n'
+    '  if ((env as typeof env & { FIRE_STRIPE_MODE?:string }).FIRE_STRIPE_MODE !== "test")\n'
+    '    return Response.json({error:"Stripe TEST is intentionally disabled."},\n'
+    '      {status:503,headers:{"cache-control":"no-store"}});\n'
 )
 webhook_path.write_text(webhook_source.replace(webhook_anchor, webhook_guard + webhook_anchor), encoding="utf-8")
 print("PASS: Four Stripe money/connection routes retain the original early 503 kill-switch.")
