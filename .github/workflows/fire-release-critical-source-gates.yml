@@ -46,6 +46,7 @@ jobs:
         run: |
           node --experimental-sqlite scripts/test-stacked-estimate-discounts.mjs
           node --experimental-sqlite scripts/test-per-job-price-overrides.mjs
+          node scripts/test-iphone-estimate-service-picker.mjs
       - name: Job identity and cross-record numbering, no hosted migration
         run: |
           node scripts/test-job-numbering.mjs
@@ -100,7 +101,7 @@ jobs:
       - name: Gate 5 missing LIVE refunds, nonprefix journals and anomaly cases
         run: |
           python -m unittest discover -s business-app-parity -p 'test_triage_live_refund_gap.py' -v
-          python -m unittest discover -s business-app-parity -p 'test_release_schema_capture.py' -v
+          python business-app-parity/test_release_schema_capture.py
       - name: Gate 9 synthetic evidence blocks unverified provider claims
         run: python -m unittest discover -s business-app-parity -p 'test_gate9_staging_preflight.py' -v
       - name: Guard QA current-25 recovery and numbering historical state
