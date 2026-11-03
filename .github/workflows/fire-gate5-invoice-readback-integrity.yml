@@ -1,0 +1,36 @@
+name: FIRE Gate5 Invoice Edit Ledger Readback Integrity (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/invoices/[id]/route.ts'
+      - 'business-app-parity/shared/scripts/test-invoice-below-minimum.mjs'
+      - '.github/workflows/fire-gate5-invoice-readback-integrity.yml'
+permissions:
+  contents: read
+jobs:
+  invoice-sqlite-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies (no provider credentials)
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile actual existing FIRE app source
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Run exact invoice PATCH + GET with native disposable SQLite and failure injection
+        run: node --experimental-sqlite scripts/test-invoice-below-minimum.mjs

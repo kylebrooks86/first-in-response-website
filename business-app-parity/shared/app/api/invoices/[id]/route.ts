@@ -102,11 +102,47 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const currentInvoice=await env.DB.prepare("SELECT subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
     const revisionId=crypto.randomUUID();
     const revisionCreatedAt=new Date().toISOString();
+    // Allocate stable line IDs once so the owner receives the exact persisted
+    // items, not an unsaved input echo with missing generated IDs.
+    const submittedItems=normalized.map(item=>({...item,id:item.id||crypto.randomUUID()}));
     const statements=[env.DB.prepare("INSERT INTO invoice_revisions (id,invoice_id,subtotal_cents,discount_cents,discount_type,discount_value,total_cents,due_at,status,items_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),currentInvoice?.dueAt?String(currentInvoice.dueAt):null,String(currentInvoice?.status||existing.status),JSON.stringify(currentItems.results),revisionCreatedAt),env.DB.prepare("DELETE FROM invoice_items WHERE invoice_id=?").bind(id)];
-    for(const item of normalized)statements.push(env.DB.prepare("INSERT INTO invoice_items (id,invoice_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id||crypto.randomUUID(),id,item.name,item.description,item.quantity,item.unit,item.totalCents));
+    for(const item of submittedItems)statements.push(env.DB.prepare("INSERT INTO invoice_items (id,invoice_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents));
     if(updateDueAt)statements.push(env.DB.prepare("UPDATE invoices SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,total_cents=?,status=?,due_at=? WHERE id=?").bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,dueAt,id));
     else statements.push(env.DB.prepare("UPDATE invoices SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,total_cents=?,status=? WHERE id=?").bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,id));
-    await env.DB.batch(statements);
-    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status,dueAt,items:normalized}});
-  }catch{return Response.json({error:"We couldn't update this invoice."},{status:500});}
+    // D1.batch is atomic, but its return value alone must not be interpreted
+    // as a verified saved invoice. The server must read back BOTH header and
+    // every line before reporting success to the iPhone owner.
+    const acknowledged=await env.DB.batch(statements);
+    const uncertain=()=>Response.json({
+      error:"Invoice save confirmation is uncertain. Reopen the invoice and check the stored amounts and service lines before another edit.",
+      saveUncertain:true
+    },{status:503,headers:{"Cache-Control":"no-store, private"}});
+    if(!Array.isArray(acknowledged)||acknowledged.length!==statements.length||
+      acknowledged.some(result=>(result as {success?:boolean})?.success===false))return uncertain();
+    const saved=await env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,status,due_at AS dueAt FROM invoices WHERE id=?")
+      .bind(id).first<{id:string;subtotalCents:number;discountCents:number;discountType:string;discountValue:number;totalCents:number;status:string;dueAt:string|null}>();
+    const savedLines=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC")
+      .bind(id).all<Required<InvoiceItem>>();
+    const savedRevision=await env.DB.prepare("SELECT id FROM invoice_revisions WHERE id=? AND invoice_id=? LIMIT 1")
+      .bind(revisionId,id).first<{id:string}>();
+    if(!saved||saved.id!==id||Number(saved.subtotalCents)!==subtotalCents||
+      Number(saved.discountCents)!==appliedDiscountCents||
+      saved.discountType!==discountType||Number(saved.discountValue)!==discountValue||
+      Number(saved.totalCents)!==totalCents||saved.status!==status||
+      (updateDueAt&&(saved.dueAt??null)!==(dueAt??null))||
+      !savedRevision||savedRevision.id!==revisionId||
+      !Array.isArray(savedLines.results)||savedLines.results.length!==submittedItems.length||
+      savedLines.results.some((item,index)=>{
+        const expected=submittedItems[index];
+        return item.id!==expected.id||item.name!==expected.name||
+          item.description!==expected.description||Number(item.quantity)!==expected.quantity||
+          item.unit!==expected.unit||Number(item.totalCents)!==expected.totalCents;
+      }))return uncertain();
+    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,
+      discountType,discountValue,totalCents,status,dueAt:saved.dueAt??null,
+      items:savedLines.results}}, {headers:{"Cache-Control":"no-store, private"}});
+  }catch{return Response.json({
+    error:"Invoice save confirmation is unavailable. Reopen this invoice and verify the saved total and service lines before retrying.",
+    saveUncertain:true
+  },{status:503,headers:{"Cache-Control":"no-store, private"}});}
 }

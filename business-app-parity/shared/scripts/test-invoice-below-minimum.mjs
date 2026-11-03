@@ -7,16 +7,34 @@ import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
 let owner={email:'kylebrooks8605@gmail.com'},remoteCalls=0,checks=0;
+let skipNextBatch=false,loseNextInvoiceRead=false,distortNextInvoiceRead=false,distortNextLineRead=false,hideNextRevision=false,postBatchRead=false;
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async()=>{remoteCalls++;throw Error('Synthetic invoice test forbids all remote provider requests');};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
 const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
-  async first(){return db.prepare(sql).get(...args)??null;},
-  async all(){return {results:db.prepare(sql).all(...args)};},
+  async first(){
+    if(sql.startsWith('SELECT id,estimate_id AS estimateId,status,first_viewed_at'))postBatchRead=false;
+    if(sql.startsWith('SELECT id,subtotal_cents AS subtotalCents')){
+      if(loseNextInvoiceRead){loseNextInvoiceRead=false;throw Error('Synthetic lost invoice readback');}
+      const row=db.prepare(sql).get(...args)??null;
+      if(distortNextInvoiceRead&&row){distortNextInvoiceRead=false;return {...row,totalCents:999999};}
+      return row;
+    }
+    if(sql.startsWith('SELECT id FROM invoice_revisions')&&hideNextRevision){hideNextRevision=false;return null;}
+    return db.prepare(sql).get(...args)??null;
+  },
+  async all(){
+    const rows=db.prepare(sql).all(...args);
+    if(postBatchRead&&sql.startsWith('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items')&&distortNextLineRead&&rows.length){
+      distortNextLineRead=false;return {results:[{...rows[0],name:'Not actual stored line'},...rows.slice(1)]};
+    }
+    return {results:rows};
+  },
   async run(){return {meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}});
 const env={DB:{prepare:statement,async batch(statements){
+  if(skipNextBatch){skipNextBatch=false;return statements.map(()=>({success:true,meta:{changes:0}}));}
   db.exec('BEGIN');
-  try{const results=statements.map(s=>s.sql.trimStart().startsWith('SELECT')?{results:db.prepare(s.sql).all(...s.args)}:{meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}});db.exec('COMMIT');return results;}
+  try{const results=statements.map(s=>s.sql.trimStart().startsWith('SELECT')?{results:db.prepare(s.sql).all(...s.args)}:{meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}});db.exec('COMMIT');postBatchRead=true;return results;}
   catch(error){db.exec('ROLLBACK');throw error;}
 }}};
 const loader=createRouteFixtureLoader(process.cwd(),env,()=>owner);
@@ -56,7 +74,49 @@ try{
  eq(JSON.stringify(invoice('paid')),before,'Payment guard leaves invoice unchanged');eq(revisions('paid'),previous,'Failed edit has no revision');
  response=await patch('paid',items(10000,'Too much discount'),'dollar',10001);eq(response.status,400,'Over-subtotal discount rejected');
  eq(JSON.stringify(invoice('paid')),before,'Invalid discount leaves invoice unchanged');
+ // Invoice details must be returned from persisted D1, not echoed from the
+ // submitted PATCH. Unedited due date and newly allocated line IDs are
+ // essential for correct iPhone re-edit and customer invoice details.
+ seed('due');
+ const oldDue='2026-11-20T12:00:00.000Z';
+ db.prepare('UPDATE invoices SET due_at=? WHERE id=?').run(oldDue,'due');
+ response=await patch('due',items(7600,'Saved due-date line'));
+ eq(response.status,200,'No-due-date-change invoice edit succeeded');
+ saved=await response.json();
+ eq(saved.invoice.dueAt,oldDue,'Original D1 due date retained in PATCH receipt');
+ const savedId=db.prepare('SELECT id FROM invoice_items WHERE invoice_id=? LIMIT 1').get('due').id;
+ eq(saved.invoice.items[0].id,savedId,'Response exposes the actual saved generated line ID');
+ eq(saved.invoice.items[0].totalCents,7600,'Response line reflects exact saved cents');
+ eq(response.headers.get('cache-control'),'no-store, private','Financial receipt is private and not cached');
+ // If D1 returns without throwing but writes nothing, the old invoice must
+ // not be reported as saved. Its persisted value remains unchanged.
+ skipNextBatch=true;
+ response=await patch('due',items(9900,'Never persisted'));
+ eq(response.status,503,'Nonthrowing silent D1 batch failure is not a successful edit');
+ eq((await response.json()).saveUncertain,true,'Silent batch outcome marked uncertain');
+ eq(invoice('due').total,7600,'Silent no-op did not alter D1 invoice');
+ // These synthetic failures happen AFTER the transaction was committed.
+ // PATCH must fail closed, never invent saved figures or resend the batch.
+ loseNextInvoiceRead=true;
+ response=await patch('due',items(10100,'Lost readback'));
+ eq(response.status,503,'Lost header readback blocks success');
+ eq(invoice('due').total,10100,'Committed invoice remains intact despite 503');
+ distortNextInvoiceRead=true;
+ response=await patch('due',items(11200,'Stale readback'));
+ eq(response.status,503,'Misleading header readback blocks false success');
+ eq(invoice('due').total,11200,'Committed price remains intact after stale receipt');
+ distortNextLineRead=true;
+ response=await patch('due',items(12500,'Stale line readback'));
+ eq(response.status,503,'Wrong service line readback blocks false success');
+ eq(invoice('due').total,12500,'Committed service update retained');
+ hideNextRevision=true;
+ response=await patch('due',items(12900,'Missing revision receipt'));
+ eq(response.status,503,'Unconfirmed revision audit blocks success');
+ eq(invoice('due').total,12900,'Latest amount committed even though revision receipt missing');
+ response=await detail('due');
+ eq(response.status,200,'Independent invoice GET recovers the current persisted state');
+ eq((await response.json()).invoice.totalCents,12900,'GET reports latest DB amount after uncertain PATCH');
  owner=null;response=await patch('paid',items(10000));eq(response.status,401,'Owner authentication required');
  eq(remoteCalls,0,'No Stripe or external provider calls');
- console.log('PASS '+checks+' actual invoice PATCH/GET SQLite checks: $25/$75/stacked $38.75/$0, revisions, readback, payment guard and auth; no remote writes.');
+ console.log('PASS '+checks+' actual invoice PATCH/GET SQLite checks: exact $25/$75/$38.75/$0 pricing, stable line IDs, persisted due date, revisions, false-ACK and stale/missing readback refusal, payment guard and owner auth; no remote writes.');
 }finally{globalThis.fetch=originalFetch;db.close();}
