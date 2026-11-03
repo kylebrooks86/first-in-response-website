@@ -109,6 +109,19 @@ for(const kind of ['network','http','malformed','negative']){
   eq(f.get('items')[0].readAt,null,kind+': rejected PATCH never marks row read');
   eq(f.get('busy'),false,kind+': mutation unlocks after failed PATCH');
   eq(Boolean(f.error()?.includes('not confirmed')),true,kind+': failed PATCH gives durable warning');
+  eq(f.get('needsRecheck'),true,kind+': failed PATCH requires verified readback');
+  const beforeRetry=f.calls.filter(x=>x.options?.method==='PATCH').length;
+  f.markAll();
+  eq(f.calls.filter(x=>x.options?.method==='PATCH').length,beforeRetry,kind+': no second PATCH while outcome uncertain');
+  const markAll=f.query().find(n=>n.type==='button'&&n.props?.children==='Mark all as read');
+  eq(markAll.props.disabled,true,kind+': mobile Mark All disabled until verified GET');
+  f.fetch(async()=>ok());
+  const refresh=f.query().find(n=>n.type==='button'&&Array.isArray(n.props?.children)&&n.props.children.includes(' Refresh activity'));
+  assert.ok(refresh,kind+': one-tap read-only refresh action visible');
+  refresh.props.onClick();await flush();
+  eq(f.get('needsRecheck'),false,kind+': exact verified GET clears uncertain state');
+  eq(f.error(),undefined,kind+': successful readback clears obsolete error');
+  eq(f.calls.filter(x=>x.options?.method==='PATCH').length,beforeRetry,kind+': recovery made zero new writes');
   eq(f.navigation.length,2,kind+': navigation remains available during uncertain PATCH');
   f.unmount();
 }

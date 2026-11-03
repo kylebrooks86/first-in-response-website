@@ -4904,6 +4904,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [readNotice,setReadNotice]=useState("");
+  const [needsRecheck,setNeedsRecheck]=useState(false);
   const mutationLock=useRef(false),loadRequest=useRef(0);
   const load=async()=>{
     if(mutationLock.current)return;
@@ -4915,7 +4916,9 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
       if(!response.ok)throw Error(result?.error||"Notifications could not be refreshed.");
       if(!Array.isArray(result?.notifications)||result.notifications.some(item=>!item||typeof item.id!=="string"||!item.id||typeof item.title!=="string"||typeof item.body!=="string"||typeof item.createdAt!=="string")||!Number.isSafeInteger(result.unread)||Number(result.unread)<0||Number(result.unread)<result.notifications.filter(item=>!item.readAt).length)throw Error("Notification records could not be verified.");
       setItems(result.notifications);setUnread(Number(result.unread));if(Number(result.unread)>0)setReadNotice("");
-      // A fresh verified read reconciles an uncertain write without sending another PATCH.
+      // Only a complete verified server read may unlock an uncertain
+      // Mark All / single-item write. A lost PATCH reply might have committed.
+      setNeedsRecheck(false);
       setError("");
     }catch{
       if(request===loadRequest.current&&!mutationLock.current)setError("Notifications could not be refreshed. Check your connection and try again.");
@@ -4924,6 +4927,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),30000);return()=>{loadRequest.current++;window.clearInterval(timer);};},[]);
   const updateRead=async(change:{id?:string;all?:boolean})=>{
     if(mutationLock.current)return;
+    if(needsRecheck){setError("Refresh activity to check the saved read status before trying again.");return;}
     mutationLock.current=true;loadRequest.current++;setBusy(true);setError("");setReadNotice("");
     let confirmed=false;
     try{
@@ -4940,6 +4944,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
       }
       confirmed=true;
     }catch{
+      setNeedsRecheck(true);
       setError("Notification update not confirmed. It may have saved; refresh the list before retrying.");
     }finally{
       mutationLock.current=false;setBusy(false);
@@ -4952,8 +4957,9 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const visibleItems=showRead?items:items.filter(item=>!item.readAt);
   const attentionDescription=attentionCount?`${attentionCount} business reminders need attention`:attentionSummary.status==="error"?"Business reminders could not be verified":undefined;
   return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value){setActivityExpanded(null);setShowRead(false);setAttentionSummary({status:"loading",count:0});setAttentionRefreshKey(n=>n+1);setReadNotice("");void load();}}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
-    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div><div className="notification-header-actions"><button type="button" disabled={busy||unread===0} title="Marks recent activity read; does not complete business reminders" onClick={()=>void updateRead({all:true})}>Mark all as read</button><button type="button" className="notification-header-close" aria-label="Close notifications" title="Close notifications" onClick={()=>setOpen(false)}><X aria-hidden="true"/></button></div></header>
+    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div><div className="notification-header-actions"><button type="button" disabled={busy||needsRecheck||unread===0} title={needsRecheck?"Refresh activity to verify the previous update":"Marks recent activity read; does not complete business reminders"} onClick={()=>void updateRead({all:true})}>Mark all as read</button><button type="button" className="notification-header-close" aria-label="Close notifications" title="Close notifications" onClick={()=>setOpen(false)}><X aria-hidden="true"/></button></div></header>
     {error&&<p className="save-error" role="alert">{error}</p>}
+    {error&&<button type="button" className="notification-activity-toggle" disabled={busy} onClick={()=>void load()}><RefreshCw aria-hidden="true"/> Refresh activity</button>}
     {readNotice&&<p className="notification-read-notice" role="status">{readNotice}</p>}
     {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
     {unread===0&&attentionCount>0&&<p className="notification-read-hint">No unread activity. Reminders stay until handled.</p>}
