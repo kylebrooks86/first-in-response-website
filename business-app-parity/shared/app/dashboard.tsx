@@ -1953,8 +1953,27 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     saveLock.current=true;setSaving(true);setError("");try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,appreciationDiscount,additionalDiscountType:discountMode,additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents})});
-      const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string};if(!response.ok||!result.estimate||result.estimate.totalCents!==discount.total||(bundleInputCents??0)>0&&(result.estimate.bundleDiscountCents!==bundleInputCents||result.estimate.depositCents!==discount.deposit||result.estimate.discountCents!==discount.appliedDiscount||result.estimate.subtotalCents!==subtotal))throw new Error(result.error||"Estimate changes could not be saved.");
-      onSaved({...estimate,...result.estimate,items:payloadItems.map((item,index)=>({...item,id:item.id||`new-${index}`}))});setOpen(false);
+      const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string};
+      if(!response.ok||!result?.estimate||result.estimate.id!==estimate.id||
+        result.estimate.totalCents!==discount.total||
+        result.estimate.depositCents!==discount.deposit||
+        result.estimate.discountCents!==discount.appliedDiscount||
+        result.estimate.subtotalCents!==subtotal||
+        result.estimate.bundleDiscountCents!==(bundleInputCents??0)||
+        !Array.isArray(result.estimate.items)||
+        result.estimate.items.length!==payloadItems.length||
+        result.estimate.items.some((saved,index)=>{
+          const requested=payloadItems[index];
+          return !saved||typeof saved.id!=="string"||!saved.id||
+            saved.name!==requested.name||saved.description!==requested.description||
+            Number(saved.quantity)!==requested.quantity||saved.unit!==requested.unit||
+            Number(saved.totalCents)!==requested.totalCents||
+            Boolean(requested.id&&saved.id!==requested.id);
+        }))
+        throw new Error(result?.error||"Estimate save could not be confirmed. Reopen the saved job and check its services before trying another edit.");
+      // Use only server-confirmed D1 item IDs, never synthetic `new-N`
+      // placeholders that could be treated as real IDs on the next edit.
+      onSaved({...estimate,...result.estimate,items:result.estimate.items});setOpen(false);
     }catch(saveError){setError(saveError instanceof Error?saveError.message:"Estimate changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit estimate</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit estimate</DialogTitle></DialogHeader></div>
