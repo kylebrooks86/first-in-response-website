@@ -324,8 +324,20 @@ const supersededHouseTokens = [
   'rate:' + '.' + '25',
   'rate:' + '0.' + '25'
 ];
-if (supersededHouseTokens.some((token) => repositoryText.includes(token))) fail('A superseded house-wash rate remains in repository text files.');
-else pass('No superseded house-wash rate remains anywhere in repository text files.');
+// The Business App intentionally supports a per-estimate $0.25 override above
+// its $0.22 house-wash starting rate. Historical app tests and release notes
+// must not be mistaken for *published website* pricing. Audit every actual
+// public-site HTML file (including newly introduced marketing pages) plus the
+// canonical website pricing rules, without relaxing any per-page price checks.
+// The broader repository-wide deprecated GUTTER-rate scan above is unchanged.
+const publicHouseRateFiles = [...new Set([...siteHtmlFiles, 'BUSINESS_RULES.md'])];
+const badPublicHouseRateFiles = publicHouseRateFiles.filter((file) =>
+  supersededHouseTokens.some((token) => read(file).includes(token))
+);
+if (badPublicHouseRateFiles.length) {
+  fail('A superseded house-wash rate remains in public website pricing: ' +
+    badPublicHouseRateFiles.join(', ') + '.');
+} else pass('No superseded house-wash rate remains in public website pricing or BUSINESS_RULES.md.');
 
 if (index.includes('Math.max(150,Math.round(customerTotal*.95))')) pass('Displayed estimate ranges cannot fall below the $150 minimum.');
 else fail('Estimator range is not clamped to the $150 minimum.');

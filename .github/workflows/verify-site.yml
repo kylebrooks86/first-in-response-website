@@ -21,6 +21,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Prove private per-job quote override cannot mask a bad public house-wash rate (local synthetic only)
+        run: node scripts/test-site-house-rate-scope.mjs
       - name: Verify website source
         run: node verify-site-ci.mjs
       - name: Build verified disaster-recovery archive
