@@ -9,6 +9,56 @@
 - Independent Doomsday Worker `fire-app-independent-staging`: already owner-verified physical D1 `afb2c05a-d794-4a9a-b580-924ce01c26ad`, serving version `61fa32a3-3461-469d-9245-a9df6dd3f036` in Oct 16 read-only receipt. **Do not ask for the same physical D1 check again without new risk evidence.**
 - Isolated Stripe TEST Worker `fire-stripe-test-20261101`, D1 `dba421ba-fc66-4cf8-9c31-51616f8249ba`, last fully verified 100%-serving version `96e32262-fa33-4f04-a161-bee11f0353e2`. This is separate from LIVE Sites and does NOT solve the LIVE DB mapping. Owner's Nov 3 one-attempt inactive upload stopped on Wrangler CLI option mismatch; **whether a new inactive version exists is not yet verified**.
 
+## Gate 4 fast intake: split provider identity from schema (NEW, offline only)
+
+**Do NOT start with live refund SQL or an extensive iPhone audit.** First read the current existing Sites LIVE/refund-staging serving deployments and their **physical D1 binding UUIDs**, not the project names or saved source numbers. Capture only the following *sanitized metadata* in a **private file outside GitHub**. Set fields the provider cannot supply to `null`; do not guess, create placeholder IDs, include raw API responses, or paste tokens/customer/payment rows. Use exactly the expected two Sites project IDs and URLs already written below.
+
+~~~json
+{
+  "format": "fire-gate4-sites-identity-v1",
+  "captures": [
+    {
+      "target": "live",
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "provider": "chatgpt-sites",
+      "capturedAt": "REPLACE_WITH_ACTUAL_UTC_TIMESTAMP",
+      "evidenceRef": null,
+      "binding": "DB",
+      "physicalD1Uuid": null,
+      "servingDeploymentId": null,
+      "providerDeploymentId": null,
+      "servingArtifactSha256": null,
+      "servingSourceCommit": null
+    },
+    {
+      "target": "refund-staging",
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "provider": "chatgpt-sites",
+      "capturedAt": "REPLACE_WITH_ACTUAL_UTC_TIMESTAMP",
+      "evidenceRef": null,
+      "binding": "DB",
+      "physicalD1Uuid": null,
+      "servingDeploymentId": null,
+      "providerDeploymentId": null,
+      "servingArtifactSha256": null,
+      "servingSourceCommit": null
+    }
+  ]
+}
+~~~
+
+**The JSON above is a template and intentionally NOT valid evidence.** A successful provider metadata read is not automatically a gate acceptance. Feed the PRIVATE sanitized file into:
+
+~~~bash
+python3 business-app-parity/preflight_gate4_sites_identity_offline.py /secure/private/fire-gate4-sites-identity.json
+~~~
+
+The checker uses no network or hosted database access. It identifies missing physical UUID/artifact/commit/attestation fields individually and rejects unrecognized fields, collisions with known QA/TEST/Doomsday D1 IDs, mismatched Sites IDs/URLs and stale captures. **Even complete self-supplied JSON never passes Gate 4 or 5:** the verifier explicitly outputs `providerProvenanceIndependentlyVerified=false` and `gate4Accepted=false`; independent authenticated provider corroboration is still required.
+
+**Only after actual physical LIVE DB identity and journal access are verified**, run the already reviewed THREE metadata-only SELECTs in `LIVE_REFUND_GAP_READ_ONLY.sql`, then `triage_live_refund_gap.py`. The **full 10-query** candidate verifier may fail legitimately while the LIVE `payment_refunds` table is missing; never interpret that failure as permission to migrate or invent empty results. Gate 5 needs a forensic decision first. All browser/runtime authentications must use existing supported provider sessions; if the immutable Sites UUID or full artifact hash is inaccessible, request the existing `GATE4_PROVIDER_EVIDENCE_REQUEST.md` provider attestation rather than asking the owner to repeat unrelated Cloudflare or QA checks.
+
 ## Gate 4 — hosted identity, first priority
 With existing project credentials in Work (if possible), read Sites deployment metadata WITHOUT saving/publishing/editing. For each of LIVE and refund staging, return **only**: provider-confirmed current serving deployment ID, version/traffic percent, saved source commit versus actually deployed artifact SHA (or explicit unavailable), environment/route, and actual physical D1 UUID bound as `DB`. Confirm distinct UUIDs between the two and from known Doomsday and QA physical UUIDs. If Sites does not expose the bound UUID or deployed artifact linkage, document the exact unsupported field and use the already prepared `GATE4_PROVIDER_EVIDENCE_REQUEST.md` to request immutable provider attestation. A project ID or runtime version string is NOT a physical DB UUID. Never infer equality or separation.
 
