@@ -31,6 +31,10 @@ $a='96e32262-fa33-4f04-a161-bee11f0353e2'
 $b='11111111-2222-4333-8444-555555555555'
 $list=@([pscustomobject]@{id=$a},[pscustomobject]@{version_id=$b})
 $plain=@(GetVersionEntries $list)
+# A one-version Worker can cause ConvertFrom-Json and PowerShell function
+# pipeline enumeration to hand the parser a standalone PSCustomObject.
+Check ((@(GetVersionEntries ([pscustomobject]@{id=$a})) -join ',') -eq $a) 'Single version item unwrapped from JSON array'
+Check ((@(GetVersionEntries ([pscustomobject]@{version_id=$a})) -join ',') -eq $a) 'Single version_id unwrapped from JSON array'
 Check ($plain.Count -eq 2 -and $plain[0] -eq $a -and $plain[1] -eq $b) 'Flat array'
 Check ((@(GetVersionEntries ([pscustomobject]@{versions=$list})) -join ',') -eq ($plain -join ',')) 'Versions envelope'
 Check ((@(GetVersionEntries ([pscustomobject]@{result=$list})) -join ',') -eq ($plain -join ',')) 'Result array envelope'
