@@ -7,6 +7,12 @@ const require=createRequire(import.meta.url);
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const flush=()=>new Promise(r=>setImmediate(r));
+const verifiedEstimateReceipt=raw=>{
+ const request=JSON.parse(raw),subtotal=request.items.reduce((sum,item)=>sum+item.totalCents,0);
+ return {estimate:{id:'synthetic-job',totalCents:subtotal,subtotalCents:subtotal,
+  discountCents:0,depositCents:Math.round(subtotal/2),bundleDiscountCents:0,
+  items:request.items.map((item,i)=>({...item,id:item.id||'synthetic-confirmed-'+i}))}};
+};
 let checks=0;function eq(a,b,label){assert.deepEqual(a,b,label);checks++;}
 function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
 for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
@@ -36,7 +42,7 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
   eq(f.requests[0].url,name==='EditInvoiceDialog'?'/api/invoices/synthetic-invoice':'/api/estimates/synthetic-job');
   if(outcome==='network')pending.reject(Error('Synthetic connection lost'));
   else if(outcome==='bad-json')pending.resolve({ok:true,json:async()=>{throw Error('Synthetic invalid response');}});
-  else pending.resolve({ok:outcome==='success',json:async()=>outcome==='success'?(name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:{estimate:{id:'synthetic-job',totalCents:20001}}):{error:'Synthetic save failed'}});
+  else pending.resolve({ok:outcome==='success',json:async()=>outcome==='success'?(name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:verifiedEstimateReceipt(f.requests[0].options.body)):{error:'Synthetic save failed'}});
   await flush();eq(f.get('saving'),false,'Save lock state recovers');
   if(outcome==='success'){eq(f.saved.length,1);eq(f.get('open'),false);}
   else {
@@ -49,7 +55,7 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
  }
  for(const quantity of [.25,.5,.75]){
   const f=fixture();await f.load(quantity);eq(f.get('items')[0].quantity,quantity,name+' hydration preserves fractional work');
-  f.setFetcher(async(_url,options)=>{const payload=JSON.parse(options.body);eq(payload.items[0].quantity,quantity);eq(payload.items[0].totalCents,20001);return {ok:true,json:async()=>name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:{estimate:{id:'synthetic-job',totalCents:20001}}};});
+  f.setFetcher(async(_url,options)=>{const payload=JSON.parse(options.body);eq(payload.items[0].quantity,quantity);eq(payload.items[0].totalCents,20001);return {ok:true,json:async()=>name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:verifiedEstimateReceipt(f.requests[0].options.body)};});
   f.button().props.onClick();await flush();eq(f.saved.length,1);
  }
 
