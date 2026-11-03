@@ -20,8 +20,11 @@ jobs:
         shell: pwsh
         run: |
           $dir='business-app-parity/cloudflare-launch/stripe-test-worker'
+          # Pure PowerShell script does not launch a native process; $LASTEXITCODE
+          # may be a stale value from git/checkout and must NOT determine success.
+          $ErrorActionPreference='Stop'
           & (Join-Path $dir 'test_stripe_disabled_binding.ps1')
-          if($LASTEXITCODE -ne 0) { throw 'Stripe TEST binding regression failed' }
+          if(-not $?) { throw 'Stripe TEST binding regression failed' }
       - name: Parse TEST-only Acer PowerShell source without executing
         shell: pwsh
         run: |
