@@ -1,0 +1,36 @@
+name: FIRE Gate 7 Photo Upload D1 Commit Receipt (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/customer-photos/route.ts'
+      - 'business-app-parity/shared/scripts/test-photo-upload-integrity.mjs'
+      - 'business-app-parity/shared/scripts/fixtures/photo-integrity/customer-photos.patched.ts.txt'
+      - '.github/workflows/fire-gate7-photo-upload-receipt.yml'
+permissions:
+  contents: read
+jobs:
+  source-photo-save-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact local dependencies only
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Run original-negative and patched photo-upload integrity receipts
+        run: node scripts/test-photo-upload-integrity.mjs
+      - name: Verify TypeScript of changed source
+        run: pnpm exec tsc --noEmit
