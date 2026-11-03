@@ -13,7 +13,7 @@ foreach($needle in @(
   'FIRE_ACCESS_OWNER_EMAIL','STRIPE_WEBHOOK_SECRET',
   "WranglerJson @('deployments','status'",
   "WranglerJson @('versions','view'",
-  "WranglerJson @('secret','list'",
+  'PrettySecretNames',
   "WranglerJson @('whoami','--json')",
   "WranglerJson @('auth','token','--json')",
   'Invoke-RestMethod -Method Get',
@@ -32,7 +32,7 @@ Req (-not $source.Contains('wrangler.cmd deploy')) 'No deploy'
 Req (-not $source.Contains('secret put')) 'No secret mutation'
 Req (-not $source.Contains('d1 execute')) 'No D1 mutation'
 
-$functions=@('Need','GetCloudflare')
+$functions=@('Need','GetCloudflare','Parse-PrettySecretNames')
 foreach($name in $functions){
   $list=@($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true))
   Req ($list.Count -eq 1) ('Require one function: '+$name)
@@ -63,3 +63,33 @@ try{$null=GetCloudflare 'not-an-account' 'settings'}catch{$blocked=$true}
 Req $blocked 'Invalid account fails before any request'
 Req ($script:requests -eq 2) 'Rejected calls must not reach HTTP'
 Write-Host 'PASS: Offline PowerShell parse, 2 exact GET URLs, 2 blocked unsafe inputs, no hosted requests/mutations.'
+
+
+# Actual Wrangler 4.151.0 output as independently shown in owner Acer screenshot.
+$pretty=@'
+⛅ wrangler 4.151.0
+Secret Name: FIRE_ACCESS_AUD
+Secret Name: FIRE_ACCESS_OWNER_EMAIL
+Secret Name: FIRE_ACCESS_TEAM_DOMAIN
+Secret Name: STRIPE_WEBHOOK_SECRET
+'@
+$names=@(Parse-PrettySecretNames $pretty)
+$wanted=@('FIRE_ACCESS_AUD','FIRE_ACCESS_OWNER_EMAIL','FIRE_ACCESS_TEAM_DOMAIN','STRIPE_WEBHOOK_SECRET')
+Req ($names.Count -eq 4 -and ($names -join ',') -ceq ($wanted -join ',')) 'Correct real four-name output'
+$reverse=@(Parse-PrettySecretNames ((@($pretty -split '\r?\n'|Where-Object{$_ -match '^Secret Name:'})|Sort-Object -Descending) -join [Environment]::NewLine))
+Req (($reverse -join ',') -ceq ($wanted -join ',')) 'Order insensitive pretty output'
+$samples=@(
+  [pscustomobject]@{name='duplicate';raw=$pretty+[Environment]::NewLine+'Secret Name: STRIPE_WEBHOOK_SECRET'},
+  [pscustomobject]@{name='missing';raw=$pretty.Replace('Secret Name: STRIPE_WEBHOOK_SECRET','')},
+  [pscustomobject]@{name='renamed';raw=$pretty.Replace('FIRE_ACCESS_AUD','OTHER_ACCESS_AUD')},
+  [pscustomobject]@{name='bad-line';raw=$pretty.Replace('FIRE_ACCESS_AUD','bad name with spaces')},
+  [pscustomobject]@{name='empty';raw='wrangler 4.151.0'},
+  [pscustomobject]@{name='extra';raw=$pretty+[Environment]::NewLine+'Secret Name: SURPRISE_SECRET'}
+)
+foreach($c in $samples){
+  $fails=$false
+  try{$got=@(Parse-PrettySecretNames ([string]$c.raw));if($got.Count -ne 4 -or ($got -join ',') -cne ($wanted -join ',')){$fails=$true}}
+  catch{$fails=$true}
+  Req $fails ('Must block '+$c.name+' inventory')
+}
+Write-Host 'PASS: Wrangler 4.151.0 pretty name parser and six invalid-inventory scenarios.'
