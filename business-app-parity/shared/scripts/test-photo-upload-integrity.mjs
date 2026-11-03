@@ -17,12 +17,23 @@ function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true){
       async delete(key){deletes++;objects.delete(key);}
     }:null,
     DB:{prepare(query){return {bind(...args){return {
-      async first(){if(query.startsWith('SELECT id FROM customers'))return args[0]==='customer-1'?{id:'customer-1'}:null;photoSelects++;return null;},
+      async first(){
+        if(query.startsWith('SELECT id FROM customers'))return args[0]==='customer-1'?{id:'customer-1'}:null;
+        photoSelects++;
+        if(mode==='readback-error')throw Error('Synthetic D1 row read failed');
+        if(mode==='readback-missing')return null;
+        const saved=rows.get(args[0])??null;
+        if(saved&&mode==='readback-wrong-key')return {...saved,objectKey:'customers/other/customer.png'};
+        return saved;
+      },
       async run(){dbWrites++;const [id,customerId,category,caption,filename,type,size,key,date]=args;
         if(mode==='precommit-error')throw Error('D1 insert never committed');
-        rows.set(id,{id,customerId,category,caption,filename,type,size,key,date});
+        if(mode==='zero-change')return {success:true,meta:{changes:0}};
+        if(mode==='failed-success-flag')return {success:false,meta:{changes:0}};
+        rows.set(id,{id,customerId,category,caption,filename,contentType:type,sizeBytes:size,objectKey:key,createdAt:date});
         if(mode==='postcommit-error')throw Error('D1 committed but response lost');
-        return {success:true};
+        if(mode==='missing-change-count')return {success:true};
+        return {success:true,meta:{changes:1}};
       }
     }; } }; } }
   };
@@ -58,6 +69,19 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
     const m=loadRoute(file,'success',true,false);const response=await m.POST(request());check(`${file} missing bucket fails closed`,response.status===503&&m.counts().dbWrites===0);
   }
   if(patched){
+    {
+      const m=loadRoute(file);
+      const response=await m.POST(request());
+      check('patched confirmed photo save rereads the exact D1 row before 201',response.status===201&&m.counts().photoSelects===1&&response.headers.get('cache-control')==='private, no-store');
+    }
+    for(const mode of ['zero-change','failed-success-flag','missing-change-count','readback-error','readback-missing','readback-wrong-key']){
+      const m=loadRoute(file,mode);
+      const response=await m.POST(request());
+      const body=await response.json();
+      check('patched '+mode+' never confirms unverified photo and retains original bytes',response.status===503&&body.saveUncertain===true&&m.objects.size===1&&m.counts().deletes===0);
+      if(mode.startsWith('readback'))check('patched '+mode+' checks D1 after acknowledged insert',m.counts().photoSelects===1);
+      else check('patched '+mode+' refuses unverified insert before readback',m.counts().photoSelects===0);
+    }
     for(const [name,config,status] of [['wrong customer',{customerId:'wrong'},404],['invalid file',{mime:'text/plain'},400],['oversized image',{bytes:15*1024*1024+1},413]]){
       const m=loadRoute(file);const res=await m.POST(request(config));check(`patched ${name} yields ${status} without object/database writes`,res.status===status&&m.counts().puts===0&&m.counts().dbWrites===0);
     }
