@@ -210,10 +210,20 @@ try{
   $secretsAgain=@(WranglerJson @('secret','list','--name',$Worker))
   $namesAgain=(@($secretsAgain | ForEach-Object {$_.name} | Sort-Object) -join ',')
   Assert ($namesAgain -eq $ExpectedSecrets) 'Access secret inventory changed after approval'
+  # Wrangler --strict refuses conflicting remote settings when run non-interactively.
+  # Force CI mode FOR THIS ONE COMMAND ONLY, to eliminate Y/n prompts which
+  # Wrangler 4.92.0 previously treated as success after the owner typed NO.
+  # A conflict must STOP (no automatic retry or override), never prompt.
+  $priorCI=[Environment]::GetEnvironmentVariable('CI','Process')
   $DeployStarted=$true
-  Write-Warning 'If Wrangler unexpectedly prompts about remote configuration differences, answer NO to both prompts. The attempted deployment must be treated as NOT ACCEPTED; never retry automatically.'
-  Pnpm @('exec','wrangler','deploy','--config',$review,'--keep-vars','--strict')
-  Write-Host 'Worker deploy returned success. Verifying NEW 100-percent version now.' -ForegroundColor Cyan
+  try {
+    [Environment]::SetEnvironmentVariable('CI','true','Process')
+    Pnpm @('exec','wrangler','deploy','--config',$review,'--keep-vars','--strict')
+  }
+  finally {
+    [Environment]::SetEnvironmentVariable('CI',$priorCI,'Process')
+  }
+  Write-Host 'Wrangler exited successfully. Verifying a NEW active 100-percent version; exit success alone is insufficient.' -ForegroundColor Cyan
   $newRaw=(& $Wrangler deployments status --name $Worker --json | Out-String).Trim()
   ExitCheck 'Post-deploy serving version'
   try{$newDeployment=ConvertFrom-Json -InputObject $newRaw -ErrorAction Stop}
