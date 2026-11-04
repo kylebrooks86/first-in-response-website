@@ -88,6 +88,11 @@ try{
  const source=readFileSync('app/dashboard.tsx','utf8');
  check(source.includes('resolutionMode==="refund"?exactMoneyInputCents(refundAmount):undefined'),
    'Actual owner UI parses refund amount in exact cents instead of rounding');
+ const start=source.indexOf('  const resolveOverpayment=async(');
+ const entry=source.slice(start,source.indexOf('  return <Dialog open',start));
+ check(start>=0&&entry.indexOf('setError("Enter the refund already issued')>=0&&
+   entry.indexOf('setError("Enter the refund already issued')<entry.indexOf('mutationLock.current=true'),
+   'Malformed owner money gives a short local error before any network submission or uncertain-write warning');
  check(source.includes('result.estimateId!==estimate.id')&&source.includes('result.resolutionMode!==resolutionMode')&&source.includes('result.ok!==true'),
    'Actual UI refuses successful-looking receipt for wrong job or resolution mode');
  check(!source.includes('money(Math.round(Number(amount||0)*100))'),
