@@ -19,7 +19,10 @@ const fragment=({children})=>React.createElement(React.Fragment,null,children);
 const sharedHelpers={};
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-balance-summary.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/refund-retry-state.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
-const context={exports:{},require,...sharedHelpers,useState:hooks.useState,useRef:hooks.useRef,useEffect:hooks.useEffect,Button,Dialog:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Input:props=>React.createElement('input',props),crypto:{randomUUID:()=> 'synthetic-request-id'},window:{setTimeout(){}},money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),paymentTypeLabel:t=>t,fetch:async(url,options)=>{posts.push({url,...JSON.parse(options.body)});return {ok:true,json:async()=>({pending:true})};},CircleDollarSign:()=>null};
+const browserRetry=new Map();
+const browserStorage={getItem:key=>browserRetry.get(key)??null,setItem:(key,value)=>browserRetry.set(key,value),removeItem:key=>browserRetry.delete(key)};
+const validRequestId='12345678-abcd-4def-8123-123456789abc';
+const context={exports:{},require,...sharedHelpers,useState:hooks.useState,useRef:hooks.useRef,useEffect:hooks.useEffect,Button,Dialog:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Input:props=>React.createElement('input',props),crypto:{randomUUID:()=>validRequestId},window:{localStorage:browserStorage,setTimeout(){}},money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),paymentTypeLabel:t=>t,fetch:async(url,options)=>{posts.push({url,...JSON.parse(options.body)});return {ok:true,json:async()=>({pending:true})};},CircleDollarSign:()=>null};
 const accounting={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/processing-fees.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,accounting);
 context.summarizeProcessing=accounting.exports.summarizeProcessing;
@@ -31,16 +34,16 @@ const check=(label,fn)=>{fn();cases++;console.log('PASS: '+label);};
 const base={id:'synthetic-payment',amountCents:7500,refundableCents:7500,type:'Cash App',customer:'Synthetic customer',stripePayment:1};
 function refund(payment=base,reset=false){if(reset)state=[];cursor=0;return ui.RefundPayment({payment});}
 check('Refund and Check refund use the explicit action class',()=>{
- for(const pending of [false,true]){const tree=refund({...base,...(pending?{pendingRefundId:'pending-id',pendingRefundAmountCents:2100}:{})},true);const button=nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action');assert.equal(button.props.children,pending?'Check refund':'Refund');}
+ for(const pending of [false,true]){const tree=refund({...base,...(pending?{pendingRefundId:validRequestId,pendingRefundAmountCents:2100}:{})},true);const button=nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action');assert.equal(button.props.children,pending?'Check refund':'Refund');}
 });
 check('Negative and fully refunded ledger entries have no refund action',()=>{for(const payment of [{...base,amountCents:-7500},{...base,refundableCents:0}])assert.equal(refund(payment,true),null);});
 check('Refund dialog remains scrollable within a mobile viewport',()=>{const node=nodes(refund(base,true)).find(n=>n.type===fragment&&n.props.className?.includes('sm:max-w-[520px]'));assert.ok(node.props.className.includes('max-h-[90dvh]'));assert.ok(node.props.className.includes('overflow-y-auto'));});
 // Execute the actual open/retry handlers, not a duplicated accounting implementation.
-let tree=refund({...base,pendingRefundId:'pending-id',pendingRefundAmountCents:2100},true);
+let tree=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100},true);
 nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
-tree=refund({...base,pendingRefundId:'pending-id',pendingRefundAmountCents:2100});
+tree=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100});
 await nodes(tree).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();await new Promise(resolve=>setImmediate(resolve));
-check('Pending Stripe retry preserves payment ID, request ID and amount',()=>{assert.equal(posts.length,1);assert.deepEqual(posts[0],{url:'/api/payments/refund',paymentId:'synthetic-payment',requestId:'pending-id',amountCents:2100,externalRefundConfirmed:false,note:''});});
+check('Pending Stripe retry preserves payment ID, request ID and amount',()=>{assert.equal(posts.length,1);assert.deepEqual(posts[0],{url:'/api/payments/refund',paymentId:'synthetic-payment',requestId:validRequestId,amountCents:2100,externalRefundConfirmed:false,note:''});});
 const manual={...base,stripePayment:0};const beforeManual=posts.length;
 nodes(refund(manual,true)).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
 await nodes(refund(manual)).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();

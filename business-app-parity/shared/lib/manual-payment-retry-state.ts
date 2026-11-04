@@ -15,9 +15,22 @@ export function loadManualPaymentRetry(storage:Pick<Storage,'getItem'>|undefined
   return data?.version===1&&data.attempt&&valid(data.attempt)?data.attempt:null;
  }catch{return null;}
 }
-export function saveManualPaymentRetry(storage:Pick<Storage,'setItem'>|undefined,estimateId:string,a:ManualPaymentAttempt){
- if(!estimateId||!valid(a))return false;
- try{storage?.setItem(key(estimateId),JSON.stringify({version:1,attempt:a}));return Boolean(storage);}catch{return false;}
+// This is a financial "reserve", not a best-effort local preference write.
+// A prior unresolved request (or corrupt receipt) must never be replaced by
+// a new operation on another tab or after an interrupted iPhone session.
+export function saveManualPaymentRetry(storage:Pick<Storage,'getItem'|'setItem'>|undefined,estimateId:string,a:ManualPaymentAttempt){
+ if(!estimateId||!valid(a)||!storage)return false;
+ const path=key(estimateId),payload=JSON.stringify({version:1,attempt:a});
+ try{
+  const prior=storage.getItem(path);
+  if(prior!==null&&prior!==payload){
+   const existing=JSON.parse(prior) as {version?:number;attempt?:ManualPaymentAttempt};
+   if(existing?.version!==1||!existing.attempt||!valid(existing.attempt)||
+      JSON.stringify(existing.attempt)!==JSON.stringify(a))return false;
+  }
+  storage.setItem(path,payload);
+  return storage.getItem(path)===payload;
+ }catch{return false;}
 }
 export function clearManualPaymentRetry(storage:Pick<Storage,'removeItem'>|undefined,estimateId:string){try{storage?.removeItem(key(estimateId));}catch{/* old attempt preserved in memory as a fallback */}}
 
