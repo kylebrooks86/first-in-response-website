@@ -19,7 +19,24 @@ vm.runInNewContext(ts.transpileModule(readFileSync('lib/expense-date.ts','utf8')
 const {expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel}=expenseModule.exports;
 assert.equal(expenseBusinessDay('2026-11-04T01:00:00.000Z'),'2026-11-03','Actual Tulsa expense date, not UTC');
 assert.equal(expenseBusinessDay('2026-11-03'),'2026-11-03','Legacy explicit expense date');
-const context={exports:{},require,...stubs,expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,
+// Bring the actual read-only receipt and task-date contracts into the VM.
+const compilePureModule=(file,globals={})=>{
+ const module={exports:{}};
+ vm.runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText,{exports:module.exports,Date,Intl,...globals});
+ return module.exports;
+};
+const localData=new Map();
+const localStorage={
+ getItem:key=>localData.has(key)?localData.get(key):null,
+ setItem:(key,value)=>{localData.set(String(key),String(value));},
+ removeItem:key=>{localData.delete(String(key));}
+};
+const receiptFns=compilePureModule('lib/business-create-receipt.ts',{window:{localStorage}});
+const taskFns=compilePureModule('lib/task-due.ts');
+assert.deepEqual(JSON.parse(JSON.stringify(receiptFns.readBusinessReceipt(localStorage,'task'))),{requestId:null,usable:true});
+const context={exports:{},require,...stubs,expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,...receiptFns,...taskFns,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=typeof initial==='function'?initial():initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},money:c=>'$'+(c/100).toFixed(2),dateTime:v=>v,
  fetch:async(url,opts={})=>{if(opts.method){requests.push({url,method:opts.method,body:JSON.parse(opts.body)});if(opts.method==='PATCH')return new Promise(resolve=>{pendingPatch=()=>resolve({ok:!patchFailure,json:async()=>patchFailure?{error:'Synthetic update failed'}:{ok:true}});});return {ok:true,json:async()=>({})};}return {ok:true,json:async()=>url==='/api/tasks'?{tasks:tasks.map(t=>({...t}))}:url==='/api/expenses'?{expenses:[]}:{customers:[{id:'customer',name:'Synthetic customer'}],estimates:[{id:'job',customerId:'customer',service:'Wash'}]}};},
