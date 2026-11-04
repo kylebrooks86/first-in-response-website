@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import {expenseBusinessDay} from "../../../lib/expense-date";
 import { getChatGPTUser } from "../../chatgpt-auth";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
@@ -12,7 +13,14 @@ export async function GET(request:Request){
   if(query.get("format")==="csv"){
     const selectedYear=query.get("year");
     if(selectedYear!==null&&!/^(?:19|20)[0-9]{2}$/.test(selectedYear))return Response.json({error:"Choose a valid four-digit tax year."},{status:400});
-    const exportRows=selectedYear?(rows.results??[]).filter(item=>item.incurredAt.slice(0,4)===selectedYear):(rows.results??[]);
+    // A late December 31 owner expense can be January 1 in UTC.
+    // Never group it under the wrong tax year or silently omit an invalid date.
+    const datedRows=(rows.results??[]).map(item=>({item,day:expenseBusinessDay(item.incurredAt)}));
+    if(datedRows.some(row=>!row.day))return Response.json(
+      {error:"Saved expense dates could not be verified. Review the records before exporting."},
+      {status:503,headers:{"cache-control":"private, no-store"}}
+    );
+    const exportRows=selectedYear?datedRows.filter(row=>row.day!.slice(0,4)===selectedYear):datedRows;
     // Excel and other spreadsheet tools can evaluate formula-looking CSV cells even when quoted.
     // Prefix text with an apostrophe when its first non-whitespace character is a formula operator.
     const escape=(value:unknown)=>{
@@ -20,7 +28,7 @@ export async function GET(request:Request){
       const safe=/^[\s\u0000-\u001f\uFEFF]*[=+\-@]/u.test(original)?"'"+original:original;
       return `"${safe.replaceAll('"','""')}"`;
     };
-    const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map((item)=>[item.incurredAt.slice(0,10),item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
+    const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map(({item,day})=>[day,item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
     return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=${selectedYear?`fire-expenses-${selectedYear}-wave.csv`:"fire-expenses-wave.csv"}`,"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
   }
   return Response.json({expenses:rows.results},{headers:{"cache-control":"private, no-store"}});
