@@ -31,15 +31,28 @@ const estimatesFunction=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.na
 const cardLabel=estimatesFunction.body.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='savedCardStatus').getText(ast);
 const history=extract('PaymentsView','business-panel payments-history-disclosure');
 const paymentMetrics=extract('PaymentsView','business-metrics payments-primary-metrics');
+// Mount the real Payments copy callback and its state inside this isolated JSX fixture.
+// Otherwise a new PaymentsView hook silently causes the browser's React render to fail
+// before the first totals assertion (which misleadingly reports missing metrics).
+const paymentsFunction=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='PaymentsView');
+let paymentCopyHandler=null;
+function findPaymentCopyHandler(node){
+ if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='copyHistoryPaymentReference')paymentCopyHandler=node.initializer?.getText(ast);
+ ts.forEachChild(node,findPaymentCopyHandler);
+}
+findPaymentCopyHandler(paymentsFunction);
+assert.ok(paymentCopyHandler&&paymentCopyHandler.includes('navigator.clipboard'),'Real Payments reference handler must be mounted');
 assert.match(history,/RefundPayment/,'Preserve exact refund component');
 assert.match(history,/ProcessingDetails/,'Preserve exact payment fee details');
 assert.match(filters,/aria-pressed/,'Selected status remains accessible');
 const fixture=[
- "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{CircleDollarSign,ChevronRight,CalendarDays}from'lucide-react';import{jobNumberLabel}from'./lib/job-numbering.mjs';",
+ "import React,{useState,useRef}from'react';import{createRoot}from'react-dom/client';import{CircleDollarSign,ChevronRight,CalendarDays}from'lucide-react';import{jobNumberLabel}from'./lib/job-numbering.mjs';",
  "function ProcessingDetails({payment}){return <span className='synthetic-processing'>Fee {payment.id}</span>}",
  "function RefundPayment({payment}){return <button type='button' aria-label={'Refund action for '+payment.id}>Refund</button>}",
  "function Fixture(){",
  " const [filter,setFilter]=useState('all'),[showAllPayments,setShowAllPayments]=useState(false);",
+ " const [paymentReferenceCopy,setPaymentReferenceCopy]=useState(null),paymentReferenceCopyAttempt=useRef(0);",
+ " const copyHistoryPaymentReference=",paymentCopyHandler,";",
  " const view='list',statusLabel=s=>s.slice(0,1).toUpperCase()+s.slice(1);",
  cardLabel,
  " const [selected,setSelected]=useState(null),setFocusError=()=>{},viewedOnly=false,dateTime=v=>v,resolvedBillingTotalCents=e=>e.totalCents;",
@@ -117,6 +130,15 @@ try{
   check(await page.getByRole('button',{name:'Refund action for synthetic-0'}).isVisible(),width+': refunds still reachable');
   const referenceCopy=page.getByRole('button',{name:'Copy full payment reference'}).first();
   check(await referenceCopy.isVisible()&&await referenceCopy.evaluate(n=>n.getBoundingClientRect().height>=44),width+': actual payment-reference copy action has a 44px target');
+  await page.evaluate(()=>{
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      writeText:async()=>{throw new Error('Synthetic clipboard denied')}
+    }});
+  });
+  await referenceCopy.click();
+  await page.locator('.payment-reference-copy-feedback[role="alert"]').first().waitFor();
+  check((await page.locator('.payment-reference-copy-feedback[role="alert"]').first().textContent()).includes('test-ref-0'),width+': denied clipboard visibly exposes exact selectable reference');
+  check(await page.locator('.payment-reference-manual').first().evaluate(n=>getComputedStyle(n).userSelect==='text'),width+': failed-copy reference can be selected by the owner');
   check(!(await page.locator('.synthetic-processing').first().isVisible()),width+': fee breakdown starts collapsed');
   await page.locator('.payment-fee-details summary').first().click();
   check(await page.locator('.synthetic-processing').first().isVisible(),width+': full payment fee detail opens on demand');
