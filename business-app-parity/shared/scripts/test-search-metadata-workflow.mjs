@@ -7,7 +7,7 @@ export async function exerciseSearchMetadata({page,context,browser,origin,reques
  const make=async email=>{const r=await request('/api/customers','POST',{name:'Synthetic Search Metadata Twin',email});assert.equal(r.status(),201);return (await r.json()).customer;};
  const customer=await make('metadata-a@example.invalid'),other=await make('metadata-b@example.invalid');
  const er=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic Metadata Service',quantity:1,unit:'job',totalCents:20000}]});assert.equal(er.status(),201);const estimate=await er.json();
- assert.ok((await request('/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'})).ok());
+ assert.ok((await request('/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'},{origin})).ok());
  const reference='SYNTH-META-REFERENCE-7019',nr=await request('/api/customer-notes','POST',{customerId:customer.id,body:'Synthetic prefix. '.repeat(40)+'METADATA-NOTE-7921 <script>literal text</script> saved for customer A.'});assert.equal(nr.status(),201);const note=(await nr.json()).note;
  const otherNote=await request('/api/customer-notes','POST',{customerId:other.id,body:'METADATA-NOTE-7921 saved for customer B.'});assert.equal(otherNote.status(),201);
  const pr=await request('/api/payments','POST',{estimateId:estimate.id,requestId:randomUUID(),amountCents:10000,method:'Cash',reference});assert.equal(pr.status(),201);const payment=(await pr.json()).payment;
