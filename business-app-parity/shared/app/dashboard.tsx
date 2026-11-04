@@ -4977,7 +4977,30 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
   useEffect(()=>()=>onSavingChange?.(false),[onSavingChange]);
   const choose=(item:FireTemplate)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;setSelectedKey(item.key);setDraft(item);setMessage("");};
   useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(!hasUnsavedTemplateChanges)return;event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[hasUnsavedTemplateChanges]);
-  const save=async(reset=false)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;templateSaveLock.current=true;setSaving(true);setMessage("");try{const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:draft.key,reset:true}:{key:draft.key,subject:draft.subject,body:draft.body})});const result=await response.json() as {template?:FireTemplate;error?:string};if(!response.ok||!validTemplate(result.template)||result.template.key!==draft.key)throw new Error(result.error||"Template save could not be confirmed. Your edits are retained.");setTemplates((current)=>current.map((item)=>item.key===draft.key?result.template!:item));setDraft(result.template);setMessage(reset?"Default restored.":"Template saved.");}catch(error){setMessage(error instanceof Error?error.message:"Template could not be saved.");}finally{templateSaveLock.current=false;setSaving(false);}};
+  const save=async(reset=false)=>{
+    if(templateSaveLock.current||templatesLoading||templatesError)return;
+    if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;
+    // Capture the exact owner-reviewed copy, not a later editor selection.
+    const selectedKey=draft.key;
+    const expected=reset?FIRE_TEMPLATES.find(item=>item.key===selectedKey):draft;
+    if(!expected)return;
+    const subject=expected.subject.trim(),body=expected.body.trim();
+    templateSaveLock.current=true;setSaving(true);setMessage("");
+    try{
+      const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:selectedKey,reset:true}:{key:selectedKey,subject:draft.subject,body:draft.body})});
+      const result=await response.json() as {template?:FireTemplate;error?:string};
+      if(!response.ok)throw new Error(result.error||"Template save was not confirmed. Your edits are retained; check the saved version before retrying.");
+      if(!validTemplate(result.template)||result.template.key!==selectedKey||
+         result.template.subject!==subject||result.template.body!==body)
+        throw new Error("The saved template response did not match your subject and message. Keep these edits and reopen Settings to verify the saved version before trying again.");
+      // Only an exact confirmed readback may replace visible owner edits.
+      setTemplates((current)=>current.map((item)=>item.key===selectedKey?result.template!:item));
+      setDraft(result.template);
+      setMessage(reset?"Default restored.":"Template saved.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"Template save could not be verified. Your edits are retained.");
+    }finally{templateSaveLock.current=false;setSaving(false);}
+  };
   const tags=["@customer_first_name","@customer_name","@service_list","@service_address","@estimate_total","@estimate_link","@invoice_total","@invoice_link","@schedule_date","@callback_number","@review_link"];
   return <div className="workspace-view settings-view"><section className="workspace-head"><div><h1>Settings</h1></div></section>
     <details className="pricing-disclosure"><summary>Service catalog</summary><PricingSettings/></details>
