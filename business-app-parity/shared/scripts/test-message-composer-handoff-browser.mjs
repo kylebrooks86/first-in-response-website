@@ -46,7 +46,7 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,d
   if(denyShare){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic link unavailable'}));}
   return res.end(JSON.stringify({shareToken:'synthetic-verified-link'}));
  }
- if(req.url==='/api/message-templates'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({templates:[]}));}
+ if(req.url==='/api/message-templates'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({templates:[{key:'estimate',name:'Estimate ready',category:'Estimates',channel:'both',subject:'Your estimate',body:'Hello @customer_first_name, review your estimate: @estimate_link'}]}));}
  if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
  res.statusCode=404;res.end();
 });
