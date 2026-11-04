@@ -4,10 +4,10 @@ name: FIRE PR149 Comprehensive App Regression — Pinned Source
 on:
   push:
     branches:
-      - chat/fire-149-bundle-label-regression-2026-11-04
+      - chat/fire-149-promotion-expiry-regression-2026-11-04
   workflow_dispatch:
 env:
-  FIRE_REVIEW_SOURCE_SHA: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+  FIRE_REVIEW_SOURCE_SHA: 1ed97f85367b0ee24830f294e4b31d7963ecc412
 permissions:
   contents: read
 
@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+          ref: 1ed97f85367b0ee24830f294e4b31d7963ecc412
       - name: Verify exact PR149 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -91,7 +91,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+          ref: 1ed97f85367b0ee24830f294e4b31d7963ecc412
       - name: Verify exact PR149 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -507,7 +507,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+          ref: 1ed97f85367b0ee24830f294e4b31d7963ecc412
       - name: Verify exact PR149 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -618,7 +618,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+          ref: 1ed97f85367b0ee24830f294e4b31d7963ecc412
       - name: Verify exact PR149 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -784,7 +784,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+          ref: 1ed97f85367b0ee24830f294e4b31d7963ecc412
       - name: Verify exact PR149 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -1088,7 +1088,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ce04639a11908a58bd7897cb2264c9c2a6fce95a
+          ref: 1ed97f85367b0ee24830f294e4b31d7963ecc412
       - name: Verify exact PR149 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
