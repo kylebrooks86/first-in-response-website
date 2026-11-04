@@ -92,8 +92,8 @@ function scanCustomerCopy(node){
 }
 scanCustomerCopy(customers);
 assert.ok(customerCopyDeclaration?.initializer&&ts.isArrowFunction(customerCopyDeclaration.initializer),'Customers reference copy is the actual callback');checks++;
-assert.match(customerSource,/paymentReferenceCopyAttempt\\.current\\+\\+/,'Every new customer copy and selection change invalidates older replies');checks++;
-assert.match(customerSource,/\\},\\[selectedId\\]\\)/,'Changing customer resets the copy state');checks++;
+assert.match(customerSource,/paymentReferenceCopyAttempt\.current\+\+/,'Every new customer copy and selection change invalidates older replies');checks++;
+assert.match(customerSource,/\},\[selectedId\]\)/,'Changing customer resets the copy state');checks++;
 const compiledCustomer=ts.transpileModule(
  'const copyPaymentReference='+customerCopyDeclaration.initializer.getText(ast)+';exports.copy=copyPaymentReference;',
  {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}
