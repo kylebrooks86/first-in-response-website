@@ -68,6 +68,14 @@ export async function PATCH(request:Request){
         if(persistedRefund?.amountCents!==-refundAmountCents||!refreshedPaid||
            !Number.isSafeInteger(refreshedPaid.paidCents)||refreshedPaid.paidCents!==paidCents)
           return Response.json({error:"Refund adjustment was not independently confirmed. Reopen the saved job and payment history before another attempt.",saveUncertain:true},{status:503});
+        // If a final invoice exists, its money status must reflect the
+        // verified payment ledger before the owner sees a resolved alert.
+        const savedInvoice=await env.DB.prepare("SELECT status,total_cents AS totalCents FROM invoices WHERE estimate_id=? LIMIT 1").bind(value.estimateId).first<{status:string;totalCents:number}>();
+        if(savedInvoice&&paidCents>0){
+          const expectedStatus=paidCents>=savedInvoice.totalCents?"paid":"partial";
+          if(!Number.isSafeInteger(savedInvoice.totalCents)||savedInvoice.totalCents<0||savedInvoice.status!==expectedStatus)
+            return Response.json({error:"The saved invoice status does not match the reconciled payment balance. Reopen the job and invoice before another attempt.",saveUncertain:true},{status:503});
+        }
       }else{
         const kept=await env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'
           WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
