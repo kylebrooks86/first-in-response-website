@@ -80,7 +80,7 @@ try{
  eq(response.status,200,'Lost acknowledgement after COMMIT recovers exact already saved invoice');
  const recovered=await response.json();
  eq(recovered.existing,true,'Recovered result is existing, not a duplicate 201');
- eq(recovered.estimateId,'e-committed','Lost-ack recovery verifies actual invoice's selected job');
+ eq(recovered.estimateId,'e-committed','Lost-ack recovery verifies the saved invoice job');
  eq(recovered.customerId,'c-committed','Lost-ack recovery verifies original customer');
  eq(/^[a-f0-9]{32}$/i.test(recovered.shareToken),true,'Lost-ack recovery supplies the real saved invoice token');
  eq(rows('committed').length,1,'Only one invoice after lost ACK');
