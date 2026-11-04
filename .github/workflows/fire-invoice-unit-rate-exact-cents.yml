@@ -1,0 +1,43 @@
+name: FIRE Invoice Unit Rate Exact Cents (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-invoice-unit-rate-exact-ui.mjs'
+      - 'business-app-parity/shared/scripts/test-invoice-editor-uncertain-save.mjs'
+      - '.github/workflows/fire-invoice-unit-rate-exact-cents.yml'
+permissions:
+  contents: read
+jobs:
+  exact-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline app dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Check actual invoice editor and owner route TypeScript
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Exercise actual invoice unit-price input and no-rounding save guard
+        run: node scripts/test-invoice-unit-rate-exact-ui.mjs
+      - name: Preserve uncertain invoice save and recovery protections
+        run: node scripts/test-invoice-editor-uncertain-save.mjs
+      - name: Preserve original invoice read/reopen protections
+        run: node scripts/test-invoice-editor-recovery.mjs
+      - name: Preserve real invoice exact cents and historical revision readback
+        run: node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
