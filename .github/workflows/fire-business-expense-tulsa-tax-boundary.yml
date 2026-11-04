@@ -1,0 +1,43 @@
+name: FIRE Business Expense Tulsa Tax-Year and Wave Export (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/lib/expense-date.ts'
+      - 'business-app-parity/shared/app/api/expenses/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-expense-date.mjs'
+      - 'business-app-parity/shared/scripts/test-expense-csv-safety.mjs'
+      - '.github/workflows/fire-business-expense-tulsa-tax-boundary.yml'
+permissions:
+  contents: read
+jobs:
+  exact-tulsa-tax-year:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile the existing owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Exact Tulsa tax calendar dates across DST and year rollover
+        run: node scripts/test-expense-date.mjs
+      - name: Actual owner Wave CSV export with synthetic SQLite in Tulsa year
+        run: node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+      - name: Existing invoice/accounting separation
+        run: node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
