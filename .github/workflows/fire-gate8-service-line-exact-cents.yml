@@ -1,0 +1,44 @@
+name: FIRE Gate8 Estimate and Invoice Service Exact Cents (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/route.ts'
+      - 'business-app-parity/shared/app/api/estimates/[id]/route.ts'
+      - 'business-app-parity/shared/app/api/invoices/[id]/route.ts'
+      - 'business-app-parity/shared/scripts/test-service-line-exact-cents-sqlite.mjs'
+      - '.github/workflows/fire-gate8-service-line-exact-cents.yml'
+permissions:
+  contents: read
+jobs:
+  exact-service-money:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline app dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript compile actual owner app and route types
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Verify all actual quote and invoice routes reject malformed money
+        run: node --experimental-sqlite scripts/test-service-line-exact-cents-sqlite.mjs
+      - name: Existing immutable quote replay never duplicates money
+        run: node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
+      - name: Existing estimate line ID and readback regression
+        run: node --experimental-sqlite scripts/test-estimate-edit-confirmed-lines-sqlite.mjs
+      - name: Existing invoice edit price and saved revision regression
+        run: node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
