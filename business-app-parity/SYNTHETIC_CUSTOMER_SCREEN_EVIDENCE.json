@@ -1,0 +1,219 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "27dd5b67f4319b70a5272e31ec8039e0d2bf3585",
+  "scope": "Standalone localhost synthetic Customers screen; no Business App route activation",
+  "browserChecks": {
+    "passed": 66,
+    "total": 66
+  },
+  "results": {
+    "live": {
+      "passed": 22,
+      "total": 22,
+      "checks": [
+        "local review response has no-store and restrictive security headers",
+        "first visit does not seed an encrypted snapshot",
+        "explicit fixture creation clears phrase and starts locked",
+        "unlocked empty fixture accurately shows no contacts",
+        "complete screen creates two encrypted contacts and displays receipts",
+        "320px light layout has no horizontal overflow or undersized controls",
+        "320px dark layout has no horizontal overflow or undersized controls",
+        "390px light layout has no horizontal overflow or undersized controls",
+        "390px dark layout has no horizontal overflow or undersized controls",
+        "768px light layout has no horizontal overflow or undersized controls",
+        "768px dark layout has no horizontal overflow or undersized controls",
+        "1280px light layout has no horizontal overflow or undersized controls",
+        "1280px dark layout has no horizontal overflow or undersized controls",
+        "mobile light editor fits 320px and text contrast meets 4.5:1",
+        "mobile dark editor fits 320px and text contrast meets 4.5:1",
+        "mobile editor has labeled fields and visible keyboard focus",
+        "long synthetic values wrap without forcing sideways scrolling",
+        "mobile screen editing works offline after loading",
+        "reload preserves fixture and cannot offer overwrite creation",
+        "preview does not register a service worker or offer app/payment routes",
+        "sticky header stays visible at page bottom without viewport overflow",
+        "screen remains isolated with no script errors"
+      ],
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "viewportWidths": [
+        320,
+        390,
+        768,
+        1280
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "physicalMobileTested": false,
+      "productionActivated": false
+    },
+    "doomsday": {
+      "passed": 22,
+      "total": 22,
+      "checks": [
+        "local review response has no-store and restrictive security headers",
+        "first visit does not seed an encrypted snapshot",
+        "explicit fixture creation clears phrase and starts locked",
+        "unlocked empty fixture accurately shows no contacts",
+        "complete screen creates two encrypted contacts and displays receipts",
+        "320px light layout has no horizontal overflow or undersized controls",
+        "320px dark layout has no horizontal overflow or undersized controls",
+        "390px light layout has no horizontal overflow or undersized controls",
+        "390px dark layout has no horizontal overflow or undersized controls",
+        "768px light layout has no horizontal overflow or undersized controls",
+        "768px dark layout has no horizontal overflow or undersized controls",
+        "1280px light layout has no horizontal overflow or undersized controls",
+        "1280px dark layout has no horizontal overflow or undersized controls",
+        "mobile light editor fits 320px and text contrast meets 4.5:1",
+        "mobile dark editor fits 320px and text contrast meets 4.5:1",
+        "mobile editor has labeled fields and visible keyboard focus",
+        "long synthetic values wrap without forcing sideways scrolling",
+        "mobile screen editing works offline after loading",
+        "reload preserves fixture and cannot offer overwrite creation",
+        "preview does not register a service worker or offer app/payment routes",
+        "sticky header stays visible at page bottom without viewport overflow",
+        "screen remains isolated with no script errors"
+      ],
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "viewportWidths": [
+        320,
+        390,
+        768,
+        1280
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "physicalMobileTested": false,
+      "productionActivated": false
+    },
+    "staging": {
+      "passed": 22,
+      "total": 22,
+      "checks": [
+        "local review response has no-store and restrictive security headers",
+        "first visit does not seed an encrypted snapshot",
+        "explicit fixture creation clears phrase and starts locked",
+        "unlocked empty fixture accurately shows no contacts",
+        "complete screen creates two encrypted contacts and displays receipts",
+        "320px light layout has no horizontal overflow or undersized controls",
+        "320px dark layout has no horizontal overflow or undersized controls",
+        "390px light layout has no horizontal overflow or undersized controls",
+        "390px dark layout has no horizontal overflow or undersized controls",
+        "768px light layout has no horizontal overflow or undersized controls",
+        "768px dark layout has no horizontal overflow or undersized controls",
+        "1280px light layout has no horizontal overflow or undersized controls",
+        "1280px dark layout has no horizontal overflow or undersized controls",
+        "mobile light editor fits 320px and text contrast meets 4.5:1",
+        "mobile dark editor fits 320px and text contrast meets 4.5:1",
+        "mobile editor has labeled fields and visible keyboard focus",
+        "long synthetic values wrap without forcing sideways scrolling",
+        "mobile screen editing works offline after loading",
+        "reload preserves fixture and cannot offer overwrite creation",
+        "preview does not register a service worker or offer app/payment routes",
+        "sticky header stays visible at page bottom without viewport overflow",
+        "screen remains isolated with no script errors"
+      ],
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "viewportWidths": [
+        320,
+        390,
+        768,
+        1280
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "physicalMobileTested": false,
+      "productionActivated": false
+    }
+  },
+  "focusedTypeScript": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedRuntimeSourceParity": {
+    "files": 125,
+    "differences": 0,
+    "candidateCount": 3
+  },
+  "newPreviewFilesParity": {
+    "files": 5,
+    "candidateCount": 3,
+    "differences": 0
+  },
+  "hashes": {
+    "synthetic-customers-preview/index.html": "447079358ae844c303b68c038b935af783dd8fb93a602c7f5f726a998b82e215",
+    "synthetic-customers-preview/preview.css": "981605d72092a7fc0bb2b79306aec5b172a5d4e7fb5c007ac5a1f972878506c7",
+    "synthetic-customers-preview/bootstrap.ts": "ab5ab57bd7a4a1eaad329324c9ad10374211eb184af626a06f2cc29ec0b2a9ed",
+    "scripts/serve-synthetic-customer-preview.mjs": "a7c822ac7ac104eedf96b83b42dbbe95a1ebf91f6f440571e0d6e523886cc70d",
+    "scripts/test-synthetic-customer-screen-browser.mjs": "9186fc79cc45d57a58695d21e010cbe4dd93957e21e855df025b13528d34e999"
+  },
+  "visualReview": {
+    "viewports": [
+      320,
+      390,
+      768,
+      1280
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "reviewImages": [
+      "review-images/customers-mobile-light.png",
+      "review-images/customers-mobile-dark.png"
+    ],
+    "humanStyleInspection": "Assistant inspected final Chromium full-page 390px screenshots in both themes; header, cards and text fit",
+    "textContrastThreshold": 4.5,
+    "contrastLimits": "Computed RGB foreground/background checks on tested visible text; not a complete WCAG audit",
+    "physicalDeviceTested": false
+  },
+  "namespace": {
+    "account": "synthetic-screen-preview",
+    "target": "synthetic-screen-only-v1",
+    "existingDeviceDemoNamespaceUsed": false
+  },
+  "storage": {
+    "firstVisitSeedsSnapshot": false,
+    "explicitFixtureInitialization": true,
+    "occupiedSnapshotOverwrite": false,
+    "offlineEditScope": "Already loaded screen only",
+    "offlineColdLaunchProven": false,
+    "serviceWorkerRegistered": false
+  },
+  "server": {
+    "bindAddress": "127.0.0.1",
+    "defaultPort": "ephemeral",
+    "networkSources": "self only",
+    "productionRoutesServed": false,
+    "cacheControl": "no-store"
+  },
+  "limitations": [
+    "Real server authentication mapping not verified",
+    "Complete Business App dependencies/build unavailable",
+    "No physical iPhone/iPad or installed Home Screen testing",
+    "No server sync, financial actions, photo/notes/estimate/invoice history integration",
+    "No deployed parity or original whole-screen-shaking fix claimed"
+  ],
+  "deploymentChanged": false,
+  "publishedSyntheticDemoChanged": false,
+  "deviceVaultsTouched": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}

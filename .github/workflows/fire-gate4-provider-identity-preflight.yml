@@ -1,0 +1,27 @@
+name: FIRE Gate 4 Sites Physical Identity Preflight (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/preflight_gate4_sites_identity_offline.py'
+      - 'business-app-parity/test_gate4_sites_identity_offline.py'
+      - 'business-app-parity/GATE_CLOSURE_WORK_HANDOFF_20261104.md'
+      - '.github/workflows/fire-gate4-provider-identity-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  provider-identity-local-evidence-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reject missing/unverified provider identity; NEVER close gates from a JSON file
+        run: python -m unittest discover -s business-app-parity -p 'test_gate4_sites_identity_offline.py' -v
+      - name: Confirm separate 3-query LIVE refund triage and 10-query candidate checker remain unit-tested
+        run: |
+          python -m unittest discover -s business-app-parity -p 'test_triage_live_refund_gap.py' -v
+          python -m unittest discover -s business-app-parity -p 'test_hosted_schema_capture.py' -v

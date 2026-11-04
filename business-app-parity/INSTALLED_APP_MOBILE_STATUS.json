@@ -1,0 +1,11 @@
+{
+  "ownerConfirmationDate": "2026-10-14",
+  "existingInstalledIPhoneAppScrollsSmoothly": true,
+  "existingInstalledIPadAppScrollsSmoothly": true,
+  "shakingIsActiveDefectForExistingInstalledApps": false,
+  "newCandidateInstalledDeviceVerificationComplete": false,
+  "evidenceType": "Owner-reported existing Home Screen behavior; not a new candidate device test",
+  "speculativeCssChangesMade": false,
+  "deviceVaultsOrAppsModified": false,
+  "officialReleaseReadinessPercent": 30
+}
