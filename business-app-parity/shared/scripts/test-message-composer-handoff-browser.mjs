@@ -26,7 +26,7 @@ const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer
 createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0;const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
@@ -40,6 +40,7 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,d
    res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');
   }
   let body='';for await(const chunk of req)body+=chunk;const data=JSON.parse(body);requests.push(data);
+  if(data.channel==='copy'&&denyCopyPreparation){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic copy save not confirmed'}));}
   return res.end(JSON.stringify({message:{...data,body:data.body.trim(),id:'owner-message-prep:'+data.requestId,createdAt:'2026-10-30T12:00:00Z'}}));
  }
  if(req.url==='/api/estimates/synthetic-estimate/share'){
@@ -61,6 +62,11 @@ let browser,checks=0;const check=(ok,label)=>{assert.ok(ok,label);checks++;};con
 try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const page=await browser.newPage();page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{
+   const copies=[];
+   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{copies.push(text);}}});
+   window.__fireTestCopies=copies;
+ });
  await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());
  for(const width of [320,375,390,430])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
@@ -108,6 +114,28 @@ try{
   check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
+ // Copy must not put outgoing text on the clipboard until the same
+ // immutable request ID is durably saved and acknowledged in FIRE.
+ denyCopyPreparation=true;
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Message',exact:true}).click();
+ const auditCopy=page.getByRole('dialog',{name:'Message',exact:true});
+ await auditCopy.getByLabel('Message text').fill('Copy only after confirmed activity save');
+ const beforeCopyPosts=requests.length;
+ await auditCopy.getByRole('button',{name:'Copy',exact:true}).click();
+ await auditCopy.getByText('Synthetic copy save not confirmed',{exact:true}).waitFor();
+ check(requests.length===beforeCopyPosts+1&&requests.at(-1).channel==='copy',
+  'One immutable copy-preparation request is attempted before clipboard handoff');
+ check((await page.evaluate(()=>window.__fireTestCopies)).length===0,
+  'Unconfirmed copy preparation cannot place an unrecorded outgoing message on clipboard');
+ const originalCopyRequest=requests.at(-1).requestId;
+ denyCopyPreparation=false;
+ await auditCopy.getByRole('button',{name:'Copy',exact:true}).click();
+ await auditCopy.getByText('Copied. Sending is not confirmed.',{exact:true}).waitFor();
+ check(requests.at(-1).requestId===originalCopyRequest&&requests.at(-1).body==='Copy only after confirmed activity save',
+  'Owner retry preserves the same immutable preparation ID and recorded body');
+ check((await page.evaluate(()=>window.__fireTestCopies)).join('')==='Copy only after confirmed activity save',
+  'Only a readback-verified copy preparation can write the correct text to clipboard');
  // If the saved owner templates fail to load, do not silently prepare
  // bundled/default copy. Custom composing must remain usable.
  denyTemplates=true;

@@ -17,6 +17,9 @@ const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);check
 const ready=(channel,recipient,body)=>customerMessageHandoffReadiness(channel,recipient,body);
 const linked=(template,subject,body,estimateLink,invoiceLink)=>customerTemplateLinkReadiness(template,subject,body,estimateLink,invoiceLink);
 eq(linked('Custom note','','Hi there','','').ready,true,'Custom messages without link placeholders stay free to prepare');
+eq(linked('See @form_link','','See your customer report link','','').ready,false,'Missing real report URL must never be presented as a customer-facing link');
+eq(linked('See @form_link','','Report at https://example.invalid/report','','').ready,false,'Pasting unrelated URL into unresolved placeholder cannot bypass verified report access');
+eq(linked('Please reply','', 'Please reply', '', '').ready,true,'Truthful report handoff without fictitious URL remains usable');
 eq(linked('Review @estimate_link','','Hi, your estimate is ready','','').ready,false,'Missing saved estimate URL blocks preparation');
 eq(linked('Review @estimate_link','','Hi, your estimate is ready','https://fire.example/estimate/valid','').ready,false,'Loaded link omitted by edited draft cannot be sent');
 eq(linked('Review @estimate_link','','Hi https://fire.example/estimate/valid','https://fire.example/estimate/valid','').ready,true,'Exact saved estimate link in message permits preparation');
@@ -90,6 +93,14 @@ eq(actual.includes('role="status"'),true,
  'Composer exposes guidance in accessible status text');
 eq(actual.includes('GoogleVoiceTextShortcutAction phone={customer.phone}'),true,
  'Prepared Text still routes through owner-approved Google Voice Shortcut');
+eq(actual.includes('if(!await log("copy"))return;'),true,
+ 'Copy action saves and verifies owner audit record before modifying clipboard');
+eq(actual.includes('await navigator.clipboard.writeText(body.trim())'),true,
+ 'Actual Copy action uses the exact trimmed recorded message');
+eq(actual.includes('"@callback_number":"918-922-9366"'),true,
+ 'Callback merge tag contains FIRE business Voice number, not a fake instruction');
+eq(actual.includes('"@form_link":""'),true,
+ 'No fabricated report URL is injected into saved message content');
 eq(actual.includes('if(definitiveUnwrittenMessagePreparation(response.status)){'),true,
  'Actual composer releases uncertain draft lock only on proven pre-write rejections');
 eq(actual.includes('ownerConfirmedSent:true'),true,

@@ -300,7 +300,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     "@customer_first_name":firstName,"@customer_last_name":customer.name.trim().split(/\s+/).slice(1).join(" "),"@customer_name":customer.name,
     "@company_name":"First In Response Exteriors","@service_list":service,"@service_address":(estimate?.address??customer.address)||"the service address",
     "@estimate_total":total,"@estimate_link":customerLink,"@invoice_total":balance,"@invoice_link":invoiceLink,
-    "@schedule_date":scheduled,"@callback_number":"reply to this message","@form_link":"your customer report link","@review_link":reviewLink,
+    "@schedule_date":scheduled,"@callback_number":"918-922-9366","@form_link":"","@review_link":reviewLink,
   };
   // Include a blank custom choice alongside the saved customer message templates.
   const customMessageTemplate:FireTemplate={key:"custom",name:"Custom message",category:"Estimates",channel:"both",subject:"Message from First In Response Exteriors",body:""};
@@ -490,7 +490,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       onLogged?.(saved);
       window.dispatchEvent(new Event("fire:attention-saved"));
       if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)]);}
-      setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");
+      setMessageStatus(channel==="copy"?"Message saved to activity; copying…":"Prepared — sending is not confirmed. Return here after sending to confirm.");
       return true;
     }catch{
       if(scope!==messageScope.current)return false;
@@ -556,7 +556,18 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     }catch(err){if(scope===messageScope.current)setMessageStatus(err instanceof Error?err.message:"Cannot confirm that the unsent draft was discarded.");}
     finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
-  const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
+  const copy=async()=>{
+    // A copied outgoing message must first have an owner-scoped, read-back
+    // confirmed audit entry. Do not put unrecorded text on the clipboard
+    // when saving is offline, uncertain or rejected.
+    if(!await log("copy"))return;
+    try{
+      await navigator.clipboard.writeText(body.trim());
+      setMessageStatus("Copied. Sending is not confirmed.");
+    }catch{
+      setMessageStatus("Message saved, but clipboard copy failed. Select and copy the text manually. Sending is not confirmed.");
+    }
+  };
   const changeComposerOpen=(value:boolean)=>{
     if(!value){
       if(working||preparationLock.current){
@@ -4855,7 +4866,7 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
   const choose=(item:FireTemplate)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;setSelectedKey(item.key);setDraft(item);setMessage("");};
   useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(!hasUnsavedTemplateChanges)return;event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[hasUnsavedTemplateChanges]);
   const save=async(reset=false)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;templateSaveLock.current=true;setSaving(true);setMessage("");try{const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:draft.key,reset:true}:{key:draft.key,subject:draft.subject,body:draft.body})});const result=await response.json() as {template?:FireTemplate;error?:string};if(!response.ok||!validTemplate(result.template)||result.template.key!==draft.key)throw new Error(result.error||"Template save could not be confirmed. Your edits are retained.");setTemplates((current)=>current.map((item)=>item.key===draft.key?result.template!:item));setDraft(result.template);setMessage(reset?"Default restored.":"Template saved.");}catch(error){setMessage(error instanceof Error?error.message:"Template could not be saved.");}finally{templateSaveLock.current=false;setSaving(false);}};
-  const tags=["@customer_first_name","@customer_name","@service_list","@service_address","@estimate_total","@estimate_link","@invoice_total","@invoice_link","@schedule_date","@form_link","@review_link"];
+  const tags=["@customer_first_name","@customer_name","@service_list","@service_address","@estimate_total","@estimate_link","@invoice_total","@invoice_link","@schedule_date","@callback_number","@review_link"];
   return <div className="workspace-view settings-view"><section className="workspace-head"><div><h1>Settings</h1></div></section>
     <details className="pricing-disclosure"><summary>Service catalog</summary><PricingSettings/></details>
     <details className="pricing-disclosure"><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details><h2 className="template-section-title">Message templates</h2><div className="template-mobile-picker"><Label htmlFor="message-template-choice">Template</Label><select id="message-template-choice" disabled={saving||templatesLoading||Boolean(templatesError)} value={selectedKey} onChange={event=>{const item=templates.find(item=>item.key===event.target.value);if(item)choose(item);}}>{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map(category=><optgroup key={category} label={category}>{templates.filter(item=>item.category===category).map(item=><option key={item.key} value={item.key}>{item.name}</option>)}</optgroup>)}</select></div><div className="template-layout"><aside className="template-list">{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map((category)=><section key={category}><h2>{category}</h2>{templates.filter((item)=>item.category===category).map((item)=><button key={item.key} className={selectedKey===item.key?"active":""} onClick={()=>choose(item)}><span>{item.channel==="document"?<FileText/>:<MessageSquareText/>}</span><div><strong>{item.name}</strong><small>{item.channel==="both"?"Text + email":statusLabel(item.channel)}</small></div><ChevronRight/></button>)}</section>)}</aside>
