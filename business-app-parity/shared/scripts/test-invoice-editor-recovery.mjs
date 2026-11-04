@@ -18,7 +18,7 @@ function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;cons
  const context={exports:{},require,...Object.fromEntries([...tags].map(tag=>[tag,()=>null])),services:[],money:c=>String(c),dateTime:v=>v,serviceDescriptionFor:()=>'',
  useServicePricing:()=>({services:[],rates:{},loading:false,error:null}),editableLineTotalCents:item=>item.preservedLineTotalCents??Math.round(item.quantity*item.unitRateCents),restoreEditableLineMoney:(qty,total)=>({unitRateCents:Math.round(total/qty),preservedLineTotalCents:total}),exactMoneyInputCents:()=>0,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(stateNames[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(!effect)effect=fn;},
- fetch:(url,options)=>{eq(url,'/api/invoices/synthetic-invoice');eq(options,undefined,'Only mocked invoice reads allowed');return fetcher();}};
+ fetch:(url,options)=>{eq(url,'/api/invoices/synthetic-invoice');eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Only authenticated no-store invoice GET is allowed');return fetcher();}};
  vm.runInNewContext(ts.transpileModule(discountParser.getText(ast)+'\n'+fn.getText(ast).replace('  const setOpenSafe=', '  exports.hydrate=hydrate;\n  const setOpenSafe=')+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
  const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate:{id:'synthetic-estimate',customerId:'synthetic-customer',invoiceId:'synthetic-invoice',paidCents:0},onSaved(){throw Error('Saving is forbidden in loader recovery checks');}});};
  render();return {render,setFetcher:f=>fetcher=f,load:()=>context.exports.hydrate(),get:k=>state[stateNames.indexOf(k)],snapshot:()=>JSON.stringify(state),writes,close:()=>render().props.onOpenChange(false),reopen:()=>render().props.onOpenChange(true),unmount:()=>effect?.()()};
@@ -28,7 +28,7 @@ for(const scenario of ['older success','older failure while pending','older succ
  if(scenario==='delayed old JSON'){first.resolve({ok:true,json:()=>json.promise});await flush();}
  round=second;const newer=f.load();eq(f.get('loading'),true);
  if(scenario==='older failure while pending'){first.reject(Error('old offline'));await old;eq(f.get('loading'),true,'Stale finally must not end a newer load');eq(f.get('error'),'','Stale error must not replace latest request');}
- second.resolve(scenario==='older success after latest failure'?{ok:false,json:async()=>({error:'latest denied'})}:ok('new'));await newer;eq(f.get('loading'),false);eq(f.get('error'),scenario==='older success after latest failure'?'latest denied':'');
+ second.resolve(scenario==='older success after latest failure'?{ok:false,json:async()=>({error:'latest denied'})}:ok('new'));await newer;eq(f.get('loading'),false);eq(Boolean(f.get('loadError')),scenario==='older success after latest failure','Only latest failure may show a load warning');
  const before=f.snapshot(),count=f.writes.length;
  if(scenario==='delayed old JSON')json.resolve(body('old'));else if(scenario!=='older failure while pending')first.resolve(ok('old'));await old;
  eq(f.snapshot(),before,scenario+': stale result changed current editor');eq(f.writes.length,count,scenario+': stale result wrote state');
@@ -44,6 +44,6 @@ for(const outcome of ['success','network failure','JSON failure']){
  const f=fixture(),pending=deferred();f.setFetcher(()=>pending.promise);const old=f.load();f.unmount();const before=f.snapshot(),count=f.writes.length;pending.resolve(ok('unmounted'));await old;eq(f.snapshot(),before,'Unmount invalidates pending editor reads');eq(f.writes.length,count,'No state writes after unmount');
 }
 {
- const f=fixture();f.setFetcher(async()=>({ok:false,json:async()=>({error:'denied'})}));await f.load();eq(f.get('error'),'denied');eq(f.get('loading'),false);f.close();f.setFetcher(async()=>ok('retry'));f.reopen();await flush();eq(f.get('error'),'');eq(f.get('loading'),false);eq(f.get('items')[0].id,'retry');
+ const f=fixture();f.setFetcher(async()=>({ok:false,json:async()=>({error:'denied'})}));await f.load();eq(Boolean(f.get('loadError')),true,'Rejected invoice GET shows retry guidance');eq(f.get('loading'),false);f.close();f.setFetcher(async()=>ok('retry'));f.reopen();await flush();eq(f.get('loadError'),'','Successful reload clears prior invoice warning');eq(f.get('loading'),false);eq(f.get('items')[0].id,'retry');
 }
 console.log(`PASS ${checks}/${checks}: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.`);
