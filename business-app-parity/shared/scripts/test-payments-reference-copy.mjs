@@ -74,4 +74,13 @@ assert.ok(!scope.includes('navigator.clipboard.writeText(payment.reference||"").
 assert.match(css,/\.payments-view \.payment-reference-copy-button\{[^}]*min-height:44px/);checks++;
 assert.match(css,/\.payments-view \.payment-reference-copy-button:focus-visible\{[^}]*outline:3px/);checks++;
 assert.match(css,/\.payments-view \.payment-reference-manual\{[^}]*user-select:text;[^}]*-webkit-user-select:text/);checks++;
+const customers=ast.statements.find(item=>ts.isFunctionDeclaration(item)&&item.name?.text==='CustomersView');
+assert.ok(customers,'The real CustomersView must remain present');checks++;
+const customerSource=customers.getText(ast);
+assert.match(customerSource,/className="customer-payment-reference-copy-button"/);checks++;
+assert.match(customerSource,/className="customer-payment-copy-feedback" role=\{paymentReferenceCopyFeedback\.ok\?"status":"alert"\}/);checks++;
+assert.match(customerSource,/if\(!navigator\.clipboard\?\.writeText\)throw new Error\("Clipboard unavailable"\)/);checks++;
+assert.match(css,/\.customer-payment-record \.customer-payment-reference-copy-button\{[^}]*min-height:44px/);checks++;
+assert.match(css,/\.customer-payment-record \.customer-payment-reference-copy-button:focus-visible\{[^}]*outline:3px/);checks++;
+assert.match(css,/\.customer-payment-record \.customer-payment-copy-feedback code\{[^}]*user-select:text/);checks++;
 console.log('PASS '+checks+' checks: Payments reference copy pending/success/failure/missing API/overlapping requests, exact bytes, on-screen manual fallback, 44px tap target and focus; source-only, no Stripe/D1/provider actions.');
