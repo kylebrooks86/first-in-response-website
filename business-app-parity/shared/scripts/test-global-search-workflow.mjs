@@ -1,4 +1,5 @@
 /** Real built app and native D1. Synthetic records only; no index persisted. */
+import {syntheticCompleteJobReport} from './synthetic-complete-job-report.mjs';
 import assert from 'node:assert/strict';
 export async function exerciseGlobalSearch({page,context,browser,origin,request,check}){
  page.setDefaultTimeout(15000);
@@ -7,7 +8,7 @@ export async function exerciseGlobalSearch({page,context,browser,origin,request,
  for(const [path,method,body,headers] of [
   ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'},{origin}],
   ['/api/estimates/'+estimate.id,'PATCH',{scheduledAt:'2026-10-25T15:00:00Z'}],
-  ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,notes:'Synthetic report'}],
+  ['/api/job-reports','POST',syntheticCompleteJobReport(estimate.id,customer.id)],
   ['/api/estimates/'+estimate.id,'PATCH',{status:'completed'}],
  ]){const r=await request(path,method,body,headers);assert.ok(r.ok(),await r.text());}
  const inv=await request('/api/invoices','POST',{estimateId:estimate.id});assert.equal(inv.status(),201);const invoice=await inv.json(),number=invoice.id.slice(0,6).toUpperCase();
