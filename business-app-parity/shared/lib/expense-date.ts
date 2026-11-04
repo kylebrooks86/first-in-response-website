@@ -18,7 +18,7 @@ export function expenseBusinessDay(incurredAt:string):string|null{
   if(typeof incurredAt!=='string'||!incurredAt)return null;
   if(/^\d{4}-\d{2}-\d{2}$/.test(incurredAt))
     return expenseDateInstant(incurredAt)?incurredAt:null;
-  if(!/^\d{4}-\d{2}-\d{2}T/.test(incurredAt)||!/([Zz]|[+-]\d{2}:\d{2})$/.test(incurredAt))return null;
+  if(!/^\d{4}-\d{2}-\d{2}T/.test(incurredAt)||!/([Zz]|[+-]\d{2}:\d{2})$/.test(incurredAt)||!expenseDateInstant(incurredAt.slice(0,10)))return null;
   const instant=new Date(incurredAt);
   if(!Number.isFinite(instant.getTime()))return null;
   const parts=new Intl.DateTimeFormat('en-US',{
