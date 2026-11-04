@@ -18,7 +18,7 @@ jobs:
       CI: 'true'
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
-      FIRE_PINNED_SHA: ef300691ff9863e6313e7ffae8ac375274a59f02
+      FIRE_PINNED_SHA: 9e79ef41ba83bd8fa2d520dfc36ed31e4e8f2565
     defaults:
       run:
         working-directory: business-app-parity/shared
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout fixed review source without token persistence
         uses: actions/checkout@v4
         with:
-          ref: ef300691ff9863e6313e7ffae8ac375274a59f02
+          ref: 9e79ef41ba83bd8fa2d520dfc36ed31e4e8f2565
           persist-credentials: false
       - name: Verify exact reviewed SHA
         run: test "$(git rev-parse HEAD)" = "$FIRE_PINNED_SHA"
