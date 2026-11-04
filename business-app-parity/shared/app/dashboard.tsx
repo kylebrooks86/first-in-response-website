@@ -357,11 +357,18 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         const response=await fetch("/api/message-templates",{cache:"no-store"});
         if(!response.ok)throw Error("Saved templates could not be retrieved.");
         const result=await response.json() as {templates?:FireTemplate[]};
-        if(!Array.isArray(result.templates)||!result.templates.length||result.templates.some(item=>
-          !item||typeof item.key!=="string"||!item.key||
-          typeof item.name!=="string"||!item.name||
-          typeof item.subject!=="string"||typeof item.body!=="string"||
-          !["sms","email","both","document"].includes(item.channel)))
+        // A partial-but-200 reply cannot authorize unrelated stale bundled
+        // copy. Match the full Settings catalog by immutable key and metadata.
+        if(!Array.isArray(result.templates)||result.templates.length!==FIRE_TEMPLATES.length||
+           result.templates.some(item=>
+             !item||typeof item.key!=="string"||!item.key||
+             typeof item.name!=="string"||!item.name||
+             typeof item.subject!=="string"||typeof item.body!=="string"||!item.body.trim()||
+             !["sms","email","both","document"].includes(item.channel))||
+           new Set(result.templates.map(item=>item.key)).size!==FIRE_TEMPLATES.length||
+           !FIRE_TEMPLATES.every(original=>result.templates!.some(item=>
+             item.key===original.key&&item.name===original.name&&
+             item.category===original.category&&item.channel===original.channel)))
           throw Error("Saved templates could not be verified.");
         if(active){setTemplates(result.templates);setTemplateStatus("ready");}
       }catch{

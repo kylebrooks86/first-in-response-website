@@ -5,6 +5,7 @@ import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {createServer} from 'node:http';
 import ts from 'typescript';
+import{FIRE_TEMPLATES as STORED_TEMPLATE_CATALOG}from'../lib/fire-templates.ts';
 const require=createRequire(import.meta.url),root=process.cwd();
 const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');
@@ -25,7 +26,7 @@ const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer
 createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,templateRequests=0;const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
@@ -49,7 +50,8 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,d
  if(req.url==='/api/message-templates'){
   templateRequests++;res.setHeader('content-type','application/json');
   if(denyTemplates){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic saved-template outage'}));}
-  return res.end(JSON.stringify({templates:[{key:'estimate',name:'Estimate ready',category:'Estimates',channel:'both',subject:'Your estimate',body:'Hello @customer_first_name, review your estimate: @estimate_link'}]}));
+  const savedCatalog=STORED_TEMPLATE_CATALOG.map(item=>item.key==='estimate'?{...item,subject:'Your estimate',body:'Hello @customer_first_name, review your estimate: @estimate_link'}:item);
+  return res.end(JSON.stringify({templates:partialTemplates?savedCatalog.slice(0,1):savedCatalog}));
  }
  if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
  res.statusCode=404;res.end();
@@ -132,12 +134,20 @@ try{
        await linked.getByRole('button',{name:'Copy',exact:true}).isDisabled(),
   'Unavailable saved estimate template cannot prepare Text or Copy using bundled defaults');
  const beforeTemplateRetry=templateRequests,shareBeforeTemplateRetry=shareRequests;
- check(shareBeforeTemplateRetry>=0,'Share request count is observable');
- denyTemplates=false;
+ denyTemplates=false;partialTemplates=true;
+ await linked.getByRole('button',{name:'Retry templates',exact:true}).click();
+ await linked.getByRole('button',{name:'Retry templates',exact:true}).waitFor();
+ // The API may acknowledge 200 but omit part of the owner catalog; do not
+ // mark that incomplete response ready or fabricate defaults for a send.
+ await page.waitForFunction(n=>window.__noop===undefined&&
+   document.querySelector('[role=dialog] [role=alert]')?.textContent?.includes('Saved message templates are unavailable.'),null,templateRequests);
+ check(await linked.getByRole('button',{name:'Text',exact:true}).isDisabled()&&shareRequests===shareBeforeTemplateRetry,
+  'Partial successful-looking catalog cannot prepare a canned message or request a customer link');
+ partialTemplates=false;
  await linked.getByRole('button',{name:'Retry templates',exact:true}).click();
  await linked.getByText('Estimate link unavailable. Retry before preparing this message.',{exact:true}).waitFor();
- check(templateRequests===beforeTemplateRetry+1&&shareRequests===shareBeforeTemplateRetry+1,
-  'Template retry loads one verified saved version before starting share-link lookup');
+ check(templateRequests===beforeTemplateRetry+2&&shareRequests===shareBeforeTemplateRetry+1,
+  'Only complete verified owner template catalog unlocks one saved link lookup');
  check((await linked.getByLabel('Message text').inputValue()).includes('Hello FIRE'),
   'Recovered verified owner template replaces bundled content with exact saved wording');
  check(await linked.getByRole('button',{name:'Text',exact:true}).isDisabled(),
