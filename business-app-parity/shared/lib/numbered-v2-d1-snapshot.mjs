@@ -8,6 +8,8 @@
  *
  * D1.batch must give a single transactional view of ALL metadata and rows.
  * Every statement below is SELECT or read-only PRAGMA; no D1 mutations.
+ * 49 D1 queries in one batch, within current Free 50-query/request limit.
+ * Host/route authorization must not perform other D1 reads in this request.
  */
 import {
  NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION,
@@ -43,15 +45,22 @@ export async function captureNumberedCoreV2ReadOnly(db){
  if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')
   denied('transactional D1 read capability is required');
  if(known.size!==23||businessTables.length!==23)denied('reviewed source table list changed');
+ // D1 Free allows only 50 queries per Worker invocation. Bundle all 23
+ // independent COUNT(*) queries as ONE read-only SQL UNION ALL statement.
+ // The complete 49-query batch still preserves a single transactional view.
+ const countSql=businessTables.map(table=>
+   "SELECT '"+table+"' AS table_name,COUNT(*) AS count FROM "+quoteTable(table)
+ ).join(' UNION ALL ');
  const statements=[
    db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"),
-   db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('fire_customer_numbers','fire_job_numbers') ORDER BY name")
+   db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('fire_customer_numbers','fire_job_numbers') ORDER BY name"),
+   db.prepare(countSql)
  ];
  for(const table of businessTables){
    statements.push(db.prepare('SELECT * FROM '+quoteTable(table)));
-   statements.push(db.prepare('SELECT COUNT(*) AS count FROM '+quoteTable(table)));
    statements.push(db.prepare('PRAGMA table_info('+quoteTable(table)+')'));
  }
+ if(statements.length!==49)denied('D1 read quota budget exceeds reviewed Free-tier safety limit');
  // A single D1.batch is needed: separate batch/read calls could combine
  // an earlier financial ledger with later number mappings or timestamps.
  const result=await db.batch(statements);
@@ -65,17 +74,26 @@ export async function captureNumberedCoreV2ReadOnly(db){
  const sequenceRows=rows(result[1],'sqlite_sequence');
  if(sequenceRows.some(row=>!['fire_customer_numbers','fire_job_numbers'].includes(row.name)))
   denied('unexpected original serial sequence');
+ const countEntries=rows(result[2],'combined table counts');
+ const countMap=new Map();
+ for(const row of countEntries){
+   if(!known.has(row?.table_name)||countMap.has(row.table_name)||
+      !Number.isSafeInteger(row.count)||row.count<0)
+     denied('ambiguous/missing or unsafe independent table count');
+   countMap.set(row.table_name,row.count);
+ }
+ if(countMap.size!==businessTables.length)
+   denied('independent count proof omits a durable table');
  const tables={},rowCounts={};
  for(let i=0;i<businessTables.length;i++){
-   const table=businessTables[i],index=2+i*3;
+   const table=businessTables[i],index=3+i*2;
    const data=rows(result[index],table+' rows');
-   const countRows=rows(result[index+1],table+' count');
-   const columns=rows(result[index+2],table+' columns').map(row=>row?.name);
+   const declaredCount=countMap.get(table);
+   const columns=rows(result[index+1],table+' columns').map(row=>row?.name);
    if(columns.length===0||new Set(columns).size!==columns.length||
       columns.some(column=>typeof column!=='string'||!/^[a-z_][a-z_0-9]*$/.test(column)))
      denied('invalid or missing SQL columns for '+table);
-   if(countRows.length!==1||!Number.isSafeInteger(countRows[0]?.count)||
-      countRows[0].count<0||countRows[0].count!==data.length)
+   if(declaredCount!==data.length)
      denied('nonmatching independent D1 row count for '+table);
    const requiredColumns=new Set(columns);
    for(const row of data){
@@ -84,7 +102,7 @@ export async function captureNumberedCoreV2ReadOnly(db){
        denied('incomplete SQL row/column representation for '+table);
    }
    tables[table]=data;
-   rowCounts[table]=countRows[0].count;
+   rowCounts[table]=declaredCount;
  }
  const snapshot={
    format:NUMBERED_RECORDS_V2_FORMAT,version:NUMBERED_RECORDS_V2_VERSION,
