@@ -1726,12 +1726,16 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
     if(!Number.isSafeInteger(amountCents)||amountCents<=0||amountCents>refundable){setError(`Enter a refund up to ${money(refundable)}.`);return;}
     if(!stripe&&!confirmed){setError("Send the refund through the original/manual payment method first, then confirm it here.");return;}
     if(!requestId){setError("Refund request identity is missing. Close and reopen this refund before submitting.");return;}
-    refundLock.current=true;
     const attempt={requestId,amountCents};
+    // A refund can leave FIRE for Stripe before the iPhone receives a reply.
+    // Require an independently readable original request ID before doing so.
+    if(!saveRefundRetry(storage(),payment.id,attempt)||
+       JSON.stringify(loadRefundRetry(storage(),payment.id))!==JSON.stringify(attempt)){
+      setError("Refund not submitted. This device cannot safely save or verify the original refund request. Review pending refunds and browser storage first.");
+      return;
+    }
+    refundLock.current=true;
     activeRefund.current=attempt;
-    // Write before any network request: Stripe may commit and lose the response.
-    // Reopening or restarting then reuses the same provider idempotency key.
-    saveRefundRetry(storage(),payment.id,attempt);
     setSubmitted(true);setSaving(true);setError("");setMessage("");
     try{
       const response=await fetch("/api/payments/refund",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({paymentId:payment.id,requestId,amountCents,externalRefundConfirmed:!stripe&&confirmed,note})});
@@ -1865,10 +1869,16 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
       setError("A previous payment is unresolved. Its amount, method and reference must remain identical. Review Payment History before creating another payment.");return;
     }
     const wasPending=Boolean(activeManual.current);
+    // Financial write MUST NOT start unless Safari persisted and can read
+    // the exact original ID/details. If localStorage is blocked/full, do not
+    // risk a payment that cannot be recovered after an iPhone restart.
+    if(!saveManualPaymentRetry(storage(),estimate.id,attempt)||
+       JSON.stringify(loadManualPaymentRetry(storage(),estimate.id))!==JSON.stringify(attempt)){
+      setError("Payment not submitted. This device cannot safely save the original retry ID. Check browser storage before recording a payment.");
+      return;
+    }
     paymentLock.current=true;
-    // Save before the POST because D1 may commit and lose its acknowledgement.
     manualRequestId.current=requestId;activeManual.current=attempt;
-    saveManualPaymentRetry(storage(),estimate.id,attempt);
     setRetryPending(true);setSaving(true);setError("");
     let confirmed:number|null=null;
     try{
