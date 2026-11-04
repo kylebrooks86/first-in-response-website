@@ -24,6 +24,15 @@ rows.set('fire:manual-payment-attempt:job-d','not json');
 eq(loadManualPaymentRetry(storage,'job-d'),null,'Corrupted browser state is not accepted');
 rows.set('fire:manual-payment-attempt:job-d',JSON.stringify({version:999,attempt:original}));
 eq(loadManualPaymentRetry(storage,'job-d'),null,'Unknown persisted version fails closed');
+// No silent replacement of a prior unresolved payment, including another tab.
+eq(saveManualPaymentRetry(storage,'job-b',{...cash,requestId:original.requestId}),false,'Unresolved original manual payment cannot be replaced by a different request ID');
+eq(loadManualPaymentRetry(storage,'job-b'),cash,'Original payment retry identity remains preserved after conflict');
+const inert={getItem:k=>rows.get(k)??null,setItem:()=>{}};
+eq(saveManualPaymentRetry(inert,'job-unwritten',original),false,'Storage silently dropping a payment receipt prevents operation');
+const corrupt={getItem:k=>k==='fire:manual-payment-attempt:corrupt'?'corrupt receipt':null,setItem:()=>{throw Error('No attempted overwrite allowed')}};
+eq(saveManualPaymentRetry(corrupt,'corrupt',original),false,'Corrupt pending payment identity cannot be overwritten');
+const missingRead={getItem:()=>{throw Error('read denied')},setItem:()=>{}};
+eq(saveManualPaymentRetry(missingRead,'payment',original),false,'Payment storage must support exact read-back before network');
 const unavailable={getItem(){throw Error('denied')},setItem(){throw Error('denied')},removeItem(){throw Error('denied')}};
 eq(loadManualPaymentRetry(unavailable,'job-a'),null,'Unavailable browser storage does not crash payment flow');
 eq(saveManualPaymentRetry(unavailable,'job-a',original),false,'Storage failure is accurately reported');
