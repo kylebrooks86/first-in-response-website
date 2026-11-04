@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       const saved=await savedFinalInvoice(estimateId,estimate.customerId);
       if(!saved||saved.id!==prior.id||saved.shareToken!==prior.shareToken)
         return Response.json({error:'The saved invoice or service lines could not be verified. Review the invoice before billing.'},{status:409,headers:{'Cache-Control':'no-store, private'}});
-      return Response.json({id:saved.id,shareToken:saved.shareToken,existing:true},{headers:{'Cache-Control':'no-store, private'}});
+      return Response.json({id:saved.id,estimateId:saved.estimateId,customerId:saved.customerId,shareToken:saved.shareToken,existing:true},{headers:{'Cache-Control':'no-store, private'}});
     }
     const itemResult=await env.DB.prepare("SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC").bind(estimateId).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
     if(!itemResult.results.length||itemResult.results.some((item)=>!item.name||!Number.isFinite(Number(item.quantity))||Number(item.quantity)<=0||!Number.isSafeInteger(Number(item.totalCents))||Number(item.totalCents)<0))return Response.json({error:"This completed job contains invalid service-line data. Review the estimate before creating its final invoice."},{status:409});
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       let raced:FinalInvoiceReceipt|null=null;
       try{raced=await savedFinalInvoice(estimateId,estimate.customerId);}catch{return uncertainInvoiceCreate();}
       if(!raced)return uncertainInvoiceCreate();
-      return Response.json({id:raced.id,shareToken:raced.shareToken,existing:true},{headers:{'Cache-Control':'no-store, private'}});
+      return Response.json({id:raced.id,estimateId:raced.estimateId,customerId:raced.customerId,shareToken:raced.shareToken,existing:true},{headers:{'Cache-Control':'no-store, private'}});
     }
     let saved:FinalInvoiceReceipt|null=null;
     try{saved=await savedFinalInvoice(estimateId,estimate.customerId);}catch{return uncertainInvoiceCreate();}

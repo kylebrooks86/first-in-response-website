@@ -50,6 +50,9 @@ try{
  add('normal');
  let response=await post('normal'),receipt=await response.json();
  eq(response.status,201,'Actual D1 persisted initial create returns 201');
+ eq(receipt.estimateId,'e-normal','New invoice returns exact owner-selected job ID');
+ eq(receipt.customerId,'c-normal','New invoice returns the actual saved linked customer ID');
+ eq(/^[a-f0-9]{32}$/i.test(receipt.shareToken),true,'New invoice returns a valid owner-viewable saved token');
  eq(receipt.totalCents,22575,'Exact quote total used, not the full subtotal');
  eq(receipt.subtotalCents,29500,'Original service subtotal');
  eq(receipt.discountCents,6925,'Original entire discount preserved');
@@ -60,7 +63,11 @@ try{
  const saved=await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:receipt.id})});
  eq((await saved.json()).invoice.items.map(i=>i.id),receipt.items.map(i=>i.id),'Independent invoice detail preserves the same UUIDs');
  response=await post('normal');eq(response.status,200,'Same job replay reads existing invoice');
- eq((await response.json()).id,receipt.id,'Replay returns original invoice, never creates duplicate');
+ const replay=await response.json();
+ eq(replay.id,receipt.id,'Replay returns original invoice, never creates duplicate');
+ eq(replay.estimateId,'e-normal','Existing invoice replay scopes its receipt to exact saved job');
+ eq(replay.customerId,'c-normal','Existing invoice replay scopes its receipt to exact saved customer');
+ eq(replay.shareToken,receipt.shareToken,'Existing invoice replay preserves the actual customer invoice URL token');
  eq(rows('normal').length,1,'Database has exactly one invoice');
  add('zero');
  behavior='uncommitted';response=await post('zero');const noWrite=await response.json();
@@ -73,6 +80,9 @@ try{
  eq(response.status,200,'Lost acknowledgement after COMMIT recovers exact already saved invoice');
  const recovered=await response.json();
  eq(recovered.existing,true,'Recovered result is existing, not a duplicate 201');
+ eq(recovered.estimateId,'e-committed','Lost-ack recovery verifies the saved invoice job');
+ eq(recovered.customerId,'c-committed','Lost-ack recovery verifies original customer');
+ eq(/^[a-f0-9]{32}$/i.test(recovered.shareToken),true,'Lost-ack recovery supplies the real saved invoice token');
  eq(rows('committed').length,1,'Only one invoice after lost ACK');
  add('mismatch');
  behavior='wrong-line';response=await post('mismatch');eq(response.status,503,'False line readback prevents 201');

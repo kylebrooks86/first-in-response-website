@@ -2382,14 +2382,23 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   };
   const createInvoice = async () => {
     if(mutationLock.current||closeoutLock.current)return;
-    mutationLock.current=true;setSaving(true); setError("");
+    mutationLock.current=true;setSaving(true);setError("");
     try {
-      const response = await fetch("/api/invoices", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ estimateId:estimate.id }) });
-      const result = await response.json() as { id?:string; shareToken?:string; error?:string };
-      if (!response.ok || !result.id) throw new Error(result.error || "The invoice could not be created.");
-      onChanged({ ...estimate, invoiceId:result.id, invoiceShareToken:result.shareToken, status:estimate.status === "draft" ? "approved" : estimate.status });
-    } catch (invoiceError) { setError(invoiceError instanceof Error ? invoiceError.message : "The invoice could not be created."); }
-    finally { mutationLock.current=false;setSaving(false); }
+      const response=await fetch("/api/invoices",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id})});
+      const result=await response.json() as {id?:string;estimateId?:string;customerId?:string;shareToken?:string;error?:string};
+      if(!response.ok)throw new Error(result.error||"Final invoice creation was not confirmed.");
+      // The server verifies saved invoice and every line. This view must also
+      // require a receipt for THIS job/customer and its actual owner-preview
+      // link; a 200 containing only an unrelated ID cannot change the UI.
+      if(typeof result.id!=="string"||!result.id||result.estimateId!==estimate.id||
+         result.customerId!==estimate.customerId||
+         typeof result.shareToken!=="string"||!/^[a-f0-9]{32}$/i.test(result.shareToken))
+        throw new Error("The invoice response did not verify this job, customer and saved link.");
+      onChanged({...estimate,invoiceId:result.id,invoiceShareToken:result.shareToken});
+    }catch(invoiceError){
+      setError((invoiceError instanceof Error?invoiceError.message:"Invoice status could not be verified.")+
+        " An invoice may already have saved. Close and reopen this job to check before trying again.");
+    }finally{mutationLock.current=false;setSaving(false);}
   };
   const encodedAddress = encodeURIComponent(estimate.address || "");
   const zillowAddress = encodeURIComponent((estimate.address || "").trim().replace(/\s+/g,"-"));
