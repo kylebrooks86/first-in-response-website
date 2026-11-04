@@ -1,0 +1,40 @@
+name: FIRE Gate8 Task Complete-Reopen Confirmed D1 Receipts (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/tasks/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-task-status-confirmation.mjs'
+      - 'business-app-parity/shared/scripts/test-task-status-ui-recovery.mjs'
+      - '.github/workflows/fire-gate8-task-toggle-saved-receipts.yml'
+permissions:
+  contents: read
+jobs:
+  task-toggle-receipts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Actual owner task PATCH, exact readback and fault injection with SQLite
+        run: node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+      - name: Actual Business task toggle, stale response and read-only recovery UI
+        run: node scripts/test-task-status-ui-recovery.mjs
