@@ -10,11 +10,20 @@ const source=readFileSync('lib/customer-contact-links.ts','utf8');
 const js=ts.transpileModule(source,{
  compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}
 }).outputText;
-const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation}
+const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness}
  =await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(js));
 let checks=0;
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++};
 const ready=(channel,recipient,body)=>customerMessageHandoffReadiness(channel,recipient,body);
+const linked=(template,subject,body,estimateLink,invoiceLink)=>customerTemplateLinkReadiness(template,subject,body,estimateLink,invoiceLink);
+eq(linked('Custom note','','Hi there','','').ready,true,'Custom messages without link placeholders stay free to prepare');
+eq(linked('Review @estimate_link','','Hi, your estimate is ready','','').ready,false,'Missing saved estimate URL blocks preparation');
+eq(linked('Review @estimate_link','','Hi, your estimate is ready','https://fire.example/estimate/valid','').ready,false,'Loaded link omitted by edited draft cannot be sent');
+eq(linked('Review @estimate_link','','Hi https://fire.example/estimate/valid','https://fire.example/estimate/valid','').ready,true,'Exact saved estimate link in message permits preparation');
+eq(linked('Your invoice is ready: @invoice_link','','Invoice sent','','').ready,false,'Missing invoice token blocks payment reminder');
+eq(linked('Your invoice is ready: @invoice_link','','Invoice link https://fire.example/invoice/valid','','https://fire.example/invoice/valid').ready,true,'Saved invoice link permits preparation');
+eq(linked('Custom','Invoice @invoice_link','No URL included','','https://fire.example/invoice/valid').ready,false,'Subject placeholders cannot bypass invoice link guard');
+eq(linked('@estimate_link @invoice_link','','Estimate https://fire.example/estimate/valid','https://fire.example/estimate/valid','').ready,false,'Templates requiring two URLs block if either missing');
 eq(usableCustomerPhone('(918) 555-0111'),'+19185550111','Normalize an Oklahoma mobile number');
 eq(usableCustomerPhone('918-555-0111'),'+19185550111','Normalize dash-formatted number');
 eq(usableCustomerPhone('+1 918 555 0111'),'+19185550111','Retain US country code');
@@ -65,6 +74,18 @@ eq(actual.includes('customerMessageHandoffReadiness("text",customer.phone,body)'
  'Actual MessageComposer checks saved phone before making text_prepared audit event');
 eq(actual.includes('customerMessageHandoffReadiness("email",customer.email,body)'),true,
  'Actual MessageComposer checks saved email before making email_prepared audit event');
+eq(actual.includes('if(!linkReadiness.ready){setMessageStatus(documentLinkMessage);return false;}'),true,
+ 'Actual durable prepared-message route refuses missing estimate/invoice URL');
+eq(actual.includes('!linkReadiness.ready||!customerMessageHandoffReadiness("text"'),true,
+ 'Actual Google Voice Text button refuses a link-dependent missing URL');
+eq(actual.includes('!linkReadiness.ready||!customerMessageHandoffReadiness("email"'),true,
+ 'Actual Email button refuses a link-dependent missing URL');
+eq(actual.includes('setShareLinkError("Estimate link unavailable.'),true,
+ 'Actual estimate-share request displays an actionable error instead of silently failing');
+eq(actual.includes('setInvoiceLinkError("Invoice link unavailable.'),true,
+ 'Actual invoice-share request displays an actionable error instead of silently failing');
+eq(actual.includes('>Retry link</Button>'),true,
+ 'Actual composer offers owner-requested manual link retry, never auto-sends');
 eq(actual.includes('role="status"'),true,
  'Composer exposes guidance in accessible status text');
 eq(actual.includes('GoogleVoiceTextShortcutAction phone={customer.phone}'),true,
