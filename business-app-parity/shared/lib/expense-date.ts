@@ -28,3 +28,9 @@ export function expenseBusinessDay(incurredAt:string):string|null{
   const day=`${part('year')}-${part('month')}-${part('day')}`;
   return expenseDateInstant(day)?day:null;
 }
+
+/** One stable human-readable owner date everywhere in the Business screen. */
+export function expenseBusinessDateLabel(incurredAt:string):string{
+  const day=expenseBusinessDay(incurredAt);
+  return day?`${Number(day.slice(5,7))}/${Number(day.slice(8,10))}/${day.slice(0,4)}`:'Date unavailable';
+}
