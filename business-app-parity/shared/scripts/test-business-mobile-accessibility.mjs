@@ -53,11 +53,12 @@ render();effect();await settle();eq(get('loading'),false);
 const expected={
  'business-task-title':'Task or reminder','business-task-customer':'Customer','business-task-due':'Due date and time (optional)','business-task-notes':'Notes (optional)',
  'business-expense-category':'Expense category','business-expense-job':'Job','business-expense-description':'Expense description','business-expense-amount':'Amount ($)',
+ 'business-expense-date':'Purchase date (optional)','business-task-search':'Find a task','business-expense-search':'Find an expense',
 };
 const controls=all().filter(n=>[stubs.Input,stubs.Textarea,stubs.SelectTrigger].includes(n.type));
-eq(controls.length,8);eq(new Set(controls.map(n=>n.props.id)).size,8);
+eq(controls.length,11);eq(new Set(controls.map(n=>n.props.id)).size,11);
 for(const control of controls){const label=all().find(n=>n.type===stubs.Label&&n.props.htmlFor===control.props.id);assert.ok(label,'Missing associated label for '+control.props.id);checks++;eq(label.props.children,expected[control.props.id]);if(control.type===stubs.SelectTrigger)eq(control.props['aria-labelledby'],label.props.id);}
-eq(controls.find(n=>n.props.id==='business-task-due').props.type,'datetime-local');eq(controls.find(n=>n.props.id==='business-expense-amount').props.inputMode,'decimal');
+eq(controls.find(n=>n.props.id==='business-task-due').props.type,'datetime-local');eq(controls.find(n=>n.props.id==='business-expense-amount').props.inputMode,'decimal');eq(controls.find(n=>n.props.id==='business-expense-date').props.type,'date');eq(controls.find(n=>n.props.id==='business-task-search').props.type,'search');eq(controls.find(n=>n.props.id==='business-expense-search').props.type,'search');
 for(const [id,value,key] of [['business-task-title','Call QA','title'],['business-task-due','2026-10-09T15:30','dueAt'],['business-task-notes','Bring supplies','taskNotes'],['business-expense-description','Synthetic supplies','description'],['business-expense-amount','25.34','amount']]){
  all().find(n=>n.props.id===id).props.onChange({target:{value}});eq(get(key),value);eq(all().find(n=>n.props.id===id).props.value,value);
 }
