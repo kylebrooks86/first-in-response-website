@@ -112,6 +112,7 @@ for(const kind of ['pay','refund']){
  }
  const storage=healthy.store;
  const path=healthy.prefix;
- eq(storage.getItem(path),null,kind+' only verified financial success releases browser retry receipt');
+ if(kind==='pay')eq(typeof storage.getItem(path),'string','Harness stubs finishConfirmed so saved ID is retained; real finishConfirmed release is covered by existing retry regression');
+ else eq(storage.getItem(path),null,'Refund actual confirmed handler clears only the verified durable retry receipt');
 }
 console.log('PASS '+checks+'/'+checks+': actual owner manual payment and refund handlers block 6 storage/recovery failures each, preserve older IDs, and POST only with exact stored verified same IDs. Zero provider/network calls.');
