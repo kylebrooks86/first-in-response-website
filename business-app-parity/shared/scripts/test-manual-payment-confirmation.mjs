@@ -20,6 +20,24 @@ try{
  owner=null;eq((await get('a',attempt.requestId)).status,401);owner={email:'customer@example.invalid'};eq((await get('a',attempt.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
  eq((await get('a','bad')).status,400);eq((await get('missing',attempt.requestId)).status,404);
  let response=await get('a',attempt.requestId);eq(response.status,200);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
+ // Exact-cents validation must happen at the actual API boundary, even when a
+ // malformed client bypasses the mobile form. Reject without any D1 mutation.
+ for(const [caseName,patch]of [
+  ['fractional principal',{amountCents:10000.5}],['fractional tip',{tipCents:0.5}],
+  ['decimal-string principal',{amountCents:'10000'}],['decimal-string tip',{tipCents:'100'}],
+  ['null principal',{amountCents:null}],['null tip',{tipCents:null}],
+  ['boolean principal',{amountCents:true}],['boolean tip',{tipCents:false}],
+  ['array amount',{amountCents:[10000]}],['object tip',{tipCents:{value:0}}],
+  ['negative principal',{amountCents:-1}],['negative tip',{tipCents:-1}],
+  ['nonfinite principal',{amountCents:Infinity}],['nonfinite tip',{tipCents:NaN}],
+  ['unsafe principal',{amountCents:Number.MAX_SAFE_INTEGER+1}],
+  ['aggregate overflow',{amountCents:Number.MAX_SAFE_INTEGER,tipCents:1}],
+  ['absent principal',{amountCents:undefined}],
+ ]){
+  eq((await post('b',{...attempt,requestId:randomUUID(),...patch})).status,400,caseName);
+  eq(writes,0,caseName+' must not write');
+ }
+
  // A committed principal must be discoverable even when the write acknowledgement failed.
  failAfterCommit=true;eq((await post('a',attempt)).status,503);const receipt=await (await get('a',attempt.requestId)).json();eq(receipt.confirmed,true);eq(confirmedManualPayment(receipt,'a',attempt),10000);const savedWrites=writes;
  eq((await get('b',attempt.requestId)).status,409);eq(confirmedManualPayment(receipt,'b',attempt),null);
@@ -32,5 +50,10 @@ try{
  const combined={...attempt,requestId:randomUUID(),amountCents:20000,tipCents:1200,method:'Venmo',processingFeeCents:450};eq((await post('tip',combined)).status,201);const bundle=await (await get('tip',combined.requestId)).json();eq(confirmedManualPayment(bundle,'tip',combined),20000);eq(bundle.records.length,2);eq(confirmedManualPayment({...bundle,records:bundle.records.slice(0,1)},'tip',combined),null);
  const only={...attempt,requestId:randomUUID(),amountCents:0,tipCents:500,method:'Cash App',processingFeeCents:25};eq((await post('tip',only)).status,201);const tip=await (await get('tip',only.requestId)).json();eq(confirmedManualPayment(tip,'tip',only),20000);eq(tip.records.length,1);
  eq(db.prepare("SELECT COUNT(*) AS n FROM payments WHERE estimate_id='b'").get().n,0);
+ // Preserve the historical optional omission of tipCents on a whole-cent payment.
+ const optionalTip={...attempt,requestId:randomUUID(),amountCents:1000};delete optionalTip.tipCents;
+ eq((await post('b',optionalTip)).status,201);
+ eq(db.prepare("SELECT amount_cents AS amount FROM payments WHERE id=?").get('manual-'+optionalTip.requestId).amount,1000);
+
  console.log(`PASS ${checks}/${checks}: scoped owner-only read confirmation, lost commit acknowledgement, exact principal/tip/fee receipts, malformed and conflicting receipt refusal, no extra financial writes and same-ID replay.`);
 }finally{db.close()}
