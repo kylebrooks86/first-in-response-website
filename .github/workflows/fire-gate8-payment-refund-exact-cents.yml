@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/lib/exact-money-input.ts'
+      - 'business-app-parity/shared/app/api/payments/route.ts'
+      - 'business-app-parity/shared/scripts/test-manual-payment-confirmation.mjs'
       - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/scripts/test-exact-money-input.mjs'
       - 'business-app-parity/shared/scripts/test-money-retry-storage-gate-handlers.mjs'
