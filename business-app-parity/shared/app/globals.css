@@ -1844,6 +1844,12 @@ html,body{max-width:100%;overflow-x:clip}
 .payment-history-more{width:100%;min-height:48px;margin-top:10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
 .payment-history-more:hover{background:var(--muted)}
 .payment-history-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+/* Payment reference copying must be usable on iPhone and must never claim success on clipboard refusal. */
+.payments-view .payment-reference-copy-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:64px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:700;cursor:pointer}
+.payments-view .payment-reference-copy-button:disabled{opacity:.65;cursor:wait}
+.payments-view .payment-reference-copy-button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.payments-view .payment-reference-copy-feedback{display:block;min-width:0;max-width:100%;font-size:12px;line-height:1.5;overflow-wrap:anywhere;color:var(--foreground)}
+.payments-view .payment-reference-manual{display:block;max-width:100%;margin-top:4px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
 
 
 /* The Follow-ups landing screen shows the deadline cue, not a wall of counters. */
