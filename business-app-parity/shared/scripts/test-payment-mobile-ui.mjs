@@ -45,6 +45,33 @@ nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action'
 tree=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100});
 await nodes(tree).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();await new Promise(resolve=>setImmediate(resolve));
 check('Pending Stripe retry preserves payment ID, request ID and amount',()=>{assert.equal(posts.length,1);assert.deepEqual(posts[0],{url:'/api/payments/refund',paymentId:'synthetic-payment',requestId:validRequestId,amountCents:2100,externalRefundConfirmed:false,note:''});});
+check('Pending Stripe button is clearly an original request retry, not a new refund',()=>{
+ const view=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100});
+ const button=nodes(view).find(n=>n.type===Button&&n.props.className==='brand-button');
+ assert.equal(button.props.children,'Check / resume original Stripe refund');
+});
+{
+ const manualPending={...base,id:'synthetic-manual-recovery',stripePayment:0,pendingRefundId:validRequestId,pendingRefundAmountCents:2100};
+ nodes(refund(manualPending,true)).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
+ let view=refund(manualPending);
+ const checkbox=nodes(view).find(n=>n.type==='input'&&n.props.type==='checkbox');
+ assert.ok(checkbox,'Pending manual refund still shows the original returned-money confirmation');
+ assert.equal(checkbox.props.disabled,false,'Reopening manual pending request allows owner to re-confirm the outside refund');
+ const action=nodes(view).find(n=>n.type===Button&&n.props.className==='brand-button');
+ assert.equal(action.props.children,'Check / resume original manual refund','Pending manual refund is never labeled as a new refund');
+ const previous=posts.length;
+ await action.props.onClick();
+ assert.equal(posts.length,previous,'Manual retry cannot record refund until returned money is explicitly reconfirmed');
+ checkbox.props.onChange({target:{checked:true}});
+ view=refund(manualPending);
+ await nodes(view).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();
+ assert.equal(posts.length,previous+1,'Owner-confirmed retry sends exactly one original manual refund request');
+ assert.equal(posts.at(-1).paymentId,'synthetic-manual-recovery');
+ assert.equal(posts.at(-1).requestId,validRequestId,'No fresh refund ID minted on retry');
+ assert.equal(posts.at(-1).amountCents,2100,'Original saved refund amount cannot change');
+ assert.equal(posts.at(-1).externalRefundConfirmed,true,'Manual refund verification is explicit and never inferred');
+ cases++;console.log('PASS: pending manual refund owner checkbox, exact original receipt and truthful label');
+}
 const manual={...base,stripePayment:0};const beforeManual=posts.length;
 nodes(refund(manual,true)).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
 await nodes(refund(manual)).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();
