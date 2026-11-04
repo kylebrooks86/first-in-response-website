@@ -35,8 +35,9 @@ const localStorage={
 };
 const receiptFns=compilePureModule('lib/business-create-receipt.ts',{window:{localStorage}});
 const taskFns=compilePureModule('lib/task-due.ts');
+const contextFns=compilePureModule('lib/business-task-context.ts');
 assert.deepEqual(JSON.parse(JSON.stringify(receiptFns.readBusinessReceipt(localStorage,'task'))),{requestId:null,usable:true});
-const context={exports:{},require,...stubs,expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,...receiptFns,...taskFns,
+const context={exports:{},require,...stubs,expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,...receiptFns,...taskFns,...contextFns,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=typeof initial==='function'?initial():initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},money:c=>'$'+(c/100).toFixed(2),dateTime:v=>v,
  fetch:async(url,opts={})=>{if(opts.method){requests.push({url,method:opts.method,body:JSON.parse(opts.body)});if(opts.method==='PATCH')return new Promise(resolve=>{pendingPatch=()=>resolve({ok:!patchFailure,json:async()=>patchFailure?{error:'Synthetic update failed'}:{ok:true}});});return {ok:true,json:async()=>({})};}return {ok:true,json:async()=>url==='/api/tasks'?{tasks:tasks.map(t=>({...t}))}:url==='/api/expenses'?{expenses:[]}:{customers:[{id:'customer',name:'Synthetic customer'}],estimates:[{id:'job',customerId:'customer',service:'Wash'}]}};},
