@@ -18,12 +18,13 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{MessageSquareText,Copy,ExternalLink,Mail,Send}from'lucide-react';
 import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';
-import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
+import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
 const money=n=>'$'+(n/100).toFixed(2),dateTime=v=>v,reviewLink='https://example.invalid/review',resolvedBillingTotalCents=e=>e.totalCents,billingBalanceCents=e=>e.totalCents;
 ${composer.getText(ast)}
 const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
 const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer.name,service:'House Wash',totalCents:12300,invoiceId:null,shareToken:'',invoiceShareToken:''};
-createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/></main>);`;
+const scheduledEstimate={...estimate,id:'synthetic-scheduled-estimate',status:'scheduled',address:'100 Fixture Way',scheduledAt:'2026-11-04T16:00:00Z'};
+createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment unscheduled" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment scheduled" customer={customer} estimate={scheduledEstimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false;const server=createServer(async(req,res)=>{
@@ -114,6 +115,28 @@ try{
   check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
+ // A sent appointment confirmation must refer to a real saved date and
+ // address, not the old "your scheduled time" placeholder.
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Appointment unscheduled',exact:true}).click();
+ const unscheduled=page.getByRole('dialog',{name:'Message',exact:true});
+ await unscheduled.getByText("Save and confirm this job's appointment date before preparing an appointment confirmation or reminder.",{exact:true}).waitFor();
+ check(await unscheduled.getByRole('button',{name:'Text',exact:true}).isDisabled()&&
+       await unscheduled.getByRole('button',{name:'Copy',exact:true}).isDisabled(),
+  'Unscheduled estimate cannot prepare or copy a false appointment confirmation');
+ const beforeAppointment=requests.length;
+ await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Appointment scheduled',exact:true}).click();
+ const scheduled=page.getByRole('dialog',{name:'Message',exact:true});
+ await page.waitForFunction(()=>Array.from(document.querySelectorAll('[role=dialog] textarea')).some(e=>e.value.includes('2026-11-04T16:00:00Z')));
+ check(await scheduled.getByRole('button',{name:'Text',exact:true}).isEnabled(),
+  'Saved scheduled appointment date and address enable ordinary Text preparation');
+ await scheduled.getByRole('button',{name:'Text',exact:true}).click();
+ await scheduled.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
+ check(requests.length===beforeAppointment+1&&
+       requests.at(-1).body.includes('2026-11-04T16:00:00Z')&&
+       requests.at(-1).body.includes('100 Fixture Way'),
+  'Prepared appointment message reflects exact saved schedule and property address, not a placeholder');
  // Copy must not put outgoing text on the clipboard until the same
  // immutable request ID is durably saved and acknowledged in FIRE.
  denyCopyPreparation=true;
