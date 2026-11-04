@@ -60,5 +60,9 @@ for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx
  for(const marker of ['PortalNavigation','mobile-back-button','mobile-home-button','isOwner'])assert.ok(!current.includes(marker),`${path}: ${marker}`);
 }
 // Billing/refund and notification changes are exercised by test-public-document-guards.mjs.
-for(const path of ['app/chatgpt-auth.ts'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show',`776bbe8c894877d6c199aa8b8f041feeb949ba8e:${path}`],{encoding:'utf8'}));
+// Pin the exact, reviewed ChatGPT owner-auth Git blob from the PR150 parent.
+// The legacy historical commit-path reference did not exist in this app-only repo;
+// never silently omit the auth no-change guard or weaken the runtime auth implementation.
+assert.equal(execFileSync('git',['hash-object','app/chatgpt-auth.ts'],{encoding:'utf8'}).trim(),
+ 'eef37346915e9aafb60037c59eaea8e67507ea5a','Owner-auth module must match its reviewed unchanged Git object');
 console.log('PASS: owner entry actions, mobile menu close, light/dark rendering, theme persistence, Templates separation, dashboard navigation, public documents omit owner controls, owner auth unchanged.');
