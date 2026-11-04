@@ -65,6 +65,7 @@ function fixture(kind,mode){
   setMessage:value=>messages.push(value),
   setSaving:value=>events.push(['saving',value]),
   setSubmitted:value=>events.push(['submitted',value]),
+  setCompleted:value=>events.push(['refund-completed',value]),
   setRetryPending:value=>events.push(['retry',value]),
   setReviewedMissing:value=>events.push(['review',value]),
   setRetryConfirmed:value=>events.push(['confirmed',value]),
