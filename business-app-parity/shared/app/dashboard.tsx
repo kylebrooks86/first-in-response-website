@@ -43,6 +43,7 @@ import type {DashboardReviewCheck} from "../lib/dashboard-review-checks";
 import { summarizeProcessing } from "../lib/processing-fees";
 import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
 import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
+import {exactMoneyInputCents} from "../lib/exact-money-input";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney, validEditablePrice } from "../lib/editable-line-totals";
 import { reuseEstimateServiceLine } from "../lib/reuse-estimate-service-line";
 import { matchesReviewedEstimateReceipt } from "../lib/estimate-quote-receipt";
@@ -1722,8 +1723,8 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
   };
   const submit=async()=>{
     if(refundLock.current)return;
-    const amountCents=Math.round(Number(amount)*100);
-    if(!Number.isSafeInteger(amountCents)||amountCents<=0||amountCents>refundable){setError(`Enter a refund up to ${money(refundable)}.`);return;}
+    const amountCents=exactMoneyInputCents(amount);
+    if(amountCents===null||amountCents<=0||amountCents>refundable){setError(`Enter a refund up to ${money(refundable)} using at most two decimal places.`);return;}
     if(!stripe&&!confirmed){setError("Send the refund through the original/manual payment method first, then confirm it here.");return;}
     if(!requestId){setError("Refund request identity is missing. Close and reopen this refund before submitting.");return;}
     const attempt={requestId,amountCents};
@@ -1762,7 +1763,7 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
         {stripe?<p className="pay-note"><strong>Stripe payment:</strong> FIRE will submit this refund to Stripe and automatically record the refund when Stripe confirms it.</p>:<label className="payment-refund-confirm"><input type="checkbox" disabled={submitted} checked={confirmed} onChange={(event)=>setConfirmed(event.target.checked)}/><span>I already returned this money outside FIRE using the original payment method.</span></label>}
         {error&&<p className="save-error" role="alert">{error}</p>}
         {message&&<p className="save-success" role="status">{message}</p>}
-        <Button className="brand-button" onClick={()=>void submit()} disabled={saving}>{saving?"Processing…":stripe?`Refund ${money(Math.round(Number(amount||0)*100))} through Stripe`:"Record completed refund"}</Button>
+        <Button className="brand-button" onClick={()=>void submit()} disabled={saving}>{saving?"Processing…":stripe?(exactMoneyInputCents(amount)===null?"Enter valid refund":`Refund ${money(exactMoneyInputCents(amount)!)} through Stripe`):"Record completed refund"}</Button>
       </div>
     </DialogContent>
   </Dialog>;
@@ -1820,10 +1821,11 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
     setReviewedMissing(false);setRetryConfirmed(false);
   },[open,estimate.id]);
   const feeMethod=method==="Cash App"||method==="Venmo";
-  const grossCents=Math.round(Number(amount||0)*100)+Math.round(Number(tip||0)*100);
-  const enteredFeeCents=fee===""?null:Math.round(Number(fee)*100);
+  const grossCents=(exactMoneyInputCents(amount,true)??0)+(exactMoneyInputCents(tip,true)??0);
+  const feeProvided=Boolean(fee.trim());
+  const enteredFeeCents=feeProvided?exactMoneyInputCents(fee):null;
   const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;
-  const feeValid=processingFeeCents==null||Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents;
+  const feeValid=!feeProvided||(enteredFeeCents!==null&&processingFeeCents!==null&&Number.isSafeInteger(grossCents)&&Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents);
   const checkStored=async(attempt:ManualPaymentAttempt)=>{
     const requestId=attempt.requestId;
     const response=await fetch(`/api/payments/confirmation?estimateId=${encodeURIComponent(estimate.id)}&requestId=${encodeURIComponent(requestId)}`,{cache:"no-store"});
@@ -1857,9 +1859,9 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const save=async()=>{
     if(paymentLock.current)return;
     if(retryPending&&(!reviewedMissing||!retryConfirmed)){setError("Check the saved payment status first, then explicitly confirm a retry of the original request.");return;}
-    const amountCents=Math.round(Number(amount||0)*100),tipCents=Math.round(Number(tip||0)*100);
+    const amountCents=exactMoneyInputCents(amount,true),tipCents=exactMoneyInputCents(tip,true);
     const maxTipCents=Math.min(normalized.totalCents,50000);
-    if(!Number.isSafeInteger(amountCents)||amountCents<0||!Number.isSafeInteger(tipCents)||tipCents<0||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}
+    if(amountCents===null||tipCents===null||(amountCents<=0&&tipCents<=0)||!Number.isSafeInteger(amountCents+tipCents)){setError("Enter a payment or tip in dollars using at most two decimal places.");return;}
     if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job's tip limit cannot be represented safely.");return;}
     if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}
     if(feeMethod&&!feeValid){setError("Fee and net deposited must be between zero and the customer payment.");return;}

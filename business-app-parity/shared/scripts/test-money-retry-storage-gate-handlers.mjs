@@ -8,6 +8,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import {loadManualPaymentRetry,saveManualPaymentRetry,clearManualPaymentRetry} from '../lib/manual-payment-retry-state.ts';
 import {loadRefundRetry,saveRefundRetry,clearRefundRetry} from '../lib/refund-retry-state.ts';
+import {exactMoneyInputCents} from '../lib/exact-money-input.ts';
 const file=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',file,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 function handler(component,name){
@@ -49,9 +50,9 @@ const makeStorage=(mode,kind)=>{
 };
 function fixture(kind,mode){
  const {store,values,prefix}=makeStorage(mode,kind),calls=[],messages=[],saved=[],events=[];
- const context={exports:{},Math,Number,String,JSON,Boolean,crypto:{randomUUID:()=>id},
+ const context={exports:{},Math,Number,String,JSON,Boolean,money:c=>String(c),crypto:{randomUUID:()=>id},
   saveManualPaymentRetry,loadManualPaymentRetry,clearManualPaymentRetry,
-  saveRefundRetry,loadRefundRetry,clearRefundRetry,
+  saveRefundRetry,loadRefundRetry,clearRefundRetry,exactMoneyInputCents,
   storage:()=>mode==='missing'?undefined:store,
   fetch:async(path,opts)=>{
    const snapshot=values.get(prefix)??null;
@@ -115,4 +116,25 @@ for(const kind of ['pay','refund']){
  if(kind==='pay')eq(typeof storage.getItem(path),'string','Harness stubs finishConfirmed so saved ID is retained; real finishConfirmed release is covered by existing retry regression');
  else eq(storage.getItem(path),null,'Refund actual confirmed handler clears only the verified durable retry receipt');
 }
-console.log('PASS '+checks+'/'+checks+': actual owner manual payment and refund handlers block 6 storage/recovery failures each, preserve older IDs, and POST only with exact stored verified same IDs. Zero provider/network calls.');
+// A string with fractional cents or exponent notation must never be rounded
+// into money silently, even when an otherwise valid durable retry ID exists.
+for(const kind of ['pay','refund']){
+ for(const invalid of ['10.005','1e2','-1.00','NaN','Infinity','10,50','9.999','$25','1.2.3']){
+  const f=fixture(kind,'normal');
+  f.context.amount=invalid;
+  await f.run();
+  eq(f.calls.length,0,kind+' '+invalid+' cannot create a financial POST by rounding input');
+  eq(f.messages.some(x=>x.includes('two decimal places')),true,kind+' '+invalid+' displays precise money guidance');
+  eq(f.values.size,0,kind+' '+invalid+' does not even reserve a financial request ID');
+ }
+ const valid=fixture(kind,'normal');
+ valid.context.amount='12.35';
+ await valid.run();
+ eq(valid.calls.length,1,kind+' exact two decimal amount posts once');
+ eq(JSON.parse(valid.calls[0].body).amountCents,1235,kind+' exact $12.35 becomes 1235 cents');
+}
+for(const badTip of ['3.005','2e2','-1']){
+ const f=fixture('pay','normal');f.context.tip=badTip;await f.run();
+ eq(f.calls.length,0,'Bad tip '+badTip+' cannot silently round or submit');
+}
+console.log('PASS '+checks+'/'+checks+': actual owner manual payment and refund handlers block 6 storage/recovery failures each and reject fractional cents before durable same-ID financial POSTs. Zero provider/network calls.');

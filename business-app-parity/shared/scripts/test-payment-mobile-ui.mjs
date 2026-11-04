@@ -19,6 +19,7 @@ const fragment=({children})=>React.createElement(React.Fragment,null,children);
 const sharedHelpers={};
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-balance-summary.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/refund-retry-state.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/exact-money-input.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 const browserRetry=new Map();
 const browserStorage={getItem:key=>browserRetry.get(key)??null,setItem:(key,value)=>browserRetry.set(key,value),removeItem:key=>browserRetry.delete(key)};
 const validRequestId='12345678-abcd-4def-8123-123456789abc';
