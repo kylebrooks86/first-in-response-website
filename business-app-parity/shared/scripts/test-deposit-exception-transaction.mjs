@@ -102,8 +102,8 @@ try{
  const readSnapshot=snapshot('mode-fixed');await ownerGet('mode-fixed');eq(snapshot('mode-fixed'),readSnapshot);
  // Customer-facing approval must refuse any recorded owner exception until
  // the agreement actually displays revised terms and captures reapproval.
- const accept=async id=>publicAccept.POST(new Request('https://synthetic.invalid/api/public/estimates/'+id+'/accept',{
-  method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({signedName:'Synthetic Customer',photoRelease:'no',acceptedTerms:true})}),{params:Promise.resolve({token:'share-'+id})});
+ const accept=async (id,origin='https://synthetic.invalid')=>publicAccept.POST(new Request('https://synthetic.invalid/api/public/estimates/'+id+'/accept',{
+  method:'POST',headers:{'content-type':'application/json',...(origin===null?{}:{Origin:origin})},body:JSON.stringify({signedName:'Synthetic Customer',photoRelease:'no',acceptedTerms:true})}),{params:Promise.resolve({token:'share-'+id})});
  function share(id){
   db.prepare("UPDATE estimates SET share_token=? WHERE id=?").run('share-'+id,id);
   db.prepare("INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES(?,?,'Synthetic service','',1,'job',18001)").run('item-'+id,id);
@@ -112,6 +112,13 @@ try{
  eq((await accept('mode-fixed')).status,409);
  eq(row('mode-fixed').accepted_at,null);
  seed('unmodified-accept');share('unmodified-accept');
+ for(const id of ['mode-fixed','unmodified-accept'])for(const origin of [null,'https://foreign.invalid','null']){
+  const before=db.prepare('SELECT total_changes() AS n').get().n;
+  const state=JSON.stringify(row(id));
+  eq((await accept(id,origin)).status,403);
+  eq(db.prepare('SELECT total_changes() AS n').get().n,before);
+  eq(JSON.stringify(row(id)),state);
+ }
  eq((await accept('unmodified-accept')).status,200);eq(row('unmodified-accept').status,'approved');
  seed('approval-race');share('approval-race');
  beforeBatch=()=>db.prepare("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES(?,?,?,'synthetic','standard',18001,9001,9001,0,'2026-10-19T16:00:00Z')").run(uuid(),'approval-race',uuid());
