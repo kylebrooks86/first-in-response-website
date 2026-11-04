@@ -1,0 +1,52 @@
+# Read-only proof harness; checkout the precise draft PR151 source, not this harness commit.
+name: FIRE Owner Account Mobile Polish — Pinned Offline Proof
+on:
+  push:
+    branches:
+      - chat/fire-owner-account-polish-proof-2026-11-04
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fire-owner-account-polish-proof
+  cancel-in-progress: true
+jobs:
+  owner-account:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_PINNED_SOURCE: 7bb3594ef6967f7d11f633d7370d7b40a0e566cf
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout exact review source, no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: 7bb3594ef6967f7d11f633d7370d7b40a0e566cf
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Assert immutable review source
+        run: test "$(git rev-parse HEAD)" = "$FIRE_PINNED_SOURCE"
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Check shared source TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Assert owner account navigation, links, theme, access and mobile tap target
+        run: node scripts/test-owner-account.mjs
+      - name: Compile actual owner account, contracts and follow-ups against shared CSS
+        run: node scripts/test-followups-account-contracts-browser.mjs --compile-only
+      - name: Check shared mobile task/expense field accessibility
+        run: node scripts/test-business-mobile-accessibility.mjs
+      - name: Confirm no hosting or customer-data action was performed
+        run: echo 'Source-only, synthetic/local checks; no deployment, migration, provider call, or data export.'
