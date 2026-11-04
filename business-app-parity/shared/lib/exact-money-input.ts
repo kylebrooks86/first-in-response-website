@@ -12,7 +12,7 @@ export function exactMoneyInputCents(value:string,emptyAsZero=false):number|null
  try{
   const dollars=BigInt(match[1]??'0');
   const decimals=BigInt((match[2]??match[3]??'').padEnd(2,'0'));
-  const cents=dollars*100n+decimals;
+  const cents=dollars*BigInt(100)+decimals;
   return cents<=BigInt(Number.MAX_SAFE_INTEGER)?Number(cents):null;
  }catch{return null;}
 }
