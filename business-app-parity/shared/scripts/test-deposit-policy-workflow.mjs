@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 export async function exerciseDepositPolicy({page,browser,origin,request,check,mutateSyntheticD1}){
  const c=await request('/api/customers','POST',{name:'Synthetic Deposit Policy Owner',email:'deposit-policy@example.invalid'});assert.equal(c.status(),201);const customer=(await c.json()).customer;
- const create=async name=>{const r=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name,quantity:1,unit:'job',totalCents:20000}]});assert.equal(r.status(),201);const e=await r.json();assert.equal((await request('/api/public/estimates/'+e.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'})).status(),200);return e;};
+ const create=async name=>{const r=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name,quantity:1,unit:'job',totalCents:20000}]});assert.equal(r.status(),201);const e=await r.json();assert.equal((await request('/api/public/estimates/'+e.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'},{origin})).status(),200);return e;};
  const estimate=await create('Synthetic Deposit Policy Service'),legacy=await create('Synthetic Retained Schedule');
  const path='/api/estimates/'+estimate.id+'/deposit-policy',date='2026-10-20T15:00:00.000Z';
  const original=(await (await request('/api/backup')).json()).tables;

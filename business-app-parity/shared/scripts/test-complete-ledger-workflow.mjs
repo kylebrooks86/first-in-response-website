@@ -4,7 +4,7 @@ export async function exerciseCompleteLedger({page,context,origin,request,check,
  const created=await request('/api/customers','POST',{name:'Synthetic Complete Ledger',email:'complete-ledger@example.invalid'});assert.equal(created.status(),201);const customer=(await created.json()).customer;
  const create=async name=>{const r=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name,quantity:1,unit:'job',totalCents:20000}]});assert.equal(r.status(),201);return r.json();};
  const old=await create('Synthetic Oldest Collectible Job');
- assert.equal((await request('/api/public/estimates/'+old.shareToken+'/accept','POST',{signedName:customer.name,photoRelease:'no',acceptedTerms:true})).status(),200);
+ assert.equal((await request('/api/public/estimates/'+old.shareToken+'/accept','POST',{signedName:customer.name,photoRelease:'no',acceptedTerms:true},{origin})).status(),200);
  assert.equal((await request('/api/estimates/'+old.id,'PATCH',{scheduledAt:'2026-10-20T15:00:00.000Z'})).status(),200);
  assert.equal((await request('/api/payments','POST',{estimateId:old.id,amountCents:5000,method:'Cash'})).status(),201);
  for(let offset=0;offset<224;offset+=8)await Promise.all(Array.from({length:Math.min(8,224-offset)},(_,i)=>create('Synthetic Ledger Quote '+String(offset+i).padStart(3,'0'))));

@@ -4,11 +4,11 @@ export async function exerciseJobCloseout({page,context,origin,request,check,mut
  page.setDefaultTimeout(15000);await page.setViewportSize({width:390,height:844});
  const c=await request('/api/customers','POST',{name:'Synthetic Closeout Journey',email:'closeout-journey@example.invalid'});assert.equal(c.status(),201);const customer=(await c.json()).customer;
  const e=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic Closeout Service',quantity:1,unit:'job',totalCents:20000}]});assert.equal(e.status(),201);const estimate=await e.json();
- for(const [path,method,body] of [
-  ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'}],
+ for(const [path,method,body,headers] of [
+  ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'},{origin}],
   ['/api/payments','POST',{estimateId:estimate.id,requestId:randomUUID(),amountCents:10000,method:'Cash'}],
   ['/api/estimates/'+estimate.id,'PATCH',{scheduledAt:'2026-10-22T15:00:00Z'}]
- ]){const response=await request(path,method,body);assert.ok(response.ok(),path+': '+await response.text());}
+ ]){const response=await request(path,method,body,headers);assert.ok(response.ok(),path+': '+await response.text());}
  const open=async()=>{await page.goto(origin+'/?openEstimate='+estimate.id);await page.getByRole('dialog',{name:'Synthetic Closeout Service',exact:true}).waitFor();};
  await open();let detail=page.getByRole('dialog',{name:'Synthetic Closeout Service',exact:true});
  check(await detail.getByRole('button',{name:'Complete report first',exact:true}).isDisabled(),'Job completion is gated by saved service report');
