@@ -137,4 +137,26 @@ for(const badTip of ['3.005','2e2','-1']){
  const f=fixture('pay','normal');f.context.tip=badTip;await f.run();
  eq(f.calls.length,0,'Bad tip '+badTip+' cannot silently round or submit');
 }
-console.log('PASS '+checks+'/'+checks+': actual owner manual payment and refund handlers block 6 storage/recovery failures each and reject fractional cents before durable same-ID financial POSTs. Zero provider/network calls.');
+// The actual refund API may return pending:true with HTTP 409/503 before
+// Stripe ever accepted a refund. Owner copy must NOT claim accepted money.
+for(const scenario of [
+ {status:503,pending:true,error:'Stripe session verification is unavailable.'},
+ {status:409,pending:true,error:'Stripe payment identity did not match.'},
+ {status:202,pending:true,error:null}
+]){
+ const f=fixture('refund','normal');
+ const original=f.context.fetch;
+ f.context.fetch=async(...args)=>{
+  await original(...args);
+  return {ok:scenario.status>=200&&scenario.status<300,status:scenario.status,
+    json:async()=>({pending:scenario.pending,error:scenario.error})};
+ };
+ await f.run();
+ eq(f.calls.length,1,'Refund status '+scenario.status+' keeps one original same-ID lookup/submission');
+ eq(f.saved.length,0,'Refund status '+scenario.status+' never marks a refund completed');
+ eq(f.values.has(f.prefix),true,'Refund status '+scenario.status+' retains the original retry key');
+ eq(f.messages.some(x=>x.includes('Stripe accepted')),false,'Refund status '+scenario.status+' never falsely claims provider acceptance');
+ if(scenario.status>=400)eq(f.messages.some(x=>x.includes(scenario.error)),true,'Provider failure '+scenario.status+' is shown as an unverified error');
+ else eq(f.messages.some(x=>x.includes('pending verification')),true,'Confirmed HTTP 202 is described as pending verification');
+}
+console.log('PASS '+checks+'/'+checks+': actual owner manual payment and refund handlers block 6 storage/recovery failures each reject fractional cents, and distinguish uncertain HTTP 409/503 from legitimate pending 202 refunds before durable same-ID POSTs. Zero provider/network calls.');
