@@ -10,8 +10,17 @@ const stateNames=[],tags=new Set();function scan(n){if(ts.isVariableDeclaration(
 const stubs=Object.fromEntries([...tags].map(tag=>[tag,()=>null]));
 let state=[],refs=[],cursor=0,refCursor=0,effect,pendingPatch,patchFailure=false;const requests=[];
 const tasks=[{id:'open-task',title:'Call synthetic customer',status:'open'},{id:'done-task',title:'Very long completed synthetic task title',status:'completed'}];
-const context={exports:{},require,...stubs,
- useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},
+// Evaluate the genuine Tulsa business-day helpers from their existing source rather
+// than duplicating date logic in this isolated JSX test harness.
+const expenseModule={exports:{}};
+vm.runInNewContext(ts.transpileModule(readFileSync('lib/expense-date.ts','utf8'),{
+ compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+}).outputText,{exports:expenseModule.exports,Date,Intl});
+const {expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel}=expenseModule.exports;
+assert.equal(expenseBusinessDay('2026-11-04T01:00:00.000Z'),'2026-11-03','Actual Tulsa expense date, not UTC');
+assert.equal(expenseBusinessDay('2026-11-03'),'2026-11-03','Legacy explicit expense date');
+const context={exports:{},require,...stubs,expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,
+ useState(initial){const i=cursor++;if(!(i in state))state[i]=typeof initial==='function'?initial():initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},money:c=>'$'+(c/100).toFixed(2),dateTime:v=>v,
  fetch:async(url,opts={})=>{if(opts.method){requests.push({url,method:opts.method,body:JSON.parse(opts.body)});if(opts.method==='PATCH')return new Promise(resolve=>{pendingPatch=()=>resolve({ok:!patchFailure,json:async()=>patchFailure?{error:'Synthetic update failed'}:{ok:true}});});return {ok:true,json:async()=>({})};}return {ok:true,json:async()=>url==='/api/tasks'?{tasks:tasks.map(t=>({...t}))}:url==='/api/expenses'?{expenses:[]}:{customers:[{id:'customer',name:'Synthetic customer'}],estimates:[{id:'job',customerId:'customer',service:'Wash'}]}};},
 };
