@@ -12,9 +12,20 @@ export function loadRefundRetry(storage:Pick<Storage,'getItem'>|undefined,paymen
     return {requestId:parsed.requestId,amountCents:parsed.amountCents};
   }catch{return null;}
 }
-export function saveRefundRetry(storage:Pick<Storage,'setItem'>|undefined,paymentId:string,attempt:RefundRetryAttempt){
-  if(!paymentId||!uuid.test(attempt.requestId)||!Number.isSafeInteger(attempt.amountCents)||attempt.amountCents<=0)return false;
-  try{storage?.setItem(key(paymentId),JSON.stringify(attempt));return Boolean(storage);}catch{return false;}
+// Never replace an unresolved Stripe/manual refund request with a different
+// idempotency key. Require a read-after-write receipt before contacting Stripe.
+export function saveRefundRetry(storage:Pick<Storage,'getItem'|'setItem'>|undefined,paymentId:string,attempt:RefundRetryAttempt){
+  if(!paymentId||!uuid.test(attempt.requestId)||!Number.isSafeInteger(attempt.amountCents)||attempt.amountCents<=0||!storage)return false;
+  const path=key(paymentId),payload=JSON.stringify(attempt);
+  try{
+    const prior=storage.getItem(path);
+    if(prior!==null&&prior!==payload){
+      const existing=JSON.parse(prior) as Partial<RefundRetryAttempt>;
+      if(!existing||existing.requestId!==attempt.requestId||existing.amountCents!==attempt.amountCents)return false;
+    }
+    storage.setItem(path,payload);
+    return storage.getItem(path)===payload;
+  }catch{return false;}
 }
 export function clearRefundRetry(storage:Pick<Storage,'removeItem'>|undefined,paymentId:string){
   try{storage?.removeItem(key(paymentId));}catch{/* keep server as authority */}
