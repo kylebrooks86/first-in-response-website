@@ -26,14 +26,19 @@ const wait=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;r
 function create(){
  const job={id:"synthetic-job",customerId:"synthetic-customer",totalCents:18001,service:"House wash"};
  const states=[],refs=[];let cursor=0,refCursor=0,effect=()=>{};
- const outgoing=[];
- let post=async()=>({ok:true,json:async()=>({expense:{id:"saved",estimateId:job.id,amountCents:123}})});
+ const outgoing=[],receiptMap=new Map();
+ let post=async()=>({ok:true,json:async()=>({expense:{...outgoing.at(-1),id:outgoing.at(-1).requestId},requestId:outgoing.at(-1).requestId,confirmed:true})});
  let expenses=[];
  const handlers={
   exports:{},require,
   ...Object.fromEntries([...tags].map(tag=>[tag,()=>null])),
   money:c=>'$'+c,resolvedBillingTotalCents:e=>e.totalCents,
   navigator:{onLine:true},
+  crypto:{randomUUID:()=>`12345678-1234-4123-8123-${String(outgoing.length+1).padStart(12,"0")}`},
+  businessReceiptStorage:()=>receiptMap,
+  readBusinessReceipt:(_storage,kind)=>({requestId:receiptMap.get(kind)??null,usable:true}),
+  reserveBusinessReceipt:(_storage,kind,id)=>{if(receiptMap.has(kind)&&receiptMap.get(kind)!==id)return false;receiptMap.set(kind,id);return true;},
+  releaseBusinessReceipt:(_storage,kind,id)=>{if(receiptMap.get(kind)!==id)return false;receiptMap.delete(kind);return true;},
   useState(initial){const i=cursor++;if(!(i in states))states[i]=initial;return [states[i],value=>{states[i]=typeof value==='function'?value(states[i]):value;}]},
   useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},
   useEffect(fn){effect=fn;},
@@ -51,7 +56,7 @@ function create(){
  const get=key=>states[stateNames.indexOf(key)];
  const save=()=>{render();return handlers.exports.add();};
  const open=async()=>{render().props.onOpenChange(true);render();effect();await flush();};
- return {open,set,get,save,outgoing,setPost:fn=>post=fn,setExpenses:x=>expenses=x,render,handlers};
+ return {open,set,get,save,outgoing,receiptMap,setPost:fn=>post=fn,setExpenses:x=>expenses=x,render,handlers};
 }
 const f=create();
 await f.open();
@@ -68,23 +73,27 @@ eq(f.outgoing[0].amountCents,123,"Dollar-to-cents conversion is exact");
 eq(f.get("saveError").includes("server refused"),true,"HTTP failure must be visible");
 eq(f.get("description"),"Chemical","Failed entry must remain editable");
 f.setPost(async()=>{throw Error("Network lost after sending request");});
-await f.save();eq(f.get("saveError").includes("Refresh the list before attempting another entry"),true,"Unknown save must advise reconciliation");
-f.setPost(async()=>({ok:true,json:async()=>({expense:{id:"bad",estimateId:"another-job",amountCents:123}})}));
+await f.save();eq(f.get("saveError").includes("original request ID"),true,"Unknown save keeps stable request ID and original inputs");
+f.setPost(async()=>({ok:true,json:async()=>({expense:{...f.outgoing.at(-1),id:f.outgoing.at(-1).requestId,estimateId:"another-job"},requestId:f.outgoing.at(-1).requestId,confirmed:true})}));
 await f.save();eq(f.get("saveError").includes("could not be confirmed"),true,"Wrong-job response cannot show success");
+eq(f.outgoing.at(-1).requestId,f.outgoing[0].requestId,'HTTP, network and wrong receipt retry preserve the one expense operation ID');
+eq(f.outgoing.at(-1).incurredAt,f.outgoing[0].incurredAt,'Repeated expense attempt preserves original timestamp');
+eq(f.receiptMap.get('job-cost:synthetic-job'),f.outgoing[0].requestId,'Opaque per-job retry survives re-open/reload by ID');
 const pending=wait();let submissions=f.outgoing.length;
 f.setPost(()=>pending.promise);const first=f.save();await flush();
 const second=f.save();await second;
 eq(f.outgoing.length,submissions+1,"Rapid repeated taps may only create one request");
 f.render().props.onOpenChange(false);
 eq(f.get("open"),true,"Dismissing costs while POST is pending must not orphan save state");
-f.setExpenses([{id:"saved",estimateId:"synthetic-job",amountCents:123,description:"Chemical",category:"Supplies"}]);
-pending.resolve({ok:true,json:async()=>({expense:{id:"saved",estimateId:"synthetic-job",amountCents:123}})});
+f.setExpenses([{id:f.outgoing[0].requestId,estimateId:"synthetic-job",amountCents:123,description:"Chemical",category:"Supplies"}]);
+pending.resolve({ok:true,json:async()=>({expense:{...f.outgoing.at(-1),id:f.outgoing.at(-1).requestId},requestId:f.outgoing.at(-1).requestId,confirmed:true})});
 await first;await flush();
 eq(f.get("saveError"),"","Confirmed cost must clear errors");
 eq(f.get("amount"),"","Confirmed cost clears amount");
 eq(f.get("description"),"","Confirmed cost clears description");
 eq(f.get("rows").length,1,"Confirmed cost refreshes job totals");
 eq(f.get("saving"),false,"Cost entry unlocks after confirmed refresh");
+eq(f.receiptMap.size,0,"Durably confirmed expense clears its opaque recovery ID");
 f.render().props.onOpenChange(false);eq(f.get("open"),false,"Cost dialog closes after save settles");
 const report=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==="JobReport");
 assert.ok(report);

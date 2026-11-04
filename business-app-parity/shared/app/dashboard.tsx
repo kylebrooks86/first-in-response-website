@@ -1648,6 +1648,11 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   const billingTotal=resolvedBillingTotalCents(estimate);
   const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const saveLock=useRef(false);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
+  // A lost POST receipt must not mint a new expense ID on the next tap.
+  // Local storage keeps ONLY an opaque UUID per job, never cost details.
+  const costAttempt=useRef<{jobId:string;requestId:string;incurredAt:string;fingerprint:string}|null>(null);
+  const [pendingCostId,setPendingCostId]=useState<string|null>(null);
+  const costReceiptKind=`job-cost:${estimate.id}` as const;
   const hasUnfinishedCost=Boolean(description.trim()||amount.trim());
   const setOpenSafe=(value:boolean)=>{
     if(saveLock.current||saving)return;
@@ -1675,12 +1680,30 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
       if(!Number.isSafeInteger(next.reduce((sum,row)=>sum+row.amountCents,0)))throw new Error("Invalid expense total.");
       setRows(next);setLoadedJob(estimate.id);setCheckedEpoch(snapshots?.networkEpoch??null);
       snapshots?.records.remember('costs',estimate.id,estimate.customerId,next);
+      const storage=businessReceiptStorage();
+      const receipt=readBusinessReceipt(storage,costReceiptKind);
+      if(!receipt.usable){
+        setPendingCostId("unavailable");
+        setSaveError("Job cost recovery storage is unavailable or invalid. No new cost can be submitted safely.");
+      }else if(receipt.requestId){
+        if(next.some(row=>row.id===receipt.requestId)){
+          // The matching saved row, NOT a successful HTTP status, settles the
+          // interrupted request without changing an expense amount twice.
+          if(releaseBusinessReceipt(storage,costReceiptKind,receipt.requestId)){
+            costAttempt.current=null;setPendingCostId(null);setSaveError("");
+            setSaveSuccess("Previous job cost confirmed in saved records.");
+          }else{setPendingCostId(receipt.requestId);setSaveError("Saved cost found, but recovery storage could not be cleared. Check storage before adding another cost.");}
+        }else{
+          setPendingCostId(receipt.requestId);
+          setSaveError("An earlier cost may have saved. Review the full saved cost list before retrying the original entry or clearing its pending request.");
+        }
+      }else{setPendingCostId(null);}
     }catch{if(request===loadRequest.current){const cached=transportFailed?snapshots?.records.read<ExpenseRow[]>('costs',estimate.id,estimate.customerId):null;
       if(cached){setRows(cached.value);setLoadedJob(estimate.id);setSnapshotAt(cached.checkedAt);}
       else{if(!transportFailed)snapshots?.records.forget('costs',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified costs are available in this app session. Reconnect and load them before reviewing profit or adding a cost.":"Job costs could not be loaded. Retry before reviewing profit or adding a cost.");}
     }}finally{if(request===loadRequest.current)setLoading(false);}
   };
-  useEffect(()=>{if(!open)return;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
+  useEffect(()=>{if(!open)return;if(costAttempt.current&&costAttempt.current.jobId!==estimate.id)costAttempt.current=null;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
   const add=async()=>{
     if(saveLock.current||saving||readOnly||navigator.onLine===false||currentJob.current!==estimate.id)return;
     setSaveError("");setSaveSuccess("");
@@ -1695,20 +1718,49 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
       setSaveError("Enter a valid positive expense amount.");return;
     }
     const amountCents=Number(calculated),jobId=estimate.id,customerId=estimate.customerId;
+    const fingerprint=JSON.stringify({jobId,category,description:description.trim(),amountCents});
+    const storage=businessReceiptStorage(),receipt=readBusinessReceipt(storage,costReceiptKind);
+    if(!receipt.usable){setSaveError("Job cost recovery storage is unavailable; the cost was not submitted.");return;}
+    const previous=costAttempt.current?.jobId===jobId?costAttempt.current:null;
+    if(receipt.requestId&&(!previous||previous.requestId!==receipt.requestId)){
+      setPendingCostId(receipt.requestId);
+      setSaveError("An earlier job cost is unresolved. Review saved costs and clear its pending request only after checking the original entry.");
+      return;
+    }
+    if(previous&&previous.fingerprint!==fingerprint){
+      setSaveError("A prior job cost may have saved. Restore its original category, description and amount before retrying. Do not start a different entry until it is confirmed.");return;
+    }
+    const attempt=previous??{jobId,requestId:crypto.randomUUID(),incurredAt:new Date().toISOString(),fingerprint};
+    if(!reserveBusinessReceipt(storage,costReceiptKind,attempt.requestId)){
+      setSaveError("Could not preserve the job cost request ID. Nothing was submitted.");return;
+    }
+    costAttempt.current=attempt;setPendingCostId(attempt.requestId);
     saveLock.current=true;setSaving(true);
     try{
-      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:jobId,category,description:description.trim(),amountCents,incurredAt:new Date().toISOString()})});
-      const result=await response.json() as {expense?:ExpenseRow;error?:string};
+      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+        estimateId:jobId,category,description:description.trim(),amountCents,incurredAt:attempt.incurredAt,requestId:attempt.requestId
+      })});
+      const result=await response.json() as {expense?:ExpenseRow;requestId?:string;confirmed?:boolean;error?:string};
       if(!response.ok)throw new Error(result.error||"This job cost could not be saved.");
-      if(!result.expense||result.expense.estimateId!==jobId||Number(result.expense.amountCents)!==amountCents||!result.expense.id)
+      if(result.confirmed!==true||result.requestId!==attempt.requestId||
+         result.expense?.id!==attempt.requestId||result.expense.estimateId!==jobId||
+         Number(result.expense.amountCents)!==amountCents||result.expense.category!==category||
+         result.expense.description!==description.trim()||result.expense.incurredAt!==attempt.incurredAt)
         throw new Error("The saved expense could not be confirmed. Review the job costs before trying again.");
       snapshots?.records.forget('costs',jobId,customerId);
+      if(releaseBusinessReceipt(storage,costReceiptKind,attempt.requestId)){
+        costAttempt.current=null;setPendingCostId(null);
+      }else{
+        setSaveError("The cost was saved, but its pending recovery marker could not be cleared. Refresh saved costs before another entry.");
+        return;
+      }
       if(currentJob.current===jobId){
         setDescription("");setAmount("");setSaveSuccess("Cost recorded.");
         await load();
       }
     }catch(error){
-      if(currentJob.current===jobId)setSaveError(error instanceof Error?error.message+" Refresh the list before attempting another entry.":"The result is uncertain. Refresh the list before attempting another entry.");
+      if(currentJob.current===jobId)setSaveError((error instanceof Error?error.message:"The result is uncertain.")+
+        " Keep this entry unchanged and retry with its original request ID, or refresh saved costs first. Another new cost may duplicate a saved charge.");
     }finally{saveLock.current=false;if(currentJob.current===jobId)setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}>
@@ -1727,9 +1779,18 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
             <label className="fire-field"><span>Category</span><Select value={category} onValueChange={setCategory} disabled={saving}><SelectTrigger aria-label="Expense category"><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Labor","Other"].map((item)=><SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></label>
             <label className="fire-field cost-description"><span>What was purchased or used?</span><Input id={`job-cost-entry-${estimate.id}`} value={description} disabled={saving} maxLength={240} onChange={(event)=>{setDescription(event.target.value);setSaveError("");}} placeholder="e.g. Sodium hypochlorite"/></label>
             <label className="fire-field"><span>Amount (USD)</span><Input value={amount} disabled={saving} onChange={(event)=>{setAmount(event.target.value);setSaveError("");}} inputMode="decimal" placeholder="0.00"/></label>
-            <Button className="brand-button cost-submit" onClick={()=>void add()} disabled={saving||!description.trim()||!amount.trim()}>{saving?"Saving cost…":"Add cost"}</Button>
+            <Button className="brand-button cost-submit" onClick={()=>void add()} disabled={saving||Boolean(pendingCostId&&!costAttempt.current)||!description.trim()||!amount.trim()}>{saving?"Saving cost…":pendingCostId?(costAttempt.current?"Retry original cost":"Review saved costs first"):"Add cost"}</Button>
           </div>}
           {saveError&&<p className="save-error" role="alert">{saveError}</p>}
+          {pendingCostId&&pendingCostId!=="unavailable"&&!readOnly&&<div role="group" aria-label="Pending cost recovery" className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={saving||loading} onClick={()=>void load()}>Check saved costs</Button>
+            <Button type="button" variant="outline" disabled={saving||loading||Boolean(costAttempt.current)} onClick={()=>{
+              if(!window.confirm("I reviewed the saved expenses for this job. Clearing this old pending ID allows a NEW cost entry. If the original request later saves, a duplicate cost could result. Clear only after verifying with the saved records?"))return;
+              const storage=businessReceiptStorage();
+              if(!releaseBusinessReceipt(storage,costReceiptKind,pendingCostId)){setSaveError("Pending cost ID could not be cleared. No new entry is permitted.");return;}
+              setPendingCostId(null);setSaveError("");setSaveSuccess("Pending ID cleared after your review. The previous cost was not automatically changed.");
+            }}>Clear pending ID after review</Button>
+          </div>}
           {saveSuccess&&!saveError&&<p className="save-success" role="status">{saveSuccess}</p>}
           <h3 id={`job-cost-records-${estimate.id}`} className="job-record-heading" tabIndex={-1}>Saved costs ({rows.length})</h3><div className="cost-list" aria-label="Recorded expenses">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div>
         </>}

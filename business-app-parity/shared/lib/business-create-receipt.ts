@@ -1,5 +1,5 @@
 /** Only an opaque operation ID is stored. No task, customer, expense or payment content. */
-export type BusinessCreateKind="task"|"expense";
+export type BusinessCreateKind="task"|"expense"|`job-cost:${string}`;
 export type BusinessReceipt={requestId:string|null;usable:boolean};
 const receiptKey=(kind:BusinessCreateKind)=>"fire:business:"+kind+":create-request:v1";
 const uuidV4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

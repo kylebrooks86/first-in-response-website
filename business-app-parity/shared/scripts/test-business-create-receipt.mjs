@@ -33,6 +33,20 @@ const other='10000000-0000-4000-8000-000000000003';
  eq(releaseBusinessReceipt(store,'expense',expense),true,'Expense receipt can be released');
  eq(store.data.size,0,'No customer or task details retained');
 }
+{
+ const store=storage();
+ const first='job-cost:synthetic-job-1',second='job-cost:synthetic-job-2';
+ eq(reserveBusinessReceipt(store,first,task),true,'Job cost saves only an opaque per-job UUID');
+ eq(reserveBusinessReceipt(store,second,expense),true,'Different job cost can use an independent pending ID');
+ eq(readBusinessReceipt(store,first).requestId,task,'First job cost can recover its pending ID after restart');
+ eq(readBusinessReceipt(store,second).requestId,expense,'Second job cost cannot inherit first job pending ID');
+ eq(reserveBusinessReceipt(store,first,other),false,'First job cannot mint a second operation while uncertain');
+ eq(releaseBusinessReceipt(store,first,task),true,'Confirmed first job cost can release only its own ID');
+ eq(readBusinessReceipt(store,second).requestId,expense,'Second job cost remains safely pending');
+ eq(store.data.size,1,'Storage keeps only one remaining opaque job receipt');
+ eq(releaseBusinessReceipt(store,second,expense),true,'Verified second job cost releases its own ID');
+ eq(store.data.size,0,'No saved expense descriptions, amounts or customer identifiers in receipt values');
+}
 for(const bad of ['not-uuid','10000000-0000-1000-8000-000000000001','',JSON.stringify({email:'no@example.test'}),'10000000-0000-4000-0000-000000000001']){
  const store=storage();store.setItem(key,bad);
  eq(readBusinessReceipt(store,'task').usable,false,'Corrupt persisted receipt blocks writes');
