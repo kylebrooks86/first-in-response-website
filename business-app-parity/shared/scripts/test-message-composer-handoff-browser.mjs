@@ -25,7 +25,7 @@ const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer
 createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0;const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,templateRequests=0;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
@@ -46,7 +46,11 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,d
   if(denyShare){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic link unavailable'}));}
   return res.end(JSON.stringify({shareToken:'synthetic-verified-link'}));
  }
- if(req.url==='/api/message-templates'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({templates:[{key:'estimate',name:'Estimate ready',category:'Estimates',channel:'both',subject:'Your estimate',body:'Hello @customer_first_name, review your estimate: @estimate_link'}]}));}
+ if(req.url==='/api/message-templates'){
+  templateRequests++;res.setHeader('content-type','application/json');
+  if(denyTemplates){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic saved-template outage'}));}
+  return res.end(JSON.stringify({templates:[{key:'estimate',name:'Estimate ready',category:'Estimates',channel:'both',subject:'Your estimate',body:'Hello @customer_first_name, review your estimate: @estimate_link'}]}));
+ }
  if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
  res.statusCode=404;res.end();
 });
@@ -102,12 +106,40 @@ try{
   check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
- // A saved Estimate ready template may not be prepared with a blank link.
- // Force the real share endpoint to fail, then recover through owner Retry.
+ // If the saved owner templates fail to load, do not silently prepare
+ // bundled/default copy. Custom composing must remain usable.
+ denyTemplates=true;
  await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Text',exact:true}).click();
+ const customOutage=page.getByRole('dialog',{name:'Message',exact:true});
+ await customOutage.getByRole('button',{name:'Retry templates',exact:true}).waitFor();
+ const customBefore=requests.length;
+ await customOutage.getByLabel('Message text').fill('Custom during synthetic template outage');
+ check(await customOutage.getByRole('button',{name:'Text',exact:true}).isEnabled(),
+  'Custom text stays usable even when saved template GET fails');
+ await customOutage.getByRole('button',{name:'Text',exact:true}).click();
+ await customOutage.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
+ check(requests.length===customBefore+1&&requests.at(-1).body==='Custom during synthetic template outage',
+  'Custom message still prepares exactly one owner-audited draft with no automatic send');
+ // A saved Estimate ready template may not be prepared with a fallback copy
+ // or blank link. Test explicit failed template load, then share-link failure,
+ // then both independent owner retries.
+ await page.goto(origin);
  await page.getByRole('button',{name:'Estimate notice',exact:true}).click();
  const linked=page.getByRole('dialog',{name:'Message',exact:true});
+ await linked.getByRole('button',{name:'Retry templates',exact:true}).waitFor();
+ check(await linked.getByRole('button',{name:'Text',exact:true}).isDisabled()&&
+       await linked.getByRole('button',{name:'Copy',exact:true}).isDisabled(),
+  'Unavailable saved estimate template cannot prepare Text or Copy using bundled defaults');
+ const beforeTemplateRetry=templateRequests,shareBeforeTemplateRetry=shareRequests;
+ check(shareBeforeTemplateRetry>=0,'Share request count is observable');
+ denyTemplates=false;
+ await linked.getByRole('button',{name:'Retry templates',exact:true}).click();
  await linked.getByText('Estimate link unavailable. Retry before preparing this message.',{exact:true}).waitFor();
+ check(templateRequests===beforeTemplateRetry+1&&shareRequests===shareBeforeTemplateRetry+1,
+  'Template retry loads one verified saved version before starting share-link lookup');
+ check((await linked.getByLabel('Message text').inputValue()).includes('Hello FIRE'),
+  'Recovered verified owner template replaces bundled content with exact saved wording');
  check(await linked.getByRole('button',{name:'Text',exact:true}).isDisabled(),
    'Share API failure prevents actual Google Voice estimate text preparation');
  check(await linked.getByRole('button',{name:'Copy',exact:true}).isDisabled(),
