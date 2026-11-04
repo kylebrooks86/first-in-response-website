@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 20
     env:
       CI: 'true'
-      FIRE_PINNED_SOURCE: 1bb82bc557d9d34fe73dd103ec5b106943ab05af
+      FIRE_PINNED_SOURCE: b17e130f86b58101866255f6645f5cc8dbd302f6
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
     defaults:
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout exactly reviewed source without credential persistence
         uses: actions/checkout@v4
         with:
-          ref: 1bb82bc557d9d34fe73dd103ec5b106943ab05af
+          ref: b17e130f86b58101866255f6645f5cc8dbd302f6
           persist-credentials: false
       - name: Assert exact immutable source identity
         run: test "$(git rev-parse HEAD)" = "$FIRE_PINNED_SOURCE"
