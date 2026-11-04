@@ -1,0 +1,40 @@
+name: FIRE Gate9 Refund Pending vs Provider Acceptance Truth (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-money-retry-storage-gate-handlers.mjs'
+      - '.github/workflows/fire-gate9-refund-uncertain-status-truthfulness.yml'
+permissions:
+  contents: read
+jobs:
+  refund-status-honesty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned isolated dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile original FIRE owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Actual refund UI 409 503 202 pending status, original retry identity and zero provider POST on storage failures
+        run: node scripts/test-money-retry-storage-gate-handlers.mjs
+      - name: Actual signed synthetic Stripe refunds and ledger state in local SQLite
+        run: node --experimental-sqlite scripts/test-stripe-refunds.mjs
+      - name: Existing payment/refund responsive layout
+        run: node scripts/test-payment-mobile-ui.mjs
