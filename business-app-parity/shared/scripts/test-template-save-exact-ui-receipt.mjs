@@ -45,6 +45,9 @@ function fixture({draft=custom,server,approve=true}={}){
   setDraft:value=>{draftValue=value;context.draft=value;}
  };
  vm.runInNewContext(compiled,context);
+ // The actual save closure references the sibling SettingsView validator.
+ // Export both from AST, then bind the same validator in the VM scope.
+ context.validTemplate=context.exports.valid;
  return{run:(reset=false)=>context.exports.save(reset),context,get messages(){return messages;},get saving(){return saving;},get requests(){return requests;},get templates(){return templates;},get draft(){return draftValue;},get confirmations(){return confirmations;}};
 }
 {
