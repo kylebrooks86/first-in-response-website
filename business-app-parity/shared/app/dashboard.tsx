@@ -1741,8 +1741,11 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
     try{
       const response=await fetch("/api/payments/refund",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({paymentId:payment.id,requestId,amountCents,externalRefundConfirmed:!stripe&&confirmed,note})});
       const result=await response.json() as {ok?:boolean;pending?:boolean;mode?:string;paidCents?:number;error?:string};
-      if(!response.ok&&!result.pending)throw new Error(result.error||"The refund could not be completed.");
-      if(result.pending){setMessage("Stripe accepted the refund and it is still processing. Retry here to check the same request; FIRE will reconcile it when Stripe confirms completion.");return;}
+      // HTTP 409/503 can legitimately include pending:true when a Stripe
+      // lookup was denied or unavailable BEFORE any Stripe refund was sent.
+      // Never describe that uncertainty as "Stripe accepted" money movement.
+      if(!response.ok)throw new Error(result.error||"Refund confirmation is unavailable. Review this same request before another attempt.");
+      if(result.pending){setMessage("Refund request is pending verification. Check this same request; do not start another refund until its outcome is confirmed.");return;}
       if(!result.ok)throw new Error("Refund confirmation is incomplete. Review history before attempting another refund.");
       // Only a verified completed acknowledgement clears the persisted ID.
       clearRefundRetry(storage(),payment.id);activeRefund.current=null;
