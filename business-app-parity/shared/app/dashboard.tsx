@@ -9,7 +9,7 @@ import {EstimatePromotionHistory} from "../components/estimate-promotion-history
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
 import {tightScheduleTurnarounds} from "../lib/schedule-turnarounds";
-import {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation} from "../lib/customer-contact-links";
+import {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness} from "../lib/customer-contact-links";
 import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
 import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
 import {businessTaskContext,taskLinkedFlag} from "../lib/business-task-context";
@@ -267,6 +267,9 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
   const [shareToken,setShareToken]=useState(estimate?.shareToken||"");
   const [invoiceShareToken,setInvoiceShareToken]=useState(estimate?.invoiceShareToken||"");
+  const [shareLinkError,setShareLinkError]=useState("");
+  const [invoiceLinkError,setInvoiceLinkError]=useState("");
+  const [linkRetry,setLinkRetry]=useState(0);
   const [siteOrigin,setSiteOrigin]=useState("");
   const [working,setWorking]=useState(false);
   const preparationLock=useRef(false);
@@ -302,12 +305,16 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const renderedSubject=fillTemplate(activeTemplate?.subject||"A message from First In Response Exteriors",variables);
   // When launched from Text, do not offer email-only templates that cannot be sent by Google Voice.
   const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel==="Text"?(item.channel==="both"||item.channel==="sms"):triggerLabel==="Email"?(item.channel==="both"||item.channel==="email"):true))];
-  const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
-  const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
+  const linkReadiness=customerTemplateLinkReadiness(activeTemplate?.body??"",activeTemplate?.subject??"",body,customerLink,invoiceLink);
+  const needsInvoiceLink=linkReadiness.requiresInvoice;
+  const needsEstimateLink=linkReadiness.requiresEstimate;
+  const activeLinkError=needsEstimateLink?shareLinkError:needsInvoiceLink?invoiceLinkError:"";
+  const documentLinkMessage=(needsEstimateLink&&!estimate?"Open a saved estimate to use this template.":needsInvoiceLink&&!estimate?.invoiceId?"Create or open an invoice to use this template.":"")||activeLinkError||linkReadiness.reason;
   useEffect(()=>{
     messageScope.current++;setWorking(false);uncertainPreparation.current=null;
     draftEdited.current=false;setBody("");setTemplate(initialTemplate);setMessageStatus("");
     setShareToken(estimate?.shareToken||"");setInvoiceShareToken(estimate?.invoiceShareToken||"");
+    setShareLinkError("");setInvoiceLinkError("");
     pendingPageRequest.current++;pendingOlderLock.current=false;
     setPreparedMessage(null);setPendingMessages([]);setPendingError("");
     setPendingNextCursor(null);setPendingOlderLoading(false);setPendingOlderError("");
@@ -344,15 +351,27 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   useEffect(()=>{
     if(!open||!estimate||shareToken||!needsEstimateLink)return;
     let active=true;
-    void (async()=>{try{const response=await fetch(`/api/estimates/${estimate.id}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(active&&response.ok&&result.shareToken)setShareToken(result.shareToken);}catch{}})();
+    setShareLinkError("");
+    void (async()=>{try{
+      const response=await fetch(`/api/estimates/${estimate.id}/share`,{method:"POST"});
+      const result=await response.json() as {shareToken?:string};
+      if(!response.ok||typeof result.shareToken!=="string"||!result.shareToken.trim())throw new Error("Estimate share link unavailable");
+      if(active)setShareToken(result.shareToken);
+    }catch{if(active)setShareLinkError("Estimate link unavailable. Retry before preparing this message.");}})();
     return()=>{active=false;};
-  },[open,estimate,shareToken,needsEstimateLink]);
+  },[open,estimate,shareToken,needsEstimateLink,linkRetry]);
   useEffect(()=>{
     if(!open||!estimate?.invoiceId||invoiceShareToken||!needsInvoiceLink)return;
     let active=true;
-    void (async()=>{try{const response=await fetch(`/api/invoices/${estimate.invoiceId}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(active&&response.ok&&result.shareToken)setInvoiceShareToken(result.shareToken);}catch{}})();
+    setInvoiceLinkError("");
+    void (async()=>{try{
+      const response=await fetch(`/api/invoices/${estimate.invoiceId}/share`,{method:"POST"});
+      const result=await response.json() as {shareToken?:string};
+      if(!response.ok||typeof result.shareToken!=="string"||!result.shareToken.trim())throw new Error("Invoice share link unavailable");
+      if(active)setInvoiceShareToken(result.shareToken);
+    }catch{if(active)setInvoiceLinkError("Invoice link unavailable. Retry before preparing this message.");}})();
     return()=>{active=false;};
-  },[open,estimate,invoiceShareToken,needsInvoiceLink]);
+  },[open,estimate,invoiceShareToken,needsInvoiceLink,linkRetry]);
   useEffect(()=>{if(open&&!draftEdited.current)setBody(renderedBody);},[open,renderedBody,customer.id,estimate?.id]);
   const loadOlderPendingMessages=async()=>{
     const cursor=pendingNextCursor;
@@ -390,6 +409,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
     if(preparationLock.current)return false;
+    if(!linkReadiness.ready){setMessageStatus(documentLinkMessage);return false;}
     // Match the API's normalization before signing or comparing its receipt.
     // Keep internal line breaks; only surrounding whitespace is discarded.
     const messageBody=body.trim();
@@ -552,8 +572,10 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
          {preparedMessage&&<div className="message-confirm-actions"><p>Confirm here only after you send the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}. Opening another app does not confirm sending.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/>
-        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||"Ready to prepare. Sending still requires a separate approval in Google Voice or your email app."}</p>}</div>
-        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{usableCustomerEmail(customer.email)&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!customerMessageHandoffReadiness("email",customer.email,body).ready}><Mail className="h-4 w-4"/> Email</Button>}{usableCustomerPhone(customer.phone)&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!customerMessageHandoffReadiness("text",customer.phone,body).ready}><Send className="h-4 w-4"/> Text</Button>}</div>
+        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!linkReadiness.ready?documentLinkMessage:customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||"Ready to prepare. Sending still requires a separate approval in Google Voice or your email app."}</p>}
+        {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&!linkReadiness.ready&&<p role="status">{documentLinkMessage}</p>}
+        {!preparedMessage&&activeLinkError&&((needsEstimateLink&&estimate)||(needsInvoiceLink&&estimate?.invoiceId))&&<Button type="button" variant="outline" disabled={working} onClick={()=>setLinkRetry(value=>value+1)}>Retry link</Button>}</div>
+        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()||!linkReadiness.ready}><Copy className="h-4 w-4"/> Copy</Button>{usableCustomerEmail(customer.email)&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!linkReadiness.ready||!customerMessageHandoffReadiness("email",customer.email,body).ready}><Mail className="h-4 w-4"/> Email</Button>}{usableCustomerPhone(customer.phone)&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!linkReadiness.ready||!customerMessageHandoffReadiness("text",customer.phone,body).ready}><Send className="h-4 w-4"/> Text</Button>}</div>
       </div>
     </DialogContent>
   </Dialog>;
