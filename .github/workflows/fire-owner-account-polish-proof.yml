@@ -18,7 +18,7 @@ jobs:
       CI: 'true'
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
-      FIRE_PINNED_SOURCE: 7bb3594ef6967f7d11f633d7370d7b40a0e566cf
+      FIRE_PINNED_SOURCE: 1a161a7ce3fedc565d674801c5b69b5e14e9e6c7
     defaults:
       run:
         working-directory: business-app-parity/shared
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout exact review source, no persistent credentials
         uses: actions/checkout@v4
         with:
-          ref: 7bb3594ef6967f7d11f633d7370d7b40a0e566cf
+          ref: 1a161a7ce3fedc565d674801c5b69b5e14e9e6c7
           fetch-depth: 0
           persist-credentials: false
       - name: Assert immutable review source
