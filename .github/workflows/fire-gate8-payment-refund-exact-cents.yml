@@ -1,0 +1,44 @@
+name: FIRE Gate8 Payments and Refunds Exact Cents (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/lib/exact-money-input.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-exact-money-input.mjs'
+      - 'business-app-parity/shared/scripts/test-money-retry-storage-gate-handlers.mjs'
+      - '.github/workflows/fire-gate8-payment-refund-exact-cents.yml'
+permissions:
+  contents: read
+jobs:
+  exact-owner-money:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline app dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile original owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Exact cents across refund, payment, tips and fees
+        run: node scripts/test-exact-money-input.mjs
+      - name: Real UI handler input failure and durable retry storage regression
+        run: node scripts/test-money-retry-storage-gate-handlers.mjs
+      - name: Refund and payment mobile layout regression
+        run: node scripts/test-payment-mobile-ui.mjs
+      - name: Actual payment confirmation and idempotency in disposable SQLite
+        run: node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
