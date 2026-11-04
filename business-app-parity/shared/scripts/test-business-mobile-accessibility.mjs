@@ -88,8 +88,22 @@ function select(id,value,key){const field=all().find(n=>n.props.className==='bus
 select('business-task-customer','customer','taskCustomer');select('business-expense-category','Fuel','category');select('business-expense-job','job','expenseEstimate');
 const taskButton=id=>all().find(n=>n.type==='button'&&n.props['aria-label']==='Toggle completion for '+(tasks.find(t=>t.id===id)?.title??''));
 eq(taskButton('open-task').props['aria-label'],'Toggle completion for Call synthetic customer');eq(taskButton('open-task').props['aria-pressed'],false);eq(taskButton('done-task').props['aria-pressed'],true);eq(taskButton('done-task').props['aria-label'],'Toggle completion for Very long completed synthetic task title');
-taskButton('open-task').props.onClick();eq(taskButton('open-task').props['aria-busy'],true);eq(taskButton('open-task').props.disabled,true);eq(taskButton('open-task').props['aria-pressed'],true);eq(taskButton('open-task').props['aria-label'],'Toggle completion for Call synthetic customer');eq(requests.at(-1),{url:'/api/tasks',method:'PATCH',body:{id:'open-task',status:'completed'}});pendingPatch();await settle();eq(taskButton('open-task').props['aria-busy'],false);eq(taskButton('open-task').props.disabled,false);
-patchFailure=true;taskButton('done-task').props.onClick();eq(taskButton('done-task').props['aria-pressed'],false);eq(requests.at(-1).body.status,'open');pendingPatch();await settle();eq(taskButton('done-task').props['aria-pressed'],true);eq(get('businessMessage'),'Synthetic update failed');eq(taskButton('done-task').props['aria-busy'],false);
+taskButton('open-task').props.onClick();
+eq(taskButton('open-task').props['aria-busy'],true);eq(taskButton('open-task').props.disabled,true);
+eq(taskButton('open-task').props['aria-pressed'],false,'Unconfirmed task status must not optimistically appear completed');
+eq(requests.at(-1),{url:'/api/tasks',method:'PATCH',body:{id:'open-task',status:'completed',expectedStatus:'open'}});
+pendingPatch();await settle();
+eq(taskButton('open-task').props['aria-busy'],false);eq(taskButton('open-task').props.disabled,false);
+eq(taskButton('open-task').props['aria-pressed'],true,'Only a verified task receipt changes visual completion');
+patchFailure=true;taskButton('done-task').props.onClick();
+eq(taskButton('done-task').props['aria-pressed'],true,'Failed/unknown server reply must not pretend task reopened');
+eq(requests.at(-1).body.status,'open');eq(requests.at(-1).body.expectedStatus,'completed');
+pendingPatch();await settle();
+eq(taskButton('done-task').props['aria-pressed'],true);
+eq(get('taskStatusUncertain'),true,'Unverified task PATCH blocks further status edits');
+eq(taskButton('done-task').props.disabled,true,'Uncertain task state disables further status updates');
+eq(get('taskStatusMessage'),'Task status not confirmed. It may have saved. Refresh saved tasks before updating any task again.');
+eq(taskButton('done-task').props['aria-busy'],false);
 // Labels/wrappers preserve the actual synthetic task and expense submission handlers.
 all().find(n=>n.type===stubs.Button&&text(n).includes('Add task')).props.onClick();await settle();const taskPost=requests.find(r=>r.method==='POST'&&r.url==='/api/tasks');eq(taskPost.body.title,'Call QA');eq(taskPost.body.customerId,'customer');eq(taskPost.body.notes,'Bring supplies');eq(taskPost.body.dueAt,new Date('2026-10-09T15:30').toISOString());eq(get('title'),'');
 const expenseAction=all().find(n=>n.type===stubs.Button&&n.props.className==='brand-button'&&JSON.stringify(n.props.children).includes('Add expense'));assert.ok(expenseAction);checks++;expenseAction.props.onClick();await settle();const expensePost=requests.find(r=>r.method==='POST'&&r.url==='/api/expenses');eq(expensePost.body.amountCents,2534);eq(expensePost.body.category,'Fuel');eq(expensePost.body.estimateId,'job');eq(expensePost.body.description,'Synthetic supplies');eq(get('amount'),'');
