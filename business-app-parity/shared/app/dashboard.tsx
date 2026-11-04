@@ -1825,7 +1825,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const feeProvided=Boolean(fee.trim());
   const enteredFeeCents=feeProvided?exactMoneyInputCents(fee):null;
   const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;
-  const feeValid=!feeProvided||(enteredFeeCents!==null&&Number.isSafeInteger(grossCents)&&Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents);
+  const feeValid=!feeProvided||(enteredFeeCents!==null&&processingFeeCents!==null&&Number.isSafeInteger(grossCents)&&Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents);
   const checkStored=async(attempt:ManualPaymentAttempt)=>{
     const requestId=attempt.requestId;
     const response=await fetch(`/api/payments/confirmation?estimateId=${encodeURIComponent(estimate.id)}&requestId=${encodeURIComponent(requestId)}`,{cache:"no-store"});
