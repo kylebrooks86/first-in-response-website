@@ -38,16 +38,31 @@ for(const theme of ['light','dark']){
  const html=renderToStaticMarkup(tree);
  for(const expected of ['Owner Account','First In Response Exteriors','(918) 922-9366','LIVE','ChatGPT sign-in'])assert.ok(html.includes(expected),expected);
  assert.ok(!html.includes('DOOMSDAY'));assert.ok(!html.includes('<input'));assert.ok(!html.includes('password'));
+ assert.equal((html.match(/class="record-card"/g)||[]).length,3,'Owner Account uses three compact cards instead of redundant security panel');
+ assert.ok(html.includes('Environment &amp; access')&&html.includes('Account details are view-only.'),'Environment security and non-editable identity remain clear');
+ assert.ok(html.includes('href="tel:+19189229366"')&&html.includes('rel="noopener noreferrer"'),'Direct business contact links preserve safety and context');
  const buttons=[];const visit=node=>{if(!node||typeof node!=='object')return;if(Array.isArray(node)){node.forEach(visit);return;}if(node.type==='button')buttons.push(node);visit(node.props?.children);};visit(tree);
  assert.equal(buttons.length,1);buttons[0].props.onClick();assert.equal(clicks,1);
  assert.ok(html.includes(`Switch to ${theme==='light'?'dark':'light'} mode`));
 }
-for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
+for(const environment of ['QA','DOOMSDAY','STAGING']){
+ const html=renderToStaticMarkup(exports.OwnerAccountView({environment,theme:'light',onToggleTheme:()=>{}}));
+ assert.ok(html.includes(environment+' · FIRE Business App'));
+ assert.ok(html.includes(environment==='QA'||environment==='DOOMSDAY'?'signed-cookie authentication':'ChatGPT sign-in'));
+ assert.ok(html.includes('Records and payment settings stay separate.'),'Separate environments remain explicitly warned');
+}
+const css=readFileSync('app/globals.css','utf8');
+assert.match(css,/\.owner-account-view \.brand-button\{[^}]*min-height:44px[^}]*max-width:100%[^}]*white-space:normal/,'Theme action has minimum 44px touch height and can wrap on narrow screens');
+for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
 // Public documents must never render owner-only floating navigation.
 for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx','app/pay/[id]/page.tsx']){
  const current=readFileSync(path,'utf8');
  for(const marker of ['PortalNavigation','mobile-back-button','mobile-home-button','isOwner'])assert.ok(!current.includes(marker),`${path}: ${marker}`);
 }
 // Billing/refund and notification changes are exercised by test-public-document-guards.mjs.
-for(const path of ['app/chatgpt-auth.ts'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show',`776bbe8c894877d6c199aa8b8f041feeb949ba8e:${path}`],{encoding:'utf8'}));
+// Pin the exact, reviewed ChatGPT owner-auth Git blob from the PR150 parent.
+// The legacy historical commit-path reference did not exist in this app-only repo;
+// never silently omit the auth no-change guard or weaken the runtime auth implementation.
+assert.equal(execFileSync('git',['hash-object','app/chatgpt-auth.ts'],{encoding:'utf8'}).trim(),
+ 'eef37346915e9aafb60037c59eaea8e67507ea5a','Owner-auth module must match its reviewed unchanged Git object');
 console.log('PASS: owner entry actions, mobile menu close, light/dark rendering, theme persistence, Templates separation, dashboard navigation, public documents omit owner controls, owner auth unchanged.');
