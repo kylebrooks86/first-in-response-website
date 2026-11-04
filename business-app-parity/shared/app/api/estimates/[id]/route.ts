@@ -101,8 +101,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       if(nextStatus==="completed"&&existing.status!=="completed"){
         if(existing.status!=="scheduled") return Response.json({error:"Schedule the job before marking it complete."},{status:409});
-        const report=await env.DB.prepare("SELECT status FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 1").bind(id).first<{status:string}>();
-        if(report?.status!=="completed")return Response.json({error:"Complete and save the service completion report before marking this job complete."},{status:409});
+        // A newest-row LIMIT alone can falsely accept a completed report
+        // even when older conflicting reports exist for the same job.
+        const report=await env.DB.prepare(`SELECT status,(SELECT COUNT(*) FROM job_reports WHERE estimate_id=?) AS reportCount
+          FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 1`).bind(id,id).first<{status:string;reportCount:number}>();
+        if(report?.status!=="completed"||report.reportCount!==1)return Response.json({error:"Verify one saved completed service report before marking this job complete. Duplicate or incomplete report history requires review."},{status:409});
       }
       // Owner retired the availability-block feature. Keep optimistic approval/status
       // protection on scheduled writes without consulting legacy blocked dates.

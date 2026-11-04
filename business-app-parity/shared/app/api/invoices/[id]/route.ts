@@ -105,10 +105,46 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     // Allocate stable line IDs once so the owner receives the exact persisted
     // items, not an unsaved input echo with missing generated IDs.
     const submittedItems=normalized.map(item=>({...item,id:item.id||crypto.randomUUID()}));
-    const statements=[env.DB.prepare("INSERT INTO invoice_revisions (id,invoice_id,subtotal_cents,discount_cents,discount_type,discount_value,total_cents,due_at,status,items_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),currentInvoice?.dueAt?String(currentInvoice.dueAt):null,String(currentInvoice?.status||existing.status),JSON.stringify(currentItems.results),revisionCreatedAt),env.DB.prepare("DELETE FROM invoice_items WHERE invoice_id=?").bind(id)];
-    for(const item of submittedItems)statements.push(env.DB.prepare("INSERT INTO invoice_items (id,invoice_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents));
-    if(updateDueAt)statements.push(env.DB.prepare("UPDATE invoices SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,total_cents=?,status=?,due_at=? WHERE id=?").bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,dueAt,id));
-    else statements.push(env.DB.prepare("UPDATE invoices SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,total_cents=?,status=? WHERE id=?").bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,id));
+    // The earlier paid snapshot can go stale before D1.batch starts. Make
+    // revision creation the transactional eligibility gate: all subsequent
+    // service-line and header writes depend on this unique revision ID.
+    // If a payment arrives before the batch, every statement becomes a no-op.
+    // No hosted migration, extra table, or external payment action is needed.
+    const actualPaid = `COALESCE((SELECT SUM(p.amount_cents) FROM payments p
+      WHERE p.estimate_id=guard.estimate_id AND p.status='paid'
+        AND p.type NOT IN ('Tip','Tip Refund')),0)`;
+    const revisionGuard = `EXISTS(SELECT 1 FROM invoice_revisions
+      WHERE id=? AND invoice_id=?)`;
+    const revisionGate = env.DB.prepare(`INSERT INTO invoice_revisions
+      (id,invoice_id,subtotal_cents,discount_cents,discount_type,discount_value,
+        total_cents,due_at,status,items_json,created_at)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?
+      WHERE EXISTS(SELECT 1 FROM invoices guard WHERE guard.id=?
+        AND ${actualPaid}=? AND ${actualPaid}<=?)`)
+      .bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),
+        Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),
+        Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),
+        currentInvoice?.dueAt?String(currentInvoice.dueAt):null,
+        String(currentInvoice?.status||existing.status),JSON.stringify(currentItems.results),
+        revisionCreatedAt,id,latestPaidCents,totalCents);
+    const statements=[revisionGate,
+      env.DB.prepare(`DELETE FROM invoice_items WHERE invoice_id=?
+        AND ${revisionGuard}`).bind(id,revisionId,id)];
+    for(const item of submittedItems)statements.push(env.DB.prepare(`INSERT INTO invoice_items
+      (id,invoice_id,name,description,quantity,unit,total_cents)
+      SELECT ?,?,?,?,?,?,? WHERE ${revisionGuard}`)
+      .bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents,
+        revisionId,id));
+    if(updateDueAt)statements.push(env.DB.prepare(`UPDATE invoices
+      SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,
+        total_cents=?,status=?,due_at=? WHERE id=? AND ${revisionGuard}`)
+      .bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,
+        dueAt,id,revisionId,id));
+    else statements.push(env.DB.prepare(`UPDATE invoices
+      SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,
+        total_cents=?,status=? WHERE id=? AND ${revisionGuard}`)
+      .bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,
+        id,revisionId,id));
     // D1.batch is atomic, but its return value alone must not be interpreted
     // as a verified saved invoice. The server must read back BOTH header and
     // every line before reporting success to the iPhone owner.

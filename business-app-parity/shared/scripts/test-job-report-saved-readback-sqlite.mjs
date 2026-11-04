@@ -5,7 +5,7 @@ import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 const rt=stackedRuntime(),db=rt.db,route=rt.load('app/api/job-reports/route.ts');
 const at='2026-11-04T10:00:00.000Z',customer='synthetic-report-owner';
 db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(customer,'Synthetic Owner Report',at);
-for(const id of ['report-job','lost-receipt-job']){
+for(const id of ['report-job','lost-receipt-job','concurrent-job']){
  db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)")
   .run(id,customer,'scheduled',20000,20000,10000,at);
 }
@@ -28,6 +28,11 @@ try{
  eq(saved.data.report?.completedAt,row().completedAt,'Completion timestamp is D1-backed');
  const updated=await post({...input,checklist:absent,notes:'Customer absent; after photos and equipment notes documented for later follow-up.'});
  eq(updated.status,200,'Contact-free report updates the existing row, no duplicate');
+ eq(updated.data.report?.completedAt,saved.data.report?.completedAt,'Editing a completed report preserves its first completion timestamp');
+ eq(updated.data.report?.createdAt,saved.data.report?.createdAt,'Editing preserves original report creation timestamp');
+ const demotion=await post({...input,status:'draft',complete:false,notes:'Someone unchecked the completion details.'});
+ eq(demotion.status,409,'Completed report cannot silently return to draft');
+ eq(row().status,'completed','Rejected demotion preserves historical completion');
  eq(updated.data.report?.id,saved.data.report.id,'Report revision retains same record identity');
  eq(row().notes,updated.data.report.notes,'Contact-free notes survive a database readback');
  eq(JSON.parse(row().checklist)['Customer walkthrough completed'],false,'No fictitious owner walkthrough is persisted');
@@ -45,7 +50,7 @@ try{
   eq(JSON.stringify(row()),snapshot,name+' leaves existing report unchanged');
  }
  rt.env.DB.prepare=function(sql){
-  if(sql.startsWith('UPDATE job_reports SET'))return{bind:()=>({run:async()=>({meta:{changes:1}})})};
+  if(sql.startsWith('UPDATE job_reports'))return{bind:()=>({run:async()=>({meta:{changes:1}})})};
   return orig(sql);
  };
  const ignored=await post({...input,checklist:legacy,notes:'A false success SQL callback'});
@@ -69,6 +74,32 @@ try{
  const get=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
  eq(get.status,200,'Authenticated saved GET retrieves matching job report');
  eq((await get.json()).reports[0].id,row().id,'GET reads same database identity as saved receipt');
+ // Simulate a second iPhone inserting after the first request checked for
+ // an existing report but BEFORE its SQL INSERT. The SQL condition must see it.
+ rt.env.DB.prepare=function(sql){
+  const stmt=orig(sql);
+  if(sql.startsWith('INSERT INTO job_reports')&&sql.includes('WHERE NOT EXISTS')){
+   return {...stmt,bind(...args){const prepared=stmt.bind(...args);return{...prepared,async run(){
+    db.prepare("INSERT INTO job_reports (id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES (?,?,?,?,?,'draft',?,NULL)")
+     .run('concurrent-winner','concurrent-job',customer,'{}','Other tab saved first',at);
+    return prepared.run();
+   }};}};
+  }
+  return stmt;
+ };
+ const collision=await post({...input,estimateId:'concurrent-job',status:'draft',complete:false});
+ eq(collision.status,409,'Atomic first report INSERT prevents a concurrent duplicate');
+ eq(db.prepare("SELECT COUNT(*) AS n FROM job_reports WHERE estimate_id='concurrent-job'").get().n,1,'Concurrent insert did not duplicate report');
+ eq(db.prepare("SELECT notes FROM job_reports WHERE id='concurrent-winner'").get().notes,'Other tab saved first','Winning report is not overwritten');
+ rt.env.DB.prepare=orig;
+ // The legacy schema is not unique; detect historical duplicates and refuse
+ // to treat the newest one as unambiguous completion evidence.
+ db.prepare("INSERT INTO job_reports (id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES (?,?,?,?,?,'draft',?,NULL)")
+  .run('historic-duplicate','report-job',customer,'{}','Synthetic older duplicate',at);
+ const duplicateRead=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+ eq(duplicateRead.status,409,'Duplicate historical reports must not authorize completed UI');
+ eq((await post(input)).status,409,'Duplicate historical reports fail closed on owner POST');
+ eq(db.prepare("SELECT COUNT(*) AS n FROM job_reports WHERE estimate_id='report-job'").get().n,2,'No duplicated history was silently deleted');
  rt.setOwner(null);
  eq((await post(input)).status,401,'Nonowner cannot modify report');
  eq((await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'))).status,401,'Nonowner cannot read saved report');

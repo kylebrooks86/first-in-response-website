@@ -71,6 +71,21 @@ try{
  eq(receipt.estimate.status,'scheduled','Schedule response confirms saved scheduled status');
  eq(receipt.estimate.scheduledAt,at,'Schedule response uses exact stored UTC instant');
  eq(state('scheduled').scheduledAt,at,'Physical scheduled timestamp matches UTC');
+ // Job completion must reject ambiguous historical duplicate reports.
+ // An owner-only direct PATCH is not permitted to bypass the report GET guard.
+ seed('one-report','approved');eq((await patch('one-report',{scheduledAt:at})).status,200);
+ db.prepare("INSERT INTO job_reports(id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES(?,?,?,?,?,'completed',?,?)")
+  .run('r-only','e-one-report','c-one-report','{}','Synthetic completed',at,at);
+ eq((await patch('one-report',{status:'completed'})).status,200,'One saved completed report allows job closeout');
+ eq(state('one-report').status,'completed','Single-report closeout persists');
+ seed('ambiguous','approved');eq((await patch('ambiguous',{scheduledAt:at})).status,200);
+ for(const reportId of ['r-ambig-a','r-ambig-b'])
+  db.prepare("INSERT INTO job_reports(id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES(?,?,?,?,?,'completed',?,?)")
+   .run(reportId,'e-ambiguous','c-ambiguous','{}','Synthetic duplicate',at,at);
+ const beforeAmbiguous=batchWrites;
+ eq((await patch('ambiguous',{status:'completed'})).status,409,'Duplicate historical reports block direct completion PATCH');
+ eq(state('ambiguous').status,'scheduled','Ambiguous report cannot complete job');
+ eq(batchWrites,beforeAmbiguous,'Duplicate report guard does not write');
  seed('unsafe');response=await patch('unsafe',{scheduledAt:at});
  eq(response.status,409,'Unsigned job cannot be scheduled even if date is valid');
  eq(state('unsafe').status,'draft','Unsanctioned schedule never writes');
