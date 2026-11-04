@@ -42,7 +42,8 @@ assert.ok(dashboard.includes('Discard edits')&&dashboard.includes('setDraft(save
 assert.ok(dashboard.includes('onNoteDraftStatusChange={setCustomerNoteState}'), 'Customers reports pending note state to shell');
 assert.ok(dashboard.includes('customerNoteStateRef.current.saving')&&dashboard.includes('customerNoteStateRef.current.dirty'), 'Topbar and tabs guard pending or unsaved customer notes');
 assert.ok(dashboard.includes('Leave Customers and discard unfinished customer notes?'), 'Dirty note navigation requires explicit confirmation');
-assert.ok(dashboard.includes('if(!setTab(destination))return;'), 'Canceled global-search navigation does not clear search or redirect');
+const searchNav=dashboard.slice(dashboard.indexOf('const openSearchResult='),dashboard.indexOf('const handleSaved ='));
+assert.ok(searchNav.includes('if(!setTab(destination))return false;')&&searchNav.indexOf('if(!setTab(destination))return false;')<searchNav.indexOf('setSearchQuery("")'), 'Canceled global-search navigation does not clear search or redirect');
 assert.ok(dashboard.includes('if(target!==currentTab.current&&setTab(target))'), 'Back history is consumed only after navigation is approved');
 assert.ok(dashboard.includes('const customerDirty=')&&dashboard.includes('Discard unsaved customer changes?'), 'Edit Customer guards changes when Close or Cancel is requested');
 assert.ok(dashboard.includes('const changedSinceOpen=')&&dashboard.includes('Discard your unsaved estimate changes?'), 'Edit Estimate protects unsaved service and discount edits');
