@@ -43,27 +43,31 @@ export async function PATCH(request:Request){
       if(currentOverpaymentCents<=0)return Response.json({error:"This job is no longer overpaid. Refresh the job before resolving this billing exception."},{status:409});
       let paidCents:number|undefined;
       if(value.resolutionMode==="refund"){
-        const refundAmountCents=Math.round(Number(value.refundAmountCents)||0);
-        if(!Number.isSafeInteger(refundAmountCents)||refundAmountCents<=0)return Response.json({error:"Enter a valid actual refund amount before resolving this billing exception."},{status:400});
+        const refundAmountCents=value.refundAmountCents;
+        if(typeof refundAmountCents!=="number"||!Number.isSafeInteger(refundAmountCents)||refundAmountCents<=0)return Response.json({error:"Enter a valid actual refund amount before resolving this billing exception."},{status:400});
         if(refundAmountCents>paidBefore)return Response.json({error:"Refund amount cannot exceed payments currently recorded on this job."},{status:400});
         paidCents=paidBefore-refundAmountCents;
         const totalCents=billedTotal;
         if(paidCents>totalCents)return Response.json({error:`That refund would leave ${paidCents-totalCents} cents of the overpayment unresolved. Enter the full refund needed to clear the excess, or intentionally keep the remaining amount as an overpayment.`},{status:409});
+        // Financial adjustment, invoice balance state and owner alert must
+        // commit together. A separate pre-batch INSERT could leave paid
+        // reduced while the alert remained open after an interrupted batch.
         const adjustmentId=crypto.randomUUID();
         const providerId=`refund-adjustment:${alert.id}`;
-        await env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) SELECT ?,?,'Refund adjustment',?,'paid',?,? WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)").bind(adjustmentId,value.estimateId,-refundAmountCents,providerId,now,providerId).run();
-        const persistedRefund=await env.DB.prepare("SELECT amount_cents AS amountCents FROM payments WHERE provider_id=? LIMIT 1").bind(providerId).first<{amountCents:number}>();
-        if(Number(persistedRefund?.amountCents)!==-refundAmountCents)return Response.json({error:"A different refund reconciliation was recorded first. Refresh the job before resolving this billing exception again."},{status:409});
-        const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(value.estimateId).first<{paidCents:number}>();
-        paidCents=Number(refreshedPaid?.paidCents??0);
         await env.DB.batch([
+          env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) SELECT ?,?,'Refund adjustment',?,'paid',?,? WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)").bind(adjustmentId,value.estimateId,-refundAmountCents,providerId,now,providerId),
           env.DB.prepare(`UPDATE invoices SET status=CASE
             WHEN ?>=total_cents THEN 'paid'
             WHEN ?>0 THEN 'partial'
             WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
             ELSE 'draft' END WHERE estimate_id=?`).bind(paidCents,paidCents,value.estimateId),
-          env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note=? WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL AND EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND amount_cents=?)").bind(now,now,`refund:${refundAmountCents}`,value.estimateId,providerId,-refundAmountCents),
+          env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note=? WHERE id=? AND estimate_id=? AND type='payment_overage' AND resolved_at IS NULL AND EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND amount_cents=?)").bind(now,now,`refund:${refundAmountCents}`,alert.id,value.estimateId,providerId,-refundAmountCents),
         ]);
+        const persistedRefund=await env.DB.prepare("SELECT amount_cents AS amountCents FROM payments WHERE provider_id=? LIMIT 1").bind(providerId).first<{amountCents:number}>();
+        const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(value.estimateId).first<{paidCents:number}>();
+        if(persistedRefund?.amountCents!==-refundAmountCents||!refreshedPaid||
+           !Number.isSafeInteger(refreshedPaid.paidCents)||refreshedPaid.paidCents!==paidCents)
+          return Response.json({error:"Refund adjustment was not independently confirmed. Reopen the saved job and payment history before another attempt.",saveUncertain:true},{status:503});
       }else{
         const kept=await env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'
           WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
@@ -74,8 +78,16 @@ export async function PATCH(request:Request){
           )`).bind(now,now,value.estimateId,value.estimateId).run();
         if(!kept.meta.changes)return Response.json({error:"The overpayment state changed while resolving this exception. Refresh the job and verify the billing totals."},{status:409});
       }
+      // A write receipt, including a successful batch response, is not proof
+      // that the intended alert actually closed. Confirm exact saved alert ID,
+      // owner-selected resolution and remaining alert count before success.
+      const expectedNote=value.resolutionMode==="refund"?`refund:${value.refundAmountCents}`:"kept_overpayment";
+      const savedAlert=await env.DB.prepare("SELECT resolved_at AS resolvedAt,resolution_note AS resolutionNote FROM notifications WHERE id=? AND estimate_id=? AND type='payment_overage'").bind(alert.id,value.estimateId).first<{resolvedAt:string|null;resolutionNote:string|null}>();
       const remaining=await env.DB.prepare("SELECT COUNT(*) AS count FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind(value.estimateId).first<{count:number}>();
-      return Response.json({ok:true,readAt:now,resolvedAt:now,resolutionMode:value.resolutionMode,paidCents,remainingOverpaymentCount:Number(remaining?.count??0)});
+      if(!savedAlert?.resolvedAt||savedAlert.resolutionNote!==expectedNote||!remaining||
+         !Number.isSafeInteger(remaining.count)||remaining.count<0)
+        return Response.json({error:"Overpayment resolution could not be confirmed in saved records. Refresh the job before retrying.",saveUncertain:true},{status:503});
+      return Response.json({ok:true,estimateId:value.estimateId,readAt:now,resolvedAt:savedAlert.resolvedAt,resolutionMode:value.resolutionMode,paidCents,remainingOverpaymentCount:remaining.count});
     }
     else if(value.id&&value.resolve){
       const target=await env.DB.prepare("SELECT type FROM notifications WHERE id=?").bind(value.id).first<{type:string}>();
