@@ -4,10 +4,17 @@ import {resolve} from 'node:path';
 import {createHmac} from 'node:crypto';
 import {createRequire} from 'node:module';
 const root=resolve(process.argv[2]||'.'),ts=createRequire(root+'/package.json')('typescript');
+// The route imports a fixed deployment adapter. This isolated data-URL import
+// strips ESM imports, so hydrate that exact committed adapter value instead of
+// leaving LOCAL_CUSTOMER_DEPLOYMENT undefined (or pretending this is QA).
+const adapterSource=readFileSync(root+'/app/local-customer-deployment.ts','utf8');
+const adapterMatch=adapterSource.match(/\bexport\s+const\s+LOCAL_CUSTOMER_DEPLOYMENT\s*=\s*(['"])(live|staging|doomsday|qa)\1/);
+assert.ok(adapterMatch,'Expected explicit fixed FIRE deployment adapter for this offline route test');
+const deploymentMode=adapterMatch[2];
 const state={env:{FIRE_ENV:'staging',STRIPE_WEBHOOK_SECRET:'synthetic-boundary-secret',DB:{}},checkoutCalls:0,refundCalls:0,failureCalls:0};
 globalThis.__boundary=state;
 let source=readFileSync(root+'/app/api/payments/webhook/route.ts','utf8').replace(/^import .*?;\n/gm,'');
-source='const env=globalThis.__boundary.env; const reconcileStripeCheckout=async()=>{globalThis.__boundary.checkoutCalls++;return {ok:true};}; const recordRefundUpdate=async()=>{globalThis.__boundary.refundCalls++;return {ok:true};}; const recordStripeCheckoutFailure=async()=>{globalThis.__boundary.failureCalls++;return {recorded:true};};\n'+source;
+source='const LOCAL_CUSTOMER_DEPLOYMENT='+JSON.stringify(deploymentMode)+'; const env=globalThis.__boundary.env; const reconcileStripeCheckout=async()=>{globalThis.__boundary.checkoutCalls++;return {ok:true};}; const recordRefundUpdate=async()=>{globalThis.__boundary.refundCalls++;return {ok:true};}; const recordStripeCheckoutFailure=async()=>{globalThis.__boundary.failureCalls++;return {recorded:true};};\n'+source;
 const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
 const route=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
 const now=Math.floor(Date.now()/1000),body=JSON.stringify({livemode:false,type:'unhandled.synthetic.event',data:{object:{}}});
