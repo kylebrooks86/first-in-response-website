@@ -49,8 +49,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
-    const amountCents = Math.round(Number(body.amountCents) || 0);
-    const tipCents = Math.round(Number(body.tipCents) || 0);
+    // Owner-facing validation is not an accounting boundary. Never coerce
+    // malformed JSON into zero or silently round fractional cents here.
+    // Older clients may omit an optional tip, but an explicit null is invalid.
+    const amountCents = body.amountCents;
+    const tipCents = body.tipCents === undefined ? 0 : body.tipCents;
+    if (typeof amountCents !== "number" || !Number.isSafeInteger(amountCents) || amountCents < 0 ||
+        typeof tipCents !== "number" || !Number.isSafeInteger(tipCents) || tipCents < 0 ||
+        !Number.isSafeInteger(amountCents + tipCents)) {
+      return Response.json({ error: "Payment and tip must be valid, exact whole-cent amounts." }, { status: 400 });
+    }
     const method = String(body.method ?? "Other").trim() || "Other";
     const reference = String(body.reference ?? "").trim() || null;
     // The owner form holds this ID across an uncertain network response. Reusing
@@ -65,7 +73,7 @@ export async function POST(request: Request) {
     try { accounting=processingAmounts(amountCents,tipCents,body.processingFeeCents,method); }
     catch(error) { return Response.json({error:error instanceof Error?error.message:"Invalid processing fee."},{status:400}); }
 
-    if (!estimateId || !Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(tipCents) || tipCents < 0 || (amountCents <= 0 && tipCents <= 0)) {
+    if (!estimateId || (amountCents <= 0 && tipCents <= 0)) {
       return Response.json({ error: "Choose a job and enter a valid payment or tip amount." }, { status: 400 });
     }
     const estimate = await env.DB.prepare(`
