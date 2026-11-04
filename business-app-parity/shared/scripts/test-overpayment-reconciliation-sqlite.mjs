@@ -101,6 +101,8 @@ try{
    'Actual UI refuses successful-looking receipt for wrong job or resolution mode');
  check(!source.includes('money(Math.round(Number(amount||0)*100))'),
    'Fee summary never displays silent rounding of unvalidated payment amount');
+ check(source.includes("this does not send money. Otherwise, choose Keep as overpayment.")&&source.includes('>Record refund</Button>'),
+   'Concise overpayment copy makes it clear the owner already issued money and FIRE only records it');
  const helper=readFileSync('lib/exact-money-input.ts','utf8');
  const compiled=ts.transpileModule(helper,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
  const {exactMoneyInputCents}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(compiled));
