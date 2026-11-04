@@ -1703,7 +1703,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
       else{if(!transportFailed)snapshots?.records.forget('costs',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified costs are available in this app session. Reconnect and load them before reviewing profit or adding a cost.":"Job costs could not be loaded. Retry before reviewing profit or adding a cost.");}
     }}finally{if(request===loadRequest.current)setLoading(false);}
   };
-  useEffect(()=>{if(!open)return;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
+  useEffect(()=>{if(!open)return;if(costAttempt.current&&costAttempt.current.jobId!==estimate.id)costAttempt.current=null;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
   const add=async()=>{
     if(saveLock.current||saving||readOnly||navigator.onLine===false||currentJob.current!==estimate.id)return;
     setSaveError("");setSaveSuccess("");
