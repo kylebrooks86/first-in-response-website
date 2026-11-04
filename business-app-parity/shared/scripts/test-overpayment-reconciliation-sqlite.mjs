@@ -68,10 +68,14 @@ try{
  check(adjustment(kept).length===0&&paid(kept)===keptBefore&&alert(kept).resolutionNote==='kept_overpayment',
  'Keep flow preserves existing paid amount and marks exact saved alert');
  const interrupted=seed('interrupted');
- rt.env.DB.batch=async()=>{throw Error('synthetic atomic batch unavailable');};
+ // Fail AFTER the refund INSERT in the real native SQLite transaction.
+ // A non-atomic implementation would leave a phantom negative payment.
+ rt.env.DB.batch=async statements=>originalBatch([
+   statements[0],rt.env.DB.prepare('UPDATE synthetic_missing_table SET denied=1'),...statements.slice(1)
+ ]);
  const failed=await patch(interrupted,'refund',2000);
  check(failed.status===500&&!alert(interrupted).resolvedAt&&adjustment(interrupted).length===0&&paid(interrupted)===12000&&invoiceStatus(interrupted)==='sent',
- 'Failed transaction does not leave an unpaired refund adjustment');
+ 'Mid-batch SQL failure rolls back its already-executed refund INSERT and invoice change');
  rt.env.DB.batch=originalBatch;
  const restored=await patch(interrupted,'refund',2000);
  check(restored.status===200&&adjustment(interrupted).length===1&&paid(interrupted)===10000,
