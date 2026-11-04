@@ -83,4 +83,51 @@ assert.match(customerSource,/if\(!navigator\.clipboard\?\.writeText\)throw new E
 assert.match(css,/\.customer-payment-record \.customer-payment-reference-copy-button\{[^}]*min-height:44px/);checks++;
 assert.match(css,/\.customer-payment-record \.customer-payment-reference-copy-button:focus-visible\{[^}]*outline:3px/);checks++;
 assert.match(css,/\.customer-payment-record \.customer-payment-copy-feedback code\{[^}]*user-select:text/);checks++;
-console.log('PASS '+checks+' checks: Payments reference copy pending/success/failure/missing API/overlapping requests, exact bytes, on-screen manual fallback, 44px tap target and focus; source-only, no Stripe/D1/provider actions.');
+// Exercise the ACTUAL CustomersView handler rather than assuming async copy
+// results arrive in click order. Every copy and customer switch is isolated.
+let customerCopyDeclaration;
+function scanCustomerCopy(node){
+ if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='copyPaymentReference')customerCopyDeclaration=node;
+ ts.forEachChild(node,scanCustomerCopy);
+}
+scanCustomerCopy(customers);
+assert.ok(customerCopyDeclaration?.initializer&&ts.isArrowFunction(customerCopyDeclaration.initializer),'Customers reference copy is the actual callback');checks++;
+assert.match(customerSource,/paymentReferenceCopyAttempt\.current\+\+/,'Every new customer copy and selection change invalidates older replies');checks++;
+assert.match(customerSource,/\},\[selectedId\]\)/,'Changing customer resets the copy state');checks++;
+const compiledCustomer=ts.transpileModule(
+ 'const copyPaymentReference='+customerCopyDeclaration.initializer.getText(ast)+';exports.copy=copyPaymentReference;',
+ {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}
+).outputText;
+let customerFeedback=null;
+const customerContext={
+ exports:{},
+ navigator:{clipboard:undefined},
+ paymentReferenceCopyAttempt:{current:1},
+ setPaymentReferenceCopyFeedback(value){customerFeedback=value;},
+ Error
+};
+vm.runInNewContext(compiledCustomer,customerContext);
+const customerCopy=customerContext.exports.copy;
+const customerShown=()=>customerFeedback===null?null:JSON.parse(JSON.stringify(customerFeedback));
+let customerPending=[];
+customerContext.navigator.clipboard={writeText:value=>new Promise((resolve,reject)=>customerPending.push({resolve,reject,value}))};
+const olderCopy=customerCopy('payment-old','ref-old');
+eq(customerShown(),null,'Customers clears earlier feedback as a new copy starts');
+const newestCopy=customerCopy('payment-new','ref-new');
+eq(customerPending[1].value,'ref-new','Customers copies the full exact latest reference');
+customerPending[1].resolve();await newestCopy;
+eq(customerShown(),{id:'payment-new',ok:true},'Customers shows only the successful newest copy');
+customerPending[0].reject(new Error('older clipboard refusal'));await olderCopy;
+eq(customerShown(),{id:'payment-new',ok:true},'Older rejection cannot replace newer copied confirmation');
+customerPending=[];
+const lateCopy=customerCopy('payment-switch','ref-switch');
+customerContext.paymentReferenceCopyAttempt.current++; // Same invalidation performed on selectedId change.
+customerPending[0].resolve();await lateCopy;
+eq(customerShown(),null,'Switching customers suppresses a late clipboard result');
+customerContext.navigator.clipboard=undefined;
+await customerCopy('payment-no-api','ref-no-api');
+eq(customerShown(),{id:'payment-no-api',ok:false},'Missing clipboard API gives truthful manual fallback');
+customerContext.navigator.clipboard={writeText:async()=>{throw new Error('Clipboard rejected');}};
+await customerCopy('payment-denied','ref-denied');
+eq(customerShown(),{id:'payment-denied',ok:false},'Denied clipboard gives truthful manual fallback');
+console.log('PASS '+checks+' checks: Payments and Customers reference copy confirmations, missing/denied clipboard, exact bytes, overlapping requests and customer-switch invalidation; no Stripe/D1/provider actions.');

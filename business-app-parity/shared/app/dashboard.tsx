@@ -2827,13 +2827,22 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [paymentReferenceCopyFeedback,setPaymentReferenceCopyFeedback]=useState<{id:string;ok:boolean}|null>(null);
-  useEffect(()=>setPaymentReferenceCopyFeedback(null),[selectedId]);
+  // Suppress stale async clipboard feedback after a newer copy or customer switch.
+  const paymentReferenceCopyAttempt=useRef(0);
+  useEffect(()=>{
+    paymentReferenceCopyAttempt.current++;
+    setPaymentReferenceCopyFeedback(null);
+  },[selectedId]);
   const copyPaymentReference=async(id:string,reference:string)=>{
+    const attempt=++paymentReferenceCopyAttempt.current;
+    setPaymentReferenceCopyFeedback(null);
     try{
       if(!navigator.clipboard?.writeText)throw new Error("Clipboard unavailable");
       await navigator.clipboard.writeText(reference);
-      setPaymentReferenceCopyFeedback({id,ok:true});
-    }catch{setPaymentReferenceCopyFeedback({id,ok:false});}
+      if(attempt===paymentReferenceCopyAttempt.current)setPaymentReferenceCopyFeedback({id,ok:true});
+    }catch{
+      if(attempt===paymentReferenceCopyAttempt.current)setPaymentReferenceCopyFeedback({id,ok:false});
+    }
   };
   // Topbar Back returns to the directory before leaving Customers.
   // Register it after the save guards so an active write can't be hidden.
