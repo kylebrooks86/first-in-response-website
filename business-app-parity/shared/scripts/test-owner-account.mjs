@@ -38,10 +38,21 @@ for(const theme of ['light','dark']){
  const html=renderToStaticMarkup(tree);
  for(const expected of ['Owner Account','First In Response Exteriors','(918) 922-9366','LIVE','ChatGPT sign-in'])assert.ok(html.includes(expected),expected);
  assert.ok(!html.includes('DOOMSDAY'));assert.ok(!html.includes('<input'));assert.ok(!html.includes('password'));
+ assert.equal((html.match(/class="record-card"/g)||[]).length,3,'Owner Account uses three compact cards instead of redundant security panel');
+ assert.ok(html.includes('Environment &amp; access')&&html.includes('Account details are view-only.'),'Environment security and non-editable identity remain clear');
+ assert.ok(html.includes('href="tel:+19189229366"')&&html.includes('rel="noopener noreferrer"'),'Direct business contact links preserve safety and context');
  const buttons=[];const visit=node=>{if(!node||typeof node!=='object')return;if(Array.isArray(node)){node.forEach(visit);return;}if(node.type==='button')buttons.push(node);visit(node.props?.children);};visit(tree);
  assert.equal(buttons.length,1);buttons[0].props.onClick();assert.equal(clicks,1);
  assert.ok(html.includes(`Switch to ${theme==='light'?'dark':'light'} mode`));
 }
+for(const environment of ['QA','DOOMSDAY','STAGING']){
+ const html=renderToStaticMarkup(exports.OwnerAccountView({environment,theme:'light',onToggleTheme:()=>{}}));
+ assert.ok(html.includes(environment+' · FIRE Business App'));
+ assert.ok(html.includes(environment==='QA'||environment==='DOOMSDAY'?'signed-cookie authentication':'ChatGPT sign-in'));
+ assert.ok(html.includes('Records and payment settings stay separate.'),'Separate environments remain explicitly warned');
+}
+const css=readFileSync('app/globals.css','utf8');
+assert.match(css,/\.owner-account-view \.brand-button\{[^}]*min-height:44px[^}]*max-width:100%[^}]*white-space:normal/,'Theme action has minimum 44px touch height and can wrap on narrow screens');
 for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
 // Public documents must never render owner-only floating navigation.
 for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx','app/pay/[id]/page.tsx']){
