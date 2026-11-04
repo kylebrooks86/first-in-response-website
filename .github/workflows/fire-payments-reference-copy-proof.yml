@@ -1,0 +1,49 @@
+# Verification-only workflow; never merge this harness as an app change.
+name: FIRE Payments Reference Copy — Exact-Source Proof
+on:
+  push:
+    branches:
+      - chat/fire-payments-reference-copy-proof-2026-11-04
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fire-payments-reference-copy-proof
+  cancel-in-progress: true
+jobs:
+  copy-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      FIRE_PINNED_SOURCE: 1bb82bc557d9d34fe73dd103ec5b106943ab05af
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout exactly reviewed source without credential persistence
+        uses: actions/checkout@v4
+        with:
+          ref: 1bb82bc557d9d34fe73dd103ec5b106943ab05af
+          persist-credentials: false
+      - name: Assert exact immutable source identity
+        run: test "$(git rev-parse HEAD)" = "$FIRE_PINNED_SOURCE"
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frozen pnpm dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Prove Payments clipboard acknowledgement and mobile fallback
+        run: node scripts/test-payments-reference-copy.mjs
+      - name: Verify unchanged mobile Payments shortcut contract
+        run: node scripts/test-mobile-payment-shortcut.mjs
+      - name: Source typecheck
+        run: pnpm exec tsc --noEmit
+      - name: Declare scope: no provider or monetary writes
+        run: echo 'PASS only synthetic clipboard, mobile source, and TypeScript; no deployment, D1, Stripe or customer contact.'
