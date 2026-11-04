@@ -74,6 +74,13 @@ try{
  await page.getByRole('button',{name:/Synthetic Authorized Customer.*local photos/}).click();
  await page.getByRole('button',{name:'Photo library'}).waitFor();
  check(await page.getByText('Photos',{exact:true}).count()===1,'Actual offline CustomersView renders actual customer photo component');
+ // The photo mutation journal is inspected asynchronously after mounting the
+ // cached gallery. A *visible* button is intentionally disabled until that
+ // safety check passes; Playwright setInputFiles bypasses the disabled button.
+ // Wait for the real user-action readiness boundary before simulating upload.
+ await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(button=>
+  button.textContent?.includes('Photo library')&&!button.disabled),undefined,{timeout:15000});
+ check(await page.getByRole('button',{name:'Photo library'}).isEnabled(),'Photo library is enabled only after mutation journal safety check');
  await page.locator('input[type="file"][multiple]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:png});
  await page.getByText(/Photos verified on this device/).waitFor();
  check(await page.evaluate(()=>window.fixturePhotoDirectory.photoCount())===1,'Offline fallback adds actual synthetic image bytes to IndexedDB');

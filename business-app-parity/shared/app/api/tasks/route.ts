@@ -84,10 +84,23 @@ export async function PATCH(request:Request){
  const statement=body.expectedStatus===undefined
   ?env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND status<>?").bind(status,completedAt,id,status)
   :env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND status=? AND status<>?").bind(status,completedAt,id,body.expectedStatus,status);
- const result=await statement.run();
- if(result.meta.changes===1)return Response.json({ok:true,status,completedAt});
- const saved=await env.DB.prepare("SELECT status,completed_at AS completedAt FROM tasks WHERE id=?").bind(id).first<{status:string;completedAt:string|null}>();
- if(!saved)return Response.json({error:"Task not found. Refresh the task list."},{status:404});
- if(saved.status===status)return Response.json({ok:true,status:saved.status,completedAt:saved.completedAt});
- return Response.json({error:"The task changed elsewhere. Refresh the task list before updating it again.",currentStatus:saved.status},{status:409});
+ // A D1 run receipt alone does not confirm what the owner will see.
+ // Read the exact saved task before showing Completed/Reopened. The task ID
+ // is echoed so a stale or cross-task UI response cannot update the wrong row.
+ let result:{success?:boolean;meta?:{changes?:number}}|null=null;
+ try{result=await statement.run();}
+ catch{return Response.json({error:"Task save confirmation is unavailable. Refresh saved tasks before changing any task again.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});}
+ const uncertain=()=>Response.json({error:"Task status save could not be confirmed. Refresh saved tasks before updating again.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+ if(!result||result.success===false||result.meta?.changes!==0&&result.meta?.changes!==1)return uncertain();
+ let saved:{status:string;completedAt:string|null}|null=null;
+ try{saved=await env.DB.prepare("SELECT status,completed_at AS completedAt FROM tasks WHERE id=?").bind(id).first<{status:string;completedAt:string|null}>();}
+ catch{return uncertain();}
+ if(!saved)return result.meta?.changes===1?uncertain():Response.json({error:"Task not found. Refresh the task list."},{status:404});
+ if(saved.status===status){
+  if(status==="completed"&&(typeof saved.completedAt!=="string"||!Number.isFinite(Date.parse(saved.completedAt))))return uncertain();
+  if(status==="open"&&saved.completedAt!==null)return uncertain();
+  if(result.meta?.changes===1&&saved.completedAt!==completedAt)return uncertain();
+  return Response.json({ok:true,id,status:saved.status,completedAt:saved.completedAt},{headers:{"Cache-Control":"no-store, private"}});
+ }
+ return result.meta?.changes===1?uncertain():Response.json({error:"The task changed elsewhere. Refresh the task list before updating it again.",currentStatus:saved.status},{status:409});
 }

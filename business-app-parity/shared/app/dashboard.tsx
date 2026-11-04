@@ -4494,8 +4494,8 @@ function BusinessView({onWorkStatusChange,initialPickupDraft,onPickupDraftConsum
     const nextStatus=task.status==="open"?"completed":"open";
     try{
       const response=await fetch("/api/tasks",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:task.id,status:nextStatus,expectedStatus:task.status})});
-      const result=await response.json() as {ok?:boolean;status?:string;completedAt?:string|null;error?:string};
-      if(!response.ok||result?.ok!==true||result.status!==nextStatus||(nextStatus==="completed"&&(typeof result.completedAt!=="string"||!Number.isFinite(Date.parse(result.completedAt))))||(nextStatus==="open"&&result.completedAt!==null))throw new Error(result?.error||"The task update was not confirmed.");
+      const result=await response.json() as {ok?:boolean;id?:string;status?:string;completedAt?:string|null;error?:string};
+      if(!response.ok||result?.ok!==true||result.id!==task.id||result.status!==nextStatus||(nextStatus==="completed"&&(typeof result.completedAt!=="string"||!Number.isFinite(Date.parse(result.completedAt))))||(nextStatus==="open"&&result.completedAt!==null))throw new Error(result?.error||"The task update was not confirmed.");
       setTasks(current=>current.map(item=>item.id===task.id?{...item,status:nextStatus,completedAt:result.completedAt}:item));
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
       setTaskStatusMessage("Task status confirmed.");

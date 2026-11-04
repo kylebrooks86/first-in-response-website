@@ -10,7 +10,30 @@ const owner=source.match(/OWNER_EMAIL="([^"]+)"/)?.[1];
 assert.ok(owner,'Owner guard preserved');
 const db=new DatabaseSync(':memory:');
 db.exec("CREATE TABLE tasks(id TEXT PRIMARY KEY,title TEXT,status TEXT NOT NULL,completed_at TEXT,due_at TEXT,customer_id TEXT,estimate_id TEXT,notes TEXT); INSERT INTO tasks VALUES ('synthetic-task','Synthetic task','open',NULL,NULL,'synthetic-customer','synthetic-estimate','FIRE yard sign placement: 2026-10-22T10:00:00.000Z');");
-const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){return {run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}}),first:async()=>stmt.get(...args)??null};}};}};
+let toggleBehavior='normal',toggleReadback='normal';
+const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){return {
+ async run(){
+  if(sql.startsWith('UPDATE tasks SET status=')){
+   const mode=toggleBehavior;toggleBehavior='normal';
+   if(mode==='no-write')return {meta:{changes:0}};
+   const changed=Number(stmt.run(...args).changes);
+   if(mode==='false-ack')return {success:false,meta:{changes:changed}};
+   if(mode==='zero-ack')return {meta:{changes:0}};
+   return {meta:{changes:changed}};
+  }
+  return {meta:{changes:Number(stmt.run(...args).changes)}};
+ },
+ async first(){
+  const row=stmt.get(...args)??null;
+  if(sql==='SELECT status,completed_at AS completedAt FROM tasks WHERE id=?'){
+   const mode=toggleReadback;toggleReadback='normal';
+   if(mode==='lost')throw Error('Synthetic readback unavailable');
+   if(mode==='missing')return null;
+   if(mode==='wrong'&&row)return {...row,status:'open',completedAt:null};
+  }
+  return row;
+ }
+ };}};}};
 let authorized=true;
 const auth=async()=>authorized?{email:owner}:null;
 const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
@@ -108,6 +131,38 @@ eq(state().status,'open','Bad requests preserve saved status');
  const legacy=await patch({id,status:'completed'});
  eq(legacy.status,200,'Legacy client without expected status remains compatible');
  eq(state().status,'completed','Legacy explicit target persists');
+}
+// No task-completion success unless the exact saved row/ID and its
+// persisted completion timestamp have survived a fresh D1 readback.
+{
+ const setOpen=()=>db.prepare("UPDATE tasks SET status='open',completed_at=NULL WHERE id=?").run(id);
+ setOpen();toggleBehavior='no-write';
+ const nothing=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(nothing.status,409,'Zero-write status update cannot claim completed');
+ eq(state().status,'open','Zero-write leaves real saved task open');
+ setOpen();toggleBehavior='false-ack';
+ const falseAck=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(falseAck.status,503,'A committed task with explicit false receipt stays uncertain');
+ eq(falseAck.data.saveUncertain,true,'False receipt requires read-only owner refresh');
+ eq(state().status,'completed','False receipt may follow actual successful write');
+ setOpen();toggleReadback='wrong';
+ const mismatch=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(mismatch.status,503,'Contradictory D1 task readback refuses 200');
+ eq(state().status,'completed','Misleading read is not a second mutation');
+ setOpen();toggleReadback='missing';
+ const absent=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(absent.status,503,'Disappearing readback after D1 write stays uncertain');
+ setOpen();toggleReadback='lost';
+ const readLost=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(readLost.status,503,'Lost owner D1 SELECT stays uncertain');
+ setOpen();toggleBehavior='zero-ack';
+ const recovered=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(recovered.status,200,'Zero-change receipt with independently confirmed saved status is idempotent');
+ eq(recovered.data.id,id,'Confirmed task receipt must identify exact task ID');
+ eq(recovered.data.completedAt,state().completedAt,'Confirmed timestamp comes from saved D1 row');
+ setOpen();const normal=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(normal.data.id,id,'Normal status toggle identifies saved task ID');
+ eq(normal.data.completedAt,state().completedAt,'Normal success echoes actual persisted timestamp');
 }
 // A redundant completion request must not overwrite the historical completion timestamp.
 {

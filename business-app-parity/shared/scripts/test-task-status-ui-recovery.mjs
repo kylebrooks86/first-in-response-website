@@ -18,7 +18,7 @@ const source='exports.toggle='+handler('toggleTask')+';\nexports.refresh='+handl
 const script=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const row=(status='open',completedAt=null)=>({id:'synthetic-task',title:'Synthetic job reminder',status,completedAt,createdAt:'2026-10-20T12:00:00Z'});
-const response=(ok,status,completedAt)=>({ok,json:async()=>({ok,status,completedAt})});
+const response=(ok,status,completedAt,id='synthetic-task')=>({ok,json:async()=>({ok,id,status,completedAt})});
 let checks=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
 function fixture(){
  const requests=[],notices=[],state={rows:[row()],taskStatusUncertain:false,taskToggling:null,loadRequest:{current:0}};
@@ -59,7 +59,7 @@ function fixture(){
  eq(f.state.taskToggling,null,'Pending indicator cleared');
  eq(f.state.taskStatusUncertain,false,'Confirmed write needs no recovery');
 }
-for(const scenario of ['network','http','missing-confirmation','wrong-status','invalid-timestamp']){
+for(const scenario of ['network','http','missing-confirmation','wrong-status','wrong-id','invalid-timestamp']){
  const f=fixture(),pending=deferred();
  f.setHandler((_url,opts)=>opts?.method==='PATCH'?pending.promise:Promise.resolve({ok:true,json:async()=>({tasks:[row('completed','2026-10-20T13:00:00Z')]})}));
  const request=f.toggle();
@@ -67,6 +67,7 @@ for(const scenario of ['network','http','missing-confirmation','wrong-status','i
  else if(scenario==='http')pending.resolve({ok:false,json:async()=>({error:'Task changed elsewhere'})});
  else if(scenario==='missing-confirmation')pending.resolve({ok:true,json:async()=>({status:'completed'})});
  else if(scenario==='wrong-status')pending.resolve(response(true,'open',null));
+ else if(scenario==='wrong-id')pending.resolve(response(true,'completed','2026-10-20T13:00:00Z','other-customer-task'));
  else pending.resolve(response(true,'completed','not a timestamp'));
  await request;
  eq(f.state.rows[0].status,'open',scenario+' does not optimistically confirm a status');
