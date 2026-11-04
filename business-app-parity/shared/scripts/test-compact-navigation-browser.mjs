@@ -41,9 +41,9 @@ assert.match(navJsx[0],/nav\.slice\(0,7\)/);
 const fixture=[
  "import React,{useEffect,useMemo,useState}from'react';import{createRoot}from'react-dom/client';",
  "import{House,Users,ClipboardList,CalendarDays,Clock3,Receipt,CreditCard,MapPin,BriefcaseBusiness,BarChart3,Settings,ChevronDown}from'lucide-react';",
- "function App(){const [tab,setTab]=useState('dashboard'),[moreNavOpen,setMoreNavOpen]=useState(false),[mobileMenu,setMobileMenu]=useState(true);",
+ "function App(){const [tab,setTabState]=useState('dashboard'),[moreNavOpen,setMoreNavOpen]=useState(false),[mobileMenu,setMobileMenu]=useState(true);",
  declaration,
- " const interactive=true,liveMetrics={estimates:3};",
+ " const interactive=true,liveMetrics={estimates:3};const setTab=(next)=>{setTabState(next);return true;};",
  " useEffect(()=>{if(nav.slice(7).some(([id])=>id===tab))setMoreNavOpen(true)},[tab,nav]);",
  " useEffect(()=>{window.__navTab=tab;window.__jumpTab=setTab;window.__mobileMenu=mobileMenu;window.__reopenMenu=()=>setMobileMenu(true)},[tab,mobileMenu]);",
  " return <main className='app-shell'><aside className={'sidebar '+(mobileMenu?'mobile-open':'')}>",

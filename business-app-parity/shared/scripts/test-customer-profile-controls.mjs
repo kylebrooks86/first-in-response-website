@@ -59,7 +59,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await page.waitForFunction(()=>document.querySelector('[role=dialog] textarea')?.value==='');
  await textField.fill('Synthetic unsent custom text');
  check(await textField.inputValue()==='Synthetic unsent custom text','Custom message remains editable; never sent during QA');
- await page.keyboard.press('Escape');await quickDialog.waitFor({state:'hidden'});
+ page.once('dialog',async prompt=>{check(prompt.type()==='confirm'&&prompt.message()==='Discard your unfinished message edits? No text or email has been sent by FIRE.','Text draft requires explicit discard approval');await prompt.accept();});await page.keyboard.press('Escape');await quickDialog.waitFor({state:'hidden'});
  // Customer email uses the same saved draft/owner confirmation path as Text.
  // A bare mailto link would bypass the audit and fail silently on some phones.
  const quickEmail=page.locator('.customer-contact').getByRole('button',{name:'Email customer'});
@@ -72,7 +72,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await page.keyboard.press('Escape');
  await emailDialog.getByRole('textbox',{name:'Message text'}).fill('Synthetic draft email, not sent');
  check(await emailDialog.getByRole('button',{name:'Email',exact:true}).isVisible(),'Prepared-email handoff stays available');
- await emailDialog.getByRole('button',{name:'Close',exact:true}).click();await emailDialog.waitFor({state:'hidden'});
+ page.once('dialog',async prompt=>{check(prompt.type()==='confirm'&&prompt.message()==='Discard your unfinished message edits? No text or email has been sent by FIRE.','Email draft requires explicit discard approval');await prompt.accept();});await emailDialog.getByRole('button',{name:'Close',exact:true}).click();await emailDialog.waitFor({state:'hidden'});
  await page.getByRole('button',{name:/^Photos\b/}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
@@ -114,8 +114,8 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const prepared=await request('/api/customer-messages','POST',{customerId:customer.id,estimateId:estimate.id,channel:'text_prepared',template:'estimate',body});assert.equal(prepared.status(),201);const record=(await prepared.json()).message;
  await profile();await page.getByRole('button',{name:/^Messages\s+1$/}).click();
  check(await messages.locator('.message-history').filter({hasText:body}).count()===1&&await messages.getByText(/Prepared · sending unconfirmed/).count()===1,'Messages tab displays actual prepared history without claiming delivery');
- await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();await composer().getByLabel('Message text').fill('Synthetic unsent edited message');await composer().getByRole('button',{name:'Close',exact:true}).click();await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
- check(await composer().getByLabel('Message text').inputValue()==='Synthetic unsent edited message','Messages tab reuses existing composer draft protection across close/reopen');await composer().getByRole('button',{name:'Close',exact:true}).click();
+ await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();await composer().getByLabel('Message text').fill('Synthetic unsent edited message');page.once('dialog',async prompt=>{check(prompt.type()==='confirm'&&prompt.message()==='Discard your unfinished message edits? No text or email has been sent by FIRE.','Edited message close requires explicit discard decision');await prompt.dismiss();});await composer().getByRole('button',{name:'Close',exact:true}).click();
+ check(await composer().isVisible()&&await composer().getByLabel('Message text').inputValue()==='Synthetic unsent edited message','Declining discard retains unsent composer and exact draft');page.once('dialog',prompt=>prompt.accept());await composer().getByRole('button',{name:'Close',exact:true}).click();await composer().waitFor({state:'hidden'});await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();check(await composer().getByLabel('Message text').inputValue()!=='Synthetic unsent edited message','Approved discard does not restore discarded local edits');await composer().getByRole('button',{name:'Close',exact:true}).click();
  const saved=await (await request('/api/customers')).json();
  check(saved.messages.filter(row=>row.customerId===customer.id).length===1&&saved.messages.some(row=>row.id===record.id&&row.body===body&&row.channel==='text_prepared'),'Opening and editing composer does not send or duplicate history');
  check(saved.estimates.find(row=>row.id===originalEstimateId).totalCents===25000&&saved.estimates.find(row=>row.id===estimate.id).totalCents===20000&&saved.estimates.find(row=>row.id===estimate.id).depositCents===10000&&saved.payments.length===0,'Profile UI tests preserve original estimate, $200/$100 fixture and empty payment ledger');

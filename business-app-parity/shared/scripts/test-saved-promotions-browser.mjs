@@ -61,7 +61,7 @@ try{
  check(puts===count+1,'Fast repeated taps send only one owner settings write');
  check(stored.promotions.length===1&&stored.promotions[0].valueCents===1500,'October percentage saved in basis points');
  await page.reload();await page.getByText('October 15%',{exact:true}).waitFor();
- check(await page.getByText('Booking required',{exact:false}).isVisible(),'Saved booking rule reopens intact');
+ check(stored.promotions[0].dateBasis==='booking-confirmed'&&await page.getByText('Booking date required',{exact:false}).isVisible(),'Saved booking condition reopens intact even after campaign expiry');
  await page.getByRole('button',{name:'Add promotion'}).click();
  await page.locator('#fire-promo-name').fill('House + gutters bundle');
  await page.locator('#fire-promo-type').selectOption('dollar');

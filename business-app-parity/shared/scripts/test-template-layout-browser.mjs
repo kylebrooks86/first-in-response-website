@@ -11,7 +11,7 @@ const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8');
 const section=(a,b)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
-const settings=section('function SettingsView(){','function EmptyView(');
+const settings=section('function SettingsView(','function EmptyView(');
 const sidebar=section('<aside className={`sidebar ', '</aside>')+'</aside>';
 const fixture=`import React,{Fragment,useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';
 import{FileText,MessageSquareText,ChevronRight,ChevronDown,Save,X,Settings}from'lucide-react';
@@ -22,7 +22,7 @@ const statusLabel=(v:string)=>v.replaceAll('_',' ').replace(/^./,v=>v.toUpperCas
 function FireMark(){return <span className="fire-mark">F</span>}
 ${settings}
 function Fixture(){const[mobileMenu,setMobileMenu]=useState(false),[moreNavOpen,setMoreNavOpen]=useState(false),[theme,setTheme]=useState(localStorage.getItem('fire-theme')||'light');
-const interactive=true,tab='settings',setTab=()=>{},globalQuery='',setGlobalQuery=()=>{},openSearchResult=()=>{},liveMetrics={estimates:2},nav=[['settings','Templates',Settings]];
+const interactive=true,tab='settings',setTab=()=>true,globalQuery='',setGlobalQuery=()=>{},openSearchResult=()=>{},liveMetrics={estimates:2},nav=[['settings','Templates',Settings]];
 document.documentElement.dataset.theme=theme;window.fixtureTemplates=FIRE_TEMPLATES;
 return <main className="app-shell">${sidebar}<section className="main-area"><button onClick={()=>setMobileMenu(!mobileMenu)}>Toggle menu</button><button onClick={()=>{const t=theme==='light'?'dark':'light';setTheme(t);localStorage.setItem('fire-theme',t)}}>Toggle theme</button><SettingsView/></section></main>}
 createRoot(document.getElementById('app')).render(<Fixture/>);`;
@@ -118,7 +118,7 @@ try{
  for(let n=0;n<100&&!pendingSave;n++)await page.waitForTimeout(20);
  assert.ok(pendingSave,'Expected pending synthetic save');
  await pendingSave.fulfill({status:200,contentType:'application/json',body:JSON.stringify({template:{...FIRE_TEMPLATES.find(t=>t.key==='invoice')}})});
- await page.getByText('Template save could not be confirmed. Your edits are retained.',{exact:true}).waitFor();
+ await page.getByText('The saved template response did not match your subject and message. Keep these edits and reopen Settings to verify the saved version before trying again.',{exact:true}).waitFor();
  check(await page.locator('#templateBody').inputValue()==='Synthetic retry-safe template body','Wrong-template receipt retains the exact unsaved draft');
  check(await page.getByLabel('Template',{exact:true}).inputValue()==='estimate','Wrong receipt cannot switch the selected template');
  pendingSave=null;await page.getByRole('button',{name:'Save template',exact:true}).click();
