@@ -9,11 +9,19 @@ for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db
 let owner={email:'kylebrooks8605@gmail.com'},remoteCalls=0,checks=0;
 let skipNextBatch=false,loseNextInvoiceRead=false,distortNextInvoiceRead=false,distortNextLineRead=false,hideNextRevision=false,postBatchRead=false;
 let paymentBetweenReadAndBatch=null;
+let paymentAfterInitialPaidRead=null;
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async()=>{remoteCalls++;throw Error('Synthetic invoice test forbids all remote provider requests');};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
 const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
   async first(){
+    if(sql.startsWith('SELECT COALESCE(SUM(amount_cents),0) AS paidCents')&&paymentAfterInitialPaidRead){
+      const row=db.prepare(sql).get(...args)??null;
+      const {estimateId,amount}=paymentAfterInitialPaidRead;paymentAfterInitialPaidRead=null;
+      db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',?,'paid','2026-11-04')")
+        .run('between-reads-'+estimateId,estimateId,amount);
+      return row;
+    }
     if(sql.startsWith('SELECT id,estimate_id AS estimateId,status,first_viewed_at'))postBatchRead=false;
     if(sql.startsWith('SELECT id,subtotal_cents AS subtotalCents')){
       if(loseNextInvoiceRead){loseNextInvoiceRead=false;throw Error('Synthetic lost invoice readback');}
@@ -98,6 +106,17 @@ try{
  response=await patch('race',items(16000,'Reviewed updated payment ledger'));
  eq(response.status,200,'Re-opened edit can save above the updated paid balance');
  eq(invoice('race').total,16000,'Valid follow-up respects recorded payment');
+ // A payment arriving between the two preflight reads must also determine
+ // saved invoice status; matching totals alone cannot verify a truthful receipt.
+ for(const [suffix,amount,expectedStatus] of [['partial',4000,'partial'],['full',8000,'paid']]){
+   const id='status-race-'+suffix;seed(id);
+   paymentAfterInitialPaidRead={estimateId:'e-'+id,amount};
+   response=await patch(id,items(8000,'Reviewed payment status'));
+   eq(response.status,200,'Between-read payment permits valid invoice edit');
+   saved=await response.json();
+   eq(invoice(id).status,expectedStatus,'Stored status uses the latest transaction-guarded principal');
+   eq(saved.invoice.status,expectedStatus,'Receipt matches the current payment state');
+ }
  // Invoice details must be returned from persisted D1, not echoed from the
  // submitted PATCH. Unedited due date and newly allocated line IDs are
  // essential for correct iPhone re-edit and customer invoice details.

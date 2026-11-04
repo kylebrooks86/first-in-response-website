@@ -85,7 +85,6 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     if(totalCents<paidCents)return Response.json({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
     const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
     if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
-    const status=paidCents>=totalCents?"paid":paidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
     const updateDueAt=Object.prototype.hasOwnProperty.call(body,"dueAt");
     const rawDueAt=String(body.dueAt??"").trim();
     let dueAt:string|null|undefined;
@@ -98,6 +97,9 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const latestPaidCents=Number(latestPaidRow?.paidCents??0);
     if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
     if(totalCents<latestPaidCents)return Response.json({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
+    // Status and the transactional payment guard must use the same snapshot.
+    // Money arriving between the two reads must not leave a paid invoice draft.
+    const status=latestPaidCents>=totalCents?"paid":latestPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
     const currentItems=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all();
     const currentInvoice=await env.DB.prepare("SELECT subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
     const revisionId=crypto.randomUUID();
