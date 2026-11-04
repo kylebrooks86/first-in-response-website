@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/app/api/estimates/[id]/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-owner-final-polish-controls.mjs'
       - 'business-app-parity/shared/scripts/test-job-status-confirmed-readback-sqlite.mjs'
       - '.github/workflows/fire-gate8-job-status-confirmed-d1.yml'
 permissions:
@@ -34,5 +36,7 @@ jobs:
         run: pnpm exec tsc --noEmit --incremental false
       - name: Confirm status, appointment and exact saved D1 readback
         run: node --experimental-sqlite scripts/test-job-status-confirmed-readback-sqlite.mjs
+      - name: Check real iPhone appointment eligibility and clipboard truthfulness
+        run: node scripts/test-owner-final-polish-controls.mjs
       - name: Regress original signed job schedule, invoice, and deposit policy
         run: node --experimental-sqlite scripts/test-deposit-policy-workflow.mjs
