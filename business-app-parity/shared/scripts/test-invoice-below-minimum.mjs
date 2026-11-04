@@ -8,6 +8,7 @@ const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
 let owner={email:'kylebrooks8605@gmail.com'},remoteCalls=0,checks=0;
 let skipNextBatch=false,loseNextInvoiceRead=false,distortNextInvoiceRead=false,distortNextLineRead=false,hideNextRevision=false,postBatchRead=false;
+let paymentBetweenReadAndBatch=null;
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async()=>{remoteCalls++;throw Error('Synthetic invoice test forbids all remote provider requests');};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
@@ -32,6 +33,13 @@ const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
   },
   async run(){return {meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}});
 const env={DB:{prepare:statement,async batch(statements){
+  // Model a legitimate payment committed after the invoice preflight SELECT,
+  // before the atomic invoice-revision/lines/header transaction begins.
+  if(paymentBetweenReadAndBatch){
+    const {estimateId,amount}=paymentBetweenReadAndBatch;paymentBetweenReadAndBatch=null;
+    db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?, 'Cash',?,'paid','2026-11-04')")
+      .run('synthetic-concurrent-payment',estimateId,amount);
+  }
   if(skipNextBatch){skipNextBatch=false;return statements.map(()=>({success:true,meta:{changes:0}}));}
   db.exec('BEGIN');
   try{const results=statements.map(s=>s.sql.trimStart().startsWith('SELECT')?{results:db.prepare(s.sql).all(...s.args)}:{meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}});db.exec('COMMIT');postBatchRead=true;return results;}
@@ -74,6 +82,22 @@ try{
  eq(JSON.stringify(invoice('paid')),before,'Payment guard leaves invoice unchanged');eq(revisions('paid'),previous,'Failed edit has no revision');
  response=await patch('paid',items(10000,'Too much discount'),'dollar',10001);eq(response.status,400,'Over-subtotal discount rejected');
  eq(JSON.stringify(invoice('paid')),before,'Invalid discount leaves invoice unchanged');
+ // A payment can commit AFTER the last paid-balance SELECT but BEFORE the
+ // invoice D1.batch starts. All three dependent writes must remain unchanged.
+ seed('race');
+ const invoiceBeforeRace=JSON.stringify(invoice('race'));
+ const lineBeforeRace=JSON.stringify(db.prepare('SELECT id,name,total_cents AS amount FROM invoice_items WHERE invoice_id=?').all('race'));
+ const revisionsBeforeRace=revisions('race');
+ paymentBetweenReadAndBatch={estimateId:'e-race',amount:14000};
+ response=await patch('race',items(8000,'Too low after concurrent payment'));
+ eq(response.status,503,'Concurrent payment prevents confirming invoice repricing');
+ eq(JSON.stringify(invoice('race')),invoiceBeforeRace,'Race keeps original invoice totals/status');
+ eq(JSON.stringify(db.prepare('SELECT id,name,total_cents AS amount FROM invoice_items WHERE invoice_id=?').all('race')),lineBeforeRace,'Race preserves all original invoice items');
+ eq(revisions('race'),revisionsBeforeRace,'Race does not add a misleading invoice revision');
+ eq(db.prepare("SELECT amount_cents AS amount FROM payments WHERE id='synthetic-concurrent-payment'").get().amount,14000,'The intervening payment actually committed');
+ response=await patch('race',items(16000,'Reviewed updated payment ledger'));
+ eq(response.status,200,'Re-opened edit can save above the updated paid balance');
+ eq(invoice('race').total,16000,'Valid follow-up respects recorded payment');
  // Invoice details must be returned from persisted D1, not echoed from the
  // submitted PATCH. Unedited due date and newly allocated line IDs are
  // essential for correct iPhone re-edit and customer invoice details.
