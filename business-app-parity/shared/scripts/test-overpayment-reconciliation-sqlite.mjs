@@ -16,6 +16,7 @@ function seed(k,paid=12000,total=10000){
  db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(cid,'Synthetic '+k,stamp);
  db.prepare('INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)').run(eid,cid,'completed',total,total,Math.floor(total/2),stamp);
  db.prepare('INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)').run('p-'+k,eid,'Cash',paid,'paid',stamp);
+ db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at) VALUES(?,?,?,?,?,?)').run('i-'+k,eid,cid,'sent',total,stamp);
  db.prepare('INSERT INTO notifications(id,type,title,body,customer_id,estimate_id,created_at) VALUES(?,?,?,?,?,?,?)').run(nid,'payment_overage','Overpayment','Synthetic',cid,eid,stamp);
  return{cid,eid,nid};
 }
@@ -26,6 +27,7 @@ const patch=async (job,mode,amount)=>{const body={estimateId:job.eid,resolveOver
 const adjustment=job=>db.prepare("SELECT amount_cents AS cents, provider_id AS providerId FROM payments WHERE estimate_id=? AND type='Refund adjustment'").all(job.eid);
 const alert=job=>db.prepare('SELECT resolved_at AS resolvedAt,resolution_note AS resolutionNote FROM notifications WHERE id=?').get(job.nid);
 const paid=job=>db.prepare("SELECT COALESCE(SUM(amount_cents),0) AS cents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").get(job.eid).cents;
+const invoiceStatus=job=>db.prepare('SELECT status FROM invoices WHERE estimate_id=?').get(job.eid).status;
 try{
  const bad=seed('bad');
  const before=paid(bad);
@@ -42,18 +44,22 @@ try{
  rt.env.DB.batch=async statements=>statements.map(()=>({success:true,meta:{changes:1}}));
  const falselyAcked=await patch(bad,'refund',2000);
  check(falselyAcked.status===503&&falselyAcked.data.saveUncertain===true,'Nonwriting successful-looking batch never claims refund was recorded');
- check(paid(bad)===before&&adjustment(bad).length===0&&!alert(bad).resolvedAt,'Uncommitted batch leaves no partial refund adjustment');
+ check(paid(bad)===before&&adjustment(bad).length===0&&!alert(bad).resolvedAt&&invoiceStatus(bad)==='sent','Uncommitted batch leaves no partial refund adjustment or invoice change');
  rt.env.DB.batch=originalBatch;
  const good=await patch(bad,'refund',2000);
  check(good.status===200&&good.data.ok===true&&good.data.estimateId===bad.eid&&good.data.resolutionMode==='refund'&&good.data.paidCents===10000&&good.data.remainingOverpaymentCount===0,
  'Owner receives exact-identity confirmed refund adjustment');
- check(paid(bad)===10000&&adjustment(bad).length===1&&adjustment(bad)[0].cents===-2000,
+ check(paid(bad)===10000&&adjustment(bad).length===1&&adjustment(bad)[0].cents===-2000&&invoiceStatus(bad)==='paid',
  'Actual saved refund adjustment is exactly -2000 cents and original invoice amount remains');
  check(adjustment(bad)[0].providerId==='refund-adjustment:'+bad.nid&&alert(bad).resolutionNote==='refund:2000'&&!!alert(bad).resolvedAt,
  'Exact synthetic notification ID ties one completed adjustment to one resolved billing alert');
  const replay=await patch(bad,'refund',2000);
  check(replay.status===404&&adjustment(bad).length===1&&paid(bad)===10000,
  'Repeated already-closed refund cannot make a duplicate money entry');
+ const partial=seed('partial');
+ const partialResponse=await patch(partial,'refund',3000);
+ check(partialResponse.status===200&&partialResponse.data.paidCents===9000&&invoiceStatus(partial)==='partial'&&paid(partial)===9000,
+ 'A larger already-issued external refund produces an exact partial invoice instead of falsely claiming paid');
  const kept=seed('kept');
  const keptBefore=paid(kept);
  const keepResponse=await patch(kept,'keep');
@@ -64,7 +70,7 @@ try{
  const interrupted=seed('interrupted');
  rt.env.DB.batch=async()=>{throw Error('synthetic atomic batch unavailable');};
  const failed=await patch(interrupted,'refund',2000);
- check(failed.status===500&&!alert(interrupted).resolvedAt&&adjustment(interrupted).length===0&&paid(interrupted)===12000,
+ check(failed.status===500&&!alert(interrupted).resolvedAt&&adjustment(interrupted).length===0&&paid(interrupted)===12000&&invoiceStatus(interrupted)==='sent',
  'Failed transaction does not leave an unpaired refund adjustment');
  rt.env.DB.batch=originalBatch;
  const restored=await patch(interrupted,'refund',2000);
@@ -73,7 +79,7 @@ try{
  const lost=seed('lost');
  rt.env.DB.batch=async statements=>{await originalBatch(statements);throw Error('synthetic lost response after full commit');};
  const responseLost=await patch(lost,'refund',2000);
- check(responseLost.status===500&&adjustment(lost).length===1&&paid(lost)===10000&&!!alert(lost).resolvedAt,
+ check(responseLost.status===500&&adjustment(lost).length===1&&paid(lost)===10000&&invoiceStatus(lost)==='paid'&&!!alert(lost).resolvedAt,
  'Lost acknowledgement after committed atomic batch preserves correct records and no false success');
  rt.env.DB.batch=originalBatch;
  const replayLost=await patch(lost,'refund',2000);
