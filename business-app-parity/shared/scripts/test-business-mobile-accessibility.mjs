@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {randomUUID} from 'node:crypto';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
@@ -10,6 +11,7 @@ const stateNames=[],tags=new Set();function scan(n){if(ts.isVariableDeclaration(
 const stubs=Object.fromEntries([...tags].map(tag=>[tag,()=>null]));
 let state=[],refs=[],cursor=0,refCursor=0,effect,pendingPatch,patchFailure=false;const requests=[];
 const tasks=[{id:'open-task',title:'Call synthetic customer',status:'open'},{id:'done-task',title:'Very long completed synthetic task title',status:'completed'}];
+const expenses=[];
 // Evaluate the genuine Tulsa business-day helpers from their existing source rather
 // than duplicating date logic in this isolated JSX test harness.
 const expenseModule={exports:{}};
@@ -37,10 +39,30 @@ const receiptFns=compilePureModule('lib/business-create-receipt.ts',{window:{loc
 const taskFns=compilePureModule('lib/task-due.ts');
 const contextFns=compilePureModule('lib/business-task-context.ts');
 assert.deepEqual(JSON.parse(JSON.stringify(receiptFns.readBusinessReceipt(localStorage,'task'))),{requestId:null,usable:true});
-const context={exports:{},require,...stubs,expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,...receiptFns,...taskFns,...contextFns,
+const context={exports:{},require,...stubs,crypto:{randomUUID},expenseBusinessDay,expenseDateInstant,expenseBusinessDateLabel,...receiptFns,...taskFns,...contextFns,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=typeof initial==='function'?initial():initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes('readBusinessReceipt')&&String(fn).includes('load()'))effect=fn;},money:c=>'$'+(c/100).toFixed(2),dateTime:v=>v,
- fetch:async(url,opts={})=>{if(opts.method){requests.push({url,method:opts.method,body:JSON.parse(opts.body)});if(opts.method==='PATCH')return new Promise(resolve=>{pendingPatch=()=>resolve({ok:!patchFailure,json:async()=>patchFailure?{error:'Synthetic update failed'}:{ok:true}});});return {ok:true,json:async()=>({})};}return {ok:true,json:async()=>url==='/api/tasks'?{tasks:tasks.map(t=>({...t}))}:url==='/api/expenses'?{expenses:[]}:{customers:[{id:'customer',name:'Synthetic customer'}],estimates:[{id:'job',customerId:'customer',service:'Wash'}]}};},
+ fetch:async(url,opts={})=>{
+ if(opts.method){
+  const body=JSON.parse(opts.body);requests.push({url,method:opts.method,body});
+  if(opts.method==='PATCH')return new Promise(resolve=>{
+   pendingPatch=()=>{
+    if(!patchFailure){const task=tasks.find(t=>t.id===body.id);if(task)task.status=body.status;}
+    resolve({ok:!patchFailure,json:async()=>patchFailure?{error:'Synthetic update failed'}:{ok:true,id:body.id,status:body.status,completedAt:body.status==='completed'?new Date().toISOString():null}});
+   };
+  });
+  if(url==='/api/tasks'&&opts.method==='POST'){
+   const task={id:body.requestId,title:body.title,customerId:body.customerId,notes:body.notes,dueAt:body.dueAt,status:'open'};
+   tasks.push(task);return {ok:true,json:async()=>({confirmed:true,requestId:body.requestId,task})};
+  }
+  if(url==='/api/expenses'&&opts.method==='POST'){
+   const expense={id:body.requestId,category:body.category,description:body.description,amountCents:body.amountCents,estimateId:body.estimateId,incurredAt:body.incurredAt};
+   expenses.push(expense);return {ok:true,json:async()=>({confirmed:true,requestId:body.requestId,expense})};
+  }
+  throw Error('Unexpected simulated write: '+url+' '+opts.method);
+ }
+ return {ok:true,json:async()=>url==='/api/tasks'?{tasks:tasks.map(t=>({...t}))}:url==='/api/expenses'?{expenses:expenses.map(x=>({...x}))}:{customers:[{id:'customer',name:'Synthetic customer'}],estimates:[{id:'job',customerId:'customer',service:'Wash'}]}};
+},
 };
 vm.runInNewContext(ts.transpileModule(view.getText(ast)+'\nexports.view=BusinessView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 const render=()=>{cursor=0;refCursor=0;return context.exports.view();};
@@ -64,7 +86,7 @@ for(const [id,value,key] of [['business-task-title','Call QA','title'],['busines
 }
 function select(id,value,key){const field=all().find(n=>n.props.className==='business-field'&&nodes(n).some(c=>c.props.id===id));nodes(field).find(n=>n.type===stubs.Select).props.onValueChange(value);eq(get(key),value);}
 select('business-task-customer','customer','taskCustomer');select('business-expense-category','Fuel','category');select('business-expense-job','job','expenseEstimate');
-const taskButton=id=>all().find(n=>n.type==='button'&&n.key===id);
+const taskButton=id=>all().find(n=>n.type==='button'&&n.props['aria-label']==='Toggle completion for '+(tasks.find(t=>t.id===id)?.title??''));
 eq(taskButton('open-task').props['aria-label'],'Toggle completion for Call synthetic customer');eq(taskButton('open-task').props['aria-pressed'],false);eq(taskButton('done-task').props['aria-pressed'],true);eq(taskButton('done-task').props['aria-label'],'Toggle completion for Very long completed synthetic task title');
 taskButton('open-task').props.onClick();eq(taskButton('open-task').props['aria-busy'],true);eq(taskButton('open-task').props.disabled,true);eq(taskButton('open-task').props['aria-pressed'],true);eq(taskButton('open-task').props['aria-label'],'Toggle completion for Call synthetic customer');eq(requests.at(-1),{url:'/api/tasks',method:'PATCH',body:{id:'open-task',status:'completed'}});pendingPatch();await settle();eq(taskButton('open-task').props['aria-busy'],false);eq(taskButton('open-task').props.disabled,false);
 patchFailure=true;taskButton('done-task').props.onClick();eq(taskButton('done-task').props['aria-pressed'],false);eq(requests.at(-1).body.status,'open');pendingPatch();await settle();eq(taskButton('done-task').props['aria-pressed'],true);eq(get('businessMessage'),'Synthetic update failed');eq(taskButton('done-task').props['aria-busy'],false);
