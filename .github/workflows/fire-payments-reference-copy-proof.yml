@@ -45,5 +45,5 @@ jobs:
         run: node scripts/test-mobile-payment-shortcut.mjs
       - name: Source typecheck
         run: pnpm exec tsc --noEmit
-      - name: Declare scope: no provider or monetary writes
+      - name: Declare scope without provider or monetary writes
         run: echo 'PASS only synthetic clipboard, mobile source, and TypeScript; no deployment, D1, Stripe or customer contact.'
