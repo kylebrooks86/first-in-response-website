@@ -69,7 +69,7 @@ for(const kind of ['schedule','invoice']){
  eq(f.get('saving'),false);eq(f.get('error'),'Synthetic save failed');eq(f.changedRows.length,0);
  dialog.props.onOpenChange(false);eq(f.closed,1,'Failed save releases dismissal guard');
  pending=deferred();button.props.onClick();eq(sent.length,2,'Failed save releases synchronous request lock');
- pending.resolve({ok:true,json:async()=>kind==='invoice'?{id:'synthetic-invoice'}:{estimate:{id:'save',status:'scheduled',scheduledAt:'2026-10-21T15:45:00.000Z'}}});await flush();eq(f.changedRows.length,1);eq(f.get('saving'),false);
+ pending.resolve({ok:true,json:async()=>kind==='invoice'?{id:'synthetic-invoice',estimateId:'save',customerId:'customer',shareToken:'1234567890abcdef1234567890abcdef'}:{estimate:{id:'save',status:'scheduled',scheduledAt:'2026-10-21T15:45:00.000Z'}}});await flush();eq(f.changedRows.length,1);eq(f.get('saving'),false);
 }
 // A HTTP 200 with the wrong saved job ID, workflow state, or date must
 // NOT change the owner-facing Scheduled badge. The failed response may
@@ -92,6 +92,29 @@ for(const bad of ['missing-id','wrong-id','wrong-status','wrong-date','no-date',
  eq(f.changedRows.length,0,bad+': unverified 200 never updates visible saved job');
  eq(f.get('saving'),false,bad+': spinner clears');
  eq(f.get('error').includes('saved'),true,bad+': owner is told to verify saved job before retry');
+}
+// Actual Create invoice button must refuse a superficially successful
+// response for another job/customer or with no usable invoice share token.
+for(const kind of ['missing-id','wrong-job','wrong-customer','missing-token','bad-token','missing-invoice','malformed-json']){
+  const f=fixture('custom');f.setFetcher(async()=>ok(true,'invoice-owner'));
+  f.open({...job('invoice-owner'),status:'completed'});await flush();
+  const requestBodies=[];
+  f.setFetcher(async(url,options)=>{
+    requestBodies.push({url,body:JSON.parse(options.body)});
+    if(kind==='malformed-json')return{ok:true,json:async()=>{throw Error('Synthetic lost invoice response')}};
+    const result={id:kind==='missing-invoice'?undefined:'invoice-verified',
+      estimateId:kind==='missing-id'?undefined:kind==='wrong-job'?'other-job':'invoice-owner',
+      customerId:kind==='wrong-customer'?'different-customer':'customer',
+      shareToken:kind==='missing-token'?undefined:kind==='bad-token'?'not-a-real-token':'abcdef0123456789abcdef0123456789'};
+    return{ok:true,json:async()=>result};
+  });
+  const button=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity)
+    .some(x=>typeof x==='string'&&x.trim()==='Create invoice'));
+  button.props.onClick();await flush();
+  eq(requestBodies.length,1,kind+': one invoice request');
+  eq(requestBodies[0].body.estimateId,'invoice-owner',kind+': request scoped to selected job');
+  eq(f.changedRows.length,0,kind+': no false invoice-created badge or link');
+  eq(Boolean(f.get('error')?.includes('Close and reopen')),true,kind+': recovery instructs independent saved invoice review');
 }
 for(const hasSavedAppointment of [false,true]){
  const f=fixture();f.setFetcher(async()=>ok(false));
