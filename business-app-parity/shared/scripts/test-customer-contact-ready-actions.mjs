@@ -10,12 +10,20 @@ const source=readFileSync('lib/customer-contact-links.ts','utf8');
 const js=ts.transpileModule(source,{
  compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}
 }).outputText;
-const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness}
+const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness}
  =await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(js));
 let checks=0;
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++};
 const ready=(channel,recipient,body)=>customerMessageHandoffReadiness(channel,recipient,body);
 const linked=(template,subject,body,estimateLink,invoiceLink)=>customerTemplateLinkReadiness(template,subject,body,estimateLink,invoiceLink);
+const appointment=(template,subject,date,status,address)=>customerAppointmentTemplateReadiness(template,subject,date,status,address);
+eq(appointment('General message','','','draft','').ready,true,'Nonappointment templates remain usable without a saved schedule');
+eq(appointment('Appointment on @schedule_date at @service_address','','','approved','Somewhere').ready,false,'Unscheduled approved estimate cannot send a confirmation');
+eq(appointment('Appointment on @schedule_date','','invalid','scheduled','Somewhere').ready,false,'Malformed saved date is not a confirmed appointment');
+eq(appointment('Appointment on @schedule_date','','2026-11-04T16:00:00Z','approved','Somewhere').ready,false,'A date on an unconfirmed approved estimate cannot claim job is scheduled');
+eq(appointment('Appointment on @schedule_date at @service_address','','2026-11-04T16:00:00Z','scheduled','').ready,false,'Scheduled appointment with missing service address blocks a misleading confirmation');
+eq(appointment('Appointment on @schedule_date at @service_address','','2026-11-04T16:00:00Z','scheduled','100 Synthetic St').ready,true,'Confirmed scheduled job and address can prepare original appointment template');
+eq(appointment('Your appointment','','','draft','').ready,true,'Custom reply without date placeholder remains freely available');
 eq(linked('Custom note','','Hi there','','').ready,true,'Custom messages without link placeholders stay free to prepare');
 eq(linked('See @form_link','','See your customer report link','','').ready,false,'Missing real report URL must never be presented as a customer-facing link');
 eq(linked('See @form_link','','Report at https://example.invalid/report','','').ready,false,'Pasting unrelated URL into unresolved placeholder cannot bypass verified report access');
@@ -93,6 +101,10 @@ eq(actual.includes('role="status"'),true,
  'Composer exposes guidance in accessible status text');
 eq(actual.includes('GoogleVoiceTextShortcutAction phone={customer.phone}'),true,
  'Prepared Text still routes through owner-approved Google Voice Shortcut');
+eq(actual.includes('if(!appointmentReadiness.ready){setMessageStatus(appointmentReadiness.reason);return false;}'),true,
+ 'Actual composer refuses unconfirmed saved appointment date before write');
+eq(actual.includes('!appointmentReadiness.ready'),true,
+ 'Actual mobile Copy/Text/Email controls enforce appointment readiness');
 eq(actual.includes('if(!await log("copy"))return;'),true,
  'Copy action saves and verifies owner audit record before modifying clipboard');
 eq(actual.includes('await navigator.clipboard.writeText(body.trim())'),true,
