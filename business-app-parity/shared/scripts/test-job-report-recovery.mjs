@@ -74,7 +74,7 @@ for(const mode of ['no-note','documented']){
  eq(submitted.checklist['Customer walkthrough completed'],false,'Saved row does not falsely say customer walkthrough occurred');
  eq(submitted.checklist['Customer absent — completion documented for follow-up'],true,'Saved row preserves alternative completion evidence');
  eq(f.get('saved'),true,'Actual D1-matching report response allows saved status');
- eq(f.savedCalls,1,'Owner's report completion callback fires exactly once');
+ eq(f.savedCalls,1,'Report completion callback fires exactly once');
 }
 // Legacy six-key completed reports remain readable with their original
 // walkthrough meaning and can be saved as complete without contact-free key.
