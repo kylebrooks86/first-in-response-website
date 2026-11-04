@@ -2320,14 +2320,28 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   if (!estimate) return null;
   const update = async (body: Record<string, unknown>) => {
     if(mutationLock.current)return;
-    mutationLock.current=true;setSaving(true); setError("");
+    mutationLock.current=true;setSaving(true);setError("");
     try {
-      const response = await fetch(`/api/estimates/${estimate.id}`, { method:"PATCH", headers:{"content-type":"application/json"}, body:JSON.stringify(body) });
-      const result = await response.json() as { estimate?: {status:string;scheduledAt?:string|null}; error?:string };
-      if (!response.ok || !result.estimate) throw new Error(result.error || "The estimate could not be updated.");
-      onChanged({ ...estimate, ...result.estimate });
-    } catch (updateError) { setError(updateError instanceof Error ? updateError.message : "The estimate could not be updated."); }
-    finally { mutationLock.current=false;setSaving(false); }
+      const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      const result=await response.json() as {estimate?:{id?:string;status?:string;scheduledAt?:string|null};error?:string;saveUncertain?:boolean};
+      if(!response.ok)throw new Error(result.error||"Job update was not confirmed. Reopen the saved job before trying again.");
+      const saved=result.estimate;
+      // A 200 response alone cannot authorize a Scheduled/Completed badge.
+      // Require the exact selected job ID, expected workflow state and
+      // precise saved date (when requested) before changing the iPhone view.
+      const expectedStatus=body.scheduledAt!==undefined?"scheduled":body.status;
+      const savedDate=saved?.scheduledAt;
+      if(!saved||saved.id!==estimate.id||typeof saved.status!=="string"||
+         (typeof expectedStatus==="string"&&saved.status!==expectedStatus)||
+         (body.scheduledAt!==undefined&&
+           (typeof savedDate!=="string"||!Number.isFinite(Date.parse(savedDate))||
+            Date.parse(savedDate)!==Date.parse(String(body.scheduledAt)))))
+        throw new Error("The saved job response did not verify the selected job, status and appointment. Close and reopen this job to check its saved state before trying again.");
+      onChanged({...estimate,...saved});
+    }catch(updateError){
+      setError((updateError instanceof Error?updateError.message:"Job update could not be confirmed.")+
+        " If the request was interrupted, it may already have saved. Check the job record before repeating it.");
+    }finally{mutationLock.current=false;setSaving(false);}
   };
   const completeJob=async()=>{
     if(closeoutLock.current||mutationLock.current||saving||checkingCloseout)return;
