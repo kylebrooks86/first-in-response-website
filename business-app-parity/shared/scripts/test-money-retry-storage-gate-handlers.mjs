@@ -50,7 +50,7 @@ const makeStorage=(mode,kind)=>{
 };
 function fixture(kind,mode){
  const {store,values,prefix}=makeStorage(mode,kind),calls=[],messages=[],saved=[],events=[];
- const context={exports:{},Math,Number,String,JSON,Boolean,money:c=>'
+ const context={exports:{},Math,Number,String,JSON,Boolean,money:c=>String(c),crypto:{randomUUID:()=>id},
   saveManualPaymentRetry,loadManualPaymentRetry,clearManualPaymentRetry,
   saveRefundRetry,loadRefundRetry,clearRefundRetry,exactMoneyInputCents,
   storage:()=>mode==='missing'?undefined:store,
