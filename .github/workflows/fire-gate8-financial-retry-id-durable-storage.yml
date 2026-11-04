@@ -1,0 +1,46 @@
+name: FIRE Gate8 Financial Retry ID Durable Browser Storage (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/manual-payment-retry-state.ts'
+      - 'business-app-parity/shared/lib/refund-retry-state.ts'
+      - 'business-app-parity/shared/scripts/test-manual-payment-retry-state.mjs'
+      - 'business-app-parity/shared/scripts/test-refund-retry-state.mjs'
+      - 'business-app-parity/shared/scripts/test-money-retry-storage-gate-handlers.mjs'
+      - '.github/workflows/fire-gate8-financial-retry-id-durable-storage.yml'
+permissions:
+  contents: read
+jobs:
+  verify-financial-retry-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile original owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Actual owner payment and refund handlers refuse unpersisted receipt
+        run: node scripts/test-money-retry-storage-gate-handlers.mjs
+      - name: Original payment identity and readback regression
+        run: node scripts/test-manual-payment-retry-state.mjs
+      - name: Original refund identity and readback regression
+        run: node scripts/test-refund-retry-state.mjs
+      - name: Native SQLite payment confirmation regression
+        run: node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
