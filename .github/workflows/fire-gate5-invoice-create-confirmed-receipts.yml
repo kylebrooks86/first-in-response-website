@@ -1,0 +1,40 @@
+name: FIRE Gate5 Invoice Create Confirmed D1 Receipt (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/invoices/route.ts'
+      - 'business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs'
+      - '.github/workflows/fire-gate5-invoice-create-confirmed-receipts.yml'
+permissions:
+  contents: read
+jobs:
+  confirm-final-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned isolated dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Verify actual owner invoice create against disposable SQLite
+        run: node --experimental-sqlite scripts/test-invoice-create-confirmed-sqlite.mjs
+      - name: Regress actual invoice and customer billing totals
+        run: node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+      - name: Regress invoice current computed payment status
+        run: node --experimental-sqlite scripts/test-invoice-current-state.mjs
