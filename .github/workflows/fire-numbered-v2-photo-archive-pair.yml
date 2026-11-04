@@ -7,6 +7,8 @@ on:
       - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
       - 'business-app-parity/shared/scripts/disposable-numbered-v2-photo-restore.py'
       - 'business-app-parity/shared/scripts/test-disposable-numbered-v2-photo-restore.py'
+      - 'business-app-parity/shared/scripts/plan-three-part-numbered-v2-recovery.py'
+      - 'business-app-parity/shared/scripts/test-three-part-numbered-v2-recovery.py'
       - 'business-app-parity/shared/scripts/test-numbered-v2-signed-digests.mjs'
       - 'business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py'
       - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
@@ -21,6 +23,8 @@ on:
       - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
       - 'business-app-parity/shared/scripts/disposable-numbered-v2-photo-restore.py'
       - 'business-app-parity/shared/scripts/test-disposable-numbered-v2-photo-restore.py'
+      - 'business-app-parity/shared/scripts/plan-three-part-numbered-v2-recovery.py'
+      - 'business-app-parity/shared/scripts/test-three-part-numbered-v2-recovery.py'
       - 'business-app-parity/shared/scripts/test-numbered-v2-signed-digests.mjs'
       - 'business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py'
       - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
@@ -57,5 +61,7 @@ jobs:
         run: python3 scripts/test-numbered-v2-photo-pair.py
       - name: Rehearse checksum-verified complete photo bytes into isolated in-memory store only
         run: python3 scripts/test-disposable-numbered-v2-photo-restore.py
+      - name: Verify full numbered core, complete cloud R2 and iPhone-only photo ZIP as three private files
+        run: python3 scripts/test-three-part-numbered-v2-recovery.py
       - name: Reject independently modified signed deposit terms and service scope
         run: node scripts/test-numbered-v2-signed-digests.mjs
