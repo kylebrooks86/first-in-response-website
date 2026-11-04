@@ -1,0 +1,40 @@
+name: FIRE Settings Template Exact UI Receipt (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-template-save-exact-ui-receipt.mjs'
+      - '.github/workflows/fire-template-ui-exact-save-receipt.yml'
+permissions:
+  contents: read
+jobs:
+  verify-template-save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked app dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript check exact owner components
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Confirm actual Settings UI save and restore preserve exact submitted copy
+        run: node scripts/test-template-save-exact-ui-receipt.mjs
+      - name: Confirm D1 saved template and restored default SQLite readbacks
+        run: node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
+      - name: Preserve real template mobile form layout and save guards
+        run: node scripts/test-business-template-compatibility.mjs
