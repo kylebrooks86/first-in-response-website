@@ -22,7 +22,7 @@ const code=ts.transpileModule('exports.save='+saveNode.getText(ast)+';',{
  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
 }).outputText;
 const editor=fn.getText(ast);
-assert.ok(editor.includes('disabled={saving||uncertain||!invoiceHasUnsavedChanges}'),
+assert.ok(editor.includes('disabled={saving||uncertain||invoiceRateInvalid||!invoiceHasUnsavedChanges}'),
  'The iPhone Save invoice action must disable after uncertain outcome');
 assert.ok(editor.includes('Check saved invoice')&&editor.includes('void hydrate()'),
  'Provide read-only server reload rather than a blind repeat financial write');
@@ -36,7 +36,7 @@ function setup(kind){
  const state={uncertain:false,errors:[],saving:[],closed:[],saved:[],requests:[]};
  const context={
   exports:{},saveLock:{current:false},currentInvoice:{current:'invoice/one'},invoiceKey:'invoice/one',
-  loadedInvoice:{current:'invoice/one'},uncertain:false,
+  loadedInvoice:{current:'invoice/one'},uncertain:false,invoiceRateInvalid:false,
   estimate:{id:'estimate-one',invoiceId:'invoice-one'},
   items:[{id:'item-one',name:'Synthetic concrete',description:'Only synthetic',
     quantity:1,unit:'job',unitRateCents:2500}],
