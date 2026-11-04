@@ -71,7 +71,7 @@ function fixture(kind,mode){
   activeManual:{current:null},manualRequestId:{current:null},
   activeRefund:{current:null},
   retryPending:false,reviewedMissing:false,retryConfirmed:false,
-  amount:kind==='pay'?'100.00':'25.00',tip:'',normalized:{totalCents:20000},tipChoice:'0',
+  amount:kind==='pay'?'100.00':'25.00',tip:'',estimate:{id:'estimate-synthetic'},normalized:{totalCents:20000},tipChoice:'0',
   method:'Cash',reference:'',processingFeeCents:null,feeMethod:false,feeValid:true,
   attempt:null,mounted:{current:true},setOpen:()=>{},setOpenSafe:()=>{},
   finishConfirmed:amount=>saved.push(amount),
