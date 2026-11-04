@@ -1,0 +1,38 @@
+name: FIRE Job Report Exact D1 Save Readback (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/job-reports/route.ts'
+      - 'business-app-parity/shared/scripts/test-job-report-saved-readback-sqlite.mjs'
+      - '.github/workflows/fire-job-report-exact-d1-readback.yml'
+permissions:
+  contents: read
+jobs:
+  job-report-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline app dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript-check report owner routes and iPhone screen
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Confirm real report POST/GET, saved D1 readback, lost receipt recovery and legacy history
+        run: node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
+      - name: Preserve actual report checklist and historical six-key owner UI
+        run: node scripts/test-job-report-recovery.mjs
