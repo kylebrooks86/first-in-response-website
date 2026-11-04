@@ -6,7 +6,14 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  const quote=await create('Synthetic Pending Quote'),job=await create('Synthetic Scheduled Job');
  assert.equal((await request('/api/estimates/'+quote.id,'PATCH',{status:'sent'})).status(),200);
  const approval={signedName:customer.name,photoRelease:'no',acceptedTerms:true};
- for(let i=0;i<2;i++)assert.equal((await request('/api/public/estimates/'+job.shareToken+'/accept','POST',approval)).status(),200);
+ const approvalPath='/api/public/estimates/'+job.shareToken+'/accept';
+ // APIRequestContext is not a browser fetch: it does not supply Origin automatically.
+ // Verify the actual customer write protection before sending same-origin synthetic approval.
+ const originalBackup=(await (await request('/api/backup')).json()).tables;
+ assert.equal((await request(approvalPath,'POST',approval)).status(),403,'Missing Origin must not approve');
+ assert.equal((await request(approvalPath,'POST',approval,{origin:'https://foreign.invalid'})).status(),403,'Foreign Origin must not approve');
+ assert.deepEqual((await (await request('/api/backup')).json()).tables,originalBackup,'Rejected cross-origin approvals never write D1');
+ for(let i=0;i<2;i++)assert.equal((await request(approvalPath,'POST',approval,{origin})).status(),200);
  assert.equal((await request('/api/estimates/'+job.id,'PATCH',{scheduledAt:'2026-10-20T15:00:00.000Z'})).status(),200);
  let data=await (await request('/api/customers')).json();let saved=data.estimates.find(row=>row.id===job.id);
  check(saved.status==='scheduled'&&saved.signedAt&&saved.photoRelease==='no'&&data.payments.filter(row=>row.customerId===customer.id).length===0,'Approval/scheduling preserve signature, permission and empty payment ledger');
