@@ -84,7 +84,7 @@ export async function POST(request: Request) {
           Number(existing.appreciationDiscount)!==proof.appreciationDiscount||existing.additionalDiscountType!==proof.additionalDiscountType||Number(existing.additionalDiscountValue)!==proof.additionalDiscountValue)
           return Response.json({error:'This estimate request was already used or the saved quote has changed. Review the saved estimate; no new quote was created.'},{status:409});
         const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
-        const incoming=rawItems.map(item=>({name:String(item.name??'').trim(),description:String(item.description??'').trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??'job').trim()||'job',totalCents:Math.round(Number(item.totalCents))}));
+        const incoming=rawItems.map(item=>({name:String(item.name??'').trim(),description:String(item.description??'').trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??'job').trim()||'job',totalCents:typeof item.totalCents==='number'?item.totalCents:NaN}));
         const savedRows=await env.DB.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC').bind(requestId).all();
         const persisted=savedRows.results.map(row=>({id:String(row.id),name:String(row.name),description:String(row.description),quantity:Number(row.quantity),unit:String(row.unit),totalCents:Number(row.totalCents)}));
         if(persisted.some(row=>!row.id)||new Set(persisted.map(row=>row.id)).size!==persisted.length)
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     let phone = String(body.phone ?? "").trim();
     const address = String(body.address ?? "").trim();
     const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
-    const items=rawItems.map((item)=>({name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:Math.round(Number(item.totalCents))}));
+    const items=rawItems.map((item)=>({name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:typeof item.totalCents==='number'?item.totalCents:NaN}));
     if(!customer||!items.length) return Response.json({error:"Customer and at least one service are required."},{status:400});
     if(items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0)) return Response.json({error:"Every service needs a name, quantity, and valid price."},{status:400});
     const subtotal=items.reduce((sum,item)=>sum+item.totalCents,0);

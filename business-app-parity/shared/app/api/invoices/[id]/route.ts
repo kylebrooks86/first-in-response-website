@@ -62,7 +62,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string}>();
     if(!existing)return Response.json({error:"Invoice not found."},{status:404});
     const items=(Array.isArray(body.items)?body.items:[]) as Record<string,unknown>[];
-    const normalized:InvoiceItem[]=items.map((item)=>({id:String(item.id??"").trim()||undefined,name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:Math.round(Number(item.totalCents))}));
+    const normalized:InvoiceItem[]=items.map((item)=>({id:String(item.id??"").trim()||undefined,name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:typeof item.totalCents==='number'?item.totalCents:NaN}));
     if(!normalized.length||normalized.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return Response.json({error:"Every invoice service needs a name, quantity, and valid price."},{status:400});
     const subtotalCents=normalized.reduce((sum,item)=>sum+item.totalCents,0);
     if(!Number.isSafeInteger(subtotalCents))return Response.json({error:"The invoice total is too large to store safely."},{status:400});
