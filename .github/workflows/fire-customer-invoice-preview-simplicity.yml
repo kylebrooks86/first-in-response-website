@@ -1,0 +1,38 @@
+name: FIRE Customer Invoice Preview Available vs Missing UX (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-customer-invoice-preview-availability.mjs'
+      - '.github/workflows/fire-customer-invoice-preview-simplicity.yml'
+permissions:
+  contents: read
+jobs:
+  verify-truthful-invoice-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned isolated dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile full owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Render actual customer invoice preview JSX with and without token
+        run: node scripts/test-customer-invoice-preview-availability.mjs
+      - name: Regress actual owner section navigation
+        run: node scripts/test-section-navigation.mjs
