@@ -80,3 +80,24 @@ export function customerTemplateLinkReadiness(
  if(requiresInvoice&&!draftBody.includes(invoiceLink))return blocked("Invoice link is missing from this draft. Choose the template again or paste the link.");
  return{ready:true,requiresEstimate,requiresInvoice,reason:""};
 }
+
+/**
+ * A canned appointment confirmation/reminder must come from the actual
+ * selected saved job, not a generic "your scheduled time" fallback. Custom
+ * messages and non-appointment templates are not subject to this gate.
+ */
+export function customerAppointmentTemplateReadiness(
+ templateBody:string,
+ templateSubject:string,
+ scheduledAt:string|null|undefined,
+ status:string|null|undefined,
+ address:string|null|undefined
+):{ready:boolean;reason:string}{
+ const source=templateBody+" "+templateSubject;
+ if(!source.includes("@schedule_date"))return{ready:true,reason:""};
+ if(status!=="scheduled"||!scheduledAt||!Number.isFinite(Date.parse(scheduledAt)))
+  return{ready:false,reason:"Save and confirm this job's appointment date before preparing an appointment confirmation or reminder."};
+ if(source.includes("@service_address")&&!address?.trim())
+  return{ready:false,reason:"Save a service address for this scheduled job before preparing an appointment confirmation."};
+ return{ready:true,reason:""};
+}
