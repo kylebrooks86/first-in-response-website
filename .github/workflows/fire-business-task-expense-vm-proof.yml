@@ -1,0 +1,47 @@
+# Verification-only: actual Business screen VM test from immutable review SHA.
+name: FIRE Business Task Expense Accessibility — Pinned Proof
+on:
+  push:
+    branches:
+      - chat/fire-business-task-expense-vm-proof-2026-11-04
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fire-business-task-expense-vm-proof
+  cancel-in-progress: true
+jobs:
+  business-fields:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_PINNED_SHA: ab46df9744f27db15ae61d9b863787b35c183086
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout fixed review source without token persistence
+        uses: actions/checkout@v4
+        with:
+          ref: ab46df9744f27db15ae61d9b863787b35c183086
+          persist-credentials: false
+      - name: Verify exact reviewed SHA
+        run: test "$(git rev-parse HEAD)" = "$FIRE_PINNED_SHA"
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Run isolated actual Business task and expense UI control checks
+        run: node scripts/test-business-mobile-accessibility.mjs
+      - name: Verify app source TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Confirm no hosted operations
+        run: echo 'PASS disposable source-only checks, no deploy or provider actions.'
