@@ -1791,7 +1791,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
               setPendingCostId(null);setSaveError("");setSaveSuccess("Pending ID cleared after your review. The previous cost was not automatically changed.");
             }}>Clear pending ID after review</Button>
           </div>}
-          {saveSuccess&&!saveError&&<p className="save-success" role="status">{saveSuccess}</p>
+          {saveSuccess&&!saveError&&<p className="save-success" role="status">{saveSuccess}</p>}
           <h3 id={`job-cost-records-${estimate.id}`} className="job-record-heading" tabIndex={-1}>Saved costs ({rows.length})</h3><div className="cost-list" aria-label="Recorded expenses">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div>
         </>}
       </div></div>
