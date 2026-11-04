@@ -52,3 +52,27 @@ export function customerMessageHandoffReadiness(
 export function definitiveUnwrittenMessagePreparation(status:number):boolean{
  return status===400||status===404;
 }
+
+/**
+ * A prepared estimate/invoice notification must include its actual share URL.
+ * Never silently replace @estimate_link or @invoice_link with an empty string
+ * and let the owner prepare a message that cannot open the customer's record.
+ * Custom messages without either placeholder are unaffected.
+ */
+export function customerTemplateLinkReadiness(
+ templateBody:string,
+ templateSubject:string,
+ draftBody:string,
+ estimateLink:string,
+ invoiceLink:string
+):{ready:boolean;requiresEstimate:boolean;requiresInvoice:boolean;reason:string}{
+ const source=templateBody+" "+templateSubject;
+ const requiresEstimate=source.includes("@estimate_link");
+ const requiresInvoice=source.includes("@invoice_link");
+ const blocked=(reason:string)=>({ready:false,requiresEstimate,requiresInvoice,reason});
+ if(requiresEstimate&&!estimateLink)return blocked("Estimate link is not ready. Prepare or retry the link before this message.");
+ if(requiresInvoice&&!invoiceLink)return blocked("Invoice link is not ready. Prepare or retry the link before this message.");
+ if(requiresEstimate&&!draftBody.includes(estimateLink))return blocked("Estimate link is missing from this draft. Choose the template again or paste the link.");
+ if(requiresInvoice&&!draftBody.includes(invoiceLink))return blocked("Invoice link is missing from this draft. Choose the template again or paste the link.");
+ return{ready:true,requiresEstimate,requiresInvoice,reason:""};
+}
