@@ -49,6 +49,7 @@ function d1(overwrite=()=>{}){
   },
   async batch(statements){
    batchCount++;
+   if(statements.length>50)throw Error('Free D1 synthetic 50-query limit exceeded');
    const prior=db.prepare("SELECT COUNT(*) AS n FROM customers").get().n;
    db.exec('BEGIN');
    let result;
@@ -65,7 +66,7 @@ function d1(overwrite=()=>{}){
 try{
  const snapshot=await captureNumberedCoreV2ReadOnly(d1());
  eq(batchCount,1,'Entire schema, serials, counts and all rows captured in ONE batch');
- eq(statementCount,71,'Exactly 71 read-only SELECT/PRAGMA requests prepared');
+ eq(statementCount,49,'Exactly 49 read-only queries stay within D1 Free 50-query limit');
  eq(snapshot.rowCounts.customers,2,'Independent SQL customer count captured');
  eq(snapshot.rowCounts.payment_refunds,1,'Refund audit table captured');
  eq(snapshot.rowCounts.payments,2,'Positive payment and negative refund ledger captured');
@@ -83,11 +84,14 @@ try{
  await reject(d1(result=>{result[0].results.push({name:'unreviewed_business_table'});}), 'New unarchived table fails closed');
  await reject(d1(result=>{result[0].results=result[0].results.filter(r=>r.name!=='fire_job_numbers');}), 'Missing permanent identity SQL table fails closed');
  await reject(d1(result=>{result[1].results.find(r=>r.name==='fire_job_numbers').seq=3;}), 'Consumed permanent Job # serial cannot be reset');
- await reject(d1(result=>{result[2].results=result[2].results.slice(1);}), 'Truncated customers rows detected by independent count');
- await reject(d1(result=>{result[3].results[0].count=99;}), 'Incorrect D1 count fails closed');
+ await reject(d1(result=>{result[3].results=result[3].results.slice(1);}), 'Truncated customers rows detected by independent count');
+ await reject(d1(result=>{result[2].results.find(r=>r.table_name==='customers').count=99;}), 'Incorrect independent D1 count fails closed');
  await reject(d1(result=>{result[4].results=[];}), 'Missing SQL columns cannot generate a plausible archive');
- await reject(d1(result=>{delete result[2].results[0].name;}), 'Truncated original SQL row cannot pass');
+ await reject(d1(result=>{delete result[3].results[0].name;}), 'Truncated original SQL row cannot pass');
  await reject(d1(result=>{result[1].results.push({name:'unexpected_sequence',seq:23});}), 'Unexpected SQLite sequence metadata refused');
+ await reject(d1(result=>{result[2].results.pop();}), 'A missing per-table count in the UNION proof is refused');
+ await reject(d1(result=>{result[2].results.push({...result[2].results[0]});}), 'A duplicate per-table count in the UNION proof is refused');
+ await reject(d1(result=>{result[2].results[0].count=-1;}), 'Invalid negative SQL count fails closed');
  await reject(d1(result=>{result.pop();}), 'Partially returned D1 batch refused');
  db.exec('CREATE TABLE unreviewed_customer_feature (id TEXT PRIMARY KEY)');
  await reject(d1(),'Physical unreviewed source table requires a new archive contract');
