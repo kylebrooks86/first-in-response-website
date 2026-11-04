@@ -4,12 +4,12 @@ export async function exerciseGlobalSearch({page,context,browser,origin,request,
  page.setDefaultTimeout(15000);
  const created=await request('/api/customers','POST',{name:'Synthetic Universal Search Customer',phone:'9185550198',email:'universal-search@example.invalid',address:'456 Synthetic Universal Lane'});assert.equal(created.status(),201);const customer=(await created.json()).customer;
  const made=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Universal Search Gutter Service',description:'Synthetic service only',quantity:1,unit:'job',totalCents:20000}]});assert.equal(made.status(),201);const estimate=await made.json();
- for(const [path,method,body] of [
-  ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'}],
+ for(const [path,method,body,headers] of [
+  ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'},{origin}],
   ['/api/estimates/'+estimate.id,'PATCH',{scheduledAt:'2026-10-25T15:00:00Z'}],
   ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,notes:'Synthetic report'}],
   ['/api/estimates/'+estimate.id,'PATCH',{status:'completed'}],
- ]){const r=await request(path,method,body);assert.ok(r.ok(),await r.text());}
+ ]){const r=await request(path,method,body,headers);assert.ok(r.ok(),await r.text());}
  const inv=await request('/api/invoices','POST',{estimateId:estimate.id});assert.equal(inv.status(),201);const invoice=await inv.json(),number=invoice.id.slice(0,6).toUpperCase();
  const anonymous=await browser.newContext({ignoreHTTPSErrors:true});check((await anonymous.request.get(origin+'/api/search?q='+number)).status()===401,'Global search requires owner auth before disclosing records');await anonymous.close();
  const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, jobs, or addresses',exact:true}),panel=()=>page.getByRole('region',{name:'FIRE search results'}),option=()=>panel().getByRole('option');
