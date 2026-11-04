@@ -39,7 +39,7 @@ function nodes(tree){
   const values=[];function visit(n){if(Array.isArray(n))return n.forEach(visit);if(!n||typeof n!=='object')return;values.push(n);visit(n.props?.children);}visit(tree);return values;
 }
 function fixture(){
-  let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,handler=async()=>ok();const calls=[],navigation=[];
+  let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,handler=async()=>ok(),navigationAccepted=true;const calls=[],navigation=[];
   const context={exports:{},require,...Object.fromEntries([...tags].map(t=>[t,()=>null])),dateTime:v=>v,
     useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
     useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},
@@ -48,10 +48,10 @@ function fixture(){
     fetch:(url,options)=>{calls.push({url,options});return handler(url,options);}
   };
   vm.runInNewContext(code,context);
-  const render=()=>{cursor=0;refCursor=0;return context.exports.view({onNavigate:(...a)=>navigation.push(a)});};
+  const render=()=>{cursor=0;refCursor=0;return context.exports.view({onNavigate:(...a)=>{navigation.push(a);return navigationAccepted;}});};
   const query=()=>nodes(render());
   const get=name=>state[names.indexOf(name)];
-  return {calls,navigation,render,query,get,fetch(fn){handler=fn;},
+  return {calls,navigation,render,query,get,fetch(fn){handler=fn;},allowNavigate(v){navigationAccepted=v;},
     mount(){render();cleanup=effect();},unmount(){cleanup?.();},
     markOne(){const unread=query().find(n=>n.type==='button'&&n.props?.className==='unread');assert.ok(unread,'Unread notification button exists');unread.props.onClick();},
     markAll(){const btn=query().find(n=>n.type==='button'&&n.props?.children==='Mark all as read');assert.ok(btn,'Mark all button exists');btn.props.onClick();},
@@ -59,6 +59,38 @@ function fixture(){
     status(){return query().find(n=>n.props?.role==='status')?.props.children;}
   };
 }
+// A customer may have unfinished notes when tapping a reminder. Canceling
+// the central editor's leave confirmation must keep it unread and accessible.
+{
+ const f=fixture();f.mount();await flush();f.render().props.onOpenChange(true);await flush();
+ f.allowNavigate(false);f.markOne();
+ eq(f.navigation.length,1,'Canceled navigation is attempted once through the central guard');
+ eq(f.calls.filter(c=>c.options?.method==='PATCH').length,0,'Canceled destination cannot mark unread notification read');
+ eq(f.get('unread'),1,'Canceled destination keeps unread badge untouched');
+ eq(f.get('open'),true,'Canceled navigation keeps the bell open');
+ f.allowNavigate(true);
+ let saved=original;
+ f.fetch(async(url,options)=>{
+   if(options?.method==='PATCH'){
+     saved=[{...original[0],readAt:'2026-10-19T23:00:00Z'},original[1]];
+     return {ok:true,json:async()=>({ok:true,readAt:'2026-10-19T23:00:00Z'})};
+   }
+   return {ok:true,json:async()=>({notifications:saved,unread:saved.filter(x=>!x.readAt).length})};
+ });
+ f.markOne();await flush();await flush();
+ eq(f.navigation.length,2,'Owner retry uses normal navigation once the edit guard accepts');
+ eq(f.calls.filter(c=>c.options?.method==='PATCH').length,1,'Accepted navigation produces one explicit read PATCH');
+ eq(f.get('open'),false,'Accepted destination closes the notification bell');
+ eq(f.get('unread'),0,'Only confirmed saved read state clears badge');
+ f.unmount();
+}
+const attention=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='NotificationAttention')?.getText(ast)||'';
+assert.ok(attention.includes('if(accepted)onClose()'),'Attention links do not close if an unsaved editor blocks navigation');
+assert.ok(attention.includes('if(onNavigate("payments"))onClose()'),'Load-older-payments shortcut respects the same guard');
+const dash=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='Dashboard')?.getText(ast)||'';
+assert.ok(dash.includes('if(!setTab(destination))return false;'),'Real dashboard blocks unfinished note/task/template dismissal');
+assert.ok(dash.includes('return true;'),'Real dashboard reports accepted navigation to notification controls');
+
 {
   const f=fixture();f.mount();await flush();
   const toggle=()=>f.query().find(n=>n.type==='button'&&n.props?.className==='notification-activity-toggle');
