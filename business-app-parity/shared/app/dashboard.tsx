@@ -1817,6 +1817,7 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const [submitted,setSubmitted]=useState(false);
+  const [completed,setCompleted]=useState(false);
   const activeRefund=useRef<RefundRetryAttempt|null>(null);
   const refundLock=useRef(false);
   // Safari may reject localStorage in restricted sessions. Keep the same ID at
@@ -1846,6 +1847,7 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
       const retry=previous&&previous.amountCents>0?previous:null;
       if(retry)activeRefund.current=retry;
       setSubmitted(Boolean(retry));
+      setCompleted(false);
       setAmount(((retry?.amountCents??refundable)/100).toFixed(2));
       setNote("");
       setConfirmed(false);
@@ -1882,6 +1884,7 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
       if(!result.ok)throw new Error("Refund confirmation is incomplete. Review history before attempting another refund.");
       // Only a verified completed acknowledgement clears the persisted ID.
       clearRefundRetry(storage(),payment.id);activeRefund.current=null;
+      setCompleted(true);
       setMessage(stripe?"Stripe refund completed and FIRE billing was updated.":"Manual refund recorded and FIRE billing was updated.");
       onRefunded?.();
       window.setTimeout(()=>setOpen(false),450);
@@ -1896,10 +1899,10 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
         <p className="payment-estimate-summary"><strong>{payment.customer||"Customer"}</strong><br/><span>{money(refundable)} still refundable from this {paymentTypeLabel(payment.type)} payment.</span></p>
         <div><Label htmlFor={"refund-amount-"+payment.id}>Refund amount</Label><Input id={"refund-amount-"+payment.id} disabled={submitted} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>
         <div><Label htmlFor={"refund-note-"+payment.id}>Refund note</Label><Input id={"refund-note-"+payment.id} disabled={submitted} value={note} onChange={(event)=>setNote(event.target.value)} placeholder="Reason or internal note"/></div>
-        {stripe?<p className="pay-note"><strong>Stripe payment:</strong> FIRE will submit this refund to Stripe and automatically record the refund when Stripe confirms it.</p>:<label className="payment-refund-confirm"><input type="checkbox" disabled={submitted} checked={confirmed} onChange={(event)=>setConfirmed(event.target.checked)}/><span>I already returned this money outside FIRE using the original payment method.</span></label>}
+        {stripe?<p className="pay-note"><strong>Stripe payment:</strong> FIRE will submit this refund to Stripe and automatically record the refund when Stripe confirms it.</p>:<label className="payment-refund-confirm"><input type="checkbox" disabled={saving||completed} checked={confirmed} onChange={(event)=>setConfirmed(event.target.checked)}/><span>I already returned this money outside FIRE using the original payment method.</span></label>}
         {error&&<p className="save-error" role="alert">{error}</p>}
-        {message&&<p className="save-success" role="status">{message}</p>}
-        <Button className="brand-button" onClick={()=>void submit()} disabled={saving}>{saving?"Processing…":stripe?(exactMoneyInputCents(amount)===null?"Enter valid refund":`Refund ${money(exactMoneyInputCents(amount)!)} through Stripe`):"Record completed refund"}</Button>
+        {message&&<p className={completed?"save-success":"pay-note"} role="status">{message}</p>}
+        <Button className="brand-button" onClick={()=>void submit()} disabled={saving||completed}>{saving?"Processing…":completed?"Refund confirmed":submitted?(stripe?"Check / resume original Stripe refund":"Check / resume original manual refund"):stripe?(exactMoneyInputCents(amount)===null?"Enter valid refund":`Refund ${money(exactMoneyInputCents(amount)!)} through Stripe`):"Record completed refund"}</Button>
       </div>
     </DialogContent>
   </Dialog>;
