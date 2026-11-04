@@ -13,6 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   let guardedSchedule=false;
   let estimateWriteAttempted=false;
+  let statusWriteAttempted=false;
   try {
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
@@ -134,8 +135,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     if(statements.length){
       estimateWriteAttempted=Array.isArray(body.items);
+      statusWriteAttempted=changingStatus;
       const results=await env.DB.batch(statements);
       if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'Deposit, payment or approval changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});
+      if(changingStatus){
+        // Status and appointment updates previously echoed the attempted
+        // values without independently inspecting the saved D1 row. A
+        // nonthrowing zero-write batch, lost receipt or conflicting read can
+        // make a job appear Scheduled/Completed when it never changed.
+        const uncertainStatus=()=>Response.json({
+          error:'Job status or schedule save could not be verified. Reopen this job and review the saved status before another change.',
+          saveUncertain:true
+        },{status:503,headers:{'Cache-Control':'no-store, private'}});
+        const receipt=results[statements.length-1] as {success?:boolean;meta?:{changes?:number}}|undefined;
+        if(!Array.isArray(results)||results.length!==statements.length||
+          !receipt||receipt.success===false||receipt.meta?.changes===0)return uncertainStatus();
+        const saved=await env.DB.prepare('SELECT id,status,scheduled_at AS scheduledAt FROM estimates WHERE id=?')
+          .bind(id).first<{id:string;status:string;scheduledAt:string|null}>();
+        if(!saved||saved.id!==id||saved.status!==responseFields.status||
+          (saved.scheduledAt??null)!==(responseFields.scheduledAt??null))return uncertainStatus();
+        responseFields={...responseFields,status:saved.status,scheduledAt:saved.scheduledAt??null};
+      }
       if(estimateWriteAttempted){
         const uncertain=()=>Response.json({error:'Estimate save confirmation is uncertain. Reopen the saved estimate and check its services and amounts before another edit.',saveUncertain:true},
           {status:503,headers:{'Cache-Control':'no-store, private'}});
@@ -166,8 +186,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     return Response.json({ estimate: responseFields },{headers:{'Cache-Control':'no-store, private'}});
   } catch {
-    if(guardedSchedule)return Response.json({error:'Schedule confirmation is uncertain. Refresh the job before another attempt; the schedule may already have saved. No payment was initiated.',saveUncertain:true},{status:503});
+    if(guardedSchedule)return Response.json({error:'Schedule confirmation is uncertain. Refresh the job before another attempt; the schedule may already have saved. No payment was initiated.',saveUncertain:true},{status:503,headers:{'Cache-Control':'no-store, private'}});
     if(estimateWriteAttempted)return Response.json({error:'Estimate save confirmation is unavailable. Reopen the saved estimate and verify its services and amounts before retrying.',saveUncertain:true},{status:503,headers:{'Cache-Control':'no-store, private'}});
+    if(statusWriteAttempted)return Response.json({error:'Job status confirmation is unavailable. Reopen the job and check its saved status before retrying.',saveUncertain:true},{status:503,headers:{'Cache-Control':'no-store, private'}});
     return Response.json({ error: "We couldn't update this estimate. Please try again." }, { status: 500 });
   }
 }

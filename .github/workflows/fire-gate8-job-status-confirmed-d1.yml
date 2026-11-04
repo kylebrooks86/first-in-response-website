@@ -1,0 +1,38 @@
+name: FIRE Gate8 Job Status and Schedule D1 Readback (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/[id]/route.ts'
+      - 'business-app-parity/shared/scripts/test-job-status-confirmed-readback-sqlite.mjs'
+      - '.github/workflows/fire-gate8-job-status-confirmed-d1.yml'
+permissions:
+  contents: read
+jobs:
+  verify-job-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned isolated dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Compile existing owner app
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Confirm status, appointment and exact saved D1 readback
+        run: node --experimental-sqlite scripts/test-job-status-confirmed-readback-sqlite.mjs
+      - name: Regress original signed job schedule, invoice, and deposit policy
+        run: node --experimental-sqlite scripts/test-deposit-policy-workflow.mjs
