@@ -46,9 +46,53 @@ for(const mutate of [()=>undefined,r=>({...r,estimateId:'other'}),r=>({...r,cust
 }
 {
  const f=fixture();f.setFetcher(async()=>ok([]));f.open();await flush();
- for(const checkbox of nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox'))checkbox.props.onChange();
+ for(const checkbox of nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox').slice(0,6))checkbox.props.onChange();
  f.setPost(async body=>({ok:true,json:async()=>({report:{...body,id:'completed-report',checklist:JSON.stringify(body.checklist),status:'completed'}})}));
  nodes(f.render()).find(n=>n.props?.children==='Save completed report').props.onClick();await flush();
  eq(f.get('saved'),true,'Completed report requires matching server confirmation');eq(f.savedCalls,1);eq(f.get('saving'),false);
+}
+// Contact-free service completion is NOT a claim the customer attended.
+// Both alternatives use the same historical JSON checklist without migration.
+for(const mode of ['no-note','documented']){
+ const f=fixture();f.setFetcher(async()=>ok([]));f.open();await flush();
+ const boxes=nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox');
+ eq(boxes.length,7,'Owner sees original six checks plus explicit contact-free alternative');
+ for(const box of boxes.slice(0,5))box.props.onChange();
+ boxes.at(-1).props.onChange();
+ eq(f.get('checks').includes('Customer walkthrough completed'),false,'Absent-customer choice never asserts customer walkthrough');
+ eq(f.get('checks').includes('Customer absent — completion documented for follow-up'),true,'Distinct saved contact-free checklist key');
+ let button=nodes(f.render()).find(n=>n.props?.children==='Save draft report');assert.ok(button);
+ if(mode==='documented'){
+  const note=nodes(f.render()).find(n=>n.props?.placeholder?.startsWith('Condition,'));
+  assert.ok(note);note.props.onChange({target:{value:'Customer was not home; final photos captured and work noted for later follow-up.'}});
+  button=nodes(f.render()).find(n=>n.props?.children==='Save completed report');assert.ok(button);
+ }
+ let submitted;
+ f.setPost(async body=>{submitted=body;return{ok:true,json:async()=>({report:{...body,id:'owner-contact-free-report',checklist:JSON.stringify(body.checklist),status:body.status==='complete'?'completed':'draft'}})};});
+ button.props.onClick();await flush();
+ eq(submitted.status,mode==='documented'?'complete':'draft','Contact-free requires actual technician note before completed status');
+ eq(submitted.checklist['Customer walkthrough completed'],false,'Saved row does not falsely say customer walkthrough occurred');
+ eq(submitted.checklist['Customer absent — completion documented for follow-up'],true,'Saved row preserves alternative completion evidence');
+ eq(f.get('saved'),true,'Actual D1-matching report response allows saved status');
+ eq(f.savedCalls,1,'Report completion callback fires exactly once');
+}
+// Legacy six-key completed reports remain readable with their original
+// walkthrough meaning and can be saved as complete without contact-free key.
+{
+ const f=fixture();const existing=Object.fromEntries(['Property condition documented','Before photos captured','Plants and fragile areas protected','Service completed as quoted','After photos captured','Customer walkthrough completed'].map(item=>[item,true]));
+ f.setFetcher(async()=>ok([{...report('first'),checklist:JSON.stringify(existing)}]));f.open();await flush();
+ eq(f.get('checks').length,6,'Legacy saved six-checkbox report retains checked state');
+ eq(f.get('checks').includes('Customer absent — completion documented for follow-up'),false,'Legacy history does not imply customer absence');
+ eq(Boolean(nodes(f.render()).find(n=>n.props?.children==='Save completed report')),true,'Legacy completed report remains eligible for saved completion');
+}
+{
+ const f=fixture();f.setFetcher(async()=>ok([]));f.open();await flush();
+ const boxes=nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox');
+ for(const b of boxes.slice(0,6))b.props.onChange();
+ nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox').at(-1).props.onChange();
+ eq(f.get('checks').includes('Customer walkthrough completed'),false,'Switching to no-customer path removes walkthrough claim');
+ eq(f.get('checks').includes('Customer absent — completion documented for follow-up'),true,'Switching paths keeps alternative only');
+ nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox')[5].props.onChange();
+ eq(f.get('checks').includes('Customer absent — completion documented for follow-up'),false,'Switching back to walkthrough removes contact-free marker');
 }
 console.log(`PASS ${checks}/${checks}: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET/POST mocks only; save locking, dismissal, field freeze and failure recovery.`);

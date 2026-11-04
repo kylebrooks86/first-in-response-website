@@ -13,7 +13,15 @@ export async function exerciseJobCloseout({page,context,origin,request,check,mut
  await open();let detail=page.getByRole('dialog',{name:'Synthetic Closeout Service',exact:true});
  check(await detail.getByRole('button',{name:'Complete report first',exact:true}).isDisabled(),'Job completion is gated by saved service report');
  await detail.getByRole('button',{name:'Job report',exact:true}).click();const report=page.getByRole('dialog',{name:'Service completion report',exact:true});
- await report.getByRole('group',{name:'Completion checklist'}).waitFor();for(const box of await report.getByRole('checkbox').all())await box.check();await report.getByLabel('Technician notes',{exact:true}).fill('Synthetic closeout report. No actual customer work.');
+ await report.getByRole('group',{name:'Completion checklist'}).waitFor();
+ const reportBoxes=await report.getByRole('checkbox').all();
+ assert.equal(reportBoxes.length,7,'Five job steps and two honest final handoff choices');
+ for(const box of reportBoxes.slice(0,5))await box.check();
+ await reportBoxes[6].check();
+ check(!(await reportBoxes[5].isChecked()),'Contact-free service does not claim customer walkthrough');
+ check(await report.getByRole('button',{name:'Save draft report',exact:true}).count()===1,
+  'Customer-not-present report must request technician notes before completion');
+ await report.getByLabel('Technician notes',{exact:true}).fill('Synthetic customer not home. After photos documented; completion available for later follow-up. No actual customer work.');
  await report.getByRole('button',{name:'Save completed report',exact:true}).click();await report.getByRole('status').filter({hasText:'Job report saved.'}).waitFor();await report.getByRole('button',{name:'Close',exact:true}).click();
  await detail.getByRole('button',{name:'Mark job complete',exact:true}).click();await detail.getByRole('button',{name:'Create invoice',exact:true}).waitFor();
  check(await detail.getByRole('button',{name:'Request review',exact:true}).count()===0,'Completed job with only deposit offers no review shortcut');

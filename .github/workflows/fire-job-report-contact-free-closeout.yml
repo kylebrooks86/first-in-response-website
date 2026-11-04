@@ -1,0 +1,39 @@
+name: FIRE Job Report Contact-Free Closeout (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-job-report-recovery.mjs'
+      - 'business-app-parity/shared/scripts/test-job-closeout-workflow.mjs'
+      - '.github/workflows/fire-job-report-contact-free-closeout.yml'
+permissions:
+  contents: read
+jobs:
+  report-closeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned app dependencies without hosted changes
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript compile existing owner screens and APIs
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Actual JobReport React callback and saved legacy checklist recovery tests
+        run: node scripts/test-job-report-recovery.mjs
+      - name: Preserve JobReport and JobCost compact iPhone layouts
+        run: node scripts/test-job-tools-mobile-save.mjs
