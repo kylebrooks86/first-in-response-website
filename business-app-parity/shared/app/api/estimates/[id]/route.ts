@@ -51,7 +51,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         description:String(item.description??"").trim().slice(0,5000),
         quantity:Number(item.quantity),
         unit:String(item.unit??"job").trim()||"job",
-        totalCents:Math.round(Number(item.totalCents)),
+        totalCents:typeof item.totalCents==='number'?item.totalCents:NaN,
       }));
       if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return Response.json({error:"Every service needs a name, quantity, and valid price."},{status:400});
       // Generate the exact database IDs before the atomic batch. Never return
