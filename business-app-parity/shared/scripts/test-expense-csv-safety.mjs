@@ -24,8 +24,11 @@ assert.ok(owner,'Original owner guard remains');
 let authorized=true;
 const auth=async()=>authorized?{email:owner}:null;
 const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const expenseDateCode=ts.transpileModule(readFileSync('lib/expense-date.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const expenseDates={exports:{},Intl,Date,Number};
+vm.runInNewContext(expenseDateCode,expenseDates);
 const context={exports:{},Response,Request,URL,Date,Number,String,JSON,
- require(id){if(id==='cloudflare:workers')return {env:{DB:backing}};if(id==='../../chatgpt-auth')return {getChatGPTUser:auth};throw Error('Unexpected import '+id);}
+ require(id){if(id==='cloudflare:workers')return {env:{DB:backing}};if(id==='../../chatgpt-auth')return {getChatGPTUser:auth};if(id==='../../../lib/expense-date')return expenseDates.exports;throw Error('Unexpected import '+id);}
 };
 vm.runInNewContext(compiled,context);
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
@@ -101,8 +104,32 @@ eq(priorRows[1][3],'4.75','Prior-year amount uses precise saved cents');
 eq((await context.exports.GET(new Request(url+'&year=202A'))).status,400,'Malformed year refuses CSV instead of defaulting to another year');
 eq((await context.exports.GET(new Request(url+'&year=1800'))).status,400,'Unsupported century refuses year selection');
 eq((await context.exports.GET(new Request('https://synthetic.invalid/api/expenses'))).status,200,'Tax-year export never changes the default JSON list');
+// A Tulsa purchase at 10:30 PM December 31, 2026 is January 1 in UTC.
+for(const [id,time,cents] of [
+ ['late-tulsa-dec31','2027-01-01T04:30:00.000Z',5000],
+ ['local-new-year','2027-01-01T06:30:00.000Z',6000],
+ ['selected-dec31','2026-12-31T12:00:00.000Z',7000]
+])database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run(id,null,'Supplies',id,cents,time,time);
+const twoYears2026=parseCSV(await (await context.exports.GET(new Request(url+'&year=2026'))).text());
+eq(twoYears2026.length,5,'2026 tax export includes both December 31 purchases, including UTC Jan 1 at 10:30pm Tulsa');
+eq(twoYears2026.slice(1).some(row=>row[2]==='late-tulsa-dec31'&&row[0]==='2026-12-31'&&row[3]==='50.00'),true,'Late Tulsa December purchase is dated Dec 31, not UTC January 1');
+eq(twoYears2026.slice(1).some(row=>row[2]==='selected-dec31'&&row[0]==='2026-12-31'),true,'Backdated selected Dec 31 remains in year');
+eq(twoYears2026.some(row=>row.includes('local-new-year')),false,'True local Jan 1 not included in previous tax year');
+const twoYears2027=parseCSV(await (await context.exports.GET(new Request(url+'&year=2027'))).text());
+eq(twoYears2027.length,2,'2027 export contains only actual January 1 Tulsa expense');
+eq(twoYears2027[1][2],'local-new-year','Local new-year expense selected');
+eq(twoYears2027[1][0],'2027-01-01','Wave CSV uses owner January 1 date');
+const rawAfter=await (await context.exports.GET(new Request('https://synthetic.invalid/api/expenses'))).json();
+eq(rawAfter.expenses.find(row=>row.id==='late-tulsa-dec31').incurredAt,'2027-01-01T04:30:00.000Z','No UTC source timestamp is rewritten by export');
+database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('bad-tax-date',null,'Supplies','unverifiable',200,'bad-date','bad-date');
+const invalidDate=await context.exports.GET(new Request(url+'&year=2026'));
+eq(invalidDate.status,503,'Unverifiable saved date refuses incomplete year export, not a misleading omission');
+eq(invalidDate.headers.get('cache-control'),'private, no-store','Rejected financial export is private');
+database.exec("DELETE FROM expenses WHERE id IN ('late-tulsa-dec31','local-new-year','selected-dec31','bad-tax-date')");
 const pageSource=readFileSync('app/dashboard.tsx','utf8');
 eq(pageSource.includes('business-tax-prep')&&pageSource.includes('taxExpenses')&&pageSource.includes('api/expenses?format=csv&year='),true,'Business tax prep uses existing expense history and yearly Wave export');
+eq(pageSource.includes('expenseBusinessDay(item.incurredAt)?.slice(0,4)===taxYear'),true,'Visible Business tax summary groups records by shared Tulsa owner year');
+eq(pageSource.includes('expenseBusinessDateLabel(row.incurredAt)'),true,'Business expense row date comes from same validated Tulsa calendar helper');
 authorized=false;
 const denied=await context.exports.GET(new Request(url));
 eq(denied.status,401,'Unauthenticated export rejected');
