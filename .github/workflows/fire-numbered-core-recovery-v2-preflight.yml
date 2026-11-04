@@ -4,6 +4,11 @@ on:
     branches: [work/fire-mobile-contact-consolidation-2026-10-31]
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
+      - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-review-export.mjs'
       - 'business-app-parity/shared/lib/disposable-numbered-v2-restore.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
@@ -17,6 +22,11 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
+      - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-review-export.mjs'
       - 'business-app-parity/shared/lib/disposable-numbered-v2-restore.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
@@ -54,5 +64,9 @@ jobs:
         run: node --experimental-sqlite scripts/test-numbered-records-v2-preflight.mjs
       - name: Reject newly added durable QA tables not represented in recovery
         run: node scripts/test-numbered-v2-schema-coverage.mjs
+      - name: Prove review export is disabled by default and only owner can capture core records
+        run: node scripts/test-numbered-v2-review-export.mjs
+      - name: Rehearse one-transaction read-only D1 v2 snapshot and disposable restore
+        run: node --experimental-sqlite scripts/test-numbered-v2-d1-snapshot.mjs
       - name: Prove full 25-SQL SQLite recovery, interruption rollback, and original serial high-water
         run: node --experimental-sqlite scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs
