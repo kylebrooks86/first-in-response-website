@@ -17,14 +17,15 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{MessageSquareText,Copy,ExternalLink,Mail,Send}from'lucide-react';
 import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';
-import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
+import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
 const money=n=>'$'+(n/100).toFixed(2),dateTime=v=>v,reviewLink='https://example.invalid/review',resolvedBillingTotalCents=e=>e.totalCents,billingBalanceCents=e=>e.totalCents;
 ${composer.getText(ast)}
 const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
-createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/></main>);`;
+const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer.name,service:'House Wash',totalCents:12300,invoiceId:null,shareToken:'',invoiceShareToken:''};
+createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false;const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
@@ -40,7 +41,12 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false;c
   let body='';for await(const chunk of req)body+=chunk;const data=JSON.parse(body);requests.push(data);
   return res.end(JSON.stringify({message:{...data,body:data.body.trim(),id:'owner-message-prep:'+data.requestId,createdAt:'2026-10-30T12:00:00Z'}}));
  }
- if(req.url==='/api/message-templates'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({templates:[]}));}
+ if(req.url==='/api/estimates/synthetic-estimate/share'){
+  shareRequests++;res.setHeader('content-type','application/json');
+  if(denyShare){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic link unavailable'}));}
+  return res.end(JSON.stringify({shareToken:'synthetic-verified-link'}));
+ }
+ if(req.url==='/api/message-templates'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({templates:[{key:'estimate',name:'Estimate ready',category:'Estimates',channel:'both',subject:'Your estimate',body:'Hello @customer_first_name, review your estimate: @estimate_link'}]}));}
  if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
  res.statusCode=404;res.end();
 });
@@ -96,6 +102,29 @@ try{
   check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
+ // A saved Estimate ready template may not be prepared with a blank link.
+ // Force the real share endpoint to fail, then recover through owner Retry.
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Estimate notice',exact:true}).click();
+ const linked=page.getByRole('dialog',{name:'Message',exact:true});
+ await linked.getByText('Estimate link unavailable. Retry before preparing this message.',{exact:true}).waitFor();
+ check(await linked.getByRole('button',{name:'Text',exact:true}).isDisabled(),
+   'Share API failure prevents actual Google Voice estimate text preparation');
+ check(await linked.getByRole('button',{name:'Copy',exact:true}).isDisabled(),
+   'Share API failure also blocks copying a useless no-link estimate');
+ const callsBefore=shareRequests;
+ denyShare=false;
+ await linked.getByRole('button',{name:'Retry link',exact:true}).click();
+ await page.waitForFunction(()=>Array.from(document.querySelectorAll('[role=dialog] textarea')).some(e=>e.value.includes('/estimate/synthetic-verified-link')));
+ check(shareRequests===callsBefore+1,
+   'Owner Retry requests the same saved customer estimate link exactly once');
+ check(await linked.getByRole('button',{name:'Text',exact:true}).isEnabled(),
+   'Actual verified URL restores Google Voice Text readiness');
+ const beforeLinkedMessage=requests.length;
+ await linked.getByRole('button',{name:'Text',exact:true}).click();
+ await linked.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
+ check(requests.length===beforeLinkedMessage+1&&requests.at(-1).body.includes('/estimate/synthetic-verified-link'),
+   'Prepared message now contains the exact saved estimate URL; no automatic send');
  // Auth can expire while a message modal is open. The explicit 401 comes
  // before any DB write, so it must not strand an immutable pending-operation
  // lock or mislabel the draft as sent. Real unknown 5xx/timeout stays locked.
