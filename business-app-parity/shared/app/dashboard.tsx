@@ -2339,11 +2339,13 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   const balanceCents=Math.max(0,billingTotalCents-estimate.paidCents);
   const resolveOverpayment=async(resolutionMode:"refund"|"keep")=>{
     if(mutationLock.current||closeoutLock.current)return;
+    const refundAmountCents=resolutionMode==="refund"?exactMoneyInputCents(refundAmount):undefined;
+    if(resolutionMode==="refund"&&(refundAmountCents===null||refundAmountCents===undefined||refundAmountCents<=0)){
+      setError("Enter the refund already issued, using no more than two decimal places.");
+      return; // Invalid input never sent a request; do not warn about a lost write.
+    }
     mutationLock.current=true;setSaving(true);setError("");
     try{
-      const refundAmountCents=resolutionMode==="refund"?exactMoneyInputCents(refundAmount):undefined;
-      if(resolutionMode==="refund"&&(refundAmountCents===null||refundAmountCents===undefined||refundAmountCents<=0))
-        throw new Error("Enter the refund you already issued in dollars, using no more than two decimal places.");
       const response=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({
         estimateId:estimate.id,resolveOverpayment:true,reconciliationHandled:true,resolutionMode,refundAmountCents
       })});
