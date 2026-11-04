@@ -80,8 +80,8 @@ for(const [name,receipt]of [
 }
 {
  const f=fixture({server:new Error('Synthetic lost reply')});await f.run();
- check(f.messages.at(-1).includes('Synthetic lost reply')&&f.draft.body===custom.body,
-  'Lost-ack response preserves exact unsaved copy');
+ check(f.messages.at(-1).includes('Template save could not be verified')&&f.draft.body===custom.body,
+  'Cross-realm simulated lost reply preserves exact unsaved copy and safe fallback');
 }
 {
  const f=fixture({server:estimate});await f.run(true);
