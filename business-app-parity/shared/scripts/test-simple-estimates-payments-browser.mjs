@@ -91,7 +91,11 @@ try{
  for(const width of [320,375,390,430,768,1366]){
   await page.setViewportSize({width,height:844});await page.goto(origin);
   const metrics=page.locator('.payments-primary-metrics');
-  check(await metrics.locator('article').count()===3,width+': all three actual Payments totals render');
+  // createRoot schedules rendering after the module has loaded. Wait for the real
+  // third Payments metric, never accept a missing or partial render as success.
+  // If the app actually throws, include the page error in the failing assertion.
+  await metrics.locator('article').nth(2).waitFor({state:'visible',timeout:5000}).catch(()=>{});
+  check(await metrics.locator('article').count()===3,width+': all three actual Payments totals render'+(errors.length?' (JS: '+errors.join('; ')+')':''));
   const cardGeometry=await metrics.evaluate(n=>{const outer=n.getBoundingClientRect(),cards=[...n.querySelectorAll('article')].map(el=>el.getBoundingClientRect());return{left:outer.left,right:outer.right,cards:cards.map(r=>({left:r.left,right:r.right}))};});
   check(cardGeometry.cards.every(r=>r.left>=cardGeometry.left-1&&r.right<=cardGeometry.right+1),width+': no Payments total clips offscreen');
   if(width>=351&&width<=760)check(cardGeometry.cards[2].right>=cardGeometry.right-2&&cardGeometry.cards[2].left<=cardGeometry.left+2,width+': final Payments total fills mobile width');
