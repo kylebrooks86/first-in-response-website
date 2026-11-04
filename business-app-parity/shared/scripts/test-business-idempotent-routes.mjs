@@ -5,6 +5,7 @@ import {randomUUID} from 'node:crypto';
 import vm from 'node:vm';
 import {DatabaseSync} from 'node:sqlite';
 import ts from 'typescript';
+import * as expenseDate from '../lib/expense-date.ts';
 
 const database=new DatabaseSync(':memory:');
 database.exec(`
@@ -34,6 +35,7 @@ function route(file){
  const js=ts.transpileModule(content,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
  const ctx={exports:{},Response,Request,URL,Date,Number,String,JSON,crypto:{randomUUID},
  require:(id)=>{
+  if(id==='../../../lib/expense-date')return expenseDate;
   if(id==='cloudflare:workers')return {env:{DB:db}};
   if(id==='../../chatgpt-auth')return {getChatGPTUser};
   throw Error('Unexpected module '+id);

@@ -23,6 +23,8 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{FIRE_SERVICES as services,serviceDescriptionFor}from'./lib/fire-services';
+import{estimateServicePickerOptions}from'./lib/estimate-service-picker-options';
+import{exactMoneyInputCents}from'./lib/exact-money-input';
 import{useEstimateBundleDiscount}from'./components/estimate-bundle-discount';
 import{useServicePricing}from'./components/service-pricing';import{EstimateLinePricing}from'./components/estimate-line-pricing';
 import{editMoneyLine,editableLineTotalCents,restoreEditableLineMoney,validEditablePrice}from'./lib/editable-line-totals';
@@ -44,6 +46,7 @@ const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);}
  else if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(compiled.css);}
  else if(req.url==='/api/estimates/synthetic-editor-only/discounts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({estimateId:'synthetic-editor-only',totalCents:20000,bundleDiscountCents:0}));}
+ else if(req.url==='/api/estimate-history?focus=synthetic-editor-only'){res.setHeader('content-type','application/json');res.end(JSON.stringify({estimates:[{id:'synthetic-editor-only',customerId:'synthetic-editor-customer',subtotalCents:20000,totalCents:20000,discountCents:0,depositCents:10000,items:Array.from({length:16},(_,i)=>({id:'item-'+i,name:FIRE_SERVICES[0].name,description:'Synthetic unchanged saved service',quantity:1,unit:'job',totalCents:1250}))}]}));}
  else if(req.url==='/api/service-pricing'){res.setHeader('content-type','application/json');res.end(JSON.stringify({rates:FIRE_SERVICES.map(s=>({id:s.id,rateCents:s.rate,revision:null}))}));}
  else if(req.url==='/api/estimates/synthetic-editor-only'&&req.method==='PATCH'){patches++;let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);assert.equal(data.items.reduce((sum,i)=>sum+i.totalCents,0),20000);res.writeHead(saveStatus,{'content-type':'application/json'});res.end(JSON.stringify(saveStatus===200?{estimate:{id:'synthetic-editor-only',totalCents:20000,subtotalCents:20000,discountCents:0,depositCents:10000,bundleDiscountCents:0,items:data.items.map((item,i)=>({...item,id:item.id||'saved-synthetic-'+i}))}}:{error:'Synthetic save unavailable; draft retained'}));});}
  else if(req.url==='/api/invoices/synthetic-invoice'&&req.method==='GET'){
@@ -59,14 +62,14 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const origin=`http://127.0.0.1:${server.address().port}`;let browser,checks=0;const errors=[],outside=[];
 try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
- const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async dialog=>{if(dialog.type()!=='confirm'||!['Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged.','The last estimate save may already have committed. Closing discards only local editor entries. Check the saved estimate before another edit. Close?'].includes(dialog.message())){errors.push('Unexpected dialog: '+dialog.message());await dialog.dismiss();return;}await dialog.accept();});
  await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
  const check=(ok,label)=>{assert.ok(ok,label);checks++;}; page.setDefaultTimeout(5000);
  for(const [width,height]of [[320,568],[375,667],[390,844],[430,932],[760,900],[768,1024],[1024,800],[667,375]])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
   const trigger=page.getByRole('button',{name:'Edit estimate',exact:true});await trigger.click({timeout:5000});
   const dialog=page.locator('.estimate-edit-dialog'),scroll=dialog.locator('.estimate-edit-scroll-area'),close=dialog.getByRole('button',{name:'Close',exact:true}),save=dialog.getByRole('button',{name:'Save estimate changes'});
-  await save.waitFor();await page.waitForTimeout(250);
+  await save.waitFor();check(await save.isDisabled(),'Unchanged estimate cannot submit a no-op save');await dialog.locator('textarea').last().fill('Synthetic edited draft preserved');await page.waitForFunction(()=>!document.querySelector('.estimate-edit-modal-footer .brand-button')?.disabled);await page.waitForTimeout(250);
   const geometry=await dialog.evaluate(n=>{const r=n.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,translate:getComputedStyle(n).translate,transform:getComputedStyle(n).transform};});
   check(geometry.left>=-1&&geometry.right<=width+1&&geometry.top>=-1&&geometry.bottom<=height+1,`${width}/${height}/${theme}: actual Radix bounds ${JSON.stringify(geometry)}`);
   check(Math.abs((geometry.left+geometry.right)/2-width/2)<2,'Horizontally centered actual portal');
@@ -91,7 +94,7 @@ try{
  }
  await save.click();await dialog.getByRole('alert').waitFor();check(await dialog.getByRole('alert').innerText()==='Synthetic save unavailable; draft retained','Failed save keeps editor and error');
  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});check(await page.getByRole('heading',{name:'Synthetic $200 estimate'}).isVisible(),'Escape closes only nested editor');
- await page.getByRole('button',{name:'Edit estimate',exact:true}).click();saveStatus=200;await save.click();await dialog.waitFor({state:'detached'});check(await page.evaluate(()=>window.savedEstimate?.totalCents)===20000,'Successful synthetic save preserves $200 total');
+ await page.getByRole('button',{name:'Edit estimate',exact:true}).click();check(await save.isDisabled(),'Uncertain save stays blocked after reopen');await dialog.getByRole('button',{name:'Check saved estimate',exact:true}).click();await dialog.waitFor({state:'detached'});check(patches===1,'Saved-state recovery is GET only');await page.getByRole('button',{name:'Edit estimate',exact:true}).click();saveStatus=200;await dialog.locator('textarea').first().fill('Synthetic successful retry draft');await save.click();await dialog.waitFor({state:'detached'});check(await page.evaluate(()=>window.savedEstimate?.totalCents)===20000,'Successful synthetic save preserves $200 total');
  check(patches===2,'Only explicit synthetic save actions submit, once each');
  for(const [width,height]of [[320,568],[390,844],[667,375]])for(const theme of ['light','dark']){
   invoiceLoadStatus=503;await page.setViewportSize({width,height});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
@@ -101,7 +104,7 @@ try{
   check(await invoice.locator('textarea').count()===0,'Failed load cannot expose old services');
   invoiceLoadStatus=200;await invoice.getByRole('button',{name:'Try loading invoice again'}).click();
   const saveInvoice=invoice.getByRole('button',{name:'Save invoice changes'});await saveInvoice.waitFor();
-  check(await invoice.getByLabel('Quantity',{exact:true}).inputValue()==='0.5','Retry preserves fractional quantity');
+  check(await invoice.getByLabel('Quantity',{exact:true}).inputValue()==='0.5','Retry preserves fractional quantity');await invoice.getByLabel('Scope & description',{exact:true}).fill('Synthetic verified invoice scope edit');
   const invoiceScroll=invoice.locator('.estimate-edit-scroll-area');
   check(await invoiceScroll.evaluate(n=>getComputedStyle(n).overflowY==='auto'&&n.scrollHeight>n.clientHeight),'Long invoice uses bounded native scroll area');
   await invoiceScroll.focus();await page.keyboard.press('End');await page.waitForTimeout(50);

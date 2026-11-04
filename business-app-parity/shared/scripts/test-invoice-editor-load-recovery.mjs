@@ -1,5 +1,7 @@
 /** Exercise the actual invoice editor hooks/handlers; synthetic records only. */
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';import ts from 'typescript';
+import {estimateServicePickerOptions} from '../lib/estimate-service-picker-options.ts';
+import {exactMoneyInputCents} from '../lib/exact-money-input.ts';
 const require=createRequire(import.meta.url),ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EditInvoiceDialog'),names=[],tags=new Set();
 const discountParser=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseDiscountCents');assert.ok(discountParser);
@@ -10,7 +12,7 @@ const job=(id='first')=>({id:'job-'+id,invoiceId:'invoice-'+id,customerId:'custo
 const response=(id='first',quantity=.5)=>({ok:true,json:async()=>({invoice:{id:'invoice-'+id,estimateId:'job-'+id,customerId:'customer-'+id,discountType:'dollar',discountValue:0,items:[{id:'item-'+id,name:'Synthetic wash',description:'Synthetic only',quantity,unit:'hour',totalCents:20001}],revisions:[]}})});
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 function fixture(){let state=[],cursor=0,refs=[],refCursor=0,effect,cleanup,estimate=job(),fetcher;const requests=[],saved=[],writes=[];
- const context={require,exports:{},services:[],useServicePricing:()=>({services:[],rates:[],loading:false,error:""}),serviceDescriptionFor:()=>'',money:v=>String(v),dateTime:v=>v,...Object.fromEntries([...tags].map(t=>[t,()=>null])),
+ const context={require,exports:{},estimateServicePickerOptions,exactMoneyInputCents,services:[],useServicePricing:()=>({services:[],rates:[],loading:false,error:""}),serviceDescriptionFor:()=>'',money:v=>String(v),dateTime:v=>v,...Object.fromEntries([...tags].map(t=>[t,()=>null])),
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>{writes.push(names[i]);state[i]=typeof value==='function'?value(state[i]):value;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},fetch:(url,options)=>{requests.push({url,options});if(!options?.method)eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Reload bypasses cached invoice');return fetcher(url,options);}};
  vm.runInNewContext(ts.transpileModule(readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discountParser.getText(ast)+'\n'+fn.getText(ast)+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
  const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved:value=>saved.push(value)});};render();cleanup=effect();

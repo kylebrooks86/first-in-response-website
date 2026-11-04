@@ -281,11 +281,11 @@ assert.ok(source.includes('aria-label={unread?\`${unread} unread notifications\`
 assert.ok(source.includes('aria-description={attentionDescription}'),'Business reminder count remains accessible without renaming the bell');
 assert.ok(source.includes('activityFocus={customerActivityFocus}'),'Customer page accepts exact flag navigation');
 assert.ok(source.includes('onNavigate(item.kind==="followup"?"followups":"estimates",item.estimateId)'),'Only due estimate follow-ups switch to the actionable Follow-ups screen');
-assert.ok(source.includes('onOpenEstimate={id=>{setFocusFollowupEstimateId(null);'),'Missing/changed follow-ups retain a shortcut to the exact saved estimate');
+assert.ok(source.includes('onOpenEstimate={id=>{if(!setTab("estimates"))return;setFocusFollowupEstimateId(null);'),'Missing/changed follow-ups retain a shortcut to the exact saved estimate');
 assert.ok(source.includes('id={cardTarget(estimate.id,template)}')&&source.includes('["followUp1","followUp3","followUp7"].includes(template)?"followup-action-"+id'),'Due follow-up retains exact keyboard-focusable DOM target through shared ID helper');
 assert.ok(source.includes('target.scrollIntoView({block:"start",behavior:"instant"})'),'Flag jump scrolls to exact saved customer flag');
 assert.ok(source.includes('target.focus({preventScroll:true})'),'Flag jump also supports keyboard focus');
-assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:customerId??null,activity:customerActivity??null});setFocusBusinessTaskId(taskId);setTab("business");}'),'Bell task click invokes focused Business navigation, not generic Business tab');
+assert.ok(source.replace(/\s+/g,'').includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:customerId??null,activity:customerActivity??null});setFocusBusinessTaskId(taskId);}')&&source.includes('if(!setTab(destination))return false;')&&source.includes('taskId?"business"'),'Bell task click invokes focused Business navigation, not generic Business tab');
 {
  const now=Date.parse('2026-10-20T18:00:00Z'),ago=d=>new Date(now-d*86400000).toISOString();
  const sent={id:'safe',customer:'Synthetic',status:'sent',createdAt:ago(10),firstEstimateSentAt:ago(10),lastEstimateSentAt:ago(10)};
@@ -336,7 +336,7 @@ function invokeDashboardPriority(label,values){
  const r=invokeDashboardPriority('Review customer review-status checks',{oldestReviewCheck:{customerId:'review-longest',elapsedDays:19,requestedAt:'2026-10-01'}});
  eq(r.captured[0]?.join('|'),'review-longest|review','Dashboard review check opens its actual customer review flag');
  eq(r.fallback.length,0,'Review shortcut does not lose the exact customer destination');
- assert.ok(source.includes('onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current})'),
+ assert.ok(source.includes('onOpenCustomerActivity={(id,kind)=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current})'),
   'Dashboard wires direct flag focus into the existing CustomersView request');
  checks++;
  assert.ok(source.includes('signs.filter(sign=>sign.pickupDate<=localDay)'),'Only due pickups qualify for Dashboard action');
@@ -582,7 +582,7 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
  eq(receiptBacked.some(x=>x.title==='Manual contact logged'),false,'Saved contact message avoids duplicate manual contact timeline row');
  eq(receiptBacked.some(x=>x.title==='Review request recorded'),false,'Confirmed review message replaces saved request marker');
  eq(ctx.exports.timeline({...base,notes:[{id:'bad',body:'X',createdAt:'not-a-date'}]}).length,0,'Invalid timestamps do not invent activity');
- eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'copy',createdAt:iso}}]})[0].detail,'Sending unconfirmed','Copied message is not counted as delivered');
+ eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'copy',createdAt:iso}}]})[0].detail,'Copy prepared · clipboard result unverified','Copied message is not counted as delivered');
  eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'text',createdAt:iso}}]})[0].detail,'Legacy entry · delivery unverified','Unverified legacy message stays unverified');
  eq(ctx.exports.timeline({...base,estimates:[{id:'e',createdAt:iso,service:'Test',firstEstimateSentAt:iso}]}).find(x=>x.title==='Estimate send recorded')?.section,'estimates','Unconfirmed historical estimate marker links to actual record');
  eq(ctx.exports.timeline({...base,notes:Array.from({length:120},(_,i)=>({id:'n'+i,body:'note',createdAt:new Date(Date.parse(iso)+i*1000).toISOString()}))}).length,100,'Large timelines are capped at 100 recent source records');

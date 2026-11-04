@@ -89,7 +89,7 @@ try{
  eq(source.includes('<QuotePackages')||source.includes('onApply={addQuotePackage}'),false,
    'Owner-approved New Estimate simplification leaves no visible reusable-package chooser');
  eq(source.includes('Add another service'),true,'Ordinary manual multi-service quoting remains available');
- eq(source.includes('Separate bundle discount ($)'),true,'Stackable bundle discount remains independent of saved package mixes');
+ eq(source.includes('<Label htmlFor="estimate-bundle-discount">Bundle discount ($)</Label>')&&source.includes('value={bundleValue}'),true,'Stackable bundle discount remains independent of saved package mixes');
  eq(source.includes('<NewEstimatePromotions '),true,'Saved-promotion verification is still part of New Estimate');
  eq(source.includes('setPromotionEvidence(null)'),true,'Manual quote changes continue clearing stale promotion evidence');
  console.log('PASS '+checks+'/'+checks+' legacy owner package SQLite/API compatibility, CAS/races, privacy, corruption and simplified New Estimate with manual service additions/discounts.');

@@ -344,7 +344,7 @@ for(const [name,handler] of [
  f.unmount();
 }
 const source=readFileSync('app/dashboard.tsx','utf8');
-assert.ok(source.includes('onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/>'),'Follow-up shortcut lands on the actual customer profile, not generic Customers list');
+assert.ok(source.includes('onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/>'),'Follow-up shortcut lands on the actual customer profile, not generic Customers list');
 
 console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, priority navigation, refresh listeners and stale read protection. Mock GET only.');
 

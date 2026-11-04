@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation} from '../lib/customer-contact-links.ts';
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const composer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageComposer');
 let declaration;function visit(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='confirmSent')declaration=n;ts.forEachChild(n,visit);}visit(composer);assert.ok(declaration);
@@ -42,7 +43,7 @@ const preparationCode=ts.transpileModule('exports.log='+declarationFor('log')+';
 function prepareFixture(options={}){
  const state={requests:[],status:'',prepared:null,pending:[],logged:[],working:false,timers:[]};
  const scope={current:1},lock={current:false},operation={current:null};
- const context={exports:{},body:options.body??'  Hello\nFIRE customer  ',customer:{id:'customer'},estimate:{id:'job'},template:'custom',crypto,Event,AbortController,
+ const context={exports:{},body:options.body??'  Hello\nFIRE customer  ',customer:{id:'customer',email:'synthetic@example.invalid'},estimate:{id:'job'},template:'custom',verifiedTemplate:options.templateReady!==false,templateFailureMessage:'Synthetic template unavailable',linkReadiness:{ready:options.linkReady!==false},appointmentReadiness:{ready:options.appointmentReady!==false,reason:'Synthetic appointment unavailable'},documentLinkMessage:'Synthetic link unavailable',customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,crypto,Event,AbortController,
  preparationLock:lock,messageScope:scope,uncertainPreparation:operation,
  setTimeout:fn=>{state.timers.push(fn);return state.timers.length;},clearTimeout:()=>{},
  setWorking:v=>state.working=v,setMessageStatus:v=>state.status=v,setPreparedMessage:v=>state.prepared=v,setPendingMessages:fn=>state.pending=fn(state.pending),onLogged:v=>state.logged.push(v),window:{dispatchEvent:()=>{}},
@@ -51,6 +52,7 @@ function prepareFixture(options={}){
  vm.runInNewContext(preparationCode,context);context.log=context.exports.log;
  return {state,scope,lock,operation,log:context.exports.log,email:context.exports.email};
 }
+for(const gate of ['templateReady','linkReady','appointmentReady']){const blocked=prepareFixture({[gate]:false});check(await blocked.log('text_prepared')===false&&blocked.state.requests.length===0,gate+': unverified preparation never writes or starts a handoff');}
 const normalized=prepareFixture();check(await normalized.log('text_prepared')===true,'Surrounding whitespace no longer rejects a valid trimmed server receipt');
 check(normalized.state.prepared.body==='Hello\nFIRE customer'&&normalized.state.requests[0].body==='Hello\nFIRE customer','Exact normalized body preserves internal line breaks in saved handoff');
 const empty=prepareFixture({body:' \n '});check(await empty.log('text_prepared')===false&&empty.state.requests.length===0,'Whitespace-only draft never writes a prepared record');

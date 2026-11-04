@@ -21,7 +21,7 @@ const invoice=readFileSync(customerFiles[4],"utf8");
 assert.match(accept,/Estimate approved and agreement signed\. First In Response Exteriors will contact you to schedule\./);
 assert.match(accept,/Your request was sent to First In Response Exteriors\./);
 assert.match(accept,/Describe what you would like changed/);
-assert.match(publicEstimate,/After approval, First In Response Exteriors will contact you to schedule the job and arrange the 50% deposit/);
+assert.match(publicEstimate,/After signing, First In Response Exteriors will contact you to schedule the job and arrange the deposit shown above\./);
 assert.match(publicEstimate,/First In Response Exteriors has been notified/);
 assert.match(invoice,/publicInvoiceFooter\(footer\?\.body\)/);
 const old="Thank you for choosing First In Response Exteriors. The remaining balance is due upon completion. Please contact Kyle with any questions about this invoice or to arrange payment.";
@@ -47,9 +47,12 @@ function scan(directory){for(const entry of readdirSync(directory,{withFileTypes
 for(const directory of ['app','components','lib'])scan(directory);
 const {FIRE_TEMPLATES,businessTemplateOverride,SERVICE_AGREEMENT,fillTemplate}=await import('../lib/fire-templates.ts');
 const {LEGACY_BUSINESS_TEMPLATE_DEFAULTS}=await import('../lib/legacy-business-template-defaults.mjs');
+// Inspection deliberately removed the unsupported report-link placeholder; real files are shared manually.
+assert.doesNotMatch(templateByKey('inspection').body,/@form_link/);
+assert.match(templateByKey('inspection').body,/actual files directly/);
 for(const item of FIRE_TEMPLATES){
  assert.doesNotMatch(item.subject+' '+item.body,/\bKyle\b/i,item.key);
- assert.deepEqual((item.body.match(/@[a-z_]+/g)??[]).sort(),(LEGACY_BUSINESS_TEMPLATE_DEFAULTS[item.key]?.body.match(/@[a-z_]+/g)??item.body.match(/@[a-z_]+/g)??[]).sort(),'Template variables preserved: '+item.key);
+ assert.deepEqual((item.body.match(/@[a-z_]+/g)??[]).sort(),(LEGACY_BUSINESS_TEMPLATE_DEFAULTS[item.key]?.body.match(/@[a-z_]+/g)??item.body.match(/@[a-z_]+/g)??[]).filter(variable=>!(item.key==='inspection'&&variable==='@form_link')).sort(),'Template variables preserved: '+item.key);
 }
 for(const [key,legacy] of Object.entries(LEGACY_BUSINESS_TEMPLATE_DEFAULTS)){
  const saved={key,...legacy,updatedAt:'2026-10-01T00:00:00Z'},snapshot=JSON.stringify(saved),current=templateByKey(key);

@@ -56,7 +56,7 @@ vm.runInNewContext(compile(onclick(generic)),ctx);ctx.exports.click();
 eq(called.at(-1).join('|'),'profile|c1','Real generic shortcut opens correct saved customer');
 eq(app.includes('setContextTaskId(task.id);setHighlightTaskId(task.id);'),true,'Focused bell task auto-expands details');
 eq(app.includes('if(!focusTaskId){taskFocusHandled.current=null;return;}'),true,'New bell notification can refocus after previous focus clears');
-eq(app.includes('onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");'),true,'Dashboard routes exact flag through existing customer focus');
+eq(app.includes('onOpenCustomerActivity={(id,kind)=>{if(!setTab("customers"))return;setSearchQuery("");'),true,'Dashboard routes exact flag through existing customer focus');
 eq(app.includes('A completed task alone does not confirm a pickup or posted review.'),true,'Task status is not misrepresented as physical pickup or review receipt');
 eq(app.includes('onClick={()=>void toggleTask(task)}'),true,'Original guarded PATCH handler remains sole task-completion writer');
 eq(app.includes('const context=businessTaskContext(task,customers,estimates);'),true,'Actual task cards use read-only owner-derived context');

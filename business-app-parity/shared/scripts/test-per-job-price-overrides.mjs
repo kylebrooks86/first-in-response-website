@@ -17,11 +17,11 @@ const slices=[
 let checks=0;
 assert.equal(FIRE_SERVICES.length,58,'All 58 services must remain available');checks++;
 for(const [label,editor] of slices){
-  assert.ok(editor.includes('services.map((svc)=><SelectItem'),
+  assert.ok(editor.includes('estimateServicePickerOptions(services).map((svc)=><SelectItem'),
     label+' must offer all current services from the shared catalog');checks++;
   assert.ok(editor.includes('unitRateCents:svc.rate||0'),
     label+' must prefill the quoted line with the shared starting rate');checks++;
-  assert.ok((editor.includes('EstimateLinePricing')||editor.includes('updateItem(index,{unitRateCents:Math.max(0,Math.round((Number(event.target.value)||0)*100))})')),
+  assert.ok((editor.includes('EstimateLinePricing')||editor.includes('const cents=exactMoneyInputCents(raw,true);')&&editor.includes('if(cents!==null)updateItem(index,{unitRateCents:cents})')),
     label+' must let owner override any per-job unit price, including high difficulty');checks++;
   assert.ok(editor.includes('updateItem(index,{quantity:Number(event.target.value)})'),
     label+' must let owner adjust quantity');checks++;
@@ -52,7 +52,7 @@ for(const svc of FIRE_SERVICES){
 for(const path of ['app/api/estimates/route.ts','app/api/estimates/[id]/route.ts',
                     'app/api/invoices/[id]/route.ts']){
   const api=read(path);
-  assert.ok(api.includes('totalCents:Math.round(Number(item.totalCents))'),
+  assert.ok(api.includes("totalCents:typeof item.totalCents==='number'?item.totalCents:NaN")&&api.includes('Number.isSafeInteger(item.totalCents)'),
     path+' must accept validated quoted line totals independently of catalog defaults');checks++;
 }
 assert.equal(FIRE_SERVICES.find(s=>s.id==='gutters')?.rate,150,

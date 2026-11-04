@@ -15,7 +15,7 @@ const env={DB:{prepare(sql){return {sql,values:[],bind(...values){return {...thi
 const loader=createRouteFixtureLoader(process.cwd(),env,()=>({email:'kylebrooks8605@gmail.com'})),change=loader('app/api/public/estimates/[token]/change-request/route.ts'),accept=loader('app/api/public/estimates/[token]/accept/route.ts');
 let checks=0;const eq=(a,b)=>{assert.deepEqual(JSON.parse(JSON.stringify(a)),b);checks++;};
 function seed(id='e'){db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run('c-'+id,'Synthetic Retry '+id,'2026-10-18T12:00:00Z');db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,share_token,created_at) VALUES(?,?,'sent',20000,20000,10000,?,'2026-10-18T12:00:00Z')").run(id,'c-'+id,'token-'+id);db.prepare("INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES(?,?,'Synthetic service','Fixture',1,'job',20000)").run('i-'+id,id);}
-const call=(route,body,id='e')=>route.POST(new Request('https://synthetic.invalid/api/public/estimates/token-'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),{params:Promise.resolve({token:'token-'+id})});
+const call=(route,body,id='e')=>route.POST(new Request('https://synthetic.invalid/api/public/estimates/token-'+id,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://synthetic.invalid'},body:JSON.stringify(body)}),{params:Promise.resolve({token:'token-'+id})});
 const counts=id=>[db.prepare('SELECT COUNT(*) AS n FROM estimate_change_requests WHERE estimate_id=?').get(id).n,db.prepare("SELECT COUNT(*) AS n FROM notifications WHERE estimate_id=? AND type='estimate_change_requested'").get(id).n];
 try{
  seed();seed('other');

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {expenseBusinessDay} from '../lib/expense-date.ts';
 
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
@@ -27,7 +28,7 @@ const valid=(id='task-new')=>({
 function fixture(){
  const state={loading:null,error:null,tasks:null,expenses:null,customers:null,estimates:null,receipts:[],requests:[],notice:null,expanded:[],highlighted:[]};
  const loadRequest={current:0};let handler=(url)=>valid()[url];
- const ctx={exports:{},loadRequest,taskFocusNotice:null,
+ const ctx={exports:{},expenseBusinessDay,loadRequest,taskFocusNotice:null,
   taskDueBucket:(row)=>row.status!=='open'?'none':row.dueAt&&Date.parse(row.dueAt)<=Date.now()?'overdue':'none',
   taskLinkedFlag:(row)=>row.notes?.includes('FIRE review request: 2026-10-20T12:00:00Z')?{kind:'review'}:null,
   setTaskFocusNotice:v=>{state.notice=v;ctx.taskFocusNotice=v;},

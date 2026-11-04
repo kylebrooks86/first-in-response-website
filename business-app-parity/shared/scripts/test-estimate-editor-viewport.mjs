@@ -11,14 +11,14 @@ assert.ok(start>=0&&end>start,'Target only EditEstimateDialog');
 const editor=source.slice(start,end);
 const header=editor.indexOf('className="estimate-edit-modal-header"');
 const scroll=editor.indexOf('className="estimate-edit-scroll-area"');
-const footer=editor.indexOf('className="estimate-edit-modal-footer"');
+const footer=editor.indexOf('className="estimate-edit-modal-footer fire-edit-actions"');
 assert.ok(header>0&&scroll>header&&footer>scroll,'Header, scroll region and save footer stay in order');
 assert.match(editor,/className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex=\{0\}/,'Scrollable region is keyboard accessible');
 assert.ok(editor.indexOf('estimate-edit-items',scroll)>scroll&&editor.indexOf('edit-totals',scroll)>scroll,'All service fields and totals are inside scrolling body');
 assert.ok(editor.indexOf('Save estimate changes',footer)>footer,'Save remains in the visible footer');
 assert.ok(editor.indexOf('role="alert"',scroll)<footer,'Save errors are readable inside the scrolling body');
 assert.ok(editor.includes('onOpenChange={setOpenSafe}'),'Dialog close behavior preserved');
-assert.ok(editor.includes('onClick={()=>void save()} disabled={saving||!bundle.ready}'),'Save behavior and saving guard preserved');
+assert.ok(editor.includes('onClick={()=>void save()} disabled={saving||uncertain||!bundle.ready||!savedLinesVerified||!changedSinceOpen}'),'Save behavior and saving guard preserved');
 const patch=css.slice(css.indexOf('/* FIRE QA: prevent iPhone Safari'));
 assert.ok(patch.startsWith('/* FIRE QA:'),'Viewport patch exists');
 for(const bit of [

@@ -64,7 +64,7 @@ assert.match(view,/viewedEstimateReminderCue\(estimate,now\)/);
 assert.match(view,/Viewed estimate · check in/);
 assert.match(view,/Link opened .*hours ago · approval not recorded/);
 assert.match(view,/estimate\.invoiceId\)continue/);
-assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last prepared\/copied:/);
+assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last message prepared:/);
 assert.match(view,/Timing: /);assert.match(view,/setUrgencyFilter\("all"\)/);
 assert.match(view,/followupUrgency\(item,now\)\.bucket==="past-target"/);
 assert.match(view,/followupUrgency\(item,now\)\.rank<=1/);

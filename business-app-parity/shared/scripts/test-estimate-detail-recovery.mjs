@@ -66,7 +66,7 @@ for(const kind of ['schedule','invoice']){
  const dialog=f.render();dialog.props.onOpenChange(false);eq(f.closed,0,'Pending '+kind+' cannot be dismissed');
  eq(f.nodes().some(n=>n.props?.role==='status'),true,'Pending save has accessible feedback');
  pending.resolve({ok:false,json:async()=>({error:'Synthetic save failed'})});await flush();
- eq(f.get('saving'),false);eq(f.get('error'),'Synthetic save failed');eq(f.changedRows.length,0);
+ eq(f.get('saving'),false);eq(f.get('error'),'Synthetic save failed'+(kind==='invoice'?' An invoice may already have saved. Close and reopen this job to check before trying again.':' If the request was interrupted, it may already have saved. Check the job record before repeating it.'),'Failed '+kind+' preserves server error and uncertain-save recovery warning');eq(f.changedRows.length,0);
  dialog.props.onOpenChange(false);eq(f.closed,1,'Failed save releases dismissal guard');
  pending=deferred();button.props.onClick();eq(sent.length,2,'Failed save releases synchronous request lock');
  pending.resolve({ok:true,json:async()=>kind==='invoice'?{id:'synthetic-invoice',estimateId:'save',customerId:'customer',shareToken:'1234567890abcdef1234567890abcdef'}:{estimate:{id:'save',status:'scheduled',scheduledAt:'2026-10-21T15:45:00.000Z'}}});await flush();eq(f.changedRows.length,1);eq(f.get('saving'),false);

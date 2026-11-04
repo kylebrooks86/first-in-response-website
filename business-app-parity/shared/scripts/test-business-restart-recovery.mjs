@@ -56,7 +56,7 @@ function fixture(initial={}){
  eq(f.data.get(key('expense')),'INVALID','Invalid receipt preserved, never overwritten');
  eq(f.calls.some(([kind,value])=>kind==='error'&&value.includes('unavailable or damaged')),true,'Unusable receipt raises visible warning');
 }
-eq(source.includes('Review an interrupted Business save'),true,'Owner-visible restart recovery panel exists');
+eq(source.includes('Check interrupted save'),true,'Owner-visible restart recovery panel exists');
 eq(source.includes('Review task reset'),true,'Explicit task reset review exists');
 eq(source.includes('Review expense reset'),true,'Explicit expense reset review exists');
 eq(source.includes('I reviewed the list — abandon ID'),true,'Manual reset requires explicit owner confirmation');
