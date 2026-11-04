@@ -53,7 +53,7 @@ for(const environment of ['QA','DOOMSDAY','STAGING']){
 }
 const css=readFileSync('app/globals.css','utf8');
 assert.match(css,/\.owner-account-view \.brand-button\{[^}]*min-height:44px[^}]*max-width:100%[^}]*white-space:normal/,'Theme action has minimum 44px touch height and can wrap on narrow screens');
-for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
+for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
 // Public documents must never render owner-only floating navigation.
 for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx','app/pay/[id]/page.tsx']){
  const current=readFileSync(path,'utf8');
