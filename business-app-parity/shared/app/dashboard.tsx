@@ -1537,7 +1537,9 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   </Dialog>;
 }
 
-const reportChecks=["Property condition documented","Before photos captured","Plants and fragile areas protected","Service completed as quoted","After photos captured","Customer walkthrough completed"];
+// Preserve the six historical keys in saved D1 reports. The seventh is an
+// explicit alternative to a walkthrough, never evidence the customer attended.
+const reportChecks=["Property condition documented","Before photos captured","Plants and fragile areas protected","Service completed as quoted","After photos captured","Customer walkthrough completed","Customer absent — completion documented for follow-up"];
 function OwnerJobTools({estimate,onSaved}:{estimate:EstimateRow;onSaved:(complete:boolean)=>void}){
   const snapshots=useOwnerJobSnapshots();
   return <><JobReport estimate={estimate} onSaved={onSaved} snapshots={snapshots}/><JobCost estimate={estimate} snapshots={snapshots}/></>;
@@ -1550,6 +1552,11 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
   const [loadedReportKey,setLoadedReportKey]=useState<string|null>(null);const reportKey=JSON.stringify([estimate.id,estimate.customerId]);
   const reportChanged=Boolean(savedReportDraft.current&&loadedReportKey===reportKey&&savedReportDraft.current!==reportFingerprint(checks,notes,before,after));
+  const walkthroughKey=reportChecks[5],contactFreeKey=reportChecks[6];
+  const completedChecks=reportChecks.slice(0,5).filter(item=>checks.includes(item)).length+
+    (checks.includes(walkthroughKey)||checks.includes(contactFreeKey)?1:0);
+  const needsContactFreeNote=checks.includes(contactFreeKey)&&!notes.trim();
+  const isReportComplete=completedChecks===6&&!needsContactFreeNote;
   const setOpenSafe=(value:boolean)=>{
     if(saveLock.current||saving)return;
     if(!value&&reportChanged&&!window.confirm(error
@@ -1581,12 +1588,21 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
     if(cached){const report=cached.value,checklist=report?JSON.parse(report.checklist||"{}"):{};const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);setSnapshotAt(cached.checkedAt);setLoadedReportKey(reportKey);}
     else{if(!transportFailed)snapshots?.records.forget('report',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified report is available in this app session. Reconnect and load it before editing or saving.":"The saved report could not be loaded. Retry before editing or saving.");}
   }}finally{if(request===loadRequest.current)setLoading(false);}})();return()=>{loadRequest.current++;};},[open,estimate.id,estimate.customerId,retry]);
-  const toggle=(item:string)=>{setSaved(false);setChecks((current)=>current.includes(item)?current.filter((value)=>value!==item):[...current,item]);};
+  const toggle=(item:string)=>{
+    setSaved(false);
+    setChecks(current=>{
+      if(current.includes(item))return current.filter(value=>value!==item);
+      // Contact-free documentation is an alternative, not a claim that a
+      // customer walkthrough occurred. Never save both mutually exclusive.
+      const other=item===walkthroughKey?contactFreeKey:item===contactFreeKey?walkthroughKey:null;
+      return [...current.filter(value=>value!==other),item];
+    });
+  };
   const save=async()=>{
     if(saveLock.current||saving||loading||loadError||loadedReportKey!==reportKey||readOnly||navigator.onLine===false)return;
     saveLock.current=true;snapshots?.records.forget('report',estimate.id,estimate.customerId);setSaved(false);setSaving(true);setError("");
     const checklist=Object.fromEntries(reportChecks.map((item)=>[item,checks.includes(item)]));
-    const complete=checks.length===reportChecks.length;
+    const complete=isReportComplete;
     try{
       const response=await fetch("/api/job-reports",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,customerId:estimate.customerId,checklist,notes,airflowBefore:before,airflowAfter:after,status:complete?"complete":"draft"})});
       const result=await response.json() as {report?:JobReportRow;error?:string};
@@ -1612,13 +1628,15 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
         {loadError&&<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>setRetry(value=>value+1)}>Retry loading report</Button></p>}
         {!loading&&!loadError&&loadedReportKey===reportKey&&<>
           <div className="report-progress" role="status">
-            <strong>{checks.length} of {reportChecks.length} checklist items complete</strong>
-            <span>{checks.length===reportChecks.length?"Ready to save as completed":"Incomplete checklist saves as draft"}</span>
+            <strong>{completedChecks} of 6 completion steps</strong>
+            <span>{isReportComplete?"Ready to save as completed":needsContactFreeNote?"Add a short note about contact-free completion":"Incomplete checklist saves as draft"}</span>
           </div>
-          <div className="checklist" role="group" aria-label="Completion checklist">{reportChecks.map((item)=><label key={item}>
+          <div className="checklist" role="group" aria-label="Completion checklist">{reportChecks.map((item,index)=><label key={item}>
+            {index===5&&<small className="report-handoff-label">Finish with a walkthrough OR document why the customer wasn't present</small>}
             <input type="checkbox" checked={checks.includes(item)} disabled={saving||loading||readOnly}
               onChange={()=>toggle(item)}/><span>{item}</span>
           </label>)}</div>
+          {needsContactFreeNote&&<p className="service-description-help" role="status">Add a short note about the customer being absent and where work/photos were documented. No message will be sent automatically.</p>}
           {estimate.service.toLowerCase().includes("dryer")&&<div className="airflow-fields">
             <label className="fire-field"><span>Airflow before (optional)</span><Input disabled={saving||readOnly} value={before} onChange={(event)=>{setBefore(event.target.value);setSaved(false);}} placeholder="Before reading"/></label>
             <label className="fire-field"><span>Airflow after (optional)</span><Input disabled={saving||readOnly} value={after} onChange={(event)=>{setAfter(event.target.value);setSaved(false);}} placeholder="After reading"/></label>
@@ -1635,7 +1653,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
           {saved&&<p className="save-success" role="status">Job report saved.</p>}
           {error&&<p className="save-error" role="alert">{error}</p>}
           </div><Button className="brand-button fire-job-save" onClick={()=>void save()} disabled={saving||loading||readOnly}>
-            {saving?"Saving…":checks.length===reportChecks.length?"Save completed report":"Save draft report"}
+            {saving?"Saving…":isReportComplete?"Save completed report":"Save draft report"}
           </Button>
           <p className="report-footnote">This form does not charge the customer or create an invoice.</p>
       </div>}
