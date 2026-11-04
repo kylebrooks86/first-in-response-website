@@ -44,3 +44,5 @@ jobs:
         run: node scripts/test-refund-retry-state.mjs
       - name: Native SQLite payment confirmation regression
         run: node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
+      - name: Existing mobile refund and payment history appearance regression
+        run: node scripts/test-payment-mobile-ui.mjs
