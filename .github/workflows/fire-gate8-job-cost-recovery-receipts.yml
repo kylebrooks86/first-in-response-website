@@ -1,0 +1,46 @@
+name: FIRE Gate8 Job Cost Idempotent Recovery (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/business-create-receipt.ts'
+      - 'business-app-parity/shared/scripts/test-job-cost-recovery.mjs'
+      - 'business-app-parity/shared/scripts/test-job-tools-mobile-save.mjs'
+      - 'business-app-parity/shared/scripts/test-business-create-receipt.mjs'
+      - 'business-app-parity/shared/scripts/test-job-cost-idempotency-sqlite.mjs'
+      - '.github/workflows/fire-gate8-job-cost-recovery-receipts.yml'
+permissions:
+  contents: read
+jobs:
+  expense-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned offline app dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript check actual owner components and routes
+        run: pnpm exec tsc --noEmit --incremental false
+      - name: Actual owner job-cost UI save/retry/ID and mobile control regression
+        run: node scripts/test-job-tools-mobile-save.mjs
+      - name: Old offline JobCost stale GET and recovery regression
+        run: node scripts/test-job-cost-recovery.mjs
+      - name: Opaque business and per-job recovery storage validation
+        run: node scripts/test-business-create-receipt.mjs
+      - name: Actual owner expense route against disposable SQLite
+        run: node --experimental-sqlite scripts/test-job-cost-idempotency-sqlite.mjs
