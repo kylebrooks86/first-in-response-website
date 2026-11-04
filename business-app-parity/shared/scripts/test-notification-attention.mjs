@@ -591,7 +591,7 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
   ['aria-label="Recent customer activity"','Accessible read-only timeline region'],
   ['id={"customer-message-"+message.id}','Source message rows accept exact timeline focus'],
   ['id={"customer-estimate-"+estimate.id}','Estimate history accepts exact timeline focus'],
-  ['id={"customer-invoice-"+invoice.id}','Invoice history accepts exact timeline focus'],
+  ['const recordId="customer-invoice-"+invoice.id;','Invoice history derives exact timeline focus'],
   ['setTimelineTarget({customerId:selected.id,section:entry.section,id:entry.id})','Timeline jump retains exact customer, record and section'],
   ['target.focus({preventScroll:true})','Timeline moves keyboard focus to saved record'],
   ['setTimelineShown(current=>Math.min(current+6,filteredTimelineEntries.length))','Progressive reveal avoids long mobile timelines']
