@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     try{
       const receipts=await env.DB.batch(statements);
       if(!Array.isArray(receipts)||receipts.length!==statements.length||
-        receipts.some(receipt=>!receipt||receipt.success===false||
+        receipts.some(receipt=>!receipt||(receipt as {success?:boolean}).success===false||
           (typeof receipt.meta?.changes==='number'&&receipt.meta.changes!==1)))return uncertainInvoiceCreate();
     }catch{
       // D1 can commit while the acknowledgment is lost. A unique estimate
