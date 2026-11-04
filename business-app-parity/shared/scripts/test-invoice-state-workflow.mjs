@@ -6,13 +6,13 @@ export async function exerciseInvoiceState({page,context,browser,origin,request,
  page.setDefaultTimeout(15000);
  const created=await request('/api/customers','POST',{name:'Synthetic Invoice State Customer',email:'invoice-state@example.invalid'});assert.equal(created.status(),201);const customer=(await created.json()).customer;
  const result=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic Invoice Driveway',description:'Synthetic private service documentation. '.repeat(90),quantity:1200,unit:'sqft',totalCents:24000}]});assert.equal(result.status(),201);const estimate=await result.json();
- for(const [path,method,body] of [
-  ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'}],
+ for(const [path,method,body,headers] of [
+  ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'},{origin}],
   ['/api/estimates/'+estimate.id,'PATCH',{scheduledAt:'2026-10-22T15:00:00.000Z'}],
   ['/api/payments','POST',{estimateId:estimate.id,requestId:randomUUID(),amountCents:12000,method:'Cash'}],
   ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,notes:'Synthetic completion only'}],
   ['/api/estimates/'+estimate.id,'PATCH',{status:'completed'}],
- ]){const r=await request(path,method,body);assert.ok(r.ok(),path+': '+await r.text());}
+ ]){const r=await request(path,method,body,headers);assert.ok(r.ok(),path+': '+await r.text());}
  const invoiceResponse=await request('/api/invoices','POST',{estimateId:estimate.id});assert.equal(invoiceResponse.status(),201);const invoice=await invoiceResponse.json();const path='/invoice/'+invoice.shareToken;
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});await page.goto(origin+'/?openEstimate='+estimate.id);const detail=page.getByRole('dialog',{name:'Synthetic Invoice Driveway',exact:true});await detail.waitFor();const link=detail.getByRole('link',{name:'View invoice',exact:true});
