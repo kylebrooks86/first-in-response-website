@@ -18,7 +18,7 @@ let checks=0;const eq=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};c
 const job=id=>({id,customerId:'customer',customer:'Synthetic',service:'Wash',status:'scheduled',items:[],totalCents:20000,depositCents:10000,paidCents:0,createdAt:'2026-10-09',paymentOverageOpen:0});
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 function fixture(allowWrites=false){const changedRows=[];let state=[],cursor=0,effect,cleanup,estimate,fetcher;const refs=[];let refCursor=0,closed=0;const requests=[],writes=[];const context={exports:{},require,jobNumberLabel,customerNumberLabel,...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,serviceDescriptionFor:()=>'',resolvedBillingTotalCents:e=>e.totalCents,
-useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useEffect(fn){effect=fn;},fetch:(url,options)=>{if(allowWrites==='custom'&&options?.method)return fetcher(url,options);if(options?.method==='PATCH'){eq(allowWrites,true);eq(url,`/api/estimates/${estimate.id}`);eq(options.body,JSON.stringify({status:'completed'}));return Promise.resolve({ok:true,json:async()=>({estimate:{status:'completed'}})});}if(options!==undefined)eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Closeout report read bypasses cached responses');requests.push(url);return fetcher(url);}};
+useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useEffect(fn){effect=fn;},fetch:(url,options)=>{if(allowWrites==='custom'&&options?.method)return fetcher(url,options);if(options?.method==='PATCH'){eq(allowWrites,true);eq(url,`/api/estimates/${estimate.id}`);eq(options.body,JSON.stringify({status:'completed'}));return Promise.resolve({ok:true,json:async()=>({estimate:{id:estimate.id,status:'completed'}})});}if(options!==undefined)eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Closeout report read bypasses cached responses');requests.push(url);return fetcher(url);}};
 vm.runInNewContext(ts.transpileModule(fn.getText(ast)+'\nexports.view=EstimateDetail;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onClose(){closed++;},onChanged(row){if(!allowWrites)throw Error('No financial/job writes allowed in report-read tests');changedRows.push(row);}});};
 return {changedRows,get closed(){return closed;},nodes:()=>nodes(render()),open(value){cleanup?.();estimate=value;render();cleanup=effect();},render,get:key=>state[names.indexOf(key)],setFetcher:f=>fetcher=f,unmount:()=>cleanup?.(),writes,requests,button:()=>nodes(render()).find(n=>n.type===context.Button&&[n.props.children].flat(Infinity).some(c=>c==='Mark job complete'||c==='Complete report first'))};}
@@ -69,7 +69,29 @@ for(const kind of ['schedule','invoice']){
  eq(f.get('saving'),false);eq(f.get('error'),'Synthetic save failed');eq(f.changedRows.length,0);
  dialog.props.onOpenChange(false);eq(f.closed,1,'Failed save releases dismissal guard');
  pending=deferred();button.props.onClick();eq(sent.length,2,'Failed save releases synchronous request lock');
- pending.resolve({ok:true,json:async()=>kind==='invoice'?{id:'synthetic-invoice'}:{estimate:{status:'scheduled'}}});await flush();eq(f.changedRows.length,1);eq(f.get('saving'),false);
+ pending.resolve({ok:true,json:async()=>kind==='invoice'?{id:'synthetic-invoice'}:{estimate:{id:'save',status:'scheduled',scheduledAt:'2026-10-21T15:45:00.000Z'}}});await flush();eq(f.changedRows.length,1);eq(f.get('saving'),false);
+}
+// A HTTP 200 with the wrong saved job ID, workflow state, or date must
+// NOT change the owner-facing Scheduled badge. The failed response may
+// already have committed; the UI tells owner to reopen saved history first.
+for(const bad of ['missing-id','wrong-id','wrong-status','wrong-date','no-date','bad-json']){
+ const f=fixture('custom');f.setFetcher(async()=>ok(false,'receipt'));
+ f.open({...job('receipt'),status:'scheduled'});await flush();
+ f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:'2026-10-21T10:45'}});
+ const attempts=[];f.setFetcher(async(url,options)=>{
+  attempts.push(JSON.parse(options.body));
+  if(bad==='bad-json')return{ok:true,json:async()=>{throw Error('Malformed server receipt');}};
+  const receipt={id:bad==='missing-id'?undefined:bad==='wrong-id'?'another-job':'receipt',
+   status:bad==='wrong-status'?'completed':'scheduled',
+   scheduledAt:bad==='wrong-date'?'2026-10-21T16:45:00.000Z':bad==='no-date'?undefined:'2026-10-21T15:45:00.000Z'};
+  return{ok:true,json:async()=>({estimate:receipt})};
+ });
+ const save=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(x=>typeof x==='string'&&x.trim()==='Save job date'));
+ save.props.onClick();await flush();
+ eq(attempts.length,1,bad+': one owner request');
+ eq(f.changedRows.length,0,bad+': unverified 200 never updates visible saved job');
+ eq(f.get('saving'),false,bad+': spinner clears');
+ eq(f.get('error').includes('saved'),true,bad+': owner is told to verify saved job before retry');
 }
 for(const hasSavedAppointment of [false,true]){
  const f=fixture();f.setFetcher(async()=>ok(false));
@@ -163,7 +185,7 @@ try{
    const f=fixture('custom');f.setFetcher(async()=>ok(false,'central-save'));
    f.open(job('central-save'));await flush();
    f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:wall}});
-   const calls=[];f.setFetcher(async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({estimate:{status:'scheduled',scheduledAt:expected}})};});
+   const calls=[];f.setFetcher(async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({estimate:{id:'central-save',status:'scheduled',scheduledAt:expected}})};});
    f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date')).props.onClick();
    await flush();
    eq(calls.length,1,zone+': one appointment save');
