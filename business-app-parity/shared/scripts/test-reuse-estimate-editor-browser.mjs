@@ -25,7 +25,10 @@ const server=createServer(async(req,res)=>{res.setHeader('content-type','applica
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;let browser,checks=0;const errors=[],check=(v,s)=>{assert.ok(v,s);checks++;};
 try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());
 for(const width of [320,390,768])for(const theme of ['light','dark']){
- const beforeSaveCount=saves;await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await page.getByRole('button',{name:'New estimate',exact:true}).click();await page.getByRole('button',{name:'Create New Customer',exact:false}).click();await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Reuse');await page.getByLabel('Estimate service address').fill('100 Synthetic Lane, Tulsa');await page.getByRole('button',{name:'Continue to services'}).click();
+ const beforeSaveCount=saves;await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await page.getByRole('button',{name:'New estimate',exact:true}).click({timeout:15000}).catch(async error=>{
+  const rendered=await page.locator('body').innerText().catch(()=>'<unavailable>');
+  throw Error('Synthetic NewEstimate button not reachable: '+error.message+'; rendered='+JSON.stringify(rendered.slice(0,600))+'; pageErrors='+JSON.stringify(errors.slice(-5)));
+});await page.getByRole('button',{name:'Create New Customer',exact:false}).click();await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Reuse');await page.getByLabel('Estimate service address').fill('100 Synthetic Lane, Tulsa');await page.getByRole('button',{name:'Continue to services'}).click();
  const lines=page.locator('.estimate-edit-service');await lines.nth(0).getByRole('combobox').click();await page.getByRole('option',{name:'House Wash',exact:true}).click();await lines.nth(0).locator('input[inputmode="decimal"]').first().fill('1000');await lines.nth(0).getByLabel('Service name',{exact:true}).fill('Front house');await lines.nth(0).locator('textarea').fill('Exact custom setup');
   check(await lines.nth(0).locator('textarea').getAttribute('rows')==='3','New quote shows all description text in a compact three-row editor');
  const waitSave=amount=>page.waitForFunction(a=>[...document.querySelectorAll('button')].some(b=>b.textContent?.includes('Save $'+a+' estimate')&&!b.disabled),amount);await waitSave('220');const before=previews;hold=true;await page.getByRole('button',{name:'Reuse service setup from line 1',exact:true}).click();
@@ -45,7 +48,10 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){
 }
 // Actual reusable quote mix workflow in the real New Estimate dialog.
 await page.setViewportSize({width:390,height:844});await page.goto(origin);
-await page.getByRole('button',{name:'New estimate',exact:true}).click();
+await page.getByRole('button',{name:'New estimate',exact:true}).click({timeout:15000}).catch(async error=>{
+  const rendered=await page.locator('body').innerText().catch(()=>'<unavailable>');
+  throw Error('Synthetic NewEstimate button not reachable: '+error.message+'; rendered='+JSON.stringify(rendered.slice(0,600))+'; pageErrors='+JSON.stringify(errors.slice(-5)));
+});
 await page.getByRole('button',{name:'Create New Customer',exact:false}).click();
 await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Quote Package Customer');
 await page.getByLabel('Estimate service address').fill('222 Package Fixture Rd, Tulsa');
@@ -124,7 +130,10 @@ check(packageWrites===beforePackageWrites,'Saving quote does not create reusable
 // A quote below $150 must remain below $150: neither promotion preview nor
 // server receipt may manufacture a minimum charge the owner never approved.
 await page.goto(origin);
-await page.getByRole('button',{name:'New estimate',exact:true}).click();
+await page.getByRole('button',{name:'New estimate',exact:true}).click({timeout:15000}).catch(async error=>{
+  const rendered=await page.locator('body').innerText().catch(()=>'<unavailable>');
+  throw Error('Synthetic NewEstimate button not reachable: '+error.message+'; rendered='+JSON.stringify(rendered.slice(0,600))+'; pageErrors='+JSON.stringify(errors.slice(-5)));
+});
 await page.getByRole('button',{name:'Create New Customer',exact:false}).click();
 await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Small Job');
 await page.getByLabel('Estimate service address').fill('25 Exact Cents Lane, Tulsa');
@@ -150,7 +159,10 @@ check(await page.getByText('$25 total',{exact:false}).count()===1,
 // stored estimates, and block duplicate retries even without a bundle discount.
 for(const mismatch of ['total','deposit']){
  await page.setViewportSize({width:390,height:844});await page.goto(origin);
- await page.getByRole('button',{name:'New estimate',exact:true}).click();
+ await page.getByRole('button',{name:'New estimate',exact:true}).click({timeout:15000}).catch(async error=>{
+  const rendered=await page.locator('body').innerText().catch(()=>'<unavailable>');
+  throw Error('Synthetic NewEstimate button not reachable: '+error.message+'; rendered='+JSON.stringify(rendered.slice(0,600))+'; pageErrors='+JSON.stringify(errors.slice(-5)));
+});
  await page.getByRole('button',{name:'Create New Customer',exact:false}).click();
  await page.getByLabel('Customer name',{exact:true}).fill('Receipt Verification '+mismatch);
  await page.getByLabel('Estimate service address').fill('101 Receipt Check Lane, Tulsa');
@@ -169,7 +181,10 @@ for(const mismatch of ['total','deposit']){
  check(await page.getByRole('button',{name:'Review stored estimates'}).count()===1,'Mismatch '+mismatch+' provides recovery path');
  const pendingId=await page.evaluate(()=>localStorage.getItem('fire:estimate:create-request:v1'));
  check(typeof pendingId==='string'&&/^[a-f0-9-]{36}$/i.test(pendingId),'Mismatch '+mismatch+' persists only an opaque ID');
- await page.goto(origin);await page.getByRole('button',{name:'New estimate',exact:true}).click();
+ await page.goto(origin);await page.getByRole('button',{name:'New estimate',exact:true}).click({timeout:15000}).catch(async error=>{
+  const rendered=await page.locator('body').innerText().catch(()=>'<unavailable>');
+  throw Error('Synthetic NewEstimate button not reachable: '+error.message+'; rendered='+JSON.stringify(rendered.slice(0,600))+'; pageErrors='+JSON.stringify(errors.slice(-5)));
+});
  await page.getByRole('region',{name:'Unresolved new estimate request'}).waitFor();
  check((await page.getByText(pendingId,{exact:false}).count())>0,'Mismatch '+mismatch+' restart preserves recovery marker');
  check(saves===before+1,'Mismatch '+mismatch+' page restart never auto-retries quote');
