@@ -33,14 +33,14 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await quoteDetails.waitFor({state:'hidden'});
  const firstUse=await page.evaluate(()=>{
    const selectors=['.customer-profile-head','.customer-contact','.record-tabs','.customer-records','.customer-snapshot','.customer-flag-panel','.customer-timeline'];
-   const roots=selectors.map(selector=>document.querySelector(selector));
-   const profile=document.querySelector('.customer-profile'),tabs=[...document.querySelectorAll('.record-tabs button')];
-   const actions=document.querySelector('.profile-head-actions');
-   return {ordered:roots.every(Boolean)&&roots.every(node=>profile?.contains(node))&&roots.every((node,index)=>index===0||Boolean(roots[index-1].compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING)),
+    const profile=document.querySelector('.customer-profile'),roots=selectors.map(selector=>profile?.querySelector(selector));
+    const tabs=[...(profile?.querySelectorAll('.record-tabs button')||[])];
+    const actions=profile?.querySelector('.profile-head-actions');
+    return {ordered:roots.every(Boolean)&&roots.every((node,index)=>index===0||Boolean(roots[index-1].compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING)),orderDetails:selectors.map((selector,index)=>({selector,found:Boolean(roots[index]),preceding:index>0&&roots[index-1]&&roots[index]?Boolean(roots[index-1].compareDocumentPosition(roots[index])&Node.DOCUMENT_POSITION_FOLLOWING):null})),
       tabs:tabs.map(node=>node.textContent?.trim()),tabFit:tabs.every(node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.height>=44}),
       actionColumns:actions?getComputedStyle(actions).gridTemplateColumns.split(' ').filter(Boolean).length:0};
  });
- check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details');
+  check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details: '+JSON.stringify(firstUse.orderDetails));
  check(firstUse.tabs.length===6&&firstUse.tabs.some(label=>label.startsWith('Photos'))&&firstUse.tabs.some(label=>label.startsWith('Notes'))&&firstUse.tabFit,'All six customer record tabs remain visible and finger-sized on iPhone');
  check(firstUse.actionColumns===2,'Common customer actions use two compact touch-friendly columns on iPhone');
  const optionalActivity=page.locator('details.customer-activity-tools');
