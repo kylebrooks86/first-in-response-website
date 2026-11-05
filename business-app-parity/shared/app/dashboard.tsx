@@ -2370,7 +2370,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   </DialogContent></Dialog>;
 }
 
-function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { estimate: EstimateRow | null; onClose: () => void; onChanged: (estimate: EstimateRow) => void; initialScheduleDay?:string|null }) {
+function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay, previewSource="estimate" }: { estimate: EstimateRow | null; onClose: () => void; onChanged: (estimate: EstimateRow) => void; initialScheduleDay?:string|null; previewSource?:"customer"|"estimate" }) {
   // All FIRE appointments are entered in Tulsa/Central time, not the phone's
   // timezone. Converting via new Date("YYYY-MM-DDTHH:mm") silently moves work
   // when the owner travels or uses a device configured outside Central Time.
@@ -2545,7 +2545,10 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
-      {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>}
+      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1${previewSource==="customer"?"&from=customer":""}`} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</a>}
+      {!estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable: no saved customer link exists for this estimate.</small>}
+      {["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable for replaced or withdrawn estimates. Review the saved record instead.</small>}
+      {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>} 
       {estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
       {!["superseded","declined"].includes(estimate.status)&&estimate.customerId&&<MessageComposer
         customer={messageCustomer}
@@ -2578,7 +2581,6 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       </div>}
       {estimate.status==='approved'&&estimate.acceptedAt&&estimate.signedAt&&estimate.paidCents===0&&!estimate.invoiceId&&<details className="ui-help"><summary>Revise approved quote</summary><p>Saving replaces the original quote immediately and disables its old payment link. The original scope and signature stay in history; the replacement needs a new signature. Available before any payment, checkout or invoice.</p><NewEstimate customer={messageCustomer} revisionSource={estimate} onSaved={next=>window.location.assign('/?openEstimate='+encodeURIComponent(next.id))}/></details>}
       <div className="detail-actions">
-        {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
         {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
         {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
         {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
@@ -3271,7 +3273,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
   </div>;
   if (selected) return <div className="customers-view">
-    <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
+    <EstimateDetail estimate={activeEstimate} previewSource="customer" onClose={()=>setActiveEstimate(null)} onChanged={updated=>{setActiveEstimate(current=>current?.id===updated.id?updated:current);void load(true);}} />
     <button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>
     {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
