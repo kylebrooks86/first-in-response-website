@@ -250,6 +250,12 @@ try{
    'Actual Customer view is one compact label without explanatory text or duplicate return button at '+width+'x'+height);
   check(await close.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`,'Preview X retains exact estimate return destination');
   const themeToggle=page.locator('.owner-preview-theme-toggle');await themeToggle.waitFor();
+  // React hydration must finish reading the stored theme before the owner can
+  // click; otherwise the first click can race the mount effect or be lost.
+  await page.waitForFunction(()=>{
+    const button=document.querySelector('.owner-preview-theme-toggle');
+    return button instanceof HTMLButtonElement&&!button.disabled;
+  },null,{timeout:10000});
   const initialTheme=await page.locator('html').getAttribute('data-theme'),nextTheme=initialTheme==='dark'?'light':'dark';
   const originalSummary=await page.locator('.pay-summary').innerText();
   const cardColor=await page.locator('.estimate-portal').evaluate(n=>getComputedStyle(n).backgroundColor);
