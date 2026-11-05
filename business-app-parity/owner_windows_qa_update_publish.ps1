@@ -25,7 +25,7 @@ $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
 # This observation NEVER authorizes publication: require a fresh exact source,
 # two independently verified database identities, 25-journal, device-photo
 # protection and typed owner consent before any existing QA Worker update.
-$expectedActiveVersion = '8165ead3-43f1-48fd-b077-a1881ed0b978'
+$expectedActiveVersion = '69373734-52b3-4747-8e1c-323a59e9710f'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'

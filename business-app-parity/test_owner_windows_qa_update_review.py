@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "8165ead3-43f1-48fd-b077-a1881ed0b978",
+                         "69373734-52b3-4747-8e1c-323a59e9710f",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -133,9 +133,11 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["8165ead3-43f1-48fd-b077-a1881ed0b978"])
+        self.assertEqual(readonly_pins, ["69373734-52b3-4747-8e1c-323a59e9710f"])
         self.assertEqual(review_pins, readonly_pins)
         self.assertEqual(publish_pins, readonly_pins)
+        for pinned_script in (readonly, S, publisher):
+            self.assertNotIn("8165ead3-43f1-48fd-b077-a1881ed0b978", pinned_script, "previous QA version is not the current rollback reference")
         self.assertIn("[switch]$Publish", publisher)
         self.assertIn("Require ($typed -ceq $approval)", publisher)
         self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent)", publisher)
