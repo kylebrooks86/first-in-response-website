@@ -6,6 +6,12 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  const quote=await create('Synthetic Pending Quote'),job=await create('Synthetic Scheduled Job');
  assert.equal((await request('/api/estimates/'+quote.id,'PATCH',{status:'sent'})).status(),200);
  const approval={signedName:customer.name,photoRelease:'no',acceptedTerms:true};
+ const beforeDenied=(await(await request('/api/backup')).json()).tables;
+ for(const headers of [{},{origin:'https://foreign.example.invalid'},{origin:'null'}]){
+  const denied=await page.context().request.post(origin+'/api/public/estimates/'+job.shareToken+'/accept',{data:approval,headers});
+  check(denied.status()===403,'Native public acceptance rejects '+(headers.origin??'missing')+' Origin');
+  assert.deepEqual((await(await request('/api/backup')).json()).tables,beforeDenied,'Rejected Origin cannot write any application table');
+ }
  for(let i=0;i<2;i++)assert.equal((await request('/api/public/estimates/'+job.shareToken+'/accept','POST',approval)).status(),200);
  assert.equal((await request('/api/estimates/'+job.id,'PATCH',{scheduledAt:'2026-10-20T15:00:00.000Z'})).status(),200);
  let data=await (await request('/api/customers')).json();let saved=data.estimates.find(row=>row.id===job.id);

@@ -15,8 +15,13 @@ export async function exerciseStackedDiscounts({page,origin,request,check}){
  const editor=page.getByRole('dialog',{name:'Edit estimate',exact:true});await editor.waitFor();
  await editor.getByRole('button',{name:'Save estimate changes'}).waitFor();
  await page.waitForFunction(()=>!document.querySelector('.estimate-edit-scroll-area fieldset')?.disabled);
- check(await editor.getByLabel('Separate bundle discount ($)',{exact:true}).inputValue()==='25.00','Entire built React editor restores persisted bundle');
+ check(await editor.getByLabel('Bundle discount ($)',{exact:true}).inputValue()==='25.00','Entire built React editor restores persisted bundle');
+ await editor.locator('textarea').first().fill('Agreed synthetic scope clarified; price unchanged');
  await editor.getByRole('button',{name:'Save estimate changes'}).click();await editor.waitFor({state:'hidden'});
  const after=await(await request('/api/estimates/'+estimate.id+'/discounts')).json();
- check(after.totalCents===36600&&after.bundleDiscountCents===2500,'Built UI no-op save/reopen preserves agreed total instead of applying or dropping discount again');
+ check(after.totalCents===36600&&after.bundleDiscountCents===2500,'Built UI scope save/reopen preserves agreed total instead of applying or dropping discount again');
+ await detail.getByRole('button',{name:'Edit estimate',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('.estimate-edit-scroll-area fieldset')?.disabled);
+ check(await editor.locator('textarea').first().inputValue()==='Agreed synthetic scope clarified; price unchanged','Reopened editor verifies the committed scope');
+ await page.goto(origin+'/?openEstimate='+estimate.id);
 }

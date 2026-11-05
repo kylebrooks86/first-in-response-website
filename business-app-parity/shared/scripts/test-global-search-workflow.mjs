@@ -7,7 +7,7 @@ export async function exerciseGlobalSearch({page,context,browser,origin,request,
  for(const [path,method,body] of [
   ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'}],
   ['/api/estimates/'+estimate.id,'PATCH',{scheduledAt:'2026-10-25T15:00:00Z'}],
-  ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,notes:'Synthetic report'}],
+  ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,checklist:{"Property condition documented":true,"Before photos captured":true,"Plants and fragile areas protected":true,"Service completed as quoted":true,"After photos captured":true,"Customer absent — completion documented for follow-up":true},notes:'Synthetic report'}],
   ['/api/estimates/'+estimate.id,'PATCH',{status:'completed'}],
  ]){const r=await request(path,method,body);assert.ok(r.ok(),await r.text());}
  const inv=await request('/api/invoices','POST',{estimateId:estimate.id});assert.equal(inv.status(),201);const invoice=await inv.json(),number=invoice.id.slice(0,6).toUpperCase();

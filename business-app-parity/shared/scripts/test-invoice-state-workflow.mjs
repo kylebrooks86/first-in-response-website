@@ -10,7 +10,7 @@ export async function exerciseInvoiceState({page,context,browser,origin,request,
   ['/api/public/estimates/'+estimate.shareToken+'/accept','POST',{signedName:customer.name,acceptedTerms:true,photoRelease:'no'}],
   ['/api/estimates/'+estimate.id,'PATCH',{scheduledAt:'2026-10-22T15:00:00.000Z'}],
   ['/api/payments','POST',{estimateId:estimate.id,requestId:randomUUID(),amountCents:12000,method:'Cash'}],
-  ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,notes:'Synthetic completion only'}],
+  ['/api/job-reports','POST',{estimateId:estimate.id,customerId:customer.id,complete:true,checklist:{"Property condition documented":true,"Before photos captured":true,"Plants and fragile areas protected":true,"Service completed as quoted":true,"After photos captured":true,"Customer absent — completion documented for follow-up":true},notes:'Synthetic completion only'}],
   ['/api/estimates/'+estimate.id,'PATCH',{status:'completed'}],
  ]){const r=await request(path,method,body);assert.ok(r.ok(),path+': '+await r.text());}
  const invoiceResponse=await request('/api/invoices','POST',{estimateId:estimate.id});assert.equal(invoiceResponse.status(),201);const invoice=await invoiceResponse.json();const path='/invoice/'+invoice.shareToken;

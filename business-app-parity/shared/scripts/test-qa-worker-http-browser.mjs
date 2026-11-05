@@ -126,7 +126,9 @@ try{
   assert.ok(path.startsWith('/api/')&&!path.startsWith('//'));
   // Fix the synthetic client IP; local Wrangler may synthesize different
   // connecting addresses across platforms. Never rely on runner geo/IP data.
-  const response=await context.request.fetch(origin+path,{method,data,headers:{'cf-connecting-ip':'192.0.2.17','x-forwarded-for':'192.0.2.17',...headers}});
+  // Model the same-origin browser, including public acceptance CSRF checks.
+  // Explicit overrides remain available; denial tests below use raw requests.
+  const response=await context.request.fetch(origin+path,{method,data,headers:{origin,'cf-connecting-ip':'192.0.2.17','x-forwarded-for':'192.0.2.17',...headers}});
   if(path==='/api/auth/login'&&response.status()===503)console.error('Local auth diagnostic:',workerLog.match(/QA sign-in protection unavailable\s+\{[\s\S]*?\}/g)?.slice(-1)??'No stage diagnostic recorded');
   return response;
  };
