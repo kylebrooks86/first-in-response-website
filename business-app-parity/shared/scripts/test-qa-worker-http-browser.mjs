@@ -218,7 +218,13 @@ try{
  await dialog.getByRole('button',{name:'Close',exact:true}).click();
  const detail=()=>page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true});
  const previewLink=detail().locator('.detail-actions a[aria-label="Open customer-facing estimate preview"]');
-  check(await previewLink.isVisible()&&await detail().locator('details.detail-more-tools').evaluate(node=>!node.open),'Saved Customer view appears in primary actions while More tools stays collapsed');
+  await detail().waitFor({state:'visible',timeout:12000});
+  await previewLink.waitFor({state:'visible',timeout:12000}).catch(async error=>{
+    const overview=await detail().innerText().catch(()=>'<estimate detail absent>');
+    const links=await detail().locator('a').evaluateAll(rows=>rows.map(a=>({text:a.textContent?.trim().slice(0,65),label:a.getAttribute('aria-label'),href:a.getAttribute('href')}))).catch(()=>[]);
+    throw Error('Saved Customer view is missing from primary actions after closing edit. '+error.message+'; detail='+JSON.stringify(overview.slice(0,600))+'; links='+JSON.stringify(links.slice(0,12)));
+  });
+  check(await detail().locator('details.detail-more-tools').evaluate(node=>!node.open),'Customer preview remains in primary actions, without opening More tools');
  const previewPath=await previewLink.getAttribute('href');
  check(previewPath===`/estimate/${estimate.shareToken}?ownerPreview=1`&&await previewLink.getAttribute('target')===null,'Owner Customer view opens explicit preview in same tab; shared customer link stays unchanged');
  let documentText='';
