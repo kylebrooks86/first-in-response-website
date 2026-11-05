@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-state.mjs";
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
@@ -63,7 +64,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const manualPaymentEligible=canOfferManualPayment({status:row.estimateStatus,acceptedAt:row.estimateAcceptedAt,signedAt:row.estimateSignedAt,billingVerified:state.safe,balanceCents:balance,reviewPending:paymentReviewPending});
   const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
   const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
-  const close=ownerPreview?<><OwnerPreviewTheme/><a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Close"><X aria-hidden="true"/></a></>:null;
+  const close=ownerPreview?<><OwnerPreviewTheme/><Link className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} prefetch={false} replace aria-label="Close invoice preview" title="Close"><X aria-hidden="true"/></Link></>:null;
   if(!state.safe)return <main className={`pay-page invoice-page${ownerPreview?' owner-estimate-preview':''}`}>{close}<section className="pay-card"><h1>Invoice account review</h1><p>We are checking this invoice. Please contact First In Response Exteriors before making a payment.</p></section></main>;
   const runtime = env as RuntimeEnv;
   const paymentsReady = Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);

@@ -3112,6 +3112,18 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   line-height:1.45
 }
 
+/* Fast touch interactions: native iPhone dialog rendering can hitch when
+   scrolling a large modal at the same time as a scale/fade exit transition.
+   Keep all controls and Radix dismissal guards, but omit decorative animation
+   on narrow coarse-pointer screens. Motion remains enabled on desktop. */
+@media (max-width:760px) and (pointer:coarse){
+  [data-slot="dialog-content"],
+  [data-slot="dialog-overlay"]{
+    animation:none!important;
+    transition:none!important
+  }
+}
+
 /* Owner daily-flow polish: explicit unsaved-template state, reachable save
    controls and a return affordance at the end of long task details. */
 .template-unsaved-state{

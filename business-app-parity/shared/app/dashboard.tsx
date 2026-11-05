@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {QuoteVersions} from '../components/quote-versions';
 import {BusinessPreferencesPanel} from '../components/business-preferences';
 import {DoorKnocking} from "../components/door-knocking";
@@ -2545,7 +2546,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
-      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</a>}
+      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<Link href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`} prefetch={false} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</Link>}
       {!estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable: this estimate does not have a saved private link.</small>}
       {["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable for replaced or withdrawn estimates. The saved history remains available.</small>}
       {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>}
@@ -2564,7 +2565,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {estimating&&estimate.address&&<div className="detail-context-tools" role="group" aria-label="Estimate research"><strong>Estimate research</strong><div className="detail-context-buttons"><a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a><a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a></div></div>}
       {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}</div></div>}
       {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
-      {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
+      {estimate.invoiceId&&estimate.invoiceShareToken&&<Link href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`} prefetch={false}><Receipt/> View invoice</Link>}
       {!["superseded","declined"].includes(estimate.status)&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
     {(workingOnJob||["declined","superseded"].includes(estimate.status))?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
@@ -3071,11 +3072,24 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
   const contactPhone=usableCustomerPhone(selected?.phone),contactEmail=usableCustomerEmail(selected?.email);
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
   const customerNotes = notes.filter((note)=>note.customerId === selectedId);
-  const manualFlags=deriveCustomerManualFlags(customerNotes);
-  const flaggedSignCustomers=customers.map(customer=>({customer,...deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id))})).filter(item=>item.sign?.state==="out");
+  // Group customer activity once per saved records change, not again on every
+  // tap/open/close. Preserve original note ordering and flag semantics.
+  const flagsByCustomer=useMemo(()=>{
+    const notesById=new Map<string,CustomerNote[]>();
+    for(const note of notes){
+      const group=notesById.get(note.customerId);
+      if(group)group.push(note);
+      else notesById.set(note.customerId,[note]);
+    }
+    const flags=new Map<string,ReturnType<typeof deriveCustomerManualFlags>>();
+    for(const customer of customers)flags.set(customer.id,deriveCustomerManualFlags(notesById.get(customer.id)??[]));
+    return flags;
+  },[customers,notes]);
+  const manualFlags=flagsByCustomer.get(selectedId??"")??deriveCustomerManualFlags(customerNotes);
+  const flaggedSignCustomers=customers.map(customer=>({customer,...flagsByCustomer.get(customer.id)!})).filter(item=>item.sign?.state==="out");
   const tulsaToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
   const pendingLeadCallbacks=customers.map(customer=>({
-    customer,callback:deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id)).leadCallback
+    customer,callback:flagsByCustomer.get(customer.id)?.leadCallback
   })).filter(item=>item.callback?.state==="pending"&&Boolean(item.callback.dueDate))
    .sort((a,b)=>(a.callback?.dueDate??"").localeCompare(b.callback?.dueDate??"")||a.customer.name.localeCompare(b.customer.name));
   const dueLeadCallbacks=pendingLeadCallbacks.filter(item=>(item.callback?.dueDate??"")<=tulsaToday);
@@ -3215,7 +3229,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
   const matchingMessages=historyEntries.filter(({message})=>recordMatches([message.body,message.channel,message.template,message.createdAt]));
   const recordCounts=section==="estimates"?[matchingEstimates.length,customerQuoteView==="agreements"?customerAgreementRows.length:customerEstimates.length]:section==="invoices"?[matchingInvoices.length,customerInvoices.length]:section==="payments"?[matchingPayments.length,customerPayments.length]:section==="notes"?[matchingNotes.length,customerNotes.length]:[matchingMessages.length,historyEntries.length];
   const manuallyUnansweredLeadIds=new Set(customers.filter(customer=>
-    deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id)).leadContact?.state==="no_answer"
+    flagsByCustomer.get(customer.id)?.leadContact?.state==="no_answer"
   ).map(customer=>customer.id));
   const dueLeadCallbackIds=new Set(dueLeadCallbacks.map(item=>item.customer.id));
   const filteredCustomers = customers.filter((customer)=>
@@ -3329,7 +3343,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
         // invoice link that silently does nothing. Keep the real link
         // keyboard reachable when a saved token exists.
         return invoice.shareToken?
-          <a className="customer-record record-button" id={recordId} key={invoice.id} href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`}>{details}<ExternalLink aria-hidden="true"/></a>:
+          <Link className="customer-record record-button" id={recordId} key={invoice.id} href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`} prefetch={false}>{details}<ExternalLink aria-hidden="true"/></Link>:
           <div className="customer-record" id={recordId} tabIndex={-1} key={invoice.id}>{details}<small role="status">Preview unavailable · open Invoices to review.</small></div>;
       }) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear search to see invoices.":"Create one from an estimate."}</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length} onPhotoCountChange={acceptPhotoCount}/>}
