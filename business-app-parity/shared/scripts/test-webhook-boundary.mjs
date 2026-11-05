@@ -29,9 +29,15 @@ assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
 assert.equal((await request(body,header(body)+',v1=old-rotation-signature')).status,200);
 assert.equal((await request('{',header('{'))).status,400);
 for(const raw of ['null','[]','"string"','123'])assert.equal((await request(raw)).status,400);
-for(const livemode of [true,undefined])assert.equal((await request(JSON.stringify({livemode,type:'refund.updated',data:{object:{}}}))).status,400);
-assert.equal((await request(JSON.stringify({livemode:false,type:'refund.updated'}))).status,400);
+for(const eventType of ['refund.updated','refund.failed']){
+  for(const livemode of [true,undefined])assert.equal((await request(JSON.stringify({livemode,type:eventType,data:{object:{}}}))).status,400);
+  assert.equal((await request(JSON.stringify({livemode:false,type:eventType}))).status,400);
+}
 assert.equal((await request(JSON.stringify({livemode:false,type:'checkout.session.completed'}))).status,400);
 assert.equal(state.checkoutCalls,0);assert.equal(state.refundCalls,0);assert.equal(state.failureCalls,0);
+const signedRefundFailure=JSON.stringify({livemode:false,type:'refund.failed',data:{object:{id:'re_synthetic',status:'failed',amount:100,currency:'usd'}}});
+assert.equal((await request(signedRefundFailure)).status,200);
+assert.equal(state.refundCalls,1,'Signed refund.failed must enter the refund reconciler rather than be ignored');
+assert.equal(state.checkoutCalls,0);
 state.env.STRIPE_WEBHOOK_SECRET='';assert.equal((await request(body,'irrelevant')).status,503);
-console.log('PASS: actual webhook signature/time/body checks, rotated signatures, malformed JSON/envelopes, strict staging live-event rejection, missing objects; zero reconciliation calls for rejected input. No network or credentials used.');
+console.log('PASS: actual webhook signature/time/body checks, rotated signatures, malformed JSON/envelopes, strict staging live-event rejection, missing objects; signed refund.failed dispatch; zero reconciliation calls for rejected input. No network or credentials used.');
