@@ -2567,7 +2567,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
       {!["superseded","declined"].includes(estimate.status)&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
-    {workingOnJob?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
+    {(workingOnJob||["declined","superseded"].includes(estimate.status))?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
     <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
     <details className="detail-more-tools">

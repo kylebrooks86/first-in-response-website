@@ -52,6 +52,7 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
  },[estimateId]);
  useEffect(()=>{void refresh();return()=>{requestNo.current++;};},[refresh]);
  const current=state?.currentSnapshot,review=state?.exceptionReview;
+ const historical=current?.status==="declined"||current?.status==="superseded";
  const allowed=Boolean(current&&review?.canReviewUnsignedDraft&&!uncertain&&!busy);
  let proposed:{required:number;basis?:number;fixed?:number}|null=null,validation="";
  try{if(current)proposed=preview(current.totalCents,current.depositCents,mode,amount);}
@@ -108,9 +109,12 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
   {error&&<p role="alert" className="save-error">{error}</p>}
   {!state?<p>Deposit policy is not currently verified.</p>:
    <div className="revision-totals owner-deposit-summary">
-    <span>Deposit still due<strong>{state.policy.remainingDepositCents===null?"Not verified":money(state.policy.remainingDepositCents)}</strong></span>
+    {historical?<><span>Original deposit (not due)<strong>{money(current!.depositCents)}</strong></span>
+    <span>Scheduling<strong>Closed · inactive estimate</strong></span>
+    <p className="owner-deposit-guidance">Historical quote only. No deposit is currently collectible or job scheduling available from this declined or replaced estimate. The original amounts remain in the saved record.</p></>:
+    <><span>Deposit still due<strong>{state.policy.remainingDepositCents===null?"Not verified":money(state.policy.remainingDepositCents)}</strong></span>
     <span>Scheduling<strong>{state.policy.canSchedule?"Policy checks passed":"Not ready yet"}</strong></span>
-    {state.policy.message&&<p className="owner-deposit-guidance">{state.policy.message}</p>}
+    {state.policy.message&&<p className="owner-deposit-guidance">{state.policy.message}</p>}</>}
     {current&&<details className="owner-deposit-breakdown"><summary>Deposit breakdown</summary><div className="revision-totals">
       <span>Required deposit<strong>{money(current.depositCents)}</strong></span>
       <span>Total after discounts<strong>{money(current.totalCents)}</strong></span>
