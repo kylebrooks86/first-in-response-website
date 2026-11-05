@@ -92,6 +92,10 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           pnpm install --frozen-lockfile
           pnpm run build
+      - name: Gate 8 owner-preview and coarse-pointer navigation contracts (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-iphone-owner-preview-contracts.mjs .
       - name: Verify compiled Worker can only target designated staging D1
         run: node business-app-parity/check_independent_staging_runtime_config.mjs "$RUNNER_TEMP/fire-independent-staging-candidate/dist/server/wrangler.json"
       - name: Verify compiled source exactly matches reviewed app and overlays
