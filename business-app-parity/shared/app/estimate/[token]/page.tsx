@@ -35,7 +35,7 @@ async function confirmPayment(sessionId:string,estimate:{id:string}){
 
 export default async function CustomerEstimatePage({params,searchParams}:{params:Promise<{token:string}>;searchParams:Promise<{session_id?:string;from?:string;ownerPreview?:string}>}){
   const {token}=await params;
-  const {session_id:sessionId,ownerPreview:previewRequested}=await searchParams;
+  const {session_id:sessionId,ownerPreview:previewRequested,from:previewFrom}=await searchParams;
   // The query is only a navigation hint, never authorization. Ordinary shared
   // links omit it; copying/forging it cannot expose owner controls to a customer.
   const previewUser=previewRequested==='1'?await getChatGPTUser():null;
@@ -194,7 +194,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
-    {ownerPreview&&<><OwnerPreviewTheme/><a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Close"><X aria-hidden="true"/></a></>}
+    {ownerPreview&&<><OwnerPreviewTheme/><a className="owner-estimate-preview-close" href={previewFrom==="customer"?`/?openCustomer=${encodeURIComponent(row.customerId)}`:`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Close"><X aria-hidden="true"/></a></>}
     <section className="pay-card estimate-portal">
     {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
