@@ -20,7 +20,7 @@ for(const helper of ['completedCustomerJobHistory','customerNumberLabel','matche
 const imports=[
 "import {summarizeCustomerBalances} from './lib/customer-balance-summary';",
 "import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from './lib/customer-activity-flags';",
-"import React,{useState,useRef,useEffect,useCallback} from 'react';",
+"import React,{useState,useRef,useEffect,useCallback,useMemo} from 'react';",
 "import {createRoot} from 'react-dom/client';",
 "import {ChevronRight,ArrowLeft} from 'lucide-react';",
 "import {OfflineCustomerPhotos} from './components/offline-customer-photos';",
@@ -34,6 +34,10 @@ const imports=[
 "const messageHistoryEntries=()=>[];const billingBalanceCents=()=>0;",
 "const resolvedBillingTotalCents=()=>0;const money=()=>'$0.00';"
 ].join('\n');
+// Fail before Chromium rather than timing out when real CustomersView adds a hook
+// not provided by this intentionally narrow, synthetic extraction fixture.
+const usedHooks=[...new Set(dashboard.slice(a,b).match(/\buse[A-Z]\w+(?=\s*\()/g)||[])];
+for(const hook of usedHooks)if(!imports.includes(hook))throw Error('Offline CustomersView fixture missing extracted React hook: '+hook);
 const tail=[
 "window.fixturePhotoDirectory={seed:saveOfflinePhotoCustomerDirectory,read:loadOfflinePhotoCustomerDirectory,",
 "photoCount:async()=> (await listOfflinePhotos('synthetic-customer-photo')).length};",
