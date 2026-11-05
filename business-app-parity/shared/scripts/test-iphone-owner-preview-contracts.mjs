@@ -111,7 +111,7 @@ verify(current);
 // Mutations MUST fail in the actual source contract; do not waive privacy or
 // navigation requirements merely because the revised test itself passes.
 for(const [label,change] of [
- ['client-router preview reintroduced',s=>({...s,dashboard:s.dashboard.replace('<a href={','<Link href={')})],
+ ['client-router preview reintroduced',s=>({...s,dashboard:s.dashboard.replace('<a href={`/estimate/','<Link href={`/estimate/')})],
  ['preview in an unmanaged new tab',s=>({...s,dashboard:s.dashboard.replace('aria-label="Open customer-facing estimate preview"','target="_blank" aria-label="Open customer-facing estimate preview"')})],
  ['owner Close pollutes browser history',s=>({...s,returnLink:s.returnLink.replace('window.location.replace(url.href)','window.location.assign(url.href)')})],
  ['owner authentication gating removed',s=>({...s,estimate:s.estimate.replace('ownerPreview&&<><OwnerPreviewTheme/>','true&&<><OwnerPreviewTheme/>')})],
