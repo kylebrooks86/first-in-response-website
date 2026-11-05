@@ -40,7 +40,16 @@ try{
   if(width===390&&theme==='dark'){
    const inactive=body();inactive.currentSnapshot.status='declined';
    await refresh.click();await respond(200,inactive);
-   await panel.getByText('Original deposit (not due)',{exact:true}).waitFor();
+   try{
+    await page.waitForFunction(()=>{
+     const panel=document.querySelector('[aria-label="Owner deposit policy and audit history"] .owner-deposit-summary');
+     const text=panel?.textContent||'';
+     return text.includes('Original deposit (not due)')&&text.includes('Closed · inactive estimate')&&!text.includes('Deposit still due');
+    },null,{timeout:7000});
+   }catch(error){
+    const shown=await panel.locator('.owner-deposit-summary').innerText().catch(()=>'<missing>');
+    throw Error('Declined deposit readback did not render a noncollectible historical record. Actual synthetic UI: '+JSON.stringify(shown));
+   }
    check(await panel.getByText('Closed · inactive estimate',{exact:true}).isVisible(),
      'Declined quote cannot be represented as schedulable');
    check(await panel.getByText('Deposit still due',{exact:true}).count()===0,
