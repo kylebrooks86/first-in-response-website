@@ -83,6 +83,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-qa-worker-http-browser.mjs
+          node scripts/test-qa-worker-http-browser.mjs --customer-profile
 
   gate8-declined-deposit-browser:
     name: Gate 8 declined deposit and audit UI (synthetic Chrome only)
