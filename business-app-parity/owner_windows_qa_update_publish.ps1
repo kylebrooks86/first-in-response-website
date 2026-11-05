@@ -18,13 +18,14 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-# Owner independently reran the exact existing QA read-only reviewer on Nov 1.
-# It verified the pinned sole 100% active QA version and physical QA D1 binding.
-# Preserve that current active version for code-only rollback if later approved.
+# Nov 2 owner-approved QA publication and Nov 4 authenticated Wrangler
+# inventory identify this exact 100%-serving version, with independent bound-D1
+# check. Reverify current version and physical D1 before any owner approval.
+# Preserve this currently working version for code-only rollback if approved.
 # This observation NEVER authorizes publication: require a fresh exact source,
 # two independently verified database identities, 25-journal, device-photo
 # protection and typed owner consent before any existing QA Worker update.
-$expectedActiveVersion = '86f3d186-2770-438e-9f5c-32319bf6fe1d'
+$expectedActiveVersion = '2dba26a4-6188-466f-a754-c9ae00c1c878'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
