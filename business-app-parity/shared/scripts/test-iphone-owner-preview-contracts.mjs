@@ -70,7 +70,7 @@ function verify(s){
     check(source.includes('await getChatGPTUser()')&&
       source.includes("?.email?.toLowerCase()==='kylebrooks8605@gmail.com'"),
       label+' owner preview requires authenticated owner, not a query flag alone');
-    check(source.includes('ownerPreview&&<><OwnerPreviewTheme/><Link'),
+    check(source.includes(label==='estimate'?'ownerPreview&&<><OwnerPreviewTheme/><Link':'ownerPreview?<><OwnerPreviewTheme/><Link'),
       label+' close/control is gated by authenticated owner preview');
   }
   check(s.invoice.includes("from==='customer'?")&&s.invoice.includes('customerSection=invoices')&&
@@ -92,7 +92,7 @@ verify(current);
 // Prove the source guard fails against representative regressions, not only
 // passing known strings. This does not generate or deploy altered app source.
 for(const [label,change] of [
-  ['full-page preview fallback',s=>({...s,dashboard:s.dashboard.replace('<Link href={\`/estimate/','<a href={\`/estimate/')} )],
+  ['full-page preview fallback',s=>({...s,dashboard:s.dashboard.replace('<Link href={`/estimate/','<a href={`/estimate/')})],
   ['private link speculative prefetch',s=>({...s,dashboard:s.dashboard.replace('prefetch={false} aria-label="Open customer-facing estimate preview"','prefetch={true} aria-label="Open customer-facing estimate preview"')})],
   ['owner close history pollution',s=>({...s,estimate:s.estimate.replace('prefetch={false} replace aria-label="Close estimate preview"','prefetch={false} aria-label="Close estimate preview"')})],
   ['mobile dialog animation accidentally restored',s=>({...s,css:s.css.replace('@media (max-width:760px) and (pointer:coarse)','@media (min-width:761px) and (pointer:fine)')})],
