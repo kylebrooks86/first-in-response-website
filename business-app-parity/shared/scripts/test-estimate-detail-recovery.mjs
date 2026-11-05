@@ -152,7 +152,9 @@ eq((primary.match(/PersonalPhoneBackupAction/g)||[]).length>=2,true,'Estimate de
 eq(primary.includes('Estimate research')&&primary.includes('Google Earth')&&primary.includes('Zillow'),true,'Quote preparation presents Earth and Zillow together');
 eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&!primary.includes('StrideButton'),true,'Scheduled work shows Maps without duplicating the Home Stride shortcut');
 eq(secondary.includes('Google Maps')&&!secondary.includes('StrideButton'),true,'Directions remain available under More tools without another Stride button');
-for(const label of ['Customer view','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
+for(const label of ['Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing secondary research and job control retained: '+label);
+eq(primary.includes('Customer view'),true,'Customer view is immediately available in the primary estimate actions');
+eq(secondary.includes('Customer view'),false,'No duplicate or buried Customer view link under More tools');
 eq(secondary.includes('More tools')&&!secondary.includes('Job report, costs & more'),true,'Expandable tools use one short label, with job reports directly accessible');
 eq(ast.getText().includes('<StrideButton top/>'),true,'Home retains its single Stride button in the header');
 // Stage-specific actions stay available without a duplicate mileage shortcut.
@@ -166,7 +168,7 @@ const scheduledNodes=scheduledJob.nodes();
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps directly; Stride stays in Home');
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Scheduled work surfaces Job report and Job costs directly, without a More tools tap');
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Estimate research'),false,'Booked job does not repeat pre-estimate research buttons up front');
-eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains extra research and customer-view tools under More tools');
+eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains optional research tools under More tools');
 const completedJob=fixture();completedJob.setFetcher(()=>Promise.resolve(ok(true,'completed')));completedJob.open({...job('completed'),status:'completed',address:'123 Synthetic St'});await flush();
 const completedNodes=completedJob.nodes();
 eq(completedNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Completed job still exposes reports and costs without extra navigation');
