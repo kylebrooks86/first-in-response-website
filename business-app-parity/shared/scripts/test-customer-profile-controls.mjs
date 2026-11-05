@@ -31,6 +31,12 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(await quoteDetails.locator('details.detail-more-tools').count()===1,'Job tools remain available without crowding the main action buttons');
  await page.keyboard.press('Escape');
  await quoteDetails.waitFor({state:'hidden'});
+ // Opening an exact saved quote intentionally routes to the authoritative
+ // Estimates workspace. Navigate back to the same customer before verifying
+ // the customer profile; the old test queried a screen no longer mounted.
+ await profile();
+ check(await page.getByRole('heading',{name:customer.name,exact:true}).isVisible(),
+   'Exact customer profile remains reachable after viewing its saved estimate');
  const firstUse=await page.evaluate(()=>{
    const selectors=['.customer-profile-head','.customer-contact','.record-tabs','.customer-records','.customer-snapshot','.customer-flag-panel','.customer-timeline'];
     const profile=document.querySelector('.customer-profile'),roots=selectors.map(selector=>profile?.querySelector(selector));
