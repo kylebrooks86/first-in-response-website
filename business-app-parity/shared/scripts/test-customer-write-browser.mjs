@@ -83,7 +83,15 @@ try{
  const lifecycle=await page.evaluate(()=>window.testCustomerFlags());
  check(lifecycle.out==='out'&&lifecycle.pickupDate==='2026-10-27'&&lifecycle.location==='Front lawn','Structured yard sign note records placement and pickup target');
  check(lifecycle.review&&lifecycle.retrieved==='picked_up'&&lifecycle.unverified,'Review and sign completion require exact owner-logged saved note markers');
- const open=async name=>{await page.locator('.customer-card').filter({has:page.getByText(name,{exact:true})}).click();await page.getByRole('button',{name:/^Notes/}).click();};
+ const open=async name=>{
+  await page.locator('.customer-card').filter({has:page.getByText(name,{exact:true})}).click();
+  await page.getByRole('button',{name:/^Notes/}).click();
+  // Optional contact/callback tools are intentionally collapsed in the
+  // streamlined profile. Exercise the real owner action by opening it first.
+  const activity=page.locator('details.customer-activity-tools');
+  await activity.locator(':scope > summary').click();
+  assert.equal(await activity.evaluate(node=>node.open),true,'Owner explicitly opens optional customer contact tools');
+};
  // Real customer with ZERO estimates: explicit lead No answer note, without
  // sending a message or generating a quote, followed by directory filtering.
  await page.setViewportSize({width:390,height:700});
@@ -127,6 +135,7 @@ try{
  await page.getByRole('button',{name:'Callbacks due (1)'}).click();
  check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
  await page.locator('.customer-card').first().click();
+ await page.locator('details.customer-activity-tools > summary').click();
  await page.getByRole('button',{name:'Mark callback done'}).evaluate(button=>{button.click();button.click();});
  await page.getByText('Callback marked done.',{exact:true}).waitFor();
  check(notes[0]?.body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED'&&notes.length===3&&notePosts===3,
