@@ -6,8 +6,21 @@ import {readFileSync} from "node:fs";
 import {createRequire} from "node:module";
 const require=createRequire(import.meta.url);
 const ts=require("typescript");
-const compile=(path)=>ts.transpileModule(readFileSync(new URL(path,import.meta.url),"utf8")
-  .replace(/^import .*?;\n/gm,""),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+// Windows Git worktrees may check out API route source with CRLF even when the
+// committed Git blob uses LF. Keep the isolated fixture's synthetic dependency
+// injection strict instead of leaving an imported module for Node to require.
+const stripImports=(source)=>source.replace(/^import .*?;\r?\n/gm,"");
+for(const newline of ["\n","\r\n"]){
+ const sample='import {env} from "cloudflare:workers";'+newline+'const retained=true;';
+ assert.equal(stripImports(sample),'const retained=true;','Both Windows and Unix import line endings are removed');
+}
+const compile=(path)=>{
+ const source=stripImports(readFileSync(new URL(path,import.meta.url),"utf8"));
+ assert.doesNotMatch(source,/^\s*import\s/m,'Every route import must be supplied by synthetic dependencies');
+ const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ assert.doesNotMatch(output,/\brequire\s*\(/,'No real module imports may escape the isolated synthetic route');
+ return output;
+};
 let passed=0;
 const eq=(value,wanted,reason)=>{assert.deepEqual(value,wanted,reason);console.log("PASS: "+reason);passed++};
 const objects=[
