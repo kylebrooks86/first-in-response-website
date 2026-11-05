@@ -155,6 +155,12 @@ eq(secondary.includes('Google Maps')&&!secondary.includes('StrideButton'),true,'
 for(const label of ['Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing secondary research and job control retained: '+label);
 eq(primary.includes('Customer view'),true,'Customer view is immediately available in the primary estimate actions');
 eq(secondary.includes('Customer view'),false,'No duplicate or buried Customer view link under More tools');
+const customerSource=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView')?.getText(ast);
+assert.ok(customerSource?.includes('previewSource="customer"'),'Customer-record previews keep their return context');
+assert.ok(customerSource?.includes('onChanged={updated=>{setActiveEstimate(current=>current?.id===updated.id?updated:current);void load(true);}}'),
+ 'Read-only change-history refresh cannot dismiss the customer estimate');
+const previewPage=readFileSync('app/estimate/[token]/page.tsx','utf8');
+assert.ok(previewPage.includes('previewFrom==="customer"?`/?openCustomer='),'Owner customer preview closes to its original customer, not an unrelated page');
 eq(secondary.includes('More tools')&&!secondary.includes('Job report, costs & more'),true,'Expandable tools use one short label, with job reports directly accessible');
 eq(ast.getText().includes('<StrideButton top/>'),true,'Home retains its single Stride button in the header');
 // Stage-specific actions stay available without a duplicate mileage shortcut.
@@ -163,6 +169,14 @@ const researchNodes=researchJob.nodes();
 eq(researchNodes.some(n=>n.props?.['aria-label']==='Estimate research'),true,'Quote stage exposes Earth and Zillow as research tools');
 eq(researchNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Draft quote does not clutter the screen with travel shortcuts');
 eq(researchNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Secondary owner tools stay available for a draft quote');
+const previewQuote=fixture();previewQuote.setFetcher(()=>Promise.resolve(ok(false,'preview')));previewQuote.open({...job('preview'),status:'sent',shareToken:'0123456789abcdef0123456789abcdef'});await flush();
+const previewAction=previewQuote.nodes().find(n=>n.props?.['aria-label']==='Open customer-facing estimate preview');
+eq(Boolean(previewAction),true,'Saved current quote exposes immediate Customer view without a More tools tap');
+eq(previewAction.props.href,'/estimate/0123456789abcdef0123456789abcdef?ownerPreview=1','Preview points to the exact saved private token');
+const withdrawn=fixture();withdrawn.setFetcher(()=>Promise.resolve(ok(false,'withdrawn')));withdrawn.open({...job('withdrawn'),status:'declined',shareToken:'0123456789abcdef0123456789abcdef'});await flush();
+eq(withdrawn.nodes().some(n=>n.props?.['aria-label']==='Open customer-facing estimate preview'),false,'Withdrawn quotes never expose customer preview');
+const unavailable=fixture();unavailable.setFetcher(()=>Promise.resolve(ok(false,'missing')));unavailable.open({...job('missing'),status:'sent'});await flush();
+eq(unavailable.nodes().some(n=>n.type==='small'&&String(n.props?.children).includes('no saved customer link')),true,'Missing tokens show a truthful unavailable status');
 const scheduledJob=fixture();scheduledJob.setFetcher(()=>Promise.resolve(ok(false,'booked')));scheduledJob.open({...job('booked'),address:'123 Synthetic St',scheduledAt:'2026-10-28T14:00:00.000Z'});await flush();
 const scheduledNodes=scheduledJob.nodes();
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps directly; Stride stays in Home');
