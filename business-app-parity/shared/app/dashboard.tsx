@@ -3072,11 +3072,24 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
   const contactPhone=usableCustomerPhone(selected?.phone),contactEmail=usableCustomerEmail(selected?.email);
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
   const customerNotes = notes.filter((note)=>note.customerId === selectedId);
-  const manualFlags=deriveCustomerManualFlags(customerNotes);
-  const flaggedSignCustomers=customers.map(customer=>({customer,...deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id))})).filter(item=>item.sign?.state==="out");
+  // Group customer activity once per saved records change, not again on every
+  // tap/open/close. Preserve original note ordering and flag semantics.
+  const flagsByCustomer=useMemo(()=>{
+    const notesById=new Map<string,CustomerNote[]>();
+    for(const note of notes){
+      const group=notesById.get(note.customerId);
+      if(group)group.push(note);
+      else notesById.set(note.customerId,[note]);
+    }
+    const flags=new Map<string,ReturnType<typeof deriveCustomerManualFlags>>();
+    for(const customer of customers)flags.set(customer.id,deriveCustomerManualFlags(notesById.get(customer.id)??[]));
+    return flags;
+  },[customers,notes]);
+  const manualFlags=flagsByCustomer.get(selectedId??"")??deriveCustomerManualFlags(customerNotes);
+  const flaggedSignCustomers=customers.map(customer=>({customer,...flagsByCustomer.get(customer.id)!})).filter(item=>item.sign?.state==="out");
   const tulsaToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
   const pendingLeadCallbacks=customers.map(customer=>({
-    customer,callback:deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id)).leadCallback
+    customer,callback:flagsByCustomer.get(customer.id)?.leadCallback
   })).filter(item=>item.callback?.state==="pending"&&Boolean(item.callback.dueDate))
    .sort((a,b)=>(a.callback?.dueDate??"").localeCompare(b.callback?.dueDate??"")||a.customer.name.localeCompare(b.customer.name));
   const dueLeadCallbacks=pendingLeadCallbacks.filter(item=>(item.callback?.dueDate??"")<=tulsaToday);
@@ -3216,7 +3229,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
   const matchingMessages=historyEntries.filter(({message})=>recordMatches([message.body,message.channel,message.template,message.createdAt]));
   const recordCounts=section==="estimates"?[matchingEstimates.length,customerQuoteView==="agreements"?customerAgreementRows.length:customerEstimates.length]:section==="invoices"?[matchingInvoices.length,customerInvoices.length]:section==="payments"?[matchingPayments.length,customerPayments.length]:section==="notes"?[matchingNotes.length,customerNotes.length]:[matchingMessages.length,historyEntries.length];
   const manuallyUnansweredLeadIds=new Set(customers.filter(customer=>
-    deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id)).leadContact?.state==="no_answer"
+    flagsByCustomer.get(customer.id)?.leadContact?.state==="no_answer"
   ).map(customer=>customer.id));
   const dueLeadCallbackIds=new Set(dueLeadCallbacks.map(item=>item.customer.id));
   const filteredCustomers = customers.filter((customer)=>
