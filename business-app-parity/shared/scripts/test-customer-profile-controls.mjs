@@ -43,6 +43,17 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details');
  check(firstUse.tabs.length===6&&firstUse.tabs.some(label=>label.startsWith('Photos'))&&firstUse.tabs.some(label=>label.startsWith('Notes'))&&firstUse.tabFit,'All six customer record tabs remain visible and finger-sized on iPhone');
  check(firstUse.actionColumns===2,'Common customer actions use two compact touch-friendly columns on iPhone');
+ const optionalActivity=page.locator('details.customer-activity-tools');
+ check(await optionalActivity.count()===1&&await optionalActivity.evaluate(node=>!node.open),
+   'Optional customer follow-up, callbacks and yard-sign controls start collapsed');
+ check(await page.locator('.customer-flag-heading').isVisible(),
+   'The follow-up heading remains discoverable without expanding optional tools');
+ await optionalActivity.locator(':scope>summary').click();
+ check(await optionalActivity.getByRole('button',{name:'Log lead contacted'}).isVisible(),
+   'Existing contact and callback tools remain usable after explicit expansion');
+ await optionalActivity.locator(':scope>summary').click();
+ check(await optionalActivity.evaluate(node=>!node.open),
+   'Optional tracking may collapse again without editing customer records');
  // The primary Text action uses the same saved/custom editor as the Messages tab.
  const quickText=page.locator('.customer-contact').getByRole('button',{name:'Text',exact:true});
  check(await quickText.count()===1,'Primary customer Text remains immediately visible');
