@@ -2545,6 +2545,9 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
+      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</a>}
+      {!estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable: this estimate does not have a saved private link.</small>}
+      {["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable for replaced or withdrawn estimates. The saved history remains available.</small>}
       {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>}
       {estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
       {!["superseded","declined"].includes(estimate.status)&&estimate.customerId&&<MessageComposer
@@ -2578,7 +2581,6 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       </div>}
       {estimate.status==='approved'&&estimate.acceptedAt&&estimate.signedAt&&estimate.paidCents===0&&!estimate.invoiceId&&<details className="ui-help"><summary>Revise approved quote</summary><p>Saving replaces the original quote immediately and disables its old payment link. The original scope and signature stay in history; the replacement needs a new signature. Available before any payment, checkout or invoice.</p><NewEstimate customer={messageCustomer} revisionSource={estimate} onSaved={next=>window.location.assign('/?openEstimate='+encodeURIComponent(next.id))}/></details>}
       <div className="detail-actions">
-        {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
         {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
         {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
         {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
@@ -2890,11 +2892,11 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
   const [directoryLimit,setDirectoryLimit]=useState(40);
   useEffect(()=>{setDirectoryLimit(40);},[directorySearch,searchQuery,showDueCallbacksOnly,showUnansweredLeadsOnly]);
   const [timelineShown,setTimelineShown]=useState(6);
-  const [journeyShown,setJourneyShown]=useState(3);
+  const [journeyShown,setJourneyShown]=useState(1);
   const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
   const [timelineSearch,setTimelineSearch]=useState("");
   const [timelineTarget,setTimelineTarget]=useState<{customerId:string;section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string}|null>(null);
-  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);setJourneyShown(3);},[selectedId]);
+  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);setJourneyShown(1);},[selectedId]);
   useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
@@ -3049,6 +3051,8 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       const tracking=profile?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
       if(tracking)tracking.open=true;
     }
+    const optionalActions=target.closest<HTMLDetailsElement>("details.customer-activity-tools");
+    if(optionalActions)optionalActions.open=true;
     const hiddenStatus=target.closest<HTMLDetailsElement>("details.customer-sign-form");
     if(hiddenStatus)hiddenStatus.open=true;
     target.scrollIntoView({block:"start",behavior:"instant"});
@@ -3137,6 +3141,8 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       const tracking=element?.closest(".customer-profile")?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
       if(tracking)tracking.open=true;
     }
+    const optionalActions=element?.closest<HTMLDetailsElement>("details.customer-activity-tools");
+    if(optionalActions)optionalActions.open=true;
     const hiddenStatus=element?.closest<HTMLDetailsElement>("details.customer-sign-form");
     if(hiddenStatus)hiddenStatus.open=true;
     element?.scrollIntoView({block:"center",behavior:"instant"});
@@ -3279,7 +3285,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
     {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
   </div>;
   if (selected) return <div className="customers-view">
-    <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
+    <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={updated=>{setActiveEstimate(current=>current?.id===updated.id?updated:current);void load(true);}} />
     <button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>
     {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
@@ -3370,6 +3376,8 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       </section></details>
       <section id={`customer-flags-${selected.id}`} tabIndex={-1} className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
         <div className="customer-flag-heading"><div><h2>Follow-up & activity</h2></div><ClipboardList aria-hidden="true"/></div>
+        {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
+        <details className="customer-sign-form customer-activity-tools"><summary>Contact, callbacks & optional tracking{manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&<span> · Callback {manualFlags.leadCallback.dueDate}</span>}</summary>
         <details className="customer-sign-form"><summary>More statuses</summary><div className="customer-flag-grid">
           <span><small>Estimate</small><strong>{activitySummary.estimate}</strong></span>
           <span><small>Invoice</small><strong>{activitySummary.invoice}</strong></span>
@@ -3378,7 +3386,6 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
           <span><small>Review received</small><strong>{activitySummary.reviewReceived}</strong></span>
           <span id={`customer-sign-flag-${selected.id}`} tabIndex={-1} className={activitySummary.needs.includes("Yard sign pickup is due")?"customer-flag-action-needed":""}><small>Yard sign</small><strong>{activitySummary.sign}</strong></span>
         </div></details>
-        {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
         {reviewCheck.status==="due"&&<div id={`customer-review-check-${selected.id}`} tabIndex={-1} className="customer-review-check" role="region" aria-label="Review follow-up check due"><div><strong><Star aria-hidden="true"/> Review status check available</strong><p>Review request recorded {reviewCheck.elapsedDays} days ago; no review is logged. Check whether a review has appeared before contacting the customer again.</p></div><div className="flex flex-wrap gap-2">{onPrepareReviewTask&&<Button variant="outline" aria-label="Prepare review status check task" onClick={()=>stageReviewCheck(selected,reviewCheck.requestedAt)}>Create check task</Button>}<Button variant="outline" aria-label="Defer review status check seven days" disabled={reviewCheckSnoozing} onClick={()=>void snoozeReviewStatusCheck(selected,reviewCheck.requestedAt)}>{reviewCheckSnoozing?"Saving check…":"Check later · 7 days"}</Button></div>{reviewCheckSnoozeError&&<p role="alert" className="save-error">{reviewCheckSnoozeError}</p>}</div>}
         <div className="customer-flag-actions">
           <Button variant="outline" aria-label="Log lead no answer" disabled={savingNote} onClick={()=>void saveNote(LEAD_NO_ANSWER_NOTE,"no_answer")}>No answer · not contacted</Button>
@@ -3412,6 +3419,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
           </p>}
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Yard sign: {manualFlags.sign.location||"Location not specified"} · Pickup {manualFlags.sign.pickupDate}.</p>}
         <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Contact and callback buttons save directly. Other flags prepare notes; tap <strong>Add note</strong> to save those. Callback dates are tracked here; no automatic alerts. No messages or push alerts are sent. Pickup tasks must be saved separately.</p></details>
+        </details>
       </section>
       {nextCustomerActions.length>0&&<section className="customer-action-review" role="region" aria-label="Review next customer actions">
         <div className="customer-timeline-heading"><div><h2>Review next</h2></div><span>{nextCustomerActions.length} to check</span></div>
