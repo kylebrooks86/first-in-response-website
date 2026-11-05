@@ -169,9 +169,9 @@ const previewQuote=fixture();previewQuote.setFetcher(()=>Promise.resolve(ok(fals
 const previewLink=previewQuote.nodes().find(n=>n.props?.['aria-label']==='Open customer-facing estimate preview');
 eq(Boolean(previewLink),true,'Saved sent quote has an immediately accessible customer preview action');
 eq(previewLink.props.href,'/estimate/0123456789abcdef0123456789abcdef?ownerPreview=1','Customer preview uses the exact saved private token without changing the record');
-const withdrawnQuote=fixture();withdrawnQuote.setFetcher(()=>Promise.resolve(ok(false,'withdrawn'));withdrawnQuote.open({...job('withdrawn'),status:'declined',shareToken:'0123456789abcdef0123456789abcdef'});await flush();
+const withdrawnQuote=fixture();withdrawnQuote.setFetcher(()=>Promise.resolve(ok(false,'withdrawn')));withdrawnQuote.open({...job('withdrawn'),status:'declined',shareToken:'0123456789abcdef0123456789abcdef'});await flush();
 eq(withdrawnQuote.nodes().some(n=>n.props?.['aria-label']==='Open customer-facing estimate preview'),false,'Declined quotes cannot offer a customer approval preview');
-const missingPrivateLink=fixture();missingPrivateLink.setFetcher(()=>Promise.resolve(ok(false,'missing'));missingPrivateLink.open({...job('missing'),status:'sent'});await flush();
+const missingPrivateLink=fixture();missingPrivateLink.setFetcher(()=>Promise.resolve(ok(false,'missing')));missingPrivateLink.open({...job('missing'),status:'sent'});await flush();
 eq(missingPrivateLink.nodes().some(n=>n.type==='small'&&String(n.props?.children).includes('does not have a saved private link')),true,'Missing token clearly explains why Customer view is unavailable');
 const customerSource=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView')?.getText(ast);
 assert.ok(customerSource?.includes('onOpenEstimate(estimate.id);return;'),'Customer shortcuts preserve the tested authoritative Estimates-workspace route');
