@@ -132,11 +132,33 @@ export async function recordRefundUpdate(db:Database,refund:StripeRefund,stripeS
   if(!refund.id||!Number.isSafeInteger(refund.amount)||Number(refund.amount)!==Number(requestRow.amountCents))return {ok:false,reason:"refund_amount_mismatch"};
   if(requestRow.providerRefundId&&requestRow.providerRefundId!==refund.id)return {ok:false,reason:"refund_provider_mismatch"};
   if(refund.status==="failed"||refund.status==="canceled"){
-    await db.prepare("UPDATE payment_refunds SET status='failed',provider_refund_id=? WHERE id=? AND status='pending'").bind(refund.id,requestRow.id).run();
+    // Never reverse a verified success in response to an older or contradictory
+    // failure event. A failed refund is not an accounting refund: no negative
+    // payments row must be inserted and the original paid balance is unchanged.
+    if(requestRow.status==="succeeded")return {ok:true,ignored:true};
+    if(requestRow.status!=="pending"&&requestRow.status!=="failed")
+      return {ok:false,reason:"refund_failure_state_conflict"};
+    if(requestRow.status==="pending")
+      await db.prepare("UPDATE payment_refunds SET status='failed',provider_refund_id=? WHERE id=? AND status='pending' AND (provider_refund_id IS NULL OR provider_refund_id=?)")
+        .bind(refund.id,requestRow.id,refund.id).run();
+    // A D1 .run() response alone cannot prove that the failure was stored.
+    // Return non-2xx so Stripe retries unless exact persisted state is visible.
+    const persisted=await db.prepare("SELECT status,provider_refund_id AS providerRefundId FROM payment_refunds WHERE id=? LIMIT 1")
+      .bind(requestRow.id).first<{status:string;providerRefundId:string|null}>();
+    if(persisted?.status!=="failed"||persisted.providerRefundId!==refund.id)
+      return {ok:false,reason:"refund_failure_not_persisted"};
     return {ok:true,failed:true};
   }
   if(refund.status!=="succeeded"){
-    await db.prepare("UPDATE payment_refunds SET provider_refund_id=? WHERE id=? AND status='pending'").bind(refund.id,requestRow.id).run();
+    // A later-arriving pending event must not undo a terminal outcome.
+    if(requestRow.status==="failed"||requestRow.status==="succeeded")return {ok:true,ignored:true};
+    if(requestRow.status!=="pending")return {ok:false,reason:"refund_pending_state_conflict"};
+    await db.prepare("UPDATE payment_refunds SET provider_refund_id=? WHERE id=? AND status='pending' AND (provider_refund_id IS NULL OR provider_refund_id=?)")
+      .bind(refund.id,requestRow.id,refund.id).run();
+    const persisted=await db.prepare("SELECT status,provider_refund_id AS providerRefundId FROM payment_refunds WHERE id=? LIMIT 1")
+      .bind(requestRow.id).first<{status:string;providerRefundId:string|null}>();
+    if(persisted?.status!=="pending"||persisted.providerRefundId!==refund.id)
+      return {ok:false,reason:"refund_pending_not_persisted"};
     return {ok:true,pending:true};
   }
   const result=await finalizeRefund(db,requestRow.id,refund.id);
