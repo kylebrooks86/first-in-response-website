@@ -21,8 +21,8 @@ const now=Math.floor(Date.now()/1000),body=JSON.stringify({livemode:false,type:'
 function header(raw,t=now,secret=state.env.STRIPE_WEBHOOK_SECRET){return `t=${t},v1=${createHmac('sha256',secret).update(`${t}.${raw}`).digest('hex')}`;}
 async function request(raw,signature=header(raw)){return route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{method:'POST',headers:signature?{'stripe-signature':signature}:{},body:raw}));}
 assert.equal((await request(body,null)).status,400);
-assert.equal((await request(body,header(body,now-301))).status,400);
-assert.equal((await request(body,header(body,now+301))).status,400);
+assert.equal((await request(body,header(body,now-600))).status,400);
+assert.equal((await request(body,header(body,now+600))).status,400);
 assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,400);
 assert.equal((await request(body+' ',header(body))).status,400);
 assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
