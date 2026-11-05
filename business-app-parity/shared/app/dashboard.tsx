@@ -3062,7 +3062,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
   const openCustomerSavedJob=(estimate:CustomerEstimate)=>{
     if(!selected)return;
     if(onOpenEstimate){onOpenEstimate(estimate.id);return;}
-    openCustomerSavedJob(estimate);
+    setActiveEstimate({...estimate,customer:selected.name,customerNumber:selected.customerNumber,email:selected.email,phone:selected.phone,address:estimate.address??undefined});
   };
   const contactPhone=usableCustomerPhone(selected?.phone),contactEmail=usableCustomerEmail(selected?.email);
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
