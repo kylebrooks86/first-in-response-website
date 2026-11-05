@@ -66,6 +66,26 @@ const retry=fixture(7500,0);failOnce=true;assert.equal((await refund('p-'+retry,
 assert.equal((await refund('p-'+retry,'retry',2100)).status,200);assert.equal(principal(retry),5400);assert.equal([...remote.keys()].filter(k=>k==='fire-refund-retry').length,1);
 const lost=fixture(5000,0);networkOnce=true;assert.equal((await refund('p-'+lost,'lost',1000)).status,500);assert.equal((await refund('p-'+lost,'lost',1000)).status,200);assert.equal(principal(lost),4000);
 const pend=fixture(9000,0);pending=true;assert.equal((await refund('p-'+pend,'pending',2000)).status,202);assert.equal(principal(pend),9000);pending=false;remote.get('fire-refund-pending').status='succeeded';assert.equal((await event(remote.get('fire-refund-pending'))).status,200);assert.equal((await refund('p-'+pend,'pending',2000)).status,200);assert.equal(principal(pend),7000);
+const failedJob=fixture(9000,0);pending=true;assert.equal((await refund('p-'+failedJob,'failed-event',1800)).status,202);pending=false;
+const failedEvent={...remote.get('fire-refund-failed-event'),status:'failed'};
+const prepareBeforeFailure=DB.prepare;
+DB.prepare=function(query){
+  if(query.startsWith("UPDATE payment_refunds SET status='failed'"))return {bind(){return {async run(){return {meta:{changes:0}};}};}};
+  return prepareBeforeFailure.call(DB,query);
+};
+try {
+  assert.equal((await event(failedEvent,'refund.failed')).status,409,'A signed refund.failed must not be acknowledged until failure is stored');
+  assert.equal(sql.prepare("SELECT status FROM payment_refunds WHERE id='failed-event'").get().status,'pending');
+  assert.equal(principal(failedJob),9000);
+} finally {DB.prepare=prepareBeforeFailure;}
+assert.equal((await event(failedEvent,'refund.failed')).status,200);
+assert.equal((await event(failedEvent,'refund.failed')).status,200,'Exact signed replay is idempotent');
+assert.equal(sql.prepare("SELECT status FROM payment_refunds WHERE id='failed-event'").get().status,'failed');
+assert.equal(sql.prepare("SELECT provider_refund_id AS providerRefundId FROM payment_refunds WHERE id='failed-event'").get().providerRefundId,failedEvent.id);
+assert.equal(sql.prepare("SELECT COUNT(*) n FROM payments WHERE type IN ('Refund','Tip Refund') AND estimate_id=?").get(failedJob).n,0,'A failed provider refund must never reduce the ledger');
+assert.equal(principal(failedJob),9000);
+assert.equal((await event({...failedEvent,status:'pending'},'refund.updated')).status,200,'Stale pending must not reopen failed refund');
+assert.equal(sql.prepare("SELECT status FROM payment_refunds WHERE id='failed-event'").get().status,'failed');
 const rollback=fixture(10000,0);sql.exec("CREATE TRIGGER fixture_failure BEFORE INSERT ON payments WHEN NEW.type='Refund' BEGIN SELECT RAISE(ABORT,'fixture failure'); END;");assert.equal((await refund('p-'+rollback,'rollback',1000)).status,500);assert.equal(principal(rollback),10000);sql.exec('DROP TRIGGER fixture_failure');assert.equal((await event(remote.get('fire-refund-rollback'))).status,200);assert.equal(principal(rollback),9000);
 const manual=fixture(7500,0,'cash-app-reference');sql.prepare("UPDATE payments SET type='Cash App',processing_fee_cents=210,gross_received_cents=7500,bundled_tip_cents=0,processing_method='Cash App' WHERE id=?").run('p-'+manual);assert.equal((await refund('p-'+manual,'manual',2000)).status,409);const beforePosts=posts;assert.equal((await refund('p-'+manual,'manual',2000,{externalRefundConfirmed:true})).status,200);assert.equal(principal(manual),5500);assert.equal(posts,beforePosts);assert.equal(sql.prepare('SELECT processing_fee_cents f FROM payments WHERE id=?').get('p-'+manual).f,210);
 const external=fixture(10000,1000,'cs_external');assert.equal((await event({id:'re_external',amount:2000,status:'succeeded',payment_intent:'pi_fixture'})).status,200);assert.equal((await event({id:'re_external',amount:2000,status:'succeeded',payment_intent:'pi_fixture'})).status,200);assert.equal(principal(external),8000);assert.equal(tipTotal(external),1000);assert.equal((await event({id:'re_ambiguous',amount:8500,status:'succeeded',payment_intent:'pi_fixture'})).status,409);
@@ -129,4 +149,4 @@ assert.equal(sql.prepare("SELECT COUNT(*) n FROM payments WHERE provider_id=?").
 assert.equal([...remote.keys()].filter(k=>k==='fire-refund-ambiguous-lookup').length,1);
 assert.equal((await event({...stripe,currency:'eur'})).status,409);
 assert.equal(principal(id),7500);
-console.log('PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; altered amount/provider rejection; pending-to-success reconciliation; Stripe 500 and lost-response retries reuse idempotency key; atomic rollback/recovery; concurrent limits; tip separation; manual refund confirmation and fee preservation; imported external refunds; backup/restore and legacy backup compatibility. Only in-memory SQLite and mocked Stripe used.');
+console.log('PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; refund.failed signature and verified persistence; stale pending and failed refunds; altered amount/provider rejection; pending-to-success reconciliation; Stripe 500 and lost-response retries reuse idempotency key; atomic rollback/recovery; concurrent limits; tip separation; manual refund confirmation and fee preservation; imported external refunds; backup/restore and legacy backup compatibility. Only in-memory SQLite and mocked Stripe used.');
