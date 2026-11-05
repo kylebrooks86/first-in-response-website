@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "2dba26a4-6188-466f-a754-c9ae00c1c878",
+                         "8165ead3-43f1-48fd-b077-a1881ed0b978",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -133,7 +133,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["2dba26a4-6188-466f-a754-c9ae00c1c878"])
+        self.assertEqual(readonly_pins, ["8165ead3-43f1-48fd-b077-a1881ed0b978"])
         self.assertEqual(review_pins, readonly_pins)
         self.assertEqual(publish_pins, readonly_pins)
         self.assertIn("[switch]$Publish", publisher)
