@@ -73,7 +73,7 @@ export async function POST(request:Request) {
   const object=event.data?.object as (StripeCheckoutSession & StripeRefund & {livemode?:boolean})|undefined;
   if(typeof object?.livemode==="boolean"&&object.livemode!==event.livemode)
     return Response.json({error:"Stripe event object mode does not match event envelope."},{status:400});
-  if(["refund.created","refund.updated"].includes(event.type??"")){
+  if(["refund.created","refund.updated","refund.failed"].includes(event.type??"")){
     if(!event.data?.object)return Response.json({error:"Missing refund."},{status:400});
     try{
       const result=await recordRefundUpdate(env.DB,event.data.object,runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
