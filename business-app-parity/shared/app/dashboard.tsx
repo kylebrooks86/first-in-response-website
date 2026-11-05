@@ -2892,11 +2892,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [directoryLimit,setDirectoryLimit]=useState(40);
   useEffect(()=>{setDirectoryLimit(40);},[directorySearch,searchQuery,showDueCallbacksOnly,showUnansweredLeadsOnly]);
   const [timelineShown,setTimelineShown]=useState(6);
-  const [journeyShown,setJourneyShown]=useState(3);
+  const [journeyShown,setJourneyShown]=useState(1);
   const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
   const [timelineSearch,setTimelineSearch]=useState("");
   const [timelineTarget,setTimelineTarget]=useState<{customerId:string;section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string}|null>(null);
-  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);setJourneyShown(3);},[selectedId]);
+  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);setJourneyShown(1);},[selectedId]);
   useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
@@ -3131,6 +3131,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       const tracking=element?.closest(".customer-profile")?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
       if(tracking)tracking.open=true;
     }
+    const optionalActions=element?.closest<HTMLDetailsElement>("details.customer-activity-tools");
+    if(optionalActions)optionalActions.open=true;
     const hiddenStatus=element?.closest<HTMLDetailsElement>("details.customer-sign-form");
     if(hiddenStatus)hiddenStatus.open=true;
     element?.scrollIntoView({block:"center",behavior:"instant"});
@@ -3364,6 +3366,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       </section></details>
       <section id={`customer-flags-${selected.id}`} tabIndex={-1} className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
         <div className="customer-flag-heading"><div><h2>Follow-up & activity</h2></div><ClipboardList aria-hidden="true"/></div>
+        {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
+        <details className="customer-sign-form customer-activity-tools"><summary>Contact, callbacks & optional tracking{manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&<span> · Callback {manualFlags.leadCallback.dueDate}</span>}</summary>
         <details className="customer-sign-form"><summary>More statuses</summary><div className="customer-flag-grid">
           <span><small>Estimate</small><strong>{activitySummary.estimate}</strong></span>
           <span><small>Invoice</small><strong>{activitySummary.invoice}</strong></span>
@@ -3372,7 +3376,6 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           <span><small>Review received</small><strong>{activitySummary.reviewReceived}</strong></span>
           <span id={`customer-sign-flag-${selected.id}`} tabIndex={-1} className={activitySummary.needs.includes("Yard sign pickup is due")?"customer-flag-action-needed":""}><small>Yard sign</small><strong>{activitySummary.sign}</strong></span>
         </div></details>
-        {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
         {reviewCheck.status==="due"&&<div id={`customer-review-check-${selected.id}`} tabIndex={-1} className="customer-review-check" role="region" aria-label="Review follow-up check due"><div><strong><Star aria-hidden="true"/> Review status check available</strong><p>Review request recorded {reviewCheck.elapsedDays} days ago; no review is logged. Check whether a review has appeared before contacting the customer again.</p></div><div className="flex flex-wrap gap-2">{onPrepareReviewTask&&<Button variant="outline" aria-label="Prepare review status check task" onClick={()=>stageReviewCheck(selected,reviewCheck.requestedAt)}>Create check task</Button>}<Button variant="outline" aria-label="Defer review status check seven days" disabled={reviewCheckSnoozing} onClick={()=>void snoozeReviewStatusCheck(selected,reviewCheck.requestedAt)}>{reviewCheckSnoozing?"Saving check…":"Check later · 7 days"}</Button></div>{reviewCheckSnoozeError&&<p role="alert" className="save-error">{reviewCheckSnoozeError}</p>}</div>}
         <div className="customer-flag-actions">
           <Button variant="outline" aria-label="Log lead no answer" disabled={savingNote} onClick={()=>void saveNote(LEAD_NO_ANSWER_NOTE,"no_answer")}>No answer · not contacted</Button>
@@ -3406,6 +3409,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           </p>}
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Yard sign: {manualFlags.sign.location||"Location not specified"} · Pickup {manualFlags.sign.pickupDate}.</p>}
         <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Contact and callback buttons save directly. Other flags prepare notes; tap <strong>Add note</strong> to save those. Callback dates are tracked here; no automatic alerts. No messages or push alerts are sent. Pickup tasks must be saved separately.</p></details>
+        </details>
       </section>
       {nextCustomerActions.length>0&&<section className="customer-action-review" role="region" aria-label="Review next customer actions">
         <div className="customer-timeline-heading"><div><h2>Review next</h2></div><span>{nextCustomerActions.length} to check</span></div>
