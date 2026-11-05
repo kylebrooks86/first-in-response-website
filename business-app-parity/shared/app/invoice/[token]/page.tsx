@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-state.mjs";
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
