@@ -3,7 +3,7 @@ import {DISCOUNT_SNAPSHOT_PREFIX,readDiscountSnapshot,type DiscountSnapshot} fro
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { retrieveStripeCheckoutSession, recordStripeCheckoutSession } from "../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
-import { CheckCircle2, MapPin, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, MapPin, ShieldCheck } from "lucide-react";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { AcceptEstimateButton } from "./accept-button";
 import { PayButton } from "../../pay/[id]/pay-button";
@@ -15,6 +15,7 @@ import {customerNumberLabel,customerNumberForCustomer} from "../../../lib/custom
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
 import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
+import { OwnerPreviewReturnLink } from "../../../components/owner-preview-return-link";
 import {agreementDigest,agreementScope,validateAgreementItems} from "../../../lib/deposit-agreement-commitment.mjs";
 import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
@@ -195,7 +196,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
-    {ownerPreview&&<><OwnerPreviewTheme/><Link className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} prefetch={false} replace aria-label="Close estimate preview" title="Close"><X aria-hidden="true"/></Link></>}
+    {ownerPreview&&<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} label="Close estimate preview"/></>}
     <section className="pay-card estimate-portal">
     {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
