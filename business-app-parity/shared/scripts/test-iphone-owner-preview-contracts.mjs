@@ -46,13 +46,14 @@ function verify(s){
  const ownerEstimate=find('/estimate/');
  const ownerInvoice=find('from=estimate');
  const customerInvoice=find('from=customer');
+ const invoicesWorkspace=find('from=invoices');
  check(!s.dashboard.includes('import Link from "next/link"')&&
    !s.estimate.includes('import Link from "next/link"')&&
    !s.invoice.includes('import Link from "next/link"'),
   'Owner preview routes must not invoke the known-failing vinext next/link handler');
- check(previewAnchors.length===3&&ownerEstimate&&ownerInvoice&&customerInvoice,
-   'Exactly three original owner-record preview routes remain directly navigable');
- for(const [label,anchor] of [['owner estimate',ownerEstimate],['owner invoice',ownerInvoice],['customer invoice',customerInvoice]]){
+ check(previewAnchors.length===4&&ownerEstimate&&ownerInvoice&&customerInvoice&&invoicesWorkspace,
+   'All four exact owner-record preview routes remain directly navigable');
+ for(const [label,anchor] of [['owner estimate',ownerEstimate],['owner invoice',ownerInvoice],['customer invoice',customerInvoice],['invoice list',invoicesWorkspace]]){
   check(anchor.tag==='a'&&!Object.hasOwn(anchor.attrs,'prefetch')&&
     !Object.hasOwn(anchor.attrs,'onClick'),label+' is a native link without speculative or client-router navigation');
   check(String(anchor.attrs.href).includes('encodeURIComponent('),label+' encodes exact saved token');
@@ -62,7 +63,8 @@ function verify(s){
    s.dashboard.includes('estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a'),
    'Only an eligible saved estimate exposes its owner-only customer preview');
  check(String(ownerInvoice.attrs.href).includes('ownerPreview=1&from=estimate')&&
-   String(customerInvoice.attrs.href).includes('ownerPreview=1&from=customer'),
+   String(customerInvoice.attrs.href).includes('ownerPreview=1&from=customer')&&
+   String(invoicesWorkspace.attrs.href).includes('ownerPreview=1&from=invoices'),
    'Invoice preview preserves exact originating workspace');
  for(const [label,source,nodes] of [['estimate',s.estimate,estimate],['invoice',s.invoice,invoice]]){
   const close=nodes.filter(n=>n.tag==='OwnerPreviewReturnLink');
