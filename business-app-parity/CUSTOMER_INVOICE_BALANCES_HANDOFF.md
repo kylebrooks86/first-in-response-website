@@ -1,0 +1,9 @@
+# Customer and invoice balances — October 9, 2026
+
+Verified existing candidate behavior without runtime edits. Regression suite executes customer, invoice and estimate GET routes against each target fully migrated in-memory SQLite, plus actual UI helpers extracted by TypeScript AST. Nine fixtures cover revised/increased/zero invoice totals, principal, tips, refunds, overpayments, pending/failed exclusion and scheduled jobs. Multi-job fixture verifies per-job flooring and customer isolation; owner access remains guarded.
+
+468/468 assertions pass (156 per target), 3/3 suite runs. Two negative controls fail as expected: removing customer tip exclusions and replacing nullish invoice fallback with truthy fallback. Shared source remains 119/119. Runtime unchanged from 62afb70; its TypeScript and completed builds 3/3 preserved, not rerun. Evidence records snapshot commits, paths and hashes. Existing release manifest remains historical and stale for these newer snapshots.
+
+Overall verified readiness: 30% (3/10 release gates). Formal deployed/mobile parity 0/32; complete remote schemas/journals 0/3. No deployment, remote write, Stripe mutation or paid resource change. Local verification does not prove deployed UI/mobile behavior.
+
+Next bounded task: resolve Payments collection semantics. Dashboard Outstanding sums amounts due now (deposit until invoice/completion; no draft/sent/declined balances). Payments Outstanding and Balances to collect use full remaining value including draft/sent/declined; customer Open balance also represents full remaining value per job. Check presentation and collection guards before choosing a safe clearly labeled change. Preserve deposit exceptions, revised invoices, records and authentication. Separate regular chat can independently review this diff and evidence read-only.

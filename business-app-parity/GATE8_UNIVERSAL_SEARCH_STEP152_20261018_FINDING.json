@@ -1,0 +1,22 @@
+{
+  "source": "Owner iPhone Safari synthetic QA finding, Step 152",
+  "observed": "Persistent search for invoice number 6528C9 returned No matching customers instead of the invoice.",
+  "status": "Backlog addition, not an interruption or replacement of the change-history and notification batch",
+  "requirements": [
+    "Preserve customer name and address search and persistent search control",
+    "Partial case-insensitive responsive search of customers, properties, contact details, addresses, estimates, invoices, jobs, service types, payments, notes and relevant photo/document metadata",
+    "Categorized results with recognizable icons and useful context",
+    "All, Customers, Estimates, Invoices and Jobs filters",
+    "Exact authorized record navigation, including invoice number and estimate IDs",
+    "Consistent behavior across sections; loading, empty and error states",
+    "Account/target-isolated offline-first indexing only where supported; no unauthorized records or plaintext financial/photo caches",
+    "iPhone keyboard and scrolling accessibility without horizontal overflow",
+    "Shared implementation and eventual approved-target parity"
+  ],
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "notClaimed": "Implemented or verified universal search; deployed QA update; new gate acceptance"
+}
