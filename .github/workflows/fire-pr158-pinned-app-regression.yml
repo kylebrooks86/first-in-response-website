@@ -6,7 +6,7 @@ on:
     branches:
       - chat/fire-unified-172-pinned-full-regression-2026-11-05
 env:
-  FIRE_REVIEW_SOURCE_SHA: a8e77c891cd97e528a43468d0ba4334110624f99
+  FIRE_REVIEW_SOURCE_SHA: 357837b2c40cb489620637b88b2b1ceb0a71d554
 permissions:
   contents: read
 
@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: a8e77c891cd97e528a43468d0ba4334110624f99
+          ref: 357837b2c40cb489620637b88b2b1ceb0a71d554
       - name: Verify exact unified PR172 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -90,7 +90,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: a8e77c891cd97e528a43468d0ba4334110624f99
+          ref: 357837b2c40cb489620637b88b2b1ceb0a71d554
       - name: Verify exact unified PR172 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -506,7 +506,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: a8e77c891cd97e528a43468d0ba4334110624f99
+          ref: 357837b2c40cb489620637b88b2b1ceb0a71d554
       - name: Verify exact unified PR172 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -617,7 +617,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: a8e77c891cd97e528a43468d0ba4334110624f99
+          ref: 357837b2c40cb489620637b88b2b1ceb0a71d554
       - name: Verify exact unified PR172 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -783,7 +783,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: a8e77c891cd97e528a43468d0ba4334110624f99
+          ref: 357837b2c40cb489620637b88b2b1ceb0a71d554
       - name: Verify exact unified PR172 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
@@ -1087,7 +1087,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: a8e77c891cd97e528a43468d0ba4334110624f99
+          ref: 357837b2c40cb489620637b88b2b1ceb0a71d554
       - name: Verify exact unified PR172 source before running any test
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
