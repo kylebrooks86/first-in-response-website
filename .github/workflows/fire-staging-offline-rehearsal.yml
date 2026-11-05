@@ -83,6 +83,15 @@ jobs:
         run: python business-app-parity/verify_materialized_candidate.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate"
       - name: Enable pinned pnpm
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Signed Stripe refund and webhook state regression (offline SQLite only)
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-webhook-boundary.mjs .
+          node scripts/test-stripe-refunds.mjs .
       - name: Build isolated staging release candidate, no Cloudflare connection or deploy
         env:
           CI: 'true'
