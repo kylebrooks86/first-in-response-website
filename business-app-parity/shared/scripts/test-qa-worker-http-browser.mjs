@@ -232,7 +232,18 @@ try{
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
   await previewLink.click();
-  await page.waitForURL(origin+previewPath);
+  try {
+    // This is a Next client-side route change: it may update history without
+    // generating a fresh document "load" event. Check the actual location,
+    // then independently require the owner-preview controls below.
+    await page.waitForFunction(expected=>location.href===expected,origin+previewPath,{timeout:12000});
+  } catch (navigationError) {
+    const rendered=await page.locator('body').innerText().catch(()=>'<page inaccessible>');
+    throw Error('QA Customer view route did not become active: '+String(navigationError)+'; currentUrl='+page.url()+
+      '; detailOpen='+await detail().isVisible().catch(()=>false)+
+      '; browserErrors='+JSON.stringify(clientErrors.slice(-5))+
+      '; visibleText='+JSON.stringify(rendered.slice(0,700)));
+  }
   const close=page.getByRole('link',{name:'Close estimate preview',exact:true});await close.waitFor();
   const previewNav=page.getByRole('complementary',{name:'Owner preview navigation'});
   check(await previewNav.isVisible()&&(await previewNav.innerText()).trim()==='Customer view'&&await previewNav.getByRole('link').count()===0&&(await previewNav.boundingBox()).height<=28,
