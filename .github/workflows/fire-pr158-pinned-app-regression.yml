@@ -1,0 +1,1114 @@
+# One-time pinned regression harness, source-only. Not a release or merge candidate.
+# All existing test jobs execute the immutable PR158 commit, not this harness HEAD.
+name: FIRE PR158 Comprehensive App Regression — Exact Pinned Source
+on:
+  push:
+    branches:
+      - chat/fire-pr158-pinned-full-regression-2026-11-04
+env:
+  FIRE_REVIEW_SOURCE_SHA: b8ce230c369819f778e4579bc487fe6cd574767a
+permissions:
+  contents: read
+
+concurrency:
+  group: fire-149-pinned-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-build:
+    name: Typecheck, recovery contracts, and independent candidate build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+    defaults:
+      run:
+        working-directory: fire-app-dr
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: b8ce230c369819f778e4579bc487fe6cd574767a
+      - name: Verify exact PR158 source before running any test
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Verify TypeScript
+        run: pnpm run typecheck
+      - name: Verify restore contract
+        run: pnpm run restore:verify-contract
+      - name: Verify recovery documentation
+        run: pnpm run release:docs:check
+      - name: Synthetic payment, refund, and backup regression tests
+        run: node --experimental-sqlite scripts/test-processing-fees.mjs
+      - name: Source-only independent preflight
+        run: pnpm run preflight:independent
+      - name: Verify release-readiness source policy
+        run: pnpm run release:readiness
+      - name: Synthetic independent owner auth and signed session regression
+        # This adapter test targets the DR owner-auth implementation, not the
+        # shared candidate's ChatGPT gateway authentication.
+        run: |
+          cp ../business-app-parity/shared/scripts/test-independent-auth-adapter.mjs scripts/.independent-auth-ci.mjs
+          node scripts/.independent-auth-ci.mjs
+          rm scripts/.independent-auth-ci.mjs
+      # Values below refer to NO real resources and are intentionally scoped to
+      # this build step. Never add a deploy or wrangler remote command to CI.
+      - name: Build independent candidate with disposable config identities
+        env:
+          FIRE_WORKER_NAME: fire-app-ci-synthetic-do-not-deploy
+          FIRE_D1_DATABASE_NAME: fire-app-ci-synthetic-no-database
+          FIRE_D1_DATABASE_ID: 12345678-1234-4234-8234-123456789abc
+          FIRE_R2_BUCKET_NAME: fire-app-ci-synthetic-no-bucket
+        run: pnpm run build:independent
+      - name: Verify optional R2 configuration and D1-only independent Worker build
+        run: node scripts/test-independent-wrangler-d1-only.mjs
+      - name: Rehearse local synthetic D1 and R2 photo recovery
+        run: node scripts/test-local-photo-restore.mjs
+
+  shared-candidate:
+    name: Shared-source candidate — finance, schema, parity, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout development branch (read only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: b8ce230c369819f778e4579bc487fe6cd574767a
+      - name: Verify exact PR158 source before running any test
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Shared-source parity gate regression
+        run: node scripts/test-parity-gate.mjs
+      - name: Compare ACTUAL materialized LIVE, Doomsday and staging dashboard, iPhone layout, PWA and owner boundaries
+        run: |
+          python3 ../materialize.py live "$RUNNER_TEMP/fire-parity-live"
+          python3 ../materialize.py doomsday "$RUNNER_TEMP/fire-parity-doomsday"
+          python3 ../materialize.py staging "$RUNNER_TEMP/fire-parity-staging"
+          python3 ../verify_materialized_candidate.py live "$RUNNER_TEMP/fire-parity-live"
+          python3 ../verify_materialized_candidate.py doomsday "$RUNNER_TEMP/fire-parity-doomsday"
+          python3 ../verify_materialized_candidate.py staging "$RUNNER_TEMP/fire-parity-staging"
+          node scripts/check-app-parity.mjs "$RUNNER_TEMP/fire-parity-live" "$RUNNER_TEMP/fire-parity-doomsday" "$RUNNER_TEMP/fire-parity-staging"
+      - name: Verify equal fresh installation database schema across all three ACTUAL candidates despite distinct migration histories
+        run: |
+          python3 ../test_verify_three_candidate_schema_parity.py
+          python3 ../verify_three_candidate_schema_parity.py "$RUNNER_TEMP/fire-parity-live" "$RUNNER_TEMP/fire-parity-doomsday" "$RUNNER_TEMP/fire-parity-staging"
+      - name: Install shared-source dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Shared TypeScript check
+        run: pnpm exec tsc --noEmit
+      - name: Section navigation and optional preference storage refusal
+        run: node scripts/test-section-navigation.mjs
+      - name: Saved photo ZIP verification versus device recovery
+        run: node scripts/test-photo-zip-verification-message.mjs
+      - name: Local migration and schema-journal integrity
+        run: |
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: Governed Doomsday deployment fail-closed policy (no execution)
+        run: node scripts/test-governed-deploy-guards.mjs
+      - name: Device review archive privacy, exact bytes, non-overwrite and cleanup
+        run: python3 ../test_prepare_device_review.py
+      - name: Reject swapped, forged and unsafe full-app review ZIPs
+        run: python3 ../test_verify_device_review_packet.py
+      - name: Release-manifest integrity, source drift and negative controls
+        run: python3 ../test_candidate_release_manifest.py
+      - name: Integrated candidate hosted release evidence remains blocked without fresh provider and owner proof
+        run: |
+          python3 ../test_review_integrated_release_gates.py
+          python3 ../review_integrated_release_gates.py --candidate-sha "$FIRE_REVIEW_SOURCE_SHA" > /dev/null
+      - name: Gate 9 independent staging and Stripe metadata must fail closed (synthetic, no provider calls)
+        run: python3 ../test_gate9_staging_preflight.py
+      - name: Real owner refund ledger failure guard — zero financial writes on missing LIVE schema
+        run: node scripts/test-refund-ledger-readiness.mjs
+      - name: LIVE 0019 refund gap — actual saved Sites inventory and safe missing-table journal preflight
+        run: |
+          python3 ../test_triage_live_refund_gap.py
+          python3 ../triage_live_refund_gap.py --sites-receipt ../HOSTED_READ_ONLY_VERIFICATION_20261022.json > /dev/null
+      - name: Read-only hosted schema capture coverage and mismatch negative controls
+        run: |
+          python3 ../test_release_schema_capture.py
+          python3 ../test_hosted_schema_capture.py
+      - name: Owner-safe read-only D1 capture and historical pre-0022 comparator security regressions
+        run: |
+          python3 ../test_capture_doomsday_schema_read_only.py
+          python3 ../test_compare_doomsday_pre0022_capture.py
+      - name: Active independent Worker-to-D1 read-only identity negative controls
+        run: python3 ../test_capture_doomsday_worker_identity_read_only.py
+      - name: Cloudflare Free-plan QA isolated D1 count read-only checks and negative controls
+        run: python3 ../test_check_isolated_cloudflare_free_preflight.py
+      - name: Owner-safe remote 0022 evidence query and synthetic integrity states
+        run: |
+          python3 ../test_doomsday_owner_console.py
+          python3 ../test_doomsday_ledger_owner_aggregate.py
+      - name: Verify private SQL-export offline restore and anti-tamper controls
+        run: python3 ../test_doomsday_export_restore.py
+      - name: Rehearse exact Doomsday 0022 index on synthetic restored D1 exports with local rollback
+        run: python3 ../test_doomsday_0022_export_rehearsal.py
+      - name: Check owner Windows private backup export script fail-closed policy and dry-run
+        run: python3 ../test_owner_windows_backup_script.py
+      - name: QA owner credential provisioning must be private, no-op by default and unbound to production
+        run: python3 ../test_owner_windows_prepare_qa_credentials.py
+      - name: QA-only remote D1 initializer must not write without exact owner acknowledgement
+        run: python3 ../test_owner_windows_initialize_qa_d1.py
+      - name: Classify hosted QA D1 at zero, original 23 or complete 25 migrations without changing it
+        run: python3 ../test_owner_windows_qa_inventory_readonly.py
+      - name: Verify full pinned 23+2 SQL and strict owner-approved remote QA upgrade source contracts (NO remote access)
+        run: python3 ../test_owner_windows_qa_upgrade_23_to_25.py
+      - name: Guarded QA 23-to-25 upgrade script must parse without contacting Cloudflare or running migrations
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_upgrade_23_to_25.ps1'), [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'FIRE QA 23-to-25 guarded upgrade PowerShell syntax failed.'
+          }
+          Write-Host 'PASS: Safe owner-gated QA schema upgrade parses; no Cloudflare requests or D1 changes.'
+      - name: Read-only owner Cloudflare inventory must parse under PowerShell without contacting account
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_inventory_readonly.ps1'), [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'FIRE read-only inventory PowerShell syntax failed.'
+          }
+          Write-Host 'PASS: owner QA inventory parses; no Cloudflare access, changes or credentials read.'
+      - name: QA post-migration full-app preflight must remain read-only and preserve private owner credentials
+        run: python3 ../test_owner_windows_qa_release_preflight.py
+      - name: Windows full-app QA build must preserve original apps, records, secrets and target identity
+        run: python3 ../test_owner_windows_build_qa_candidate.py
+      - name: First QA Worker publication must require exact owner consent and preserve secrets
+        run: python3 ../test_owner_windows_first_qa_publish.py
+      - name: Cloudflare D1 list identity regression — exact UUID, protected staging and negative cases
+        shell: pwsh
+        run: ../test_qa_d1_identity_from_list.ps1
+      - name: "Pinned read-only QA schema delta: refuse all unreviewed original and appended SQL"
+        run: |
+          python3 ../test_review_qa_update_schema.py
+          python3 ../test_qa_migration_line_endings.py
+      - name: Rehearse original 23 to additive 25 QA migrations in disposable SQLite only
+        run: |
+          python3 ../test_rehearse_qa_additive_schema.py
+          python3 ../test_capture_existing_qa_schema_read_only.py
+          python3 ../test_review_existing_qa_capture_offline.py
+          python3 ../test_qa_iphone_release_readiness.py
+          python3 ../test_qa_guarded_update.py
+          python3 ../test_qa_evidence_intake.py
+          python3 ../test_capture_qa_provider_identity.py
+          python3 ../test_qa_d1_export.py
+          python3 ../test_verify_current_qa25_export.py
+          python3 ../test_qa_retired_availability_cleanup_plan.py
+      - name: Existing QA Worker update review must preserve all hosted customer records
+        run: python3 ../test_owner_windows_qa_update_review.py
+      - name: Code-only QA Worker updates must require distinct approval and preserve login/data
+        run: python3 ../test_owner_windows_qa_update_publish.py
+      - name: QA private backup helper parses and defaults to no network or writes
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_backup.ps1'), [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) { throw 'QA backup helper syntax failed.' }
+          ../owner_windows_qa_backup.ps1 -PrivateFolder (Join-Path $env:RUNNER_TEMP 'FIRE-Private-Backups')
+      - name: Windows QA update publisher parses without running it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_update_publish.ps1'),
+            [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "FIRE QA update publisher contains syntax errors."
+          }
+          Write-Host 'PASS: QA update publisher parses, no remote writes.'
+      - name: Windows QA update review script parses without running it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_update_review.ps1'),
+            [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "FIRE QA update review contains syntax errors."
+          }
+          Write-Host 'PASS: QA update review parses; no deployment was executed.'
+      - name: Ensure QA Worker release script parses under PowerShell without executing it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_first_qa_publish.ps1'),
+            [ref]$tokens, [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -ne 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw "FIRE QA Windows publish script contains PowerShell syntax errors."
+          }
+          Write-Host 'PASS: First QA release script parses without executing deployment.'
+      - name: QA deployment manifest compatibility and no-paid-R2 isolation regression
+        run: node ../test_prepare_qa_deploy_config.mjs
+      - name: Preserve original hosted iPhone QA photo-vault IndexedDB identity and test drift refusal
+        run: node ../test_existing_qa_photo_vault_identity.mjs
+      - name: Verify real Wrangler local D1 export and private SQL restoration
+        run: |
+          node scripts/test-real-wrangler-local-d1-export.mjs
+          node scripts/test-real-wrangler-local-d1-export.mjs --qa
+      - name: Protect owner-approved FIRE service rates in the shared source
+        run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
+      - name: Detailed scopes survive estimate and invoice snapshots
+        run: node --experimental-sqlite scripts/test-service-descriptions.mjs
+      - name: Offline map proxy and bounded owner-only provider requests
+        run: node --experimental-sqlite scripts/test-offline-map-proxy.mjs
+      - name: Replacement quotes, new signatures and preserved original agreements
+        run: node --experimental-sqlite scripts/test-quote-revisions.mjs
+      - name: Owner availability, cadence settings and blocked scheduling
+        run: node --experimental-sqlite scripts/test-business-preferences.mjs
+      - name: Custom standard pricing, real SQLite persistence, conflicts and historical protection
+        run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
+      - name: Saved promotions catalog date and discount eligibility contract
+        run: node --experimental-sqlite scripts/test-saved-promotions.mjs
+      - name: Server-side saved promotion preview with verified Tulsa date and booking hold
+        run: node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
+      - name: Atomic per-estimate verified promotion attribution and owner-only readback
+        run: node --experimental-sqlite scripts/test-estimate-promotion-attribution.mjs
+      - name: Owner-only reusable quote packages, current rates and optimistic save conflicts
+        run: node --experimental-sqlite scripts/test-quote-packages.mjs
+      - name: Owner quote creation lost-response replay, conflicting payload refusal and immutable receipts
+        run: node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
+      - name: Opaque iPhone quote recovery markers, corruption refusal, and restart semantics
+        run: node scripts/test-pending-estimate-create.mjs
+      - name: Existing quote read-only booking amendment regression on SQLite
+        run: node --experimental-sqlite scripts/test-post-estimate-booking-preview.mjs
+      - name: Owner saved booking review staging and CAS on SQLite
+        run: node --experimental-sqlite scripts/test-promotion-review-drafts.mjs
+      - name: Strict owner-only revised-estimate review worksheet, signed hold and immutable ledger
+        run: node --experimental-sqlite scripts/test-amendment-review-worksheet.mjs
+      - name: Strict invoice and estimate discount entry, caps and exact-cent preview
+        run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
+      - name: Stacked estimate discounts and atomic synthetic SQLite persistence
+        run: node --experimental-sqlite scripts/test-stacked-estimate-discounts.mjs
+      - name: Actual invoice price changes below $150 retain ledger guards and historical revisions
+        run: node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
+      - name: Verify all thirty starting rates remain fully adjustable per job
+        run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
+      - name: Preserve historical estimate and invoice line totals during no-op edits
+        run: node --experimental-strip-types scripts/test-editable-line-totals.mjs
+      - name: Owner-only house visits, scheduled callbacks, dashboard queue and duplicate suppression
+        run: node --experimental-sqlite scripts/test-door-knocking.mjs
+      - name: Territory map categories, saved coordinates, suppression and authenticated SQLite APIs
+        run: node --experimental-sqlite scripts/test-territory.mjs
+      - name: Reuse new estimate service setup without unexpected line charges
+        run: node --experimental-strip-types scripts/test-reuse-estimate-service-line.mjs
+      - name: iPhone and iPad Edit Estimate modal viewport accessibility — no remote changes
+        run: node scripts/test-estimate-editor-viewport.mjs
+      - name: Keep customer-facing estimate and invoice system messages branded
+        run: |
+          node --experimental-strip-types scripts/test-customer-facing-brand-copy.mjs
+          node --experimental-strip-types scripts/test-business-template-compatibility.mjs
+      - name: Ensure phone and iPad payment shortcut visible, QA layout diagnostic not in production builds
+        run: node scripts/test-mobile-payment-shortcut.mjs
+      - name: Shared financial regression suite
+        run: |
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          node --experimental-sqlite scripts/test-change-request-history.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
+           node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
+           node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
+           node scripts/test-deposit-agreement-disclosure.mjs
+           node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
+           node scripts/test-owner-deposit-review.mjs
+           node scripts/test-job-tools-mobile-save.mjs
+           node scripts/test-job-report-recovery.mjs
+           node scripts/test-job-cost-recovery.mjs
+           node scripts/test-estimate-detail-recovery.mjs
+           node scripts/test-estimate-editor-save-recovery.mjs
+           node scripts/test-invoice-editor-load-recovery.mjs
+           node scripts/test-deposit-exception-proposals.mjs
+          node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-estimate-history-exact-cents.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
+          node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
+          node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
+          node scripts/test-estimate-history-recovery.mjs
+          node scripts/test-insights-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
+      - name: Guard consolidated Business saves, restart recovery and CSV exports
+        run: |
+          node scripts/test-business-create-receipt.mjs
+          node --experimental-sqlite scripts/test-dashboard-yard-signs.mjs
+          node --experimental-sqlite scripts/test-dashboard-review-checks.mjs
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-business-restart-recovery.mjs
+          node scripts/test-business-list-recovery.mjs
+          TZ=America/Chicago node scripts/test-task-due.mjs
+          node scripts/test-expense-date.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+      - name: Confirm task status safely with SQLite and real BusinessView handlers
+        run: |
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node scripts/test-task-status-ui-recovery.mjs
+          node scripts/test-business-task-context.mjs
+          node scripts/test-business-task-focus-recovery.mjs
+      - name: Verify follow-up retry, authenticated list recovery and notification receipts
+        run: |
+          node scripts/test-followup-action-retry.mjs
+          node --experimental-sqlite scripts/test-followup-concurrent-idempotency.mjs
+           node scripts/test-followup-triage.mjs
+          node scripts/test-followup-exact-lookup.mjs
+          node scripts/test-followup-today-actions.mjs
+          node scripts/test-followup-load-errors.mjs
+          node scripts/test-notification-read-recovery.mjs
+          node scripts/test-attention-flag-dedupe.mjs
+          node scripts/test-notification-attention.mjs
+      - name: Verify on-device customer photo ZIP integrity and owner UI integration
+        run: node scripts/test-offline-photo-vault.mjs
+      - name: Shared photo storage integrity regression
+        run: node --experimental-sqlite scripts/test-photo-storage-integrity.mjs
+      - name: Offline photo archive and records recovery pairing — no mutations
+        run: python3 scripts/test-plan-complete-photo-recovery.py
+      - name: Synthetic record-backup restore and rollback fault rehearsal
+        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
+      - name: Verify final tips and interrupted-payment recovery against actual modules
+        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-final-tipping.mjs
+      - name: Verify pinned Stripe connection diagnostics and strict USD reconciliation
+        run: node scripts/test-stripe-connection-inspection.mjs
+      - name: Verify Stripe test-only guard for isolated candidates
+        run: node scripts/test-stripe-isolation.mjs
+      - name: Verify atomic checkout reservation and duplicate-charge prevention
+        run: node scripts/test-checkout-atomic-reservation.mjs
+      - name: Recover owner-selected paid and expired Stripe checkouts without duplicate charges
+        run: node --experimental-sqlite scripts/test-checkout-owner-reconciliation.mjs
+      - name: Verify manual payment retries preserve same cents and ID across iPhone restarts
+        run: node --experimental-strip-types scripts/test-manual-payment-retry-state.mjs
+      - name: Verify payment entry never claims an unpaid estimate has a recorded deposit
+        run: node scripts/test-payment-entry-state.mjs
+      - name: Verify customer review invitations only after verified final payment
+        run: node scripts/test-review-after-payment.mjs
+      - name: Verify mobile SMS and email prepared-message recovery with scoped owner history
+        run: node --experimental-sqlite scripts/test-pending-customer-messages.mjs
+      - name: Verify idempotent text and email preparation and mobile retries
+        run: |
+          node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
+          node scripts/test-google-voice-text-safety.mjs
+          node scripts/test-message-confirmation.mjs
+          node scripts/test-job-review-shortcut.mjs
+          node --experimental-sqlite scripts/test-review-closeout-metadata.mjs
+      - name: Verify paid-job review action center on synthetic SQLite
+        run: node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
+      - name: Verify owner-only review snoozes on synthetic paid jobs
+        run: |
+          node --experimental-sqlite scripts/test-paid-review-snooze.mjs
+          node --experimental-sqlite scripts/test-job-closeout-history.mjs
+          node scripts/test-loader-recovery.mjs --view PaymentsView --races-only
+      - name: Verify completed-job review-status checks, snooze retry and expiry
+        run: node --experimental-sqlite scripts/test-review-status-check-snooze.mjs
+      - name: Verify Dashboard paid-in-full review attention and exact customer navigation
+        run: node scripts/test-dashboard-paid-review-attention.mjs
+      - name: Verify review message preparation requires settled job payments
+        run: node --experimental-sqlite scripts/test-review-message-eligibility.mjs
+      - name: Verify review-sent flags require confirmed owner message receipts
+        run: node --experimental-sqlite scripts/test-review-sent-proof.mjs
+      - name: Verify invoice loading and payment refresh recover without stale payment controls
+        run: node scripts/test-invoice-load-errors.mjs
+      - name: Verify refund request survives iPhone app restart and uncertain responses
+        run: node --experimental-strip-types scripts/test-refund-retry-state.mjs
+      - name: Synthetic Stripe refund and webhook replay regression
+        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-stripe-refunds.mjs
+      - name: Synthetic photo upload and delete integrity regression
+        run: |
+          node scripts/test-photo-upload-integrity.mjs
+          node scripts/test-photo-delete-integrity.mjs
+      - name: Validate isolated offline Pages package and negative security controls
+        run: node scripts/verify-synthetic-pages-package.mjs
+      - name: Prepare reviewed synthetic-only Home Screen testing package
+        run: |
+          node scripts/prepare-local-customer-pages.mjs "$RUNNER_TEMP/fire-synthetic-pages-review"
+          node scripts/verify-synthetic-pages-package.mjs "$RUNNER_TEMP/fire-synthetic-pages-review"
+      - name: Archive review-only package for later separate owner approval
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-synthetic-pwa-review-${{ env.FIRE_REVIEW_SOURCE_SHA }}
+          path: ${{ runner.temp }}/fire-synthetic-pages-review/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Build shared candidate without deployment
+        run: pnpm run build
+
+  coordinated-candidates:
+    name: Coordinated ${{ matrix.target }} candidate — exact source, schema, finance, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [live, doomsday, staging]
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout development branch (read only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: b8ce230c369819f778e4579bc487fe6cd574767a
+      - name: Verify exact PR158 source before running any test
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize isolated coordinated candidate
+        run: python3 business-app-parity/materialize.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+      - name: Verify exact candidate fingerprints, adapter boundaries and migration sequence
+        run: python3 business-app-parity/verify_materialized_candidate.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+      - name: Install candidate dependencies from immutable lockfile
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          pnpm install --frozen-lockfile
+      - name: Typecheck actual materialized candidate
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          pnpm exec tsc --noEmit
+      - name: Rehearse candidate's target-specific migrations in disposable SQLite
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: Regress candidate financial behavior with synthetic data
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          node --experimental-sqlite scripts/test-change-request-history.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
+           node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
+           node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
+           node scripts/test-deposit-agreement-disclosure.mjs
+           node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
+           node scripts/test-owner-deposit-review.mjs
+           node scripts/test-job-tools-mobile-save.mjs
+           node scripts/test-job-report-recovery.mjs
+           node scripts/test-job-cost-recovery.mjs
+           node scripts/test-estimate-detail-recovery.mjs
+           node scripts/test-estimate-editor-save-recovery.mjs
+           node scripts/test-invoice-editor-load-recovery.mjs
+           node scripts/test-deposit-exception-proposals.mjs
+          node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-estimate-history-exact-cents.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
+          node scripts/test-estimate-history-recovery.mjs
+          node scripts/test-insights-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
+      - name: Physical SQLite rollback, journal/index preservation, and anti-tamper checks
+        env:
+          FIRE_SYNTHETIC_TARGET: ${{ matrix.target }}
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          node --experimental-sqlite scripts/test-physical-rollback.mjs
+      - name: Build materialized candidate without publishing
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          pnpm run build
+
+      - name: Seal exact full-app candidate source and build for separate device-hosting review
+        run: |
+          python3 business-app-parity/prepare_device_review.py \
+            --target "${{ matrix.target }}" \
+            --candidate "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate" \
+            --output "$RUNNER_TEMP/fire-${{ matrix.target }}-device-review" \
+            --checkpoint "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Reopen and independently verify sealed full-app review ZIP against exact CI source commit
+        run: |
+          python3 business-app-parity/verify_device_review_packet.py \
+            --packet "$RUNNER_TEMP/fire-${{ matrix.target }}-device-review" \
+            --target "${{ matrix.target }}" \
+            --checkpoint "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Retain isolated full-app review bundle without publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-full-app-review-${{ matrix.target }}-${{ env.FIRE_REVIEW_SOURCE_SHA }}
+          path: ${{ runner.temp }}/fire-${{ matrix.target }}-device-review/
+          if-no-files-found: error
+          retention-days: 7
+
+  synthetic-full-app-qa:
+    name: Isolated synthetic QA full-app — auth, payment refusals, schema, build, sealed review
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout review-only branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: b8ce230c369819f778e4579bc487fe6cd574767a
+      - name: Verify exact PR158 source before running any test
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize separate QA application (never deploy)
+        run: python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-candidate"
+      - name: Verify exact shared plus two-layer authenticated QA source assembly
+        run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate"
+      - name: Install QA build dependencies from existing lockfile
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm install --frozen-lockfile
+      - name: QA TypeScript verification
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm exec tsc --noEmit
+      - name: Verify QA's disposable full schema, never any hosted DB
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: QA independent passphrase, cookie, spoofed-header and wrong-origin regression
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          node --experimental-sqlite scripts/test-change-request-history.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
+           node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
+           node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
+           node scripts/test-deposit-agreement-disclosure.mjs
+           node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
+           node scripts/test-owner-deposit-review.mjs
+           node scripts/test-job-tools-mobile-save.mjs
+           node scripts/test-job-report-recovery.mjs
+           node scripts/test-job-cost-recovery.mjs
+           node scripts/test-estimate-detail-recovery.mjs
+           node scripts/test-estimate-editor-save-recovery.mjs
+           node scripts/test-invoice-editor-load-recovery.mjs
+           node scripts/test-deposit-exception-proposals.mjs
+          node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-estimate-history-exact-cents.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
+          node scripts/test-estimate-history-recovery.mjs
+          node scripts/test-insights-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
+          node scripts/test-qa-auth-adapter.mjs
+      - name: Real QA payment route guards reject checkout/refund/webhooks before provider or DB
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-stripe-isolation.mjs
+      - name: Verify hosted QA offline customer vault and separate installed PWA identity
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-hosted-qa-local-customers.mjs
+      - name: Build entire QA Business App candidate without publishing
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm run build
+      - name: Confirm entire compiled QA candidate retains exact shared and adapter source
+        run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
+      - name: Validate compiled QA source bindings before preparing no-paid-R2 deployment
+        run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
+      - name: Verify ACTUAL compiled QA Worker generates R2-free release config (NO upload)
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { randomUUID } from 'node:crypto';
+          import { readFileSync, unlinkSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { prepare } from './business-app-parity/prepare_qa_deploy_config.mjs';
+          const folder = join(process.env.RUNNER_TEMP, 'fire-qa-candidate/dist/server');
+          const original = join(folder, 'wrangler.json');
+          const temporary = join(folder, 'wrangler.fire-qa-firstpublish-' + randomUUID() + '.json');
+          const previous = readFileSync(original, 'utf8');
+          try {
+            const result = prepare(original, temporary);
+            const before = JSON.parse(previous);
+            const clean = JSON.parse(readFileSync(temporary,'utf8'));
+            assert.equal(result.r2Free, true);
+            assert.equal(Object.hasOwn(clean,'r2_buckets'),false);
+            assert.equal(Object.hasOwn(clean,'legacy_env'),false);
+            delete before.r2_buckets;
+            delete before.legacy_env;
+            assert.deepEqual(clean,before,'All other Worker bindings/assets/secrets must be preserved');
+            assert.equal(clean.d1_databases[0].binding,'DB');
+            assert.equal(clean.d1_databases[0].database_name,'fire-fullapp-qa-db-20261016');
+            assert.equal(readFileSync(original,'utf8'),previous,'Never change compiled original');
+            console.log('PASS: Actual compiled QA Worker release config is R2-free and D1-only; zero remote operations.');
+          } finally { try { unlinkSync(temporary); } catch (error) { if (error.code!=='ENOENT') throw error; } }
+          NODE
+      - name: Prepare pinned browser driver for built QA local-runtime integration
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-qa-http-browser"
+          npm --prefix "$RUNNER_TEMP/fire-qa-http-browser" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-qa-http-browser/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Runner Chrome is unavailable."; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Entire built QA Worker over local HTTPS — native D1, owner auth, mobile modal and restart
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-qa-worker-http-browser.mjs
+          node scripts/test-qa-worker-http-browser.mjs --photo-storage
+          node scripts/test-qa-worker-http-browser.mjs --customer-lookup
+          node scripts/test-qa-worker-http-browser.mjs --customer-profile
+          node scripts/test-qa-worker-http-browser.mjs --complete-ledger
+          node scripts/test-qa-worker-http-browser.mjs --deposit-policy
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts --customer-note-recovery --door-knocking --saved-promotions-integration
+      - name: Seal synthetic-only QA full-app review bundle
+        run: |
+          python3 business-app-parity/prepare_device_review.py \
+            --target qa \
+            --candidate "$RUNNER_TEMP/fire-qa-candidate" \
+            --output "$RUNNER_TEMP/fire-qa-review" \
+            --checkpoint "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Check exact QA source, build ID and every ZIP hash before upload
+        run: |
+          python3 business-app-parity/verify_device_review_packet.py \
+            --packet "$RUNNER_TEMP/fire-qa-review" \
+            --target qa \
+            --checkpoint "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Archive QA source/build for separate future owner-authorized hosting
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-full-app-review-qa-${{ env.FIRE_REVIEW_SOURCE_SHA }}
+          path: ${{ runner.temp }}/fire-qa-review/
+          if-no-files-found: error
+          retention-days: 7
+
+  offline-browser:
+    name: Isolated synthetic Home Screen offline cold-launch browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_UX_TRACE_DIR: ${{ github.workspace }}/fire-nested-ux-trace
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout development branch (read only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: b8ce230c369819f778e4579bc487fe6cd574767a
+      - name: Verify exact PR158 source before running any test
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install shared dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Install isolated pinned Playwright driver (no browser download)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Locate GitHub runner's pre-installed Chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual prepared text and email handoff on narrow phones in both themes
+        run: node scripts/test-message-composer-handoff-browser.mjs
+      - name: Actual Add and Edit customer labels, mobile fields and receipt recovery
+        env:
+          FIRE_CUSTOMER_FORMS_DIR: ${{ runner.temp }}/fire-customer-forms-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-forms-browser.mjs
+      - name: Retain synthetic customer form control and recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-customer-forms-control-geometry
+          path: ${{ runner.temp }}/fire-customer-forms-ui/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Actual Follow-ups, Contracts owner list and Owner Account interactions
+        env:
+          FIRE_FOLLOWUP_UX_DIR: ${{ runner.temp }}/fire-followup-account-contracts-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-followups-account-contracts-browser.mjs
+      - name: Retain synthetic three-screen interaction and scrolling evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-followup-account-contracts-geometry
+          path: ${{ runner.temp }}/fire-followup-account-contracts-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Actual owner deposit policy, audit history and gated synthetic states
+        env:
+          FIRE_DEPOSIT_UX_DIR: ${{ runner.temp }}/fire-owner-deposit-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-deposit-ux-browser.mjs
+      - name: Retain synthetic owner deposit geometry and state evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-owner-deposit-control-geometry
+          path: ${{ runner.temp }}/fire-owner-deposit-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Verify shared payments toolbar across phone, tablet and desktop in light and dark
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-payments-shortcut-browser.mjs
+      - name: Verify actual Edit Estimate viewport geometry, scrolling and reachable actions in Chrome
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-editor-geometry-browser.mjs
+      - name: Actual nested React editor, Radix portals, compiled Tailwind, keyboard and save recovery
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-editor-react-browser.mjs
+      - name: Actual customizable pricing on mobile light and dark with synthetic SQLite
+        env:
+          FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+      - name: Google Voice and personal backup interaction safety
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-google-voice-actions-browser.mjs
+      - name: Actual original and revised signature nested UX and receipt states
+        env:
+          FIRE_SIGNATURE_UX_DIR: ${{ runner.temp }}/fire-signature-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-public-signature-ux-browser.mjs
+      - name: Retain synthetic signature control geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-signature-control-geometry
+          path: ${{ runner.temp }}/fire-signature-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Actual nested checkout review and QA/DR sign-in states
+        env:
+          FIRE_CHECKOUT_UX_DIR: ${{ runner.temp }}/fire-checkout-login-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-checkout-review-ux-browser.mjs
+      - name: Retain synthetic checkout and sign-in geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-checkout-login-control-geometry
+          path: ${{ runner.temp }}/fire-checkout-login-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Actual offline setup preparation, error, timeout and retry states
+        env:
+          FIRE_SETUP_UX_DIR: ${{ runner.temp }}/fire-offline-setup-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-field-setup-browser.mjs
+      - name: Retain synthetic offline setup state geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-offline-setup-control-geometry
+          path: ${{ runner.temp }}/fire-offline-setup-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Final refund retry, quote-context and iPhone dialog audit
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-final-interaction-audit-browser.mjs
+      - name: Notification touch actions, saved reads and independent reminders over real SQLite
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-notification-persistence-browser.mjs
+      - name: Actual nested availability controls — per-field geometry and repeat intervals
+        env:
+          FIRE_UX_AUDIT_DIR: ${{ runner.temp }}/fire-availability-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-business-preferences-browser.mjs
+      - name: Retain synthetic availability control bounds and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-availability-control-geometry
+          path: ${{ runner.temp }}/fire-availability-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Saved promotion manager mobile add, pause, save and reload
+        env:
+          FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-saved-promotions-browser.mjs
+      - name: Door knocking real mobile dropdown history and interrupted saves
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-door-knocking-browser.mjs
+      - name: Encrypted offline territory drafts, manual sync, conflicts and IndexedDB failures
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-territory-offline-browser.mjs
+      - name: Real offline field cold restart, encrypted pins and private-cache boundaries
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-field-browser.mjs
+      - name: Experimental local customer IndexedDB records, atomic outbox and account isolation
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-customer-repository-browser.mjs
+      - name: Actual MapLibre territory canvas, mobile light/dark and clustered metro coverage
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-territory-browser.mjs
+      - name: Actual New Estimate service reuse on mobile light and dark
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-reuse-estimate-editor-browser.mjs
+      - name: New estimate saved promotion suggestions on mobile and booking hold
+        env:
+          FIRE_PROMOTION_ESTIMATE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promotions-new-estimate-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-new-estimate-promotions-browser.mjs
+      - name: Owner saved promotion history, original rule preservation and read retry on mobile
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-estimate-promotion-history-browser.mjs
+      - name: Booking amendment owner preview on mobile with real SQLite
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-post-estimate-booking-preview-browser.mjs
+      - name: Retain synthetic saved-promotion mobile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-saved-promotion-mobile-ui
+          path: |
+            ${{ runner.temp }}/fire-saved-promo-ui
+            ${{ runner.temp }}/fire-promotions-new-estimate-ui
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Stacked promotion and bundle mobile save and recovery
+        env:
+          FIRE_STACKED_SCREENSHOT_DIR: ${{ runner.temp }}/fire-stacked-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-stacked-estimate-discounts-browser.mjs
+      - name: Retain synthetic stacked-discount mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-stacked-discount-mobile-ui
+          path: ${{ runner.temp }}/fire-stacked-ui
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Retain synthetic mobile pricing screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-custom-pricing-mobile-ui
+          path: ${{ runner.temp }}/fire-pricing-ui
+          retention-days: 7
+      - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
+        env:
+          FIRE_NOTE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-note-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-write-browser.mjs
+      - name: Retain synthetic multiline note mobile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-customer-note-mobile-ui
+          path: ${{ runner.temp }}/fire-note-ui
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Job Closeout Center over real synthetic SQLite owner APIs on mobile light and dark
+        env:
+          FIRE_CLOSEOUT_SCREENSHOT_DIR: ${{ runner.temp }}/fire-closeout-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-job-closeout-center-browser.mjs
+      - name: Save synthetic Job Closeout Center screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-job-closeout-center-mobile-ui
+          path: ${{ runner.temp }}/fire-closeout-ui
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Customer history search, focused records, Schedule windows and Dashboard job targets
+        env:
+          FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-connected-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-connected-records-browser.mjs
+      - name: Seven-day NWS forecast, hourly auth, safe dates and device timezones
+        run: |
+          TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
+          TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+          TZ=America/Chicago node scripts/test-weather-hourly.mjs
+      - name: Real Dashboard and Schedule full-week weather on phone, tablet and desktop in Chrome
+        env:
+          FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-week
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-weather-week-browser.mjs
+      - name: Save synthetic seven-day weather screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-weather-week-mobile-ui
+          path: ${{ runner.temp }}/fire-weather-week/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Save synthetic customer and schedule screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-connected-mobile-ui
+          path: ${{ runner.temp }}/fire-connected-ui/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Actual Business record search, task filters, older expenses and status recovery
+        env:
+          FIRE_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-business-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-business-records-browser.mjs
+      - name: Save synthetic Business UI screenshots for owner review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-business-mobile-ui
+          path: ${{ runner.temp }}/fire-business-ui/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Today next-job real contact disclosure in Chrome at iPhone widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-dashboard-next-contact-browser.mjs
+      - name: Real Schedule calendar-day booking and Google Maps route at iPhone widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-schedule-day-shortcuts-browser.mjs
+      - name: Compact Estimates and Payments real JSX in Chromium at five iPhone widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-simple-estimates-payments-browser.mjs
+      - name: Customer contact and complete activity disclosure in real Chromium at iPhone widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-simple-profile-browser.mjs
+      - name: Real sidebar navigation preserves all advanced tools under a keyboard-accessible disclosure
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
+      - name: Estimate and invoice preview theme, touch targets, contrast and print
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-preview-theme-browser.mjs
+      - name: Actual template editors and themed sidebar at phone tablet and desktop widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-template-layout-browser.mjs
+      - name: Actual job reports and costs retain mobile controls and survive session connection loss
+        env:
+          FIRE_JOB_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-job-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-job-session-offline-browser.mjs
+      - name: Save synthetic job dialog screenshots for owner review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-job-mobile-ui
+          path: ${{ runner.temp }}/fire-job-ui/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-photo-indexeddb-browser.mjs
+      - name: Verify durable photo interruption receipts, native cross-tab locking and browser restart
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-photo-mutation-journal-browser.mjs
+      - name: Exercise actual photo screen, offline ZIP, stopped-server cold launch and Files readback
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-photo-ui-browser.mjs
+      - name: Exercise actual Customers dashboard offline-photo fallback, authenticated directory and 401 revocation
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-actual-customer-photo-fallback-browser.mjs
+      - name: Test native Chromium persistent profile and offline cold launch
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-local-customer-demo-cold-browser.mjs
+      - name: Test portable synthetic PWA export, install assets and offline recovery
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-local-customer-demo-package.mjs
+      - name: Test exact-origin HTTPS Pages fixture, CSP and service-worker scope
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-local-customer-pages-browser.mjs
+      - name: Exercise actual guarded React offline-customer screen and synthetic auth in Chrome
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-candidate-local-customers-browser.mjs
+
+      - name: Summarize actual nested control geometry observations
+        run: node scripts/summarize-ux-geometry-trace.mjs
+      - name: Retain synthetic nested UX geometry observations for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-nested-ux-observations
+          path: ${{ github.workspace }}/fire-nested-ux-trace/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows-qa-migration-source:
+    name: Windows CRLF pinned migrations and private offline restore
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout development source without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: b8ce230c369819f778e4579bc487fe6cd574767a
+      - name: Verify exact PR158 source before running any test
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Install Python for isolated Windows regression
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify CRLF-only equivalence, tamper refusal and unchanged private fixtures
+        working-directory: business-app-parity
+        run: |
+          python test_qa_migration_line_endings.py
+          python test_rehearse_qa_additive_schema.py
+          python test_capture_existing_qa_schema_read_only.py
+          python test_qa_guarded_update.py
+          python test_qa_evidence_intake.py
+          python test_capture_qa_provider_identity.py
+      - name: Validate active QA Worker physical D1 bindings from synthetic provider JSON (offline)
+        shell: pwsh
+        working-directory: business-app-parity
+        run: ./test_verify_qa_worker_version_bindings.ps1
+      - name: Mock the current QA-only Worker, physical DB binding and 25-migration read-only reviewer
+        shell: pwsh
+        working-directory: business-app-parity
+        run: ./test_owner_windows_qa_current_readonly.ps1
