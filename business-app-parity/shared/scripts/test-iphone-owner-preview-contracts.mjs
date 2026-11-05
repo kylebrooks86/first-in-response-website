@@ -16,6 +16,7 @@ const current={
  estimate:read('app/estimate/[token]/page.tsx'),
  invoice:read('app/invoice/[token]/page.tsx'),
  returnLink:read('components/owner-preview-return-link.tsx'),
+ previewTheme:read('components/owner-preview-theme.tsx'),
  css:read('app/globals.css'),
 };
 let checks=0;
@@ -93,6 +94,10 @@ function verify(s){
    'Owner Close uses same-origin native document return with history replacement; modified clicks remain standard');
  check(returnNodes.filter(n=>n.tag==='a'&&n.attrs.href==='{href}'&&n.attrs['aria-label']==='{label}').length===1,
    'Owner Close is a real accessible href and continues working without JavaScript');
+ check(s.previewTheme.includes('disabled={!ready}')&&
+   s.previewTheme.includes('setReady(true)')&&
+   s.previewTheme.includes('if (!ready) return;'),
+   'Owner preview theme is unclickable until its stored light/dark setting hydrates');
  check(s.invoice.includes("from==='customer'?")&&s.invoice.includes('customerSection=invoices')&&
    s.invoice.includes("from==='invoices'?"),
    'Invoice preview Close retains originating customer/invoice section context');
@@ -118,8 +123,9 @@ for(const [label,change] of [
  ['owner Close pollutes browser history',s=>({...s,returnLink:s.returnLink.replace('window.location.replace(url.href)','window.location.assign(url.href)')})],
  ['owner authentication gating removed',s=>({...s,estimate:s.estimate.replace('ownerPreview&&<><OwnerPreviewTheme/>','true&&<><OwnerPreviewTheme/>')})],
  ['mobile coarse pointer rule removed',s=>({...s,css:s.css.replace('@media (max-width:760px) and (pointer:coarse)','@media (min-width:761px) and (pointer:fine)')})],
+ ['theme hydration safety removed',s=>({...s,previewTheme:s.previewTheme.replace('disabled={!ready}','')})],
 ]){
  assert.throws(()=>verify(change(current)),{name:'AssertionError'},label+' must be rejected');
  checks++;
 }
-console.log('PASS '+checks+' owner-preview real-anchor privacy/navigation and mobile dialog source checks, with five negative controls; offline only. Physical iPhone Safari acceptance remains OPEN.');
+console.log('PASS '+checks+' owner-preview real-anchor privacy/navigation and mobile dialog source checks, with six negative controls; offline only. Physical iPhone Safari acceptance remains OPEN.');
