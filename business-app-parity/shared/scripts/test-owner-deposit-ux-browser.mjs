@@ -36,7 +36,21 @@ try{
   await sample('unverified');await respond(503,{error:'Synthetic deposit review unavailable. Retry explicitly.'});await panel.getByRole('alert').waitFor();await sample('load-error');
   const refresh=panel.getByRole('button',{name:'Refresh deposit and scheduling status',exact:true});await refresh.click();await page.waitForFunction(()=>true);await respond(200,body());await panel.getByText('Policy checks passed',{exact:true}).count();await panel.getByText('Not ready yet',{exact:true}).waitFor();
   check(await panel.getByRole('heading',{name:'Deposit & scheduling',exact:true}).count()===1,'Compact deposit heading retained');check(await refresh.evaluate(e=>e.getBoundingClientRect().height>=44),'Secondary refresh is touch friendly');
-  check(await panel.getByRole('button',{name:'Review this exception',exact:true}).count()===0,'Signed/exposed records have no exception editor');await sample('signed-collapsed');
+  check(await panel.getByRole('button',{name:'Review this exception',exact:true}).count()===0,'Signed/exposed records have no exception editor');
+  if(width===390&&theme==='dark'){
+   const inactive=body();inactive.currentSnapshot.status='declined';
+   await refresh.click();await respond(200,inactive);
+   await panel.getByText('Original deposit (not due)',{exact:true}).waitFor();
+   check(await panel.getByText('Closed · inactive estimate',{exact:true}).isVisible(),
+     'Declined quote cannot be represented as schedulable');
+   check(await panel.getByText('Deposit still due',{exact:true}).count()===0,
+     'Declined historical deposit is never displayed as currently collectible');
+   check(requests.every(r=>r.method==='GET'),
+     'Reading a declined deposit quote never writes to backend');
+   await refresh.click();await respond(200,body());
+   await panel.getByText('Deposit still due',{exact:true}).waitFor();
+  }
+  await sample('signed-collapsed');
   await panel.getByText('Deposit breakdown',{exact:true}).click();await sample('signed-breakdown');
   const long=body();long.exceptionReview.latestEventId='6a55ed09-a39e-499d-bd55-163c0e460dbf';long.exceptionReview.events=Array.from({length:13},(_,i)=>({id:i===0?long.exceptionReview.latestEventId:'7a55ed09-a39e-499d-bd55-'+String(i).padStart(12,'0'),confirmation_id:'9a55ed09-a39e-499d-bd55-163c0e460dbf',created_at:'2026-10-29T10:00:00.000Z',mode:'schedule-before-deposit',previous_deposit_cents:123456789,new_deposit_cents:123456789,actor_email:'synthetic@example.invalid',reason:'Synthetic audit reason '+('long-reference-'.repeat(15))}));
   await refresh.click();await respond(200,long);await panel.locator('.invoice-revision-row').first().waitFor();check(await panel.locator('.invoice-revision-row').count()===12,'Existing twelve-event display limit retained');await sample('long-audit');
