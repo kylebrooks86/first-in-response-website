@@ -1,0 +1,51 @@
+# Disposable verification-only workflow. It never checks out its own workflow commit.
+# Only tests the exact source from the owner-reported QA navigation fix.
+name: FIRE Customer Estimate Navigation — Focused Exact-Source Review
+on:
+  push:
+    branches:
+      - chat/fire-customer-navigation-focused-verification-2026-11-04
+permissions:
+  contents: read
+env:
+  FIRE_REVIEW_SOURCE_SHA: 1caea41103149eece05aba191358a22720ea3333
+  CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+  WRANGLER_SEND_METRICS: 'false'
+jobs:
+  focused-customer-navigation:
+    name: TypeScript plus exact customer shortcut React browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout pinned app source, not temporary workflow branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: 1caea41103149eece05aba191358a22720ea3333
+      - name: Fail if source differs from reviewed commit
+        run: test "$(git rev-parse HEAD)" = "$FIRE_REVIEW_SOURCE_SHA"
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Check actual app TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Install isolated browser driver (no browser download)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use runner preinstalled Chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Preinstalled Chrome unavailable"; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Run only customer exact-job routing and mobile profile browser
+        run: node scripts/test-customer-simple-profile-browser.mjs
