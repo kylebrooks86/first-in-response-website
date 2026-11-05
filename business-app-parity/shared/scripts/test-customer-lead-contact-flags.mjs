@@ -89,8 +89,11 @@ check(dashboard.includes('manualFlags.leadContact&&<p')&&dashboard.includes('ari
  'Uncontacted new leads do not show placeholder explanation; owner logged contact remains explicit');
 check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('showUnansweredLeadsOnly'),
  'Customer directory can filter exact owner-logged unanswered leads, even with no estimate');
-check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('manualFlags=deriveCustomerManualFlags(customerNotes)'),
- 'Directory reads explicit customer note flags without fabricating estimate outreach');
+check(dashboard.includes('manuallyUnansweredLeadIds')&&
+ dashboard.includes('const flagsByCustomer=useMemo(()=>{')&&
+ dashboard.includes('notesById.get(customer.id)??[]')&&
+ dashboard.includes('manualFlags=flagsByCustomer.get(selectedId??"")??deriveCustomerManualFlags(customerNotes)'),
+ 'Directory uses memoized flags derived from saved notes for each customer, not fabricated estimate outreach');
 check(dashboard.includes('setShowUnansweredLeadsOnly(current=>!current)'),
  'Directory filter can be turned off to restore the complete customer list');
 check(dashboard.includes('leadContact?.state==="no_answer"')&&dashboard.includes('followupContactRecorded'),
