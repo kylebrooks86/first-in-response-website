@@ -163,6 +163,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
           CI: 'true'
