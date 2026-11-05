@@ -191,7 +191,7 @@ try{
  check(invalid.status()===400,'Native HTTP edit rejects invalid service quantity');
  const premature=await request('/api/invoices','POST',{estimateId:estimate.id});
  check(premature.status()===409,'Actual invoice route blocks billing an incomplete job');
- const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
+ const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(String(e.stack||e.message).slice(0,3000)));
  await page.goto(origin+'/');
  await page.getByText('QA · Test data only',{exact:true}).waitFor();
  await verifySignedMessageHandoff({request,page,customer,estimate,check});
