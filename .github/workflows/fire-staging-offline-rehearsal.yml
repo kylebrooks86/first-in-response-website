@@ -113,6 +113,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-estimate-detail-recovery.mjs
+      - name: Gate 8 saved customer list failure and cache recovery (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-customer-load-recovery.mjs
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
           CI: 'true'
