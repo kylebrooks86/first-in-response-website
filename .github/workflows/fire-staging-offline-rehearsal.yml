@@ -96,6 +96,13 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-iphone-owner-preview-contracts.mjs .
+      - name: Gate 8 saved estimate history, private preview and closed-quote regression (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-estimate-detail-recovery.mjs
+      - name: Gate 8 current QA Worker identity refusal (mocked PowerShell, no provider access)
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
           CI: 'true'
