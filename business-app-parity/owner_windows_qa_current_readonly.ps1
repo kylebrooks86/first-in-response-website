@@ -1,6 +1,6 @@
 # FIRE QA current-release evidence review — READ ONLY, no publication or data mutation.
 # Designed for the owner's existing authenticated Windows Wrangler session.
-# Nov 2 owner-approved QA update and Nov 4 authenticated Wrangler readback
+# Nov 4/5 owner-approved QA update and authenticated Wrangler readback
 # confirmed the pinned 100%-serving QA version and isolated physical D1.
 # This is a PIN, not proof of immutable source bytes: stop if version changes,
 # traffic splits, or physical QA D1 identity differs. NEVER redeploy.
@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedVersion = '2dba26a4-6188-466f-a754-c9ae00c1c878'
+$expectedVersion = '8165ead3-43f1-48fd-b077-a1881ed0b978'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
