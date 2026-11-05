@@ -91,6 +91,12 @@ const contactOutcome=exactlyOne(snippets.contactOutcome,'owner-logged contact st
 assert.match(job,/^\{activeCustomerEstimate&&<button/,'Actual guard hides the shortcut when no customer estimate exists');
 const profileSource=view.getText(ast);
 assert.match(profileSource,/pickCustomerNextEstimate\(customerEstimates,Date\.now\(\)\)/,'Actual customer profile uses the tested next-job logic');
+assert.match(profileSource,/if\(onOpenEstimate\)\{onOpenEstimate\(estimate.id\);return;\}/,'Customer tap prefers exact-id Estimates workspace navigation');
+assert.match(source,/tab === "customers" \? <CustomersView onOpenEstimate=\{id=>\{if\(!setTab\("estimates"\)\)return;.*setFocusEstimateId\(id\)/,'App shell wires customer navigation to focused exact estimate');
+assert.match(job,/onClick=\{\(\)=>openCustomerSavedJob\(activeCustomerEstimate\)\}/,'Current job uses shared safe navigation');
+assert.match(profileSource,/View \{journey.steps.length\} progress milestones/,'Large job journey details are progressively disclosed');
+const savedJobHelper=profileSource.match(/  const openCustomerSavedJob=\(estimate:CustomerEstimate\)=>\{[\s\S]*?\n  \};/)?.[0];
+assert.ok(savedJobHelper,'Exercise the actual customer saved-job navigation helper');
 assert.ok(profileSource.indexOf('className="customer-contact"')<profileSource.indexOf('className="customer-next-job"')&&profileSource.indexOf('className="customer-next-job"')<profileSource.indexOf('className="record-tabs"'),'The current job shortcut is above records and after contacts');
 assert.match(profileSource,/setSection\("photos"\)\}>Photos \{onDevicePhotoCount!==null/,'Photos tab retains short label and shows verified on-device count only');
 assert.match(profileSource,/onPhotoCountChange=\{acceptPhotoCount\}/,'Local photo gallery updates the badge after verified vault reads');
@@ -112,7 +118,8 @@ const fixture=[
  " const [manualFlags,setManualFlags]=useState({leadContact:null});",
  " window.__setLeadContact=leadContact=>setManualFlags({leadContact});",
  " const [activeCustomerEstimate,setActiveCustomerEstimateState]=useState({id:'job-001',service:'Gutter cleaning',status:'scheduled',scheduledAt:'2026-10-30T14:00:00Z'});",
- " const setActiveEstimate=e=>{window.__openedJob=e};const onOpenTerritory=address=>{window.__openedTerritory=address};",
+ " const onOpenEstimate=id=>{window.__openedJob=id;window.__navigatedTab='estimates'};const setActiveEstimate=e=>{window.__modalOpened=e};const onOpenTerritory=address=>{window.__openedTerritory=address};",
+ savedJobHelper,
  " const statusLabel=status=>status;",
  " window.__setSelected=setSelected;window.__setWithActions=setWithActions;window.__setActiveCustomerEstimate=setActiveCustomerEstimateState;window.__clicked=[];",
  " const openCustomerAction=a=>window.__clicked.push('action:'+a.key),openTimelineEntry=e=>window.__clicked.push('activity:'+e.key);",
@@ -189,7 +196,7 @@ try{
   check(await shortcut.getByText('Open scheduled job').isVisible(),width+': scheduled job label is truthful');
   check(await shortcut.getAttribute('aria-label')==='Open Gutter cleaning scheduled job',width+': scheduled VoiceOver action names saved job');
   await shortcut.click();
-  check(await page.evaluate(()=>window.__openedJob?.id==='job-001'&&window.__openedJob?.customer==='Synthetic customer'),width+': original current job handler opens correct customer and job');
+  check(await page.evaluate(()=>window.__openedJob==='job-001'&&window.__navigatedTab==='estimates'&&window.__modalOpened===undefined),width+': actual saved-job handler routes by exact ID without nested customer dialog');
   check(await shortcut.evaluate(el=>{const p=el.getBoundingClientRect();return p.height>=44&&p.left>=-1&&p.right<=innerWidth+1}),width+': current job tap target stays within phone');
   check(await row.getByRole('link',{name:'Research customer property on Google Earth',exact:true}).isVisible()&&await row.getByRole('link',{name:'Research customer property on Zillow',exact:true}).isVisible(),width+': property links remain available after expanding the disclosure');
   check(await page.getByRole('region',{name:'Review next customer actions'}).isVisible(),width+': actual due customer actions stay immediately visible');
