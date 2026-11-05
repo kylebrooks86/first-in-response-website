@@ -38,6 +38,52 @@ permissions:
   contents: read
 
 jobs:
+  qa-http-owner-preview-local:
+    name: Gate 8 built QA Worker HTTPS Customer view and return (disposable, no deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Check out candidate without persistent token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up pinned runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Use pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize isolated QA source without remote access
+        run: |
+          python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-preview-candidate"
+          python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-preview-candidate"
+      - name: Install and compile full synthetic QA Worker locally
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit
+          pnpm run build
+      - name: Recheck built code and QA-only configuration
+        run: |
+          python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-preview-candidate" --built
+          node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-preview-candidate/dist/server/wrangler.json"
+      - name: Prepare pinned local browser without remote deployment
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-qa-preview-driver"
+          npm --prefix "$RUNNER_TEMP/fire-qa-preview-driver" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-qa-preview-driver/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME" || { echo "STOP: runner's preinstalled Chrome missing"; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Exercise actual built QA login, synthetic estimate, Customer view, back/close, and restart
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-qa-worker-http-browser.mjs
+
   gate8-declined-deposit-browser:
     name: Gate 8 declined deposit and audit UI (synthetic Chrome only)
     runs-on: ubuntu-latest
