@@ -52,12 +52,21 @@ try{
    }
    check(await panel.getByText('Closed · inactive estimate',{exact:true}).isVisible(),
      'Declined quote cannot be represented as schedulable');
-   check(await panel.getByText('Deposit still due',{exact:true}).count()===0,
+   const withdrawnSummary=await panel.locator('.owner-deposit-summary').innerText();
+   check(!withdrawnSummary.includes('Deposit still due'),
      'Declined historical deposit is never displayed as currently collectible');
    check(requests.every(r=>r.method==='GET'),
      'Reading a declined deposit quote never writes to backend');
    await refresh.click();await respond(200,body());
-   await panel.getByText('Deposit still due',{exact:true}).waitFor();
+   try{
+    await page.waitForFunction(()=>{
+     const text=document.querySelector('[aria-label="Owner deposit policy and audit history"] .owner-deposit-summary')?.textContent||'';
+     return text.includes('Deposit still due')&&text.includes('Not ready yet')&&!text.includes('Original deposit (not due)');
+    },null,{timeout:7000});
+   }catch{
+    const shown=await panel.locator('.owner-deposit-summary').innerText().catch(()=>'<missing>');
+    throw Error('Original collectible-deposit policy failed to return after accepted synthetic refresh. Actual UI: '+JSON.stringify(shown));
+   }
   }
   await sample('signed-collapsed');
   await panel.getByText('Deposit breakdown',{exact:true}).click();await sample('signed-breakdown');
