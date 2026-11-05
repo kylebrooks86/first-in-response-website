@@ -43,7 +43,7 @@ $python = Get-Command 'python.exe' -ErrorAction SilentlyContinue
 $node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Require ($null -ne $git -and $null -ne $python -and $null -ne $node -and $null -ne $wrangler) 'Existing Git, Python, Node and authenticated global Wrangler are required.'
-$actualBranch = ([string](& $git.Source -C $repo branch --show-current)).Trim()
+$actualBranch = (@(& $git.Source -C $repo branch --show-current) -join '').Trim()
 Require-Exit 'Git branch'
 if ($AllowDetachedWorktree) {
     Require ([string]::IsNullOrEmpty($actualBranch) -and $ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'Detached review requires detached HEAD and an exact reviewed SHA.'

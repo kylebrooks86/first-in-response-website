@@ -55,8 +55,9 @@ try {
             $ExpectedCommit = if ($case.pin -ceq 'head') { $fixtureHead } elseif ($case.pin -ceq 'wrong') { $parent } else { '' }
             $AllowDetachedWorktree = [bool]$case.opt
             $succeeded = $true
-            try { & $guard } catch { $succeeded = $false }
-            Require ($succeeded -eq $case.pass) ($script+': '+$case.name+' returned unexpected guard result')
+            $guardError = ''
+            try { & $guard } catch { $succeeded = $false; $guardError = $_.Exception.Message+' '+$_.InvocationInfo.PositionMessage }
+            Require ($succeeded -eq $case.pass) ($script+': '+$case.name+' returned unexpected guard result: '+$guardError)
             Require ((& $git.Source -C $repo rev-parse HEAD).Trim() -ceq $fixtureHead) 'Guard changed synthetic HEAD.'
             $checks++
             Write-Host ('PASS: '+$script+' '+$case.name)
