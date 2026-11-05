@@ -1,0 +1,98 @@
+name: FIRE Staging Migration and Shared-App Parity
+
+on:
+  push:
+    branches:
+      - work/fire-staging-safe-migration-rehearsal-2026-10-29
+    paths:
+      - 'business-app-parity/rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - 'business-app-parity/adapters/independent-staging/**'
+      - 'business-app-parity/adapters/doomsday/**'
+      - 'business-app-parity/adapters/qa/**'
+      - 'business-app-parity/shared/**'
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/test_independent_staging_parity.py'
+      - 'business-app-parity/check_independent_staging_runtime_config.mjs'
+      - 'business-app-parity/test_independent_staging_runtime_config.mjs'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - 'business-app-parity/adapters/independent-staging/**'
+      - 'business-app-parity/adapters/doomsday/**'
+      - 'business-app-parity/adapters/qa/**'
+      - 'business-app-parity/shared/**'
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/test_independent_staging_parity.py'
+      - 'business-app-parity/check_independent_staging_runtime_config.mjs'
+      - 'business-app-parity/test_independent_staging_runtime_config.mjs'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-migration-rehearsal:
+    name: Synthetic 22-to-25 D1 migration rehearsal (NO Cloudflare writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate; never persist credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Six negative-control unit tests
+        run: python -m unittest discover -s business-app-parity -p 'test_rehearse_staging_22_to_25.py' -v
+      - name: Rehearse actual 25-source migration files in memory (no customer export)
+        run: python business-app-parity/rehearse_staging_22_to_25.py
+
+  isolated-staging-source-parity:
+    name: QA/staging shared app source and isolated staging build (NO upload)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout reviewed FIRE development source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Staging versus QA source assembly parity, negative controls
+        run: python -m unittest discover -s business-app-parity -p 'test_independent_staging_parity.py' -v
+      - name: Reject unsafe Worker, D1, secrets, and route bindings
+        run: node business-app-parity/test_independent_staging_runtime_config.mjs
+      - name: Materialize isolated staging from same app source as QA
+        run: python business-app-parity/materialize.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate"
+      - name: Verify exact staging shared+adapter fingerprint
+        run: python business-app-parity/verify_materialized_candidate.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate"
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Build isolated staging release candidate, no Cloudflare connection or deploy
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - name: Verify compiled Worker can only target designated staging D1
+        run: node business-app-parity/check_independent_staging_runtime_config.mjs "$RUNNER_TEMP/fire-independent-staging-candidate/dist/server/wrangler.json"
+      - name: Verify compiled source exactly matches reviewed app and overlays
+        run: python business-app-parity/verify_materialized_candidate.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate" --built
