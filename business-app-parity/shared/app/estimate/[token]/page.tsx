@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {DISCOUNT_SNAPSHOT_PREFIX,readDiscountSnapshot,type DiscountSnapshot} from "../../../lib/discount-input";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { retrieveStripeCheckoutSession, recordStripeCheckoutSession } from "../../../lib/stripe-payments";
