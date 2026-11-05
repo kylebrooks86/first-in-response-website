@@ -6,7 +6,8 @@
 param(
     [switch]$Build,
     [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
-    [string]$ExpectedCommit = ''
+    [string]$ExpectedCommit = '',
+    [switch]$AllowDetachedWorktree
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -34,9 +35,13 @@ foreach ($p in @($builder, $verifier, $runtimeGuard)) {
 }
 $git = Get-Command 'git.exe' -ErrorAction SilentlyContinue
 Assert-True ($null -ne $git) 'Git required.'
-$actualBranch = (& $git.Source -C $repo branch --show-current).Trim()
+$actualBranch = ([string](& $git.Source -C $repo branch --show-current)).Trim()
 Check-Exit 'Read-only Git branch check'
-Assert-True ($actualBranch -ceq $branch) 'Refusing wrong Git branch.'
+if ($AllowDetachedWorktree) {
+    Assert-True ([string]::IsNullOrEmpty($actualBranch) -and $ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'Detached review requires detached HEAD and an exact reviewed SHA.'
+} else {
+    Assert-True ($actualBranch -ceq $branch) 'Refusing wrong Git branch.'
+}
 $head = (& $git.Source -C $repo rev-parse HEAD).Trim()
 Check-Exit 'Read-only Git HEAD check'
 $originHead = (& $git.Source -C $repo rev-parse "refs/remotes/origin/$branch").Trim()

@@ -6,6 +6,21 @@ from pathlib import Path
 S = (Path(__file__).parent / "owner_windows_qa_update_review.ps1").read_text(encoding="utf-8")
 
 class ExistingQAUpdateSafety(unittest.TestCase):
+    def test_detached_is_explicit_and_preserves_source_guards(self):
+        root = Path(__file__).parent
+        for name in ('owner_windows_build_qa_candidate.ps1', 'owner_windows_qa_update_review.ps1'):
+            script = (root / name).read_text(encoding='utf-8')
+            self.assertIn('[switch]$AllowDetachedWorktree', script)
+            self.assertIn('if ($AllowDetachedWorktree)', script)
+            self.assertIn("[string]::IsNullOrEmpty($actualBranch) -and $ExpectedCommit -cmatch '^[0-9a-f]{40}$'", script)
+            self.assertIn('$actualBranch -ceq $branch', script)
+            self.assertIn('$head -ceq $originHead', script)
+            self.assertIn('$head -ceq $ExpectedCommit', script)
+            self.assertIn('$dirty.Count -eq 0', script)
+        publisher = (root / 'owner_windows_qa_update_publish.ps1').read_text(encoding='utf-8')
+        self.assertEqual(publisher.count('-ExpectedCommit $ExpectedCommit @detachedArgs'), 2)
+        self.assertIn("$detachedArgs = @('-AllowDetachedWorktree')", publisher)
+
     def test_no_publish_capability_and_no_sensitive_actions(self):
         self.assertIn("[string]$CandidateBranch", S)
         self.assertIn("[string]$ExpectedCommit", S)

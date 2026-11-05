@@ -133,3 +133,4 @@ finally {
     Remove-Item Env:\FIRE_FAKE_JOURNAL,Env:\FIRE_FAKE_CALL_LOG,Env:\FIRE_FAKE_SCENARIO -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
+& (Join-Path $PSScriptRoot 'test_qa_detached_worktree_guards.ps1')

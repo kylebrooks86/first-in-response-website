@@ -4,7 +4,8 @@
 [CmdletBinding()]
 param(
     [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
-    [string]$ExpectedCommit = ''
+    [string]$ExpectedCommit = '',
+    [switch]$AllowDetachedWorktree
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -42,9 +43,13 @@ $python = Get-Command 'python.exe' -ErrorAction SilentlyContinue
 $node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Require ($null -ne $git -and $null -ne $python -and $null -ne $node -and $null -ne $wrangler) 'Existing Git, Python, Node and authenticated global Wrangler are required.'
-$actualBranch = (& $git.Source -C $repo branch --show-current).Trim()
+$actualBranch = ([string](& $git.Source -C $repo branch --show-current)).Trim()
 Require-Exit 'Git branch'
-Require ($actualBranch -ceq $branch) 'Working branch does not match FIRE QA branch.'
+if ($AllowDetachedWorktree) {
+    Require ([string]::IsNullOrEmpty($actualBranch) -and $ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'Detached review requires detached HEAD and an exact reviewed SHA.'
+} else {
+    Require ($actualBranch -ceq $branch) 'Working branch does not match FIRE QA branch.'
+}
 $head = (& $git.Source -C $repo rev-parse HEAD).Trim()
 Require-Exit 'Git HEAD'
 $originHead = (& $git.Source -C $repo rev-parse ('refs/remotes/origin/' + $branch)).Trim()

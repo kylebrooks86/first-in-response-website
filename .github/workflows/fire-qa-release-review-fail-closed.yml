@@ -41,3 +41,5 @@ jobs:
         run: python3 -m unittest discover -s business-app-parity -p test_owner_windows_qa_update_publish.py -v
       - name: Strict dual D1 INFO identity validator and malformed/colliding metadata refusal (offline)
         run: pwsh -NoProfile -File business-app-parity/test_qa_d1_identity_from_info.ps1
+      - name: Actual detached and attached Git checkout safety guards (local synthetic only)
+        run: pwsh -NoProfile -File business-app-parity/test_qa_detached_worktree_guards.ps1

@@ -10,7 +10,8 @@ param(
     [switch]$OwnerConfirmedNoLocalPhotos,
     [string]$ApprovalText,
     [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
-    [string]$ExpectedCommit = ''
+    [string]$ExpectedCommit = '',
+    [switch]$AllowDetachedWorktree
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -44,7 +45,9 @@ $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Require ($null -ne $ps -and $null -ne $git -and $null -ne $node -and $null -ne $wrangler) 'Windows PowerShell, Git, Node and global Wrangler are required.'
 Require (Test-Path -LiteralPath $review -PathType Leaf) 'QA update read-only reviewer missing.'
 Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'QA active physical D1 binding check missing.'
-& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit
+$detachedArgs = @()
+if ($AllowDetachedWorktree) { $detachedArgs = @('-AllowDetachedWorktree') }
+& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit @detachedArgs
 Require-Exit 'Existing Worker/data protection read-only update review'
 if (-not $Publish) {
     Write-Host 'REVIEW ONLY PASS. No Worker update or secret upload. No database changes.'
@@ -100,7 +103,7 @@ Require ($typed -ceq $approval) 'Exact QA update owner approval not provided.'
 # Check AGAIN immediately before the change: fully ordered 25-migration
 # schema, protected D1 and exact Git source are all mandatory.
 # A stale first preflight is not enough to publish after owner confirmation.
-& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit
+& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit @detachedArgs
 Require-Exit 'Fresh post-approval read-only 25-schema, D1 and source revalidation'
 # Race protection: refuse if active Worker changed after owner confirmation.
 $rawStatus = @(& $wrangler.Source deployments status --name $workerName --json)
