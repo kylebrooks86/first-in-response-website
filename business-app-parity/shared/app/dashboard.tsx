@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import {QuoteVersions} from '../components/quote-versions';
 import {BusinessPreferencesPanel} from '../components/business-preferences';
 import {DoorKnocking} from "../components/door-knocking";
@@ -2546,7 +2545,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
-      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<Link href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`} prefetch={false} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</Link>}
+      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</a>}
       {!estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable: this estimate does not have a saved private link.</small>}
       {["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable for replaced or withdrawn estimates. The saved history remains available.</small>}
       {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>}
@@ -2565,7 +2564,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {estimating&&estimate.address&&<div className="detail-context-tools" role="group" aria-label="Estimate research"><strong>Estimate research</strong><div className="detail-context-buttons"><a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a><a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a></div></div>}
       {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}</div></div>}
       {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
-      {estimate.invoiceId&&estimate.invoiceShareToken&&<Link href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`} prefetch={false}><Receipt/> View invoice</Link>}
+      {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
       {!["superseded","declined"].includes(estimate.status)&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
     {(workingOnJob||["declined","superseded"].includes(estimate.status))?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
@@ -3343,7 +3342,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
         // invoice link that silently does nothing. Keep the real link
         // keyboard reachable when a saved token exists.
         return invoice.shareToken?
-          <Link className="customer-record record-button" id={recordId} key={invoice.id} href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`} prefetch={false}>{details}<ExternalLink aria-hidden="true"/></Link>:
+          <a className="customer-record record-button" id={recordId} key={invoice.id} href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`}>{details}<ExternalLink aria-hidden="true"/></a>:
           <div className="customer-record" id={recordId} tabIndex={-1} key={invoice.id}>{details}<small role="status">Preview unavailable · open Invoices to review.</small></div>;
       }) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear search to see invoices.":"Create one from an estimate."}</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length} onPhotoCountChange={acceptPhotoCount}/>}
