@@ -38,6 +38,19 @@ permissions:
   contents: read
 
 jobs:
+  qa-current-version-mock-windows:
+    name: Current QA code/D1 read-only mock negative controls (Windows only)
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout candidate without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exercise QA version, D1 isolation, no-R2 and fail-closed refusals (mock only)
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
+
   source-only-migration-rehearsal:
     name: Synthetic 22-to-25 D1 migration rehearsal (NO Cloudflare writes)
     runs-on: ubuntu-latest
@@ -100,9 +113,6 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-estimate-detail-recovery.mjs
-      - name: Gate 8 current QA Worker identity refusal (mocked PowerShell, no provider access)
-        shell: pwsh
-        run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
           CI: 'true'
