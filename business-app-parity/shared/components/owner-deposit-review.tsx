@@ -37,18 +37,20 @@ function preview(total:number,deposit:number,mode:Mode,amount:string):{required:
 /** Owner-only synthetic candidate review; never authorizes a job or payment. */
 export function OwnerDepositReview({estimateId}:{estimateId:string}){
  const [state,setState]=useState<State|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ const [refreshing,setRefreshing]=useState(false),[lastChecked,setLastChecked]=useState("");
  const [mode,setMode]=useState<Mode>("standard"),[amount,setAmount]=useState(""),[reason,setReason]=useState("");
  const [reviewed,setReviewed]=useState(false),[explicit,setExplicit]=useState(false),[uncertain,setUncertain]=useState(false);
  const [pending,setPending]=useState<{confirmationId:string;body:Record<string,unknown>}|null>(null);
  const requestNo=useRef(0),lock=useRef(false);
  const refresh=useCallback(async()=>{
-  const n=++requestNo.current;setError("");
+  const n=++requestNo.current;setError("");setRefreshing(true);
   try{
    const r=await fetch("/api/estimates/"+encodeURIComponent(estimateId)+"/deposit-policy",{cache:"no-store"});
    const body=await r.json() as State;
    if(!r.ok||!body.policy)throw Error(body.error||"Deposit review unavailable.");
-   if(n===requestNo.current){setState(body);setReviewed(false);setExplicit(false);}
-  }catch(e){if(n===requestNo.current){setState(null);setError(e instanceof Error?e.message:"Cannot load deposit review.");}}
+   if(n===requestNo.current){setState(body);setReviewed(false);setExplicit(false);setLastChecked(new Date().toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}));}
+  }catch(e){if(n===requestNo.current){setState(null);setLastChecked("");setError(e instanceof Error?e.message:"Cannot load deposit review.");}}
+  finally{if(n===requestNo.current)setRefreshing(false);}
  },[estimateId]);
  useEffect(()=>{void refresh();return()=>{requestNo.current++;};},[refresh]);
  const current=state?.currentSnapshot,review=state?.exceptionReview;
@@ -107,7 +109,8 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
   finally{setBusy(false);}
  };
  return <section className="estimate-change-history owner-deposit-review" aria-label="Owner deposit policy and audit history">
-  <header className="owner-deposit-head"><h3>Deposit &amp; scheduling</h3><button type="button" className="owner-deposit-refresh" disabled={busy} onClick={()=>void refresh()} aria-label="Refresh deposit and scheduling status"><RefreshCw aria-hidden="true"/> Refresh</button></header>
+  <header className="owner-deposit-head"><h3>Deposit &amp; scheduling</h3><button type="button" className="owner-deposit-refresh" disabled={busy||refreshing} onClick={()=>void refresh()} aria-label="Refresh deposit and scheduling status"><RefreshCw aria-hidden="true"/> {refreshing?"Refreshing…":"Refresh"}</button></header>
+  {refreshing?<p className="service-description-help" role="status">Checking saved deposit status…</p>:lastChecked?<p className="service-description-help" role="status">Last checked {lastChecked} (Tulsa)</p>:null}
   {error&&<p role="alert" className="save-error">{error}</p>}
   {!state?<p>Deposit policy is not currently verified.</p>:
    <div className="revision-totals owner-deposit-summary">
