@@ -153,7 +153,7 @@ class Gate9ReadOnlyPreflight(unittest.TestCase):
             with self.subTest(code=code):
                 self.assert_blocked(patch, code)
 
-    def test_webhook_must_be_unique_current_and_subscribed_to_five_events(self):
+    def test_webhook_must_be_unique_current_and_subscribed_to_six_events(self):
         self.assert_blocked(lambda d: d["stripe"].update(webhooks=[]), "EXACT_STAGING_WEBHOOK_NOT_UNIQUE")
         self.assert_blocked(lambda d: d["stripe"]["webhooks"].append(
             copy.deepcopy(d["stripe"]["webhooks"][0])), "EXACT_STAGING_WEBHOOK_NOT_UNIQUE")
@@ -166,6 +166,7 @@ class Gate9ReadOnlyPreflight(unittest.TestCase):
                                        "checkout.session.async_payment_failed"]),
              "STAGING_WEBHOOK_REQUIRED_EVENTS_MISSING"),
             (lambda x: x.update(events=["*"]), "STAGING_WEBHOOK_REQUIRED_EVENTS_MISSING"),
+            (lambda x: x.update(events=[event for event in x["events"] if event != "refund.failed"]), "STAGING_WEBHOOK_REQUIRED_EVENTS_MISSING"),
         ]
         for patch, code in cases:
             with self.subTest(code=code):
