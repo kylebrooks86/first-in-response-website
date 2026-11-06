@@ -54,13 +54,13 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
     {state==='loading'&&<p role="status" className="text-sm">Checking saved offers…</p>}
     {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Refresh to retry.</p>}
     {(state==='ready'||state==='loading')&&verifiedRecord&&<>
-     <p className="text-sm text-muted-foreground">Saved {record.checkedOn} · Total {cents(record.totalCents)} · Deposit {cents(record.depositCents)}</p>
-     {record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>)}
-     {record.bookingConfirmedOn&&<p className="text-sm">Confirmed booking date: {record.bookingConfirmedOn} (owner-recorded only).</p>}
+     <p className="text-sm text-muted-foreground">Saved {verifiedRecord.checkedOn} · Total {cents(verifiedRecord.totalCents)} · Deposit {cents(verifiedRecord.depositCents)}</p>
+     {verifiedRecord.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>)}
+     {verifiedRecord.bookingConfirmedOn&&<p className="text-sm">Confirmed booking date: {verifiedRecord.bookingConfirmedOn} (owner-recorded only).</p>}
      <p className="text-xs text-muted-foreground">Later offers do not change this saved estimate.</p>
-     {!record.bookingConfirmedOn&&<details className="rounded-lg border px-3">
+     {!verifiedRecord.bookingConfirmedOn&&<details className="rounded-lg border px-3">
       <summary className="cursor-pointer min-h-11 py-2 font-medium">Review booking savings (optional)</summary>
-      <div className="pb-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={record.totalCents}/></div>
+      <div className="pb-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={verifiedRecord.totalCents}/></div>
      </details>}
     </>}
     <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
