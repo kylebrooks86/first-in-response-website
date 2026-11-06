@@ -2033,6 +2033,15 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:350px){.estimate-detail .detail-context-buttons{grid-template-columns:minmax(0,1fr)}}
 
 
+/* Optional personal-number actions must not crowd FIRE business Voice calls/texts. */
+.customer-contact-backups{flex:1 1 100%;grid-column:1/-1;min-width:0;border:1px solid var(--border);border-radius:10px;padding:0 11px;background:var(--card);color:var(--foreground)}
+.customer-contact-backups>summary{display:flex;align-items:center;min-height:44px;font-size:13px;font-weight:750;cursor:pointer}
+.customer-contact-backups>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-contact-backups .contact-backup-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:3px 0 8px}
+.customer-contact-backups .contact-backup-actions>button{min-width:0;width:100%;min-height:44px;padding:8px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);justify-content:center}
+.customer-contact-backups>small{display:block;padding-bottom:10px;font-size:12px;line-height:1.5;color:var(--muted-foreground);overflow-wrap:anywhere}
+@media(max-width:350px){.customer-contact-backups .contact-backup-actions{grid-template-columns:minmax(0,1fr)}}
+
 /* Business tax preparation: concise saved-expense rollup, not a tax return. */
 .business-tax-prep{margin:12px 0 16px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0}
 .business-tax-prep>summary{display:flex;min-height:48px;align-items:center;padding:10px 14px;cursor:pointer;font-weight:800;color:var(--foreground)}
