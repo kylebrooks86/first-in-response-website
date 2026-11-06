@@ -130,6 +130,10 @@ jobs:
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-reuse-estimate-editor-browser.mjs
       - name: Gate 8 customer contact, callback, note and recovery browser sequence (synthetic Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-write-browser.mjs
+      - name: Gate 8 complete section navigation and compact mobile menu (source/Chromium)
+        run: |
+          node scripts/test-section-navigation.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
       - name: Retain synthetic-only diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
