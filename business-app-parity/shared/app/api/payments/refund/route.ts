@@ -16,12 +16,6 @@ async function stripeGet(path:string,secret:string){
 export async function POST(request:Request){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
-  const stripeRuntime = env as RuntimeEnv;
-  const isolatedSandbox = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
-    /(?:staging|doomsday|synthetic|sandbox)/i.test(stripeRuntime.FIRE_ENV || "");
-  // Block disabled/missing-mode TEST refund requests before D1 reservation or provider I/O.
-  if(isolatedSandbox && stripeRuntime.FIRE_STRIPE_MODE !== "test")
-    return Response.json({error:"Isolated Stripe TEST refunds are disabled."},{status:503,headers:{"cache-control":"no-store"}});
   // LIVE without migration 0019 must stop before any Stripe call or money movement.
   if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   try{
@@ -47,6 +41,11 @@ export async function POST(request:Request){
     const mode=stripePayment?"stripe":"manual";
     const runtime=env as RuntimeEnv;
     const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+    // A staging manual refund is a separately confirmed external return, not
+    // a Stripe refund. Keep it usable while preventing disabled TEST Stripe
+    // refunds before creating any D1 refund reservation or provider request.
+    if(stripePayment && sandboxTarget && runtime.FIRE_STRIPE_MODE !== "test")
+      return Response.json({error:"Isolated Stripe TEST refunds are disabled."},{status:503,headers:{"cache-control":"no-store"}});
     const stripeSecret=runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY;
     if(stripePayment&&sandboxTarget&&stripeSecret&&!/^(sk|rk|rkcs)_test_/.test(stripeSecret))
       return Response.json({error:"Isolated candidates only accept sandbox Stripe keys."},{status:503});
