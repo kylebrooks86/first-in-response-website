@@ -3,7 +3,7 @@ import { recordRefundUpdate, type StripeRefund } from "../../../../lib/stripe-re
 import { reconcileStripeCheckout, recordStripeCheckoutFailure, type StripeCheckoutSession } from "../../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
 
-type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_RESTRICTED_KEY?:string; STRIPE_SECRET_KEY?:string; FIRE_ENV?:string };
+type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_RESTRICTED_KEY?:string; STRIPE_SECRET_KEY?:string; FIRE_ENV?:string; FIRE_STRIPE_MODE?:string };
 
 type StripeEvent = {
   livemode?:boolean;
@@ -56,6 +56,14 @@ export async function POST(request:Request) {
     return Response.json({ error:"Invalid Stripe signature." }, { status:400 });
   }
 
+  // A valid HMAC alone must not unlock an isolated Stripe TEST Worker.
+  // Keep malformed signatures at 400, but a valid signed delivery at 503
+  // until owner-approved TEST-only activation explicitly sets "test".
+  // Never impose this staging control on the actual LIVE deployment.
+  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  if(sandboxTarget && runtime.FIRE_STRIPE_MODE !== "test")
+    return Response.json({error:"Isolated Stripe TEST processing is disabled."},{status:503,headers:{"cache-control":"no-store"}});
+
   let event:StripeEvent;
   try { event = JSON.parse(rawBody) as StripeEvent; }
   catch { return Response.json({ error:"Invalid webhook payload." }, { status:400 }); }
@@ -63,7 +71,6 @@ export async function POST(request:Request) {
     return Response.json({ error:"Invalid webhook payload." }, { status:400 });
   }
 
-  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
   // The signed Stripe webhook secret is necessary but is not an identity
   // boundary by itself: a test endpoint secret wired to LIVE must never
   // allow test-mode payments/refunds into production D1 (or vice versa).
