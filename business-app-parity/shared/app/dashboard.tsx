@@ -3361,7 +3361,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
           <span><small>Potential estimate value</small><strong>{money(customerBalances.potentialCents)}</strong></span>
         </div></details>
       </div>
-      <details className="customer-balance-explanation"><summary>How balances work</summary><p>Collectible balances include approved or scheduled jobs and issued invoices, including amounts due on completion. Draft and sent estimates remain potential work. Deposits are part of the job balance; tips are separate.</p></details>
+      <details className="customer-balance-explanation"><summary>How balances work</summary><p>Collectible balances include approved or scheduled jobs and issued invoices, including amounts due on completion. Draft, sent and viewed estimates remain potential work. Declined and replaced quotes are historical, not collectible unless an issued invoice remains due. Deposits are part of the job balance; tips are separate.</p></details>
       <details className="business-panel customer-journey-disclosure" aria-label="Completed jobs history">
         <summary>Completed jobs ({completedCustomerJobs.length})</summary>
         <div className="flex flex-col gap-2 pt-3">
