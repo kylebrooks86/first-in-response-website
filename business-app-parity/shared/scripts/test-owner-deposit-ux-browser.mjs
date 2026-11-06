@@ -38,7 +38,16 @@ try{
   check(await panel.getByRole('heading',{name:'Deposit & scheduling',exact:true}).count()===1,'Compact deposit heading retained');check(await refresh.evaluate(e=>e.getBoundingClientRect().height>=44),'Secondary refresh is touch friendly');
   check(await panel.getByRole('button',{name:'Review this exception',exact:true}).count()===0,'Signed/exposed records have no exception editor');
   if(width===390&&theme==='dark'){
-   const inactive=body();inactive.currentSnapshot.status='declined';
+   // Current QA GET omits currentSnapshot when optional audit write flags are OFF.
+// The owner-only policy still carries the stored D1 status; render noncollectible.
+const qaFeatureOff={policy:{...body().policy,estimateStatus:'declined',storedRequiredCents:1250,remainingDepositCents:1250}};
+await refresh.click();await respond(200,qaFeatureOff);
+await page.waitForFunction(()=>{
+  const text=document.querySelector('[aria-label="Owner deposit policy and audit history"] .owner-deposit-summary')?.textContent||'';
+  return text.includes('Original deposit (not due)')&&text.includes('$12.50')&&text.includes('Closed · inactive estimate')&&!text.includes('Deposit still due');
+});
+check(requests.every(r=>r.method==='GET'),'Feature-off declined QA review is read-only and visibly noncollectible');
+const inactive=body();inactive.currentSnapshot.status='declined';
    await refresh.click();await respond(200,inactive);
    try{
     await page.waitForFunction(()=>{
