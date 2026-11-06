@@ -47,10 +47,7 @@ function resolveLocal(pagePath, rawReference) {
   return { target: target.replace(/^\//, ''), hash };
 }
 
-// Verify the exported public website, not the independent FIRE Business App workspace.
-// App fixtures have separate QA/CI contracts; public site page, asset and rate checks
-// must not classify internal app demos, tests or documentation as website content.
-const allFiles = walk(root).filter((file) => !file.startsWith('business-app-parity/'));
+const allFiles = walk(root);
 const fileSet = new Set(allFiles);
 const htmlFiles = allFiles.filter((file) => file.endsWith('.html'));
 const siteHtmlFiles = htmlFiles.filter((file) => !file.startsWith('calculator/'));
