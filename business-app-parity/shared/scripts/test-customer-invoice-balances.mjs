@@ -75,6 +75,14 @@ try{
  db.exec("UPDATE invoices SET total_cents=0 WHERE id='revised';");
  value=await summary();equal(value.collectibleCents,0);equal(value.depositRemainingCents,0);equal(value.potentialCents,20000);
  for(const status of ['declined','canceled','unknown'])equal(hasCollectibleJobValue({status,totalCents:20000,depositCents:10000,paidCents:0}),false);
+ const viewedValue=summarizeCustomerBalances([{status:'viewed',totalCents:20000,depositCents:10000,paidCents:0}]);
+ equal(viewedValue.potentialCents,20000);equal(viewedValue.potentialEstimates,1);
+ equal(viewedValue.collectibleCents,0);equal(viewedValue.depositRemainingCents,0);
+ for(const historical of ['declined','superseded']){
+  const closedValue=summarizeCustomerBalances([{status:historical,totalCents:2500,depositCents:1250,paidCents:0}]);
+  equal(closedValue.collectibleCents,0);equal(closedValue.potentialCents,0);
+ }
+ assert.ok(dashboardSource.includes('Draft, sent and viewed estimates remain potential work.'),'Owner-facing balance help explains viewed quotes');checks++;
  equal(summarizeCustomerBalances([{status:'declined',invoiceTotalCents:5000,totalCents:20000,depositCents:10000,paidCents:0}]).collectibleCents,5000);
  for(const unauthorized of [null,{email:'other@example.test'}]){user=unauthorized;for(const route of [customers,invoices,estimates])equal((await route.GET()).status,401);}
  console.log(`PASS ${checks}/${checks}: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.`);
