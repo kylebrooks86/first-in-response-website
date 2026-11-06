@@ -25,6 +25,7 @@ REQUIRED_EVENTS = frozenset({
     "checkout.session.async_payment_failed",
     "refund.created",
     "refund.updated",
+    "refund.failed",
 })
 SHA = re.compile(r"^[0-9a-f]{40}$")
 MAX_INPUT = 131072
