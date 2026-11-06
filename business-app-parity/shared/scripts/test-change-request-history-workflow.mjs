@@ -6,6 +6,20 @@ import {validateRecordIdentities,validateBackupRelationships,validateRefundInteg
 export async function exerciseChangeRequestHistory({page,context,browser,origin,request,check}){
  const c=await request('/api/customers','POST',{name:'Synthetic Change History Customer'});assert.equal(c.status(),201);const customer=(await c.json()).customer;
  const r=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic History Service',description:'Synthetic history only',quantity:1,unit:'job',totalCents:20000}]});assert.equal(r.status(),201);const estimate=await r.json(),path='/api/estimates/'+estimate.id+'/change-requests';
+ // Zero-request quotes should use compact one-line history, not a large
+ // empty card; expand still exposes a safe read-only refresh.
+ await page.setViewportSize({width:390,height:844});await page.goto(origin+'/?openEstimate='+estimate.id);
+ const emptyRegion=page.getByRole('region',{name:'Customer change-request history'});
+ await emptyRegion.getByText('Customer change requests · None',{exact:true}).waitFor();
+ check(await emptyRegion.getByRole('button',{name:'Refresh history'}).isHidden(),
+  'No-request history is compact and its optional controls start collapsed');
+ await emptyRegion.getByText('Customer change requests · None',{exact:true}).click();
+ check(await emptyRegion.getByText('No customer change requests.',{exact:true}).isVisible()&&
+  await emptyRegion.getByRole('button',{name:'Refresh history'}).isVisible(),
+  'Owner may expand and refresh an empty history without changing the estimate');
+ await emptyRegion.getByRole('button',{name:'Refresh history'}).click();
+ check((await (await request(path)).json()).requests.length===0,
+  'Expanded empty history refresh leaves zero requests and no invented records');
  const message=('Please add driveway scope. '+('Long synthetic request text with <script>visible literal</script>. '.repeat(20))).trim();
  let change=await request('/api/public/estimates/'+estimate.shareToken+'/change-request','POST',{message,requestId:randomUUID()},{origin});assert.ok(change.ok(),await change.text());
  const initial=(await (await request(path)).json()).requests;assert.equal(initial.length,1);const changeId=initial[0].id;
