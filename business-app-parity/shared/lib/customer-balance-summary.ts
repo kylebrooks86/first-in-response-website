@@ -11,7 +11,7 @@ export function summarizeCustomerBalances(rows:readonly BalanceEstimate[]){
     if(hasCollectibleJobValue(row)){
       summary.collectibleCents+=balance;if(balance>0)summary.collectibleJobs++;
       if(['approved','scheduled'].includes(row.status))summary.depositRemainingCents+=Math.min(balance,Math.max(0,row.depositCents-row.paidCents));
-    }else if(['draft','sent'].includes(row.status)){
+    }else if(['draft','sent','viewed'].includes(row.status)){
       summary.potentialCents+=balance;summary.potentialEstimates++;
     }
     return summary;
