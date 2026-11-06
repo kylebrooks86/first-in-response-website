@@ -4,7 +4,7 @@ export type StripeInspectionConfig={
 };
 export const FIRE_STRIPE_REQUIRED_EVENTS=[
  'checkout.session.completed','checkout.session.async_payment_succeeded',
- 'checkout.session.async_payment_failed','refund.created','refund.updated',
+ 'checkout.session.async_payment_failed','refund.created','refund.updated','refund.failed',
 ] as const;
 export async function inspectStripeConnection(config:StripeInspectionConfig,read:typeof fetch=fetch){
  const baseline={diagnosticOnly:true,endToEndVerified:false,connectionReady:false,mode:config.sandbox?'sandbox':'live',
