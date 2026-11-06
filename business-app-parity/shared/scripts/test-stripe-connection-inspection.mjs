@@ -60,13 +60,17 @@ for(const currency of ['eur','jpy','USD','',null,undefined,1]){
  check((await payment.reconcileStripeCheckout(DB,{id:'cs_test_synthetic',currency,payment_status:'paid',amount_total:10000})).reason==='currency_mismatch','Payment rejects non-USD/missing currency before DB: '+String(currency));
  check((await refund.recordRefundUpdate(DB,{id:'re_synthetic',currency,amount:1000,status:'succeeded'})).reason==='currency_mismatch','Refund rejects non-USD/missing currency before DB: '+String(currency));
 }
-let owner=null;const env={STRIPE_RESTRICTED_KEY:config.key,FIRE_STRIPE_EXPECTED_ACCOUNT_ID:config.expectedAccountId,SITE_ORIGIN:config.appUrl,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-never-real'};
+let owner=null;const env={STRIPE_RESTRICTED_KEY:config.key,FIRE_STRIPE_EXPECTED_ACCOUNT_ID:config.expectedAccountId,SITE_ORIGIN:config.appUrl,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-never-real',FIRE_STRIPE_MODE:'test'};
 const route=load('../app/api/payments/connection/route.ts',{'cloudflare:workers':{env},'../../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../local-customer-deployment':{LOCAL_CUSTOMER_DEPLOYMENT:'staging'},'../../../../lib/stripe-connection-inspection':{inspectStripeConnection}});
 const previous=globalThis.fetch;globalThis.fetch=read;
 try{
  calls=[];check((await route.GET()).status===401&&calls.length===0,'Unauthenticated request cannot inspect the account');
  owner={email:'not-owner@example.invalid'};check((await route.GET()).status===401&&calls.length===0,'Non-owner cannot inspect Stripe configuration');
- owner={email:'kylebrooks8605@gmail.com'};const response=await route.GET();
+ owner={email:'kylebrooks8605@gmail.com'};
+ env.FIRE_STRIPE_MODE='disabled';calls=[];
+ const disabledResponse=await route.GET();
+ check(disabledResponse.status===503&&calls.length===0,'Disabled TEST connection cannot report ready or contact Stripe');
+ env.FIRE_STRIPE_MODE='test';const response=await route.GET();
  check(response.status===200&&response.headers.get('cache-control')==='no-store','Authenticated owner receives uncached read-only connection result');
  const body=JSON.stringify(await response.json());check(!body.includes(config.key)&&!body.includes(env.STRIPE_WEBHOOK_SECRET),'Actual route hides both API and signing secrets');
  delete env.FIRE_STRIPE_EXPECTED_ACCOUNT_ID;check((await route.GET()).status===503,'Actual route fails closed without an explicit account pin');
