@@ -1,7 +1,7 @@
 /** Native D1 + authenticated compiled app; synthetic records only. */
 import assert from 'node:assert/strict';
 export async function exerciseCustomerBalances({page,origin,request,check}){
- const response=await request('/api/customers','POST',{name:'Synthetic Balance Classification',email:'balance-classification@example.invalid'});assert.equal(response.status(),201);const customer=(await response.json()).customer;
+ const response=await request('/api/customers','POST',{name:'Synthetic Balance Classification',email:'balance-classification@example.invalid',phone:'9185550111'});assert.equal(response.status(),201);const customer=(await response.json()).customer;
  const create=async(name)=>{const r=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name,quantity:1,unit:'job',totalCents:20000}]});assert.equal(r.status(),201);return r.json();};
  const quote=await create('Synthetic Pending Quote'),job=await create('Synthetic Scheduled Job');
  assert.equal((await request('/api/estimates/'+quote.id,'PATCH',{status:'sent'})).status(),200);
@@ -19,6 +19,15 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  check(saved.status==='scheduled'&&saved.signedAt&&saved.photoRelease==='no'&&data.payments.filter(row=>row.customerId===customer.id).length===0,'Approval/scheduling preserve signature, permission and empty payment ledger');
  const profile=async()=>{await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
  await page.setViewportSize({width:390,height:844});await profile();
+ const backup=page.locator('.customer-profile .customer-contact-backups');
+ check(await backup.count()===1&&await backup.locator('summary').isVisible()&&await backup.locator('[data-personal-backup]').count()===2,
+  'Customer profile preserves both personal phone backups inside a single disclosure');
+ check(await backup.locator('[data-personal-backup]').first().isHidden(),
+  'Personal-number actions are not visible by default beside FIRE business Voice/Text');
+ await backup.locator('summary').click();
+ check(await backup.locator('[data-personal-backup]').first().isVisible()&&await backup.locator('[data-personal-backup]').last().isVisible(),
+  'Both fallback actions remain reachable with owner warning after expansion');
+ await backup.locator('summary').click();
  const metric=label=>page.locator('.customer-snapshot>span,.customer-snapshot-extra>span').filter({has:page.getByText(label,{exact:true})}).locator('strong');
  check(!(await metric('Deposit still required').isVisible())&&!(await metric('Potential estimate value').isVisible()),'Advanced financial totals stay collapsed until requested');
  await page.getByText('More amounts',{exact:true}).click();
