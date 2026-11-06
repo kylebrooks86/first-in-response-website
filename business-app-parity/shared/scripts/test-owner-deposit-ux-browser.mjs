@@ -34,7 +34,10 @@ try{
    for(const t of measured.text)check(t.rects.every(r=>r.left>=measured.left-1&&r.right<=measured.right+1),'Deposit text is not clipped by card '+JSON.stringify({width,theme,state,t}));
   };
   await sample('unverified');await respond(503,{error:'Synthetic deposit review unavailable. Retry explicitly.'});await panel.getByRole('alert').waitFor();await sample('load-error');
-  const refresh=panel.getByRole('button',{name:'Refresh deposit and scheduling status',exact:true});await refresh.click();await page.waitForFunction(()=>true);await respond(200,body());await panel.getByText('Policy checks passed',{exact:true}).count();await panel.getByText('Not ready yet',{exact:true}).waitFor();
+  const refresh=panel.getByRole('button',{name:'Refresh deposit and scheduling status',exact:true});await refresh.click();
+  check(await refresh.isDisabled()&&await panel.getByText('Checking saved deposit status…',{exact:true}).isVisible(),
+   'Deposit Refresh visibly checks data and blocks repeat taps while GET is in flight');
+  await respond(200,body());await panel.getByText('Last checked',{exact:false}).waitFor();await panel.getByText('Policy checks passed',{exact:true}).count();await panel.getByText('Not ready yet',{exact:true}).waitFor();
   check(await panel.getByRole('heading',{name:'Deposit & scheduling',exact:true}).count()===1,'Compact deposit heading retained');check(await refresh.evaluate(e=>e.getBoundingClientRect().height>=44),'Secondary refresh is touch friendly');
   check(await panel.getByRole('button',{name:'Review this exception',exact:true}).count()===0,'Signed/exposed records have no exception editor');
   if(width===390&&theme==='dark'){
