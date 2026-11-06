@@ -37,6 +37,11 @@ try{
  seed('declined-disabled',{total:2500,deposit:1250,status:'declined',signed:false});
  const declinedRead=await get('declined-disabled');eq(declinedRead.status,200);const declinedPayload=await declinedRead.json();
  eq(declinedPayload.policy.estimateStatus,'declined');eq(declinedPayload.policy.storedRequiredCents,1250);
+ eq([declinedPayload.policy.remainingDepositCents,declinedPayload.policy.remainingJobBalanceCents,declinedPayload.policy.blockedReason,declinedPayload.policy.canSchedule],[null,null,'inactive',false]);
+ eq(declinedPayload.policy.message.includes('historical, not currently due'),true);
+ seed('superseded-disabled',{total:2500,deposit:1250,status:'superseded',signed:false});
+ const replacedPolicy=await policy('superseded-disabled');
+ eq([replacedPolicy.remainingDepositCents,replacedPolicy.remainingJobBalanceCents,replacedPolicy.blockedReason],[null,null,'inactive']);
  eq(Object.prototype.hasOwnProperty.call(declinedPayload,'currentSnapshot'),false);
  eq((await patch('declined-disabled')).status,409);
  env.FIRE_DEPOSIT_POLICY_CANDIDATE='enabled';eq((await policy('disabled')).enforced,false);
