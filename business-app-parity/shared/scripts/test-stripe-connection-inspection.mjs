@@ -15,6 +15,8 @@ let calls=[];
 const read=async(url,options)=>{calls.push({url,options});assert.ok(!options.method||options.method==='GET');return Response.json(url.endsWith('/account')?{id:config.expectedAccountId,default_currency:'usd'}:{data:[endpoint],has_more:false});};
 const good=await inspectStripeConnection(config,read);
 check(good.connectionReady&&good.accountVerified&&good.webhookConfigurationVerified,'Exact pinned account and complete sandbox endpoint match');
+check(FIRE_STRIPE_REQUIRED_EVENTS.length===6&&FIRE_STRIPE_REQUIRED_EVENTS.includes('refund.failed'),
+ 'Connection readiness requires all six checkout and refund lifecycle events');
 check(good.endToEndVerified===false&&good.diagnosticOnly===true,'Read-only configuration never claims end-to-end acceptance');
 check(calls.length===2&&calls.every(call=>call.url.startsWith('https://api.stripe.com/v1/')),'Inspection makes only two bounded Stripe GETs');
 check(!JSON.stringify(good).includes(config.key),'Inspection never exposes its API key');
@@ -41,6 +43,7 @@ for(const [inventory,reason] of [
  [{data:[{...endpoint,status:'disabled'}],has_more:false},'webhook_mode_or_status_mismatch'],
  [{data:[{...endpoint,url:'https://existing-production.invalid/api/payments/webhook'}],has_more:false},'webhook_destination_missing'],
  [{data:[{...endpoint,enabled_events:['checkout.session.completed']}],has_more:false},'required_webhook_events_missing'],
+ [{data:[{...endpoint,enabled_events:endpoint.enabled_events.filter(event=>event!=='refund.failed')}],has_more:false},'required_webhook_events_missing'],
  [{data:[{...endpoint,api_version:null}],has_more:false},'webhook_api_version_unverified'],
 ]){
  const result=await inspectStripeConnection(config,async url=>url.endsWith('/account')?Response.json({id:config.expectedAccountId,default_currency:'usd'}):Response.json(inventory));
