@@ -109,7 +109,7 @@ export function reviewStripeTestEndpointMetadata({legacyBefore,legacyAfter,newTe
   if(!Array.isArray(endpoint.enabled_events)||endpoint.enabled_events.length!==STRIPE_TEST_REQUIRED_EVENTS.length||
      new Set(endpoint.enabled_events).size!==STRIPE_TEST_REQUIRED_EVENTS.length||
      STRIPE_TEST_REQUIRED_EVENTS.some(e=>!endpoint.enabled_events.includes(e)))
-    stop('New endpoint must subscribe to exactly five reviewed event types');
+    stop('New endpoint must subscribe to exactly six reviewed event types');
   return Object.freeze({
     status:'SOURCE_ONLY_SEPARATE_TEST_ENDPOINT_CONTRACT',
     callback:GATE9_TEST_CALLBACK,events:STRIPE_TEST_REQUIRED_EVENTS.length,
