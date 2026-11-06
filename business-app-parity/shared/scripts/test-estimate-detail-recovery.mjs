@@ -12,6 +12,12 @@ assert.ok(actionsAt>0&&scopeAt>actionsAt&&historyAt>scopeAt&&toolsAt>historyAt,
  'Primary estimate actions must precede service scope, promotion history and More tools.');
 assert.ok(detailLayout.includes('jobNumberLabel(estimate.jobNumber)'),
  'Verified permanent Job # should appear in the selected estimate detail header.');
+assert.ok(detailLayout.includes('historicalQuote=estimate.status==="declined"||estimate.status==="superseded"')&&
+ detailLayout.includes('Historical quote amounts only.')&&
+ detailLayout.includes('historicalQuote?"Saved balance":"Balance"'),
+ 'Declined/replaced estimates must label their saved financial figures as historical, not due.');
+assert.ok(detailLayout.includes('estimateStatus={estimate.status}'),
+ 'Saved promotion history must receive the current estimate status to disable closed-booking review.');
 assert.ok(detailLayout.includes('workingOnJob||["declined","superseded"].includes(estimate.status)'),
  'Historical declined/replaced estimates keep service scope available without expanding a long description by default.');
 
