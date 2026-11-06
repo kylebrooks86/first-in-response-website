@@ -24,9 +24,16 @@ const invoiceDueLabel = (dueAt:string|null, createdAt:string) => {
   if (!dueAt) return "Payment due on receipt";
   const due = new Date(dueAt);
   const created = new Date(createdAt);
-  const sameCalendarDay = due.getFullYear()===created.getFullYear() && due.getMonth()===created.getMonth() && due.getDate()===created.getDate();
+  // Both the created and due dates are FIRE business dates in Tulsa/Central,
+  // not the server's or customer's device's local calendar day.
+  const tulsaCalendarDay=(instant:Date)=>new Intl.DateTimeFormat("en-CA",{
+    timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
+  }).format(instant);
+  const sameCalendarDay=tulsaCalendarDay(due)===tulsaCalendarDay(created);
   if (sameCalendarDay) return "Payment due on receipt";
-  return `Payment due ${new Intl.DateTimeFormat("en-US", { month:"long", day:"numeric", year:"numeric" }).format(due)}`;
+  return `Payment due ${new Intl.DateTimeFormat("en-US", {
+    timeZone:"America/Chicago",month:"long", day:"numeric",year:"numeric"
+  }).format(due)}`;
 };
 
 export default async function CustomerInvoicePage({ params, searchParams }: { params:Promise<{token:string}>; searchParams:Promise<{from?:string;ownerPreview?:string}> }) {
