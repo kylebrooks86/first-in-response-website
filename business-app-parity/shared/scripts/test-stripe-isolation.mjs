@@ -70,6 +70,18 @@ const live=load('checkout','live','production','sk_live_fake-no-secrets');
 eq((await live.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,'legitimate live candidate follows normal input validation');
 eq(live.calls.network,0,'invalid live request does not call Stripe');
 
+const disabledCheckout=load('checkout','staging','staging','sk_test_fixture');
+disabledCheckout.env.FIRE_STRIPE_MODE='disabled';
+eq((await disabledCheckout.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:checkoutBody}))).status,503,
+ 'Disabled TEST checkout refuses even a synthetic key before data access');
+eq(disabledCheckout.calls.db,0,'Disabled TEST checkout never reads D1');
+eq(disabledCheckout.calls.network,0,'Disabled TEST checkout makes no provider requests');
+const disabledRefund=load('refund','staging','staging','sk_test_fixture');
+disabledRefund.env.FIRE_STRIPE_MODE='disabled';
+eq((await disabledRefund.POST(new Request('https://synthetic.invalid/api/payments/refund',{method:'POST',body:refundBody}))).status,503,
+ 'Disabled TEST refund refuses before D1/payment operation');
+eq(disabledRefund.calls.db,0,'Disabled TEST refund never reads or writes D1');
+eq(disabledRefund.calls.network,0,'Disabled TEST refund never contacts Stripe');
 const stagingSigned=load('webhook','staging','staging','sk_test_fixture');
 stagingSigned.env.FIRE_STRIPE_MODE='disabled';
 eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,data:{object:{id:'cs_test_synthetic',payment_status:'paid'}}})).status,503,
