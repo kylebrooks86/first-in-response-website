@@ -23,7 +23,11 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
  const [state,setState]=useState<'loading'|'none'|'ready'|'error'>('loading'),[record,setRecord]=useState<Attribution|null>(null);
  const [seq,setSeq]=useState(0);
  useEffect(()=>{
-  let live=true;setState('loading');setRecord(null);
+  let live=true;setState('loading');
+  // Keep verified same-estimate content mounted during an explicit refresh so
+  // expanded optional reviews do not disappear and jump the iPhone scroll.
+  // Never retain a receipt for another estimate or changed stored total.
+  setRecord(previous=>previous?.estimateId===estimateId&&previous.totalCents===totalCents?previous:null);
   void (async()=>{
    try{
     const response=await fetch('/api/estimates/'+encodeURIComponent(estimateId)+'/promotions',{cache:'no-store'});
@@ -36,6 +40,7 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
   return()=>{live=false;};
  },[estimateId,totalCents,seq]);
  if(state==='none')return null;
+ const verifiedRecord=record?.estimateId===estimateId&&record.totalCents===totalCents?record:null;
  const summary=state==='loading'?'Checking…':state==='error'?'Unavailable · open to retry':
   record?(record.rules.length?record.rules.length+' saved offer'+(record.rules.length===1?'':'s'):
    'No discount applied')+' · '+record.checkedOn:'';
@@ -48,7 +53,7 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
    <div className="space-y-3 pt-2">
     {state==='loading'&&<p role="status" className="text-sm">Checking saved offers…</p>}
     {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Refresh to retry.</p>}
-    {state==='ready'&&record&&<>
+    {(state==='ready'||state==='loading')&&verifiedRecord&&<>
      <p className="text-sm text-muted-foreground">Saved {record.checkedOn} · Total {cents(record.totalCents)} · Deposit {cents(record.depositCents)}</p>
      {record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>)}
      {record.bookingConfirmedOn&&<p className="text-sm">Confirmed booking date: {record.bookingConfirmedOn} (owner-recorded only).</p>}
