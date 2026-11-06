@@ -1,7 +1,7 @@
 import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../local-customer-deployment";
 import { env } from "cloudflare:workers";
 
-type RuntimeEnv = Cloudflare.Env & { STRIPE_RESTRICTED_KEY?: string; STRIPE_SECRET_KEY?: string; FIRE_ENV?:string; SITE_ORIGIN?: string };
+type RuntimeEnv = Cloudflare.Env & { STRIPE_RESTRICTED_KEY?: string; STRIPE_SECRET_KEY?: string; FIRE_ENV?:string; SITE_ORIGIN?: string; FIRE_STRIPE_MODE?: string };
 
 async function expireTrackedCheckout(sessionId: string, secret: string) {
   const headers = { authorization: `Bearer ${secret}` };
@@ -45,6 +45,10 @@ export async function POST(request: Request) {
   const runtime = env as RuntimeEnv;
   const stripeKey = runtime.STRIPE_RESTRICTED_KEY || runtime.STRIPE_SECRET_KEY;
   const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  // Only an explicitly owner-enabled TEST-only runtime may offer checkout.
+  // This guard stops before any D1 read or Stripe call, including when a TEST key later exists.
+  if(sandboxTarget && runtime.FIRE_STRIPE_MODE !== "test")
+    return Response.json({error:"Isolated Stripe TEST payments are disabled."},{status:503,headers:{"cache-control":"no-store"}});
   if(sandboxTarget&&stripeKey&&!/^(sk|rk|rkcs)_test_/.test(stripeKey))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
   if (!stripeKey) return Response.json({ error: "Payments have not been connected yet." }, { status: 503 });
   try {
