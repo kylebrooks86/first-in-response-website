@@ -19,7 +19,8 @@ function validAttribution(v:unknown,estimateId:string,totalCents:number):v is At
    p&&typeof p==='object'&&typeof p.id==='string'&&typeof p.name==='string'&&
    ['percent','dollar'].includes(p.type)&&safe(p.valueCents));
 }
-export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:string;totalCents:number}){
+export function EstimatePromotionHistory({estimateId,totalCents,estimateStatus}:{estimateId:string;totalCents:number;estimateStatus?:string}){
+ const closedEstimate=estimateStatus==='declined'||estimateStatus==='superseded';
  const [state,setState]=useState<'loading'|'none'|'ready'|'error'>('loading'),[record,setRecord]=useState<Attribution|null>(null);
  const [seq,setSeq]=useState(0);
  useEffect(()=>{
@@ -58,7 +59,8 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
      {verifiedRecord.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>)}
      {verifiedRecord.bookingConfirmedOn&&<p className="text-sm">Confirmed booking date: {verifiedRecord.bookingConfirmedOn} (owner-recorded only).</p>}
      <p className="text-xs text-muted-foreground">Later offers do not change this saved estimate.</p>
-     {!verifiedRecord.bookingConfirmedOn&&<details className="rounded-lg border px-3">
+     {closedEstimate&&<p className="text-xs text-muted-foreground" role="status">Closed estimate. Saved offers are historical; a future booking requires a new estimate.</p>}
+     {!closedEstimate&&!verifiedRecord.bookingConfirmedOn&&<details className="rounded-lg border px-3">
       <summary className="cursor-pointer min-h-11 py-2 font-medium">Review booking savings (optional)</summary>
       <div className="pb-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={verifiedRecord.totalCents}/></div>
      </details>}
