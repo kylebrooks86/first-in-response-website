@@ -1,0 +1,72 @@
+name: FIRE Numbered Core v2 Recovery Integrity (Source Only)
+on:
+  push:
+    branches: [work/fire-mobile-contact-consolidation-2026-10-31]
+    paths:
+      - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
+      - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-review-export.mjs'
+      - 'business-app-parity/shared/lib/disposable-numbered-v2-restore.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - 'business-app-parity/customer-numbering/customer_numbers_v1.sql'
+      - 'business-app-parity/job-numbering/job_numbers_v1.sql'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/lib/records-backup-integrity.mjs'
+      - '.github/workflows/fire-numbered-core-recovery-v2-preflight.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
+      - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-review-export.mjs'
+      - 'business-app-parity/shared/lib/disposable-numbered-v2-restore.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - 'business-app-parity/customer-numbering/customer_numbers_v1.sql'
+      - 'business-app-parity/job-numbering/job_numbers_v1.sql'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/lib/records-backup-integrity.mjs'
+      - '.github/workflows/fire-numbered-core-recovery-v2-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  validate-source-only:
+    name: No-provider numbered core v2/refunds/collisions SQLite safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: No external dependencies required
+        run: node --version
+      - name: Test candidate v2 numbered records and 20 ordinary core tables
+        run: node --experimental-sqlite scripts/test-numbered-records-v2-preflight.mjs
+      - name: Reject newly added durable QA tables not represented in recovery
+        run: node scripts/test-numbered-v2-schema-coverage.mjs
+      - name: Prove review export is disabled by default and only owner can capture core records
+        run: node scripts/test-numbered-v2-review-export.mjs
+      - name: Rehearse one-transaction read-only D1 v2 snapshot and disposable restore
+        run: node --experimental-sqlite scripts/test-numbered-v2-d1-snapshot.mjs
+      - name: Prove full 25-SQL SQLite recovery, interruption rollback, and original serial high-water
+        run: node --experimental-sqlite scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs

@@ -1,0 +1,250 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "cd59fbc181a8521ee6ecbc951418fabf675db44b",
+  "scope": "Shared navigation readiness fix; actual local desktop/mobile-width single-click verification",
+  "baseline": {
+    "target": "live",
+    "result": "FAILED cold desktop first native click: candidate link did not appear within 5 seconds",
+    "controlledCondition": "Entry-browser module delayed 600ms, request returned at DOMContentLoaded before hydration",
+    "sourceAtBaseline": "cd59fbc181a8521ee6ecbc951418fabf675db44b",
+    "logSHA256": "f9f56ae083c7f3d28319a9ff31357f0af748b4414591f52b7210003f6c70d6aa"
+  },
+  "fix": "Navigation/menu/theme/search/owner/payment-navigation controls render disabled until a mount effect confirms client readiness. Loading app status and subdued disabled style give visible feedback; existing tab scroll reset and online workflows remain intact.",
+  "navigationChecks": {
+    "passed": 24,
+    "total": 24
+  },
+  "offlineRuntimeRegression": {
+    "passed": 39,
+    "total": 39,
+    "navigationRetryLoopRemoved": true
+  },
+  "fullBuilds": {
+    "passed": 3,
+    "total": 3
+  },
+  "fullTypechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "financialRegression": {
+    "passed": 207,
+    "total": 207
+  },
+  "sourceParity": {
+    "files": 129,
+    "differences": 0,
+    "candidateCount": 3
+  },
+  "results": {
+    "live": {
+      "navigation": {
+        "passed": 8,
+        "total": 8,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "cold desktop navigation responds to one click",
+          "cold 320px mobile menu responds to single taps",
+          "cold 390px mobile menu responds to single taps",
+          "navigation source renders disabled until hydrated",
+          "Home and Back each respond to one enabled tap and reset scroll",
+          "no external browser requests or runtime errors"
+        ],
+        "deployment": "live",
+        "actualFrameworkRuntime": true,
+        "singleNativeClicks": true,
+        "retries": false,
+        "syntheticFixtures": true,
+        "physicalIPhoneTested": false,
+        "shakingResolved": false
+      },
+      "offlineRegression": {
+        "passed": 13,
+        "total": 13,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "live",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "financialRegression": {
+        "passed": 69,
+        "total": 69
+      },
+      "buildLogSHA256": "7148cd18b698f9b0edc6a88695476896186d43375e5ea52d27b44d9a95964ce0"
+    },
+    "doomsday": {
+      "navigation": {
+        "passed": 8,
+        "total": 8,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual independent auth rejects invalid signed-cookie fixture",
+          "cold desktop navigation responds to one click",
+          "cold 320px mobile menu responds to single taps",
+          "cold 390px mobile menu responds to single taps",
+          "navigation source renders disabled until hydrated",
+          "Home and Back each respond to one enabled tap and reset scroll",
+          "no external browser requests or runtime errors"
+        ],
+        "deployment": "doomsday",
+        "actualFrameworkRuntime": true,
+        "singleNativeClicks": true,
+        "retries": false,
+        "syntheticFixtures": true,
+        "physicalIPhoneTested": false,
+        "shakingResolved": false
+      },
+      "offlineRegression": {
+        "passed": 13,
+        "total": 13,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual independent auth rejects invalid signed-cookie fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "doomsday",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "financialRegression": {
+        "passed": 69,
+        "total": 69
+      },
+      "buildLogSHA256": "67539e34c421a1e8f579c84d4766fb7582efb29897a0dad803f95751e5c9c6e5"
+    },
+    "staging": {
+      "navigation": {
+        "passed": 8,
+        "total": 8,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "cold desktop navigation responds to one click",
+          "cold 320px mobile menu responds to single taps",
+          "cold 390px mobile menu responds to single taps",
+          "navigation source renders disabled until hydrated",
+          "Home and Back each respond to one enabled tap and reset scroll",
+          "no external browser requests or runtime errors"
+        ],
+        "deployment": "staging",
+        "actualFrameworkRuntime": true,
+        "singleNativeClicks": true,
+        "retries": false,
+        "syntheticFixtures": true,
+        "physicalIPhoneTested": false,
+        "shakingResolved": false
+      },
+      "offlineRegression": {
+        "passed": 13,
+        "total": 13,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "staging",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "financialRegression": {
+        "passed": 69,
+        "total": 69
+      },
+      "buildLogSHA256": "7f4ccc4d7a7e32490ce0b59a50fac0d6e94575039b1fd3ebba85d1242ab33e89"
+    }
+  },
+  "hashes": {
+    "app/dashboard.tsx": "450757da4ecdc6f54623933b0e8367ae76770ddfbbf2c7e89383dba7ba0bfeeb",
+    "app/globals.css": "27b1981a7f146ee2d220d5237c5d18f3d214439aa3a3d5b138dd08638605a828",
+    "scripts/test-navigation-readiness-framework.mjs": "c1b4d9588463fa824b162eba70149662255f0fe9c46037f01b4ec98e2d14a9e1",
+    "scripts/test-local-customers-framework-browser.mjs": "985966d7b070d5d1956084e56333c518eafac33ab56df47a2dfda287a5393f8d"
+  },
+  "testDetails": {
+    "framework": "Actual Vite/vinext/workerd with disposable synthetic local D1 and actual local auth adapters",
+    "navigation": "One native Playwright click per action, no retries, no forced clicks, no programmatic menu state changes",
+    "mobileWidths": [
+      320,
+      390
+    ],
+    "desktopWidth": 1280,
+    "animationHandling": "Waits for existing sidebar transition to enter viewport before measuring/clicking customer navigation",
+    "serverRendering": "HTML data-app-ready=false and disabled controls before hydration",
+    "HomeBack": "One enabled click each; tab scroll reset verified",
+    "slowHydration": "600ms entry module delay only in test routing"
+  },
+  "limitations": [
+    "Viewport emulation uses Chromium native clicks, not physical iPhone touch tests",
+    "Deployed/mobile provider/authentication and release gates remain unverified",
+    "Bottom-of-screen shaking not reproduced or claimed fixed",
+    "No manifest/service-worker/offline-shell changes"
+  ],
+  "productionDeployed": false,
+  "deviceVaultsTouched": false,
+  "realCustomerDataUsed": false,
+  "stripeCalls": false,
+  "productionDatabaseWrites": false,
+  "paidServicesUsed": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "nextTask": "Collect repeatable stationary-bottom layout/scroll evidence with synthetic long Customers content; fix only a confirmed shared cause of shaking and preserve device vaults"
+}
