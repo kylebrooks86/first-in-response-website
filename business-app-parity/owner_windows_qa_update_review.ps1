@@ -1,4 +1,4 @@
-# Nov 5 Acer owner-observed authenticated readback: v24, sole 100% traffic,
+# Nov 6 Acer owner-observed authenticated readback: v25, sole 100% traffic,
 # DB -> isolated QA UUID, no R2. This pin grants no publication permission.
 # Review an UPDATED QA Business App after the first successful hosted deployment.
 # READ ONLY: never deploys, uploads secrets, touches D1 data, or changes device vaults.
@@ -25,7 +25,7 @@ $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '31b511b5-1ffa-47cc-8a08-7aed537b1b74'
+$expectedActiveVersion = '956f023b-8134-4a66-9598-56c25fb6afab'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
