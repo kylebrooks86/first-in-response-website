@@ -55,6 +55,20 @@ try{
   const geom=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,button:[...document.querySelectorAll('[aria-label="Saved promotions on estimate"] button')].filter(n=>n.getClientRects().length>0).map(n=>{const box=n.getBoundingClientRect();return{left:box.left,right:box.right,height:box.height};})}));
   check(geom.scroll<=width+1&&geom.button.every(b=>b.left>=0&&b.right<=width+1&&b.height>=42),'Owner history is usable at '+width+'/'+theme);
  }
+ // A refresh must retain the expanded, verified same-record optional preview
+ // while GET is in flight; otherwise the iPhone dialog jumps vertically.
+ const shownHistory=page.locator('[aria-label="Saved promotions on estimate"]');
+ await shownHistory.getByText('Review booking savings (optional)',{exact:true}).click();
+ check(await shownHistory.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible(),'Optional booking panel opens before refreshing');
+ let releaseRefresh;const refreshGate=new Promise(resolve=>{releaseRefresh=resolve;});
+ await page.route('**/api/estimates/'+id+'/promotions',async route=>{await refreshGate;await route.continue();});
+ await shownHistory.getByRole('button',{name:'Refresh history'}).click();
+ await shownHistory.getByText('Checking…',{exact:true}).waitFor();
+ check(await shownHistory.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible(),
+  'Promotion refresh retains expanded same-estimate booking panel while read is pending');
+ releaseRefresh();await page.getByText(rule.name,{exact:true}).waitFor();
+ check(await shownHistory.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible(),
+  'Successful promotion refresh preserves optional expanded state without layout jump');
  runtime.db.prepare("UPDATE message_templates SET body=? WHERE key=?").run(JSON.stringify({revision:'aaaaaaaa-aaaa-4aaa-8aaa-000000000098',promotions:[]}),promotion.SAVED_PROMOTIONS_KEY);
  await page.reload();await page.locator('[aria-label="Saved promotions on estimate"] summary').first().click();await page.getByText(rule.name,{exact:true}).waitFor();
  check(true,'Original saved name visible despite later catalog deletion');
