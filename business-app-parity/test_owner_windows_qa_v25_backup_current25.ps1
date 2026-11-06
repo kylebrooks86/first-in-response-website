@@ -37,7 +37,7 @@ foreach($needle in $expect){
 Require ($text.IndexOf('if (-not $Export)') -lt $text.IndexOf("Get-Command 'wrangler.cmd'")) 'Dry run must return before any provider lookup.'
 Require ($text.IndexOf('if (-not $Export)') -lt $text.IndexOf("Read-Host")) 'Dry run must not ask for export consent.'
 Require ($text.IndexOf("Read-Host") -lt $text.IndexOf('d1 export')) 'Typed owner confirmation must precede remote export.'
-Require ($text.IndexOf('owner_windows_qa_current_readonly.ps1') -lt $text.IndexOf('d1 export')) 'Read-only identity preflight must precede export.'
+Require ($text.Contains('owner_windows_qa_v25_current_readonly.ps1') -and $text.IndexOf('owner_windows_qa_v25_current_readonly.ps1') -lt $text.IndexOf('d1 export')) 'Exact v25 read-only identity preflight must precede export.'
 Require ($text.Contains('Test-Path -LiteralPath $PrivateFolder -PathType Container')) 'Never implicitly create potentially unencrypted private folders.'
 Require ($text.Contains("PRIVATE CURRENT25")) 'Separate private-custody approval missing.'
 Require ($text.Contains("KEEP THE SQL AND RECEIPT ENCRYPTED")) 'Owner custody warning missing.'
