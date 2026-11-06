@@ -31,8 +31,8 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @($qa,$staging) -Compress -Depth 6)
   }
   'deployments status' {
-    $version = '69373734-52b3-4747-8e1c-323a59e9710f'
-    if ($scenario -eq 'stale-previous-version') { $version = '8165ead3-43f1-48fd-b077-a1881ed0b978' }
+    $version = '31b511b5-1ffa-47cc-8a08-7aed537b1b74'
+    if ($scenario -eq 'stale-previous-version') { $version = '69373734-52b3-4747-8e1c-323a59e9710f' }
     if ($scenario -eq 'older-historical-version') { $version = 'db6ef897-edd3-439e-8679-b6f6620f18af' }
     if ($scenario -eq 'wrong-version' -or ($scenario -eq 'version-changed-during-check' -and $priorStatus -ge 1)) {
       $version = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
@@ -44,7 +44,7 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @{versions=$versions} -Compress -Depth 6)
   }
   'versions view' {
-    $version='69373734-52b3-4747-8e1c-323a59e9710f'
+    $version='31b511b5-1ffa-47cc-8a08-7aed537b1b74'
     $physicalDb='8ccfb1f8-1657-4074-b1b2-47de78f95003'
     $binding=@{type='d1';name='DB';id=$physicalDb}
     if ($scenario -eq 'wrong-physical-db' -or ($scenario -eq 'changed-physical-db-during-check' -and $priorStatus -ge 2)) { $binding.id='ffffffff-ffff-4fff-8fff-ffffffffffff' }
@@ -53,7 +53,7 @@ switch ($kind) {
     if ($scenario -eq 'duplicate-physical-db') { $bindings+=@{type='d1';name='ADDITIONAL';id='ffffffff-ffff-4fff-8fff-ffffffffffff'} }
     if ($scenario -eq 'unexpected-r2') { $bindings+=@{type='r2_bucket';name='BUCKET'} }
     if ($scenario -eq 'missing-binding') { $bindings=@() }
-    Write-Output (ConvertTo-Json -InputObject @{id=$version;number=17;resources=@{bindings=$bindings}} -Compress -Depth 8)
+    Write-Output (ConvertTo-Json -InputObject @{id=$version;number=24;resources=@{bindings=$bindings}} -Compress -Depth 8)
   }
   'd1 execute' {
     $commands=@($arguments | Where-Object { $_.StartsWith('--command=') })
@@ -134,3 +134,4 @@ finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
 & (Join-Path $PSScriptRoot 'test_qa_detached_worktree_guards.ps1')
+

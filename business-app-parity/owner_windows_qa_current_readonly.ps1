@@ -1,3 +1,5 @@
+# Nov 5 Acer owner-observed authenticated readback: v24, sole 100% traffic,
+# DB -> isolated QA UUID, no R2. This pin grants no publication permission.
 # FIRE QA current-release evidence review — READ ONLY, no publication or data mutation.
 # Designed for the owner's existing authenticated Windows Wrangler session.
 # Nov 4/5 owner-approved QA update and post-deploy authenticated Wrangler readback
@@ -12,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedVersion = '69373734-52b3-4747-8e1c-323a59e9710f'
+$expectedVersion = '31b511b5-1ffa-47cc-8a08-7aed537b1b74'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
@@ -104,3 +106,4 @@ Write-Host 'PASS: Active Worker version physical DB binding matches QA D1 UUID; 
 Write-Host 'LIMIT: Source artifact fingerprint, QA photo-vault custody, and independent production gates are not authenticated by this check.'
 Write-Host 'LIMIT: No customer data, session security, Stripe integration, or LIVE/Doomsday release gate is attested.'
 Write-Host 'REMOTE_WRITES=NONE; DEPLOYED=NO; CUSTOMER_ROWS_READ=NONE; RELEASE_APPROVED=NO'
+

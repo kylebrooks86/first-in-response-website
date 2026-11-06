@@ -39,7 +39,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "69373734-52b3-4747-8e1c-323a59e9710f",
+                     "31b511b5-1ffa-47cc-8a08-7aed537b1b74",
                      "owner_windows_qa_update_review.ps1",
                      "$beforeVersions.Count -eq 1",
                      "[double]$beforeVersions[0].percentage -eq 100",
@@ -112,3 +112,4 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         self.assertLess(S.index("$afterBindingRaw ="), S.index("deploy --config $temporaryManifest --name"))
 
 if __name__=="__main__":unittest.main(verbosity=2)
+

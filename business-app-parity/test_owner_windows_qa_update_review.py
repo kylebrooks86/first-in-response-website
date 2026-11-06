@@ -55,7 +55,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "69373734-52b3-4747-8e1c-323a59e9710f",
+                         "31b511b5-1ffa-47cc-8a08-7aed537b1b74",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -140,7 +140,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
             self.assertNotIn(forbidden,S)
 
     def test_owner_verified_readonly_pin_and_publisher_stays_locked(self):
-        # Read-only review must match the Nov 4 authenticated QA version pin.
+        # Read-only review must match the Nov 5 owner-observed authenticated QA v24 pin.
         # The distinct -Publish script must match the currently verified version
         # but retains its own explicit approval, backup and no-default-publish gates.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
@@ -148,10 +148,11 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["69373734-52b3-4747-8e1c-323a59e9710f"])
+        self.assertEqual(readonly_pins, ["31b511b5-1ffa-47cc-8a08-7aed537b1b74"])
         self.assertEqual(review_pins, readonly_pins)
         self.assertEqual(publish_pins, readonly_pins)
         for pinned_script in (readonly, S, publisher):
+            self.assertNotIn("69373734-52b3-4747-8e1c-323a59e9710f", pinned_script, "consumed prior baseline is not current v24")
             self.assertNotIn("8165ead3-43f1-48fd-b077-a1881ed0b978", pinned_script, "previous QA version is not the current rollback reference")
         self.assertIn("[switch]$Publish", publisher)
         self.assertIn("Require ($typed -ceq $approval)", publisher)
@@ -195,3 +196,4 @@ class ExistingQAUpdateSafety(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
