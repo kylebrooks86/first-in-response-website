@@ -10,6 +10,11 @@ const historyAt=detailLayout.indexOf('<EstimatePromotionHistory');
 const toolsAt=detailLayout.indexOf('className="detail-more-tools"');
 assert.ok(actionsAt>0&&scopeAt>actionsAt&&historyAt>scopeAt&&toolsAt>historyAt,
  'Primary estimate actions must precede service scope, promotion history and More tools.');
+assert.ok(detailLayout.includes('<details className="customer-contact-backups">')&&
+ detailLayout.includes('<summary>Personal phone backups</summary>')&&
+ detailLayout.includes('PersonalPhoneBackupAction phone={estimate.phone} mode="call"')&&
+ detailLayout.includes('PersonalPhoneBackupAction phone={estimate.phone} mode="text"'),
+ 'Saved estimate shows primary business Voice/Text and keeps both personal-number backups in one closed disclosure.');
 assert.ok(detailLayout.includes('jobNumberLabel(estimate.jobNumber)'),
  'Verified permanent Job # should appear in the selected estimate detail header.');
 assert.ok(detailLayout.includes('historicalQuote=estimate.status==="declined"||estimate.status==="superseded"')&&
