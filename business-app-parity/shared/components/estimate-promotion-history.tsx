@@ -42,17 +42,20 @@ export function EstimatePromotionHistory({estimateId,totalCents,estimateStatus}:
  },[estimateId,totalCents,seq]);
  if(state==='none')return null;
  const verifiedRecord=record?.estimateId===estimateId&&record.totalCents===totalCents?record:null;
- const summary=state==='loading'?'Checking…':state==='error'?'Unavailable · open to retry':
-  record?(record.rules.length?record.rules.length+' saved offer'+(record.rules.length===1?'':'s'):
-   'No discount applied')+' · '+record.checkedOn:'';
- return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" className="rounded-xl border p-3">
+ // Keep the saved summary unchanged during same-record refresh to avoid a
+ // one-frame "Checking" flash. Only initial reads need visible loading copy.
+ const summary=state==='error'?'Unavailable · open to retry':
+  verifiedRecord?(verifiedRecord.rules.length?verifiedRecord.rules.length+' saved offer'+(verifiedRecord.rules.length===1?'':'s'):
+   'No discount applied')+' · '+verifiedRecord.checkedOn:'Checking…';
+ return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" aria-busy={state==='loading'} className="rounded-xl border p-3">
   <details>
    <summary className="cursor-pointer min-h-11 py-2">
     <strong>Promotion history</strong>
     <span className="ml-2 text-sm text-muted-foreground">{summary}</span>
    </summary>
    <div className="space-y-3 pt-2">
-    {state==='loading'&&<p role="status" className="text-sm">Checking saved offers…</p>}
+    {state==='loading'&&!verifiedRecord&&<p role="status" className="text-sm">Checking saved offers…</p>}
+    {state==='loading'&&verifiedRecord&&<span className="sr-only" role="status">Refreshing saved offers…</span>}
     {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Refresh to retry.</p>}
     {(state==='ready'||state==='loading')&&verifiedRecord&&<>
      <p className="text-sm text-muted-foreground">Saved {verifiedRecord.checkedOn} · Total {cents(verifiedRecord.totalCents)} · Deposit {cents(verifiedRecord.depositCents)}</p>
@@ -65,7 +68,7 @@ export function EstimatePromotionHistory({estimateId,totalCents,estimateStatus}:
       <div className="pb-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={verifiedRecord.totalCents}/></div>
      </details>}
     </>}
-    <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
+    <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" disabled={state==='loading'} onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
    </div>
   </details>
  </section>;
