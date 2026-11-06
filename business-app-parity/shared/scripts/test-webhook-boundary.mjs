@@ -11,7 +11,7 @@ const adapterSource=readFileSync(root+'/app/local-customer-deployment.ts','utf8'
 const adapterMatch=adapterSource.match(/\bexport\s+const\s+LOCAL_CUSTOMER_DEPLOYMENT\s*=\s*(['"])(live|staging|doomsday|qa)\1/);
 assert.ok(adapterMatch,'Expected explicit fixed FIRE deployment adapter for this offline route test');
 const deploymentMode=adapterMatch[2];
-const state={env:{FIRE_ENV:'staging',STRIPE_WEBHOOK_SECRET:'synthetic-boundary-secret',DB:{}},checkoutCalls:0,refundCalls:0,failureCalls:0};
+const state={env:{FIRE_ENV:'staging',FIRE_STRIPE_MODE:'test',STRIPE_WEBHOOK_SECRET:'synthetic-boundary-secret',DB:{}},checkoutCalls:0,refundCalls:0,failureCalls:0};
 globalThis.__boundary=state;
 let source=readFileSync(root+'/app/api/payments/webhook/route.ts','utf8').replace(/^import .*?;\n/gm,'');
 source='const LOCAL_CUSTOMER_DEPLOYMENT='+JSON.stringify(deploymentMode)+'; const env=globalThis.__boundary.env; const reconcileStripeCheckout=async()=>{globalThis.__boundary.checkoutCalls++;return {ok:true};}; const recordRefundUpdate=async()=>{globalThis.__boundary.refundCalls++;return {ok:true};}; const recordStripeCheckoutFailure=async()=>{globalThis.__boundary.failureCalls++;return {recorded:true};};\n'+source;
@@ -26,6 +26,19 @@ assert.equal((await request(body,header(body,now+600))).status,400);
 assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,400);
 assert.equal((await request(body+' ',header(body))).status,400);
 assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
+// Existing isolated TEST Worker is disabled; no signed payload may be
+// acknowledged or reconciled without explicit test-mode activation.
+state.env.FIRE_STRIPE_MODE='disabled';
+const blockedSigned=await request(body);
+assert.equal(blockedSigned.status,503);
+assert.equal(blockedSigned.headers.get('cache-control'),'no-store');
+assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,400,
+ 'Invalid HMAC must still fail before disabled-mode response');
+state.env.FIRE_STRIPE_MODE=undefined;
+assert.equal((await request(body)).status,503,
+ 'Missing TEST mode must fail closed too');
+assert.equal(state.checkoutCalls+state.refundCalls+state.failureCalls,0);
+state.env.FIRE_STRIPE_MODE='test';
 assert.equal((await request(body,header(body)+',v1=old-rotation-signature')).status,200);
 assert.equal((await request('{',header('{'))).status,400);
 for(const raw of ['null','[]','"string"','123'])assert.equal((await request(raw)).status,400);
