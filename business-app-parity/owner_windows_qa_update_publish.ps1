@@ -1,4 +1,4 @@
-# Nov 5 Acer owner-observed authenticated readback: v24, sole 100% traffic,
+# Nov 6 Acer owner-observed authenticated readback: v25, sole 100% traffic,
 # DB -> isolated QA UUID, no R2. This pin grants no publication permission.
 # Second (and later) QA Business App deployment. No writes unless -Publish,
 # and a fresh exact typed owner approval confirms updating this EXISTING Worker.
@@ -28,7 +28,7 @@ $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
 # This observation NEVER authorizes publication: require a fresh exact source,
 # two independently verified database identities, 25-journal, device-photo
 # protection and typed owner consent before any existing QA Worker update.
-$expectedActiveVersion = '31b511b5-1ffa-47cc-8a08-7aed537b1b74'
+$expectedActiveVersion = '956f023b-8134-4a66-9598-56c25fb6afab'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
