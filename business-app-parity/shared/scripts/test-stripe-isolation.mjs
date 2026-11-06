@@ -10,7 +10,7 @@ function load(route,deployment,fireEnv,key){
  const file=new URL('../app/api/payments/'+route+'/route.ts',import.meta.url);
  const source=readFileSync(file,'utf8').replace(/^import .*?;\n/gm,'');
  const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const calls={db:0,network:0,reconciled:0,refunds:0,failures:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',
+ const calls={db:0,network:0,reconciled:0,refunds:0,failures:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',FIRE_STRIPE_MODE:'test',
   DB:{prepare(){calls.db++;return {bind(){return {async first(){return {id:'synthetic-payment',estimateId:'job-1',type:'deposit',status:'paid',amountCents:5000,providerId:'cs_fake',customerId:'customer-1'};}}}};}}};
  const exports={};
  const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordStripeCheckoutFailure','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady',code);
@@ -19,7 +19,7 @@ function load(route,deployment,fireEnv,key){
  async()=>{calls.failures++;return {recorded:true,duplicate:false};},
  async()=>{calls.refunds++;return {ok:true};},
  async()=>true,()=>Response.json({error:'Synthetic refund schema missing'},{status:503}));
- return {POST:exports.POST,calls};
+ return {POST:exports.POST,calls,env};
 }
 const checkoutBody=JSON.stringify({shareToken:'synthetic',paymentType:'deposit'});
 const refundBody=JSON.stringify({paymentId:'synthetic-payment',requestId:'synthetic-refund',amountCents:1000});
@@ -71,6 +71,11 @@ eq((await live.POST(new Request('https://synthetic.invalid/api/payments/checkout
 eq(live.calls.network,0,'invalid live request does not call Stripe');
 
 const stagingSigned=load('webhook','staging','staging','sk_test_fixture');
+stagingSigned.env.FIRE_STRIPE_MODE='disabled';
+eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,data:{object:{id:'cs_test_synthetic',payment_status:'paid'}}})).status,503,
+ 'Disabled staging webhook rejects correctly signed TEST checkout');
+eq(stagingSigned.calls.reconciled,0,'Disabled staging webhook must not reconcile');
+stagingSigned.env.FIRE_STRIPE_MODE='test';
 eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,
   data:{object:{id:'cs_test_correct123',livemode:false,payment_status:'paid'}}})).status,200,
   'Signed test checkout reaches isolated staging reconciliation');
