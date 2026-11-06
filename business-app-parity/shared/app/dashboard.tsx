@@ -2560,8 +2560,16 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       />}
       {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
       {estimate.customerId&&estimate.status==="completed"&&!estimate.lastReviewRequestAt&&!estimate.reviewReceivedAt&&Number(estimate.paymentOverageOpen)===0&&Number(estimate.pendingRefundCount)===0&&Number(estimate.openCheckoutCount)===0&&Number.isSafeInteger(resolvedBillingTotalCents(estimate))&&resolvedBillingTotalCents(estimate)>0&&estimate.paidCents===resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
-      {estimate.phone&&<GoogleVoiceCallAction phone={estimate.phone} customerName={estimate.customer}/>}{estimate.phone&&<PersonalPhoneBackupAction phone={estimate.phone} mode="call" customerName={estimate.customer}/>}
-      {estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}{estimate.phone&&<PersonalPhoneBackupAction phone={estimate.phone} mode="text" customerName={estimate.customer}/>}
+      {estimate.phone&&<GoogleVoiceCallAction phone={estimate.phone} customerName={estimate.customer}/>}
+      {estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}
+      {estimate.phone&&<details className="customer-contact-backups">
+        <summary>Personal phone backups</summary>
+        <div className="contact-backup-actions">
+          <PersonalPhoneBackupAction phone={estimate.phone} mode="call" customerName={estimate.customer}/>
+          <PersonalPhoneBackupAction phone={estimate.phone} mode="text" customerName={estimate.customer}/>
+        </div>
+        <small>Only use these if FIRE Google Voice is unavailable; your personal number may be shown.</small>
+      </details>}
       {estimating&&estimate.address&&<div className="detail-context-tools" role="group" aria-label="Estimate research"><strong>Estimate research</strong><div className="detail-context-buttons"><a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a><a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a></div></div>}
       {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}</div></div>}
       {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
@@ -3307,8 +3315,16 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
       <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1>{customerNumberLabel(selected.customerNumber)&&<small className="block text-sm text-muted-foreground">{customerNumberLabel(selected.customerNumber)}</small>}</div><div className="profile-head-actions"><NewEstimate key={selected.id} openOnMount={estimateAfterCreateId===selected.id} onAutoOpened={()=>setEstimateAfterCreateId(null)} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /><details className="customer-header-more"><summary>More actions</summary><div className="customer-header-more-items"><MessageComposer customer={selected} initialTemplate="photoEstimate" triggerLabel="Request photos" onLogged={(message)=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div></details></div></div>
       <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
-        {contactPhone&&<GoogleVoiceCallAction phone={contactPhone} customerName={selected.name}/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="call" customerName={selected.name}/>}
-        {contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="text" customerName={selected.name}/>}
+        {contactPhone&&<GoogleVoiceCallAction phone={contactPhone} customerName={selected.name}/>}
+        {contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}
+        {contactPhone&&<details className="customer-contact-backups">
+          <summary>Personal phone backups</summary>
+          <div className="contact-backup-actions">
+            <PersonalPhoneBackupAction phone={contactPhone} mode="call" customerName={selected.name}/>
+            <PersonalPhoneBackupAction phone={contactPhone} mode="text" customerName={selected.name}/>
+          </div>
+          <small>Only use these if FIRE Google Voice is unavailable; your personal number may be shown.</small>
+        </details>}
         {contactEmail&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email customer" onLogged={message=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}
         {selected.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noopener noreferrer" aria-label="Directions to customer in Google Maps"><Navigation />Google Maps</a>}
         {selected.address&&onOpenTerritory&&<button type="button" aria-label="Show customer on Territory Map" onClick={()=>onOpenTerritory(selected.address)}><MapPin aria-hidden="true"/> Territory</button>}
