@@ -21,6 +21,14 @@ export function EstimateChangeHistory({estimateId,onSummary}:{estimateId:string;
   }
   const date=(value:string)=>new Date(value).toLocaleString('en-US',{timeZone:'America/Chicago'});
   return <section className="estimate-change-history" aria-label="Customer change-request history" aria-busy={busy}>
+    {rows!==null&&rows.length===0?<details className="change-history-empty">
+      <summary className="cursor-pointer min-h-11 py-2 font-medium">Customer change requests · None</summary>
+      <div>
+        {error&&<p role="alert">{error}</p>}
+        <p>No customer change requests.</p>
+        <Button variant="outline" disabled={busy} onClick={()=>void refresh()}>Refresh history</Button>
+      </div>
+    </details>:<>
     <header><h3>Customer change-request history</h3><Button variant="outline" disabled={busy} onClick={()=>void refresh()}>Refresh history</Button></header>
     {error&&<p role="alert">{error}</p>}
     {rows===null?<p>{busy?'Loading history…':'History unavailable. Refresh to try again.'}</p>:rows.length===0?<p>No customer change requests.</p>:rows.map(row=><article key={row.id}>
@@ -28,5 +36,6 @@ export function EstimateChangeHistory({estimateId,onSummary}:{estimateId:string;
       {row.status==='resolved'&&(row.resolutionNote?<><small>Resolution recorded · {date(row.resolvedAt!)}</small><p className="change-resolution-note">{row.resolutionNote}</p></>:<small>Previously resolved. Resolution time and actor were not recorded.</small>)}
       {row.status==='open'&&(confirmId===row.id?<div><p>Mark this request resolved? This preserves its history and does not approve revised work, change pricing, or record payment.</p><div className="change-request-actions"><Button disabled={busy||uncertain} onClick={()=>void resolve(row.id)}>Confirm resolution</Button><Button variant="outline" disabled={busy} onClick={()=>setConfirmId(null)}>Cancel</Button></div></div>:<Button variant="outline" disabled={busy||uncertain} onClick={()=>setConfirmId(row.id)}>Mark resolved</Button>)}
     </article>)}
+    </>}
   </section>;
 }
