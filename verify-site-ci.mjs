@@ -17,8 +17,8 @@ const combined = `${run.stdout || ''}\n${run.stderr || ''}`;
 // Permit exactly the two already-reviewed masonry signature complaints.
 // Do not accept additional failed checks hidden inside the same aggregate
 // "Homepage media integrity failed" line, even when the issue count remains 1.
-const lines = combined.replaceAll('\\r\\n', '\\n').split('\\n');
-const summaries = lines.filter(line => /^FAILED: \\d+ issue\\(s\\)$/.test(line));
+const lines = combined.replaceAll('\r\n', '\n').split('\n');
+const summaries = lines.filter(line => /^FAILED: \d+ issue\(s\)$/.test(line));
 const errorLines = lines.filter(line => line.startsWith('- '));
 const approvedIssue = '- Homepage media integrity failed: ' +
   'assets/masonry-before.jpg does not have a valid JPEG signature; ' +
