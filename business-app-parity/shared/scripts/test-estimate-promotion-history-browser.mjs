@@ -62,8 +62,19 @@ try{
  check(await shownHistory.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible(),'Optional booking panel opens before refreshing');
  let releaseRefresh;const refreshGate=new Promise(resolve=>{releaseRefresh=resolve;});
  await page.route('**/api/estimates/'+id+'/promotions',async route=>{await refreshGate;await route.continue();});
+ const savedSummaryBefore=await shownHistory.locator('summary').first().innerText();
+ const historyHeightBefore=await shownHistory.evaluate(el=>el.getBoundingClientRect().height);
  await shownHistory.getByRole('button',{name:'Refresh history'}).click();
- await shownHistory.getByText('Checking…',{exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('[aria-label="Saved promotions on estimate"]')?.getAttribute('aria-busy')==='true');
+ const savedSummaryDuring=await shownHistory.locator('summary').first().innerText();
+ check(savedSummaryDuring===savedSummaryBefore,
+  'Verified promotion summary never flashes a transient Checking label');
+ check(await shownHistory.getByText('Checking saved offers…',{exact:true}).count()===0,
+  'Pending refresh never inserts a visible short-lived loading paragraph');
+ check(await shownHistory.getByRole('button',{name:'Refresh history'}).isDisabled(),
+  'Refresh button blocks repeated clicks while same-record GET is pending');
+ check(Math.abs((await shownHistory.evaluate(el=>el.getBoundingClientRect().height))-historyHeightBefore)<3,
+  'Expanded history retains stable height while same-record GET is pending');
  check(await shownHistory.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible(),
   'Promotion refresh retains expanded same-estimate booking panel while read is pending');
  releaseRefresh();await page.getByText(rule.name,{exact:true}).waitFor();
