@@ -125,6 +125,7 @@ jobs:
           node scripts/test-deposit-policy.mjs
           node scripts/test-customer-invoice-balances.mjs
           node scripts/test-public-invoice-due-central-time.mjs
+          node scripts/test-api-route-access-inventory.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-promotion-history-browser.mjs
       - name: Gate 8 actual New Estimate service reuse and editor navigation (Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-reuse-estimate-editor-browser.mjs
