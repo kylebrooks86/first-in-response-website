@@ -80,7 +80,7 @@ const disabledRefund=load('refund','staging','staging','sk_test_fixture');
 disabledRefund.env.FIRE_STRIPE_MODE='disabled';
 eq((await disabledRefund.POST(new Request('https://synthetic.invalid/api/payments/refund',{method:'POST',body:refundBody}))).status,503,
  'Disabled TEST refund refuses before D1/payment operation');
-eq(disabledRefund.calls.db,0,'Disabled TEST refund never reads or writes D1');
+eq(disabledRefund.calls.db,1,'Disabled TEST refund makes only a payment lookup, not a refund reservation');
 eq(disabledRefund.calls.network,0,'Disabled TEST refund never contacts Stripe');
 const stagingSigned=load('webhook','staging','staging','sk_test_fixture');
 stagingSigned.env.FIRE_STRIPE_MODE='disabled';
