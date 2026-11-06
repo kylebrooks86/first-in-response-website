@@ -2506,6 +2506,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   const estimating=(["draft","sent","viewed"] as string[]).includes(estimate.status);
   const travelingToJob=estimate.status==="scheduled"&&Boolean(estimate.scheduledAt);
   const workingOnJob=estimate.status==="scheduled"||estimate.status==="completed";
+  const historicalQuote=estimate.status==="declined"||estimate.status==="superseded";
   // Show appointment editing only when the API can actually save it.
   // Completed jobs retain their historical time as a read-only fact.
   const canChangeJobDate=estimate.status==="scheduled"||
@@ -2568,7 +2569,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {!["superseded","declined"].includes(estimate.status)&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
     {(workingOnJob||["declined","superseded"].includes(estimate.status))?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
-    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
+    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents} estimateStatus={estimate.status}/>
     {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
     <details className="detail-more-tools">
       <summary>More tools</summary>
@@ -2600,7 +2601,8 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
           {estimate.scheduledAt&&<small className="service-description-help">Clearing this selection does not cancel the saved appointment.</small>}
         </>:<div className="status-readonly" aria-label="Saved appointment"><strong>{estimate.scheduledAt?dateTime(estimate.scheduledAt):"Not scheduled"}</strong></div>}</div>
     </div>
-    <div className="detail-summary"><span><small>Deposit</small><strong>{money(estimate.depositCents)}</strong></span><span><small>Paid</small><strong>{money(estimate.paidCents)}</strong></span><span><small>Balance</small><strong>{money(balanceCents)}</strong></span></div>
+    {historicalQuote&&<p className="service-description-help" role="status">Historical quote amounts only. This estimate is inactive; the amounts below are not a payment request.</p>}
+    <div className="detail-summary"><span><small>{historicalQuote?"Original deposit":"Deposit"}</small><strong>{money(estimate.depositCents)}</strong></span><span><small>Paid</small><strong>{money(estimate.paidCents)}</strong></span><span><small>{historicalQuote?"Saved balance":"Balance"}</small><strong>{money(balanceCents)}</strong></span></div>
         {(saving||checkingCloseout)&&<p className="save-message" role="status" aria-live="polite">{checkingCloseout?"Verifying saved job report…":"Saving changes…"} Keep this job open until finished.</p>}
     {error && <p className="save-error" role="alert">{error}</p>}
     <div className="detail-footer">
