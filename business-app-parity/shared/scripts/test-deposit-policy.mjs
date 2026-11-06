@@ -32,7 +32,14 @@ try{
  for(const kind of ['pending-refund','open-checkout']){seed(kind);pay(kind,'paid-'+kind,10000);if(kind==='pending-refund')db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES('pending-refund','paid-pending-refund','pending-refund',1000,'manual','pending','2026-10-18')").run();else db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES('open-checkout','open-checkout','deposit',10000,'open','2026-10-18')").run();eq((await policy(kind)).blockedReason,'reconciliation');eq((await patch(kind)).status,409);}
  for(const race of ['refund','terms','hold','approval']){const id='race-'+race;seed(id);pay(id,'paid-'+id,10000);beforeBatch=()=>{if(race==='refund')pay(id,'out-'+id,-1000,'Refund');if(race==='terms')db.prepare('UPDATE estimates SET total_cents=24000,deposit_cents=12000 WHERE id=?').run(id);if(race==='hold')db.prepare("INSERT INTO notifications(id,type,title,body,estimate_id,created_at) VALUES(?,'payment_overage','Hold','Review',?,'2026-10-18')").run('n-'+id,id);if(race==='approval')db.prepare('UPDATE estimates SET signed_at=NULL WHERE id=?').run(id);};eq((await patch(id)).status,409);eq(db.prepare('SELECT status FROM estimates WHERE id=?').get(id).status,'approved');}
  seed('lost');pay('lost','lost-paid',10000);lostResponse=true;const lost=await patch('lost');eq(lost.status,503);eq((await lost.json()).saveUncertain,true);eq(db.prepare('SELECT status FROM estimates WHERE id=?').get('lost').status,'scheduled');eq((await policy('lost')).retainedSchedule,true);
- seed('disabled');env.FIRE_DEPOSIT_POLICY_CANDIDATE=undefined;eq((await policy('disabled')).enforced,false);eq((await patch('disabled')).status,200);env.FIRE_DEPOSIT_POLICY_CANDIDATE='enabled';eq((await policy('disabled')).enforced,false);
+ seed('disabled');env.FIRE_DEPOSIT_POLICY_CANDIDATE=undefined;eq((await policy('disabled')).enforced,false);eq((await patch('disabled')).status,200);
+ // Feature-off QA read still carries persisted status for historical owner display.
+ seed('declined-disabled',{total:2500,deposit:1250,status:'declined',signed:false});
+ const declinedRead=await get('declined-disabled');eq(declinedRead.status,200);const declinedPayload=await declinedRead.json();
+ eq(declinedPayload.policy.estimateStatus,'declined');eq(declinedPayload.policy.storedRequiredCents,1250);
+ eq(Object.prototype.hasOwnProperty.call(declinedPayload,'currentSnapshot'),false);
+ eq((await patch('declined-disabled')).status,409);
+ env.FIRE_DEPOSIT_POLICY_CANDIDATE='enabled';eq((await policy('disabled')).enforced,false);
  readFailure=true;eq((await get('normal')).status,503);readFailure=false;
  console.log(`PASS ${checks}/${checks}: actual deposit-policy reads and gated scheduling; principal/tip/refund separation, odd cents, legacy schedule preservation, override refusal, atomic race guards and committed-response uncertainty. No provider calls or hosted data.`);
 }finally{db.close()}
