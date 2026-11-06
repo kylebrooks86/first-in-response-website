@@ -7,6 +7,8 @@ on:
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/gate9_staging_preflight.py'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
       - 'business-app-parity/adapters/independent-staging/**'
       - 'business-app-parity/adapters/doomsday/**'
@@ -22,6 +24,8 @@ on:
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/gate9_staging_preflight.py'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
       - 'business-app-parity/adapters/independent-staging/**'
       - 'business-app-parity/adapters/doomsday/**'
@@ -172,6 +176,8 @@ jobs:
           python-version: '3.12'
       - name: Six negative-control unit tests
         run: python -m unittest discover -s business-app-parity -p 'test_rehearse_staging_22_to_25.py' -v
+      - name: Reject six-event Stripe TEST webhook evidence missing refund.failed (no network)
+        run: python -m unittest discover -s business-app-parity -p 'test_gate9_staging_preflight.py' -v
       - name: Rehearse actual 25-source migration files in memory (no customer export)
         run: python business-app-parity/rehearse_staging_22_to_25.py
 
@@ -235,6 +241,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-webhook-boundary.mjs .
           node scripts/test-stripe-refunds.mjs .
+          node scripts/test-stripe-connection-inspection.mjs
       - name: Verify compiled Worker can only target designated staging D1
         run: node business-app-parity/check_independent_staging_runtime_config.mjs "$RUNNER_TEMP/fire-independent-staging-candidate/dist/server/wrangler.json"
       - name: Verify compiled source exactly matches reviewed app and overlays
