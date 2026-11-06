@@ -7,7 +7,7 @@ import { refundLedgerNotReady, refundLedgerObjectsPresent } from "../../../../li
 
 const currency=(v:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(v/100);
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-type RuntimeEnv=Cloudflare.Env & { STRIPE_SECRET_KEY?:string; STRIPE_RESTRICTED_KEY?:string; FIRE_ENV?:string };
+type RuntimeEnv=Cloudflare.Env & { STRIPE_SECRET_KEY?:string; STRIPE_RESTRICTED_KEY?:string; FIRE_ENV?:string; FIRE_STRIPE_MODE?:string };
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 async function stripeGet(path:string,secret:string){
   return fetch(`https://api.stripe.com/v1/${path}`,{headers:{authorization:`Bearer ${secret}`,"Stripe-Version":"2026-08-26.dahlia"}});
@@ -16,6 +16,12 @@ async function stripeGet(path:string,secret:string){
 export async function POST(request:Request){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  const stripeRuntime = env as RuntimeEnv;
+  const isolatedSandbox = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
+    /(?:staging|doomsday|synthetic|sandbox)/i.test(stripeRuntime.FIRE_ENV || "");
+  // Block disabled/missing-mode TEST refund requests before D1 reservation or provider I/O.
+  if(isolatedSandbox && stripeRuntime.FIRE_STRIPE_MODE !== "test")
+    return Response.json({error:"Isolated Stripe TEST refunds are disabled."},{status:503,headers:{"cache-control":"no-store"}});
   // LIVE without migration 0019 must stop before any Stripe call or money movement.
   if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   try{
