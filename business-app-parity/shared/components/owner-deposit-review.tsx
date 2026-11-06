@@ -4,7 +4,7 @@ import {RefreshCw} from "lucide-react";
 
 type Snapshot={status:string;totalCents:number;depositCents:number;paidCents:number;acceptedAt:string|null;signedAt:string|null;contractVersion:string|null};
 type Audit={id:string;confirmation_id:string;created_at:string;mode:string;previous_deposit_cents:number;new_deposit_cents:number;actor_email:string;reason:string|null};
-type State={policy:{remainingDepositCents:number|null;canSchedule:boolean;message:string|null};currentSnapshot?:Snapshot;
+type State={policy:{remainingDepositCents:number|null;storedRequiredCents?:number|null;estimateStatus?:string;canSchedule:boolean;message:string|null};currentSnapshot?:Snapshot;
  exceptionReview?:{syntheticOnly:boolean;readOnly:boolean;hostedActivation:boolean;canReviewUnsignedDraft:boolean;latestEventId:string|null;events:Audit[];customerExposureDetected:boolean;signedAgreementPresent:boolean;message:string};error?:string};
 type Mode="standard"|"waive"|"percentage"|"fixed"|"schedule-before-deposit"|"restore-standard";
 const choices:[Mode,string][]=[["standard","Standard 50%"],["waive","Waive upfront deposit"],["percentage","Custom percentage"],["fixed","Custom dollar amount"],["schedule-before-deposit","Request collection deferral"],["restore-standard","Restore standard 50%"]];
@@ -52,7 +52,9 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
  },[estimateId]);
  useEffect(()=>{void refresh();return()=>{requestNo.current++;};},[refresh]);
  const current=state?.currentSnapshot,review=state?.exceptionReview;
- const historical=current?.status==="declined"||current?.status==="superseded";
+ const verifiedStatus=current?.status??state?.policy.estimateStatus;
+ const historical=verifiedStatus==="declined"||verifiedStatus==="superseded";
+ const historicalDepositCents=current?.depositCents??state?.policy.storedRequiredCents;
  const allowed=Boolean(current&&review?.canReviewUnsignedDraft&&!uncertain&&!busy);
  let proposed:{required:number;basis?:number;fixed?:number}|null=null,validation="";
  try{if(current)proposed=preview(current.totalCents,current.depositCents,mode,amount);}
@@ -109,7 +111,7 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
   {error&&<p role="alert" className="save-error">{error}</p>}
   {!state?<p>Deposit policy is not currently verified.</p>:
    <div className="revision-totals owner-deposit-summary">
-    {historical?<><span>Original deposit (not due)<strong>{money(current!.depositCents)}</strong></span>
+    {historical?<><span>Original deposit (not due)<strong>{typeof historicalDepositCents==='number'&&Number.isSafeInteger(historicalDepositCents)&&historicalDepositCents>=0?money(historicalDepositCents):"Not verified"}</strong></span>
     <span>Scheduling<strong>Closed · inactive estimate</strong></span>
     <p className="owner-deposit-guidance">Historical quote only. No deposit is currently collectible or job scheduling available from this declined or replaced estimate. The original amounts remain in the saved record.</p></>:
     <><span>Deposit still due<strong>{state.policy.remainingDepositCents===null?"Not verified":money(state.policy.remainingDepositCents)}</strong></span>
