@@ -17,7 +17,7 @@ const receipt={revision:catalog.revision,checkedOn:promotion.fireDate(new Date()
 const result=await runtime.post({customer:'Synthetic history',email:'promo-history@example.invalid',items:[{name:'House Wash',quantity:1,unit:'job',totalCents:46000}],additionalDiscountType:'percent',additionalDiscountValue:1500,bundleDiscountCents:0,promotionEvidence:receipt});
 assert.equal(result.status,201);const estimate=await result.json(),id=estimate.id;
 const fixture=String.raw`import React from 'react';import{createRoot}from'react-dom/client';import{EstimatePromotionHistory}from'./components/estimate-promotion-history';
-createRoot(document.getElementById('app')).render(<main style={{maxWidth:650,margin:'auto',padding:12}}><EstimatePromotionHistory estimateId={window.estimateId} totalCents={window.totalCents}/></main>);`;
+createRoot(document.getElementById('app')).render(<main style={{maxWidth:650,margin:'auto',padding:12}}><EstimatePromotionHistory estimateId={window.estimateId} totalCents={window.totalCents} estimateStatus={new URLSearchParams(location.search).get('status')||'sent'}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'estimate-promo-history.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let broken=false;const get=runtime.load('app/api/estimates/[id]/promotions/route.ts').GET;
@@ -30,7 +30,7 @@ const server=createServer(async(req,res)=>{
   const r=await get(new Request('https://synthetic.invalid'+req.url),{params:Promise.resolve({id})});
   res.statusCode=r.status;return res.end(await r.text());
  }
- if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script>window.estimateId='+JSON.stringify(id)+';window.totalCents='+estimate.totalCents+'</script><script type="module" src="/bundle.js"></script>');}
+ if(req.url==='/'||req.url?.startsWith('/?')){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script>window.estimateId='+JSON.stringify(id)+';window.totalCents='+estimate.totalCents+'</script><script type="module" src="/bundle.js"></script>');}
  res.statusCode=404;res.end();
 });
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const origin='http://127.0.0.1:'+server.address().port;
@@ -69,6 +69,21 @@ try{
  releaseRefresh();await page.getByText(rule.name,{exact:true}).waitFor();
  check(await shownHistory.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible(),
   'Successful promotion refresh preserves optional expanded state without layout jump');
+ // Closed historical quotes preserve the saved discount receipt but must not
+ // offer an editable booking-savings workflow, even when the receipt has no booking date.
+ for(const closedStatus of ['declined','superseded']){
+  await page.goto(origin+'/?status='+closedStatus);
+  const closedHistory=page.locator('[aria-label="Saved promotions on estimate"]');
+  await closedHistory.locator('summary').first().click();
+  await page.getByText(rule.name,{exact:true}).waitFor();
+  check(await closedHistory.getByText('Closed estimate.',{exact:false}).isVisible(),
+   'Historical quote has an explicit closed-only notice');
+  check(await closedHistory.getByText('Review booking savings (optional)',{exact:true}).count()===0,
+   'Closed quote has no new booking-savings review');
+  check(await closedHistory.getByText('$391.00',{exact:false}).count()>0,
+   'Closed quote retains the original saved monetary history');
+ }
+ await page.goto(origin);
  runtime.db.prepare("UPDATE message_templates SET body=? WHERE key=?").run(JSON.stringify({revision:'aaaaaaaa-aaaa-4aaa-8aaa-000000000098',promotions:[]}),promotion.SAVED_PROMOTIONS_KEY);
  await page.reload();await page.locator('[aria-label="Saved promotions on estimate"] summary').first().click();await page.getByText(rule.name,{exact:true}).waitFor();
  check(true,'Original saved name visible despite later catalog deletion');
