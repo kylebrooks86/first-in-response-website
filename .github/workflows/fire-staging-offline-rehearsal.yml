@@ -123,6 +123,7 @@ jobs:
         run: |
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-deposit-ux-browser.mjs
           node scripts/test-deposit-policy.mjs
+          node scripts/test-customer-invoice-balances.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-promotion-history-browser.mjs
       - name: Gate 8 actual New Estimate service reuse and editor navigation (Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-reuse-estimate-editor-browser.mjs
