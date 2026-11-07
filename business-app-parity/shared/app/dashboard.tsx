@@ -683,9 +683,9 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   return <Dialog open={open} onOpenChange={changeComposerOpen}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
-    <DialogContent className="message-dialog sm:max-w-[620px]">
+    <DialogContent className="message-dialog sm:max-w-[620px]" style={{maxHeight:"calc(100dvh - 24px)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
-      <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0}>
+      <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0} style={{flex:"1 1 auto",minHeight:0,overflowY:"auto",overflowX:"hidden"}}>
         {messageStatus&&<p role="status">{messageStatus}</p>}
         {templateStatus==="loading"&&template!=="custom"&&!preparedMessage&&<p role="status">Loading saved message templates…</p>}
         {templateStatus==="error"&&!preparedMessage&&<div role="alert"><p>{templateFailureMessage}</p><Button type="button" variant="outline" disabled={working} onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}
