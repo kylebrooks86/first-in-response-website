@@ -30,7 +30,7 @@ test('correct TEST callback and provider metadata are required, but always remai
   const b=reviewStripeTestEndpointMetadata(endpoint());
   assert.equal(a.addedPublicPath,'/api/payments/webhook');
   assert.equal(a.existingExceptionsPreserved,reviewedPublicAccessOverrides().length);
-  assert.equal(b.events,5);
+  assert.equal(b.events,6);
   assert.equal(b.originalLegacyEndpointPreserved,true);
   for(const result of [a,b])for(const k of Object.keys(result).filter(k=>/Verified|Applied|Created|Configured|Enabled|Authorized|Accepted/.test(k)))
     assert.equal(result[k],false,'No hosted evidence or approval can be inferred: '+k);
@@ -79,7 +79,7 @@ test('Access changes fail closed on wrong Worker, missing/duplicated paths, broa
   blocked(()=>reviewWebhookAccessDelta({...scope(),expectedWorkerId:'undocumented:worker'}));
 });
 
-test('Stripe endpoint must be independent, TEST-only, exact callback and exactly five events',()=>{
+test('Stripe endpoint must be independent, TEST-only, exact callback and exactly six events',()=>{
   for(const mutate of [
     x=>x.newTestEndpoint.id=x.legacyBefore.id,
     x=>x.newTestEndpoint.url=x.legacyBefore.url,
@@ -87,6 +87,8 @@ test('Stripe endpoint must be independent, TEST-only, exact callback and exactly
     x=>x.newTestEndpoint.url='https://fire-app-independent-staging.kyle-bfc.workers.dev/api/payments/webhook',
     x=>x.newTestEndpoint.url='https://fire-stripe-test-20261101.kyle-bfc.workers.dev/api/payments/*',
     x=>x.newTestEndpoint.enabled_events.pop(),
+    x=>x.newTestEndpoint.enabled_events=x.newTestEndpoint.enabled_events.filter(e=>e!=='refund.failed'),
+    x=>x.newTestEndpoint.enabled_events[x.newTestEndpoint.enabled_events.length-1]='refund.succeeded',
     x=>x.newTestEndpoint.enabled_events.push('*'),
     x=>x.newTestEndpoint.enabled_events[0]='charge.refunded',
     x=>x.newTestEndpoint.enabled_events[0]=x.newTestEndpoint.enabled_events[1],
