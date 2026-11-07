@@ -73,7 +73,20 @@ jobs:
       - name: Check out candidate without persistent token
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+      - name: Verify checkout tree matches exact reviewed source head
+        shell: bash
+        env:
+          REVIEW_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REVIEW_HEAD" =~ ^[0-9a-f]{40}$ ]] || { echo "STOP: missing exact source SHA"; exit 1; }
+          actual="$(git rev-parse HEAD^{tree})"
+          reviewed="$(git rev-parse "$REVIEW_HEAD^{tree}")"
+          [[ "$actual" == "$reviewed" ]] || { echo "STOP: merge checkout differs from source head tree"; exit 1; }
+          echo "REVIEW_HEAD=$REVIEW_HEAD" >> "$GITHUB_ENV"
+          echo "PASS: checked out complete Git tree equals reviewed exact source SHA"
       - name: Set up pinned runtime
         uses: actions/setup-node@v4
         with:
@@ -94,6 +107,32 @@ jobs:
         run: |
           python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-preview-candidate" --built
           node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-preview-candidate/dist/server/wrangler.json"
+      - name: Seal immutable QA code/assets review packet and verify its receipt
+        env:
+          REVIEW_PACKET: ${{ runner.temp }}/fire-qa-built-source-review
+        run: |
+          set -euo pipefail
+          python3 business-app-parity/prepare_device_review.py \
+            --target qa \
+            --candidate "$RUNNER_TEMP/fire-qa-preview-candidate" \
+            --output "$REVIEW_PACKET" \
+            --checkpoint "$REVIEW_HEAD"
+          python3 business-app-parity/verify_device_review_packet.py \
+            --packet "$REVIEW_PACKET" \
+            --target qa \
+            --checkpoint "$REVIEW_HEAD"
+          python3 - "$REVIEW_PACKET/DEVICE_REVIEW_RECEIPT.json" "$REVIEW_HEAD" <<'PY'
+          import json,sys
+          receipt=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert receipt["baseCheckpoint"]==sys.argv[2]
+          assert set(receipt["targets"])=={"qa"}
+          assert receipt["publicationAuthorized"] is False
+          assert receipt["physicalDeviceAcceptance"] is False
+          assert receipt["installableURL"] is None
+          assert receipt["targets"]["qa"]["recordsIncluded"] is False
+          assert receipt["targets"]["qa"]["hostingConfigIncluded"] is False
+          print("PASS: exact-head QA artifact sealed and byte-verified; no records, secrets, provider config or deploy approval")
+          PY
       - name: Prepare pinned local browser without remote deployment
         run: |
           mkdir -p "$RUNNER_TEMP/fire-qa-preview-driver"
@@ -111,6 +150,13 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-qa-worker-http-browser.mjs
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
+      - name: Retain verified QA code/assets packet only after all built-browser tests passed
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-qa-built-source-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/fire-qa-built-source-review/
+          if-no-files-found: error
+          retention-days: 7
 
   gate8-declined-deposit-browser:
     name: Gate 8 declined deposit and audit UI (synthetic Chrome only)
