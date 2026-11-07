@@ -102,7 +102,11 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           test -n "$CHROME" || { echo "STOP: runner's preinstalled Chrome missing"; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
-      - name: Exercise actual built QA login, synthetic estimate, Customer view, back/close, and restart
+      - name: Gate 6 QA HMAC expiry, origin and cookie-negative controls (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-qa-auth-adapter.mjs
+      - name: Exercise actual built QA login, expired-session denial, synthetic estimate, Customer view, back/close, and restart
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-qa-worker-http-browser.mjs
