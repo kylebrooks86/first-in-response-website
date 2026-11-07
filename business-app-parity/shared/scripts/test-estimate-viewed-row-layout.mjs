@@ -20,7 +20,7 @@ check(badges.length===4,
   'Customer history, Home recent estimates, Estimates list and pipeline share the same badge');
 check(ui.includes('<button className="customer-record record-button customer-estimate-record"')&&
   ui.includes('<strong className="customer-estimate-price">')&&
-  ui.includes('<EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/></span></div><strong className="customer-estimate-price">'),
+  ui.includes('<EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimatePaymentBadge estimate={estimate}/></span></div><strong className="customer-estimate-price">'),
   'Customer estimate status, view badge and amount stay bound to same estimate row');
 check(css.includes('.customer-record.customer-estimate-record{')&&
   css.includes('grid-template-columns:minmax(0,1fr) minmax(74px,max-content) 18px;')&&
