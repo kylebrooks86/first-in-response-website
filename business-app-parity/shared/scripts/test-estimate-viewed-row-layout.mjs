@@ -20,7 +20,7 @@ check(badges.length===4,
   'Customer history, Home recent estimates, Estimates list and pipeline share the same badge');
 check(ui.includes('<button className="customer-record record-button customer-estimate-record"')&&
   ui.includes('<strong className="customer-estimate-price">')&&
-  ui.includes('<EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimatePaymentBadge estimate={estimate}/></span></div><strong className="customer-estimate-price">'),
+  ui.includes('<EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/></span></div><strong className="customer-estimate-price">'),
   'Customer estimate status, view badge and amount stay bound to same estimate row');
 check(css.includes('.customer-record.customer-estimate-record{')&&
   css.includes('grid-template-columns:minmax(0,1fr) minmax(74px,max-content) 18px;')&&
@@ -73,5 +73,20 @@ check(css.includes('.estimate-payment-indicator.deposit-paid{')&&
   css.includes('[data-theme="dark"] .estimate-payment-indicator.deposit-paid{')&&
   css.includes('[data-theme="dark"] .estimate-payment-indicator.paid-in-full{'),
   'Deposit and full-payment indicators have distinct accessible colors and dark theme styles');
+
+const attention=ui.match(/<EstimateAttentionBadges estimate=\{estimate\}\/>/g)||[];
+check(attention.length===5,
+  'Change-request and financial-review alerts render in all five estimate locations');
+check(ui.includes('estimateAttentionMilestones(estimate)')&&
+  ui.includes('flags.includes("changes-requested")')&&
+  ui.includes('flags.includes("payment-review")')&&
+  ui.includes('<MessageSquareText aria-hidden="true"/> Changes requested')&&
+  ui.includes('<AlertTriangle aria-hidden="true"/> Payment review'),
+  'Action badges show meaningful icons and specific non-lifecycle labels');
+check(css.includes('.estimate-attention-indicator.changes-requested{')&&
+  css.includes('.estimate-attention-indicator.payment-review{')&&
+  css.includes('[data-theme="dark"] .estimate-attention-indicator.changes-requested{')&&
+  css.includes('[data-theme="dark"] .estimate-attention-indicator.payment-review{'),
+  'Action-needed indicators are color-coded with readable dark-theme alternatives');
 
 console.log('PASS: Estimate eye indicator and right-aligned prices SOURCE CONTRACT; no hosted actions.');
