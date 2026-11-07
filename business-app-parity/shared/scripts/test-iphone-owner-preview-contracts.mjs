@@ -69,11 +69,18 @@ function verify(s){
    'Invoice preview preserves exact originating workspace');
  for(const [label,source,nodes] of [['estimate',s.estimate,estimate],['invoice',s.invoice,invoice]]){
   const close=nodes.filter(n=>n.tag==='OwnerPreviewReturnLink');
-  check(close.length===1,label+' provides one guarded Close control, not duplicate navigation');
-  check(String(close[0].attrs.href).includes('encodeURIComponent(')||close[0].attrs.href==='{returnHref}',
-    label+' returns to the exact saved record');
-  check(String(close[0].attrs.label)==='"Close '+label+' preview"',
-    label+' Close control retains its accessible name');
+  // The normal view and error/hold early-return branches are mutually exclusive.
+  // Count the shared route's two source nodes, then verify each guard separately.
+  check(close.length===2,label+' retains guarded Close controls for normal and exceptional rendering');
+  const exact=close.find(n=>String(n.attrs.href).includes('encodeURIComponent(')||n.attrs.href==='{returnHref}');
+  const unavailable=close.find(n=>n.attrs.href==='"/"');
+  check(Boolean(exact&&unavailable),label+' returns to the exact record when available, or Home if token is unknown');
+  check(close.every(n=>String(n.attrs.label)==='"Close '+label+' preview"'),
+    label+' normal and exceptional Close controls retain accessible names');
+  check(source.includes(label==='estimate'?
+    'const ownerPreviewExit=(id?:string)=>ownerPreview?':
+    'const ownerMissingExit=ownerPreview?'),
+    label+' exceptional exit is gated by verified owner authentication');
   check(source.includes('await getChatGPTUser()')&&
     source.includes("?.email?.toLowerCase()==='kylebrooks8605@gmail.com'"),
     label+' server authorization requires authenticated owner, not forged query');
@@ -122,6 +129,7 @@ for(const [label,change] of [
  ['preview in an unmanaged new tab',s=>({...s,dashboard:s.dashboard.replace('aria-label="Open customer-facing estimate preview"','target="_blank" aria-label="Open customer-facing estimate preview"')})],
  ['owner Close pollutes browser history',s=>({...s,returnLink:s.returnLink.replace('window.location.replace(url.href)','window.location.assign(url.href)')})],
  ['owner authentication gating removed',s=>({...s,estimate:s.estimate.replace('ownerPreview&&<><OwnerPreviewTheme/>','true&&<><OwnerPreviewTheme/>')})],
+ ['exception owner authentication gating removed',s=>({...s,estimate:s.estimate.replace('const ownerPreviewExit=(id?:string)=>ownerPreview?','const ownerPreviewExit=(id?:string)=>true?')})],
  ['mobile coarse pointer rule removed',s=>({...s,css:s.css.replace('@media (max-width:760px) and (pointer:coarse)','@media (min-width:761px) and (pointer:fine)')})],
  ['theme hydration safety removed',s=>({...s,previewTheme:s.previewTheme.replace('disabled={!ready}','')})],
 ]){
