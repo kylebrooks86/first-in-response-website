@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {createHmac} from 'node:crypto';
+import {createRequire} from 'node:module';
+const root=resolve(process.argv[2]||'.'),ts=createRequire(root+'/package.json')('typescript');
+// The route imports a fixed deployment adapter. This isolated data-URL import
+// strips ESM imports, so hydrate that exact committed adapter value instead of
+// leaving LOCAL_CUSTOMER_DEPLOYMENT undefined (or pretending this is QA).
+const adapterSource=readFileSync(root+'/app/local-customer-deployment.ts','utf8');
+const adapterMatch=adapterSource.match(/\bexport\s+const\s+LOCAL_CUSTOMER_DEPLOYMENT\s*=\s*(['"])(live|staging|doomsday|qa)\1/);
+assert.ok(adapterMatch,'Expected explicit fixed FIRE deployment adapter for this offline route test');
+const deploymentMode=adapterMatch[2];
+const state={env:{FIRE_ENV:'staging',FIRE_STRIPE_MODE:'test',STRIPE_WEBHOOK_SECRET:'synthetic-boundary-secret',DB:{}},checkoutCalls:0,refundCalls:0,failureCalls:0};
+globalThis.__boundary=state;
+let source=readFileSync(root+'/app/api/payments/webhook/route.ts','utf8').replace(/^import .*?;\n/gm,'');
+source='const LOCAL_CUSTOMER_DEPLOYMENT='+JSON.stringify(deploymentMode)+'; const env=globalThis.__boundary.env; const reconcileStripeCheckout=async()=>{globalThis.__boundary.checkoutCalls++;return {ok:true};}; const recordRefundUpdate=async()=>{globalThis.__boundary.refundCalls++;return {ok:true};}; const recordStripeCheckoutFailure=async()=>{globalThis.__boundary.failureCalls++;return {recorded:true};};\n'+source;
+const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
+const route=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
+const now=Math.floor(Date.now()/1000),body=JSON.stringify({livemode:false,type:'unhandled.synthetic.event',data:{object:{}}});
+function header(raw,t=now,secret=state.env.STRIPE_WEBHOOK_SECRET){return `t=${t},v1=${createHmac('sha256',secret).update(`${t}.${raw}`).digest('hex')}`;}
+async function request(raw,signature=header(raw)){return route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{method:'POST',headers:signature?{'stripe-signature':signature}:{},body:raw}));}
+assert.equal((await request(body,null)).status,400);
+assert.equal((await request(body,header(body,now-600))).status,400);
+assert.equal((await request(body,header(body,now+600))).status,400);
+assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,400);
+assert.equal((await request(body+' ',header(body))).status,400);
+assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
+// Existing isolated TEST Worker is disabled; no signed payload may be
+// acknowledged or reconciled without explicit test-mode activation.
+state.env.FIRE_STRIPE_MODE='disabled';
+const blockedSigned=await request(body);
+assert.equal(blockedSigned.status,503);
+assert.equal(blockedSigned.headers.get('cache-control'),'no-store');
+assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,400,
+ 'Invalid HMAC must still fail before disabled-mode response');
+state.env.FIRE_STRIPE_MODE=undefined;
+assert.equal((await request(body)).status,503,
+ 'Missing TEST mode must fail closed too');
+assert.equal(state.checkoutCalls+state.refundCalls+state.failureCalls,0);
+state.env.FIRE_STRIPE_MODE='test';
+assert.equal((await request(body,header(body)+',v1=old-rotation-signature')).status,200);
+assert.equal((await request('{',header('{'))).status,400);
+for(const raw of ['null','[]','"string"','123'])assert.equal((await request(raw)).status,400);
+for(const eventType of ['refund.updated','refund.failed']){
+  for(const livemode of [true,undefined])assert.equal((await request(JSON.stringify({livemode,type:eventType,data:{object:{}}}))).status,400);
+  assert.equal((await request(JSON.stringify({livemode:false,type:eventType}))).status,400);
+}
+assert.equal((await request(JSON.stringify({livemode:false,type:'checkout.session.completed'}))).status,400);
+assert.equal(state.checkoutCalls,0);assert.equal(state.refundCalls,0);assert.equal(state.failureCalls,0);
+const signedRefundFailure=JSON.stringify({livemode:false,type:'refund.failed',data:{object:{id:'re_synthetic',status:'failed',amount:100,currency:'usd'}}});
+assert.equal((await request(signedRefundFailure)).status,200);
+assert.equal(state.refundCalls,1,'Signed refund.failed must enter the refund reconciler rather than be ignored');
+assert.equal(state.checkoutCalls,0);
+state.env.STRIPE_WEBHOOK_SECRET='';assert.equal((await request(body,'irrelevant')).status,503);
+console.log('PASS: actual webhook signature/time/body checks, rotated signatures, malformed JSON/envelopes, strict staging live-event rejection, missing objects; signed refund.failed dispatch; zero reconciliation calls for rejected input. No network or credentials used.');

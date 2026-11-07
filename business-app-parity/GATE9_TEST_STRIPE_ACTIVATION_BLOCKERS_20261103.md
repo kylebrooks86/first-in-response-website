@@ -1,0 +1,38 @@
+# FIRE Gate 9 — Stripe TEST activation blockers and approval boundaries
+
+**Updated:** 2026-11-03. **State:** NO-GO, TEST Worker remains deliberately Stripe-disabled at last authenticated owner receipt. This is an operational plan drawn from actual existing source code and provider read-only evidence; it does NOT authorize changing the Worker, Stripe, credentials, D1 or payments.
+
+## First-party facts already confirmed
+
+- Stripe connected sandbox: `acct_1ULRIG7ND12rd1wI`, `livemode=false`. As of Nov 3, provider GET verified exactly **two enabled** sandbox webhook endpoints. Dedicated five-event `we_1UXYgG7ND12rd1wIB4CmcxGy` points to the isolated `fire-stripe-test-20261101` webhook path, API version `2026-08-26.dahlia`; the preexisting Sites three-event webhook is unchanged. No Stripe events were created after the dedicated endpoint was created; current actual signed delivery to the isolated Worker has **not** been tested. Source receipt: `GATE9_STRIPE_PROVIDER_READ_ONLY_20261103.md`.
+- Owner's last authenticated TEST Worker metadata receipt: `fire-stripe-test-20261101` / physical D1 `dba421ba-fc66-4cf8-9c31-51616f8249ba` / original version `96e32262-fa33-4f04-a161-bee11f0353e2` at 100%; `FIRE_STRIPE_MODE=disabled`, no R2, four encrypted secrets *by name*: `FIRE_ACCESS_AUD`, `FIRE_ACCESS_OWNER_EMAIL`, `FIRE_ACCESS_TEAM_DOMAIN`, `STRIPE_WEBHOOK_SECRET`. Existing plain-text settings are tightly allowlisted. This is a **historical owner receipt**, not a fresh Cloudflare read from this chat.
+- Nov 3 owner-approved **one** inactive upload stopped at an old project-pinned Wrangler option-parse failure. An inactive version cannot be ruled in/out until Acer read-only versions inventory is collected. No new upload approval exists. Draft PR #100 adds a guarded future CLI fix, but remains source-only.
+
+## Actual additional activation prerequisites found in existing code
+
+These are **not** reasons to install secrets now. They explain why webhook existence alone does not make the app ready to charge or refund.
+
+| Required config | What the current app uses it for | Status at last TEST Worker receipt |
+| --- | --- | --- |
+| `STRIPE_WEBHOOK_SECRET` (encrypted) | HMAC verification on `/api/payments/webhook`. Independent of Stripe API read/write credentials | Present **by name only**; secret value must never be displayed or copied into GitHub/ChatGPT |
+| `STRIPE_RESTRICTED_KEY` (preferred encrypted TEST API key) or `STRIPE_SECRET_KEY` | Stripe API fetches to create/read/expire checkout sessions, create/read refunds, retrieve Checkout session by payment intent and run read-only connection inspection | **Neither name was in the four-secret inventory**. App checkout responds unavailable without a key; end-to-end settlement/refund cannot be assumed ready |
+| `FIRE_STRIPE_EXPECTED_ACCOUNT_ID` (nonsecret account ID) | `inspectStripeConnection` pins `GET /v1/account` to the specific intended sandbox account before reporting `connectionReady=true` | Not among the last four plain-text runtime settings reported; must verify before a future TEST connection readiness decision. Intended value is **`acct_1ULRIG7ND12rd1wI`**, never a live account |
+| `FIRE_STRIPE_MODE` | TEST-only HMAC-first candidate explicitly refuses signed webhook/checkout/refund actions while `disabled` | Intentionally `disabled`. **Do not enable** until exact-source/Worker-version/schema isolation, provider config and owner approval are complete |
+
+**Source references:** `shared/app/api/payments/checkout/route.ts`, `refund/route.ts`, `checkout/reconcile/route.ts`, `connection/route.ts`, `webhook/route.ts`, `shared/lib/stripe-connection-inspection.ts`, `shared/lib/stripe-refunds.ts`, `shared/lib/stripe-payments.ts`.
+
+The existing API-key usage requires, for a future **TEST-only restricted key** with permissions vetted by Stripe's actual restricted-key dashboard: read `GET /v1/account` and `GET /v1/webhook_endpoints`; create/read/expire Stripe Checkout sessions (`POST /v1/checkout/sessions`, `GET /v1/checkout/sessions/{id}`, `POST /v1/checkout/sessions/{id}/expire`, `GET /v1/checkout/sessions?payment_intent=...`); create/read Stripe refunds (`POST /v1/refunds`, `GET /v1/refunds/{id}`). **Do not guess permission names or request a live-mode key.** The current owner API-key-only settings are separate from a webhook signing secret.
+
+**Important future guard compatibility:** The reviewed inactive-only uploader **intentionally requires exactly four current secret names and exact old plain-text settings**. Adding a restricted API key (fifth secret) or expected account-ID setting (another var) will correctly cause strict drift refusal. Any later authorized TEST activation must use a **separately reviewed source/manifest/allowlist** and a new exact-target approval. Never bypass the guard, add secrets just to satisfy tests, disable `--strict`, or silently repurpose this four-secret disabled-mode uploader.
+
+## Bounded acceptance sequence — each step separately authorized when it becomes a write
+
+1. Read Acer's current actual serving deployment and recent versions: **read-only**, confirm whether the failed attempt created an inactive version; confirm immutable version, D1, Access, four secrets, Stripe disabled. Existing single-command read-only helper already prepared in draft PR #100. No blind retry.
+2. If actually needed, obtain a **new approval** for exactly one inactive code-only upload to isolated TEST Worker. Verify old version remains 100% active and new version inactive with correct immutable binding metadata. Do **not** activate it based on CI alone.
+3. Confirm TEST D1 exact schema, migration journal, isolated backup + rollback custody and full protected owner/non-owner access. This is NOT completed by knowing the D1 UUID; no migrations or source updates without their own approval.
+4. After isolated environment is proven, separately review the **restricted test API-key scope** and intended nonsecret account pin. Provision only through Cloudflare encrypted secret controls with explicit owner authorization; never request, expose, echo or store raw keys/signing secret in the conversation. Prepare a *separate* safe TEST-only candidate and update immutable-version allowlists after review. Keep LIVE, QA and DR unchanged.
+5. From the appropriate owner-authenticated TEST runtime, `GET /api/payments/connection` may validate `GET account` identity, exact webhook origin/events/API version and signing-secret presence. **A 200/connectionReady response does NOT establish delivered signatures or ledger correctness.**
+6. Only after explicit owner approval of the *exact action and amount* and proven Stripe mode isolation, exercise new synthetic TEST Checkout(s), actual five-event signed webhook handling (including invalid HMAC 400 and signed disabled 503 before activation), idempotent replay, async failure alerts, exact-cent principal/tip/refund reconciliation and retry/rollback. Reconcile source account `acct_1ULRIG7ND12rd1wI` with a fresh private TEST D1 ledger capture; don't reuse old Oct provider transaction receipts or the still-pending historical event.
+7. Gate 9 can be accepted only after independent evidence of actual target/version, signed provider delivery, replay, ledger, D1 isolation and rollback. A separate Gate 10 production release approval remains required; never use Stripe sandbox evidence as production/live authorization.
+
+**Status:** Stripe webhook endpoint *configuration* independently verified; actual TEST Worker upload/version after failed attempt unknown; restricted TEST API key/account pin absent from last bound settings, as expected for disabled mode; no fresh event or signed delivery; Gate 9 OPEN; formal production gates **3/10, NO-GO**.

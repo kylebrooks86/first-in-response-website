@@ -1,0 +1,1 @@
+export function classifyFireAccessProblem(input:{runtime:{fireEnv?:string;accessRequired?:string;syntheticEnabled?:string;origin?:string};config:{teamDomain:string;audience:string;ownerEmail:string}|null;token:string|null;identity:unknown}):string;
