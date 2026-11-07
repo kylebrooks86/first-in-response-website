@@ -3209,3 +3209,51 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   .customer-edit-dialog .customer-form{min-width:0}
   .estimate-edit-modal-footer .fire-edit-actions{width:100%}
 }
+
+
+/* Customer estimate history: keep prices in one right-aligned column even
+   when service names wrap. Scoped away from invoice, note and payment rows. */
+.customer-record.customer-estimate-record{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(74px,max-content) 18px;
+  align-items:center;
+  column-gap:12px;
+}
+.customer-estimate-record>div{min-width:0}
+.customer-estimate-record>.customer-estimate-price{
+  min-width:74px;
+  justify-self:end;
+  text-align:right;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.customer-estimate-record>svg{justify-self:end;flex-shrink:0;width:18px}
+/* A saved timestamp means the estimate link opened, NOT that a named
+   person read or approved the quote. Only render when firstViewedAt exists. */
+.estimate-viewed-indicator{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  align-items:center;
+  gap:5px;
+  padding:2px 7px;
+  border:1px solid #adc8e0;
+  border-radius:6px;
+  color:#245984;
+  background:#ebf4fc;
+  font-size:11px;
+  line-height:1.4;
+  font-weight:750;
+  white-space:nowrap;
+}
+.estimate-viewed-indicator svg{width:13px;height:13px;flex-shrink:0}
+[data-theme="dark"] .estimate-viewed-indicator{
+  color:#b7d9ff;
+  background:#143049;
+  border-color:#496780;
+}
+@media(max-width:430px){
+  .customer-record.customer-estimate-record{grid-template-columns:minmax(0,1fr) minmax(65px,max-content) 15px;column-gap:7px}
+  .customer-estimate-record>.customer-estimate-price{min-width:65px}
+  .customer-estimate-record>svg{width:15px}
+}
