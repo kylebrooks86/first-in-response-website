@@ -83,6 +83,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(await emailDialog.locator('.message-dialog-recipient').innerText()==='To: '+customer.name,'Email composer retains the exact saved customer');
  check(await emailDialog.getByRole('textbox',{name:'Message text'}).inputValue()==='','Email opens a blank editable draft without sending');
  await page.setViewportSize({width:390,height:568});
+ await page.waitForFunction(()=>{const dialog=document.querySelector(".message-dialog");if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.top>=-2&&rect.bottom<=innerHeight+2;});
  const emailGeometry=await emailDialog.evaluate(node=>{
    const dialog=node.getBoundingClientRect(),builder=node.querySelector('.message-builder'),scroll=builder?.getBoundingClientRect();
    return {top:dialog.top,bottom:dialog.bottom,scrollHeight:builder?.scrollHeight??0,clientHeight:builder?.clientHeight??0,scrollerTop:scroll?.top??0,scrollerBottom:scroll?.bottom??0,overflow:builder?getComputedStyle(builder).overflowY:'none',maxHeight:getComputedStyle(node).maxHeight,display:getComputedStyle(node).display,viewport:innerHeight};
@@ -164,6 +165,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await page.setViewportSize({width:390,height:568});
  await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
  await composer().getByRole('button',{name:/Resume email/}).click();
+ await page.waitForFunction(()=>{const dialog=document.querySelector(".message-dialog");if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.top>=-2&&rect.bottom<=innerHeight+2;});
  const preparedDialog=composer();
  check(await preparedDialog.getByRole('region',{name:'Prepared email handoff'}).isVisible()&&
    await preparedDialog.getByRole('button',{name:'I sent the prepared message'}).count()===1&&
