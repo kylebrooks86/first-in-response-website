@@ -82,9 +82,27 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await quickEmail.click();const emailDialog=page.getByRole('dialog',{name:'Message',exact:true});await emailDialog.waitFor();
  check(await emailDialog.locator('.message-dialog-recipient').innerText()==='To: '+customer.name,'Email composer retains the exact saved customer');
  check(await emailDialog.getByRole('textbox',{name:'Message text'}).inputValue()==='','Email opens a blank editable draft without sending');
+ await page.setViewportSize({width:390,height:568});
+ await page.waitForFunction(()=>{const dialog=document.querySelector(".message-dialog");if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.top>=-2&&rect.bottom<=innerHeight+2;});
+ const emailGeometry=await emailDialog.evaluate(node=>{
+   const dialog=node.getBoundingClientRect(),builder=node.querySelector('.message-builder'),scroll=builder?.getBoundingClientRect();
+   return {top:dialog.top,bottom:dialog.bottom,scrollHeight:builder?.scrollHeight??0,clientHeight:builder?.clientHeight??0,scrollerTop:scroll?.top??0,scrollerBottom:scroll?.bottom??0,overflow:builder?getComputedStyle(builder).overflowY:'none',maxHeight:getComputedStyle(node).maxHeight,display:getComputedStyle(node).display,viewport:innerHeight};
+ });
+ check(emailGeometry.top>=-2&&emailGeometry.bottom<=570&&emailGeometry.overflow==='auto'&&emailGeometry.scrollerBottom<=568,
+   'Email editor stays inside short laptop viewport with scrolling available when content requires it: '+JSON.stringify(emailGeometry));
+ const search=emailDialog.getByRole('searchbox',{name:'Find a message template'});
+ await search.fill('invoice');
  await emailDialog.getByRole('combobox').click();
- check(await page.getByRole('option',{name:'Inspection or job report',exact:true}).count()===1,'Email-only saved templates are available when composing email');
+ check(await page.getByRole('option',{name:'Invoice ready',exact:true}).count()===1&&
+   await page.getByRole('option',{name:'Estimate ready',exact:true}).count()===0,
+   'Email template search narrows to invoice category without changing the unsent draft');
  await page.keyboard.press('Escape');
+ await search.fill('');
+ await emailDialog.getByRole('combobox').click();
+ check(await page.getByRole('option',{name:'Inspection or job report',exact:true}).count()===1,
+   'Clearing search restores email-only saved templates without exposing them to Text mode');
+ await page.keyboard.press('Escape');
+ await page.setViewportSize({width:390,height:844});
  await emailDialog.getByRole('textbox',{name:'Message text'}).fill('Synthetic draft email, not sent');
  check(await emailDialog.getByRole('button',{name:'Email',exact:true}).isVisible(),'Prepared-email handoff stays available');
  page.once('dialog',async prompt=>{check(prompt.type()==='confirm'&&prompt.message()==='Discard your unfinished message edits? No text or email has been sent by FIRE.','Email draft requires explicit discard approval');await prompt.accept();});await emailDialog.getByRole('button',{name:'Close',exact:true}).click();await emailDialog.waitFor({state:'hidden'});
@@ -134,6 +152,43 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const saved=await (await request('/api/customers')).json();
  check(saved.messages.filter(row=>row.customerId===customer.id).length===1&&saved.messages.some(row=>row.id===record.id&&row.body===body&&row.channel==='text_prepared'),'Opening and editing composer does not send or duplicate history');
  check(saved.estimates.find(row=>row.id===originalEstimateId).totalCents===25000&&saved.estimates.find(row=>row.id===estimate.id).totalCents===20000&&saved.estimates.find(row=>row.id===estimate.id).depositCents===10000&&saved.payments.length===0,'Profile UI tests preserve original estimate, $200/$100 fixture and empty payment ledger');
+
+ // User-reported Acrobat/Acer issue: after preparing an email, the handoff
+ // window previously extended below the screen and hid the confirmation
+ // controls. Test a REAL prepared email record, only on disposable QA D1.
+ const emailPayload='Synthetic prepared email; this was NOT SENT';
+ const preparedEmail=await request('/api/customer-messages','POST',{
+   customerId:customer.id,estimateId:estimate.id,channel:'email_prepared',template:'estimate',body:emailPayload
+ });
+ assert.equal(preparedEmail.status(),201,'Synthetic unconfirmed email preparation must be stored in disposable D1');
+ await profile();await page.getByRole('button',{name:/^Messages\s+2$/}).click();
+ await page.setViewportSize({width:390,height:568});
+ await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
+ await composer().getByRole('button',{name:/Resume email/}).click();
+ await page.waitForFunction(()=>{const dialog=document.querySelector(".message-dialog");if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.top>=-2&&rect.bottom<=innerHeight+2;});
+ const preparedDialog=composer();
+ check(await preparedDialog.getByRole('region',{name:'Prepared email handoff'}).isVisible()&&
+   await preparedDialog.getByRole('button',{name:'I sent the prepared message'}).count()===1&&
+   await preparedDialog.getByRole('button',{name:'Not sent — keep editing'}).count()===1&&
+   await preparedDialog.getByRole('button',{name:'Discard unsent draft'}).count()===1,
+   'Recovered synthetic email keeps explicit sent / not-sent / discard choices visible in modal');
+ const geometry=await preparedDialog.evaluate(node=>{
+   const dialog=node.getBoundingClientRect(),builder=node.querySelector('.message-builder'),scroll=builder?.getBoundingClientRect();
+   return {top:dialog.top,bottom:dialog.bottom,scrollerBottom:scroll?.bottom,scrollHeight:builder?.scrollHeight,clientHeight:builder?.clientHeight};
+ });
+ check(geometry.top>=-2&&geometry.bottom<=570&&geometry.scrollHeight>geometry.clientHeight&&geometry.scrollerBottom<=568,
+   'Prepared email modal stays within 568px viewport while long confirmation and template details scroll independently: '+JSON.stringify(geometry));
+ await preparedDialog.locator('.message-builder').evaluate(node=>{node.scrollTop=node.scrollHeight;});
+ check(await preparedDialog.getByRole('button',{name:'Close',exact:true}).isVisible(),
+   'Close stays accessible even after scrolling to bottom of prepared email');
+ page.once('dialog',prompt=>prompt.accept());
+ await preparedDialog.getByRole('button',{name:'Close',exact:true}).click();
+ await preparedDialog.waitFor({state:'hidden'});
+ const afterPrepared=await (await request('/api/customers')).json();
+ check(afterPrepared.messages.some(row=>row.customerId===customer.id&&row.channel==='email_prepared'&&row.body===emailPayload)&&
+   !afterPrepared.messages.some(row=>row.customerId===customer.id&&row.channel==='email_confirmed'),
+   'Closing long email handoff never confirms or sends a customer message');
+
  // An address-only customer retains Maps but explains why Call/Text are unavailable.
  const noContact=await request('/api/customers','POST',{name:'Synthetic Address Only',address:'100 Test Lane, Tulsa, OK'});
  assert.equal(noContact.status(),201);

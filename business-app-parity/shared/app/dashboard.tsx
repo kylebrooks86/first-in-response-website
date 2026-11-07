@@ -123,7 +123,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FIRE_TEMPLATES, fillTemplate, type FireTemplate } from "@/lib/fire-templates";
@@ -316,11 +316,44 @@ function PropertyPreview({ address }: { address: string }) {
   </section>;
 }
 
+
+const messageTemplateCategories = [
+  {name:"Estimates",tone:"estimates",Icon:ClipboardList},
+  {name:"Invoices",tone:"invoices",Icon:Receipt},
+  {name:"Scheduling",tone:"scheduling",Icon:CalendarDays},
+  {name:"After service",tone:"after-service",Icon:CheckCircle2},
+  {name:"Documents",tone:"documents",Icon:FileText},
+] as const;
+function MessageTemplateCategoryIcon({category}:{category:FireTemplate["category"]}){
+  const group=messageTemplateCategories.find(item=>item.name===category);
+  const Icon=group?.Icon??MessageSquareText;
+  return <span className={"message-template-category-icon "+(group?.tone??"other")} aria-hidden="true"><Icon/></span>;
+}
+
 const messageLabels: Record<string,string> = Object.fromEntries(FIRE_TEMPLATES.map((item)=>[item.key,item.name]));
 
 function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, triggerAriaLabel, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; triggerAriaLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
   const [open,setOpen]=useState(false);
+  const [dialogMaxHeight,setDialogMaxHeight]=useState<number|null>(null);
+  // Some embedded/desktop browsers keep CSS 100dvh at the original screen
+  // size after a resize. Follow the ACTUAL viewport to keep Close reachable.
+  useEffect(()=>{
+    if(!open)return;
+    const measure=()=>{
+      const visible=Math.min(window.innerHeight,window.visualViewport?.height??window.innerHeight);
+      const height=Math.max(160,Math.floor(visible-24));
+      setDialogMaxHeight(current=>current===height?current:height);
+    };
+    measure();
+    window.addEventListener("resize",measure);
+    window.visualViewport?.addEventListener("resize",measure);
+    return ()=>{
+      window.removeEventListener("resize",measure);
+      window.visualViewport?.removeEventListener("resize",measure);
+    };
+  },[open]);
   const [template,setTemplate]=useState(initialTemplate);
+  const [templateQuery,setTemplateQuery]=useState("");
   const [body,setBody]=useState("");
   const draftEdited=useRef(false);
   const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
@@ -339,6 +372,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const messageScope=useRef(0);
   const uncertainPreparation=useRef<{requestId:string;signature:string}|null>(null);
   const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
+  const messageBuilderRef=useRef<HTMLDivElement>(null);
   const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
   const [pendingLoading,setPendingLoading]=useState(false);
   const [pendingError,setPendingError]=useState("");
@@ -347,6 +381,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [pendingOlderError,setPendingOlderError]=useState("");
   const pendingOlderLock=useRef(false),pendingPageRequest=useRef(0);
   const [messageStatus,setMessageStatus]=useState("");
+  // When the owner prepares a text/email, show the confirmation section at
+  // the TOP of the scrolling panel. Never mark a message as sent by scrolling.
+  useEffect(()=>{
+    if(open&&preparedMessage)messageBuilderRef.current?.scrollTo({top:0,behavior:"auto"});
+  },[open,preparedMessage?.id]);
   const sessionNotice="Your FIRE session has expired or is unavailable. Sign in again in this app to continue. Sending is not confirmed here.";
   const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
   const service=estimate?.service || "exterior cleaning service";
@@ -368,6 +407,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const renderedSubject=fillTemplate(activeTemplate?.subject||"A message from First In Response Exteriors",variables);
   // When launched from Text, do not offer email-only templates that cannot be sent by Google Voice.
   const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel==="Text"?(item.channel==="both"||item.channel==="sms"):triggerLabel==="Email"?(item.channel==="both"||item.channel==="email"):true))];
+  // Search is display-only: it never selects a different message or edits a draft.
+  const templateSearch=templateQuery.trim().toLocaleLowerCase("en-US");
+  const visibleComposerTemplates=composerTemplates.filter(item=>item.key==="custom"||
+    !templateSearch||[item.name,item.category,item.channel].some(value=>value.toLocaleLowerCase("en-US").includes(templateSearch)));
+  const composerMatchCount=visibleComposerTemplates.filter(item=>item.key!=="custom").length;
   const verifiedTemplate=template==="custom"||(templateStatus==="ready"&&templates.some((item)=>item.key===template));
   const templateFailureMessage=templateStatus==="loading"?"Loading saved message templates…":"Saved message templates are unavailable. Retry templates or choose Custom message.";
   const linkReadiness=customerTemplateLinkReadiness(activeTemplate?.body??"",activeTemplate?.subject??"",body,customerLink,invoiceLink);
@@ -381,7 +425,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const documentLinkMessage=(needsEstimateLink&&!estimate?"Open a saved estimate to use this template.":needsInvoiceLink&&!estimate?.invoiceId?"Create or open an invoice to use this template.":"")||activeLinkError||linkReadiness.reason;
   useEffect(()=>{
     messageScope.current++;setWorking(false);uncertainPreparation.current=null;
-    draftEdited.current=false;setBody("");setTemplate(initialTemplate);setMessageStatus("");
+    draftEdited.current=false;setBody("");setTemplate(initialTemplate);setTemplateQuery("");setMessageStatus("");
     setShareToken(estimate?.shareToken||"");setInvoiceShareToken(estimate?.invoiceShareToken||"");
     setShareLinkError("");setInvoiceLinkError("");
     pendingPageRequest.current++;pendingOlderLock.current=false;
@@ -497,7 +541,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const chooseTemplate=(value:string)=>{
     if(value===template)return;
     if(draftEdited.current&&!window.confirm("Replace your edited message with another template?"))return;
-    draftEdited.current=false;setTemplate(value);setBody("");
+    draftEdited.current=false;setTemplate(value);setTemplateQuery("");setBody("");
   };
   const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
     if(preparationLock.current)return false;
@@ -651,14 +695,15 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       return;
     }
     setTemplateStatus("loading");
+    setTemplateQuery("");
     setOpen(true);
     setSiteOrigin(window.location.origin);
   };
   return <Dialog open={open} onOpenChange={changeComposerOpen}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
-    <DialogContent className="message-dialog sm:max-w-[620px]">
+    <DialogContent className="message-dialog sm:max-w-[620px]" style={{maxHeight:dialogMaxHeight??"calc(100dvh - 24px)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
-      <div className="message-builder">
+      <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0} style={{flex:"1 1 auto",minHeight:0,overflowY:"auto",overflowX:"hidden"}}>
         {messageStatus&&<p role="status">{messageStatus}</p>}
         {templateStatus==="loading"&&template!=="custom"&&!preparedMessage&&<p role="status">Loading saved message templates…</p>}
         {templateStatus==="error"&&!preparedMessage&&<div role="alert"><p>{templateFailureMessage}</p><Button type="button" variant="outline" disabled={working} onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}
@@ -678,7 +723,28 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         {preparedMessage?.channel==="text_prepared"&&<section className="rounded-lg border p-3" aria-label="Google Voice text handoff"><strong>Send using FIRE Google Voice</strong><p>To: {customer.name} · {customer.phone}</p><div className="flex flex-wrap gap-2"><GoogleVoiceTextShortcutAction phone={customer.phone} message={preparedMessage.body} label="Text"/><Button variant="outline" type="button" onClick={()=>void copyVoiceField(customer.phone,"Customer number copied for Google Voice. Sending not yet confirmed.","Copy failed. Enter the displayed recipient number in Google Voice.")}><Copy className="h-4 w-4"/> Copy number</Button><Button variant="outline" type="button" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared message copied. Paste and send it in Google Voice.","Copy failed. Select the saved message below to copy it.")}><Copy className="h-4 w-4"/> Copy message</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4"/> Open Google Voice</a><PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={customer.name} message={preparedMessage.body}/></div><small>Approve the recipient and message in your Shortcut, or paste them into Google Voice. Text (Backup) uses your personal number and adds an alternate-number introduction.</small></section>}
         {preparedMessage?.channel==="email_prepared"&&<section className="rounded-lg border p-3" aria-label="Prepared email handoff"><strong>Send email</strong>{usableCustomerEmail(customer.email)?<a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid customer email before sending.</p>}<small>Choose your business sender in the email app. If no app opens, copy the message into your business email.</small><Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared email copied. Sending remains unconfirmed.","Copy failed. Select the saved message below to copy it.")}>Copy email message</Button></section>}
          {preparedMessage&&<div className="message-confirm-actions"><p>Confirm here only after you send the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}. Opening another app does not confirm sending.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
-        <div><Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key} disabled={item.key!=="custom"&&templateStatus!=="ready"}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+        <div className="composer-template-controls">
+          <Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label>
+          {!preparedMessage&&<Input type="search" aria-label="Find a message template" placeholder="Find a template (estimate, invoice, reminder…)" value={templateQuery} onChange={event=>setTemplateQuery(event.target.value)} disabled={working} className="composer-template-search"/>}
+          {!preparedMessage&&templateSearch&&<small role="status">{composerMatchCount} matching saved template{composerMatchCount===1?"":"s"}. Custom message is always available.</small>}
+          <Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}>
+            <SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger>
+            <SelectContent className="composer-template-menu">
+              <SelectGroup>
+                <SelectLabel className="composer-template-category-label"><MessageSquareText aria-hidden="true"/> Custom</SelectLabel>
+                <SelectItem value="custom">Custom message</SelectItem>
+              </SelectGroup>
+              {messageTemplateCategories.map(group=>{
+                const options=visibleComposerTemplates.filter(item=>item.key!=="custom"&&item.category===group.name);
+                return options.length?<SelectGroup key={group.name}>
+                  <SelectLabel className={"composer-template-category-label "+group.tone}><MessageTemplateCategoryIcon category={group.name}/> {group.name} <small>({options.length})</small></SelectLabel>
+                  {options.map(item=><SelectItem className={"composer-template-option "+group.tone} key={item.key} value={item.key} disabled={templateStatus!=="ready"}>{item.name}</SelectItem>)}
+                </SelectGroup>:null;
+              })}
+              {composerMatchCount===0&&templateSearch&&<SelectLabel>No saved templates match your search.</SelectLabel>}
+            </SelectContent>
+          </Select>
+        </div>
         <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/>
         {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!verifiedTemplate?templateFailureMessage:!appointmentReadiness.ready?appointmentReadiness.reason:!linkReadiness.ready?documentLinkMessage:customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||"Ready to prepare. Sending still requires a separate approval in Google Voice or your email app."}</p>}
         {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!linkReadiness.ready&&<p role="status">{documentLinkMessage}</p>}
@@ -5104,6 +5170,7 @@ function InsightsView(){
 
 function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:boolean)=>void;onSavingChange?:(saving:boolean)=>void}){
   const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
+  const [templateSearch,setTemplateSearch]=useState("");
   const [selectedKey,setSelectedKey]=useState("estimate");
   const [draft,setDraft]=useState<FireTemplate>(FIRE_TEMPLATES[0]);
   const [saving,setSaving]=useState(false);
@@ -5124,6 +5191,8 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
     }catch{if(active)setTemplatesError("Templates could not be loaded. Retry before editing.");}
     finally{if(active)setTemplatesLoading(false);}
   })();return()=>{active=false;};},[templateRetry]);
+  const settingsSearch=templateSearch.trim().toLocaleLowerCase("en-US");
+  const templateMatches=(item:FireTemplate)=>!settingsSearch||[item.name,item.category,item.channel].some(value=>value.toLocaleLowerCase("en-US").includes(settingsSearch));
   const savedTemplate=templates.find((item)=>item.key===draft.key);
   const hasUnsavedTemplateChanges=Boolean(savedTemplate&&(savedTemplate.subject!==draft.subject||savedTemplate.body!==draft.body));
   // The shell guards in-app tab changes; beforeunload below covers leaving the site.
@@ -5162,7 +5231,17 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
   const tags=["@customer_first_name","@customer_name","@service_list","@service_address","@estimate_total","@estimate_link","@invoice_total","@invoice_link","@schedule_date","@callback_number","@review_link"];
   return <div className="workspace-view settings-view"><section className="workspace-head"><div><h1>Settings</h1></div></section>
     <details className="pricing-disclosure"><summary>Service catalog</summary><PricingSettings/></details>
-    <details className="pricing-disclosure"><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details><h2 className="template-section-title">Message templates</h2><div className="template-mobile-picker"><Label htmlFor="message-template-choice">Template</Label><select id="message-template-choice" disabled={saving||templatesLoading||Boolean(templatesError)} value={selectedKey} onChange={event=>{const item=templates.find(item=>item.key===event.target.value);if(item)choose(item);}}>{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map(category=><optgroup key={category} label={category}>{templates.filter(item=>item.category===category).map(item=><option key={item.key} value={item.key}>{item.name}</option>)}</optgroup>)}</select></div><div className="template-layout"><aside className="template-list">{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map((category)=><section key={category}><h2>{category}</h2>{templates.filter((item)=>item.category===category).map((item)=><button key={item.key} className={selectedKey===item.key?"active":""} onClick={()=>choose(item)}><span>{item.channel==="document"?<FileText/>:<MessageSquareText/>}</span><div><strong>{item.name}</strong><small>{item.channel==="both"?"Text + email":statusLabel(item.channel)}</small></div><ChevronRight/></button>)}</section>)}</aside>
+    <details className="pricing-disclosure"><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details><h2 className="template-section-title">Message templates</h2><div className="template-mobile-picker"><Label htmlFor="message-template-choice">Template</Label><select id="message-template-choice" disabled={saving||templatesLoading||Boolean(templatesError)} value={selectedKey} onChange={event=>{const item=templates.find(item=>item.key===event.target.value);if(item)choose(item);}}>{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map(category=><optgroup key={category} label={category}>{templates.filter(item=>item.category===category).map(item=><option key={item.key} value={item.key}>{item.name}</option>)}</optgroup>)}</select></div><div className="template-layout"><aside className="template-list">
+        <div className="settings-template-search"><Label htmlFor="settings-template-search">Find a template</Label><Input id="settings-template-search" type="search" placeholder="Search estimate, invoice, reminder…" value={templateSearch} onChange={event=>setTemplateSearch(event.target.value)}/></div>
+        {messageTemplateCategories.map(group=>{
+          const items=templates.filter(item=>item.category===group.name&&templateMatches(item));
+          return items.length?<section key={group.name} className={"template-category-section "+group.tone}>
+            <h2><MessageTemplateCategoryIcon category={group.name}/>{group.name} <small>({items.length})</small></h2>
+            {items.map(item=><button key={item.key} className={selectedKey===item.key?"active":""} onClick={()=>choose(item)}><span><MessageTemplateCategoryIcon category={item.category}/></span><div><strong>{item.name}</strong><small>{item.channel==="both"?"Text + email":statusLabel(item.channel)}</small></div><ChevronRight/></button>)}
+          </section>:null;
+        })}
+        {settingsSearch&&templates.every(item=>!templateMatches(item))&&<p className="settings-template-empty" role="status">No templates match this search. Clear the search to see every category.</p>}
+      </aside>
       <section className="template-editor">{templatesLoading&&<p role="status">Loading templates…</p>}{templatesError&&<div role="alert"><p>{templatesError}</p><Button variant="outline" onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}<header><div><p className="eyebrow">{draft.category}</p><h2>{draft.name}</h2></div><span className="template-channel">{draft.channel==="both"?"Text + email":statusLabel(draft.channel)}</span></header>
         {draft.channel!=="sms"&&draft.channel!=="document"&&<div><Label htmlFor="templateSubject">Email subject</Label><Input id="templateSubject" disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.subject} onChange={(event)=>setDraft({...draft,subject:event.target.value})}/></div>}
         <div><Label htmlFor="templateBody">{draft.channel==="document"?"Service agreement text":"Message"}</Label><Textarea id="templateBody" rows={11} disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.body} onChange={(event)=>setDraft({...draft,body:event.target.value})}/><small>{draft.channel==="document"?"This is the full agreement customers review before signing once.":"Personalized fields are filled automatically when you prepare the message."}</small></div>

@@ -402,7 +402,7 @@ const messageScreen=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&no
 assert.ok(messageScreen,'Actual customer message composer exists');
 const messageClose=variable(messageScreen,'changeComposerOpen');
 for(const scene of [
- {name:'open',value:true,expected:['setTemplateStatus:loading','setOpen:true','setSiteOrigin:https://synthetic.invalid']},
+ {name:'open',value:true,expected:['setTemplateStatus:loading','setTemplateQuery:','setOpen:true','setSiteOrigin:https://synthetic.invalid']},
  {name:'clean close',expected:['setOpen:false']},
  {name:'busy save',busy:true,expected:['alert']},
  {name:'locked save',locked:true,expected:['alert']},
@@ -420,6 +420,7 @@ for(const scene of [
   draftEdited:edited,setBody:value=>calls.push('setBody:'+value),
   setOpen:value=>calls.push('setOpen:'+value),
   setTemplateStatus:value=>calls.push('setTemplateStatus:'+value),
+  setTemplateQuery:value=>calls.push('setTemplateQuery:'+value),
   setSiteOrigin:value=>calls.push('setSiteOrigin:'+value),
   window:{location:{origin:'https://synthetic.invalid'},alert:()=>calls.push('alert'),confirm:()=>{calls.push('confirm');return Boolean(scene.approve)}},
  };
