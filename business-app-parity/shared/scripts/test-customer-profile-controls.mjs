@@ -85,7 +85,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await page.setViewportSize({width:390,height:568});
  const emailGeometry=await emailDialog.evaluate(node=>{
    const dialog=node.getBoundingClientRect(),builder=node.querySelector('.message-builder'),scroll=builder?.getBoundingClientRect();
-   return {top:dialog.top,bottom:dialog.bottom,scrollHeight:builder?.scrollHeight??0,clientHeight:builder?.clientHeight??0,scrollerTop:scroll?.top??0,scrollerBottom:scroll?.bottom??0,overflow:builder?getComputedStyle(builder).overflowY:'none'};
+   return {top:dialog.top,bottom:dialog.bottom,scrollHeight:builder?.scrollHeight??0,clientHeight:builder?.clientHeight??0,scrollerTop:scroll?.top??0,scrollerBottom:scroll?.bottom??0,overflow:builder?getComputedStyle(builder).overflowY:'none',maxHeight:getComputedStyle(node).maxHeight,display:getComputedStyle(node).display,viewport:innerHeight};
  });
  check(emailGeometry.top>=-2&&emailGeometry.bottom<=570&&emailGeometry.overflow==='auto'&&emailGeometry.scrollerBottom<=568,
    'Email editor stays inside short laptop viewport with scrolling available when content requires it: '+JSON.stringify(emailGeometry));
@@ -175,7 +175,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
    return {top:dialog.top,bottom:dialog.bottom,scrollerBottom:scroll?.bottom,scrollHeight:builder?.scrollHeight,clientHeight:builder?.clientHeight};
  });
  check(geometry.top>=-2&&geometry.bottom<=570&&geometry.scrollHeight>geometry.clientHeight&&geometry.scrollerBottom<=568,
-   'Prepared email modal stays within 568px viewport while long confirmation and template details scroll independently');
+   'Prepared email modal stays within 568px viewport while long confirmation and template details scroll independently: '+JSON.stringify(geometry));
  await preparedDialog.locator('.message-builder').evaluate(node=>{node.scrollTop=node.scrollHeight;});
  check(await preparedDialog.getByRole('button',{name:'Close',exact:true}).isVisible(),
    'Close stays accessible even after scrolling to bottom of prepared email');
