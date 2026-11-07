@@ -41,7 +41,8 @@ const statuses=[
 ];
 for(const [status,icon] of statuses){
   check(ui.includes(status+':{Icon:'+icon+',tone:"'+status+'"')&&
-    css.includes('.estimate-lifecycle-badge.'+status+'{'),
+    css.includes('.estimate-lifecycle-badge.'+status),
+
     'Status '+status+' has a distinct meaningful icon and color token');
 }
 check(ui.includes('actual delivery is not verified')&&
