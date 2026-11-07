@@ -5146,6 +5146,7 @@ function InsightsView(){
 
 function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:boolean)=>void;onSavingChange?:(saving:boolean)=>void}){
   const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
+  const [templateSearch,setTemplateSearch]=useState("");
   const [selectedKey,setSelectedKey]=useState("estimate");
   const [draft,setDraft]=useState<FireTemplate>(FIRE_TEMPLATES[0]);
   const [saving,setSaving]=useState(false);
@@ -5166,6 +5167,8 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
     }catch{if(active)setTemplatesError("Templates could not be loaded. Retry before editing.");}
     finally{if(active)setTemplatesLoading(false);}
   })();return()=>{active=false;};},[templateRetry]);
+  const settingsSearch=templateSearch.trim().toLocaleLowerCase("en-US");
+  const templateMatches=(item:FireTemplate)=>!settingsSearch||[item.name,item.category,item.channel].some(value=>value.toLocaleLowerCase("en-US").includes(settingsSearch));
   const savedTemplate=templates.find((item)=>item.key===draft.key);
   const hasUnsavedTemplateChanges=Boolean(savedTemplate&&(savedTemplate.subject!==draft.subject||savedTemplate.body!==draft.body));
   // The shell guards in-app tab changes; beforeunload below covers leaving the site.
@@ -5204,7 +5207,17 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
   const tags=["@customer_first_name","@customer_name","@service_list","@service_address","@estimate_total","@estimate_link","@invoice_total","@invoice_link","@schedule_date","@callback_number","@review_link"];
   return <div className="workspace-view settings-view"><section className="workspace-head"><div><h1>Settings</h1></div></section>
     <details className="pricing-disclosure"><summary>Service catalog</summary><PricingSettings/></details>
-    <details className="pricing-disclosure"><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details><h2 className="template-section-title">Message templates</h2><div className="template-mobile-picker"><Label htmlFor="message-template-choice">Template</Label><select id="message-template-choice" disabled={saving||templatesLoading||Boolean(templatesError)} value={selectedKey} onChange={event=>{const item=templates.find(item=>item.key===event.target.value);if(item)choose(item);}}>{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map(category=><optgroup key={category} label={category}>{templates.filter(item=>item.category===category).map(item=><option key={item.key} value={item.key}>{item.name}</option>)}</optgroup>)}</select></div><div className="template-layout"><aside className="template-list">{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map((category)=><section key={category}><h2>{category}</h2>{templates.filter((item)=>item.category===category).map((item)=><button key={item.key} className={selectedKey===item.key?"active":""} onClick={()=>choose(item)}><span>{item.channel==="document"?<FileText/>:<MessageSquareText/>}</span><div><strong>{item.name}</strong><small>{item.channel==="both"?"Text + email":statusLabel(item.channel)}</small></div><ChevronRight/></button>)}</section>)}</aside>
+    <details className="pricing-disclosure"><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details><h2 className="template-section-title">Message templates</h2><div className="template-mobile-picker"><Label htmlFor="message-template-choice">Template</Label><select id="message-template-choice" disabled={saving||templatesLoading||Boolean(templatesError)} value={selectedKey} onChange={event=>{const item=templates.find(item=>item.key===event.target.value);if(item)choose(item);}}>{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map(category=><optgroup key={category} label={category}>{templates.filter(item=>item.category===category).map(item=><option key={item.key} value={item.key}>{item.name}</option>)}</optgroup>)}</select></div><div className="template-layout"><aside className="template-list">
+        <div className="settings-template-search"><Label htmlFor="settings-template-search">Find a template</Label><Input id="settings-template-search" type="search" placeholder="Search estimate, invoice, reminder…" value={templateSearch} onChange={event=>setTemplateSearch(event.target.value)}/></div>
+        {messageTemplateCategories.map(group=>{
+          const items=templates.filter(item=>item.category===group.name&&templateMatches(item));
+          return items.length?<section key={group.name} className={"template-category-section "+group.tone}>
+            <h2><MessageTemplateCategoryIcon category={group.name}/>{group.name} <small>({items.length})</small></h2>
+            {items.map(item=><button key={item.key} className={selectedKey===item.key?"active":""} onClick={()=>choose(item)}><span><MessageTemplateCategoryIcon category={item.category}/></span><div><strong>{item.name}</strong><small>{item.channel==="both"?"Text + email":statusLabel(item.channel)}</small></div><ChevronRight/></button>)}
+          </section>:null;
+        })}
+        {settingsSearch&&templates.every(item=>!templateMatches(item))&&<p className="settings-template-empty" role="status">No templates match this search. Clear the search to see every category.</p>}
+      </aside>
       <section className="template-editor">{templatesLoading&&<p role="status">Loading templates…</p>}{templatesError&&<div role="alert"><p>{templatesError}</p><Button variant="outline" onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}<header><div><p className="eyebrow">{draft.category}</p><h2>{draft.name}</h2></div><span className="template-channel">{draft.channel==="both"?"Text + email":statusLabel(draft.channel)}</span></header>
         {draft.channel!=="sms"&&draft.channel!=="document"&&<div><Label htmlFor="templateSubject">Email subject</Label><Input id="templateSubject" disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.subject} onChange={(event)=>setDraft({...draft,subject:event.target.value})}/></div>}
         <div><Label htmlFor="templateBody">{draft.channel==="document"?"Service agreement text":"Message"}</Label><Textarea id="templateBody" rows={11} disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.body} onChange={(event)=>setDraft({...draft,body:event.target.value})}/><small>{draft.channel==="document"?"This is the full agreement customers review before signing once.":"Personalized fields are filled automatically when you prepare the message."}</small></div>
