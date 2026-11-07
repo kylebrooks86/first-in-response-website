@@ -334,15 +334,17 @@ const messageLabels: Record<string,string> = Object.fromEntries(FIRE_TEMPLATES.m
 
 function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, triggerAriaLabel, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; triggerAriaLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
   const [open,setOpen]=useState(false);
-  const [dialogMaxHeight,setDialogMaxHeight]=useState<number|null>(null);
+  const [dialogBounds,setDialogBounds]=useState<{height:number;centerY:number}|null>(null);
   // Some embedded/desktop browsers keep CSS 100dvh at the original screen
   // size after a resize. Follow the ACTUAL viewport to keep Close reachable.
   useEffect(()=>{
     if(!open)return;
     const measure=()=>{
-      const visible=Math.min(window.innerHeight,window.visualViewport?.height??window.innerHeight);
+      const viewport=window.visualViewport;
+      const visible=Math.min(window.innerHeight,viewport?.height??window.innerHeight);
       const height=Math.max(160,Math.floor(visible-24));
-      setDialogMaxHeight(current=>current===height?current:height);
+      const centerY=Math.floor((viewport?.offsetTop??0)+visible/2);
+      setDialogBounds(current=>current?.height===height&&current.centerY===centerY?current:{height,centerY});
     };
     measure();
     window.addEventListener("resize",measure);
@@ -701,7 +703,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   return <Dialog open={open} onOpenChange={changeComposerOpen}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
-    <DialogContent className="message-dialog sm:max-w-[620px]" style={{maxHeight:dialogMaxHeight??"calc(100dvh - 24px)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <DialogContent className="message-dialog sm:max-w-[620px]" style={{maxHeight:dialogBounds?.height??"calc(100dvh - 24px)",top:dialogBounds?`${dialogBounds.centerY}px`:undefined,display:"flex",flexDirection:"column",overflow:"hidden",...{"--fire-message-visible-height":dialogBounds?`${dialogBounds.height}px`:"calc(100dvh - 24px)"}}}>
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
       <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0} style={{flex:"1 1 auto",minHeight:0,overflowY:"auto",overflowX:"hidden"}}>
         {messageStatus&&<p role="status">{messageStatus}</p>}
