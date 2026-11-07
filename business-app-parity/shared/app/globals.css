@@ -3497,3 +3497,18 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   .message-dialog .message-builder{padding-right:3px}
   .message-dialog .composer-template-search{font-size:16px}
 }
+
+/* FIRE QA: viewport-keyboard/short-window safety for the two message entry paths.
+   The app-wide mobile !important max-height must never override the visual-
+   viewport pixel measurement used by MessageComposer while the keyboard opens.
+   Other dialogs retain their own existing bounds and dirty-save guards. */
+.message-dialog[data-slot="dialog-content"]{
+  max-height:var(--fire-message-visible-height,calc(100dvh - 24px))!important;
+  overflow:hidden;
+}
+.voice-contact-dialog[data-slot="dialog-content"]{
+  max-height:calc(100dvh - 24px);
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+}
