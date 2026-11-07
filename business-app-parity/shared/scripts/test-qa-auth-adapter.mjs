@@ -42,6 +42,31 @@ await check(await exports.getOwnerUser()===null,'Extra token segment rejected');
 cookie='fire_admin_session='+setCookie.split('=')[1].split(';')[0];
 await check(await exports.getOwnerUser()===null,'Doomsday cookie cannot unlock QA');
 cookie=setCookie.split(';')[0];
+// Gate 6: a *genuinely signed* expired QA cookie must be rejected, not just
+// malformed/unsigned tokens. These use a disposable fixture secret only.
+const signedQaCookie=(expiry,secret=env.FIRE_QA_SESSION_SECRET)=>{
+ const payload='v1.'+String(expiry);
+ return 'fire_qa_session='+payload+'.'+createHmac('sha256',secret).update(payload).digest('base64url');
+};
+const now=Math.floor(Date.now()/1000);
+for(const [label,expiry,valid] of [
+ ['valid test-only signed cookie',now+120,true],
+ ['expired 1 second ago',now-1,false],
+ ['expired 12 hours ago',now-43200,false],
+ ['exact expiry second',now,false],
+ ['non-numeric expiry','bogus',false],
+ ['unsafe huge expiry',Number.MAX_SAFE_INTEGER+1,false],
+]){
+ cookie=signedQaCookie(expiry);
+ const found=await exports.getOwnerUser();
+ await check(Boolean(found)===valid,'QA HMAC session '+label+' '+(valid?'accepted':'rejected'));
+}
+cookie=signedQaCookie(now+120,'different-synthetic-fixture-key-'.repeat(3));
+await check(await exports.getOwnerUser()===null,'Correctly structured QA cookie signed with different secret denied');
+cookie=setCookie.split(';')[0];
+await check(exports.clearedIndependentSessionCookie().includes('Max-Age=0')&&
+ exports.clearedIndependentSessionCookie().includes('HttpOnly; Secure; SameSite=Strict'),
+ 'QA logout clearing retains exact secure cookie flags');
 for(const [key,bad] of [
  ['FIRE_QA_SYNTHETIC_ONLY',''],['FIRE_ENV','production'],
  ['SITE_ORIGIN','https://fire-app-independent-staging.testacct.workers.dev'],
