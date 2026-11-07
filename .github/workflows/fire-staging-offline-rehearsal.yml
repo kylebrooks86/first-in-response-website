@@ -14,6 +14,7 @@ on:
       - 'business-app-parity/adapters/doomsday/**'
       - 'business-app-parity/adapters/qa/**'
       - 'business-app-parity/shared/**'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/**'
       - 'business-app-parity/materialize.py'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/test_independent_staging_parity.py'
@@ -31,6 +32,7 @@ on:
       - 'business-app-parity/adapters/doomsday/**'
       - 'business-app-parity/adapters/qa/**'
       - 'business-app-parity/shared/**'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/**'
       - 'business-app-parity/materialize.py'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/test_independent_staging_parity.py'
@@ -42,6 +44,23 @@ permissions:
   contents: read
 
 jobs:
+  gate9-six-event-offline-contract:
+    name: Gate 9 exact six-event Stripe TEST contract (offline, NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fail closed on callback and subscription mismatches
+        run: |
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+
   qa-http-owner-preview-local:
     name: Gate 8 built QA Worker HTTPS Customer view and return (disposable, no deploy)
     runs-on: ubuntu-latest
