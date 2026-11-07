@@ -354,6 +354,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const messageScope=useRef(0);
   const uncertainPreparation=useRef<{requestId:string;signature:string}|null>(null);
   const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
+  const messageBuilderRef=useRef<HTMLDivElement>(null);
   const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
   const [pendingLoading,setPendingLoading]=useState(false);
   const [pendingError,setPendingError]=useState("");
@@ -362,6 +363,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [pendingOlderError,setPendingOlderError]=useState("");
   const pendingOlderLock=useRef(false),pendingPageRequest=useRef(0);
   const [messageStatus,setMessageStatus]=useState("");
+  // When the owner prepares a text/email, show the confirmation section at
+  // the TOP of the scrolling panel. Never mark a message as sent by scrolling.
+  useEffect(()=>{
+    if(open&&preparedMessage)messageBuilderRef.current?.scrollTo({top:0,behavior:"auto"});
+  },[open,preparedMessage?.id]);
   const sessionNotice="Your FIRE session has expired or is unavailable. Sign in again in this app to continue. Sending is not confirmed here.";
   const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
   const service=estimate?.service || "exterior cleaning service";
@@ -679,7 +685,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
-      <div className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0}>
+      <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0}>
         {messageStatus&&<p role="status">{messageStatus}</p>}
         {templateStatus==="loading"&&template!=="custom"&&!preparedMessage&&<p role="status">Loading saved message templates…</p>}
         {templateStatus==="error"&&!preparedMessage&&<div role="alert"><p>{templateFailureMessage}</p><Button type="button" variant="outline" disabled={working} onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}
