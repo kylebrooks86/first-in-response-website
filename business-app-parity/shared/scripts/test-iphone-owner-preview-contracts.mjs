@@ -73,7 +73,11 @@ function verify(s){
   // Count the shared route's two source nodes, then verify each guard separately.
   check(close.length===2,label+' retains guarded Close controls for normal and exceptional rendering');
   const exact=close.find(n=>String(n.attrs.href).includes('encodeURIComponent(')||n.attrs.href==='{returnHref}');
-  const unavailable=close.find(n=>n.attrs.href==='"/"');
+  // Estimate error exits use a single conditional href: known saved ID -> exact
+  // record, missing token -> Home. Invoice's missing exit is an explicit '/'.
+  const unavailable=close.find(n=>label==='estimate'?
+    String(n.attrs.href).includes('id?')&&String(n.attrs.href).includes(':"/"'):
+    n.attrs.href==='"/"');
   check(Boolean(exact&&unavailable),label+' returns to the exact record when available, or Home if token is unknown');
   check(close.every(n=>String(n.attrs.label)==='"Close '+label+' preview"'),
     label+' normal and exceptional Close controls retain accessible names');
