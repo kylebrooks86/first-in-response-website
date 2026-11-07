@@ -298,6 +298,7 @@ try{
  await page.setViewportSize({width:390,height:844});
  // QA-only synthetic missing-token previews: GET must not mark first view or
  // reveal customer records. Owner always has a visible, usable escape path.
+ await page.setViewportSize({width:390,height:844});
  for(const [path,label] of [
   ['/estimate/synthetic-missing-owner-preview?ownerPreview=1','Close estimate preview'],
   ['/invoice/synthetic-missing-owner-preview?ownerPreview=1','Close invoice preview'],
