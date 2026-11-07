@@ -46,9 +46,17 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  await directJob.getByRole('button',{name:'Close',exact:true}).click();await page.goto(origin+'/');
  await page.context().request.get(origin+'/estimate/'+quote.shareToken);
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
- const viewed=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Pending Quote'}).locator('.recent-estimate-status');
- await page.waitForFunction(()=>Array.from(document.querySelectorAll('.recent-estimate-row')).some(row=>row.textContent.includes('Synthetic Pending Quote')&&row.textContent.includes('Sent · Viewed')));
- check(await viewed.innerText()==='Sent · Viewed','Home refreshes viewed status on focus without page reload');
+ // Link-opening is saved as firstViewedAt, not conflated with a status
+ // or proof that the named customer opened the document.
+ const viewedRow=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Pending Quote'});
+ const viewed=viewedRow.locator('.estimate-viewed-indicator');
+ await page.waitForFunction(()=>Array.from(document.querySelectorAll('.recent-estimate-row')).some(row=>
+  row.textContent.includes('Synthetic Pending Quote')&&
+  row.querySelector('.recent-estimate-status')?.textContent?.trim()==='Sent'&&
+  row.querySelector('.estimate-viewed-indicator')?.textContent?.trim()==='Viewed'));
+ check(await viewedRow.locator('.recent-estimate-status').innerText()==='Sent'&&await viewed.isVisible()&&
+  (await viewed.getAttribute('title')||'').includes('viewer identity unverified'),
+  'Home refreshes separate link-opened eye badge on focus; viewer identity not assumed');
  const paid=await request('/api/payments','POST',{estimateId:job.id,amountCents:10000,method:'Cash'});assert.equal(paid.status(),201);
  await page.setViewportSize({width:390,height:844});await profile();
  await page.getByText('More amounts',{exact:true}).click();
