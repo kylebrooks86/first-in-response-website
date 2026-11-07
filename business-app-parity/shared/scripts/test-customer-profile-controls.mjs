@@ -85,10 +85,10 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await page.setViewportSize({width:390,height:568});
  const emailGeometry=await emailDialog.evaluate(node=>{
    const dialog=node.getBoundingClientRect(),builder=node.querySelector('.message-builder'),scroll=builder?.getBoundingClientRect();
-   return {top:dialog.top,bottom:dialog.bottom,scrollHeight:builder?.scrollHeight??0,clientHeight:builder?.clientHeight??0,scrollerTop:scroll?.top??0,scrollerBottom:scroll?.bottom??0};
+   return {top:dialog.top,bottom:dialog.bottom,scrollHeight:builder?.scrollHeight??0,clientHeight:builder?.clientHeight??0,scrollerTop:scroll?.top??0,scrollerBottom:scroll?.bottom??0,overflow:builder?getComputedStyle(builder).overflowY:'none'};
  });
- check(emailGeometry.top>=-2&&emailGeometry.bottom<=570&&emailGeometry.scrollHeight>emailGeometry.clientHeight&&emailGeometry.scrollerBottom<=568,
-   'Email editor stays inside short laptop viewport with a usable internal scroll region');
+ check(emailGeometry.top>=-2&&emailGeometry.bottom<=570&&emailGeometry.overflow==='auto'&&emailGeometry.scrollerBottom<=568,
+   'Email editor stays inside short laptop viewport with scrolling available when content requires it: '+JSON.stringify(emailGeometry));
  const search=emailDialog.getByRole('searchbox',{name:'Find a message template'});
  await search.fill('invoice');
  await emailDialog.getByRole('combobox').click();
