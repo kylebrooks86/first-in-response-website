@@ -60,4 +60,18 @@ check(css.includes('.estimate-status-indicators{')&&
   css.includes('[data-theme="dark"] .estimate-lifecycle-badge'),
   'Status indicator group wraps on mobile and has dark-mode contrast');
 
+const payment=ui.match(/<EstimatePaymentBadge estimate=\{estimate\}\/>/g)||[];
+check(payment.length===5,
+  'Saved net payment milestone renders in Home, customer history, Estimates list, pipeline and job detail');
+check(ui.includes('function EstimatePaymentBadge({estimate}')&&
+  ui.includes('estimatePaymentMilestone(estimate)')&&
+  ui.includes('CircleDollarSign')&&ui.includes('BadgeCheck')&&
+  ui.includes('paidInFull?"Paid in full":"Deposit paid"'),
+  'Deposit and full-payment indicators use separate money/check icons and clear labels');
+check(css.includes('.estimate-payment-indicator.deposit-paid{')&&
+  css.includes('.estimate-payment-indicator.paid-in-full{')&&
+  css.includes('[data-theme="dark"] .estimate-payment-indicator.deposit-paid{')&&
+  css.includes('[data-theme="dark"] .estimate-payment-indicator.paid-in-full{'),
+  'Deposit and full-payment indicators have distinct accessible colors and dark theme styles');
+
 console.log('PASS: Estimate eye indicator and right-aligned prices SOURCE CONTRACT; no hosted actions.');
