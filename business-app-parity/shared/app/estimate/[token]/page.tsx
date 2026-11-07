@@ -41,11 +41,14 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   // links omit it; copying/forging it cannot expose owner controls to a customer.
   const previewUser=previewRequested==='1'?await getChatGPTUser():null;
   const ownerPreview=Boolean(previewUser?.email?.toLowerCase()==='kylebrooks8605@gmail.com');
+  // Every authorized owner preview, including an unavailable/withdrawn link,
+  // needs an explicit return path. Public token visitors never see this control.
+  const ownerPreviewExit=(id?:string)=>ownerPreview?<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close" href={id?`/?openEstimate=${encodeURIComponent(id)}`:"/"} label="Close estimate preview"/></>:null;
   const row=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,(SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,e.deposit_cents AS depositCents,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_version AS contractVersion,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},(SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,(SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount,(SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open') AS openCheckoutCount FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;subtotalCents:number;discountCents:number;totalCents:number;invoiceTotalCents:number|null;depositCents:number;shareToken:string;firstViewedAt:string|null;acceptedAt:string|null;signedName:string|null;signedAt:string|null;contractVersion:string|null;contractInitials:string|null;photoRelease:string|null;customer:string;address:string|null;serviceAddressSource?:string;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
-  if(!row)return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  if(!row)return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit()}<section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   // A voided quote must not display stale prices, scope, customer identifiers,
   // a signature form, or payment instructions to anyone holding the old link.
-  if(row.status==="declined")return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate no longer available</h1><p>This quote was withdrawn or declined. Please contact First In Response Exteriors for a current estimate.</p></section></main>;
+  if(row.status==="declined")return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card"><div className="pay-logo">F</div><h1>Estimate no longer available</h1><p>This quote was withdrawn or declined. Please contact First In Response Exteriors for a current estimate.</p></section></main>;
   const customerLabel=customerNumberLabel(await customerNumberForCustomer(env.DB,row.customerId,env));
   const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
     ?await jobNumberLabelForEstimate(env.DB,row.id):null;
@@ -117,14 +120,14 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
         if(recorded[0]?.meta?.changes!==1)amendment=null;
       }catch{amendment=null;}
     }
-    if(held&&acceptedRevision)return <main className="pay-page"><section className="pay-card estimate-portal">
+    if(held&&acceptedRevision)return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card estimate-portal">
       <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
       <h1>Revised agreement signed</h1>
       <p><strong>{row.signedName}</strong> signed the revised agreement.</p>
       <p>Accepted: {row.acceptedAt}</p><p>Revision: <code>{acceptedRevision}</code></p>
       <p>No payment has been initiated here. First In Response Exteriors will confirm collection and scheduling separately.</p>
     </section></main>;
-    if(held)return <main className="pay-page"><section className="pay-card estimate-portal">
+    if(held)return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card estimate-portal">
       <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
       <h1>{amendment?"Revised deposit terms for review":"Updated estimate required"}</h1>
       {amendment?<div className="portal-breakdown">
@@ -165,7 +168,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
       env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE type='estimate_viewed' AND estimate_id=?)`).bind(crypto.randomUUID(),"estimate_viewed",`${row.customer} viewed an estimate`,`${serviceSummary} estimate was opened for the first time.`,row.customerId,row.id,now,row.id),
     ]);
     if(syntheticOwnerException&&viewed[0]?.meta?.changes!==1)
-      return <main className="pay-page"><section className="pay-card"><h1>Updated estimate required</h1><p>Deposit terms changed while this estimate was being opened. Please request the current revised agreement before signing or making a payment.</p></section></main>;
+      return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card"><h1>Updated estimate required</h1><p>Deposit terms changed while this estimate was being opened. Please request the current revised agreement before signing or making a payment.</p></section></main>;
   }
   const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);
   const estimateAmountsSafe=estimateSnapshotSafe&&[billingTotalCents,Number(row.totalCents),Number(row.depositCents)].every((value)=>Number.isSafeInteger(value)&&value>=0)&&Number(row.depositCents)<=Number(row.totalCents);
@@ -191,7 +194,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const canPayDeposit=!["superseded","declined"].includes(row.status)&&billingStateSafe&&!paymentReviewPending&&estimateApproved&&row.status!=="completed"&&depositRemaining>0;
   const canPayBalance=billingStateSafe&&!paymentReviewPending&&estimateApproved&&row.status==="completed"&&balance>0;
   let savedDiscount:DiscountSnapshot|null=null;
-  try{const metadata=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+row.id).first<{body:string}>();savedDiscount=readDiscountSnapshot(row.id,metadata?.body??null,row);}catch{return <main className="pay-page"><section className="pay-card"><h1>Estimate details need review</h1><p>The saved total remains {currency(row.totalCents)}. Please contact First In Response Exteriors to verify the discount breakdown before approving or paying.</p></section></main>;}
+  try{const metadata=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+row.id).first<{body:string}>();savedDiscount=readDiscountSnapshot(row.id,metadata?.body??null,row);}catch{return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card"><h1>Estimate details need review</h1><p>The saved total remains {currency(row.totalCents)}. Please contact First In Response Exteriors to verify the discount breakdown before approving or paying.</p></section></main>;}
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>

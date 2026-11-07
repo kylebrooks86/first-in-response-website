@@ -41,6 +41,9 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const {ownerPreview:requestedPreview,from}=await searchParams;
   const previewOwner=requestedPreview==='1'?await getChatGPTUser():null;
   const ownerPreview=previewOwner?.email?.toLowerCase()==='kylebrooks8605@gmail.com';
+  // The owner must be able to leave an unavailable token preview without
+  // browser Back. The caller-supplied ownerPreview hint never grants access.
+  const ownerMissingExit=ownerPreview?<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close owner-invoice-preview-close" href="/" label="Close invoice preview"/></>:null;
   const row = await env.DB.prepare(`
     SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.total_cents AS totalCents,
       inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,e.accepted_at AS estimateAcceptedAt,e.signed_at AS estimateSignedAt,
@@ -51,7 +54,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
     FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id
     WHERE inv.share_token=? LIMIT 1
   `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;estimateAcceptedAt:string|null;estimateSignedAt:string|null;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
-  if (!row) return <main className="pay-page invoice-page"><section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  if (!row) return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerMissingExit}<section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   const customerLabel=customerNumberLabel(await customerNumberForCustomer(env.DB,row.customerId,env));
   const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
     ?await jobNumberLabelForEstimate(env.DB,row.estimateId):null;
