@@ -10,8 +10,8 @@ const sharedHelpers={};
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/offline-photo-availability.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 // The isolated CustomersView renderer must have the same pure contact-link helpers as the real app.
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-contact-links.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
-function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;const writes=[];const context={exports:{},require,...sharedHelpers,customerNumberLabel,matchesCustomerNumberQuery,completedCustomerJobHistory,navigator:{onLine:true},saveOfflinePhotoCustomerDirectory:async()=>0,loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,resolvedBillingTotalCents:e=>e.totalCents,billingBalanceCents:e=>Math.max(0,e.totalCents-e.paidCents),
-useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useMemo(factory){return factory();},useCallback(callback){return callback;},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes("void load()"))effect=fn;},fetch:(url,options)=>{eq(url,'/api/customers');eq(options?.cache,'no-store','Owner customer GET cannot read cached private records');return fetcher();}};
+function fixture(timeoutSignal=null){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;const writes=[];const context={exports:{},require,AbortSignal:timeoutSignal?{timeout(ms){eq(ms,15000,'Customers request is bounded to 15 seconds');return timeoutSignal;}}:undefined,...sharedHelpers,customerNumberLabel,matchesCustomerNumberQuery,completedCustomerJobHistory,navigator:{onLine:true},saveOfflinePhotoCustomerDirectory:async()=>0,loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,resolvedBillingTotalCents:e=>e.totalCents,billingBalanceCents:e=>Math.max(0,e.totalCents-e.paidCents),
+useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useMemo(factory){return factory();},useCallback(callback){return callback;},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes("void load()"))effect=fn;},fetch:(url,options)=>{eq(url,'/api/customers');eq(options?.cache,'no-store','Owner customer GET cannot read cached private records');return fetcher(options);}};
 const source=fn.getText(ast).replace('  useEffect(() => { void load();','  exports.load=load;\n  useEffect(() => { void load();');vm.runInNewContext(ts.transpileModule(source+'\nexports.view=CustomersView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);const render=()=>{cursor=0;refCursor=0;return context.exports.view({searchQuery:'',onEstimateSaved(){throw Error('No writes allowed');}});};render();return {render,load:(quiet=false)=>context.exports.load(quiet),get:k=>state[names.indexOf(k)],set:(k,v)=>state[names.indexOf(k)]=v,snapshot:()=>JSON.stringify(keys.map(k=>state[names.indexOf(k)])),setFetcher:f=>fetcher=f,cleanup:()=>effect(),writes};}
 for(const scenario of ['older success','older failure while pending','older success after latest error','unmount']){
  const f=fixture(),old=defer(),latest=defer();let round=old;f.setFetcher(()=>round.promise);const pending=f.load();round=latest;
@@ -20,6 +20,29 @@ for(const scenario of ['older success','older failure while pending','older succ
  latest.resolve(scenario==='older success after latest error'?{ok:false,json:async()=>({error:'latest denied'})}:ok(body('new')));await newer;const before=f.snapshot(),error=f.get('error'),count=f.writes.length;
  if(scenario!=='older failure while pending'){old.resolve(ok(body('old')));await pending;}
  eq(f.snapshot(),before,'Stale customer response changed latest collections');eq(f.get('error'),error);eq(f.writes.length,count);eq(f.get('loading'),false);
+}
+// A never-settling customer GET must become a visible, retryable error when
+// the browser aborts the timed read. This never sends a write or clears data.
+{
+ const controller=new AbortController(),f=fixture(controller.signal);
+ let fetchCount=0;
+ f.setFetcher(options=>{
+  fetchCount++;
+  eq(options.signal,controller.signal,'Actual Customers GET uses bounded abort signal');
+  return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>{
+   const error=new Error('Synthetic read timeout');error.name='TimeoutError';reject(error);
+  },{once:true}));
+ });
+ const pending=f.load();
+ eq(f.get('loading'),true,'Stalled Customers read reports Loading before timeout');
+ controller.abort();await pending;
+ eq(fetchCount,1,'Timed out Customers read issued exactly one GET, no automatic retry');
+ eq(f.get('loading'),false,'Timeout clears the indefinite Customers loading state');
+ eq(f.get('error').includes('took too long'),true,'Timeout shows actionable retry text');
+ f.setFetcher(async()=>ok(body('Recovered')));
+ await f.load();
+ eq(f.get('error'),'','Manual retry clears stale timeout error after confirmed read');
+ eq(f.get('customers')[0].name,'Recovered','Manual retry loads verified saved customer data');
 }
 const failures=[()=>({ok:false,json:async()=>({error:'denied'})}),()=>{throw Error('offline');},()=>({ok:true,json:async()=>{throw Error('bad JSON');}}),()=>ok(null)];
 for(const key of keys)for(const value of [undefined,{},[null],[{}]])failures.push(()=>ok({...body('broken'),[key]:value}));
