@@ -3319,3 +3319,46 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 [data-theme="dark"] .estimate-lifecycle-badge.completed,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.completed,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.completed{color:#bcebd0;background:#103723;border-color:#306b4b}
 [data-theme="dark"] .estimate-lifecycle-badge.declined,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.declined,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.declined{color:#ffb9c2;background:#481f29;border-color:#94515d}
 [data-theme="dark"] .estimate-signed-indicator{color:#b7f0d0;background:#163d31;border-color:#418463}
+
+
+/* FIRE payment milestones represent saved accounting, NOT lifecycle status.
+   Amber = deposit covered with balance remaining; green = recorded amount
+   exactly equals current billed total; unreconciled rows show neither. */
+.estimate-payment-indicator{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  width:max-content;
+  max-width:100%;
+  gap:5px;
+  padding:3px 7px;
+  border:1px solid;
+  border-radius:6px;
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.35;
+}
+.estimate-payment-indicator svg{width:13px;height:13px;flex:none}
+.estimate-payment-indicator.deposit-paid{
+  color:#815112;
+  background:#fff2d8;
+  border-color:#e7c582;
+}
+.estimate-payment-indicator.paid-in-full{
+  color:#076b48;
+  background:#e1f7e9;
+  border-color:#8ccdb0;
+}
+[data-theme="dark"] .estimate-payment-indicator.deposit-paid{
+  color:#ffe0a3;
+  background:#4a3419;
+  border-color:#9b7540;
+}
+[data-theme="dark"] .estimate-payment-indicator.paid-in-full{
+  color:#a7f0c9;
+  background:#153b2d;
+  border-color:#397d5a;
+}
+.status-readonly .estimate-payment-indicator{margin-left:8px}
