@@ -9,6 +9,7 @@ export const STRIPE_TEST_REQUIRED_EVENTS = Object.freeze([
   'checkout.session.async_payment_succeeded',
   'refund.created',
   'refund.updated',
+  'refund.failed',
 ]);
 export const STRIPE_TEST_PROPOSED_OVERRIDE = Object.freeze({
   behavior: 'public',
@@ -33,7 +34,7 @@ export function reviewTestWebhookOverride(policy) {
     cloudflareOverrideInstalled:false,
     stripeTestWebhookCreated:false,
     signatureNegativeCasesProvenOnHost:false,
-    fiveEventReconciliationProven:false,
+    sixEventReconciliationProven:false,
     liveMode:false,
     ownerApproved:false,
   });
