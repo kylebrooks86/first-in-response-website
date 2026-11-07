@@ -91,6 +91,13 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  await page.setViewportSize({width:390,height:844});await profile();
  await page.getByText('More amounts',{exact:true}).click();
  check(await metric('Job balance').innerText()==='$100'&&await metric('Deposit still required').innerText()==='$0'&&await metric('Paid').innerText()==='$100','Recorded deposit reduces principal and deposit requirement once');
+
+ const depositedJob=page.locator('.customer-profile .customer-estimate-record').filter({hasText:'Synthetic Scheduled Job'});
+ check(await depositedJob.locator('.estimate-payment-indicator.deposit-paid').isVisible()&&
+   await depositedJob.locator('.estimate-payment-indicator.paid-in-full').count()===0&&
+   await depositedJob.locator('.estimate-lifecycle-badge.scheduled').isVisible(),
+   'Actual synthetic deposit produces Deposit paid badge while Scheduled remains separate; full-payment badge remains absent');
+
  await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Payments',exact:true}).first().click();
  await page.getByRole('heading',{name:'Unpaid jobs',exact:true}).waitFor();
  const balances=page.locator('.balance-list article').filter({hasText:customer.name});
