@@ -24,6 +24,13 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  // on the same visual right edge at phone, tablet, and desktop widths.
  const historyRows=page.locator('.customer-profile .customer-estimate-record');
  assert.equal(await historyRows.count(),2,'Expected exactly two existing synthetic estimates for alignment');
+ const scheduledRow=historyRows.filter({hasText:'Synthetic Scheduled Job'});
+ const unsentDecisionRow=historyRows.filter({hasText:'Synthetic Pending Quote'});
+ check(await scheduledRow.locator('.estimate-lifecycle-badge.scheduled svg').count()===1&&
+  await scheduledRow.locator('.estimate-signed-indicator svg').count()===1&&
+  await unsentDecisionRow.locator('.estimate-lifecycle-badge.sent svg').count()===1&&
+  await unsentDecisionRow.locator('.estimate-signed-indicator').count()===0,
+  'Customer history shows calendar Scheduled and pen Signed separately, while Sent uses mail without implying signature');
  const longService=historyRows.first().locator('div>strong').first();
  const originalService=await longService.innerText();
  try{
@@ -61,7 +68,7 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  await page.goto(origin+'/');
  for(const width of [320,390,768,1366]){
   await page.setViewportSize({width,height:900});const row=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Scheduled Job'});await row.waitFor();
-  check(await row.locator('.recent-estimate-status').isVisible()&&await row.locator('.recent-estimate-status').innerText()==='Scheduled'&&/Oct 20, 2026.*10:00 AM/.test(await row.locator('.recent-estimate-appointment').innerText())&&/^Created /.test(await row.locator('.recent-estimate-dates').innerText()),'Home exposes current status and distinct Central service/creation dates at '+width);
+  check(await row.locator('.recent-estimate-status').isVisible()&&await row.locator('.recent-estimate-status').innerText()==='Scheduled'&&await row.locator('.recent-estimate-status svg').count()===1&&await row.locator('.estimate-signed-indicator svg').count()===1&&/Oct 20, 2026.*10:00 AM/.test(await row.locator('.recent-estimate-appointment').innerText())&&/^Created /.test(await row.locator('.recent-estimate-dates').innerText()),'Home exposes current status and distinct Central service/creation dates at '+width);
  }
  await page.setViewportSize({width:390,height:844});await page.locator('.recent-estimate-row').filter({hasText:'Synthetic Scheduled Job'}).click();
  const directJob=page.getByRole('dialog',{name:'Synthetic Scheduled Job',exact:true});await directJob.waitFor();
