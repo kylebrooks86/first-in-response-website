@@ -293,6 +293,23 @@ try{
  check(anonymousResponse.status()===200&&!anonymousHTML.includes('owner-estimate-preview-close')&&!anonymousHTML.includes('owner-preview-banner')&&!anonymousHTML.includes('openEstimate='),'Forged preview query and owner header never expose owner X or return ID to an unauthenticated customer, including after authenticated cache use');
  await anonymous.close();
  await detail().getByRole('button',{name:'Close',exact:true}).click();
+ // QA-only synthetic missing-token previews: GET must not mark first view or
+ // reveal customer records. Owner always has a visible, usable escape path.
+ for(const [path,label] of [
+  ['/estimate/synthetic-missing-owner-preview?ownerPreview=1','Close estimate preview'],
+  ['/invoice/synthetic-missing-owner-preview?ownerPreview=1','Close invoice preview'],
+ ]){
+  await page.goto(origin+path);
+  const exit=page.getByRole('link',{name:label,exact:true});
+  await exit.waitFor({state:'visible',timeout:12000});
+  check(await exit.getAttribute('href')==='/'&&await exit.isVisible(),
+   'Owner can exit unavailable '+label+' without browser history Back');
+  const rect=await exit.boundingBox();
+  check(rect&&rect.x>=0&&rect.y>=0&&rect.x+rect.width<=390&&rect.height>=44,
+   'Unavailable owner preview Close stays onscreen and tappable at 390px');
+  await exit.click();await page.waitForURL(origin+'/',{timeout:12000});
+  await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
+ }
  // Actual server edit, then terminate/restart the local Worker and re-read D1.
  const edited=await request('/api/estimates/'+estimate.id,'PATCH',{items:[{...item,totalCents:25000}]});
  check(edited.status()===200&&(await edited.json()).estimate?.totalCents===25000,'HTTP estimate edit atomically persists $250 total');
