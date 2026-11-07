@@ -1,0 +1,41 @@
+{
+  "baseCommit": "07bf45b86f4c777c07516a02dcbe3da8b0e7edc8",
+  "scope": "Read-only verified job-report and cost snapshots within the current authenticated owner Dashboard session",
+  "releaseReadiness": {"acceptedGates": 3, "totalGates": 10, "percent": 30},
+  "implemented": [
+    "Use the actual shared report and cost dialogs with a provider scoped to the mounted owner Dashboard and environment",
+    "Retain validated successful reads in bounded memory, isolated by record kind, job ID and customer ID",
+    "Read verified snapshots on transport loss; never invent uncached reports, costs or profitability",
+    "Show read-only/freshness warnings; disable report edits and expense entry during disconnection",
+    "Require an explicit successful reload before editing after a disconnect/reconnect cycle",
+    "Reject malformed responses, mismatched report ownership and HTTP errors instead of falling back",
+    "Revoke all snapshots on observed 401/403; discard pre-save snapshots before report or cost writes",
+    "Bypass browser HTTP cache for report and expense reads; create no IndexedDB, localStorage, sessionStorage, service-worker cache or outbox"
+  ],
+  "verification": {
+    "candidates": ["qa", "live", "doomsday", "staging"],
+    "realDialogBrowserChecksPerCandidate": 116,
+    "browserViewportWidths": [320, 390, 768, 1366],
+    "themes": ["light", "dark"],
+    "jobReportRecoveryChecksPerCandidate": 338,
+    "jobCostRecoveryChecksPerCandidate": 460,
+    "estimateDetailRecoveryChecksPerCandidate": 70,
+    "typescript": "4/4 passed",
+    "candidateBuilds": "4/4 passed",
+    "invoiceState": "194/194 passed",
+    "depositPolicy": "85/85 passed",
+    "processingFeeRegression": "passed; synthetic mocks only",
+    "finalTippingRegression": "passed on isolated LIVE source with synthetic mocks only",
+    "privacyChecks": "No persistence writes; wrong-customer access denied; owner-session separation; auth revocation; bounded memory; cloned snapshots",
+    "writeSafetyChecks": "No automatic writes during disconnect/reconnect; uncertain save cannot resurrect pre-save snapshot"
+  },
+  "notCompleted": [
+    "Persistent encrypted job-document storage and local unlock",
+    "Offline cold launch or browser-restart recovery of reports/costs",
+    "Offline report drafts, conflict-aware synchronization or expense/payment outboxes",
+    "Offline customer-facing estimate/invoice pages",
+    "Native iPhone/iPad or hosted QA acceptance"
+  ],
+  "deployment": "None; no hosted database, customer record, secret, payment provider or protected deployment modified",
+  "nextBatch": "Integrate job-document snapshots with the existing encrypted vault/unlock lifecycle, then verify offline restart and account/target isolation before enabling durable offline records"
+}
