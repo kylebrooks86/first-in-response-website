@@ -19,6 +19,29 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  check(saved.status==='scheduled'&&saved.signedAt&&saved.photoRelease==='no'&&data.payments.filter(row=>row.customerId===customer.id).length===0,'Approval/scheduling preserve signature, permission and empty payment ledger');
  const profile=async()=>{await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
  await page.setViewportSize({width:390,height:844});await profile();
+ // Use the actual compiled customer-history UI, with one deliberately long
+ // display-only service title (not a D1/estimate write). Prices must remain
+ // on the same visual right edge at phone, tablet, and desktop widths.
+ const historyRows=page.locator('.customer-profile .customer-estimate-record');
+ assert.equal(await historyRows.count(),2,'Expected exactly two existing synthetic estimates for alignment');
+ const longService=historyRows.first().locator('div>strong').first();
+ const originalService=await longService.innerText();
+ try{
+  await longService.evaluate(node=>{node.textContent='A much longer synthetic multi-service description for responsive amount alignment';});
+  for(const width of [320,390,768,1366]){
+   await page.setViewportSize({width,height:900});
+   const rects=await historyRows.evaluateAll(rows=>rows.map(row=>{
+    const price=row.querySelector('.customer-estimate-price');
+    const amount=price?.getBoundingClientRect();
+    const outer=row.getBoundingClientRect();
+    return {right:amount?.right??NaN,left:amount?.left??NaN,rowRight:outer.right,priceVisible:!!price&&getComputedStyle(price).visibility!=='hidden'};
+   }));
+   check(rects.length===2&&rects.every(x=>x.priceVisible&&Number.isFinite(x.right)&&x.right<=x.rowRight)&&
+    Math.abs(rects[0].right-rects[1].right)<1.1,
+    'Long customer estimate titles do not shift right-aligned prices at '+width);
+  }
+ }finally{await longService.evaluate((node,text)=>{node.textContent=text;},originalService);}
+ await page.setViewportSize({width:390,height:844});
  const backup=page.locator('.customer-profile .customer-contact-backups');
  check(await backup.count()===1&&await backup.locator('summary').isVisible()&&await backup.locator('[data-personal-backup]').count()===2,
   'Customer profile preserves both personal phone backups inside a single disclosure');
