@@ -221,6 +221,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-iphone-owner-preview-contracts.mjs .
+          node scripts/test-estimate-viewed-row-layout.mjs
           node scripts/test-owner-invoice-job-number-render.mjs
       - name: Gate 8 saved estimate history, private preview and closed-quote regression (offline)
         run: |
