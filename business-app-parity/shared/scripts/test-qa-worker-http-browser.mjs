@@ -293,6 +293,9 @@ try{
  check(anonymousResponse.status()===200&&!anonymousHTML.includes('owner-estimate-preview-close')&&!anonymousHTML.includes('owner-preview-banner')&&!anonymousHTML.includes('openEstimate='),'Forged preview query and owner header never expose owner X or return ID to an unauthenticated customer, including after authenticated cache use');
  await anonymous.close();
  await detail().getByRole('button',{name:'Close',exact:true}).click();
+ // The previous real preview matrix ended on 1366px desktop; run missing
+ // owner-exit geometry independently at the explicitly asserted 390px width.
+ await page.setViewportSize({width:390,height:844});
  // QA-only synthetic missing-token previews: GET must not mark first view or
  // reveal customer records. Owner always has a visible, usable escape path.
  for(const [path,label] of [
