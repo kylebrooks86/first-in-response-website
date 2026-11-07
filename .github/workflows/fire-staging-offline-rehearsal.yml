@@ -223,6 +223,7 @@ jobs:
           node scripts/test-iphone-owner-preview-contracts.mjs .
           node scripts/test-estimate-viewed-row-layout.mjs
           node scripts/test-estimate-payment-milestones.mjs
+          node scripts/test-estimate-attention-milestones.mjs
           node scripts/test-owner-invoice-job-number-render.mjs
       - name: Gate 8 saved estimate history, private preview and closed-quote regression (offline)
         run: |
