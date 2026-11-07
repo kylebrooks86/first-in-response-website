@@ -24,7 +24,7 @@ import {exerciseCustomerLookup} from './test-customer-lookup-workflow.mjs';
 import {exerciseCustomerProfileControls} from './test-customer-profile-controls.mjs';
 import {createRequire} from 'node:module';
 import {spawn} from 'node:child_process';
-import {createHash,randomUUID} from 'node:crypto';
+import {createHash,createHmac,randomUUID} from 'node:crypto';
 import {mkdtempSync,readFileSync,readdirSync,writeFileSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -138,6 +138,33 @@ try{
  const login=await request('/api/auth/login','POST',{password});
  check(login.status()===200,'Actual QA login route verifies synthetic passphrase against native D1 rate limiter: HTTP '+login.status()+' '+(login.status()===200?'ok':await login.text()));
  check(/HttpOnly; Secure; SameSite=Strict/.test(login.headers()['set-cookie']),'Actual HTTP response sets isolated secure owner session cookie');
+ // Gate 6 session-expiry regression uses only this disposable Workerd/SQLite
+ // fixture and an ephemeral signing secret. It NEVER contacts hosted QA.
+ const signedSyntheticCookie=(expires,signingKey=sessionSecret)=>{
+  const payload='v1.'+String(expires);
+  return 'fire_qa_session='+payload+'.'+createHmac('sha256',signingKey).update(payload).digest('base64url');
+ };
+ const anonymousExpired=await browser.newContext({ignoreHTTPSErrors:true});
+ try{
+  const nowSeconds=Math.floor(Date.now()/1000);
+  for(const [label,header,status] of [
+   ['valid HMAC positive control',signedSyntheticCookie(nowSeconds+120),200],
+   ['correctly signed expired session',signedSyntheticCookie(nowSeconds-60),401],
+   ['correctly signed zero-life session',signedSyntheticCookie(nowSeconds-43200),401],
+   ['wrong secret, valid expiry',signedSyntheticCookie(nowSeconds+120,'different-synthetic-fixture-key-'.repeat(3)),401],
+   ['QA owner cookie used under Doomsday name',signedSyntheticCookie(nowSeconds+120).replace('fire_qa_session=','fire_admin_session='),401],
+  ]){
+   const response=await anonymousExpired.request.get(origin+'/api/customers',{
+    headers:{cookie:header,'cf-connecting-ip':'192.0.2.19'},timeout:10000});
+   check(response.status()===status,'Real built QA Worker: '+label+
+     ' protects customer GET with HTTP '+status);
+  }
+  const oldCookie=signedSyntheticCookie(nowSeconds-60);
+  for(const path of ['/api/estimates','/api/invoices','/api/dashboard-summary']){
+   const response=await anonymousExpired.request.get(origin+path,{headers:{cookie:oldCookie,'cf-connecting-ip':'192.0.2.19'},timeout:10000});
+   check(response.status()===401,'Expired signed QA session cannot access protected '+path);
+  }
+ }finally{await anonymousExpired.close();}
  const firstCustomersResponse=await request('/api/customers');
  const firstCustomers=await firstCustomersResponse.json();
  check(firstCustomersResponse.status()===200&&
