@@ -18,6 +18,11 @@ check(ui.includes('role="region" aria-label="Message editor and confirmation con
  css.includes('overflow-y:auto;')&&
  css.includes('overscroll-behavior-y:contain;'),
  'Message confirmation content scrolls inside bounded viewport while header and close remain reachable');
+check(ui.includes('window.visualViewport?.addEventListener("resize",measure)')&&
+ ui.includes('window.addEventListener("resize",measure)')&&
+ ui.includes('Math.min(window.innerHeight,window.visualViewport?.height??window.innerHeight)')&&
+ ui.includes('maxHeight:dialogMaxHeight??"calc(100dvh - 24px)"'),
+ 'Message modal measures real visible viewport on browser resize rather than trusting stale CSS viewport units');
 check(ui.includes('if(open&&preparedMessage)messageBuilderRef.current?.scrollTo({top:0,behavior:"auto"})')&&
  ui.includes('Confirm here only after you send the prepared')&&
  ui.includes('I sent the prepared message')&&
