@@ -3410,3 +3410,90 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   background:#4b2b23;
   border-color:#a36b56;
 }
+
+
+/* FIRE message composer: the surrounding Radix dialog has historically grown
+   taller than the screen and trapped its footer below the viewport. Keep the
+   close control/header visible while scrolling just the builder. */
+.message-dialog[data-slot="dialog-content"]{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  max-height:calc(100vh - 24px);
+  max-height:calc(100dvh - 24px);
+  overflow:hidden;
+}
+.message-dialog .message-dialog-header{flex:0 0 auto}
+.message-dialog .message-builder{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior-y:contain;
+  scroll-padding-block:12px;
+  scrollbar-gutter:stable;
+  padding:2px 4px 12px 1px;
+}
+.message-dialog .message-builder:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
+.message-dialog .composer-template-controls{min-width:0;max-width:100%;display:grid;gap:7px}
+.message-dialog .composer-template-search{width:100%;max-width:100%;min-height:44px;font-size:14px}
+.message-dialog .composer-template-controls [data-slot="select-trigger"]{
+  width:100%;min-height:44px;height:auto;white-space:normal;text-align:left;
+}
+.composer-template-menu[data-slot="select-content"]{max-height:min(65dvh,420px)}
+.composer-template-category-label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-top:1px solid var(--border);
+  background:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  color:var(--foreground);
+}
+.composer-template-category-label:first-child{border-top:0}
+.composer-template-category-label small{margin-left:auto;font-size:11px;color:var(--muted-foreground)}
+.composer-template-option{border-left:3px solid transparent}
+.composer-template-option.estimates{border-left-color:#4b87d0}
+.composer-template-option.invoices{border-left-color:#8a69cf}
+.composer-template-option.scheduling{border-left-color:#29998c}
+.composer-template-option.after-service{border-left-color:#39a66c}
+.composer-template-option.documents{border-left-color:#808d9f}
+.message-template-category-icon{
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  width:23px;
+  height:23px;
+  border:1px solid;
+  border-radius:6px;
+}
+.message-template-category-icon svg{width:14px;height:14px}
+.message-template-category-icon.estimates{background:#e7f1ff;color:#2464a7;border-color:#a8cae9}
+.message-template-category-icon.invoices{background:#f0eaff;color:#7150ae;border-color:#cab5ee}
+.message-template-category-icon.scheduling{background:#e3f7f3;color:#1b766c;border-color:#9dd4ca}
+.message-template-category-icon.after-service{background:#e4f7e9;color:#1b7646;border-color:#a4d6b2}
+.message-template-category-icon.documents,.message-template-category-icon.other{background:#ecf0f4;color:#536276;border-color:#c6d0db}
+.template-list .settings-template-search{display:grid;gap:6px;padding:12px;background:var(--card);border-bottom:1px solid var(--border)}
+.template-list .settings-template-search input{min-height:44px;max-width:100%}
+.template-list .settings-template-empty{margin:0;padding:14px;font-size:12px;color:var(--muted-foreground)}
+.template-list .template-category-section>h2{display:flex;align-items:center;gap:8px}
+.template-list .template-category-section>h2 small{margin-left:auto;font-size:11px}
+.template-list .template-category-section button>span>.message-template-category-icon{width:27px;height:27px}
+[data-theme="dark"] .message-template-category-icon.estimates{background:#143452;color:#b5dcff;border-color:#46729e}
+[data-theme="dark"] .message-template-category-icon.invoices{background:#302347;color:#d8bdff;border-color:#735c9b}
+[data-theme="dark"] .message-template-category-icon.scheduling{background:#143a35;color:#b2eee4;border-color:#39766c}
+[data-theme="dark"] .message-template-category-icon.after-service{background:#183b2a;color:#b7ebca;border-color:#407b5b}
+[data-theme="dark"] .message-template-category-icon.documents,[data-theme="dark"] .message-template-category-icon.other{background:#283646;color:#c1cfdd;border-color:#59697a}
+@media(max-width:600px){
+  .message-dialog[data-slot="dialog-content"]{
+    max-width:calc(100vw - 14px);
+    max-height:calc(100dvh - 12px);
+    padding:12px;
+    gap:8px;
+  }
+  .message-dialog .message-builder{padding-right:3px}
+  .message-dialog .composer-template-search{font-size:16px}
+}
