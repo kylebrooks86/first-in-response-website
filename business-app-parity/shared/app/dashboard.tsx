@@ -3093,8 +3093,19 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
     let networkFailed=false,responseStatus:number|undefined;
     try {
       let response:Response;
-      try{response=await fetch("/api/customers",{cache:"no-store"});}
-      catch(networkError){networkFailed=true;throw networkError;}
+      // GET only: give a stalled connection a finite retry path instead of an
+      // endless Customers spinner. Do NOT apply timeouts/retries to writes.
+      try{
+        const signal=typeof AbortSignal!=="undefined"&&typeof AbortSignal.timeout==="function"
+          ?AbortSignal.timeout(15000):null;
+        response=await fetch("/api/customers",signal?{cache:"no-store",signal}:{cache:"no-store"});
+      }catch(networkError){
+        networkFailed=true;
+        const name=networkError&&typeof networkError==="object"&&"name" in networkError?String(networkError.name):"";
+        if(name==="TimeoutError"||name==="AbortError")
+          throw new Error("Customer records took too long to load. Nothing was changed. Check your connection and try again.");
+        throw networkError;
+      }
       responseStatus=response.status;
       if(mustClearOfflinePhotoDirectory(response.status)&&request===loadRequest.current){
         // Authentication denial takes precedence over any previously visible
