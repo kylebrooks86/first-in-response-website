@@ -3209,3 +3209,204 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   .customer-edit-dialog .customer-form{min-width:0}
   .estimate-edit-modal-footer .fire-edit-actions{width:100%}
 }
+
+
+/* Customer estimate history: keep prices in one right-aligned column even
+   when service names wrap. Scoped away from invoice, note and payment rows. */
+.customer-record.customer-estimate-record{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(74px,max-content) 18px;
+  align-items:center;
+  column-gap:12px;
+}
+.customer-estimate-record>div{min-width:0}
+.customer-estimate-record>.customer-estimate-price{
+  min-width:74px;
+  justify-self:end;
+  text-align:right;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.customer-estimate-record>svg{justify-self:end;flex-shrink:0;width:18px}
+/* A saved timestamp means the estimate link opened, NOT that a named
+   person read or approved the quote. Only render when firstViewedAt exists. */
+.estimate-viewed-indicator{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  align-items:center;
+  gap:5px;
+  padding:2px 7px;
+  border:1px solid #adc8e0;
+  border-radius:6px;
+  color:#245984;
+  background:#ebf4fc;
+  font-size:11px;
+  line-height:1.4;
+  font-weight:750;
+  white-space:nowrap;
+}
+.estimate-viewed-indicator svg{width:13px;height:13px;flex-shrink:0}
+[data-theme="dark"] .estimate-viewed-indicator{
+  color:#b7d9ff;
+  background:#143049;
+  border-color:#496780;
+}
+@media(max-width:430px){
+  .customer-record.customer-estimate-record{grid-template-columns:minmax(0,1fr) minmax(65px,max-content) 15px;column-gap:7px}
+  .customer-estimate-record>.customer-estimate-price{min-width:65px}
+  .customer-estimate-record>svg{width:15px}
+}
+
+
+/* FIRE estimate lifecycle badges: status, link opened, and agreement signed
+   are separate facts. Consistent icons + labels keep colors optional to read. */
+.estimate-status-indicators{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5px;
+  min-width:0;
+  max-width:100%;
+}
+.customer-estimate-record .estimate-status-indicators{display:flex;justify-content:flex-start}
+.pipeline-card>.estimate-status-indicators{justify-content:flex-start}
+.estimate-lifecycle-badge,.estimate-signed-indicator{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  width:max-content;
+  max-width:100%;
+  gap:5px;
+  padding:3px 7px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.35;
+  white-space:nowrap;
+  background:#edf0f5;
+  color:#405269;
+}
+.estimate-lifecycle-badge svg,.estimate-signed-indicator svg{width:13px;height:13px;flex:none}
+.estimate-lifecycle-badge.draft,.estimate-lifecycle-badge.other,.estimate-lifecycle-badge.superseded{color:#405269;background:#edf0f5;border-color:#c4cdd8}
+.estimate-lifecycle-badge.sent{color:#215c9c;background:#e6f2ff;border-color:#adceef}
+.estimate-lifecycle-badge.viewed{color:#086f6c;background:#e0f6f2;border-color:#8fd0c7}
+.estimate-lifecycle-badge.approved{color:#166844;background:#e6f7eb;border-color:#9fd5b2}
+.estimate-lifecycle-badge.scheduled{color:#6640a2;background:#f1ebfb;border-color:#c1aae8}
+.estimate-lifecycle-badge.completed{color:#135a38;background:#ddf1e1;border-color:#8cc4a0}
+.estimate-lifecycle-badge.declined{color:#a32532;background:#fae7ea;border-color:#e8aab2}
+.estimate-signed-indicator{color:#186a50;background:#e7f7ee;border-color:#a2d6b8}
+.estimate-viewed-indicator{color:#086f6c;background:#e0f6f2;border-color:#8fd0c7}
+.job-main .recent-estimate-status{display:inline-flex}
+.estimate-person .estimate-lifecycle-badge.estimate-card-state,
+.pipeline-card .estimate-lifecycle-badge.estimate-card-state{
+  display:inline-flex;align-items:center;justify-self:start;
+  padding:3px 7px;font-size:11px;font-weight:750;line-height:1.35;
+}
+.estimate-person .estimate-lifecycle-badge.sent,.pipeline-card .estimate-lifecycle-badge.sent{color:#215c9c;background:#e6f2ff;border-color:#adceef}
+.estimate-person .estimate-lifecycle-badge.approved,.pipeline-card .estimate-lifecycle-badge.approved{color:#166844;background:#e6f7eb;border-color:#9fd5b2}
+.estimate-person .estimate-lifecycle-badge.completed,.pipeline-card .estimate-lifecycle-badge.completed{color:#135a38;background:#ddf1e1;border-color:#8cc4a0}
+.estimate-person .estimate-lifecycle-badge.scheduled,.pipeline-card .estimate-lifecycle-badge.scheduled{color:#6640a2;background:#f1ebfb;border-color:#c1aae8}
+.estimate-person .estimate-lifecycle-badge.declined,.pipeline-card .estimate-lifecycle-badge.declined{color:#a32532;background:#fae7ea;border-color:#e8aab2}
+[data-theme="dark"] .estimate-lifecycle-badge{color:#dae3ee;background:#28394c;border-color:#4b5d70}
+[data-theme="dark"] .estimate-lifecycle-badge.sent,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.sent,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.sent{color:#b6dbff;background:#173552;border-color:#3d6589}
+[data-theme="dark"] .estimate-lifecycle-badge.viewed,[data-theme="dark"] .estimate-viewed-indicator{color:#a7ede1;background:#153b3c;border-color:#327d79}
+[data-theme="dark"] .estimate-lifecycle-badge.approved,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.approved,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.approved{color:#b2eac6;background:#173c2d;border-color:#377c57}
+[data-theme="dark"] .estimate-lifecycle-badge.scheduled,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.scheduled,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.scheduled{color:#dccaff;background:#31234b;border-color:#6c4e9b}
+[data-theme="dark"] .estimate-lifecycle-badge.completed,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.completed,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.completed{color:#bcebd0;background:#103723;border-color:#306b4b}
+[data-theme="dark"] .estimate-lifecycle-badge.declined,[data-theme="dark"] .estimate-person .estimate-lifecycle-badge.declined,[data-theme="dark"] .pipeline-card .estimate-lifecycle-badge.declined{color:#ffb9c2;background:#481f29;border-color:#94515d}
+[data-theme="dark"] .estimate-signed-indicator{color:#b7f0d0;background:#163d31;border-color:#418463}
+
+
+/* FIRE payment milestones represent saved accounting, NOT lifecycle status.
+   Amber = deposit covered with balance remaining; green = recorded amount
+   exactly equals current billed total; unreconciled rows show neither. */
+.estimate-payment-indicator{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  width:max-content;
+  max-width:100%;
+  gap:5px;
+  padding:3px 7px;
+  border:1px solid;
+  border-radius:6px;
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.35;
+}
+.estimate-payment-indicator svg{width:13px;height:13px;flex:none}
+.estimate-payment-indicator.deposit-paid{
+  color:#815112;
+  background:#fff2d8;
+  border-color:#e7c582;
+}
+.estimate-payment-indicator.paid-in-full{
+  color:#076b48;
+  background:#e1f7e9;
+  border-color:#8ccdb0;
+}
+[data-theme="dark"] .estimate-payment-indicator.deposit-paid{
+  color:#ffe0a3;
+  background:#4a3419;
+  border-color:#9b7540;
+}
+[data-theme="dark"] .estimate-payment-indicator.paid-in-full{
+  color:#a7f0c9;
+  background:#153b2d;
+  border-color:#397d5a;
+}
+.status-readonly .estimate-payment-indicator{margin-left:8px}
+
+
+/* Exceptions that actually need owner review. These do not replace the
+   estimate's lifecycle, agreement or payment milestone. */
+.estimate-attention-indicators{
+  display:inline-flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  min-width:0;
+  max-width:100%;
+}
+.estimate-attention-indicator{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  border:1px solid;
+  border-radius:6px;
+  padding:3px 7px;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.35;
+  white-space:nowrap;
+}
+.estimate-attention-indicator svg{width:13px;height:13px;flex:none}
+.estimate-attention-indicator.changes-requested{
+  color:#7d5318;
+  background:#fff2d8;
+  border-color:#e5c27c;
+}
+.estimate-attention-indicator.payment-review{
+  color:#a13924;
+  background:#ffebe4;
+  border-color:#eeae97;
+}
+[data-theme="dark"] .estimate-attention-indicator.changes-requested{
+  color:#ffe2a4;
+  background:#4a321a;
+  border-color:#9c7743;
+}
+[data-theme="dark"] .estimate-attention-indicator.payment-review{
+  color:#ffc5ae;
+  background:#4b2b23;
+  border-color:#a36b56;
+}

@@ -19,6 +19,36 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  check(saved.status==='scheduled'&&saved.signedAt&&saved.photoRelease==='no'&&data.payments.filter(row=>row.customerId===customer.id).length===0,'Approval/scheduling preserve signature, permission and empty payment ledger');
  const profile=async()=>{await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
  await page.setViewportSize({width:390,height:844});await profile();
+ // Use the actual compiled customer-history UI, with one deliberately long
+ // display-only service title (not a D1/estimate write). Prices must remain
+ // on the same visual right edge at phone, tablet, and desktop widths.
+ const historyRows=page.locator('.customer-profile .customer-estimate-record');
+ assert.equal(await historyRows.count(),2,'Expected exactly two existing synthetic estimates for alignment');
+ const scheduledRow=historyRows.filter({hasText:'Synthetic Scheduled Job'});
+ const unsentDecisionRow=historyRows.filter({hasText:'Synthetic Pending Quote'});
+ check(await scheduledRow.locator('.estimate-lifecycle-badge.scheduled svg').count()===1&&
+  await scheduledRow.locator('.estimate-signed-indicator svg').count()===1&&
+  await unsentDecisionRow.locator('.estimate-lifecycle-badge.sent svg').count()===1&&
+  await unsentDecisionRow.locator('.estimate-signed-indicator').count()===0,
+  'Customer history shows calendar Scheduled and pen Signed separately, while Sent uses mail without implying signature');
+ const longService=historyRows.first().locator('div>strong').first();
+ const originalService=await longService.innerText();
+ try{
+  await longService.evaluate(node=>{node.textContent='A much longer synthetic multi-service description for responsive amount alignment';});
+  for(const width of [320,390,768,1366]){
+   await page.setViewportSize({width,height:900});
+   const rects=await historyRows.evaluateAll(rows=>rows.map(row=>{
+    const price=row.querySelector('.customer-estimate-price');
+    const amount=price?.getBoundingClientRect();
+    const outer=row.getBoundingClientRect();
+    return {right:amount?.right??NaN,left:amount?.left??NaN,rowRight:outer.right,priceVisible:!!price&&getComputedStyle(price).visibility!=='hidden'};
+   }));
+   check(rects.length===2&&rects.every(x=>x.priceVisible&&Number.isFinite(x.right)&&x.right<=x.rowRight)&&
+    Math.abs(rects[0].right-rects[1].right)<1.1,
+    'Long customer estimate titles do not shift right-aligned prices at '+width);
+  }
+ }finally{await longService.evaluate((node,text)=>{node.textContent=text;},originalService);}
+ await page.setViewportSize({width:390,height:844});
  const backup=page.locator('.customer-profile .customer-contact-backups');
  check(await backup.count()===1&&await backup.locator('summary').isVisible()&&await backup.locator('[data-personal-backup]').count()===2,
   'Customer profile preserves both personal phone backups inside a single disclosure');
@@ -38,7 +68,7 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  await page.goto(origin+'/');
  for(const width of [320,390,768,1366]){
   await page.setViewportSize({width,height:900});const row=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Scheduled Job'});await row.waitFor();
-  check(await row.locator('.recent-estimate-status').isVisible()&&await row.locator('.recent-estimate-status').innerText()==='Scheduled'&&/Oct 20, 2026.*10:00 AM/.test(await row.locator('.recent-estimate-appointment').innerText())&&/^Created /.test(await row.locator('.recent-estimate-dates').innerText()),'Home exposes current status and distinct Central service/creation dates at '+width);
+  check(await row.locator('.recent-estimate-status').isVisible()&&await row.locator('.recent-estimate-status').innerText()==='Scheduled'&&await row.locator('.recent-estimate-status svg').count()===1&&await row.locator('.estimate-signed-indicator svg').count()===1&&/Oct 20, 2026.*10:00 AM/.test(await row.locator('.recent-estimate-appointment').innerText())&&/^Created /.test(await row.locator('.recent-estimate-dates').innerText()),'Home exposes current status and distinct Central service/creation dates at '+width);
  }
  await page.setViewportSize({width:390,height:844});await page.locator('.recent-estimate-row').filter({hasText:'Synthetic Scheduled Job'}).click();
  const directJob=page.getByRole('dialog',{name:'Synthetic Scheduled Job',exact:true});await directJob.waitFor();
@@ -46,13 +76,28 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  await directJob.getByRole('button',{name:'Close',exact:true}).click();await page.goto(origin+'/');
  await page.context().request.get(origin+'/estimate/'+quote.shareToken);
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
- const viewed=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Pending Quote'}).locator('.recent-estimate-status');
- await page.waitForFunction(()=>Array.from(document.querySelectorAll('.recent-estimate-row')).some(row=>row.textContent.includes('Synthetic Pending Quote')&&row.textContent.includes('Sent · Viewed')));
- check(await viewed.innerText()==='Sent · Viewed','Home refreshes viewed status on focus without page reload');
+ // Link-opening is saved as firstViewedAt, not conflated with a status
+ // or proof that the named customer opened the document.
+ const viewedRow=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Pending Quote'});
+ const viewed=viewedRow.locator('.estimate-viewed-indicator');
+ await page.waitForFunction(()=>Array.from(document.querySelectorAll('.recent-estimate-row')).some(row=>
+  row.textContent.includes('Synthetic Pending Quote')&&
+  row.querySelector('.recent-estimate-status')?.textContent?.trim()==='Sent'&&
+  row.querySelector('.estimate-viewed-indicator')?.textContent?.trim()==='Viewed'));
+ check(await viewedRow.locator('.recent-estimate-status').innerText()==='Sent'&&await viewed.isVisible()&&
+  (await viewed.getAttribute('title')||'').includes('viewer identity unverified'),
+  'Home refreshes separate link-opened eye badge on focus; viewer identity not assumed');
  const paid=await request('/api/payments','POST',{estimateId:job.id,amountCents:10000,method:'Cash'});assert.equal(paid.status(),201);
  await page.setViewportSize({width:390,height:844});await profile();
  await page.getByText('More amounts',{exact:true}).click();
  check(await metric('Job balance').innerText()==='$100'&&await metric('Deposit still required').innerText()==='$0'&&await metric('Paid').innerText()==='$100','Recorded deposit reduces principal and deposit requirement once');
+
+ const depositedJob=page.locator('.customer-profile .customer-estimate-record').filter({hasText:'Synthetic Scheduled Job'});
+ check(await depositedJob.locator('.estimate-payment-indicator.deposit-paid').isVisible()&&
+   await depositedJob.locator('.estimate-payment-indicator.paid-in-full').count()===0&&
+   await depositedJob.locator('.estimate-lifecycle-badge.scheduled').isVisible(),
+   'Actual synthetic deposit produces Deposit paid badge while Scheduled remains separate; full-payment badge remains absent');
+
  await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Payments',exact:true}).first().click();
  await page.getByRole('heading',{name:'Unpaid jobs',exact:true}).waitFor();
  const balances=page.locator('.balance-list article').filter({hasText:customer.name});
