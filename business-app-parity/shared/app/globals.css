@@ -4084,3 +4084,40 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     transform:translateY(0)
   }
 }
+
+
+/* Remaining owner views share the same subtle surface vocabulary without
+   modifying nested map controls, money meanings or photo/video contents. */
+.app-shell :is(.contract-list,.schedule-board,.needs-schedule,.template-editor,.photo-panel,.notification-popover){
+  border-color:var(--fire-ui-border-soft);
+  border-radius:var(--fire-ui-radius)
+}
+.app-shell :is(.contract-list,.schedule-board,.needs-schedule){
+  box-shadow:var(--fire-ui-shadow)
+}
+.app-shell :is(.contract-list>button,.notification-list>button){
+  min-height:48px;
+  line-height:1.4;
+  touch-action:manipulation
+}
+.app-shell :is(.contract-list>button,.notification-list>button,.territory button,.territory a):focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+.app-shell :is(.contract-list small,.payment-history small,.notification-list small){
+  font-size:11px;
+  line-height:1.4;
+  overflow-wrap:anywhere
+}
+.app-shell :is(.template-editor>header h2,.schedule-board>header h2,.needs-schedule>header h2){
+  font-weight:800;
+  letter-spacing:-.012em;
+  line-height:1.35
+}
+.app-shell .customer-profile .photo-buttons>button{
+  min-height:48px;
+  border-radius:9px
+}
+.app-shell .territory :is(button,a){
+  touch-action:manipulation
+}
