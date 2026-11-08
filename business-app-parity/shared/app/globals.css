@@ -3514,3 +3514,22 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   overflow-x:hidden;
   overscroll-behavior:contain;
 }
+
+/* The shared sticky close rule above applies to grid dialogs. Message uses
+   flex with the Radix close rendered last, so sticky puts its X BELOW the
+   message/actions. Pin it absolutely to the visible modal top-right instead;
+   only the inner builder scrolls. Keep Escape/outside and dirty-send guards. */
+.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:absolute;
+  top:8px;
+  right:8px;
+  bottom:auto;
+  left:auto;
+  grid-row:auto;
+  grid-column:auto;
+  justify-self:auto;
+  align-self:auto;
+  margin:0;
+  z-index:40;
+  flex:0 0 auto;
+}
