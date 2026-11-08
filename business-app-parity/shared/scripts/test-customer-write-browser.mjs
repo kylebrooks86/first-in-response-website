@@ -235,7 +235,7 @@ try{
     iconGeometry.width<=18&&iconGeometry.height<=18&&
     visualStyle.border==='0px'&&visualStyle.position==='absolute',
     'Small unboxed Close X in top-right accessible 44px target: '+variant+' '+width+' '+theme);
-   const scrollTarget=variant==='job'?dialog.locator('.fire-job-scroll'):variant==='message'?dialog.locator('.message-builder'):variant==='estimate'?dialog.locator('.estimate-edit-scroll-area'):dialog;
+   const scrollTarget=variant==='job'?dialog.locator('.fire-job-scroll'):variant==='message'?dialog.locator('.message-builder'):variant==='estimate'?dialog.locator('.estimate-edit-scroll-area'):variant==='standard'?dialog.locator('.synthetic-modal-content'):dialog;
    const scrolled=await scrollTarget.evaluate(node=>{const available=node.scrollHeight-node.clientHeight;node.scrollTop=available;return {available,position:node.scrollTop};});
    // Desktop standard DialogContent does not promise an internal scrollbar;
    // long modal variants and mobile standard dialogs DO have defined scroll
