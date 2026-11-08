@@ -4425,3 +4425,80 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     scroll-behavior:auto;
   }
 }
+
+
+/* FIRE owner accessibility: preserve the *meaning* of a selected filter,
+   a permission label, and a keyboard focus ring when OS high-contrast/forced
+   colors override brand backgrounds. No global brand rewrite or status
+   inference: the visible Yes/No/Not recorded text still carries meaning.
+   Target existing owner controls and estimate dialogs only. */
+@media (forced-colors:active){
+  .app-shell :is(
+    .invoice-directory-tools>button,.payment-balance-tools>button,
+    .filter-row>button,.record-tabs>button,
+    .followup-optional-grid>button,.followup-contact-actions>a,
+    .schedule-day-actions>.schedule-next-booked,
+    .photo-backup-more>summary,.photo-comparison-more>summary
+  ){
+    border:1px solid ButtonText;
+    color:ButtonText;
+    background:ButtonFace;
+    box-shadow:none!important;
+    text-shadow:none;
+    transition:none;
+  }
+  .app-shell :is(
+    .invoice-directory-tools>button.active,
+    .payment-balance-tools>button.active,
+    .filter-row>button.active,
+    .record-tabs>button.active
+  ){
+    border:2px solid Highlight;
+    background:Highlight;
+    color:HighlightText;
+    outline:1px solid Highlight;
+    outline-offset:1px;
+  }
+  .app-shell :is(
+    .invoice-directory-tools>button,.payment-balance-tools>button,
+    .followup-optional-grid>button,.followup-contact-actions>a,
+    .schedule-day-actions>.schedule-next-booked,
+    .photo-backup-more>summary,.photo-comparison-more>summary
+  ):focus-visible,
+  .estimate-detail .detail-actions > :is(a,button):focus-visible{
+    outline:3px solid Highlight;
+    outline-offset:3px;
+  }
+  .estimate-detail .photo-permission-chip,
+  .estimate-detail .photo-permission-chip.allowed{
+    border:1px solid CanvasText;
+    background:Canvas;
+    color:CanvasText;
+    forced-color-adjust:auto;
+  }
+  .estimate-detail .photo-permission-chip.allowed{
+    border-width:2px;
+  }
+}
+@media(prefers-contrast:more) and (forced-colors:none){
+  .app-shell :is(
+    .invoice-directory-tools>button.active,
+    .payment-balance-tools>button.active,
+    .filter-row>button.active,.record-tabs>button.active
+  ){
+    outline:2px solid currentColor;
+    outline-offset:2px;
+  }
+  .app-shell :is(
+    .invoice-directory-tools>button,.payment-balance-tools>button,
+    .followup-optional-grid>button,.followup-contact-actions>a,
+    .schedule-day-actions>.schedule-next-booked,
+    .photo-backup-more>summary,.photo-comparison-more>summary
+  ):focus-visible{
+    outline-width:3px;
+    outline-offset:3px;
+  }
+  .estimate-detail .photo-permission-chip.allowed{
+    border-width:2px;
+  }
+}
