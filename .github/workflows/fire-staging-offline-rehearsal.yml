@@ -31,6 +31,8 @@ on:
       - '.github/workflows/fire-staging-offline-rehearsal.yml'
   pull_request:
     paths:
+      - 'fire-app-dr/**'
+      - 'business-app-parity/test_dr_customer_invoice_failclosed.py'
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
@@ -109,6 +111,9 @@ jobs:
           node-version: '22'
       - name: Use pinned pnpm
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Gate 6 DR checkout and public-document customer invoice isolation (source + native SQLite, OFFLINE)
+        run: |
+          python3 business-app-parity/test_dr_customer_invoice_failclosed.py
       - name: Gate 6 owner-hosted evidence collector strict URL allowlist and leakage prevention (OFFLINE)
         run: |
           node --test business-app-parity/test_owner_gate6_hosted_readonly.mjs
