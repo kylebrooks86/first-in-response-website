@@ -118,7 +118,8 @@ try{
    dc.iconWidth>=15&&dc.iconHeight>=15&&dc.top>=-2&&dc.top<=12&&dc.right>=-2&&dc.right<=12,
    'Dialog uses small 16px corner X inside a 44px tap area '+width+'/'+height+'/'+theme+JSON.stringify(dc));
   await cornerDialog.getByRole('button',{name:'Close'}).click();
-  check(await cornerDialog.count()===0,'Small dialog X dismisses using real Radix close');
+  await cornerDialog.waitFor({state:'hidden'});
+  check(!(await cornerDialog.isVisible()),'Small dialog X dismisses using real Radix close');
   await page.getByRole('button',{name:'Open corner drawer'}).click();
   const cornerDrawer=page.getByRole('dialog',{name:'Corner drawer'});
   await cornerDrawer.waitFor();
@@ -127,7 +128,8 @@ try{
    sc.iconWidth>=15&&sc.iconHeight>=15&&sc.top>=-2&&sc.top<=12&&sc.right>=-2&&sc.right<=12,
    'Drawer uses same small 16px corner X and 44px target '+width+'/'+height+'/'+theme+JSON.stringify(sc));
   await cornerDrawer.getByRole('button',{name:'Close'}).click();
-  check(await cornerDrawer.count()===0,'Small drawer X dismisses using real Radix close');
+  await cornerDrawer.waitFor({state:'hidden'});
+  check(!(await cornerDrawer.isVisible()),'Small drawer X dismisses using real Radix close');
  }
  check(errors.length===0,'No React/Radix runtime errors');
  check(outside.length===0,'All browser requests stay on isolated localhost');
