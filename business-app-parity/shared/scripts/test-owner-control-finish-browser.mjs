@@ -94,6 +94,59 @@ try{
     .evaluate(n=>getComputedStyle(n).transitionDuration);
   check(duration.split(',').every(x=>x.trim()==='0s'),
     'Reduced motion removes cosmetic transitions');
+  // High-contrast mode must NOT rely on the FIRE-red hover effect alone;
+  // selected filters are visibly selected and keyboard focus is outlined.
+  for(const theme of ['light','dark']){
+    for(const width of [320,820]){
+      await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});
+      await page.setViewportSize({width,height:720});
+      await page.goto(origin);
+      await page.evaluate(v=>document.documentElement.dataset.theme=v,theme);
+      const contrast=await page.evaluate(()=>matchMedia('(forced-colors: active)').matches);
+      check(contrast,theme+' '+width+' OS forced-colors mode is actually enabled');
+      const active=await page.locator('.invoice-directory-tools>button.active').evaluate(n=>{
+        const s=getComputedStyle(n);
+        return {width:s.borderTopWidth,outline:s.outlineStyle,
+          background:s.backgroundColor,color:s.color};
+      });
+      const inactive=await page.locator('.invoice-directory-tools>button:not(.active)').evaluate(n=>{
+        const s=getComputedStyle(n);return{bg:s.backgroundColor,shadow:s.boxShadow};
+      });
+      check(parseFloat(active.width)>=2 && active.outline==='solid',
+        theme+' '+width+' selected invoice filter has system-color border and outline');
+      check(active.background!==inactive.bg,
+        theme+' '+width+' selected filter differs from neutral in forced colors');
+      check(inactive.shadow==='none',
+        theme+' '+width+' decorative shadow does not obscure system colors');
+      const target=page.locator('.followup-optional-grid>button').first();
+      await target.focus();
+      const focus=await target.evaluate(n=>{
+        const s=getComputedStyle(n);
+        return {style:s.outlineStyle,width:s.outlineWidth};
+      });
+      check(focus.style==='solid'&&parseFloat(focus.width)>=3,
+        theme+' '+width+' keyboard focus remains distinct in forced colors');
+      const state=await page.evaluate(()=>({
+        overflow:document.documentElement.scrollWidth-innerWidth,
+        all:[...document.querySelectorAll(
+          '.invoice-directory-tools>button,.followup-optional-grid>button'
+        )].map(n=>{const b=n.getBoundingClientRect();
+          return{left:b.left,right:b.right,height:b.height};})
+      }));
+      check(state.overflow<=1&&state.all.every(r=>r.left>=-1&&r.right<=width+1&&r.height>=44),
+        theme+' '+width+' high-contrast keeps mobile actions reachable');
+    }
+  }
+  await page.emulateMedia({forcedColors:'none',reducedMotion:'no-preference',contrast:'more'});
+  await page.setViewportSize({width:820,height:720});
+  await page.goto(origin);
+  check(await page.evaluate(()=>matchMedia('(prefers-contrast: more)').matches),
+    'Increased-contrast media preference is supported');
+  const increased=await page.locator('.invoice-directory-tools>button.active').evaluate(n=>{
+    const s=getComputedStyle(n);return{style:s.outlineStyle,width:s.outlineWidth};
+  });
+  check(increased.style==='solid'&&parseFloat(increased.width)>=2,
+    'Selected filter remains visually outlined in increased contrast mode');
   check(requests.length===0,'All requests stay on synthetic localhost');
   check(errors.length===0,'No browser exceptions');
   console.log('PASS '+checks+'/'+checks+' FIRE owner control geometry, hover and reduced motion checks (localhost CSS).');
