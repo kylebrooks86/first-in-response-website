@@ -1,0 +1,25 @@
+{
+  "manifestFile": "JOB_REPORT_REVIEW_MANIFEST.json",
+  "manifestSha256": "2b10c18faeaded87caa656e24d60b46772895bf0974066bc561e121a31155f83",
+  "manifestVerified": true,
+  "candidateSnapshotReferences": {
+    "live": "2b1180d68aa6ebff99aa412fe4209226583db249",
+    "doomsday": "898b569a878957dfe28e3032c24185895b9fbbf3",
+    "staging": "463c6c2249127891ccee1d613da5e1bd169244ed"
+  },
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "productionReady": false,
+  "publicationAuthorized": false,
+  "deployed": false,
+  "historicalFilesPreservedSha256": {
+    "DOOMSDAY_0022_MIGRATION_PLAN.md": "ed4feba043c6be4d9445c163e8e9cd17e3c61fc017104c1ba916427d1958f9b6",
+    "DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json": "c160b6196b8274294f85a077df977b81ffbf6bb1f4e61f9784bd8c646168a6d5",
+    "shared/app/globals.css": "d20d722b17dc72f344bc13f74d1e0761cf4db27cbdfd44a8f6e1159031f10d18",
+    "shared/app/api/job-reports/route.ts": "5ae6037ec6203786b1da7622faa1a602515929b3d588b13b54f855bacf7bf260"
+  },
+  "limits": "Actual extracted JobReport hook/JSX synthetic GET tests, not browser/React lifecycle or hosted/mobile integration. Financial API regressions use local synthetic SQLite only."
+}
