@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 const ui=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../app/globals.css',import.meta.url),'utf8');
 const dialog=readFileSync(new URL('../components/ui/dialog.tsx',import.meta.url),'utf8');
+const sheet=readFileSync(new URL('../components/ui/sheet.tsx',import.meta.url),'utf8');
 const template=readFileSync(new URL('../lib/fire-templates.ts',import.meta.url),'utf8');
 const check=(ok,label)=>{assert.ok(ok,label);console.log('PASS: '+label);};
 
@@ -58,8 +59,11 @@ check(css.includes('/* App-wide CLOSE STANDARD:')&&
  css.includes('.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{')&&
  ui.includes('<DialogContent className="message-dialog sm:max-w-[620px]"')&&
  dialog.includes('aria-label="Close"')&&dialog.includes('DialogPrimitive.Close')&&
- dialog.includes('[&_svg]:size-4')&&dialog.includes('size-11 items-center'),
- 'Shared and message modal X: small unboxed visual at top-right with 44px accessible hit area');
+ dialog.includes('[&_svg]:size-4')&&dialog.includes('size-11 items-center')&&
+ sheet.includes('data-slot="sheet-close"')&&sheet.includes('aria-label="Close"')&&
+ sheet.includes('absolute top-2 right-2')&&sheet.includes('border-0 bg-transparent')&&
+ sheet.includes('size-11 items-center')&&sheet.includes('<XIcon className="size-4" />'),
+ 'Dialog and sheet X: small unboxed top-right visual with 44px accessible hit area');
 check(css.includes('.voice-contact-dialog[data-slot="dialog-content"]{')&&
  css.includes('max-height:calc(100dvh - 24px);')&&
  css.includes('overscroll-behavior:contain;'),
