@@ -5682,7 +5682,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   return (
     <OwnerJobSnapshotsProvider key={environment}><main className="app-shell" data-app-ready={interactive}>
       <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
-        <div className="brand"><FireMark /><div><strong>FIRE</strong><small>Business App</small></div><button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X /></button></div>
+        <div className="brand"><FireMark /><div><strong>FIRE</strong><small>Business App</small></div><button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={16} aria-hidden="true"/></button></div>
         <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
         <nav aria-label="All business sections">
           <p className="sidebar-nav-heading">Everyday</p>
