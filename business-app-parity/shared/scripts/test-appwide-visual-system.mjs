@@ -48,7 +48,7 @@ check(css.includes('.app-shell .sidebar nav button svg{')&&
 check(css.includes('.app-shell :is(.customer-card,.estimate-card,.invoice-card,.record-card,.followup-card,.schedule-month,.insight-kpis article){')&&
   css.includes('box-shadow:var(--fire-ui-shadow);'),
   'Customers, estimates, invoices, follow-ups, schedule, record and insight cards share restrained border/shape/depth rules');
-check(css.includes('.app-shell :is(.filter-row button,.record-tabs button)')&&
+check(css.includes('.app-shell :is(.filter-row button.active,.record-tabs button.active)')&&
   css.includes('touch-action:manipulation')&&css.includes('min-height:44px'),
   'Action groups use touch targets and purposeful neutral variants, not blanket red');
 check(css.includes('.app-shell :is(.metric-card>strong,.insight-kpis strong,.invoice-total>strong,.customer-estimate-price,.payment-history-amount,.customer-payment-amount,.job-price,.estimate-amount){')&&
