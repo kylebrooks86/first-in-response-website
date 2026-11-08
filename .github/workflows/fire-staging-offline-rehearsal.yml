@@ -176,6 +176,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-deposit-revised-signature.mjs
+      - name: Gate 6 wrong-customer invoice blocks public charge and atomic checkout reservation (native SQLite, no Stripe)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-checkout-invoice-owner-integrity.mjs
       - name: Exercise actual built QA login, expired-session denial, synthetic estimate, Customer view, back/close, and restart
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
