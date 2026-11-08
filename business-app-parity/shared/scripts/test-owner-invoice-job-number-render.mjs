@@ -45,4 +45,56 @@ check(!render({...base,jobNumber:42,customerNumber:null}).includes('Customer #')
 const removed=cards[0].replace('{jobNumberLabel(invoice.jobNumber)&&<small>{jobNumberLabel(invoice.jobNumber)}</small>}','');
 check(removed!==cards[0],'Negative control removes the actual saved-number display');
 check(!render({...base,jobNumber:42},removed).includes('Job #0042'),'Negative control demonstrates the original lost-label defect');
+
+/* Actual owner Job Report and Job Costs headers must share their saved,
+ * immutable Job # with the estimate and invoice. No synthetic ID creation,
+ * handler execution, provider calls or feature-flag changes.
+ */
+for(const [functionName,heading] of [
+  ['JobReport','Service completion report'],
+  ['JobCost','Job costs &']
+]){
+  const fn=ast.statements.find(node=>
+    ts.isFunctionDeclaration(node)&&node.name?.text===functionName);
+  check(Boolean(fn),functionName+' owner dialog exists');
+  const headers=[];
+  function findHeaders(node){
+    if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='DialogHeader'&&
+      node.openingElement.attributes.properties.some(a=>
+        ts.isJsxAttribute(a)&&a.name.text==='className'&&
+        a.initializer&&ts.isStringLiteral(a.initializer)&&
+        a.initializer.text==='fire-job-header'))headers.push(node.getText(ast));
+    ts.forEachChild(node,findHeaders);
+  }
+  findHeaders(fn);
+  check(headers.length===1,functionName+' has exactly one actual job dialog header');
+  const header=headers[0];
+  check(header.includes(heading),functionName+' original dialog heading preserved');
+  const renderHeader=(jobNumber,jsx=header)=>{
+    const code=ts.transpileModule('const header=('+jsx+');',{
+      compilerOptions:{jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}
+    }).outputText;
+    const passthrough=(props)=>React.createElement('div',props,props.children);
+    const dialogTitle=(props)=>React.createElement('h2',props,props.children);
+    const build=new Function('React','DialogHeader','DialogTitle',
+      'jobNumberLabel','estimate',code+';return header;');
+    return renderToStaticMarkup(build(React,passthrough,dialogTitle,jobNumberLabel,{
+      customer:'Synthetic owner fixture',service:'Synthetic service',jobNumber
+    }));
+  };
+  const numbered=renderHeader(42);
+  check(numbered.includes('Job #0042'),functionName+' displays real saved Job #0042');
+  check(numbered.includes('Synthetic owner fixture')&&numbered.includes('Synthetic service'),
+    functionName+' preserves customer and service identity');
+  for(const invalid of [undefined,null,0,-1,'fabricated']){
+    const unnumbered=renderHeader(invalid);
+    check(!unnumbered.includes('Job #'),functionName+' does not invent a disabled/invalid job number');
+    check(unnumbered.includes('Synthetic owner fixture'),functionName+' stays usable unnumbered');
+  }
+  const label='{jobNumberLabel(estimate.jobNumber)&&<small className="fire-job-number">{jobNumberLabel(estimate.jobNumber)}</small>}';
+  check(header.includes(label),functionName+' uses the same canonical saved number formatter');
+  const negative=renderHeader(42,header.replace(label,''));
+  check(!negative.includes('Job #0042'),functionName+' negative control proves missing label is caught');
+}
+
 console.log('PASS '+checks+' actual owner invoice JSX rendering checks; synthetic only, numbering remains disabled.');
