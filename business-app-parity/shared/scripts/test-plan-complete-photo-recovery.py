@@ -71,10 +71,20 @@ def files(folder, manifest, records, tamper=False):
     archive = Path(folder) / "photo.zip"
     record_path = Path(folder) / "records.json"
     record_path.write_text(json.dumps(records), encoding="utf-8")
+    # Synthetic ZIP members must be byte-for-byte reproducible on repeated
+    # fixture generation. zipfile.writestr(name, ...) otherwise embeds the
+    # current wall-clock timestamp, leading to false checksum drift even when
+    # the photo archive contents are genuinely identical.
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as z:
-        z.writestr("manifest.json", json.dumps(manifest))
-        z.writestr("objects/000001.bin", b"BAD" if tamper else b"abc")
-        z.writestr("objects/000002.bin", b"xyz")
+        def write_fixture(name, data):
+            item = zipfile.ZipInfo(name, date_time=(2026, 10, 15, 0, 0, 0))
+            item.compress_type = zipfile.ZIP_STORED
+            item.create_system = 3
+            item.external_attr = 0o600 << 16
+            z.writestr(item, data)
+        write_fixture("manifest.json", json.dumps(manifest))
+        write_fixture("objects/000001.bin", b"BAD" if tamper else b"abc")
+        write_fixture("objects/000002.bin", b"xyz")
     return archive, record_path
 
 
