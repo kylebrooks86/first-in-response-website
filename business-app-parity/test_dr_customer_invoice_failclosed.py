@@ -66,7 +66,7 @@ class DRInvoiceOwnership(unittest.TestCase):
         source = (REPO / PATHS[2]).read_text(encoding="utf-8")
         self.assertIn("const sandboxTarget = true;", source)
         self.assertIn('runtime.FIRE_STRIPE_MODE !== "test"', source)
-        self.assertIn('! /^(sk|rk|rkcs)_test_', source.replace("&&!/","! /"), "Only TEST key types may be used")
+        self.assertIn('!/^(sk|rk|rkcs)_test_/', source, "Only TEST key types may be used")
         self.assertIn('if(session.id.startsWith("fire-creating:"))', source)
         self.assertIn("checkoutUncertain:true", source, "Ambiguous Stripe responses must retain the reservation")
         self.assertIn('"Idempotency-Key":`fire-checkout-${reservationId}`', source)
@@ -84,7 +84,7 @@ class DRInvoiceOwnership(unittest.TestCase):
 
     def test_dr_atomic_checkout_sql_blocks_stale_links_and_double_session(self):
         source = (REPO / PATHS[2]).read_text(encoding="utf-8")
-        match = re.search(r"const locked=await env\\.DB\\.prepare\\(`(INSERT INTO payment_checkout_sessions .*?)`\\)",
+        match = re.search(r"const locked=await env\.DB\.prepare\(`(INSERT INTO payment_checkout_sessions .*?)`\)",
                           source,re.S)
         self.assertIsNotNone(match,"Use the actual atomic INSERT SELECT from DR route")
         sql = match.group(1)
