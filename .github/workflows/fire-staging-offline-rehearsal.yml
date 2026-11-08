@@ -114,6 +114,10 @@ jobs:
       - name: Gate 6 DR checkout and public-document customer invoice isolation (source + native SQLite, OFFLINE)
         run: |
           python3 business-app-parity/test_dr_customer_invoice_failclosed.py
+      - name: Gate 6 disaster recovery checkout TypeScript typecheck (no build upload or deploy)
+        run: |
+          pnpm --dir fire-app-dr install --frozen-lockfile --ignore-scripts
+          pnpm --dir fire-app-dr run typecheck
       - name: Gate 6 owner-hosted evidence collector strict URL allowlist and leakage prevention (OFFLINE)
         run: |
           node --test business-app-parity/test_owner_gate6_hosted_readonly.mjs
