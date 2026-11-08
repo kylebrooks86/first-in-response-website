@@ -1,7 +1,7 @@
 /** FIRE New Estimate keyboard/open-viewport + CSS zoom rehearsal.
  * Synthetic localhost compiled CSS with the exact production class nesting;
  * NO source user/customer records, providers, native iOS/Safari or hosted QA.
- * Uses narrow CSS viewports and Chromium CSS zoom as a magnification proxy.
+ * Uses reduced CSS viewport dimensions as a browser-zoom/reflow proxy.
  * Does not claim physical browser-zoom or OS soft-keyboard equivalence.
  */
 import assert from 'node:assert/strict';
@@ -59,10 +59,14 @@ try{
   for(const width of [320,375,430,820]){
     for(const height of [320,568]){
       for(const zoom of [1,1.5]){
-        await page.setViewportSize({width,height});
+        // Zoom reduces the CSS-pixel layout viewport; applying `zoom` to
+        // the root element instead would incorrectly enlarge 100dvh itself.
+        const effectiveWidth=Math.round(width/zoom);
+        const effectiveHeight=Math.round(height/zoom);
+        await page.setViewportSize({width:effectiveWidth,height:effectiveHeight});
         await page.goto(origin);
-        await page.evaluate(z=>{document.documentElement.style.zoom=String(z);},zoom);
-        const ctx=width+'x'+height+' CSS zoom '+zoom;
+        const ctx=width+'x'+height+' simulated browser zoom '+zoom+'x ('+
+          effectiveWidth+'x'+effectiveHeight+' CSS viewport)';
         const close=page.getByRole('button',{name:'Close'});
         const before=await page.evaluate(()=>{
           const frame=document.querySelector('.new-estimate-dialog');
@@ -78,8 +82,8 @@ try{
             pageOverflow:document.documentElement.scrollWidth-innerWidth};
         });
         check(before.top>=Math.max(-1,before.frameTop-1)&&
-              before.bottom<=Math.min(height+1,before.frameBottom+1)&&
-              before.right<=width+1&&before.x>=-1,
+              before.bottom<=Math.min(effectiveHeight+1,before.frameBottom+1)&&
+              before.right<=effectiveWidth+1&&before.x>=-1,
           ctx+' modal Close remains on screen initially: '+JSON.stringify(before));
         check(before.closeWidth>=40&&before.closeHeight>=40&&before.hit,
           ctx+' 44px Close tappable after scaling: '+JSON.stringify(before));
@@ -94,7 +98,7 @@ try{
             visible:b.top>=f.top-1&&b.bottom<=f.bottom+1,
             hit:at===el||el.contains(at)};
         });
-        check(after.visible&&after.hit&&after.top>=0&&after.bottom<=height+1,
+        check(after.visible&&after.hit&&after.top>=0&&after.bottom<=effectiveHeight+1,
           ctx+' Close stays above long scrolled form: '+JSON.stringify(after));
         const field=page.getByRole('textbox',{name:'Final customer notes'});
         await field.scrollIntoViewIfNeeded();
@@ -104,7 +108,7 @@ try{
           return {active:document.activeElement===el,top:b.top,bottom:b.bottom,
             frameTop:f.top,frameBottom:f.bottom};
         });
-        check(focused.active&&focused.bottom>0&&focused.top<height&&
+        check(focused.active&&focused.bottom>0&&focused.top<effectiveHeight&&
               focused.bottom<=focused.frameBottom+1,
           ctx+' lower input remains focusable and in modal scroll area: '+JSON.stringify(focused));
         check(await close.evaluate(el=>{
