@@ -12,15 +12,18 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const { id: shareToken } = await params;
   const { paid } = await searchParams;
   const row = await env.DB.prepare(`
-    SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt,
+    SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch, e.status, e.accepted_at AS acceptedAt,
            c.name AS customer, c.address,
            COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
            COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
            COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
     FROM estimates e JOIN customers c ON c.id=e.customer_id
     WHERE e.share_token=? LIMIT 1
-  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; status:string; acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; customer:string; address:string|null }>();
+  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; invoiceOwnershipMismatch:number; status:string; acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; customer:string; address:string|null }>();
   if (!row) return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  // Never allow this legacy recovery portal to display manual payment links,
+  // a paid-state hint or card controls for an invoice linked to another customer.
+  if(Number(row.invoiceOwnershipMismatch)!==0)return <main className="pay-page"><section className="pay-card"><h1>Billing details need verification</h1><p>Payment options are paused. Contact First In Response Exteriors to reconcile the customer and invoice records.</p></section></main>;
   const itemResult = await env.DB.prepare(`SELECT name,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;quantity:number;unit:string;totalCents:number}>();
   const items = itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
   const paidCents = Number(row.paidCents??0);
