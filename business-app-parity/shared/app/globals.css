@@ -3609,3 +3609,9 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   outline:3px solid var(--ring);
   outline-offset:2px
 }
+
+/* Print/PDF exports must contain agreement content only, never owner UI.
+   This comes AFTER compact close styles so none can reveal the fixed X. */
+@media print{
+  .owner-estimate-preview-close{display:none!important}
+}
