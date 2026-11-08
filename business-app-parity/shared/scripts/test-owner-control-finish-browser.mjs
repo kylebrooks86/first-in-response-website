@@ -80,10 +80,11 @@ try{
         const group=document.querySelector('.followup-contact-actions');
         const labels=['Google Voice call','Phone backup','Prepare text message','Text backup','Open email app'];
         group.replaceChildren(...labels.slice(0,n).map((label,i)=>{
-          const a=document.createElement('a');
-          a.href='#synthetic-'+i;
-          a.textContent=label;
-          return a;
+          const action=document.createElement(i%2===0?'a':'button');
+          if(action.tagName==='A')action.href='#synthetic-'+i;
+          else action.type='button';
+          action.textContent=label;
+          return action;
         }));
       },count);
       const state=await page.evaluate(()=>{
@@ -109,6 +110,30 @@ try{
         at+' two available methods share the row');
       if(count===5&&width===320)check(state.items[4].width>=state.width*.95,
         at+' the fifth method fills its compact-screen final row');
+    }
+  }
+  // The real contact row mixes direct links and component buttons. In both
+  // themes, keyboard navigation must expose the same visible focus indicator.
+  for(const theme of ['light','dark']){
+    await page.setViewportSize({width:375,height:720});
+    await page.goto(origin);
+    await page.evaluate(v=>{
+      document.documentElement.dataset.theme=v;
+      const button=document.createElement('button');
+      button.type='button';
+      button.textContent='Text via saved composer';
+      document.querySelector('.followup-contact-actions').append(button);
+    },theme);
+    for(const tag of ['a','button']){
+      const target=page.locator('.followup-contact-actions>'+tag).first();
+      await target.focus();
+      const state=await target.evaluate(n=>{
+        const s=getComputedStyle(n);
+        return {outline:s.outlineStyle,width:parseFloat(s.outlineWidth),
+          visible:n.matches(':focus-visible')};
+      });
+      check(state.visible&&state.outline==='solid'&&state.width>=3,
+        theme+' contact '+tag+' has an explicit keyboard focus ring');
     }
   }
   await page.setViewportSize({width:1366,height:844});
@@ -159,6 +184,23 @@ try{
         theme+' '+width+' selected filter differs from neutral in forced colors');
       check(inactive.shadow==='none',
         theme+' '+width+' decorative shadow does not obscure system colors');
+      await page.evaluate(()=>{
+        const button=document.createElement('button');
+        button.type='button';
+        button.textContent='Text via saved composer';
+        document.querySelector('.followup-contact-actions').append(button);
+      });
+      for(const tag of ['a','button']){
+        const contact=page.locator('.followup-contact-actions>'+tag).first();
+        await contact.focus();
+        const state=await contact.evaluate(n=>{
+          const s=getComputedStyle(n);
+          return {outline:s.outlineStyle,width:parseFloat(s.outlineWidth),
+            visible:n.matches(':focus-visible'),shadow:s.boxShadow};
+        });
+        check(state.visible&&state.outline==='solid'&&state.width>=3&&state.shadow==='none',
+          theme+' '+width+' forced-colors contact '+tag+' retains keyboard focus');
+      }
       const target=page.locator('.followup-optional-grid>button').first();
       await target.focus();
       const focus=await target.evaluate(n=>{
