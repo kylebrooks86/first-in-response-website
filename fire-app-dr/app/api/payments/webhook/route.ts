@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 
-type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_SECRET_KEY?: string };
+type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_SECRET_KEY?: string; FIRE_STRIPE_MODE?:string };
 
 type StripeCheckoutSession = {
   id: string;
@@ -26,6 +26,7 @@ type StripeRefund = {
 type StripeEvent = {
   id?: string;
   type?: string;
+  livemode?: boolean;
   data?: { object?: StripeCheckoutSession | StripeRefund };
 };
 
@@ -283,6 +284,14 @@ async function recordRefundUpdate(refund:StripeRefund,stripeSecret?:string){
 
 export async function POST(request:Request) {
   const runtime = env as RuntimeEnv;
+  // The recovery worker must not ingest LIVE payment events, even if a LIVE
+  // webhook signing secret is accidentally configured. All financial D1
+  // mutations and provider lookups stay blocked until explicit TEST opt-in.
+  if(runtime.FIRE_STRIPE_MODE!=="test"||
+     !runtime.STRIPE_SECRET_KEY||
+     !/^(?:sk|rk|rkcs)_test_/.test(runtime.STRIPE_SECRET_KEY))
+    return Response.json({error:"DR Stripe event processing is disabled outside the explicitly authorized TEST environment."},
+      {status:503,headers:{"cache-control":"no-store"}});
   if (!runtime.STRIPE_WEBHOOK_SECRET) return Response.json({ error:"Stripe webhook is not configured." }, { status:503 });
 
   const signature = request.headers.get("stripe-signature");
@@ -296,6 +305,11 @@ export async function POST(request:Request) {
   let event:StripeEvent;
   try { event = JSON.parse(rawBody) as StripeEvent; }
   catch { return Response.json({ error:"Invalid webhook payload." }, { status:400 }); }
+  // The signed Stripe event envelope explicitly specifies its mode. Refuse
+  // missing or LIVE mode rather than inferring sandbox status from a secret.
+  // These checks run before any customer/payment D1 read or write.
+  if(event.livemode!==false)
+    return Response.json({error:"Only signed Stripe TEST events are accepted by DR."},{status:400});
 
   if (["refund.created","refund.updated"].includes(event.type ?? "")) {
     const refund=event.data?.object as StripeRefund|undefined;
