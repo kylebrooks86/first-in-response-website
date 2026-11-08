@@ -94,6 +94,16 @@ class OfflineRecoveryPlan(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.manifest, self.records = fixtures()
 
+    def test_synthetic_photo_archive_reproduces_exact_bytes_and_fixed_dates(self):
+        archive, _ = files(self.temp.name, self.manifest, self.records)
+        original = archive.read_bytes()
+        with zipfile.ZipFile(archive) as z:
+            self.assertEqual(len(z.infolist()), 3)
+            self.assertTrue(all(info.date_time == (2026, 10, 15, 0, 0, 0)
+                                for info in z.infolist()))
+        archive, _ = files(self.temp.name, self.manifest, self.records)
+        self.assertEqual(archive.read_bytes(), original)
+
     def validate(self, expected=True, tamper=False):
         archive, records = files(self.temp.name, self.manifest, self.records,
                                  tamper=tamper)
