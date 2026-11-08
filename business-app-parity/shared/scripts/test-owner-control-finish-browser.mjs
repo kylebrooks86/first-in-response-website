@@ -169,8 +169,10 @@ try{
         at+' entire shortcut and status fit viewport: '+JSON.stringify(state));
       check(state.whiteSpace==='normal'&&state.ellipsis!=='ellipsis'&&
         state.labelOverflow<=1,at+' full bundled service wraps without text clipping');
-      check(state.labelHeight>25&&state.pageOverflow<=1,
-        at+' long service spans readable lines without horizontal page overflow');
+      // On wide desktop the complete service may naturally fit on one line.
+      // On narrow phones it must visibly wrap; neither case may clip or scroll.
+      check((width>820||state.labelHeight>25)&&state.pageOverflow<=1,
+        at+' long service stays readable with wrapping when needed: '+JSON.stringify(state));
       await action.focus();
       const focus=await action.evaluate(n=>({
         visible:n.matches(':focus-visible'),style:getComputedStyle(n).outlineStyle,
