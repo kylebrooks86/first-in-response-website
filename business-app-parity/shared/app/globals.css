@@ -511,7 +511,7 @@ html,body{max-width:100%;overflow-x:clip}
 
 /* Live v49 estimate editor parity */
 .estimate-edit-dialog{max-height:92vh;overflow-y:auto}.estimate-edit-items{display:grid;gap:16px}.estimate-edit-service{position:relative;display:grid;gap:14px;border:1px solid #344962;border-radius:14px;background:#14243a;padding:18px}.estimate-edit-service>header{display:flex;align-items:center;justify-content:space-between}.estimate-edit-service>header>button{display:grid;min-height:44px;min-width:44px;height:44px;width:44px;touch-action:manipulation;place-items:center;border:1px solid #38506d;border-radius:10px;background:#1a304a;color:#ff7b82}.estimate-edit-service>header svg{width:18px}.estimate-edit-service label{display:block;margin-bottom:7px}.edit-quantity-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}.edit-quantity-row>span{padding-bottom:10px;color:#8e9db1;font-size:13px}.edit-line-total{display:block;text-align:right;font-size:18px}.edit-discount-card{display:grid;gap:12px;border:1px solid #344962;border-radius:14px;background:#14243a;padding:18px}.discount-input{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}.discount-input>span{font-size:18px;font-weight:800}.edit-totals{display:grid;gap:8px}.edit-totals span{display:flex;align-items:center;justify-content:space-between;color:#8493a7}.edit-totals strong{color:#e9eef5}.estimate-edit-dialog .brand-button{min-height:50px}
-@media(max-width:760px){.estimate-edit-dialog{width:calc(100vw - 28px)!important;max-width:none!important;max-height:92vh!important;padding:18px!important}.estimate-edit-dialog>button[data-slot="dialog-close"]{height:48px;width:48px;border:1px solid #e54951!important;border-radius:8px!important}.estimate-edit-service{padding:16px}.estimate-edit-service textarea{min-height:210px}.estimate-edit-dialog .select-trigger{min-height:48px}}
+@media(max-width:760px){.estimate-edit-dialog{width:calc(100vw - 28px)!important;max-width:none!important;max-height:92vh!important;padding:18px!important}.estimate-edit-dialog>button[data-slot="dialog-close"]{height:44px;width:44px;border:0!important;border-radius:8px!important}.estimate-edit-service{padding:16px}.estimate-edit-service textarea{min-height:210px}.estimate-edit-dialog .select-trigger{min-height:48px}}
 .discount-mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.discount-mode-row button{width:100%}.edit-discount-card{display:grid;gap:10px}.edit-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.edit-totals span{border:1px solid #dce3eb;border-radius:10px;padding:10px}.edit-totals span strong{display:block;margin-top:3px}.discount-input{display:flex;align-items:center;gap:8px}.discount-input>span{font-weight:800;color:#6b798c}
 .invoice-revision-list{display:grid;gap:8px;margin-top:10px}.invoice-revision-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e3e8ef;border-radius:10px;background:#f8fafc;padding:10px 12px}.invoice-revision-list span{display:grid;gap:2px}.invoice-revision-list strong{font-size:13px}.invoice-revision-list small{color:#748196;font-size:11px}.dark .invoice-revision-list>div{border-color:#2a3c56;background:#12233a}
 
@@ -2754,7 +2754,7 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .schedule-day-buttons>.route-day-button small{grid-column:2;grid-row:2;min-width:0;line-height:1.4}
 
 /* Keep business-contact handoffs usable without changing other dialogs. */
-.voice-contact-dialog [data-slot="dialog-close"]{width:44px;height:44px;display:grid;place-items:center;top:4px;right:4px}
+.voice-contact-dialog [data-slot="dialog-close"]{width:44px;height:44px;display:grid;place-items:center;top:8px;right:8px}
 .voice-contact-dialog [data-slot="dialog-title"]{padding-right:24px}
 button[data-personal-backup],.customer-contact>button[data-personal-backup],.detail-actions>button[data-personal-backup]{color:var(--muted-foreground);font-weight:500;border-style:dashed}
 
@@ -3083,19 +3083,34 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 }
 
 
-/* Keep Close visible when scrolling long, grid-based modal forms. Radix
-   renders Close last; explicit first-grid-row placement lets sticky pin
-   the X beside the title without moving the form. The separately designed
-   Edit Estimate/Invoice and Job dialogs already have stationary headers. */
-[data-slot="dialog-content"]:not(.estimate-edit-dialog):not(.fire-job-dialog)>[data-slot="dialog-close"]{
-  position:sticky;
+/* App-wide CLOSE STANDARD: Radix renders the close control last. A sticky
+   grid placement can push it to the bottom of flex message dialogs or scroll
+   it out of sight in long forms. Pin the visual 16px X in the top-right corner
+   of every shared modal. Retain an invisible 44px accessible hit target.
+   Keep existing Escape, overlay dismissal and unsaved-work guards. */
+[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:absolute;
   top:8px;
   right:8px;
-  grid-row:1;
-  grid-column:1;
-  justify-self:end;
-  align-self:start;
-  margin-bottom:-44px
+  bottom:auto;
+  left:auto;
+  width:44px;
+  height:44px;
+  grid-row:auto;
+  grid-column:auto;
+  justify-self:auto;
+  align-self:auto;
+  margin:0;
+  display:grid;
+  place-items:center;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+  z-index:40
+}
+[data-slot="dialog-content"] > [data-slot="dialog-close"] svg{
+  width:16px;
+  height:16px
 }
 
 
