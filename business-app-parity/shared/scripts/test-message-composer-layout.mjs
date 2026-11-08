@@ -48,16 +48,18 @@ check(ui.includes('templateStatus!=="ready"')&&ui.includes('chooseTemplate=(valu
 check(ui.includes('Find a template')&&ui.includes('settingsSearch')&&
  ui.includes('if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;'),
  'Settings template organization preserves confirmation before unsaved edits are replaced');
-check(css.includes('/* The shared sticky close rule above applies to grid dialogs.')&&
- css.includes('.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{')&&
+check(css.includes('/* App-wide CLOSE STANDARD:')&&
+ css.includes('[data-slot="dialog-content"] > [data-slot="dialog-close"]{')&&
  css.includes('position:absolute;')&&
  css.includes('top:8px;')&&css.includes('right:8px;')&&
- css.includes('bottom:auto;')&&css.includes('left:auto;')&&
- css.lastIndexOf('.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{') >
-     css.lastIndexOf('position:sticky;')&&
+ css.includes('width:44px;')&&css.includes('height:44px;')&&
+ css.includes('width:16px;')&&css.includes('height:16px;')&&
+ !css.includes('position:sticky;\n  top:8px;\n  right:8px;\n  grid-row:1;')&&
+ css.includes('.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{')&&
  ui.includes('<DialogContent className="message-dialog sm:max-w-[620px]"')&&
- dialog.includes('aria-label="Close"')&&dialog.includes('DialogPrimitive.Close'),
- 'Composer X overrides generic grid-sticky rule and stays top-right while message body scrolls');
+ dialog.includes('aria-label="Close"')&&dialog.includes('DialogPrimitive.Close')&&
+ dialog.includes('[&_svg]:size-4')&&dialog.includes('size-11 items-center'),
+ 'Shared and message modal X: small unboxed visual at top-right with 44px accessible hit area');
 check(css.includes('.voice-contact-dialog[data-slot="dialog-content"]{')&&
  css.includes('max-height:calc(100dvh - 24px);')&&
  css.includes('overscroll-behavior:contain;'),
