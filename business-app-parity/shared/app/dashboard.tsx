@@ -95,6 +95,7 @@ import {
   MessageSquareText,
   Moon,
   Phone,
+  PhoneCall,
   Plus,
   Receipt,
   RefreshCw,
@@ -3546,7 +3547,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       <section id={`customer-flags-${selected.id}`} tabIndex={-1} className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
         <div className="customer-flag-heading"><div><h2>Follow-up & activity</h2></div><ClipboardList aria-hidden="true"/></div>
         {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
-        <details className="customer-sign-form customer-activity-tools"><summary>Contact, callbacks & optional tracking{manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&<span> · Callback {manualFlags.leadCallback.dueDate}</span>}</summary>
+        <details className="customer-sign-form customer-activity-tools"><summary>{manualFlags.leadCallback?.state==="pending"&&<PhoneCall className="callback-reminder-icon" aria-hidden="true"/>}Contact, callbacks & optional tracking{manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&<span> · Callback {manualFlags.leadCallback.dueDate}</span>}</summary>
         <details className="customer-sign-form"><summary>More statuses</summary><div className="customer-flag-grid">
           <span><small>Estimate</small><strong>{activitySummary.estimate}</strong></span>
           <span><small>Invoice</small><strong>{activitySummary.invoice}</strong></span>
@@ -3584,7 +3585,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
         </p>}
         {manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&
           <p className="customer-flag-sign-location" role="status">
-            <strong>{manualFlags.leadCallback.dueDate<=tulsaToday?"Callback due":"Upcoming callback"}:</strong> {manualFlags.leadCallback.dueDate}.
+            <strong><PhoneCall className="callback-reminder-icon" aria-hidden="true"/> {manualFlags.leadCallback.dueDate<=tulsaToday?"Callback due":"Upcoming callback"}:</strong> {manualFlags.leadCallback.dueDate}.
           </p>}
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Yard sign: {manualFlags.sign.location||"Location not specified"} · Pickup {manualFlags.sign.pickupDate}.</p>}
         <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Contact and callback buttons save directly. Other flags prepare notes; tap <strong>Add note</strong> to save those. Callback dates are tracked here; no automatic alerts. No messages or push alerts are sent. Pickup tasks must be saved separately.</p></details>
@@ -3634,10 +3635,10 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       </div>
     </details>}
     {dueLeadCallbacks.length>0&&<section className="customer-review-overview" role="region" aria-label="Due customer lead callbacks">
-      <div><strong>{dueLeadCallbacks.length} lead callback{dueLeadCallbacks.length===1?"":"s"} due</strong><small>Owner-saved callback dates · today and overdue · nothing is sent automatically</small></div>
+      <div><strong><PhoneCall className="callback-reminder-icon" aria-hidden="true"/> {dueLeadCallbacks.length} lead callback{dueLeadCallbacks.length===1?"":"s"} due</strong><small>Owner-saved callback dates · today and overdue · nothing is sent automatically</small></div>
       <div>{dueLeadCallbacks.slice(0,5).map(({customer,callback})=><div key={customer.id} className="customer-review-entry">
         <button type="button" onClick={()=>setSelectedId(customer.id)} aria-label={`Open due callback for ${customer.name}`}>
-          {customer.name} · callback {callback?.dueDate}<ChevronRight aria-hidden="true"/>
+          <span className="callback-reminder-label"><PhoneCall className="callback-reminder-icon" aria-hidden="true"/>{customer.name} · callback {callback?.dueDate}</span><ChevronRight aria-hidden="true"/>
         </button>
       </div>)}</div>
       {dueLeadCallbacks.length>5&&<small>{dueLeadCallbacks.length-5} more due callbacks · use the callback filter to review them</small>}
@@ -3647,7 +3648,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
         {showUnansweredLeadsOnly?"Show all customers":`No answer / not contacted (${manuallyUnansweredLeadIds.size})`}
       </Button>}
       {(dueLeadCallbackIds.size>0||showDueCallbacksOnly)&&<Button type="button" variant="outline" aria-pressed={showDueCallbacksOnly} onClick={()=>{setShowUnansweredLeadsOnly(false);setShowDueCallbacksOnly(current=>!current);}}>
-        {showDueCallbacksOnly?"Show all customers":`Callbacks due (${dueLeadCallbackIds.size})`}
+        {!showDueCallbacksOnly&&<PhoneCall className="callback-reminder-icon" aria-hidden="true"/>}{showDueCallbacksOnly?"Show all customers":`Callbacks due (${dueLeadCallbackIds.size})`}
       </Button>}
     </div>}
     {!loading&&!error&&customers.length>0&&<div className="customer-directory-tools">
@@ -3655,7 +3656,7 @@ function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCust
       {directorySearch&&<button type="button" className="customer-directory-clear" onClick={()=>setDirectorySearch("")}>Clear</button>}
       <small role="status">{filteredCustomers.length} of {customers.length} customers</small>
     </div>}
-    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <><section className="customer-list">{filteredCustomers.slice(0,directoryLimit).map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong>{customerNumberLabel(customer.customerNumber)&&<small>{customerNumberLabel(customer.customerNumber)}</small>}<small>{[customer.address?.trim(),customer.phone||customer.email].filter(Boolean).join(" · ")||"Add address or contact"}</small>{dueLeadCallbackIds.has(customer.id)&&<small className="customer-directory-alert">Callback due</small>}{manuallyUnansweredLeadIds.has(customer.id)&&<small className="customer-directory-contact-state">No answer · not contacted</small>}</span>{customer.estimateCount>0&&<span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span>}<ChevronRight /></button>)}</section>{filteredCustomers.length>directoryLimit&&<button type="button" className="customer-directory-more" onClick={()=>setDirectoryLimit(n=>Math.min(n+40,filteredCustomers.length))}>Show next {Math.min(40,filteredCustomers.length-directoryLimit)} customers · {filteredCustomers.length-directoryLimit} remaining</button>}</> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery||directorySearch ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery||directorySearch ? "Try another name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
+    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <><section className="customer-list">{filteredCustomers.slice(0,directoryLimit).map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong>{customerNumberLabel(customer.customerNumber)&&<small>{customerNumberLabel(customer.customerNumber)}</small>}<small>{[customer.address?.trim(),customer.phone||customer.email].filter(Boolean).join(" · ")||"Add address or contact"}</small>{dueLeadCallbackIds.has(customer.id)&&<small className="customer-directory-alert"><PhoneCall className="callback-reminder-icon" aria-hidden="true"/>Callback due</small>}{manuallyUnansweredLeadIds.has(customer.id)&&<small className="customer-directory-contact-state">No answer · not contacted</small>}</span>{customer.estimateCount>0&&<span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span>}<ChevronRight /></button>)}</section>{filteredCustomers.length>directoryLimit&&<button type="button" className="customer-directory-more" onClick={()=>setDirectoryLimit(n=>Math.min(n+40,filteredCustomers.length))}>Show next {Math.min(40,filteredCustomers.length-directoryLimit)} customers · {filteredCustomers.length-directoryLimit} remaining</button>}</> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery||directorySearch ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery||directorySearch ? "Try another name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
 }
 
