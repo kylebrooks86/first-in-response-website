@@ -1,5 +1,5 @@
-# Nov 6 Acer owner-observed authenticated readback: v25, sole 100% traffic,
-# DB -> isolated QA UUID, no R2. This pin grants no publication permission.
+# Nov 7 owner-observed QA code-only update: 89ae853c active at 100% traffic,
+# isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # Review an UPDATED QA Business App after the first successful hosted deployment.
 # READ ONLY: never deploys, uploads secrets, touches D1 data, or changes device vaults.
 # The first-publish script MUST NOT be reused on an existing Worker.
@@ -17,7 +17,7 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Nov 4/5 owner-approved QA update and post-deploy authenticated Wrangler review
+# Nov 7 QA code-only update and owner-observed authenticated Wrangler review
 # identify this 100%-serving version. Previous owner QA checks also reported
 # its isolated D1 and no R2; verify both AGAIN against the current provider.
 # The pinned version is not a release authorization and source provenance
@@ -25,7 +25,7 @@ $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '956f023b-8134-4a66-9598-56c25fb6afab'
+$expectedActiveVersion = '89ae853c-f4bb-4159-8df1-9c18a50008e1'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
