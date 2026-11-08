@@ -65,7 +65,7 @@ try{
     ok(result.cards.every(x=>x.border!=='rgba(0, 0, 0, 0)'),'Business card borders visible '+width+'/'+theme);
     ok(result.sideIcon==='19px'&&result.bottomIcon==='20px','Navigation icon dimensions consistent '+width+'/'+theme);
     ok(result.numbers.includes('tabular-nums'),'Invoice amounts tabular '+width+'/'+theme);
-    ok(result.metrics[1].width>100&&parseFloat(result.descRightPadding)>=30,
+    ok(result.metrics[2].width>100&&parseFloat(result.descRightPadding)>=30,
       'Metric description reserves 30px for bottom-right arrow '+width+'/'+theme);
   }
   ok(errors.length===0,'No browser runtime exceptions');
