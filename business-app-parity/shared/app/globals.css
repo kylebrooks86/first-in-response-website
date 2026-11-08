@@ -4234,3 +4234,46 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .estimate-detail .detail-more-tools > .detail-actions > :is(a,button){
   min-height:48px!important;
 }
+
+
+/* Authenticated QA regression: the large job detail previously scrolled the
+   entire DialogContent, sending its top-right X to y=-1044px on a 320px phone.
+   Keep header and real Radix Close fixed; only the long job history/body scrolls.
+   This does not affect estimate/payment data, modal dismissal guards or other
+   dialogs, and the entire footer remains inside the accessible scroll region. */
+.estimate-detail[data-slot="dialog-content"]{
+  display:flex;
+  flex-direction:column;
+  max-height:calc(100dvh - 32px);
+  overflow:hidden;
+  gap:12px;
+}
+.estimate-detail[data-slot="dialog-content"] > [data-slot="dialog-header"]{
+  position:relative;
+  top:auto;
+  z-index:21;
+  flex:0 0 auto;
+  min-width:0;
+  padding-right:56px;
+}
+.estimate-detail[data-slot="dialog-content"] > .estimate-detail-scroll{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-content:start;
+  gap:18px;
+  flex:1 1 auto;
+  min-height:0;
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  padding-right:3px;
+  scroll-padding-bottom:18px;
+  -webkit-overflow-scrolling:touch;
+}
+.estimate-detail[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:absolute;
+  top:8px;
+  right:8px;
+  z-index:40;
+}
