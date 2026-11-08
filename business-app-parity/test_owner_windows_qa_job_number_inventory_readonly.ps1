@@ -41,7 +41,7 @@ foreach($forbidden in @(
 )){
  Require (-not $s.Contains($forbidden)) ('Unexpected mutation path: '+$forbidden)
 }
-$out=(& $source 2>&1 | Out-String)
+$out=(& $source 6>&1 2>&1 | Out-String)
 Require ($out.Contains('DRY RUN: no Cloudflare calls')) 'Dry run must skip provider.'
 Require ($out.Contains('REMOTE_READS=NONE; REMOTE_WRITES=NONE; NUMBERS_ACTIVATED=NO')) 'Dry run must not read or write QA resources.'
 Write-Host 'PASS: QA Job # inventory is default no-provider and strictly gated to aggregate-only approved QA identifiers.'
