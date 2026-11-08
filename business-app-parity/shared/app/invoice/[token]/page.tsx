@@ -51,7 +51,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=inv.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
       (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount,
       (SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=inv.estimate_id AND s.status='open') AS openCheckoutCount
-    FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id
+    FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id AND e.customer_id=inv.customer_id
     WHERE inv.share_token=? LIMIT 1
   `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;estimateAcceptedAt:string|null;estimateSignedAt:string|null;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
   if (!row) return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerMissingExit}<section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
