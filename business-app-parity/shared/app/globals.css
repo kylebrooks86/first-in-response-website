@@ -4018,3 +4018,44 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     transform:none
   }
 }
+
+
+/* Owner Voice contact dialog: scroll the options, not the X. This preserves
+   the FIRE business-number-first warning/flow and real Radix close affordance. */
+.voice-contact-dialog[data-slot="dialog-content"]{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  max-height:calc(100dvh - 24px);
+  overflow:hidden
+}
+.voice-contact-dialog[data-slot="dialog-content"] > [data-slot="dialog-header"]{
+  flex:0 0 auto;
+  min-width:0;
+  padding-right:34px
+}
+.voice-contact-dialog[data-slot="dialog-content"] > .voice-contact-body{
+  flex:1 1 auto;
+  min-height:0;
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  display:grid;
+  align-content:start;
+  gap:12px;
+  padding-right:3px;
+  -webkit-overflow-scrolling:touch
+}
+.voice-contact-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:absolute;
+  top:8px;
+  right:8px;
+  flex:none;
+  z-index:40
+}
+.voice-contact-dialog .voice-contact-body :is(a,button){
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere
+}
