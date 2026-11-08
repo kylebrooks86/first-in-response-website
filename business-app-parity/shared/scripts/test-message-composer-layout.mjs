@@ -48,6 +48,16 @@ check(ui.includes('templateStatus!=="ready"')&&ui.includes('chooseTemplate=(valu
 check(ui.includes('Find a template')&&ui.includes('settingsSearch')&&
  ui.includes('if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;'),
  'Settings template organization preserves confirmation before unsaved edits are replaced');
+check(css.includes('/* The shared sticky close rule above applies to grid dialogs.')&&
+ css.includes('.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{')&&
+ css.includes('position:absolute;')&&
+ css.includes('top:8px;')&&css.includes('right:8px;')&&
+ css.includes('bottom:auto;')&&css.includes('left:auto;')&&
+ css.lastIndexOf('.message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{') >
+     css.lastIndexOf('position:sticky;')&&
+ ui.includes('<DialogContent className="message-dialog sm:max-w-[620px]"')&&
+ dialog.includes('aria-label="Close"')&&dialog.includes('DialogPrimitive.Close'),
+ 'Composer X overrides generic grid-sticky rule and stays top-right while message body scrolls');
 check(css.includes('.voice-contact-dialog[data-slot="dialog-content"]{')&&
  css.includes('max-height:calc(100dvh - 24px);')&&
  css.includes('overscroll-behavior:contain;'),
