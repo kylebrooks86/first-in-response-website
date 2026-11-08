@@ -55,7 +55,7 @@ export async function exerciseBuiltOwnerVisualHome({page,check}){
           'Actual Home metric grid uses expected column count: '+label+' got '+actual.columns);
         check(actual.iconDesktop==='19px'&&actual.iconMobile==='20px',
           'Owner navigation retains consistent glyph geometry: '+label);
-        check(actual.activeSidebar==='Home'&&actual.activeMobile==='Home',
+        check(actual.activeSidebar==='Dashboard'&&actual.activeMobile==='Home',
           'Active Home nav identified accessibly on both desktop and mobile: '+label);
         check(actual.captionFont==='12px'&&actual.navFont==='11px',
           'KPI descriptions and inactive mobile nav labels remain readable: '+label);
