@@ -115,4 +115,8 @@ check(css.includes('/* Secondary record text should be readable in the field')&&
   css.includes('.contract-list>button>span:nth-child(2)>small'),
   'Invoices, follow-ups, payments and contracts use high-contrast explanatory copy');
 
+check(ui.includes('title="Signed agreement photo permission; not a count of saved photos"')&&
+  ui.includes('Photos: {estimate.photoRelease==="yes"?"Yes":estimate.photoRelease==="no"?"No":"Not recorded"}')&&
+  ui.includes('onDevicePhotoCount!==null&&<b aria-label={onDevicePhotoCount+" on-device photos"}'),
+  'Signed permission reads Photos: Yes/No/Not recorded; separate on-device media badge reports actual count');
 console.log('PASS '+checks+'/'+checks+' source-level app-wide visual-system checks (physical QA open).');
