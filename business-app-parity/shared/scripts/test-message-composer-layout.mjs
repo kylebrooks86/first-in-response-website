@@ -76,6 +76,10 @@ check(cornerClose.includes('width:44px;')&&cornerClose.includes('height:44px;')&
  cornerClose.includes('.sidebar .mobile-close svg{')&&
  preview.includes('aria-label={label}')&&preview.includes('window.location.replace(url.href)'),
  'Owner preview, notifications and mobile-menu corner X match modal sizing without losing keyboard/owner exit guards');
+check(css.lastIndexOf('/* Print/PDF exports must contain agreement content only')>
+ css.lastIndexOf('/* FIRE unified close affordance')&&
+ css.includes('.owner-estimate-preview-close{display:none!important}'),
+ 'Owner-only corner X stays hidden from printed/PDF customer agreements after all responsive rules');
 check(css.includes('.voice-contact-dialog[data-slot="dialog-content"]{')&&
  css.includes('max-height:calc(100dvh - 24px);')&&
  css.includes('overscroll-behavior:contain;'),
