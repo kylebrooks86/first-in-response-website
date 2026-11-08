@@ -64,6 +64,7 @@ import {
   BriefcaseBusiness,
   Clock3,
   Camera,
+  CameraOff,
   CalendarDays,
   Check,
   ChevronRight,
@@ -2727,7 +2728,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     <OwnerDepositReview key={`deposit:${estimate.id}`} estimateId={estimate.id}/>
     <EstimateChangeHistory key={`changes:${estimate.id}`} estimateId={estimate.id} onSummary={(pending,latest)=>{if(Number(estimate.pendingChangeCount)!==pending||estimate.latestChangeRequest!==latest)onChanged({...estimate,pendingChangeCount:pending,latestChangeRequest:latest});}} />
     {Number(estimate.paymentOverageOpen)>0&&<div className="change-alert"><CircleDollarSign/><div><strong>Overpayment needs review</strong><p>Already refunded? Enter the amount to update FIRE's records; this does not send money. Otherwise, choose Keep as overpayment. This is not a transferable customer credit.</p><div className="billing-resolution-actions"><Input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label="Amount already refunded" placeholder="Amount already refunded" value={refundAmount} onChange={(event)=>setRefundAmount(event.target.value)} disabled={saving}/><Button variant="outline" onClick={()=>void resolveOverpayment("refund")} disabled={saving}>Record refund</Button><Button variant="outline" onClick={()=>void resolveOverpayment("keep")} disabled={saving}>Keep as overpayment</Button></div></div></div>}
-    {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · Photos: {estimate.photoRelease==="yes"?"Yes":estimate.photoRelease==="no"?"No":"Not recorded"} · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
+    {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · <span className={"photo-permission-chip "+(estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"denied":"unknown")} title="Signed agreement photo permission; not a count of saved photos">{estimate.photoRelease==="no"?<CameraOff aria-hidden="true"/>:<Camera aria-hidden="true"/>}Photos: {estimate.photoRelease==="yes"?"Yes":estimate.photoRelease==="no"?"No":"Not recorded"}</span> · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
     <div className="detail-grid">
       <div><Label>Status</Label><div className="status-readonly" aria-label={`Job status: ${statusLabel(estimate.status)}`}><strong><EstimateStatusBadge status={estimate.status}/></strong><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/></div></div>
       <div><Label htmlFor={canChangeJobDate?"scheduleDate":undefined}>Job date and time (Tulsa / Central Time)</Label>
