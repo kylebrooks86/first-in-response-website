@@ -37,7 +37,7 @@ export async function exerciseBuiltJobDialogVisual({page,check}){
           .filter(el=>el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden');
         const box=rect(node);
         return {box,close:close?rect(close):null,icon:icon?rect(icon):null,
-          scrollable:node.scrollHeight>node.clientHeight+2,
+          scrollable:!!node.querySelector('.estimate-detail-scroll')&&node.querySelector('.estimate-detail-scroll').scrollHeight>node.querySelector('.estimate-detail-scroll').clientHeight+2,
           actions:actions.map(rect),
           docOverflow:document.documentElement.scrollWidth-innerWidth};
       });
@@ -55,12 +55,12 @@ export async function exerciseBuiltJobDialogVisual({page,check}){
         'Real job-detail owner actions maintain full-size touch/keyboard controls at '+at+': '+JSON.stringify(initial.actions));
       check(initial.docOverflow<=1,'Real job details do not cause document horizontal overflow at '+at);
       if(initial.scrollable){
-        await dialog.evaluate(node=>{node.scrollTop=node.scrollHeight;});
+        await dialog.evaluate(node=>{const scroller=node.querySelector('.estimate-detail-scroll');if(scroller)scroller.scrollTop=scroller.scrollHeight;});
         const scrolled=await dialog.evaluate(node=>{
           const close=node.querySelector('[data-slot="dialog-close"]'),r=close?.getBoundingClientRect();
-          const root=node.getBoundingClientRect();
+          const root=node.getBoundingClientRect(),scroller=node.querySelector('.estimate-detail-scroll');
           const point=r&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-          return {scrollTop:node.scrollTop,closeTop:r?.top,rootTop:root.top,
+          return {scrollTop:scroller?.scrollTop??0,closeTop:r?.top,rootTop:root.top,
             closeVisible:!!r&&r.top>=-1&&r.bottom<=innerHeight+1,
             hit:!!close&&!!point&&(point===close||close.contains(point))};
         });
