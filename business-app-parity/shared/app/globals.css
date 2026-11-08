@@ -4140,3 +4140,29 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     grid-template-columns:minmax(0,1fr)
   }
 }
+
+
+/* Invoice card open/payment buttons share one aligned row even at 320px.
+   The prior flex wrap let a long Record payment label become a taller control
+   than Open; do not alter what either action does or financial ledger rules. */
+.app-shell .invoice-card>.invoice-actions{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+  gap:8px;
+  min-width:0
+}
+.app-shell .invoice-card>.invoice-actions> :is(a,button){
+  display:flex;
+  width:100%;
+  min-width:0;
+  height:100%;
+  min-height:48px;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  padding:10px 8px;
+  white-space:normal;
+  text-align:center;
+  overflow-wrap:anywhere
+}
