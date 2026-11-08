@@ -1,8 +1,8 @@
-# Nov 6 Acer owner-observed authenticated readback: v25, sole 100% traffic,
-# DB -> isolated QA UUID, no R2. This pin grants no publication permission.
+# Nov 7 owner-observed QA code-only update: 89ae853c active at 100% traffic,
+# isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # FIRE QA current-release evidence review — READ ONLY, no publication or data mutation.
 # Designed for the owner's existing authenticated Windows Wrangler session.
-# Nov 4/5 owner-approved QA update and post-deploy authenticated Wrangler readback
+# Nov 7 owner-approved QA code-only update and authenticated Wrangler readback
 # confirmed the pinned 100%-serving QA version and isolated physical D1.
 # This is a PIN, not proof of immutable source bytes: stop if version changes,
 # traffic splits, or physical QA D1 identity differs. NEVER redeploy.
@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedVersion = '956f023b-8134-4a66-9598-56c25fb6afab'
+$expectedVersion = '89ae853c-f4bb-4159-8df1-9c18a50008e1'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
