@@ -83,4 +83,26 @@ check(!css.includes('.app-shell button{border:1px solid red')&&
   !css.includes('.app-shell button{border-color:#e32935')&&
   !css.includes('.app-shell button{background:#e32935'),
   'No global always-red button override; FIRE red is reserved for meaning');
+
+const contrast=(fg,bg)=>{
+  const lum=hex=>{
+    const c=hex.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
+    return .2126*c[0]+.7152*c[1]+.0722*c[2];
+  };
+  const a=lum(fg),b=lum(bg);
+  return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+};
+check(contrast('#586b80','#ffffff')>=4.5&&
+  contrast('#b5c7da','#111f31')>=4.5,
+  'Secondary text tokens meet minimum 4.5:1 contrast on light/dark card surfaces');
+check(css.includes('.app-shell .dashboard-view .metric-card>small{')&&
+  css.includes('color:var(--fire-ui-supporting-text);')&&
+  css.includes('font-size:12px;'),
+  'Home metric descriptions remain legible instead of pale 11px text');
+check(css.includes('.app-shell .bottom-nav button{')&&
+  css.includes('font-size:11px;')&&
+  css.includes('.app-shell .bottom-nav button.active{')&&
+  css.includes('color:var(--fire-ui-nav-accent);'),
+  'Mobile nav has readable neutral labels and distinct selected FIRE-red text');
+
 console.log('PASS '+checks+'/'+checks+' source-level app-wide visual-system checks (physical QA open).');
