@@ -70,6 +70,15 @@ check(ui.includes('function EstimateStatusBadge')&&
   ui.includes('function EstimatePaymentBadge')&&
   ui.includes('function EstimateAttentionBadges'),
   'Lifecycle, financial and exceptional statuses keep separate meaning');
+check(css.includes('/* Remove legacy <=430px dashboard card suppression:')&&
+  css.includes('.app-shell .dashboard-view .metric-grid > .metric-card:nth-child(3),')&&
+  css.includes('grid-template-columns:minmax(0,1fr)'),
+  'All four Home KPI cards remain accessible at phone widths, with one-column fallback <=350px');
+check(css.includes('.app-shell .invoice-card>.invoice-actions{')&&
+  css.includes('display:grid!important;')&&
+  css.includes('grid-template-columns:repeat(2,minmax(0,1fr));')&&
+  css.includes('.app-shell .invoice-card>.invoice-actions> :is(a,button){'),
+  'Invoice Open/Record payment controls share an equal-height responsive row');
 check(!css.includes('.app-shell button{border:1px solid red')&&
   !css.includes('.app-shell button{border-color:#e32935')&&
   !css.includes('.app-shell button{background:#e32935'),
