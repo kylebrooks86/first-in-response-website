@@ -1,0 +1,277 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "0edfea6d8981f39eea06f3219af75638ac5d922e",
+  "scope": "Actual local framework validation and worker-visible development flag fix",
+  "results": {
+    "live": {
+      "framework": {
+        "passed": 13,
+        "total": 13,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "live",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "componentRegression": {
+        "passed": 18,
+        "total": 18,
+        "checks": [
+          "production page remains disabled even with synthetic flag",
+          "development page requires explicit synthetic flag",
+          "actual route refuses missing synthetic session",
+          "actual route refuses non-owner fixture",
+          "actual route supplies synthetic server-scoped descriptor",
+          "unsigned browser session cannot enter fixture screen",
+          "React candidate screen mounts locked without automatically seeding",
+          "explicit test-vault creation clears phrase and preserves locked state",
+          "candidate creates synthetic customer and reports local pending save",
+          "candidate edits loaded contacts offline and increments revision",
+          "explicit lock removes contact plaintext and draft",
+          "reload retains encrypted local contact and receipt history",
+          "React identity change unmounts old controller and separates account storage",
+          "320px light candidate layout fits viewport",
+          "320px dark candidate layout fits viewport",
+          "candidate light theme remains light under a dark host page",
+          "logout fixture revokes local plaintext",
+          "online/financial routes untouched and no outside network or runtime errors"
+        ],
+        "identity": {
+          "accountId": "synthetic-fire-owner-account-v1",
+          "targetId": "synthetic-fire-live-v1"
+        },
+        "browserVersion": "153.0.8010.0",
+        "actualReactPanel": true,
+        "actualServerPageWithAuthStub": true,
+        "syntheticSignedSessionFixture": true,
+        "realAuthTested": false,
+        "fullAppRuntimeTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "buildLogSHA256": "3dae44ca3fdd923beb3b9b0e52befd914ffc15acd2c29abf36ed1d87c7f54ad5",
+      "frameworkLogSHA256": "3a7b28b8a7f15b2f95b8c64c24f6a6c42788638890a8fb77b383fc1c79388d8f"
+    },
+    "doomsday": {
+      "framework": {
+        "passed": 13,
+        "total": 13,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual independent auth rejects invalid signed-cookie fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "doomsday",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "componentRegression": {
+        "passed": 18,
+        "total": 18,
+        "checks": [
+          "production page remains disabled even with synthetic flag",
+          "development page requires explicit synthetic flag",
+          "actual route refuses missing synthetic session",
+          "actual route refuses non-owner fixture",
+          "actual route supplies synthetic server-scoped descriptor",
+          "unsigned browser session cannot enter fixture screen",
+          "React candidate screen mounts locked without automatically seeding",
+          "explicit test-vault creation clears phrase and preserves locked state",
+          "candidate creates synthetic customer and reports local pending save",
+          "candidate edits loaded contacts offline and increments revision",
+          "explicit lock removes contact plaintext and draft",
+          "reload retains encrypted local contact and receipt history",
+          "React identity change unmounts old controller and separates account storage",
+          "320px light candidate layout fits viewport",
+          "320px dark candidate layout fits viewport",
+          "candidate light theme remains light under a dark host page",
+          "logout fixture revokes local plaintext",
+          "online/financial routes untouched and no outside network or runtime errors"
+        ],
+        "identity": {
+          "accountId": "synthetic-fire-owner-account-v1",
+          "targetId": "synthetic-fire-doomsday-v1"
+        },
+        "browserVersion": "153.0.8010.0",
+        "actualReactPanel": true,
+        "actualServerPageWithAuthStub": true,
+        "syntheticSignedSessionFixture": true,
+        "realAuthTested": false,
+        "fullAppRuntimeTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "buildLogSHA256": "90d551306ed649a1e0d3b83a2dc1d2d9ea08b8b82b3f735c3f3821128fbc0136",
+      "frameworkLogSHA256": "3c0155d6f8ea2fbede911e840164236ee9119a543c0fb24140f22e821f1b1d89"
+    },
+    "staging": {
+      "framework": {
+        "passed": 13,
+        "total": 13,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "staging",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "componentRegression": {
+        "passed": 18,
+        "total": 18,
+        "checks": [
+          "production page remains disabled even with synthetic flag",
+          "development page requires explicit synthetic flag",
+          "actual route refuses missing synthetic session",
+          "actual route refuses non-owner fixture",
+          "actual route supplies synthetic server-scoped descriptor",
+          "unsigned browser session cannot enter fixture screen",
+          "React candidate screen mounts locked without automatically seeding",
+          "explicit test-vault creation clears phrase and preserves locked state",
+          "candidate creates synthetic customer and reports local pending save",
+          "candidate edits loaded contacts offline and increments revision",
+          "explicit lock removes contact plaintext and draft",
+          "reload retains encrypted local contact and receipt history",
+          "React identity change unmounts old controller and separates account storage",
+          "320px light candidate layout fits viewport",
+          "320px dark candidate layout fits viewport",
+          "candidate light theme remains light under a dark host page",
+          "logout fixture revokes local plaintext",
+          "online/financial routes untouched and no outside network or runtime errors"
+        ],
+        "identity": {
+          "accountId": "synthetic-fire-owner-account-v1",
+          "targetId": "synthetic-fire-refund-staging-v1"
+        },
+        "browserVersion": "153.0.8010.0",
+        "actualReactPanel": true,
+        "actualServerPageWithAuthStub": true,
+        "syntheticSignedSessionFixture": true,
+        "realAuthTested": false,
+        "fullAppRuntimeTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "buildLogSHA256": "c77447714e91a0d4f2172e89849ae7445d66a747efc633d681ab76f79104bb87",
+      "frameworkLogSHA256": "5a877ff56b601bfde8abfde336d483fb145218ead1cc40d70cf66a2d228aa838"
+    }
+  },
+  "actualFrameworkChecks": {
+    "passed": 39,
+    "total": 39
+  },
+  "componentRegression": {
+    "passed": 54,
+    "total": 54
+  },
+  "fullBuilds": {
+    "passed": 3,
+    "total": 3
+  },
+  "fullTypechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "financialRegressionLive": {
+    "passed": 69,
+    "total": 69,
+    "syntheticSQLiteOnly": true
+  },
+  "sourceParity": {
+    "files": 129,
+    "differences": 0,
+    "candidateCount": 3
+  },
+  "hashes": {
+    "app/development/local-customers/page.tsx": "e275b0a3665a7d4f16783499b35dfc4fdb93790efdc3e7ea50b1c7a7c4b5111c",
+    "vite.config.ts": "42ae18cf7d66289c21bf3984f6f6879237d79d5adeba407dc89c579ea34d2ac2",
+    "scripts/test-candidate-local-customers-browser.mjs": "343a97602393ea6dea40243c6ae324cc465712d29a44253d66386c4dcc41181a",
+    "scripts/test-local-customers-framework-browser.mjs": "118e26d801deb9d102c31ca095671723ea8099709ae2ad144794cc1eee0029a1"
+  },
+  "runtimeFix": "Node process flag was not forwarded to the worker. Local-only Vite bindings now pass the exact development synthetic flag; Home and candidate route read worker env binding. Production guard remains required and tested.",
+  "testRuntime": {
+    "framework": "Vite + vinext + Cloudflare workerd from actual candidate config/source",
+    "liveAndStagingAuth": "Actual gateway adapter with synthetic owner/non-owner headers supplied only to loopback server",
+    "independentAuth": "Actual independent adapter with valid/invalid HMAC signed cookie fixtures using a temporary synthetic secret",
+    "gatewayProviderVerified": false,
+    "d1": "Existing schema applied to new disposable local placeholder D1 state only",
+    "config": "Temporary copied config points persistence to disposable fixture and supplies synthetic signing secret. Source/deployed secrets untouched.",
+    "localSourceRuntime": "Actual candidate source; wrapper CLI ignored temporary config, so fixture uses underlying Vite CLI with explicit temporary config.",
+    "noExternalBrowserRequests": true
+  },
+  "navigationLimits": [
+    "Desktop navigation was exercised at 1280px after hydration using bounded repeated native Customers clicks. First-tap hydration readiness is not proven.",
+    "Mobile sidebar click outside viewport was observed in an earlier local run; cause not proven, remains unresolved.",
+    "Panel fits 320px light/dark in real framework; this does not prove mobile menu navigation or original bottom-shaking fix."
+  ],
+  "priorFailuresResolved": [
+    "Worker flag missing from worker runtime",
+    "Copied-source/symlink dependency fixture produced server render failure; actual source with temporary config used instead",
+    "Wrapper CLI ignored temporary config and selected uninitialized local D1; underlying Vite CLI now honors temporary state config"
+  ],
+  "productionActivated": false,
+  "productionResourcesChanged": false,
+  "productionDatabaseWrites": false,
+  "stripeCalls": false,
+  "deviceVaultsTouched": false,
+  "paidServicesUsed": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "nextTask": "Investigate actual mobile navigation/hydration readiness and bottom-of-screen shaking with repeatable browser evidence, preserving production and device vaults"
+}

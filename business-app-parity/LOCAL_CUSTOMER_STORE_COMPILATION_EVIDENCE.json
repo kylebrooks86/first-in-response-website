@@ -1,0 +1,68 @@
+{
+  "parent": "344d71e7455b02f2250aca084d9c768e876c6596",
+  "change": "shared/pnpm-workspace.yaml supplies miniflare>sharp override already in unchanged pnpm-lock.yaml; package.json npm override preserved",
+  "negativeControl": {
+    "frozenInstallExitCode": 1,
+    "error": "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH"
+  },
+  "positiveControl": {
+    "pnpmVersion": "11.25.0",
+    "frozenInstallExitCode": 0,
+    "packagesInstalled": 628,
+    "dependencyVersionsChanged": false,
+    "installScriptsInitiallySkipped": true,
+    "esbuildWorkerdRebuildExitCode": 0
+  },
+  "targets": {
+    "live": {
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "simulatedStoreChecksPassed": 20,
+      "simulatedStoreChecksTotal": 20,
+      "buildLogSha256": "94679297c260fccc2b3262d522b6e09311ae885382385b0bfa4093193d76f0be"
+    },
+    "doomsday": {
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "simulatedStoreChecksPassed": 20,
+      "simulatedStoreChecksTotal": 20,
+      "buildLogSha256": "74904d1741550a12cf5171562e357fb0e0e0f0fa261c85f092c6582c1d1f1897"
+    },
+    "staging": {
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "simulatedStoreChecksPassed": 20,
+      "simulatedStoreChecksTotal": 20,
+      "buildLogSha256": "fbccf939d09b2fc81edd69c923e7a38ce106dc82a7a2dc2a72b9061c2d53c770"
+    }
+  },
+  "sourceParity": {
+    "matched": 120,
+    "checked": 120
+  },
+  "browserVerification": {
+    "status": "BLOCKED_DOWNLOAD",
+    "attempt": "Playwright Chromium v1234 / Chrome for Testing 151.0.7922.34",
+    "failure": "Downloaded archive lacked ZIP central directory; repeated downloader attempts stopped with exit 130.",
+    "realIndexedDBVerified": false,
+    "iPhoneVerified": false
+  },
+  "uiActivated": false,
+  "offlineAppReady": false,
+  "deployments": false,
+  "migrations": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServices": false,
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "ready": false
+  },
+  "configurationSha256": {
+    "pnpm-workspace.yaml": "8a6368c58017ac0d6201e461adc79305d6dc377b455e812e07079d111d32c5aa",
+    "pnpm-lock.yaml": "89dcf13994f9f97e62a63ac011591005afe4096309f4488ec0b99f7593a9294c",
+    "package.json": "4f6c2790297197729de0f4557b1fdf37e8e7868c232e75f13ab92e615ce3e03b"
+  }
+}

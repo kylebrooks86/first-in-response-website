@@ -1,0 +1,107 @@
+import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-state.mjs";
+import {getChatGPTUser} from "../../chatgpt-auth";
+import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
+import { env } from "cloudflare:workers";
+import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight } from "lucide-react";
+import { publicInvoiceFooter } from "../../../lib/fire-templates";
+import { serviceDescriptionFor } from "../../../lib/fire-services";
+import { PayButton } from "../../pay/[id]/pay-button";
+import { paymentHandles } from "../../../lib/payment-methods";
+import {jobNumberLabelForEstimate} from "../../../lib/job-numbering.mjs";
+import {customerNumberLabel,customerNumberForCustomer} from "../../../lib/customer-numbering.mjs";
+import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
+import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
+import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
+import { OwnerPreviewReturnLink } from "../../../components/owner-preview-return-link";
+import { canOfferManualPayment } from "../../../lib/public-payment-visibility.mjs";
+
+export const dynamic = "force-dynamic";
+export const metadata={robots:{index:false,follow:false,nocache:true}};
+type RuntimeEnv = Cloudflare.Env & { STRIPE_RESTRICTED_KEY?: string; STRIPE_SECRET_KEY?: string; CASH_APP_HANDLE?:string; VENMO_HANDLE?:string };
+const currency = (value:number) => new Intl.NumberFormat("en-US", { style:"currency", currency:"USD" }).format(value/100);
+
+const invoiceDueLabel = (dueAt:string|null, createdAt:string) => {
+  if (!dueAt) return "Payment due on receipt";
+  const due = new Date(dueAt);
+  const created = new Date(createdAt);
+  // Both the created and due dates are FIRE business dates in Tulsa/Central,
+  // not the server's or customer's device's local calendar day.
+  const tulsaCalendarDay=(instant:Date)=>new Intl.DateTimeFormat("en-CA",{
+    timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
+  }).format(instant);
+  const sameCalendarDay=tulsaCalendarDay(due)===tulsaCalendarDay(created);
+  if (sameCalendarDay) return "Payment due on receipt";
+  return `Payment due ${new Intl.DateTimeFormat("en-US", {
+    timeZone:"America/Chicago",month:"long", day:"numeric",year:"numeric"
+  }).format(due)}`;
+};
+
+export default async function CustomerInvoicePage({ params, searchParams }: { params:Promise<{token:string}>; searchParams:Promise<{from?:string;ownerPreview?:string}> }) {
+  const { token } = await params;
+  const {ownerPreview:requestedPreview,from}=await searchParams;
+  const previewOwner=requestedPreview==='1'?await getChatGPTUser():null;
+  const ownerPreview=previewOwner?.email?.toLowerCase()==='kylebrooks8605@gmail.com';
+  // The owner must be able to leave an unavailable token preview without
+  // browser Back. The caller-supplied ownerPreview hint never grants access.
+  const ownerMissingExit=ownerPreview?<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close owner-invoice-preview-close" href="/" label="Close invoice preview"/></>:null;
+  const row = await env.DB.prepare(`
+    SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.total_cents AS totalCents,
+      inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,e.accepted_at AS estimateAcceptedAt,e.signed_at AS estimateSignedAt,
+      COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+      (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=inv.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
+      (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount,
+      (SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=inv.estimate_id AND s.status='open') AS openCheckoutCount
+    FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id AND e.customer_id=inv.customer_id
+    WHERE inv.share_token=? LIMIT 1
+  `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;estimateAcceptedAt:string|null;estimateSignedAt:string|null;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
+  if (!row) return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerMissingExit}<section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  const customerLabel=customerNumberLabel(await customerNumberForCustomer(env.DB,row.customerId,env));
+  const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
+    ?await jobNumberLabelForEstimate(env.DB,row.estimateId):null;
+  const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
+  const items=itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
+  const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
+  if (!ownerPreview&&!row.firstViewedAt) {
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare("UPDATE invoices SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL").bind(now,row.id),
+      env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE type='invoice_viewed' AND estimate_id=?)`).bind(crypto.randomUUID(),"invoice_viewed",`${row.customer} viewed an invoice`,`${serviceSummary} invoice was opened for the first time.`,row.customerId,row.estimateId,now,row.estimateId),
+    ]);
+  }
+  const state=invoicePaymentState(row);
+  const balance=state.balanceCents??0;
+  const paymentReviewPending=state.review||Number(row.openCheckoutCount??0)>0;
+  const manualPaymentEligible=canOfferManualPayment({status:row.estimateStatus,acceptedAt:row.estimateAcceptedAt,signedAt:row.estimateSignedAt,billingVerified:state.safe,balanceCents:balance,reviewPending:paymentReviewPending});
+  const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
+  const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
+  const close=ownerPreview?<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} label="Close invoice preview"/></>:null;
+  if(!state.safe)return <main className={`pay-page invoice-page${ownerPreview?' owner-estimate-preview':''}`}>{close}<section className="pay-card"><h1>Invoice account review</h1><p>We are checking this invoice. Please contact First In Response Exteriors before making a payment.</p></section></main>;
+  const runtime = env as RuntimeEnv;
+  const paymentsReady = Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
+  const handles = paymentHandles(runtime);
+  const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='invoiceFooter'").first<{body:string}>();
+  return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{close}<section className="pay-card estimate-portal invoice-portal">
+    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
+    <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
+    <div className="pay-title"><p>INVOICE FOR</p><h1>{row.customer}</h1>{customerLabel&&<small>{customerLabel}</small>}{jobLabel&&<small>{jobLabel}</small>}{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
+    <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
+    <div className="pay-summary invoice-payment-summary" aria-label="Invoice payment breakdown">
+      <span><small>Invoice total</small><strong>{currency(row.totalCents)}</strong></span>
+      <span><small>Payments received</small><strong>{currency(Number(row.paidCents))}</strong></span>
+      <span className="invoice-balance-row"><small>Balance due</small><strong className={balance>0?"red-text":"green-text"}>{currency(balance)}</strong></span>
+    </div>
+    <p className="invoice-due"><CalendarDays/> {paymentReviewPending?"Account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
+    {showReviewInvitation&&<CustomerReviewInvitation/>}
+    {manualPaymentEligible&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={Number(row.totalCents)} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
+    {manualPaymentEligible&&<>
+      {row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="invoice-payment-divider"><span/>OR<span/></div>}
+      <section className="invoice-other-payments" aria-label="Other payment options">
+        <h2>Other Payment Options</h2><p>You can also pay manually using Cash App or Venmo. Please include your name in the payment note.</p>
+        <a className="invoice-manual-method cash-app" href={`https://cash.app/$${encodeURIComponent(handles.cashApp.replace(/^\$/,""))}`} target="_blank" rel="noopener noreferrer"><span className="invoice-method-icon">$</span><span><strong>Cash App <ArrowUpRight/></strong><small>{handles.cashApp}</small></span></a>
+        <a className="invoice-manual-method venmo" href={`https://venmo.com/u/${encodeURIComponent(handles.venmo.replace(/^@/,""))}`} target="_blank" rel="noopener noreferrer"><span className="invoice-method-icon">V</span><span><strong>Venmo <ArrowUpRight/></strong><small>{handles.venmo}</small></span></a>
+      </section>
+    </>}
+    <div className="invoice-footer-note"><span><Info/></span><p>{invoicePaymentMessage(state)??publicInvoiceFooter(footer?.body)}</p></div>
+    <div className="secure-note"><ShieldCheck/> Your private invoice link is unique to you.</div>
+  </section></main>;
+}
