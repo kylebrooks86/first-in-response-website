@@ -153,6 +153,9 @@ try{
   check(all.critical.every(x=>x.rect.height>=44),label+' notification controls are at least 44px tall');
   check(all.critical.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' reminder buttons stay inside viewport');
   check(all.header.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' header actions stay inside viewport '+JSON.stringify(all.header));
+  const payment=all.header.find(x=>x.name==='Record payments');
+  check(Boolean(payment)&&payment.rect.width>=44&&payment.rect.height>=44,
+    label+' header Payments shortcut has a 44px tap target: '+JSON.stringify(payment));
   check(all.header.every((x,i)=>all.header.slice(i+1).every(y=>x.rect.right<=y.rect.x+1||y.rect.right<=x.rect.x+1||x.rect.bottom<=y.rect.y+1||y.rect.bottom<=x.rect.y+1)),label+' header actions do not overlap '+JSON.stringify(all.header));
   // Customer record sections carry six essential operations, including
   // local-only Photos and its numeric badge. Narrow-phone grid/scroll CSS must
