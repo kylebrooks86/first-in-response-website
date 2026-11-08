@@ -3840,3 +3840,440 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     color:#c4d4e6
   }
 }
+
+
+/* FIRE APP-WIDE VISUAL SYSTEM • owner-requested finishing layer
+   Apply to existing sections, never to customer portals or editor/preview data.
+   Semantic urgency badges, payment colors and destructive actions retain their
+   own established treatment. This does NOT give every button a red border.
+   #189: controls, cards, navigation, text hierarchy and responsive precision. */
+:root{
+  --fire-ui-radius:12px;
+  --fire-ui-border-soft:#dbe3ed;
+  --fire-ui-shadow:0 3px 13px rgb(23 40 66 / 5%);
+  --fire-ui-shadow-hover:0 9px 24px rgb(23 40 66 / 10%);
+  --fire-ui-nav-accent:#c9202c;
+  --fire-ui-active-wash:rgb(225 41 51 / 7%);
+}
+[data-theme="dark"]{
+  --fire-ui-border-soft:#33485f;
+  --fire-ui-shadow:0 4px 14px rgb(0 0 0 / 13%);
+  --fire-ui-shadow-hover:0 9px 25px rgb(0 0 0 / 23%);
+  --fire-ui-nav-accent:#ff727b;
+  --fire-ui-active-wash:rgb(255 122 133 / 12%);
+}
+/* Consistent readable titles without upsetting compact customer editors. */
+.app-shell :is(.dashboard-view,.customers-view,.workspace-view) :is(.welcome-row h1,.workspace-head h1,.customers-head h1){
+  letter-spacing:-.025em;
+  line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.app-shell :is(.panel,.business-panel,.insight-panel) > header h2,
+.app-shell .template-section-title{
+  font-weight:800;
+  letter-spacing:-.012em;
+  line-height:1.35
+}
+.app-shell :is(.metric-card,.insight-kpis article,.invoice-total,.payment-history-amount,.customer-estimate-price,.customer-payment-amount,.job-price,.estimate-amount) :is(strong,b),
+.app-shell :is(.metric-card>strong,.insight-kpis strong,.invoice-total>strong,.customer-estimate-price,.payment-history-amount,.customer-payment-amount,.job-price,.estimate-amount){
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum"
+}
+.app-shell :is(.invoice-total,.customer-estimate-price,.customer-payment-amount,.estimate-amount){
+  min-width:0;
+  overflow-wrap:anywhere
+}
+/* Card shape, borders and elevation across list/detail/insight surfaces.
+   Do not flatten deliberate lifecycle status bars or alert-specific backgrounds. */
+.app-shell :is(
+  .panel,.customer-card,.customer-profile,.estimate-card,.invoice-card,
+  .followup-card,.business-panel,.insight-panel,.insight-kpis article,
+  .schedule-month,.record-card,.customers-state
+){
+  border-color:var(--fire-ui-border-soft);
+  box-shadow:var(--fire-ui-shadow);
+}
+.app-shell :is(.customer-card,.estimate-card,.invoice-card,.record-card,.followup-card,.schedule-month,.insight-kpis article){
+  border-radius:var(--fire-ui-radius)
+}
+.app-shell :is(.customer-card,.estimate-card,.job-row,.schedule-job){
+  transition:border-color 150ms ease,box-shadow 150ms ease,background-color 150ms ease,transform 150ms ease
+}
+@media(hover:hover) and (pointer:fine){
+  .app-shell :is(.customer-card,.estimate-card):hover{
+    border-color:#d78389;
+    box-shadow:var(--fire-ui-shadow-hover);
+    transform:translateY(-1px)
+  }
+  .app-shell :is(.job-row,.schedule-job):hover{
+    background:var(--muted)
+  }
+  .app-shell :is(.quick-actions-grid>button,.followup-card>button):hover{
+    background:var(--fire-ui-active-wash)
+  }
+}
+.app-shell :is(.customer-card,.estimate-card,.job-row,.schedule-job,.quick-actions-grid>button,.invoice-actions>button,.followup-card>button):focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+/* Consistent neutral controls, short labels and true 44px touch targets in
+   ordinary sections. Do not override variants, pills or compact icon-only X. */
+.app-shell :is(
+  .filter-row button,.record-tabs button,.invoice-directory-tools button,
+  .schedule-header-actions>button,.schedule-day-actions>button,
+  .followup-priority-buttons>button,.followup-contact-actions>button,
+  .business-task-filters button,.payments-quick-action,
+  .business-record-tools button,.business-record-more,
+  .settings-view .template-editor>footer>button
+){
+  min-height:44px;
+  border-radius:9px;
+  line-height:1.35;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  touch-action:manipulation
+}
+.app-shell :is(
+  .schedule-header-actions>button,.followup-priority-buttons>button,
+  .followup-contact-actions>button,.business-task-filters button,
+  .business-record-tools button,.settings-view .template-editor>footer>button
+) svg{
+  width:16px;
+  height:16px;
+  flex:0 0 16px
+}
+/* Selected filters should be visible without painting routine controls red. */
+.app-shell :is(.filter-row button.active,.record-tabs button.active){
+  font-weight:800
+}
+/* Same-size navigation glyphs and quiet, recognizable selected state.
+   Keep the original FIRE side stripe and existing text labels. */
+.app-shell .sidebar nav button svg{
+  width:19px;
+  height:19px;
+  flex:0 0 19px
+}
+.app-shell .sidebar nav button{
+  min-height:44px;
+  border-radius:10px
+}
+.app-shell .sidebar nav button.active{
+  font-weight:800
+}
+.app-shell .sidebar nav button.active svg{
+  color:var(--fire-ui-nav-accent)
+}
+.app-shell .bottom-nav button svg{
+  width:20px;
+  height:20px;
+  flex:0 0 20px
+}
+.app-shell .bottom-nav button.active{
+  color:var(--fire-ui-nav-accent);
+  font-weight:800
+}
+.app-shell .bottom-nav button.active svg{
+  border-radius:8px;
+  box-shadow:0 0 0 5px var(--fire-ui-active-wash)
+}
+.app-shell :is(.sidebar nav button,.bottom-nav button):focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:-3px
+}
+/* Prevent badge and secondary-text collisions when records are narrow. */
+.app-shell :is(.customer-card,.estimate-card,.invoice-card,.followup-card,.job-row) > *{
+  min-width:0
+}
+.app-shell :is(.job-main,.estimate-person,.invoice-card>div:first-of-type,.followup-card>div){
+  overflow-wrap:anywhere
+}
+.app-shell :is(.invoice-card,.estimate-card,.customer-card) :is(small,p){
+  line-height:1.4
+}
+/* Keep long sections/actions reachable with a keyboard or screen magnifier. */
+.app-shell :is(.record-tabs,.filter-row){
+  max-width:100%;
+  scroll-padding-inline:12px
+}
+@media(max-width:760px){
+  .app-shell :is(.panel,.business-panel,.insight-panel,.customer-profile,.schedule-month){
+    min-width:0;
+    max-width:100%
+  }
+  .app-shell :is(.customer-card,.estimate-card,.invoice-card,.followup-card){
+    min-width:0;
+    max-width:100%
+  }
+  .app-shell .bottom-nav button{
+    min-width:0;
+    min-height:52px
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell :is(.customer-card,.estimate-card,.job-row,.schedule-job){
+    transition:none
+  }
+  .app-shell :is(.customer-card,.estimate-card):hover{
+    transform:none
+  }
+}
+
+
+/* Owner Voice contact dialog: scroll the options, not the X. This preserves
+   the FIRE business-number-first warning/flow and real Radix close affordance. */
+.voice-contact-dialog[data-slot="dialog-content"]{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  max-height:calc(100dvh - 24px);
+  overflow:hidden
+}
+.voice-contact-dialog[data-slot="dialog-content"] > [data-slot="dialog-header"]{
+  flex:0 0 auto;
+  min-width:0;
+  padding-right:34px
+}
+.voice-contact-dialog[data-slot="dialog-content"] > .voice-contact-body{
+  flex:1 1 auto;
+  min-height:0;
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  display:grid;
+  align-content:start;
+  gap:12px;
+  padding-right:3px;
+  -webkit-overflow-scrolling:touch
+}
+.voice-contact-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:absolute;
+  top:8px;
+  right:8px;
+  flex:none;
+  z-index:40
+}
+.voice-contact-dialog .voice-contact-body :is(a,button){
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere
+}
+
+
+/* Legible, repeatable supporting copy, without recoloring alerts or statuses. */
+:root{--fire-ui-supporting-text:#586b80}
+[data-theme="dark"]{--fire-ui-supporting-text:#b5c7da}
+.app-shell :is(
+  .panel>header p,.business-panel>header p,
+  .job-main>p,.insight-kpis article>small,
+  .invoice-card>div:first-of-type>small
+){
+  color:var(--fire-ui-supporting-text);
+  font-size:12px;
+  line-height:1.45;
+  overflow-wrap:anywhere
+}
+.app-shell .record-tabs button.active{
+  border-bottom-color:var(--fire-ui-nav-accent);
+  background:var(--fire-ui-active-wash)
+}
+@media(hover:hover) and (pointer:fine){
+  .app-shell :is(.brand-button,.metric-card,.customer-card,.estimate-card):not(:disabled):active{
+    filter:brightness(.98);
+    transform:translateY(0)
+  }
+}
+
+
+/* Remaining owner views share the same subtle surface vocabulary without
+   modifying nested map controls, money meanings or photo/video contents. */
+.app-shell :is(.contract-list,.schedule-board,.needs-schedule,.template-editor,.photo-panel,.notification-popover){
+  border-color:var(--fire-ui-border-soft);
+  border-radius:var(--fire-ui-radius)
+}
+.app-shell :is(.contract-list,.schedule-board,.needs-schedule){
+  box-shadow:var(--fire-ui-shadow)
+}
+.app-shell :is(.contract-list>button,.notification-list>button){
+  min-height:48px;
+  line-height:1.4;
+  touch-action:manipulation
+}
+.app-shell :is(.contract-list>button,.notification-list>button,.territory button,.territory a):focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+.app-shell :is(.contract-list small,.payment-history small,.notification-list small){
+  font-size:11px;
+  line-height:1.4;
+  overflow-wrap:anywhere
+}
+.app-shell :is(.template-editor>header h2,.schedule-board>header h2,.needs-schedule>header h2){
+  font-weight:800;
+  letter-spacing:-.012em;
+  line-height:1.35
+}
+.app-shell .customer-profile .photo-buttons>button{
+  min-height:48px;
+  border-radius:9px
+}
+.app-shell .territory :is(button,a){
+  touch-action:manipulation
+}
+
+
+/* Remove legacy <=430px dashboard card suppression: all four operational
+   metrics matter to the owner even on narrow iPhones. Two columns at standard
+   phone widths, one full-width column on truly tiny viewports. */
+@media(max-width:760px){
+  .app-shell .dashboard-view .metric-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .app-shell .dashboard-view .metric-grid > .metric-card:nth-child(3),
+  .app-shell .dashboard-view .metric-grid > .metric-card:nth-child(4){
+    display:block
+  }
+}
+@media(max-width:350px){
+  .app-shell .dashboard-view .metric-grid{
+    grid-template-columns:minmax(0,1fr)
+  }
+}
+
+
+/* Invoice card open/payment buttons share one aligned row even at 320px.
+   The prior flex wrap let a long Record payment label become a taller control
+   than Open; do not alter what either action does or financial ledger rules. */
+.app-shell .invoice-card>.invoice-actions{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+  gap:8px;
+  min-width:0
+}
+.app-shell .invoice-card>.invoice-actions> :is(a,button){
+  display:flex;
+  width:100%;
+  min-width:0;
+  height:100%;
+  min-height:48px;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  padding:10px 8px;
+  white-space:normal;
+  text-align:center;
+  overflow-wrap:anywhere
+}
+
+
+/* Paired backup phone actions remain equal in height when their narrow-screen
+   safety labels wrap. Keep their neutral/dashed fallback emphasis intact. */
+.app-shell .customer-profile .customer-contact-backups .contact-backup-actions{
+  grid-auto-rows:1fr;
+  align-items:stretch
+}
+.app-shell .customer-profile .customer-contact-backups .contact-backup-actions>button{
+  height:100%
+}
+
+
+/* FIRE visual polish follow-up — high contrast secondary labels.
+   The first screenshots showed low-contrast estimates descriptions and
+   extremely small neutral navigation labels. Retain FIRE-red active nav and
+   attention semantics; don't recolor any status badges. */
+.app-shell .dashboard-view .metric-card>small{
+  color:var(--fire-ui-supporting-text);
+  font-size:12px;
+  line-height:1.5;
+  font-weight:550
+}
+.app-shell .bottom-nav button{
+  color:var(--fire-ui-supporting-text);
+  font-size:11px;
+  line-height:1.2;
+  font-weight:650;
+  gap:4px
+}
+.app-shell .bottom-nav button>span{
+  max-width:100%;
+  min-width:0;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere
+}
+.app-shell .bottom-nav button.active{
+  color:var(--fire-ui-nav-accent);
+  font-weight:800
+}
+
+
+/* Secondary record text should be readable in the field, not only decorative.
+   Restrict to explanatory copy, never urgency, error or financial badges. */
+.app-shell :is(
+  .invoice-card>div:first-of-type>small,
+  .followup-card>div>small,
+  .payment-history>article>div>small,
+  .contract-list>button>span:nth-child(2)>small
+){
+  color:var(--fire-ui-supporting-text);
+  font-size:12px;
+  line-height:1.45;
+  overflow-wrap:anywhere
+}
+
+
+/* Authenticated 320px owner job-detail check found legacy 44px direct actions
+   mixed into an otherwise uniform 48px family. Match the tap geometry for
+   every direct job/estimate action, including nested secondary tools; keep
+   destructive and payment variants/colors/handlers unchanged. The important
+   override is scoped to this one action family because older !important
+   utility rules can otherwise collapse some actions to 44px. */
+.estimate-detail .detail-actions > :is(a,button),
+.estimate-detail .detail-more-tools > .detail-actions > :is(a,button){
+  min-height:48px!important;
+}
+
+
+/* Authenticated QA regression: the large job detail previously scrolled the
+   entire DialogContent, sending its top-right X to y=-1044px on a 320px phone.
+   Keep header and real Radix Close fixed; only the long job history/body scrolls.
+   This does not affect estimate/payment data, modal dismissal guards or other
+   dialogs, and the entire footer remains inside the accessible scroll region. */
+.estimate-detail[data-slot="dialog-content"]{
+  display:flex;
+  flex-direction:column;
+  max-height:calc(100dvh - 32px);
+  overflow:hidden;
+  gap:12px;
+}
+.estimate-detail[data-slot="dialog-content"] > [data-slot="dialog-header"]{
+  position:relative;
+  top:auto;
+  z-index:21;
+  flex:0 0 auto;
+  min-width:0;
+  padding-right:56px;
+}
+.estimate-detail[data-slot="dialog-content"] > .estimate-detail-scroll{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-content:start;
+  gap:18px;
+  flex:1 1 auto;
+  min-height:0;
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  padding-right:3px;
+  scroll-padding-bottom:18px;
+  -webkit-overflow-scrolling:touch;
+}
+.estimate-detail[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:absolute;
+  top:8px;
+  right:8px;
+  z-index:40;
+}

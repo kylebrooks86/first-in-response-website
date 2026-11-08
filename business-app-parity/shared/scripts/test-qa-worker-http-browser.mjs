@@ -22,6 +22,9 @@ import {exerciseCompleteLedger} from './test-complete-ledger-workflow.mjs';
 import {exercisePublicEstimateRetry} from './test-public-estimate-retry-workflow.mjs';
 import {exerciseCustomerLookup} from './test-customer-lookup-workflow.mjs';
 import {exerciseCustomerProfileControls} from './test-customer-profile-controls.mjs';
+import {exerciseBuiltOwnerVisualHome} from './test-qa-built-owner-visual-home.mjs';
+import {exerciseBuiltOwnerVisualSections} from './test-qa-built-owner-visual-sections.mjs';
+import {exerciseBuiltJobDialogVisual} from './test-qa-built-job-dialog-visual.mjs';
 import {createRequire} from 'node:module';
 import {spawn} from 'node:child_process';
 import {createHash,createHmac,randomUUID} from 'node:crypto';
@@ -230,6 +233,9 @@ try{
    'First-use empty-state guidance disappears once saved quote exists');
 
  check(true,'Entire built Business App renders authenticated SSR and client hydration on iPhone viewport');
+ await exerciseBuiltOwnerVisualHome({page,check});
+ await exerciseBuiltOwnerVisualSections({page,check});
+ await exerciseBuiltJobDialogVisual({page,check});
  // Open the actual dashboard workflow, without fixture replacement or mocked API.
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
