@@ -4527,3 +4527,57 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     border-width:2px;
   }
 }
+
+/* FIRE owner customer shortcut: long bundled-service names were clipped by
+   the legacy nowrap/ellipsis rule. Preserve the complete saved service and
+   the separate status/date, with accessible keyboard focus at phone widths. */
+.app-shell .customer-next-job{
+  min-width:0;
+  max-width:100%;
+  min-height:52px;
+}
+.app-shell .customer-next-job>span:first-child{
+  flex:1 1 0;
+  min-width:0;
+  max-width:100%;
+}
+.app-shell .customer-next-job>span:first-child>span{
+  min-width:0;
+  max-width:100%;
+}
+.app-shell .customer-next-job strong{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  overflow:visible;
+  text-overflow:clip;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.35;
+}
+.app-shell .customer-next-job>span:last-child{
+  min-width:0;
+  max-width:45%;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  gap:5px;
+  text-align:right;
+}
+.app-shell .customer-next-job>span:last-child svg{
+  flex:0 0 15px;
+}
+.app-shell .customer-next-job:focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px;
+}
+@media(max-width:760px){
+  .app-shell .customer-next-job>span:first-child{
+    flex:0 0 auto;
+    width:100%;
+  }
+  .app-shell .customer-next-job>span:last-child{
+    width:100%;
+    max-width:100%;
+    text-align:left;
+  }
+}
