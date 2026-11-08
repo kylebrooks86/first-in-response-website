@@ -49,6 +49,9 @@ assert.ok(dashboard.includes('const customerDirty=')&&dashboard.includes('Discar
 assert.ok(dashboard.includes('const changedSinceOpen=')&&dashboard.includes('Discard your unsaved estimate changes?'), 'Edit Estimate protects unsaved service and discount edits');
 assert.ok(dashboard.includes('const invoiceHasUnsavedChanges=')&&dashboard.includes('Discard unsaved invoice changes?'), 'Edit Invoice protects service, due date and final totals');
 assert.ok(dashboard.includes('className="estimate-edit-modal-footer fire-edit-actions"'), 'Estimate editor has Save and Cancel in stationary footer');
+assert.ok(dashboard.includes('className="new-estimate-dialog-scroll"')&&
+  cssSource.includes('.new-estimate-dialog[data-slot="dialog-content"] > .new-estimate-dialog-scroll{'),
+  'Actual New Estimate form scrolls inside its modal while the Radix Close remains outside');
 assert.ok(dashboard.includes('className="fire-edit-actions"')&&dashboard.includes('Save invoice changes'), 'Customer and invoice editors expose Cancel and Save');
 assert.ok(dashboard.includes('savedReportDraft.current=reportFingerprint(')&&dashboard.includes('Discard unsaved job report notes and checklist changes?'), 'Job report close checks saved checklist and notes without changing actual report save');
 assert.ok(dashboard.includes('const hasUnfinishedCost=Boolean(description.trim()||amount.trim())')&&dashboard.includes('Discard the unfinished job cost entry?'), 'Job costs protect partially filled entries');
@@ -94,7 +97,8 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
  <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  </div></section></div></section></section>
- <section data-slot="dialog-content" class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="display:none;position:fixed;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--background);border:1px solid var(--border)">
+ <section data-slot="dialog-content" class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="display:none;position:fixed;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);background:var(--background);border:1px solid var(--border)">
+  <div class="new-estimate-dialog-scroll">
   <div class="estimate-head"><button type="button" class="estimate-header-back" aria-label="Back to customer details" onclick="this.dataset.tapped='yes'">‹ Customer details</button></div>
   <div class="estimate-new-services-step space-y-5 px-6 py-6">
     <button type="button" data-slot="select-trigger" class="h-9" aria-label="Choose service">Choose service</button>
@@ -104,6 +108,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
     </div>
   </div>
   <div id="modal-long-content" style="height:800px" aria-hidden="true"></div>
+  </div>
   <button data-slot="dialog-close" type="button" class="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close" onclick="this.dataset.tapped='yes'">×</button>
  </section>
  <section class="edit-modal-fixture" id="synthetic-edit-dialogs" style="display:none;position:fixed;z-index:130;top:50%;left:50%;transform:translate(-50%,-50%);width:min(570px,calc(100vw - 32px));background:var(--background);padding:16px;border:1px solid var(--border)">
@@ -239,7 +244,7 @@ try{
   const dialogClose=page.getByRole('button',{name:'Close'});
   const closeGeometry=await dialogClose.evaluate(e=>{const r=e.getBoundingClientRect();return{w:r.width,h:r.height,left:r.left,right:r.right,top:r.top};});
   check(closeGeometry.w>=44&&closeGeometry.h>=44&&closeGeometry.left>=0&&closeGeometry.right<=width+1&&closeGeometry.top>=0,label+' modal X is visible and touch-sized '+JSON.stringify(closeGeometry));
-  await page.locator('.new-estimate-dialog').evaluate(e=>{e.scrollTop=e.scrollHeight;});
+  await page.locator('.new-estimate-dialog-scroll').evaluate(e=>{e.scrollTop=e.scrollHeight;});
   const scrolledClose=await dialogClose.evaluate(e=>{
     const r=e.getBoundingClientRect(),frame=e.closest('.new-estimate-dialog').getBoundingClientRect(),
       hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
