@@ -7,6 +7,7 @@ on:
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
@@ -25,6 +26,7 @@ on:
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
@@ -253,6 +255,8 @@ jobs:
           python-version: '3.12'
       - name: Six negative-control unit tests
         run: python -m unittest discover -s business-app-parity -p 'test_rehearse_staging_22_to_25.py' -v
+      - name: Rehearse immutable Job numbers against full QA25 schema and synthetic financial rows
+        run: python -m unittest discover -s business-app-parity -p 'test_job_numbering_qa_additive_rehearsal.py' -v
       - name: Reject six-event Stripe TEST webhook evidence missing refund.failed (no network)
         run: python -m unittest discover -s business-app-parity -p 'test_gate9_staging_preflight.py' -v
       - name: Rehearse actual 25-source migration files in memory (no customer export)
