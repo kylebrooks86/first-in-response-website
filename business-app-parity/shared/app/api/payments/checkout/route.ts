@@ -105,6 +105,9 @@ export async function POST(request: Request) {
         .bind(new Date().toISOString(),session.id,row.id,session.type,session.amountCents).run();
       if(!closed.meta.changes)return Response.json({error:"Previous checkout changed during verification. Refresh before retrying."},{status:409});
     }
+    // Recheck the same public bearer token inside the D1 reservation: a
+    // revoked share link cannot reserve a payable checkout after its first
+    // SELECT, even if the customer still has a valid saved estimate.
     // Secure the one-open-checkout slot BEFORE calling Stripe. The existing D1
     // partial unique index (0015) makes the reservation atomic across requests;
     // checking for open rows alone did not prevent two concurrent Stripe sessions.
@@ -113,8 +116,8 @@ export async function POST(request: Request) {
     try {
       const locked=await env.DB.prepare(`INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at)
         SELECT ?,?,?,?,'open',? WHERE NOT EXISTS (
-          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND status IN ('approved','scheduled','completed') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id AND inv.customer_id IS NOT estimates.customer_id))`)
-        .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id,row.id).run();
+          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND share_token=? AND status IN ('approved','scheduled','completed') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id AND inv.customer_id IS NOT estimates.customer_id))`)
+        .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id,row.id,shareToken).run();
       reserved=Boolean(locked.meta.changes);
     }catch {
       // The unique index also rejects a concurrent reservation which won the race.
@@ -164,12 +167,15 @@ export async function POST(request: Request) {
       return Response.json({error:"Stripe payment setup has an uncertain outcome. Do not start another checkout; ask FIRE to review this payment.",checkoutUncertain:true},{status:503});
     }
     if(!data.id||!data.url)return Response.json({error:"Stripe checkout acknowledgment was incomplete. Payment setup needs review before starting another."},{status:503});
+    // Recheck bearer authorization after the remote acknowledgement. If the
+    // token was rotated mid-request, expire the unreturned Stripe session and
+    // keep reconciliation locked when remote expiration cannot be verified.
     const current=await env.DB.prepare(`SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents,
       (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
       COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen
-      FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;acceptedAt:string|null;signedAt:string|null;depositCents:number;invoiceOwnershipMismatch:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
+      FROM estimates e WHERE e.id=? AND e.share_token=?`).bind(row.id,shareToken).first<{status:string;acceptedAt:string|null;signedAt:string|null;depositCents:number;invoiceOwnershipMismatch:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
     if(!current||!current.acceptedAt||!current.signedAt||!["approved","scheduled","completed"].includes(current.status)||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||Number(current.invoiceOwnershipMismatch)!==0||currentDue!==amount){
       if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();
