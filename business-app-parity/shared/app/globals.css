@@ -3580,6 +3580,15 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   display:grid;
   place-items:center
 }
+/* The theme toggle is adjacent to the owner preview X.  Keep their top
+   edges aligned and a full 8px apart after compacting the X hit region. */
+.owner-preview-theme-toggle{
+  top:max(8px,env(safe-area-inset-top));
+  right:calc(max(8px,env(safe-area-inset-right)) + 52px);
+  width:44px;
+  height:44px;
+  padding:0
+}
 .notification-popover > header .notification-header-close{
   border:0;
   box-shadow:none;
