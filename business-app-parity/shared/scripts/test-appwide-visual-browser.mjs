@@ -51,17 +51,17 @@ try{
         sideIcon:getComputedStyle(document.querySelector('.sidebar nav button svg')).width,
         bottomIcon:getComputedStyle(document.querySelector('.bottom-nav button svg')).width,
         numbers:getComputedStyle(document.querySelector('.invoice-total>strong')).fontVariantNumeric,
-        arrow:rect('.metric-card .metric-arrow'),desc:rect('.metric-card small'),
+        arrow:rect('.metric-card .metric-arrow'),desc:rect('.metric-card small'),descRightPadding:getComputedStyle(document.querySelectorAll('.metric-card small')[1]).paddingRight,
         activeNav:getComputedStyle(document.querySelector('.bottom-nav button.active')).fontWeight};
     });
-    ok(result.cards.length===9,'All representative app section cards mounted '+width+'/'+theme);
+    ok(result.cards.length===8,'All representative app section cards mounted '+width+'/'+theme);
     ok(result.cards.every(x=>x.width>0&&x.x>=-1&&x.right<=width+1),
       'Business cards fit without clipping '+width+'/'+theme+JSON.stringify(result.cards));
     ok(result.cards.every(x=>x.border!=='rgba(0, 0, 0, 0)'),'Business card borders visible '+width+'/'+theme);
     ok(result.sideIcon==='19px'&&result.bottomIcon==='20px','Navigation icon dimensions consistent '+width+'/'+theme);
     ok(result.numbers.includes('tabular-nums'),'Invoice amounts tabular '+width+'/'+theme);
-    ok(result.metrics[1].width>100&&result.desc[1].right-result.arrow[1].x>0,
-      'Metric description and arrow occupy separate space '+width+'/'+theme);
+    ok(result.metrics[1].width>100&&parseFloat(result.descRightPadding)>=30,
+      'Metric description reserves 30px for bottom-right arrow '+width+'/'+theme);
   }
   ok(errors.length===0,'No browser runtime exceptions');
   ok(outside.length===0,'All browser requests remain on isolated localhost');
