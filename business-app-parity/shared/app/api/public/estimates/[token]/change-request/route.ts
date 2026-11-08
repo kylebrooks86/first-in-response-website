@@ -17,7 +17,9 @@ export async function POST(request:Request,{params}:{params:Promise<{token:strin
   const requestId=typeof body.requestId==='string'?body.requestId:crypto.randomUUID();
   const estimate=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.accepted_at AS acceptedAt,c.name AS customer FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;acceptedAt:string|null;customer:string}>();
   if(!estimate)return reply({error:'Estimate not found.'},404);
-  const findById=()=>env.DB.prepare('SELECT id,estimate_id AS estimateId,customer_id AS customerId,message,status,created_at AS createdAt FROM estimate_change_requests WHERE id=?').bind(requestId).first<Receipt>();
+  // A rotated bearer share token must revoke BOTH new writes and retry/duplicate
+  // receipt reads, even when the initial estimate lookup happened before rotation.
+  const findById=()=>env.DB.prepare('SELECT r.id,r.estimate_id AS estimateId,r.customer_id AS customerId,r.message,r.status,r.created_at AS createdAt FROM estimate_change_requests r JOIN estimates e ON e.id=r.estimate_id AND e.customer_id=r.customer_id WHERE r.id=? AND e.share_token=?').bind(requestId,token).first<Receipt>();
   const previous=await findById();
   if(previous){
    if(previous.estimateId!==estimate.id||previous.customerId!==estimate.customerId||previous.message!==message)return reply({error:'This request identity belongs to a different change. Keep the original request and review its status.'},409);
@@ -25,7 +27,7 @@ export async function POST(request:Request,{params}:{params:Promise<{token:strin
   }
   // Legacy clients and a refreshed tab may use a new UUID. An identical open
   // request is still the same pending change, not a second notification.
-  const findOpen=()=>env.DB.prepare("SELECT id,estimate_id AS estimateId,customer_id AS customerId,message,status,created_at AS createdAt FROM estimate_change_requests WHERE estimate_id=? AND customer_id=? AND message=? AND status='open' ORDER BY created_at,id LIMIT 1").bind(estimate.id,estimate.customerId,message).first<Receipt>();
+  const findOpen=()=>env.DB.prepare("SELECT r.id,r.estimate_id AS estimateId,r.customer_id AS customerId,r.message,r.status,r.created_at AS createdAt FROM estimate_change_requests r JOIN estimates e ON e.id=r.estimate_id AND e.customer_id=r.customer_id WHERE r.estimate_id=? AND r.customer_id=? AND r.message=? AND r.status='open' AND e.share_token=? ORDER BY r.created_at,r.id LIMIT 1").bind(estimate.id,estimate.customerId,message,token).first<Receipt>();
   const open=await findOpen();if(open)return confirmed(open);
   if(estimate.acceptedAt||!['draft','sent'].includes(estimate.status))return reply({error:'This estimate has already moved into the job workflow. Contact First In Response Exteriors directly for new scope changes.'},409);
   const now=new Date().toISOString();

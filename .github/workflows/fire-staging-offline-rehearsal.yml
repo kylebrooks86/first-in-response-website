@@ -165,6 +165,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-public-accept-token-cas.mjs
+      - name: Gate 6 public change-request receipt revoked-token and duplicate-notification denial (native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-public-change-request-token-revocation.mjs
       - name: Exercise actual built QA login, expired-session denial, synthetic estimate, Customer view, back/close, and restart
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
