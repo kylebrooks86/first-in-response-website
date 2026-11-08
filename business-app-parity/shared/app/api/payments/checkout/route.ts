@@ -59,13 +59,16 @@ export async function POST(request: Request) {
     if (typeof tipCents !== "number" || !Number.isSafeInteger(tipCents) || tipCents < 0) return Response.json({ error: "Invalid tip amount." }, { status: 400 });
     if (paymentType !== "balance" && tipCents > 0) return Response.json({ error: "Tips are available only with the final balance payment." }, { status: 400 });
     const row = await env.DB.prepare(`
-      SELECT e.id, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt, e.signed_at AS signedAt,
+      SELECT e.id, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch, e.status, e.accepted_at AS acceptedAt, e.signed_at AS signedAt,
              c.name AS customer,
              COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
       FROM estimates e JOIN customers c ON c.id=e.customer_id
       WHERE e.share_token=? LIMIT 1
-    `).bind(shareToken).first<{ id: string; totalCents: number; depositCents: number; status:string; acceptedAt:string|null; signedAt:string|null; customer: string; service: string }>();
+    `).bind(shareToken).first<{ id: string; totalCents: number; depositCents: number; invoiceOwnershipMismatch:number; status:string; acceptedAt:string|null; signedAt:string|null; customer: string; service: string }>();
     if (!row) return Response.json({ error: "Estimate not found." }, { status: 404 });
+    // An invoice linked to this estimate but another customer must never
+    // determine a card charge or permit a new checkout session.
+    if(Number(row.invoiceOwnershipMismatch)!==0)return Response.json({error:"Invoice and customer records require owner reconciliation before payment."},{status:409});
     if(["superseded","declined"].includes(row.status))return Response.json({error:"This payment link is no longer available. Request the current quote from First In Response Exteriors."},{status:409});
     const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(row.id).first();
     if(pendingRefund)return Response.json({error:"A refund is processing. Wait for Stripe reconciliation before collecting another payment."},{status:409});
@@ -110,7 +113,7 @@ export async function POST(request: Request) {
     try {
       const locked=await env.DB.prepare(`INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at)
         SELECT ?,?,?,?,'open',? WHERE NOT EXISTS (
-          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND status IN ('approved','scheduled','completed') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL)`)
+          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND status IN ('approved','scheduled','completed') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id AND inv.customer_id IS NOT estimates.customer_id))`)
         .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id,row.id).run();
       reserved=Boolean(locked.meta.changes);
     }catch {
@@ -162,12 +165,13 @@ export async function POST(request: Request) {
     }
     if(!data.id||!data.url)return Response.json({error:"Stripe checkout acknowledgment was incomplete. Payment setup needs review before starting another."},{status:503});
     const current=await env.DB.prepare(`SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents,
-      COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
+      (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
+      COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen
-      FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;acceptedAt:string|null;signedAt:string|null;depositCents:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
+      FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;acceptedAt:string|null;signedAt:string|null;depositCents:number;invoiceOwnershipMismatch:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
-    if(!current||!current.acceptedAt||!current.signedAt||!["approved","scheduled","completed"].includes(current.status)||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||currentDue!==amount){
+    if(!current||!current.acceptedAt||!current.signedAt||!["approved","scheduled","completed"].includes(current.status)||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||Number(current.invoiceOwnershipMismatch)!==0||currentDue!==amount){
       if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();
       return Response.json({error:"The amount due changed during checkout creation. Refresh the job; if the checkout remains blocked, contact FIRE."},{status:409});
     }
