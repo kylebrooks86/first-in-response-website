@@ -70,6 +70,47 @@ try{
       check(state.overflow<=1,at+' no horizontal scrolling: '+state.overflow);
     }
   }
+  // Contact methods vary by customer: one to five direct actions, sometimes
+  // with long labels. The old fixed 3-column layout stranded 1-2 controls.
+  for(const width of [320,375,390,430,820]){
+    for(const count of [1,2,3,4,5]){
+      await page.setViewportSize({width,height:720});
+      await page.goto(origin);
+      await page.evaluate(n=>{
+        const group=document.querySelector('.followup-contact-actions');
+        const labels=['Google Voice call','Phone backup','Prepare text message','Text backup','Open email app'];
+        group.replaceChildren(...labels.slice(0,n).map((label,i)=>{
+          const a=document.createElement('a');
+          a.href='#synthetic-'+i;
+          a.textContent=label;
+          return a;
+        }));
+      },count);
+      const state=await page.evaluate(()=>{
+        const group=document.querySelector('.followup-contact-actions');
+        const bounds=group.getBoundingClientRect();
+        const items=[...group.children].map(n=>{
+          const r=n.getBoundingClientRect();
+          return {left:r.left,right:r.right,width:r.width,height:r.height,
+            contentOverflow:n.scrollWidth-n.clientWidth};
+        });
+        return {width:bounds.width,left:bounds.left,right:bounds.right,
+          overflow:document.documentElement.scrollWidth-innerWidth,items};
+      });
+      const at=width+'px '+count+' follow-up method(s)';
+      check(state.items.length===count,at+' keeps every available contact action');
+      check(state.overflow<=1,at+' no page-wide horizontal scroll');
+      check(state.items.every(a=>a.left>=state.left-1&&a.right<=state.right+1&&
+        a.height>=48&&a.contentOverflow<=1),
+        at+' every touch control fits the row without clipped label');
+      if(count===1)check(state.items[0].width>=state.width-1,
+        at+' single method fills the row instead of a third-width slot');
+      if(count===2)check(state.items.every(a=>a.width>=state.width*.4),
+        at+' two available methods share the row');
+      if(count===5&&width===320)check(state.items[4].width>=state.width*.95,
+        at+' the fifth method fills its compact-screen final row');
+    }
+  }
   await page.setViewportSize({width:1366,height:844});
   for(const theme of ['light','dark']){
     await page.goto(origin);
