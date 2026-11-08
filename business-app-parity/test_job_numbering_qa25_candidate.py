@@ -189,6 +189,50 @@ class Qa25JobNumberSqlContract(unittest.TestCase):
         self.assert_no_numbered_schema()
         self.assertEqual(FINGERPRINT(self.db),original)
 
+    def test_d1_migration_candidate_parity_and_atomic_rehearsal(self):
+        # D1 migration file deliberately has no explicit transaction syntax;
+        # Cloudflare's migration executor provides the migration transaction.
+        # We model that boundary ONLY inside a disposable SQLite clone.
+        source=ROOT/'job-numbering'/'qa25_job_numbers_seven_job_d1_candidate.sql'
+        d1sql=source.read_text(encoding='utf8')
+        self.assertNotIn('BEGIN IMMEDIATE;',d1sql)
+        self.assertFalse(any(line.lstrip().startswith('COMMIT;')
+                             for line in d1sql.splitlines()))
+        offline_body=self.sql[self.sql.index('CREATE TEMP TABLE _fire_job_qa25_precondition'):]
+        offline_body=offline_body.replace(
+            'CREATE TEMP TABLE _fire_job_qa25_precondition',
+            'CREATE TABLE _fire_job_qa25_precondition'
+        ).replace('\nCOMMIT;\n','\n')
+        d1body=d1sql[d1sql.index('CREATE TABLE _fire_job_qa25_precondition'):]
+        self.assertEqual(d1body,offline_body,
+                         'D1 candidate must stay statement-identical to validated offline SQL')
+        self.seed_seven_jobs()
+        before=FINGERPRINT(self.db)
+        self.db.executescript('BEGIN IMMEDIATE;\n'+d1body+'\nCOMMIT;')
+        self.assertEqual(FINGERPRINT(self.db),before)
+        self.assertEqual(self.db.execute(
+            'SELECT seq FROM sqlite_sequence WHERE name=?',('fire_job_numbers',)
+        ).fetchone(),(7,))
+        self.assertEqual(self.db.execute('PRAGMA foreign_key_check').fetchall(),[])
+        self.assertEqual(self.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+
+    def test_d1_candidate_fail_closed_under_simulated_rollback(self):
+        source=ROOT/'job-numbering'/'qa25_job_numbers_seven_job_d1_candidate.sql'
+        d1sql=source.read_text(encoding='utf8')
+        body=d1sql[d1sql.index('CREATE TABLE _fire_job_qa25_precondition'):]
+        self.seed_seven_jobs()
+        self.db.execute("DELETE FROM payments WHERE id='pay-03'")
+        self.db.commit()
+        old=FINGERPRINT(self.db)
+        with self.assertRaises(sqlite3.IntegrityError):
+            try:
+                self.db.executescript('BEGIN IMMEDIATE;\n'+body+'\nCOMMIT;')
+            finally:
+                self.db.rollback()
+        self.assert_no_numbered_schema()
+        self.assertEqual(FINGERPRINT(self.db),old)
+        self.assertEqual(self.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+
     def test_candidate_is_not_a_hosted_migration(self):
         self.assertFalse(str(CANDIDATE).replace('\\','/').find('/drizzle/')>=0)
         self.assertIn('BEGIN IMMEDIATE;',self.sql)
