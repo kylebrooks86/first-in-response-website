@@ -3530,10 +3530,10 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   overscroll-behavior:contain;
 }
 
-/* The shared sticky close rule above applies to grid dialogs. Message uses
-   flex with the Radix close rendered last, so sticky puts its X BELOW the
-   message/actions. Pin it absolutely to the visible modal top-right instead;
-   only the inner builder scrolls. Keep Escape/outside and dirty-send guards. */
+/* A second explicit selector protects the message composer from other
+   layout-specific rules: its Close remains at the same small top-right corner,
+   although its inner editor uses flex scrolling and Radix Close renders last.
+   Preserve outside/Escape and unsent-message guards. */
 .message-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{
   position:absolute;
   top:8px;
