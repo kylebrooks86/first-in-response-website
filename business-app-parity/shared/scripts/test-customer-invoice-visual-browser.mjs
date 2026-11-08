@@ -74,7 +74,7 @@ try {
       'Customer profile direct actions have uniform height at '+width+'/'+theme);
     check(geometry.backup.length===2&&Math.abs(geometry.backup[0].height-geometry.backup[1].height)<=1&&
       geometry.invoices.length===2&&Math.abs(geometry.invoices[0].height-geometry.invoices[1].height)<=1,
-      'Phone backup and invoice action pairs match sibling heights at '+width+'/'+theme);
+      'Phone backup and invoice action pairs match sibling heights at '+width+'/'+theme+JSON.stringify({backup:geometry.backup,invoices:geometry.invoices}));
     const cols=width<=350?1:width<=980?2:4;
     const columnCount=await page.locator('.customer-profile .customer-contact').evaluate(el=>
       getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length);
