@@ -77,8 +77,8 @@ class SyntheticQaJobNumberActivationRehearsal(unittest.TestCase):
             self.insert_estimate(*entry)
         revision = {'version':1,'originalId':'quote-01','replacementId':'quote-02'}
         self.db.execute(
-            'INSERT INTO message_templates(key,body) VALUES (?,?)',
-            ('fire:quote-revision:v1:quote-01', json.dumps(revision))
+            'INSERT INTO message_templates(key,body,updated_at) VALUES (?,?,?)',
+            ('fire:quote-revision:v1:quote-01', json.dumps(revision), '2026-10-05T12:00:00Z')
         )
         self.db.execute(
             """INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at)
@@ -172,8 +172,8 @@ class SyntheticQaJobNumberActivationRehearsal(unittest.TestCase):
         self.insert_estimate('quote-02','cust-b','completed',5)
         audit={'version':1,'originalId':'quote-01','replacementId':'quote-02'}
         self.db.execute(
-            'INSERT INTO message_templates(key,body) VALUES (?,?)',
-            ('fire:quote-revision:v1:quote-01',json.dumps(audit))
+            'INSERT INTO message_templates(key,body,updated_at) VALUES (?,?,?)',
+            ('fire:quote-revision:v1:quote-01',json.dumps(audit),'2026-10-05T12:00:00Z')
         )
         with self.assertRaises(JOB.HistoryBlocked):
             JOB.analyze(self.db)
