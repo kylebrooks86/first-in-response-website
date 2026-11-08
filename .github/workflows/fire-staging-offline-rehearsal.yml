@@ -33,6 +33,7 @@ on:
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/test_dr_customer_invoice_failclosed.py'
+      - 'business-app-parity/test_dr_checkout_webhook_reservation.py'
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
@@ -114,6 +115,7 @@ jobs:
       - name: Gate 6 DR checkout and public-document customer invoice isolation (source + native SQLite, OFFLINE)
         run: |
           python3 business-app-parity/test_dr_customer_invoice_failclosed.py
+          python3 business-app-parity/test_dr_checkout_webhook_reservation.py
       - name: Gate 6 disaster recovery checkout TypeScript typecheck (no build upload or deploy)
         run: |
           pnpm --dir fire-app-dr install --frozen-lockfile --ignore-scripts
