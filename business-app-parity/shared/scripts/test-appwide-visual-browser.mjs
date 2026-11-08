@@ -55,6 +55,10 @@ try{
         numbers:getComputedStyle(document.querySelector('.invoice-total>strong')).fontVariantNumeric,
         arrow:rect('.metric-card .metric-arrow'),desc:rect('.metric-card small'),descRightPadding:getComputedStyle(document.querySelectorAll('.metric-card small')[1]).paddingRight,
         activeNav:getComputedStyle(document.querySelector('.bottom-nav button.active')).fontWeight,
+        inactiveNavColor:getComputedStyle(document.querySelector('.bottom-nav button:not(.active)')).color,
+        inactiveNavSize:getComputedStyle(document.querySelector('.bottom-nav button:not(.active)')).fontSize,
+        metricSubtitleColor:getComputedStyle(document.querySelector('.metric-card>small')).color,
+        metricSubtitleSize:getComputedStyle(document.querySelector('.metric-card>small')).fontSize,
         metricColumns:getComputedStyle(document.querySelector('.metric-grid')).gridTemplateColumns.split(' ').filter(Boolean).length};
     });
     ok(result.cards.length===10,'All representative app section cards mounted '+width+'/'+theme);
@@ -65,6 +69,11 @@ try{
     ok(result.cards.every(x=>x.border!=='rgba(0, 0, 0, 0)'),'Business card borders visible '+width+'/'+theme);
     ok(result.sideIcon==='19px'&&result.bottomIcon==='20px','Navigation icon dimensions consistent '+width+'/'+theme);
     ok(result.numbers.includes('tabular-nums'),'Invoice amounts tabular '+width+'/'+theme);
+    const expectedSecondary=theme==='dark'?'rgb(181, 199, 218)':'rgb(88, 107, 128)';
+    ok(result.inactiveNavColor===expectedSecondary&&result.metricSubtitleColor===expectedSecondary,
+      'Computed metric/nav subtitle colors follow theme-specific readable tokens '+width+'/'+theme);
+    ok(result.inactiveNavSize==='11px'&&result.metricSubtitleSize==='12px',
+      'Inactive nav labels are 11px and metric secondary copy is 12px '+width+'/'+theme);
     ok(result.metrics[2].width>100&&parseFloat(result.descRightPadding)>=30,
       'Metric description reserves 30px for bottom-right arrow '+width+'/'+theme);
   }
