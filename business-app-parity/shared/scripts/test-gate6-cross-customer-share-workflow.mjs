@@ -194,6 +194,19 @@ export async function exerciseGate6ShareIsolation({request,browser,origin,check,
     check(drift.status()===200&&driftHtml.includes('Invoice not found')&&
       !driftHtml.includes(alpha.customerName)&&!driftHtml.includes(bravo.customerName),
       'Gate6 corrupt invoice/customer linkage fails closed without exposing either customer');
+    for(const [kind,required] of [
+      ['pay','Billing details need verification.'],
+      ['estimate','Billing review required.']
+    ]){
+      const response=await anonymous.request.get(origin+'/'+kind+'/'+alpha.estimate.shareToken,
+        {timeout:15000});
+      const html=await response.text();
+      check(response.status()===200&&html.includes(alpha.customerName)&&
+        !html.includes(bravo.customerName)&&html.includes(required)&&
+        !html.includes('Manual payment options:')&&
+        !html.includes('arrange the deposit shown above.'),
+        'Local Gate6 '+kind+' stays own-customer and blocks all payment methods when an invoice belongs to another customer');
+    }
     const stillBravo=await anonymous.request.get(origin+'/invoice/'+bravo.invoice.shareToken,
       {timeout:15000});
     const stillBravoHtml=await stillBravo.text();
