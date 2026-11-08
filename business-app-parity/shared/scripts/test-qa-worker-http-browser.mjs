@@ -1,3 +1,4 @@
+import {exerciseGate6ShareIsolation} from './test-gate6-cross-customer-share-workflow.mjs';
 import {exerciseDoorKnocking} from './test-door-knocking-workflow.mjs';
 import {exerciseSavedPromotionsIntegration} from './test-saved-promotions-integration-workflow.mjs';
 import {exerciseCustomerNoteRecovery} from './test-customer-note-workflow.mjs';
@@ -408,6 +409,16 @@ try{
  if(process.argv.includes('--customer-note-recovery'))await exerciseCustomerNoteRecovery({page,origin,request,check});
  if(process.argv.includes('--door-knocking'))await exerciseDoorKnocking({page,origin,request,check});
  if(process.argv.includes('--saved-promotions-integration'))await exerciseSavedPromotionsIntegration({page,origin,request,check});
+ if(process.argv.includes('--gate6-share-isolation'))await exerciseGate6ShareIsolation({
+  request,browser,origin,check,
+  mutateSyntheticD1:async sql=>{
+    // In the existing disposable local Workerd/Wrangler fixture only.
+    await stop();
+    await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),
+      '--config',configPath,'--command',sql]);
+    await start();
+  }
+ });
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

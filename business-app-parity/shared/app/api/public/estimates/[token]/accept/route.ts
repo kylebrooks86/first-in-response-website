@@ -27,9 +27,11 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
     if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     const now=new Date().toISOString();
+    // Bearer-share revocation must remain effective if the token is changed
+    // after SELECT but before this D1 batch. Retry readback is token-bound too.
     const [accepted]=await env.DB.batch([
       env.DB.prepare(`UPDATE estimates SET status='approved',accepted_at=?,signed_name=?,signed_at=?,photo_release=?,contract_version='2026-09-21'
-        WHERE id=? AND accepted_at IS NULL AND status IN ('draft','sent')
+        WHERE id=? AND share_token=? AND accepted_at IS NULL AND status IN ('draft','sent')
         AND subtotal_cents BETWEEN 0 AND 9007199254740991
         AND discount_cents BETWEEN 0 AND 9007199254740991
         AND total_cents BETWEEN 0 AND 9007199254740991
@@ -38,14 +40,14 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         AND EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id)
         AND NOT EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id AND (ei.name IS NULL OR TRIM(ei.name)='' OR ei.quantity<=0 OR ei.total_cents<0 OR ei.total_cents>9007199254740991))
         ${exceptionPending?"AND NOT EXISTS(SELECT 1 FROM deposit_policy_events d WHERE d.estimate_id=estimates.id)":""}`)
-        .bind(now,signedName,now,photoRelease,estimate.id),
+        .bind(now,signedName,now,photoRelease,estimate.id,token),
       env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
         SELECT ?,?,?,?,?,?,?
         WHERE EXISTS (SELECT 1 FROM estimates WHERE id=? AND accepted_at=? AND signed_at=?) AND NOT EXISTS (SELECT 1 FROM notifications WHERE type='estimate_accepted' AND estimate_id=?)`)
         .bind(crypto.randomUUID(),"estimate_accepted",`${estimate.customer} approved an estimate`,`${estimate.service} was approved. Contact the customer to schedule the job.`,estimate.customerId,estimate.id,now,estimate.id,now,now,estimate.id),
     ]);
     if(!accepted.meta.changes){
-      const current=await env.DB.prepare("SELECT accepted_at AS acceptedAt,status,signed_name AS signedName,signed_at AS signedAt,photo_release AS photoRelease FROM estimates WHERE id=?").bind(estimate.id).first<{acceptedAt:string|null;status:string;signedName:string|null;signedAt:string|null;photoRelease:string|null}>();
+      const current=await env.DB.prepare("SELECT accepted_at AS acceptedAt,status,signed_name AS signedName,signed_at AS signedAt,photo_release AS photoRelease FROM estimates WHERE id=? AND share_token=?").bind(estimate.id,token).first<{acceptedAt:string|null;status:string;signedName:string|null;signedAt:string|null;photoRelease:string|null}>();
       if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt,signedName:current.signedName,signedAt:current.signedAt,photoRelease:current.photoRelease});
       if(current&&["draft","sent"].includes(current.status))return Response.json({error:"This estimate has a billing or service-line integrity issue and cannot be approved yet. Please contact First In Response Exteriors."},{status:409});
       return Response.json({error:"This estimate changed while you were approving it. Please refresh or contact First In Response Exteriors."},{status:409});
