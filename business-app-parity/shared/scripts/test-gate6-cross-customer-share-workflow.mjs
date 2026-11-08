@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {syntheticCompleteJobReport} from './synthetic-complete-job-report.mjs';
 
-export async function exerciseGate6ShareIsolation({request,browser,origin,check}){
+export async function exerciseGate6ShareIsolation({request,browser,origin,check,mutateSyntheticD1}){
   assert.match(origin,/^https:\/\/127\.0\.0\.1:\d+$/,'Gate 6 isolation must use disposable loopback only');
   const data=[];
   for(const [index,tag] of ['Alpha','Bravo'].entries()){
@@ -118,6 +118,37 @@ export async function exerciseGate6ShareIsolation({request,browser,origin,check}
         !html.includes('owner-invoice-preview-close'),
         'Local Gate6 nonexistent '+kind+' token stays neutral without owner controls');
     }
+    // Guard a corrupted but individually FK-valid invoice relationship:
+    // a final invoice must never expose customer B's identity with customer A's
+    // estimate/financial records. Mutate ONLY the disposable native local D1,
+    // then restore the original synthetic association before leaving.
+    const qid=id=>{
+      assert.match(id,/^[0-9a-f-]{36}$/i,'Only generated UUID fixtures may enter test-only SQL');
+      return "'"+id+"'";
+    };
+    assert.equal(typeof mutateSyntheticD1,'function');
+    await mutateSyntheticD1('UPDATE invoices SET customer_id='+qid(bravo.customer.id)+
+      ' WHERE id='+qid(alpha.invoice.id)+';');
+    const drift=await anonymous.request.get(origin+'/invoice/'+alpha.invoice.shareToken,
+      {timeout:15000});
+    const driftHtml=await drift.text();
+    check(drift.status()===200&&driftHtml.includes('Invoice not found')&&
+      !driftHtml.includes(alpha.customerName)&&!driftHtml.includes(bravo.customerName),
+      'Gate6 corrupt invoice/customer linkage fails closed without exposing either customer');
+    const stillBravo=await anonymous.request.get(origin+'/invoice/'+bravo.invoice.shareToken,
+      {timeout:15000});
+    const stillBravoHtml=await stillBravo.text();
+    check(stillBravo.status()===200&&stillBravoHtml.includes(bravo.customerName)&&
+      !stillBravoHtml.includes(alpha.customerName),
+      'Gate6 unrelated customer B invoice remains accessible after A-only drift');
+    await mutateSyntheticD1('UPDATE invoices SET customer_id='+qid(alpha.customer.id)+
+      ' WHERE id='+qid(alpha.invoice.id)+';');
+    const restored=await anonymous.request.get(origin+'/invoice/'+alpha.invoice.shareToken,
+      {timeout:15000});
+    const restoredHtml=await restored.text();
+    check(restored.status()===200&&restoredHtml.includes(alpha.customerName)&&
+      !restoredHtml.includes(bravo.customerName),
+      'Gate6 original invoice returns only after synthetic same-customer linkage restored');
   }finally{await anonymous.close();}
   console.log('PASS Gate6: two-customer public estimate/invoice/payment isolation, forged-owner hint and wrong-token denial on synthetic loopback only.');
 }
