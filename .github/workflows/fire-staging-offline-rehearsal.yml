@@ -228,6 +228,10 @@ jobs:
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-iphone-popup-tap-browser.mjs
       - name: Gate 8 app-wide card/navigation polish across Acer, tablet and phone widths (synthetic Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-appwide-visual-browser.mjs
+      - name: Gate 8 neutral action polish, semantic color and 44px touch targets (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-control-finish-browser.mjs
+      - name: Gate 8 mobile topbar utility actions and record tabs at 320-667px (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-mobile-spacing-audit-browser.mjs
       - name: Gate 8 owner job actions consistent at Acer, tablet and phone widths (synthetic Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-job-action-consistency-browser.mjs
       - name: Gate 8 customer contact and invoice controls aligned at phone tablet and Acer widths (synthetic Chrome)
@@ -336,6 +340,7 @@ jobs:
           node scripts/test-estimate-viewed-row-layout.mjs
           node scripts/test-dashboard-visual-polish.mjs
           node scripts/test-appwide-visual-system.mjs
+          node scripts/test-mobile-payment-shortcut.mjs
           node scripts/test-estimate-payment-milestones.mjs
           node scripts/test-estimate-attention-milestones.mjs
           node scripts/test-message-composer-layout.mjs
