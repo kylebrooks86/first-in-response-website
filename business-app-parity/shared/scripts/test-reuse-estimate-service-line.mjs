@@ -1,0 +1,48 @@
+/** Price-safe new-quote line reuse; no hosted/customer writes. */
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {reuseEstimateServiceLine} from '../lib/reuse-estimate-service-line.ts';
+import {matchesReviewedEstimateReceipt} from '../lib/estimate-quote-receipt.ts';
+import {moveEstimateServiceLine} from '../lib/reorder-estimate-service-line.ts';
+import {editableLineTotalCents,editMoneyLine,validEditablePrice} from '../lib/editable-line-totals.ts';
+let checks=0;const eq=(value,expected,label)=>{assert.deepEqual(value,expected,label);checks++;};
+const original={id:'stored-line',serviceId:'concrete',name:'Front sidewalk',description:'Surface clean broom-finish concrete',quantity:200,unit:'sq ft',unitRateCents:25};
+const before=JSON.stringify(original),copy=reuseEstimateServiceLine(original);
+eq(copy.id,undefined,'Original saved line ID not copied');eq(copy.name,original.name,'Service name prefilled');eq(copy.description,original.description,'Description copied');
+eq(copy.unit,original.unit,'Unit copied');eq(copy.unitRateCents,25,'Custom exact-cent rate kept');
+eq(copy.quantity,0,'Second area requires quantity');eq(editableLineTotalCents(copy),0,'No charge before quantity entered');
+eq(JSON.stringify(original),before,'Original remains untouched');
+eq(editableLineTotalCents(editMoneyLine(copy,{name:'Rear sidewalk',quantity:100})),2500,'Second area uses valid exact-cent rate');
+const flat={id:'saved-flat',serviceId:'garage',name:'Detached garage',description:'Wash exterior',quantity:1,unit:'job',unitRateCents:5000,flatPriceCents:17500,preservedLineTotalCents:17500};
+const next=reuseEstimateServiceLine(flat);
+eq(next.quantity,0,'Flat service quantity blank');eq(next.flatPriceCents,undefined,'Flat total never autocharged');eq(next.preservedLineTotalCents,undefined,'Historical amount not silently reused');
+eq(next.unitRateCents,17500,'Custom flat price becomes suggested unit rate');eq(editableLineTotalCents(next),0,'Flat copy is no-charge draft');
+eq(editableLineTotalCents(editMoneyLine(next,{quantity:1})),17500,'Owner-entered one job restores proposed custom price');
+eq(validEditablePrice(next),true,'Copied setup keeps a valid unit rate while quantity remains required');eq(editableLineTotalCents(flat),17500,'Original amount unaffected');
+const order=[{name:'House',draftKey:'new-line-1',quantity:1540,unitRateCents:25},{name:'Gutters',draftKey:'new-line-2',quantity:50,unitRateCents:150},{name:'Garage',draftKey:'new-line-3',quantity:1,unitRateCents:5000}],originalOrder=JSON.stringify(order);
+const moved=moveEstimateServiceLine(order,2,0);
+eq(moved.map(x=>x.name),['Garage','House','Gutters'],'Move last service to top');
+eq(moved[0],order[2],'Moving preserves actual line identity and precise prices');
+eq(JSON.stringify(order),originalOrder,'Move never mutates source lines');
+eq(moveEstimateServiceLine(order,-1,0).map(x=>x.name),order.map(x=>x.name),'Invalid move leaves quote intact');
+const approved={subtotalCents:46000,discountCents:9400,totalCents:36600,depositCents:18300,bundleDiscountCents:2500};
+eq(matchesReviewedEstimateReceipt(approved,approved),true,'Exact $460 subtotal, stacked discounts, $366 total and $183 deposit receipt');
+for(const field of Object.keys(approved)){
+ eq(matchesReviewedEstimateReceipt({...approved,[field]:approved[field]+1},approved),false,'Reject mismatched receipt '+field);
+ eq(matchesReviewedEstimateReceipt(Object.fromEntries(Object.entries(approved).filter(([key])=>key!==field)),approved),false,'Reject missing receipt '+field);
+}
+eq(matchesReviewedEstimateReceipt({...approved,depositCents:18300.5},approved),false,'Reject fractional deposit cents');
+eq(matchesReviewedEstimateReceipt(null,approved),false,'Reject absent server receipt');
+const source=readFileSync('app/dashboard.tsx','utf8'),start=source.indexOf('function NewEstimate('),end=source.indexOf('function DashboardView(',start);
+assert.ok(start>0&&end>start,'Actual New Estimate exists');checks++;
+const section=source.slice(start,end);
+assert.match(section,/reuseEstimateServiceLine\(source\)/,'Real New Estimate calls tested helper');checks++;
+assert.match(section,/Reuse service setup from line/,'Accessible reuse button in real UI');checks++;
+assert.match(section,/lineCount:items\.length/,'Additional blank line forces promotion revalidation');checks++;
+assert.match(section,/promotionsVerifiedFor!==promotionQuoteKey/,'Unverified quote cannot save');checks++;
+assert.match(section,/quantity blank/,'Visible no-charge explanation');checks++;
+assert.match(section,/matchesReviewedEstimateReceipt\(result,/,'Every new estimate verifies all financial receipt components');checks++;
+assert.match(section,/createRequestRef\.current=null;setPendingCheck\(null\);\s*customerRequest\.current\+\+/,'Closing an unconfirmed draft invalidates active request reuse while preserving the stored recovery marker');checks++;
+assert.match(section,/moveEstimateServiceLine\(current,index,index\+direction\)/,'Actual new quote reorder uses safe helper');checks++;
+assert.match(section,/key=\{item.draftKey\|\|item.id\|\|index\}/,'Reorder retains stable input identity');checks++;
+console.log('PASS '+checks+' safe new quote service-reuse cases and real editor source wiring.');
