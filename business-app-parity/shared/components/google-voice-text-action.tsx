@@ -95,6 +95,7 @@ export function GoogleVoiceTextAction({
       </DialogTrigger>
       <DialogContent className="voice-contact-dialog sm:max-w-[430px]">
         <DialogHeader><DialogTitle>Text using Google Voice</DialogTitle></DialogHeader>
+        <div className="voice-contact-body" role="region" aria-label="Google Voice contact options" tabIndex={0}>
         <p className="voice-contact-recipient"><strong>{customerName || "Selected customer"}</strong><span aria-hidden="true"> · </span><span>{phone}</span></p>
         {!message && <textarea aria-label="Message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" placeholder="Write your message…" rows={3} value={text} onChange={event => setDraft({ phone, text: event.target.value })} />}
         <GoogleVoiceTextShortcutAction phone={phone} message={text} />
@@ -110,6 +111,8 @@ export function GoogleVoiceTextAction({
         {copyStatus && <p role="status">{copyStatus}</p>}
         {message && <textarea aria-label="Prepared message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" rows={3} value={message} readOnly onFocus={event => event.currentTarget.select()}/>}
         <p className="text-xs text-muted-foreground">Nothing is marked sent by FIRE unless you confirm it.</p>
+      
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -144,6 +147,7 @@ export function GoogleVoiceCallAction({
       </DialogTrigger>
       <DialogContent className="voice-contact-dialog sm:max-w-[430px]">
         <DialogHeader><DialogTitle>Call using Google Voice</DialogTitle></DialogHeader>
+        <div className="voice-contact-body" role="region" aria-label="Google Voice contact options" tabIndex={0}>
         <p>FIRE Google Voice Call uses your existing Google Voice Shortcut. Check the recipient before calling.</p>
         <p>Customer: <strong>{customerName || "Selected customer"}</strong></p>
         <p>Number: <strong>{phone}</strong></p>
@@ -157,6 +161,8 @@ export function GoogleVoiceCallAction({
           <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open Google Voice</a>
         </div>
         {copyStatus && <p role="status">{copyStatus}</p>}
+      
+        </div>
       </DialogContent>
     </Dialog>
   );
