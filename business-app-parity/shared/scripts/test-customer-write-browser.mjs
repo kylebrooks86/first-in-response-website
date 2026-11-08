@@ -229,10 +229,13 @@ try{
     iconGeometry.width<=18&&iconGeometry.height<=18&&
     visualStyle.border==='0px'&&visualStyle.position==='absolute',
     'Small unboxed Close X in top-right accessible 44px target: '+variant+' '+width+' '+theme);
-   await dialog.locator(variant==='job'?'.fire-job-scroll':variant==='message'?'.message-builder':'.synthetic-modal-content').evaluate(node=>{node.scrollTop=node.scrollHeight;});
+   const scrollTarget=variant==='job'?dialog.locator('.fire-job-scroll'):variant==='message'?dialog.locator('.message-builder'):dialog;
+   const scrolled=await scrollTarget.evaluate(node=>{const available=node.scrollHeight-node.clientHeight;node.scrollTop=available;return {available,position:node.scrollTop};});
+   check(scrolled.available>=80&&scrolled.position>=80,
+    'Synthetic long '+variant+' dialog really scrolls its own content, '+width+' '+theme);
    const afterScroll=await where();
    check(afterScroll.x&&Math.abs(afterScroll.x.y-initial.x.y)<2&&Math.abs(afterScroll.x.x-initial.x.x)<2,
-    'Message Close stays pinned top-right while long text scrolls, '+width+' '+theme);
+    'Modal Close stays pinned top-right while long text scrolls, '+variant+' '+width+' '+theme);
    await close.click();
    await dialog.waitFor({state:'hidden'});
    check(true,'Message Close X is actually clickable, '+width+' '+theme);
