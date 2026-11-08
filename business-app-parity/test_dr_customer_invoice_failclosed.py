@@ -34,6 +34,19 @@ class DRInvoiceOwnership(unittest.TestCase):
                     source, "DR must never use another customer's invoice total"
                 )
 
+    def test_recovery_paid_url_flag_never_proves_payment(self):
+        source = (REPO / PATHS[1]).read_text(encoding="utf-8")
+        self.assertIn("e.signed_at AS signedAt", source)
+        self.assertIn("Boolean(row.acceptedAt&&row.signedAt)", source)
+        self.assertIn("Number.isSafeInteger(value)&&value>=0", source)
+        self.assertIn('const showRecordedSuccess=paid==="1"&&row.status==="completed"&&balance===0&&!paymentReviewPending;',source)
+        self.assertIn("const balance = Math.max(0,row.totalCents-paidCents)",source)
+        self.assertIn("showRecordedSuccess ? <div",source)
+        self.assertNotIn('paid === "1" ? <div',source)
+        self.assertIn('paid==="1"&&!showRecordedSuccess',source)
+        self.assertIn('approved&&!paymentReviewPending&&balance>0',source)
+        self.assertNotIn('After approval, the 50% deposit',source)
+
     def test_recovery_checkout_blocks_before_stripe_and_after_acknowledgement(self):
         source = (REPO / PATHS[2]).read_text(encoding="utf-8")
         self.assertEqual(source.count(INVOICE), 2, "Initial and post-provider reads both protected")
