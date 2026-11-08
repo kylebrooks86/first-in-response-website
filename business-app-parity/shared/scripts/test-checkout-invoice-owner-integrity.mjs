@@ -43,6 +43,10 @@ for(const sql of [initial,after]){
   assert.match(sql,/AS invoiceOwnershipMismatch/);
 }
 assert.match(reserve,/NOT EXISTS\(SELECT 1 FROM invoices inv WHERE inv\.estimate_id=estimates\.id AND inv\.customer_id IS NOT estimates\.customer_id\)/);
+assert.match(reserve,/WHERE id=\? AND share_token=\? AND status IN/,
+ 'Atomic reservation must recheck current bearer token');
+assert.match(after,/FROM estimates e WHERE e\.id=\? AND e\.share_token=\?/,
+ 'Post-provider readback must not authorize revoked links');
 assert.ok(source.indexOf('if(Number(row.invoiceOwnershipMismatch)!==0)')>=0&&
  source.indexOf('if(Number(row.invoiceOwnershipMismatch)!==0)')<
  source.indexOf('await fetch("https://api.stripe.com/v1/checkout/sessions"'),
@@ -81,20 +85,35 @@ try{
   assert.equal(a.invoiceOwnershipMismatch,1,'Untrusted invoice linkage must be visible as a blocker');
   assert.equal(b.customer,'Synthetic Bravo');assert.equal(b.totalCents,24000);
   assert.equal(b.invoiceOwnershipMismatch,0);
-  let follow=afterStmt.get('ea');
+  let follow=afterStmt.get('ea','alpha-token');
   assert.equal(follow.totalCents,20000);assert.equal(follow.invoiceOwnershipMismatch,1);
   let reserveStmt=db.prepare(reserve);
-  assert.equal(reserveStmt.run('synthetic-lock-mismatch','ea','balance',10000,'now','ea','ea').changes,0,
+  assert.equal(reserveStmt.run('synthetic-lock-mismatch','ea','balance',10000,'now','ea','ea','alpha-token').changes,0,
     'Atomic reservation must not create a checkout lock for wrong-customer invoice');
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM payment_checkout_sessions").get().count,0);
   n+=9;
   // Legitimate invoice relationship must preserve normal amount and reservation.
   db.prepare("UPDATE invoices SET customer_id='ca',total_cents=26000 WHERE id='ia'").run();
-  a=initialStmt.get('alpha-token');follow=afterStmt.get('ea');
+  a=initialStmt.get('alpha-token');follow=afterStmt.get('ea','alpha-token');
   assert.equal(a.totalCents,26000);assert.equal(a.invoiceOwnershipMismatch,0);
   assert.equal(follow.totalCents,26000);assert.equal(follow.invoiceOwnershipMismatch,0);
-  assert.equal(reserveStmt.run('synthetic-legitimate-lock','ea','balance',16000,'now','ea','ea').changes,1);
+  assert.equal(reserveStmt.run('synthetic-legitimate-lock','ea','balance',16000,'now','ea','ea','alpha-token').changes,1);
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM payment_checkout_sessions").get().count,1);
   n+=6;
-  console.log('PASS '+n+' source/SQLite FIRE public checkout invoice-customer ownership checks. No provider calls, real customers or remote data.');
+  // The initial estimate read may have succeeded moments before a share-link
+  // rotation. Reusing that stale bearer must never reserve a fresh Stripe
+  // checkout; the post-provider check must also fail closed for that token.
+  addEstimate.run('ec','ca','gamma-original');
+  db.prepare("UPDATE estimates SET share_token='gamma-rotated' WHERE id='ec'").run();
+  assert.equal(initialStmt.get('gamma-original'),undefined,'Old link is revoked');
+  assert.equal(afterStmt.get('ec','gamma-original'),undefined,'Old link cannot pass final recheck');
+  assert.equal(reserveStmt.run('stale-attempt','ec','deposit',10000,'now','ec','ec','gamma-original').changes,0,
+    'Revoked token cannot reserve a new Stripe checkout');
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM payment_checkout_sessions WHERE estimate_id='ec'").get().count,0,
+    'Revoked token must not create checkout record');
+  assert.equal(afterStmt.get('ec','gamma-rotated').status,'completed');
+  assert.equal(reserveStmt.run('current-token','ec','deposit',10000,'now','ec','ec','gamma-rotated').changes,1,
+    'Current authorized link can reserve a checkout');
+  n+=6;
+  console.log('PASS '+n+' source/SQLite FIRE checkout customer ownership and share-token revocation checks. No provider calls, real customers or remote data.');
 }finally{db.close();}
