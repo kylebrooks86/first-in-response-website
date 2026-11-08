@@ -6,9 +6,9 @@ const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playw
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const functions=['CustomersView','EditCustomer','EstimatesView','InsightsView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name));const tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}functions.forEach(visit);
-const actual=['InsightsView','EstimatesView','EditCustomer','Button','Label','Input','Textarea','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
+const actual=['InsightsView','EstimatesView','EditCustomer','PhoneCall','Button','Label','Input','Textarea','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
 const stubs=[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n');
-const fixture=`import React,{useState,useRef,useEffect,useMemo,useCallback}from'react';import{createRoot}from'react-dom/client';
+const fixture=`import React,{useState,useRef,useEffect,useMemo,useCallback}from'react';import{createRoot}from'react-dom/client';import{PhoneCall}from'lucide-react';
 import{Textarea}from'./components/ui/textarea';import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
@@ -44,7 +44,8 @@ window.testCustomerFlags=()=>{
  return {out:out.sign?.state,location:out.sign?.location,pickupDate:out.sign?.pickupDate,review:!!out.reviewReceivedAt,retrieved:retrieved.sign?.state,unverified:!malformed.sign&&!malformed.reviewReceivedAt};
 };
 window.setTheme=value=>document.documentElement.dataset.theme=value;
-createRoot(document.getElementById('app')).render(location.pathname==='/insights'?<InsightsView/>:location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
+function TestMessageDialog(){const [open,setOpen]=useState(true);const variant=new URL(window.location.href).searchParams.get("variant")||"message";const classes={message:"message-dialog sm:max-w-[620px]",standard:"",estimate:"estimate-edit-dialog",job:"fire-job-dialog",voice:"voice-contact-dialog"};const flexMode=variant==="message"||variant==="job";return <div><button type="button" onClick={()=>setOpen(true)}>Open synthetic message</button><Dialog open={open} onOpenChange={setOpen}><DialogContent className={classes[variant]||""} style={{...(flexMode?{display:"flex",flexDirection:"column",overflow:"hidden"}:{}),maxHeight:"calc(100dvh - 24px)"}}><DialogHeader className={variant==="job"?"fire-job-header":"message-dialog-header"}><DialogTitle>Message</DialogTitle><p>To: Synthetic customer</p></DialogHeader><div className={variant==="job"?"fire-job-scroll":variant==="message"?"message-builder":"synthetic-modal-content"} style={flexMode?{flex:"1 1 auto",minHeight:0,overflowY:"auto"}:{}}>{Array.from({length:40},(_,index)=><p key={index}>Non-sending QA message content {index+1}</p>)}</div></DialogContent></Dialog></div>;}
+createRoot(document.getElementById('app')).render(location.pathname==='/message-close'?<TestMessageDialog/>:location.pathname==='/insights'?<InsightsView/>:location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.customer-profile'));console.log('PASS: actual customer write browser fixture and shared CSS compile; browser assertions not executed.');process.exit(0);}
@@ -56,7 +57,7 @@ function reset(){customers=[customer('first'),customer('second')];notes=[];noteS
 reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css.css);return;}
- if(req.url==='/'||req.url==='/history'||req.url==='/insights'){res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');return;}
+ if(req.url==='/'||req.url==='/history'||req.url==='/insights'||req.url==='/message-close'||req.url?.startsWith('/message-close?')){res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');return;}
  const send=(status,data)=>{res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(data));};
  if(req.url.startsWith('/api/estimate-history?')){historyReads.push(req.url);if(historyFailure){send(503,{error:'Synthetic history refresh failed'});return;}const query=new URL(req.url, 'http://local.invalid').searchParams.get('q');send(200,{estimates:[{id:query?'new-history':'old-history',customer:query?'Latest query customer':'Prior query customer',service:'Synthetic wash',status:'approved',totalCents:10000,depositCents:5000,paidCents:0,createdAt:'2026-10-20'}],nextCursor:null});return;}
  if(req.url==='/api/customers'&&req.method==='GET'){if(insightMode){send(200,insightPayload);return;}send(200,{customers,estimates:[],notes,invoices:[],photos:[],messages:[],payments:[]});return;}
@@ -123,6 +124,8 @@ try{
  await page.getByRole('button',{name:'Save lead callback'}).evaluate(button=>{button.click();button.click();});
  await page.getByText('Callback saved.',{exact:true}).waitFor();
  await page.getByRole('status').filter({hasText:'Callback due:'}).waitFor();
+  check(await page.locator('.customer-flag-sign-location .callback-reminder-icon').count()===1,
+   'Owner customer detail displays phone icon beside saved due callback');
  check(notePosts===2&&notes.length===2&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-22',
   'One-tap callback persists exactly once using existing notes API, no estimate or messages needed');
  check(await unsavedCustomerNote.inputValue()==='Keep this unrelated customer note draft',
@@ -132,8 +135,14 @@ try{
  await unsavedCustomerNote.fill('');
  await page.getByRole('button',{name:'Back to all customers',exact:true}).click();
  await page.getByRole('region',{name:'Due customer lead callbacks'}).waitFor();
+  check(await page.getByRole('region',{name:'Due customer lead callbacks'}).locator('.callback-reminder-icon').count()===2,
+   'Due callback overview title and review queue each display phone icon');
+  check(await page.getByRole('button',{name:'Callbacks due (1)'}).locator('.callback-reminder-icon').count()===1,
+   'Due callback customer filter includes phone icon without changing its accessible name');
  await page.getByRole('button',{name:'Callbacks due (1)'}).click();
  check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
+  check(await page.locator('.customer-card .customer-directory-alert .callback-reminder-icon').count()===1,
+   'Saved due callback in customer directory has matching phone icon on narrow viewport');
  await page.locator('.customer-card').first().click();
  await page.locator('details.customer-activity-tools > summary').click();
  await page.getByRole('button',{name:'Mark callback done'}).evaluate(button=>{button.click();button.click();});
@@ -200,6 +209,45 @@ try{
   await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.insight-kpis').waitFor();
   check(await page.getByText('$55.00',{exact:true}).isVisible(),'Insights retry preserves signed refunds and tips');check(await page.getByText('$130.00',{exact:true}).isVisible(),'Insights balance excludes tips from principal');check(await page.getByText('$180.00',{exact:true}).isVisible(),'Insights uses revised invoice job value');check(await page.getByRole('alert').count()===0,'Successful Insights retry clears error');
  }
- check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
+ // Actual compiled Radix dialog + compiled CSS, no real messages or network:
+  // verify that the final DOM Close is top-right, not sticky at the bottom left.
+  for(const variant of ['message','standard','estimate','job','voice'])for(const [width,theme] of [[1366,'dark'],[390,'dark'],[390,'light']]){
+   await page.setViewportSize({width,height:700});
+   await page.goto(origin+'/message-close?variant='+variant);
+   await page.evaluate(t=>window.setTheme(t),theme);
+   const dialog=page.getByRole('dialog');
+   await dialog.getByText('Message',{exact:true}).waitFor();
+   const close=dialog.getByRole('button',{name:'Close',exact:true});
+   const where=async()=>({box:await dialog.boundingBox(),x:await close.boundingBox()});
+   const initial=await where();
+   const iconGeometry=await close.locator('svg').boundingBox();
+   const visualStyle=await close.evaluate(node=>({border:getComputedStyle(node).borderTopWidth,position:getComputedStyle(node).position}));
+   check(initial.box&&initial.x&&iconGeometry&&initial.x.height>=40&&
+    initial.x.y>=initial.box.y-1&&initial.x.y-initial.box.y<=22&&
+    initial.x.x>=initial.box.x+initial.box.width-74&&
+    initial.x.x+initial.x.width<=initial.box.x+initial.box.width+1&&
+    iconGeometry.width<=18&&iconGeometry.height<=18&&
+    visualStyle.border==='0px'&&visualStyle.position==='absolute',
+    'Small unboxed Close X in top-right accessible 44px target: '+variant+' '+width+' '+theme);
+   const scrollTarget=variant==='job'?dialog.locator('.fire-job-scroll'):variant==='message'?dialog.locator('.message-builder'):dialog;
+   const scrolled=await scrollTarget.evaluate(node=>{const available=node.scrollHeight-node.clientHeight;node.scrollTop=available;return {available,position:node.scrollTop};});
+   check(scrolled.available>=80&&scrolled.position>=80,
+    'Synthetic long '+variant+' dialog really scrolls its own content, '+width+' '+theme);
+   const afterScroll=await where();
+   check(afterScroll.x&&Math.abs(afterScroll.x.y-initial.x.y)<2&&Math.abs(afterScroll.x.x-initial.x.x)<2,
+    'Modal Close stays pinned top-right while long text scrolls, '+variant+' '+width+' '+theme);
+   await close.click();
+   await dialog.waitFor({state:'hidden'});
+   check(true,'Message Close X is actually clickable, '+width+' '+theme);
+   await page.getByRole('button',{name:'Open synthetic message'}).click();
+   await page.keyboard.press('Escape');
+   await dialog.waitFor({state:'hidden'});
+   check(true,'Escape still closes synthetic message composer, '+width+' '+theme);
+   await page.getByRole('button',{name:'Open synthetic message'}).click();
+   await page.mouse.click(5,5);
+   await dialog.waitFor({state:'hidden'});
+   check(true,'Click outside still dismisses synthetic message composer, '+width+' '+theme);
+  }
+  check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
  console.log(JSON.stringify({passed:checks,actualCustomerNotes:true,actualEditCustomer:true,actualEstimateHistory:true,actualInsights:true,actualRadix:true,compiledTailwind:true,syntheticLocalhostOnly:true,hostedDataTouched:false,iPhoneTested:false}));
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

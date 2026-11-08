@@ -78,6 +78,22 @@ check(deriveCustomerManualFlags([note('handled',LEAD_CALLBACK_HANDLED_NOTE,d)]).
  'Orphan callback-handled note cannot invent a previously scheduled callback');
 const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const noteApi=readFileSync('app/api/customer-notes/route.ts','utf8');
+const styles=readFileSync('app/globals.css','utf8');
+check(dashboard.includes('  PhoneCall,')&&styles.includes('.customers-view .callback-reminder-icon'),
+ 'Callback reminder uses existing accessible phone-call icon with compact responsive styling');
+for(const [name,pattern] of [
+ ['customer directory amber due badge',/<small className="customer-directory-alert"><PhoneCall className="callback-reminder-icon" aria-hidden="true"\/>Callback due<\/small>/],
+ ['due-only filter',/!showDueCallbacksOnly&&<PhoneCall className="callback-reminder-icon" aria-hidden="true"\/>/],
+ ['due customer review queue',/className="callback-reminder-label"><PhoneCall className="callback-reminder-icon" aria-hidden="true"\/>/],
+ ['due callback overview heading',/<strong><PhoneCall className="callback-reminder-icon" aria-hidden="true"\/> \{dueLeadCallbacks.length\}/],
+ ['customer detail due and upcoming reminder',/<strong><PhoneCall className="callback-reminder-icon" aria-hidden="true"\/> \{manualFlags.leadCallback.dueDate<=tulsaToday/],
+ ['customer tracking section pending reminder',/<summary>\{manualFlags.leadCallback\?\.state==="pending"&&<PhoneCall className="callback-reminder-icon" aria-hidden="true"\/>\}Contact/]
+]) {
+ check(pattern.test(dashboard),'Callback phone icon is visible in '+name+' without altering notification persistence');
+}
+check(styles.includes('display:inline-flex;align-items:center;gap:5px')&&
+ styles.includes('html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}'),
+ 'Existing due-amber color and dark-mode contrast preserved alongside phone icon');
 for(const [flag,action] of [['LEAD_NO_ANSWER_NOTE','no_answer'],['LEAD_CONTACTED_NOTE','contacted']]){
  check(dashboard.includes('saveNote('+flag+',"'+action+'")')&&dashboard.includes('noteAttempts.current.get(attemptKey)')&&dashboard.includes('noteSaveLock.current'),
   'One-tap contact outcome persists with the existing idempotent note API: '+flag);
