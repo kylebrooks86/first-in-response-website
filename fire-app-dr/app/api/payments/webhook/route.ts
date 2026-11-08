@@ -115,26 +115,70 @@ async function alertFailedCheckout(session:StripeCheckoutSession) {
 }
 
 async function recordCheckoutPayment(session:StripeCheckoutSession) {
-  if (!session.id || session.payment_status !== "paid" || !session.amount_total) return { ok:false, reason:"unpaid" };
-  const estimateId = session.metadata?.estimate_id?.trim();
-  if (!estimateId) return { ok:false, reason:"missing_estimate" };
+  // This DR worker is TEST-only. A signed webhook must still identify an
+  // actual TEST Checkout session in USD and the estimate used to create it.
+  if(!/^cs_test_[a-zA-Z0-9]+$/.test(session.id||""))
+    return {ok:false,reason:"checkout_environment_mismatch"};
+  if(session.currency!=="usd")return {ok:false,reason:"currency_mismatch"};
+  if(session.payment_status!=="paid"||!session.amount_total)return {ok:false,reason:"unpaid"};
+  const estimateId=session.metadata?.estimate_id?.trim();
+  if(!estimateId)return {ok:false,reason:"missing_estimate"};
+  if(session.client_reference_id!==estimateId)return {ok:false,reason:"reference_mismatch"};
+  if(!["deposit","balance"].includes(session.metadata?.payment_type||""))
+    return {ok:false,reason:"payment_type_mismatch"};
 
   const estimate = await env.DB.prepare(`
-    SELECT e.id,e.status,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.customer_id AS customerId,c.name AS customer,
+    SELECT e.id,e.status,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.customer_id AS customerId,
+      (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,c.name AS customer,
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
     FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.id=? LIMIT 1
-  `).bind(estimateId).first<{id:string;status:string;totalCents:number;depositCents:number;customerId:string;customer:string;service:string}>();
-  if (!estimate) return { ok:false, reason:"estimate_not_found" };
+  `).bind(estimateId).first<{id:string;status:string;totalCents:number;depositCents:number;customerId:string;invoiceOwnershipMismatch:number;customer:string;service:string}>();
+  if(!estimate)return {ok:false,reason:"estimate_not_found"};
+  // An invoice linked to a different customer must never set the payable
+  // obligation or receive a success ledger entry via a signed webhook.
+  if(Number(estimate.invoiceOwnershipMismatch)!==0)
+    return {ok:false,reason:"invoice_customer_mismatch"};
 
   const sessionAmount=Number(session.amount_total);
-  const paymentType = session.metadata?.payment_type === "balance" ? "balance" : "deposit";
-  const expectedAmount = Number(session.metadata?.expected_amount_cents ?? sessionAmount);
-  const tipCents = Number(session.metadata?.tip_amount_cents ?? 0);
-  const expectedCharge = Number(session.metadata?.expected_charge_cents ?? (expectedAmount + tipCents));
+  const paymentType=session.metadata?.payment_type as "deposit"|"balance";
+  // DR's checkout builder supplies all three saved integer-cent fields.
+  // Never infer a principal, tip or charge when signed event metadata is
+  // missing; a default could credit the wrong amount to a customer.
+  if(typeof session.metadata?.expected_amount_cents!=="string"||
+     typeof session.metadata?.tip_amount_cents!=="string"||
+     typeof session.metadata?.expected_charge_cents!=="string")
+    return {ok:false,reason:"missing_charge_metadata"};
+  const expectedAmount=Number(session.metadata.expected_amount_cents);
+  const tipCents=Number(session.metadata.tip_amount_cents);
+  const expectedCharge=Number(session.metadata.expected_charge_cents);
   if (!Number.isSafeInteger(sessionAmount) || sessionAmount<=0 || !Number.isSafeInteger(expectedAmount) || expectedAmount<=0 || !Number.isSafeInteger(tipCents) || tipCents<0 || !Number.isSafeInteger(expectedCharge) || expectedCharge!==sessionAmount || expectedAmount+tipCents!==sessionAmount) return { ok:false, reason:"amount_mismatch" };
   if (paymentType!=="balance" && tipCents>0) return {ok:false,reason:"tip_not_allowed_for_deposit"};
   const maxTipCents=Math.min(Number(estimate.totalCents),50000);
   if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0||tipCents>maxTipCents)return {ok:false,reason:"tip_outside_allowed_range"};
+  // Stripe can finish before the original checkout API receives its session
+  // acknowledgement. Recover ONLY the same existing provisional slot, after
+  // checking the signed session's estimate, type, amount and reservation ID.
+  // Never allocate a second open slot or guess an invoice/customer identity.
+  const reservationId=session.metadata?.fire_checkout_reservation_id;
+  if(reservationId){
+    if(!/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId))
+      return {ok:false,reason:"invalid_checkout_reservation"};
+    const reserved=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1")
+      .bind(reservationId).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+    if(reserved){
+      if(reserved.estimateId!==estimateId||reserved.type!==paymentType||
+         reserved.status!=="open"||Number(reserved.amountCents)!==sessionAmount)
+        return {ok:false,reason:"checkout_reservation_mismatch"};
+      try{
+        const promoted=await env.DB.prepare(`UPDATE payment_checkout_sessions SET id=?
+          WHERE id=? AND estimate_id=? AND type=? AND amount_cents=? AND status='open'`)
+          .bind(session.id,reservationId,estimateId,paymentType,sessionAmount).run();
+        if(!promoted.meta.changes)return {ok:false,reason:"checkout_reservation_changed"};
+      }catch{return {ok:false,reason:"checkout_reservation_promotion_failed"};}
+    }
+  }
+  // An already-promoted Stripe session also covers idempotent signed retries
+  // and still-tracked legacy TEST-only sessions without reservation metadata.
   const tracked = await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if (!tracked || tracked.estimateId !== estimateId || tracked.type !== paymentType || Number(tracked.amountCents) !== sessionAmount || !["open","paid"].includes(tracked.status)) {
     return { ok:false, reason:"untracked_or_stale_checkout" };
