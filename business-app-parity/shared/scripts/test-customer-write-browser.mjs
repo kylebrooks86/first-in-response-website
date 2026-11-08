@@ -217,6 +217,12 @@ try{
    await page.evaluate(t=>window.setTheme(t),theme);
    const dialog=page.getByRole('dialog');
    await dialog.getByText('Message',{exact:true}).waitFor();
+   // Measure only after Radix's actual entrance animation finishes; an
+   // animating centered transform otherwise changes coordinates during scroll.
+   await page.waitForFunction(()=>{
+    const content=document.querySelector('[data-slot="dialog-content"]');
+    return Boolean(content)&&content.getAnimations().every(a=>a.playState!=='running');
+   },null,{timeout:3000});
    const close=dialog.getByRole('button',{name:'Close',exact:true});
    const where=async()=>({box:await dialog.boundingBox(),x:await close.boundingBox()});
    const initial=await where();
@@ -235,7 +241,8 @@ try{
     'Synthetic long '+variant+' dialog really scrolls its own content, '+width+' '+theme);
    const afterScroll=await where();
    check(afterScroll.x&&Math.abs(afterScroll.x.y-initial.x.y)<2&&Math.abs(afterScroll.x.x-initial.x.x)<2,
-    'Modal Close stays pinned top-right while long text scrolls, '+variant+' '+width+' '+theme);
+    'Modal Close stays pinned top-right while long text scrolls, '+variant+' '+width+' '+theme+
+    JSON.stringify({before:initial,after:afterScroll,scroll:scrolled}));
    await close.click();
    await dialog.waitFor({state:'hidden'});
    check(true,'Message Close X is actually clickable, '+width+' '+theme);
