@@ -109,6 +109,9 @@ jobs:
           node-version: '22'
       - name: Use pinned pnpm
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Gate 6 owner-hosted evidence collector strict URL allowlist and leakage prevention (OFFLINE)
+        run: |
+          node --test business-app-parity/test_owner_gate6_hosted_readonly.mjs
       - name: Materialize isolated QA source without remote access
         run: |
           python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-preview-candidate"
