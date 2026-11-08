@@ -38,7 +38,7 @@ const declarations=new Map();
 function walk(node){if(ts.isVariableDeclaration(node)&&names.includes(node.name.getText(ast)))declarations.set(node.name.getText(ast),node.initializer.getText(ast));ts.forEachChild(node,walk);}
 walk(ast);assert.equal(declarations.size,names.length);
 function guard(overrides={},paidCents=0,items=[{name:'Test',quantity:1,totalCents:10000}]){
- const scope={row:{subtotalCents:10000,discountCents:0,totalCents:10000,invoiceTotalCents:null,depositCents:5000,status:'approved',acceptedAt:'now',paymentOverageOpen:0,pendingRefundCount:0,...overrides},paidCents,items};
+ const scope={row:{subtotalCents:10000,discountCents:0,totalCents:10000,invoiceTotalCents:null,depositCents:5000,invoiceOwnershipMismatch:0,status:'approved',acceptedAt:'now',paymentOverageOpen:0,pendingRefundCount:0,...overrides},paidCents,items};
  for(const name of names)scope[name]=evaluate(`(${declarations.get(name)})`,scope);
  return scope;
 }
@@ -49,6 +49,8 @@ for(const overrides of [{subtotalCents:9999},{depositCents:10001},{totalCents:-1
 assert.equal(guard({},0,[]).billingStateSafe,false);
 assert.equal(guard({},-1).billingStateSafe,false);
 assert.equal(guard({status:'completed'},10000).balance,0);
+assert.equal(guard({invoiceOwnershipMismatch:1}).billingStateSafe,false,
+  'A foreign-customer invoice must disable saved estimate billing state');
 const invoice=readFileSync(root+'/app/invoice/[token]/page.tsx','utf8');
 assert.ok(invoice.includes("r.status='pending'"));assert.ok(invoice.includes('invoicePaymentState(row)'));assert.ok(invoice.includes('const paymentReviewPending=state.review'));assert.equal(invoicePaymentState({status:'paid',totalCents:10000,paidCents:10000,pendingRefundCount:1}).review,true);
 console.log('PASS: actual notification SQL handles repeated/stale visits and acceptance without duplicate alerts; valid deposit/final payments remain available; malformed billing and pending refund/overage block collection.');
