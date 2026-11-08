@@ -4177,3 +4177,33 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .app-shell .customer-profile .customer-contact-backups .contact-backup-actions>button{
   height:100%
 }
+
+
+/* FIRE visual polish follow-up — high contrast secondary labels.
+   The first screenshots showed low-contrast estimates descriptions and
+   extremely small neutral navigation labels. Retain FIRE-red active nav and
+   attention semantics; don't recolor any status badges. */
+.app-shell .dashboard-view .metric-card>small{
+  color:var(--fire-ui-supporting-text);
+  font-size:12px;
+  line-height:1.5;
+  font-weight:550
+}
+.app-shell .bottom-nav button{
+  color:var(--fire-ui-supporting-text);
+  font-size:11px;
+  line-height:1.2;
+  font-weight:650;
+  gap:4px
+}
+.app-shell .bottom-nav button>span{
+  max-width:100%;
+  min-width:0;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere
+}
+.app-shell .bottom-nav button.active{
+  color:var(--fire-ui-nav-accent);
+  font-weight:800
+}
