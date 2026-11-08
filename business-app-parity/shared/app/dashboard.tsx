@@ -3810,6 +3810,7 @@ function ScheduleWeather({nextJobAt,compact=false,requestedJobAt=null}:{nextJobA
        <span><CloudRain aria-hidden="true"/><span aria-label="Chance of rain">{day.rainChance==null?"—":`${Math.round(day.rainChance)}%`}</span></span>
      </article>)}
    </div>
+   {compact&&<small className="weather-scroll-hint" aria-hidden="true">Swipe to see all 7 days →</small>}
    <div className="weather-simple-footer">
      {cautions.length>0&&<small className="weather-simple-cautions">{cautions.join(" · ")}</small>}
      <button type="button" disabled={weatherRefreshing} onClick={()=>setWeatherReload(n=>n+1)} aria-label={unavailable?"Retry seven-day Tulsa forecast":"Refresh seven-day Tulsa weather forecast"}>{weatherRefreshing?"Checking…":"Refresh"}</button>
