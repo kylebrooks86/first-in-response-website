@@ -3822,9 +3822,9 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   }
 }
 /* A visible swipe cue makes the intentionally horizontal seven-day forecast
-   discoverable instead of looking accidentally clipped on a phone/tablet. */
+   discoverable instead of looking accidentally clipped on a phone. */
 .weather-strip.home-weather .weather-scroll-hint{display:none}
-@media(max-width:900px){
+@media(max-width:760px){
   .weather-strip.home-weather .weather-scroll-hint{
     display:block;
     grid-column:1;
