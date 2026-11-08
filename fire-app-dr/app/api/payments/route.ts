@@ -34,6 +34,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Independent disaster recovery is not yet approved to accept real financial
+  // writes. Keep GET payment history read-only, but fail closed before all
+  // owner-entered payments/tips unless the isolated TEST mode is authorized.
+  if((env as Cloudflare.Env & {FIRE_STRIPE_MODE?:string}).FIRE_STRIPE_MODE!=="test")
+    return Response.json({error:"DR payment recording is disabled until the isolated TEST environment is explicitly authorized."},
+      {status:503,headers:{"cache-control":"no-store"}});
   try {
     const body = await request.json() as Record<string, unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
