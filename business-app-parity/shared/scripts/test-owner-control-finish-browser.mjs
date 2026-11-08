@@ -103,7 +103,7 @@ try{
       check(state.overflow<=1,at+' no page-wide horizontal scroll');
       check(state.items.every(a=>a.left>=state.left-1&&a.right<=state.right+1&&
         a.height>=48&&a.contentOverflow<=1),
-        at+' every touch control fits the row without clipped label');
+        at+' every touch control fits the row without clipped label: '+JSON.stringify(state));
       if(count===1)check(state.items[0].width>=state.width-1,
         at+' single method fills the row instead of a third-width slot');
       if(count===2)check(state.items.every(a=>a.width>=state.width*.4),
