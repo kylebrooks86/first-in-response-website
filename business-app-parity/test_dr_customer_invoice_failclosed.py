@@ -62,6 +62,63 @@ class DRInvoiceOwnership(unittest.TestCase):
             source
         )
 
+    def test_dr_checkout_is_explicit_test_only_and_reserves_before_provider(self):
+        source = (REPO / PATHS[2]).read_text(encoding="utf-8")
+        self.assertIn("const sandboxTarget = true;", source)
+        self.assertIn('runtime.FIRE_STRIPE_MODE !== "test"', source)
+        self.assertIn('! /^(sk|rk|rkcs)_test_', source.replace("&&!/","! /"), "Only TEST key types may be used")
+        self.assertIn('if(session.id.startsWith("fire-creating:"))', source)
+        self.assertIn("checkoutUncertain:true", source, "Ambiguous Stripe responses must retain the reservation")
+        self.assertIn('"Idempotency-Key":`fire-checkout-${reservationId}`', source)
+        self.assertIn("if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();", source)
+        self.assertLess(source.index("const locked=await env.DB.prepare"),
+                        source.index('await fetch("https://api.stripe.com/v1/checkout/sessions"'),
+                        "Atomic D1 reservation must precede any provider POST")
+        self.assertIn("FROM estimates e WHERE e.id=? AND e.share_token=?", source)
+        self.assertIn(".bind(row.id,shareToken).first<", source)
+        self.assertIn("AND share_token=? AND status IN ('approved','scheduled','completed')", source)
+        self.assertIn(".bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id,row.id,shareToken).run()",source)
+        self.assertIn("UPDATE payment_checkout_sessions SET id=?",source)
+        self.assertNotIn("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?,?,?, 'open', ?)",source,
+          "Legacy post-Stripe reservation would allow concurrent second checkout")
+
+    def test_dr_atomic_checkout_sql_blocks_stale_links_and_double_session(self):
+        source = (REPO / PATHS[2]).read_text(encoding="utf-8")
+        match = re.search(r"const locked=await env\\.DB\\.prepare\\(`(INSERT INTO payment_checkout_sessions .*?)`\\)",
+                          source,re.S)
+        self.assertIsNotNone(match,"Use the actual atomic INSERT SELECT from DR route")
+        sql = match.group(1)
+        self.assertIn("share_token=?", sql)
+        db=sqlite3.connect(":memory:")
+        try:
+            db.executescript("""
+            CREATE TABLE estimates(id TEXT PRIMARY KEY, customer_id TEXT,
+              share_token TEXT, status TEXT,accepted_at TEXT,signed_at TEXT);
+            CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT,total_cents INTEGER);
+            CREATE TABLE payment_checkout_sessions(id TEXT PRIMARY KEY,estimate_id TEXT,type TEXT,amount_cents INTEGER,status TEXT,created_at TEXT);
+            CREATE UNIQUE INDEX one_open ON payment_checkout_sessions(estimate_id) WHERE status='open';
+            INSERT INTO estimates VALUES('a','customer-a','alpha-original','approved','signed','signed');
+            INSERT INTO estimates VALUES('b','customer-b','bravo-original','approved','signed','signed');
+            INSERT INTO estimates VALUES('c','customer-a','charlie-original','approved','signed','signed');
+            INSERT INTO estimates VALUES('d','customer-a','delta-original','approved','signed','signed');
+            INSERT INTO estimates VALUES('e','customer-a','epsilon-original','approved',NULL,NULL);
+            INSERT INTO invoices VALUES('i-d','d','customer-b',77777);
+            """)
+            def lock(session,estimate,token):
+                return db.execute(sql,(session,estimate,'deposit',10000,'synthetic-now',estimate,estimate,token)).rowcount
+            self.assertEqual(lock('first-alpha','a','alpha-original'),1)
+            self.assertEqual(lock('second-alpha','a','alpha-original'),0,"One open checkout per estimate")
+            self.assertEqual(lock('first-bravo','b','bravo-original'),1,"Distinct customer may pay independently")
+            db.execute("UPDATE estimates SET share_token='charlie-rotated' WHERE id='c'")
+            self.assertEqual(lock('stale-charlie','c','charlie-original'),0,"Revoked link never reserves")
+            self.assertEqual(lock('current-charlie','c','charlie-rotated'),1)
+            self.assertEqual(lock('bad-invoice','d','delta-original'),0,"Wrong-customer invoice never reserves")
+            self.assertEqual(lock('unsigned','e','epsilon-original'),0,"Unsigned estimate never reserves")
+            count=db.execute("SELECT COUNT(*) FROM payment_checkout_sessions").fetchone()[0]
+            self.assertEqual(count,3,"Only three authorized synthetic reservations remain")
+        finally:
+            db.close()
+
     def test_source_derived_invoice_sql_rejects_mismatched_customer(self):
         # These exact expressions are sourced from the DR route, not invented
         # as a competing implementation.
