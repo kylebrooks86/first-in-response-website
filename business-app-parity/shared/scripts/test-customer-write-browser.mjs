@@ -44,7 +44,8 @@ window.testCustomerFlags=()=>{
  return {out:out.sign?.state,location:out.sign?.location,pickupDate:out.sign?.pickupDate,review:!!out.reviewReceivedAt,retrieved:retrieved.sign?.state,unverified:!malformed.sign&&!malformed.reviewReceivedAt};
 };
 window.setTheme=value=>document.documentElement.dataset.theme=value;
-createRoot(document.getElementById('app')).render(location.pathname==='/insights'?<InsightsView/>:location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
+function TestMessageDialog(){const [open,setOpen]=useState(true);return <div><button type="button" onClick={()=>setOpen(true)}>Open synthetic message</button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="message-dialog sm:max-w-[620px]" style={{display:"flex",flexDirection:"column",overflow:"hidden",maxHeight:"calc(100dvh - 24px)"}}><DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p>To: Synthetic customer</p></DialogHeader><div className="message-builder" style={{flex:"1 1 auto",minHeight:0,overflowY:"auto"}}>{Array.from({length:40},(_,index)=><p key={index}>Non-sending QA message content {index+1}</p>)}</div></DialogContent></Dialog></div>;}
+createRoot(document.getElementById('app')).render(location.pathname==='/message-close'?<TestMessageDialog/>:location.pathname==='/insights'?<InsightsView/>:location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.customer-profile'));console.log('PASS: actual customer write browser fixture and shared CSS compile; browser assertions not executed.');process.exit(0);}
@@ -56,7 +57,7 @@ function reset(){customers=[customer('first'),customer('second')];notes=[];noteS
 reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css.css);return;}
- if(req.url==='/'||req.url==='/history'||req.url==='/insights'){res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');return;}
+ if(req.url==='/'||req.url==='/history'||req.url==='/insights'||req.url==='/message-close'){res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');return;}
  const send=(status,data)=>{res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(data));};
  if(req.url.startsWith('/api/estimate-history?')){historyReads.push(req.url);if(historyFailure){send(503,{error:'Synthetic history refresh failed'});return;}const query=new URL(req.url, 'http://local.invalid').searchParams.get('q');send(200,{estimates:[{id:query?'new-history':'old-history',customer:query?'Latest query customer':'Prior query customer',service:'Synthetic wash',status:'approved',totalCents:10000,depositCents:5000,paidCents:0,createdAt:'2026-10-20'}],nextCursor:null});return;}
  if(req.url==='/api/customers'&&req.method==='GET'){if(insightMode){send(200,insightPayload);return;}send(200,{customers,estimates:[],notes,invoices:[],photos:[],messages:[],payments:[]});return;}
@@ -208,6 +209,38 @@ try{
   await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.insight-kpis').waitFor();
   check(await page.getByText('$55.00',{exact:true}).isVisible(),'Insights retry preserves signed refunds and tips');check(await page.getByText('$130.00',{exact:true}).isVisible(),'Insights balance excludes tips from principal');check(await page.getByText('$180.00',{exact:true}).isVisible(),'Insights uses revised invoice job value');check(await page.getByRole('alert').count()===0,'Successful Insights retry clears error');
  }
- check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
+ // Actual compiled Radix dialog + compiled CSS, no real messages or network:
+  // verify that the final DOM Close is top-right, not sticky at the bottom left.
+  for(const [width,theme] of [[1366,'dark'],[390,'dark'],[390,'light']]){
+   await page.setViewportSize({width,height:700});
+   await page.goto(origin+'/message-close');
+   await page.evaluate(t=>window.setTheme(t),theme);
+   const dialog=page.getByRole('dialog');
+   await dialog.getByText('Message',{exact:true}).waitFor();
+   const close=dialog.getByRole('button',{name:'Close',exact:true});
+   const where=async()=>({box:await dialog.boundingBox(),x:await close.boundingBox()});
+   const initial=await where();
+   check(initial.box&&initial.x&&initial.x.height>=40&&
+    initial.x.y>=initial.box.y-1&&initial.x.y-initial.box.y<=22&&
+    initial.x.x>=initial.box.x+initial.box.width-74&&
+    initial.x.x+initial.x.width<=initial.box.x+initial.box.width+1,
+    'Message Close top-right and 44px clickable at '+width+' '+theme);
+   await dialog.locator('.message-builder').evaluate(node=>{node.scrollTop=node.scrollHeight;});
+   const afterScroll=await where();
+   check(afterScroll.x&&Math.abs(afterScroll.x.y-initial.x.y)<2&&Math.abs(afterScroll.x.x-initial.x.x)<2,
+    'Message Close stays pinned top-right while long text scrolls, '+width+' '+theme);
+   await close.click();
+   await dialog.waitFor({state:'hidden'});
+   check(true,'Message Close X is actually clickable, '+width+' '+theme);
+   await page.getByRole('button',{name:'Open synthetic message'}).click();
+   await page.keyboard.press('Escape');
+   await dialog.waitFor({state:'hidden'});
+   check(true,'Escape still closes synthetic message composer, '+width+' '+theme);
+   await page.getByRole('button',{name:'Open synthetic message'}).click();
+   await page.mouse.click(5,5);
+   await dialog.waitFor({state:'hidden'});
+   check(true,'Click outside still dismisses synthetic message composer, '+width+' '+theme);
+  }
+  check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
  console.log(JSON.stringify({passed:checks,actualCustomerNotes:true,actualEditCustomer:true,actualEstimateHistory:true,actualInsights:true,actualRadix:true,compiledTailwind:true,syntheticLocalhostOnly:true,hostedDataTouched:false,iPhoneTested:false}));
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
