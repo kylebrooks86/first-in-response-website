@@ -6,9 +6,9 @@ const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playw
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const functions=['CustomersView','EditCustomer','EstimatesView','InsightsView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name));const tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}functions.forEach(visit);
-const actual=['InsightsView','EstimatesView','EditCustomer','Button','Label','Input','Textarea','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
+const actual=['InsightsView','EstimatesView','EditCustomer','PhoneCall','Button','Label','Input','Textarea','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
 const stubs=[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n');
-const fixture=`import React,{useState,useRef,useEffect,useMemo,useCallback}from'react';import{createRoot}from'react-dom/client';
+const fixture=`import React,{useState,useRef,useEffect,useMemo,useCallback}from'react';import{createRoot}from'react-dom/client';import{PhoneCall}from'lucide-react';
 import{Textarea}from'./components/ui/textarea';import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
