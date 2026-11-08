@@ -2580,7 +2580,9 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .customer-directory-clear,.customer-directory-more{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 13px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
 .customer-directory-tools>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px}
 .customers-view .customer-directory-alert,.customers-view .customer-directory-contact-state{display:block;max-width:100%;margin-top:2px;font-size:12px;line-height:1.35;font-weight:750;overflow-wrap:anywhere}
-.customers-view .customer-directory-alert{color:#a45b08}
+.customers-view .customer-directory-alert{color:#a45b08;display:inline-flex;align-items:center;gap:5px}
+.customers-view .callback-reminder-icon{display:inline-block;width:1em;height:1em;flex:none;vertical-align:-0.125em}
+.customers-view .callback-reminder-label{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
 html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .customers-view .customer-directory-contact-state{color:var(--muted-foreground)}
 .customer-directory-more{width:100%;margin-top:8px;text-align:center}
