@@ -43,6 +43,31 @@ for(const [path,fn,sourceEstimate] of [
   'Customer can see the reference directly beneath their name');checks++;
 }
 
+// The public payment screen must retain the SAME DB-backed Job # on the
+// deposit/balance view and on the paid-in-full confirmation, not create a new ID.
+const paymentPath='app/pay/[id]/page.tsx';
+const paymentSource=readFileSync(paymentPath,'utf8');
+const paymentAst=ts.createSourceFile(paymentPath,paymentSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const paymentPage=paymentAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='PaymentPage');
+assert.ok(paymentPage,'Actual customer payment page exists');checks++;
+const paymentText=paymentPage.getText(paymentAst);
+const missing=paymentText.indexOf('if (!row)');
+const withdrawn=paymentText.indexOf('if(isWithdrawnPublicEstimate(row.status))');
+const jobLookup=paymentText.indexOf('const jobLabel=');
+assert.ok(missing>=0&&withdrawn>missing&&jobLookup>withdrawn,
+ 'Invalid or withdrawn payment tokens cannot look up a Job #');checks++;
+assert.ok(paymentText.includes('WHERE e.share_token=? LIMIT 1')&&
+ paymentText.includes('FIRE_JOB_NUMBERS_CANDIDATE')&&
+ paymentText.includes("FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'")&&
+ paymentText.includes('await jobNumberLabelForEstimate(env.DB,row.id)'),
+ 'Payment page reads ONLY the resolved estimate ID when explicitly enabled');checks++;
+assert.ok(paymentText.includes('<h1>{row.customer}</h1>{jobLabel&&<small>{jobLabel}</small>}'),
+ 'Payment view shows compact verified Job # under customer name');checks++;
+assert.ok(paymentText.includes('<h1>Job paid in full</h1>{jobLabel&&<p className="pay-note">{jobLabel}</p>}'),
+ 'Paid-in-full view carries the same saved Job #');checks++;
+assert.ok(!paymentText.includes('newJobStatements(')&&!paymentText.includes('INSERT INTO fire_job_numbers'),
+ 'Public payment GET never allocates a number');checks++;
+
 const db=new DatabaseSync(':memory:');
 try{
  for(const file of readdirSync('drizzle').filter(x=>x.endsWith('.sql')).sort())
@@ -72,6 +97,8 @@ try{
  const shownInvoice=invoiceByToken('synthetic-invoice-a');
  eq(await jobNumberLabelForEstimate(d1,shownEstimate.id),'Job #0001','Replacement estimate keeps original Job #');
  eq(await jobNumberLabelForEstimate(d1,shownInvoice.estimateId),'Job #0001','Related invoice shows identical Job #');
+ const shownPay=estimateByToken('synthetic-share-b');
+ eq(await jobNumberLabelForEstimate(d1,shownPay.id),'Job #0001','Related deposit/balance payment link shares the original Job #');
  eq(await jobNumberLabelForEstimate(d1,a),'Job #0001','Superseded original retains historic reference');
  eq(await jobNumberLabelForEstimate(d1,c),'Job #0002','Unrelated customer gets a separate number');
  eq(await jobNumberLabelForEstimate(d1,invoiceByToken('synthetic-invoice-b').estimateId),'Job #0002','Other invoice never adopts first customer Job #');

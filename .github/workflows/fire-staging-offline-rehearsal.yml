@@ -7,6 +7,14 @@ on:
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
+      - 'business-app-parity/test_job_numbering_qa25_candidate.py'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_offline_candidate.sql'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_d1_candidate.sql'
+      - 'business-app-parity/owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1'
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
@@ -25,6 +33,14 @@ on:
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
+      - 'business-app-parity/test_job_numbering_qa25_candidate.py'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_offline_candidate.sql'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_d1_candidate.sql'
+      - 'business-app-parity/owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1'
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
@@ -237,6 +253,12 @@ jobs:
       - name: Exercise QA version, D1 isolation, no-R2 and fail-closed refusals (mock only)
         shell: pwsh
         run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
+      - name: Verify QA Job numbering aggregate inventory defaults to no provider access
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1
+      - name: Guard QA Job numbering private backup helper (dry-run only, no export)
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1
 
   source-only-migration-rehearsal:
     name: Synthetic 22-to-25 D1 migration rehearsal (NO Cloudflare writes)
@@ -253,6 +275,10 @@ jobs:
           python-version: '3.12'
       - name: Six negative-control unit tests
         run: python -m unittest discover -s business-app-parity -p 'test_rehearse_staging_22_to_25.py' -v
+      - name: Rehearse immutable Job numbers against full QA25 schema and synthetic financial rows
+        run: python -m unittest discover -s business-app-parity -p 'test_job_numbering_qa_additive_rehearsal.py' -v
+      - name: Verify seven-Job QA25 standalone SQL candidate (OFFLINE; no provider)
+        run: python -m unittest discover -s business-app-parity -p 'test_job_numbering_qa25_candidate.py' -v
       - name: Reject six-event Stripe TEST webhook evidence missing refund.failed (no network)
         run: python -m unittest discover -s business-app-parity -p 'test_gate9_staging_preflight.py' -v
       - name: Rehearse actual 25-source migration files in memory (no customer export)
@@ -294,6 +320,15 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           pnpm install --frozen-lockfile
           pnpm run build
+      - name: Actual Wrangler LOCAL D1 Job # 0025 migration and rollback (no Cloudflare access)
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          node business-app-parity/shared/scripts/test-real-wrangler-local-job-number-qa25.mjs "$RUNNER_TEMP/fire-independent-staging-candidate"
       - name: Gate 8 owner-preview and coarse-pointer navigation contracts (offline)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
@@ -306,6 +341,7 @@ jobs:
           node scripts/test-message-composer-layout.mjs
           node scripts/test-owner-preview-exit-states.mjs
           node scripts/test-owner-invoice-job-number-render.mjs
+          node scripts/test-customer-job-number-views.mjs
       - name: Gate 8 saved estimate history, private preview and closed-quote regression (offline)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"

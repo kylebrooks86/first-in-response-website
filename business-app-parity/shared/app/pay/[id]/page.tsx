@@ -6,6 +6,7 @@ import { paymentHandles } from "../../../lib/payment-methods";
 import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite.mjs";
 import {CustomerReviewInvitation} from "../../../components/customer-review-invitation";
 import {canOfferManualPayment,isWithdrawnPublicEstimate} from "../../../lib/public-payment-visibility.mjs";
+import {jobNumberLabelForEstimate} from "../../../lib/job-numbering.mjs";
 
 export const dynamic = "force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -28,6 +29,10 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   // Do not expose stale customer/scope or alternate payment instructions
   // through an older /pay link after an estimate was withdrawn or replaced.
   if(isWithdrawnPublicEstimate(row.status))return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Payment link no longer available</h1><p>This estimate was withdrawn or replaced. Please contact First In Response Exteriors for a current quote.</p></section></main>;
+  // Only the original share-token-resolved estimate can supply this reference.
+  // Numbering stays absent on non-migrated QA/LIVE; never create an ID in a public request.
+  const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
+    ?await jobNumberLabelForEstimate(env.DB,row.id):null;
   const itemResult = await env.DB.prepare(`SELECT name,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;quantity:number;unit:string;totalCents:number}>();
   const items = itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
   const paidCents = Number(row.paidCents??0);
@@ -50,8 +55,8 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const handles = paymentHandles(runtime);
   return <main className="pay-page"><section className="pay-card">
     <header><div className="pay-logo">F</div><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
-    {showRecordedSuccess ? <div className="paid-state"><CheckCircle2 /><h1>Job paid in full</h1><p>Thank you, {row.customer}. Our saved records show this completed job is paid in full.</p><CustomerReviewInvitation/></div> : <>
-      <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{row.address && <span>{row.address}</span>}</div>
+    {showRecordedSuccess ? <div className="paid-state"><CheckCircle2 /><h1>Job paid in full</h1>{jobLabel&&<p className="pay-note">{jobLabel}</p>}<p>Thank you, {row.customer}. Our saved records show this completed job is paid in full.</p><CustomerReviewInvitation/></div> : <>
+      <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{jobLabel&&<small>{jobLabel}</small>}{row.address && <span>{row.address}</span>}</div>
       {row.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; original service address unverified.</p>}
       <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong><span>{item.quantity} {item.unit}</span></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
       <div className="pay-summary"><span><small>Estimate total</small><strong>{currency(row.totalCents)}</strong></span><span><small>Paid</small><strong>{currency(paidCents)}</strong></span><span><small>{paymentType==="deposit"?"Deposit remaining":"Balance due"}</small><strong className="red-text">{currency(dueNow)}</strong></span></div>
