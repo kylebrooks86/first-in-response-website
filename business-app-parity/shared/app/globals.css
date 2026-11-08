@@ -4207,3 +4207,18 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   color:var(--fire-ui-nav-accent);
   font-weight:800
 }
+
+
+/* Secondary record text should be readable in the field, not only decorative.
+   Restrict to explanatory copy, never urgency, error or financial badges. */
+.app-shell :is(
+  .invoice-card>div:first-of-type>small,
+  .followup-card>div>small,
+  .payment-history>article>div>small,
+  .contract-list>button>span:nth-child(2)>small
+){
+  color:var(--fire-ui-supporting-text);
+  font-size:12px;
+  line-height:1.45;
+  overflow-wrap:anywhere
+}
