@@ -102,7 +102,11 @@ assert db.execute(tracked_sql, ("cs_test_Alpha",)).fetchone()["estimateId"] == A
 # A retry of the same signed Stripe delivery reads the already-promoted row.
 assert read(ra) is None
 assert db.execute(tracked_sql, ("cs_test_Alpha",)).fetchone()["status"] == "open"
-assert promote("cs_test_Alpha", rb, B, "balance", 22000) == 0
+try:
+    promote("cs_test_Alpha", rb, B, "balance", 22000)
+    assert False, "Cross-customer reservation cannot reuse another customer session ID"
+except sqlite3.IntegrityError:
+    pass
 assert read(rb)["estimateId"] == B
 assert promote("cs_test_Bravo", rb, B, "balance", 22000) == 1
 assert db.execute(tracked_sql, ("cs_test_Bravo",)).fetchone()["amountCents"] == 22000
