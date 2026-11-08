@@ -36,7 +36,9 @@ export async function POST(request:Request,{params}:{params:Promise<{token:strin
   const receipt={ok:true,estimateId:e.id,version:body.version,documentDigest:docHash,acceptedAt:e.acceptedAt,signedAt:e.signedAt,signedName:e.signedName,photoRelease:e.photoRelease,canSchedule:false,automaticPayment:false};
   if(e.acceptedAt){
    if(e.contractVersion===acceptedVersion&&e.signedName===name&&e.photoRelease===photo&&e.signedAt){
-    const signed=await env.DB.prepare("SELECT * FROM deposit_agreement_snapshots WHERE estimate_id=? AND document_version=?").bind(e.id,body.version).first<Record<string,unknown>>();
+    // A revoked public bearer token must not replay a signed agreement receipt
+    // after the token changes between the original estimate read and this read.
+    const signed=await env.DB.prepare("SELECT s.* FROM deposit_agreement_snapshots s JOIN estimates current_estimate ON current_estimate.id=s.estimate_id WHERE s.estimate_id=? AND s.document_version=? AND current_estimate.share_token=? AND current_estimate.customer_id=?").bind(e.id,body.version,token,e.customerId).first<Record<string,unknown>>();
     if(signed?.event_id===body.version.slice('deposit-exception-v1:'.length)&&signed?.document_digest===docHash&&
        signed?.signed_name===name&&signed?.photo_release===photo&&signed?.signed_at===e.signedAt&&signed?.accepted_at===e.acceptedAt&&
        signed?.total_cents===e.totalCents&&signed?.deposit_cents===e.depositCents&&
