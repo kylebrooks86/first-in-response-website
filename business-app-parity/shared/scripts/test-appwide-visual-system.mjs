@@ -105,4 +105,14 @@ check(css.includes('.app-shell .bottom-nav button{')&&
   css.includes('color:var(--fire-ui-nav-accent);'),
   'Mobile nav has readable neutral labels and distinct selected FIRE-red text');
 
+check((ui.match(/aria-current={tab===id?"page":undefined}/g)||[]).length===3&&
+  (ui.match(/<Icon aria-hidden="true"/g)||[]).length>=3,
+  'Sidebar, More tools and bottom navigation identify the selected page without duplicate icon announcement');
+check(css.includes('/* Secondary record text should be readable in the field')&&
+  css.includes('.invoice-card>div:first-of-type>small,')&&
+  css.includes('.followup-card>div>small,')&&
+  css.includes('.payment-history>article>div>small,')&&
+  css.includes('.contract-list>button>span:nth-child(2)>small'),
+  'Invoices, follow-ups, payments and contracts use high-contrast explanatory copy');
+
 console.log('PASS '+checks+'/'+checks+' source-level app-wide visual-system checks (physical QA open).');
