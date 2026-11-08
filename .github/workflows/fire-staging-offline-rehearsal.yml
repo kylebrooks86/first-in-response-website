@@ -10,6 +10,8 @@ on:
       - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
       - 'business-app-parity/owner_windows_qa_job_number_inventory_readonly.ps1'
       - 'business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1'
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
@@ -31,6 +33,8 @@ on:
       - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
       - 'business-app-parity/owner_windows_qa_job_number_inventory_readonly.ps1'
       - 'business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1'
       - 'business-app-parity/gate9_staging_preflight.py'
       - 'business-app-parity/test_gate9_staging_preflight.py'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
@@ -246,6 +250,9 @@ jobs:
       - name: Verify QA Job numbering aggregate inventory defaults to no provider access
         shell: pwsh
         run: ./business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1
+      - name: Guard QA Job numbering private backup helper (dry-run only, no export)
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1
 
   source-only-migration-rehearsal:
     name: Synthetic 22-to-25 D1 migration rehearsal (NO Cloudflare writes)
