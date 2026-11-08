@@ -297,6 +297,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-iphone-owner-preview-contracts.mjs .
           node scripts/test-estimate-viewed-row-layout.mjs
+          node scripts/test-dashboard-visual-polish.mjs
           node scripts/test-estimate-payment-milestones.mjs
           node scripts/test-estimate-attention-milestones.mjs
           node scripts/test-message-composer-layout.mjs
