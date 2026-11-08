@@ -27,13 +27,16 @@ export async function POST(request: Request) {
     if (!Number.isSafeInteger(tipCents) || tipCents < 0) return Response.json({ error: "Invalid tip amount." }, { status: 400 });
     if (paymentType !== "balance" && tipCents > 0) return Response.json({ error: "Tips are available only with the final balance payment." }, { status: 400 });
     const row = await env.DB.prepare(`
-      SELECT e.id, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt,
+      SELECT e.id, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch, e.status, e.accepted_at AS acceptedAt,
              c.name AS customer,
              COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
       FROM estimates e JOIN customers c ON c.id=e.customer_id
       WHERE e.share_token=? LIMIT 1
-    `).bind(shareToken).first<{ id: string; totalCents: number; depositCents: number; status:string; acceptedAt:string|null; customer: string; service: string }>();
+    `).bind(shareToken).first<{ id: string; totalCents: number; depositCents: number; invoiceOwnershipMismatch:number; status:string; acceptedAt:string|null; customer: string; service: string }>();
     if (!row) return Response.json({ error: "Estimate not found." }, { status: 404 });
+    // Never call Stripe on a share token whose saved invoice points to a
+    // different customer, even if the estimate itself is valid.
+    if(Number(row.invoiceOwnershipMismatch)!==0)return Response.json({error:"Invoice and customer records require owner reconciliation before payment."},{status:409});
     const billingException = await env.DB.prepare("SELECT id FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL LIMIT 1").bind(row.id).first<{id:string}>();
     if (billingException) return Response.json({ error: "This account has a payment exception under review. Resolve the refund or credit before starting another card payment." }, { status: 409 });
     const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(row.id).first<{id:string}>();
@@ -84,12 +87,13 @@ export async function POST(request: Request) {
     const data = await stripe.json() as { id?: string; url?: string; error?: { message?: string } };
     if (!stripe.ok || !data.id || !data.url) return Response.json({ error: data.error?.message || "Payment checkout could not be started." }, { status: 502 });
     const current=await env.DB.prepare(`SELECT e.status,e.deposit_cents AS depositCents,
-      COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
+      (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
+      COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen
       FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;depositCents:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
-    if(!current||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||currentDue!==amount){
+    if(!current||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||Number(current.invoiceOwnershipMismatch)!==0||currentDue!==amount){
       await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(data.id)}/expire`,{method:"POST",headers:{authorization:`Bearer ${runtime.STRIPE_SECRET_KEY}`}});
       return Response.json({error:"The amount due changed while checkout was being created. Refresh the page before paying."},{status:409});
     }
