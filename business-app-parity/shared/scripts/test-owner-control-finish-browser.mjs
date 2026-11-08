@@ -23,6 +23,12 @@ const html='<!doctype html><html><head><meta name="viewport" content="width=devi
 '<div class="customer-property-research"><a href="#lookup">Review property</a></div>'+
 '<details class="photo-backup-more"><summary>Photo backup options</summary><p>Local synthetic content</p></details>'+
 '<details class="photo-comparison-more"><summary>Before-and-after options</summary></details>'+
+'<section class="customers-view" aria-label="Synthetic customer profile">'+
+'<button type="button" class="customer-next-job" aria-label="Open scheduled bundled service">'+
+'<span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/></svg>'+
+'<span><small>Open scheduled job</small><strong>House Washing + Gutter Clean-Out + Exterior Window Cleaning + Driveway and Sidewalk Concrete Restoration</strong></span></span>'+
+'<span>Saturday, Nov 21, 2026 at 10:00 AM <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 7 8-7 8"/></svg></span>'+
+'</button></section>'+
 '</section></main></body></html>';
 const server=createServer((req,res)=>{
   if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css);}
@@ -134,6 +140,44 @@ try{
       });
       check(state.visible&&state.outline==='solid'&&state.width>=3,
         theme+' contact '+tag+' has an explicit keyboard focus ring');
+    }
+  }
+  // The real owner Customer record includes a next-job action with a saved
+  // service name. It must not be ellipsized for multi-service FIRE jobs.
+  for(const width of [320,375,390,430,820,1366]){
+    for(const theme of ['light','dark']){
+      await page.setViewportSize({width,height:844});
+      await page.goto(origin);
+      await page.evaluate(v=>document.documentElement.dataset.theme=v,theme);
+      const action=page.locator('.customers-view .customer-next-job');
+      const state=await action.evaluate(n=>{
+        const label=n.querySelector('strong');
+        const box=n.getBoundingClientRect();
+        const labelBox=label.getBoundingClientRect();
+        const css=getComputedStyle(label);
+        const last=n.lastElementChild.getBoundingClientRect();
+        return {minHeight:box.height,left:box.left,right:box.right,
+          ellipsis:css.textOverflow,whiteSpace:css.whiteSpace,
+          labelHeight:labelBox.height,labelWidth:labelBox.width,
+          labelOverflow:label.scrollWidth-label.clientWidth,
+          statusRight:last.right,
+          pageOverflow:document.documentElement.scrollWidth-innerWidth};
+      });
+      const at=theme+' '+width+'px customer next-job';
+      check(state.minHeight>=52,at+' accessible shortcut height');
+      check(state.left>=-1&&state.right<=width+1&&state.statusRight<=width+1,
+        at+' entire shortcut and status fit viewport: '+JSON.stringify(state));
+      check(state.whiteSpace==='normal'&&state.ellipsis!=='ellipsis'&&
+        state.labelOverflow<=1,at+' full bundled service wraps without text clipping');
+      check(state.labelHeight>25&&state.pageOverflow<=1,
+        at+' long service spans readable lines without horizontal page overflow');
+      await action.focus();
+      const focus=await action.evaluate(n=>({
+        visible:n.matches(':focus-visible'),style:getComputedStyle(n).outlineStyle,
+        width:parseFloat(getComputedStyle(n).outlineWidth)
+      }));
+      check(focus.visible&&focus.style==='solid'&&focus.width>=3,
+        at+' keyboard focus remains visible');
     }
   }
   await page.setViewportSize({width:1366,height:844});
