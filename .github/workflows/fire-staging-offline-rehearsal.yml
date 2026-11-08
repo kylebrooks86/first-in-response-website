@@ -161,6 +161,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-qa-auth-adapter.mjs
+      - name: Gate 6 source token-rotation approval CAS and lost-ACK readback (native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-public-accept-token-cas.mjs
       - name: Exercise actual built QA login, expired-session denial, synthetic estimate, Customer view, back/close, and restart
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
