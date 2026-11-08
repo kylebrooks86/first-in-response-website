@@ -41,7 +41,12 @@ const declarations=new Map();
 function walk(node){if(ts.isVariableDeclaration(node)&&names.includes(node.name.getText(ast)))declarations.set(node.name.getText(ast),node.initializer.getText(ast));ts.forEachChild(node,walk);}
 walk(ast);assert.equal(declarations.size,names.length);
 function guard(overrides={},paidCents=0,items=[{name:'Test',quantity:1,totalCents:10000}]){
- const scope={row:{subtotalCents:10000,discountCents:0,totalCents:10000,invoiceTotalCents:null,depositCents:5000,invoiceOwnershipMismatch:0,status:'approved',acceptedAt:'now',paymentOverageOpen:0,pendingRefundCount:0,...overrides},paidCents,items};
+ const row={subtotalCents:10000,discountCents:0,totalCents:10000,invoiceTotalCents:null,depositCents:5000,invoiceOwnershipMismatch:0,status:'approved',acceptedAt:'now',paymentOverageOpen:0,pendingRefundCount:0,openCheckoutCount:0,...overrides};
+ // The real route computes these before the extracted payment-review
+ // expression; reproduce that precondition rather than omitting it from vm.
+ const scope={row,paidCents,items,
+  paymentExceptionsPending:Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0,
+  checkedOpenCheckout:null};
  for(const name of names)scope[name]=evaluate(`(${declarations.get(name)})`,scope);
  return scope;
 }
