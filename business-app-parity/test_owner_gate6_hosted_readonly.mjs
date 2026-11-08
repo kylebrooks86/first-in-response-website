@@ -3,7 +3,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {QA_ORIGIN,DOC_KINDS,validateViewedLink,examineDocument}
+import {PassThrough} from 'node:stream';
+import {QA_ORIGIN,DOC_KINDS,validateViewedLink,examineDocument,visiblePrompt}
   from './owner_gate6_hosted_readonly.mjs';
 const token='A'.repeat(32);
 test('same immutable QA host, exactly expected public paths',()=>{
@@ -50,4 +51,27 @@ test('reject empty, oversized, or non-HTML untrusted responses',()=>{
   assert.equal(examineDocument('','Alpha','Bravo').ok,false);
   assert.equal(examineDocument('A'.repeat(2_000_001),'Alpha','Bravo').ok,false);
   assert.equal(examineDocument(null,'Alpha','Bravo').ok,false);
+});
+
+test('Acer consent prompts resolve actual trimmed answers across repeated questions',async()=>{
+  // This reproduces the owner's original undefined.trim() crash using actual
+  // readline semantics. No TTY credential, QA network or share link involved.
+  const input=new PassThrough();
+  const output=new PassThrough();
+  let shown='';
+  output.on('data',chunk=>{shown+=chunk.toString();});
+  try{
+    const consent=visiblePrompt('Synthetic QA only? ',{input,output});
+    input.write('  YES  \\r\\n'.replaceAll('\\r','\r').replaceAll('\\n','\n'));
+    assert.equal(await consent,'YES');
+    const marker=visiblePrompt('Customer A fictional marker? ',{input,output});
+    input.write(' Synthetic Alpha Customer \\r\\n'.replaceAll('\\r','\r').replaceAll('\\n','\n'));
+    assert.equal(await marker,'Synthetic Alpha Customer');
+    assert.ok(shown.includes('Synthetic QA only? '));
+    assert.ok(shown.includes('Customer A fictional marker? '));
+    assert.ok(!shown.includes('Synthetic Alpha Customer'),'Prompts never echo simulated marker input');
+  }finally{
+    input.destroy();
+    output.destroy();
+  }
 });
