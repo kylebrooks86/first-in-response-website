@@ -16,7 +16,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const { id: shareToken } = await params;
   const { paid } = await searchParams;
   const row = await env.DB.prepare(`
-    SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt, e.signed_at AS signedAt,
+    SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch, e.status, e.accepted_at AS acceptedAt, e.signed_at AS signedAt,
            c.name AS customer, ${serviceAddressColumns(serviceLocationsEnabled(env))},
            COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
            COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
@@ -24,7 +24,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
            COALESCE((SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open'),0) AS openCheckoutCount
     FROM estimates e JOIN customers c ON c.id=e.customer_id
     WHERE e.share_token=? LIMIT 1
-  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; status:string; acceptedAt:string|null; signedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; openCheckoutCount:number; customer:string; address:string|null;serviceAddressSource?:string }>();
+  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; invoiceOwnershipMismatch:number; status:string; acceptedAt:string|null; signedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; openCheckoutCount:number; customer:string; address:string|null;serviceAddressSource?:string }>();
   if (!row) return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   // Do not expose stale customer/scope or alternate payment instructions
   // through an older /pay link after an estimate was withdrawn or replaced.
@@ -38,7 +38,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const paidCents = Number(row.paidCents??0);
   // A URL query parameter cannot prove a payment. Only saved whole-cent
   // balances may support a paid-in-full state or a review invitation.
-  const billingNumbersSafe = [row.totalCents,row.depositCents,paidCents].every(value=>Number.isSafeInteger(value)&&value>=0)&&row.totalCents>0&&row.depositCents<=row.totalCents;
+  const billingNumbersSafe = Number(row.invoiceOwnershipMismatch)===0&&[row.totalCents,row.depositCents,paidCents].every(value=>Number.isSafeInteger(value)&&value>=0)&&row.totalCents>0&&row.depositCents<=row.totalCents;
   const depositRemaining = billingNumbersSafe?Math.max(0,row.depositCents-paidCents):0;
   const balance = billingNumbersSafe?Math.max(0,row.totalCents-paidCents):0;
   const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0||Number(row.openCheckoutCount??0)>0;
