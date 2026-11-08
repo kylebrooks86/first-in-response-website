@@ -4338,6 +4338,10 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   overflow-wrap:anywhere;
   touch-action:manipulation;
 }
+.app-shell .followup-contact-actions > :is(a,button):focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px;
+}
 .app-shell .followup-optional-grid>button{
   min-width:0;
   min-height:48px;
@@ -4454,7 +4458,7 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   .app-shell :is(
     .invoice-directory-tools>button,.payment-balance-tools>button,
     .filter-row>button,.record-tabs>button,
-    .followup-optional-grid>button,.followup-contact-actions>a,
+    .followup-optional-grid>button,.followup-contact-actions>:is(a,button),
     .schedule-day-actions>.schedule-next-booked,
     .photo-backup-more>summary,.photo-comparison-more>summary
   ){
@@ -4479,7 +4483,7 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   }
   .app-shell :is(
     .invoice-directory-tools>button,.payment-balance-tools>button,
-    .followup-optional-grid>button,.followup-contact-actions>a,
+    .followup-optional-grid>button,.followup-contact-actions>:is(a,button),
     .schedule-day-actions>.schedule-next-booked,
     .photo-backup-more>summary,.photo-comparison-more>summary
   ):focus-visible,
@@ -4509,7 +4513,7 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   }
   .app-shell :is(
     .invoice-directory-tools>button,.payment-balance-tools>button,
-    .followup-optional-grid>button,.followup-contact-actions>a,
+    .followup-optional-grid>button,.followup-contact-actions>:is(a,button),
     .schedule-day-actions>.schedule-next-booked,
     .photo-backup-more>summary,.photo-comparison-more>summary
   ):focus-visible{
