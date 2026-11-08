@@ -4222,3 +4222,15 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   line-height:1.45;
   overflow-wrap:anywhere
 }
+
+
+/* Authenticated 320px owner job-detail check found legacy 44px direct actions
+   mixed into an otherwise uniform 48px family. Match the tap geometry for
+   every direct job/estimate action, including nested secondary tools; keep
+   destructive and payment variants/colors/handlers unchanged. The important
+   override is scoped to this one action family because older !important
+   utility rules can otherwise collapse some actions to 44px. */
+.estimate-detail .detail-actions > :is(a,button),
+.estimate-detail .detail-more-tools > .detail-actions > :is(a,button){
+  min-height:48px!important;
+}
