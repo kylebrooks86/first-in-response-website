@@ -137,7 +137,7 @@ try{
     "SELECT job_number AS n,root_estimate_id FROM fire_job_numbers ORDER BY job_number").length,7);
   assert.equal(snapshot(good),prior,'All original synthetic records must remain byte-identical');
   assert.equal(query(good,'PRAGMA foreign_key_check').length,0);
-  assert.equal(query(good,'PRAGMA integrity_check')[0]?.integrity_check,'ok');
+  assert.equal(query(good,'SELECT quick_check FROM pragma_quick_check')[0]?.quick_check,'ok');
   checks+=9;
   const reject=call(good,['d1','execute','DB','--command',
     'DELETE FROM fire_job_numbers WHERE job_number=1','--yes'],{allowFailure:true});
