@@ -180,7 +180,7 @@ class DRInvoiceOwnership(unittest.TestCase):
         source=(REPO / "fire-app-dr/app/api/payments/webhook/route.ts").read_text(encoding="utf-8")
         failure=source[source.index("async function alertFailedCheckout("):
                        source.index("async function recordCheckoutPayment(")]
-        expression=re.search(r'("INSERT OR IGNORE INTO notifications \\(id,type,title,body,customer_id,estimate_id,created_at\\) VALUES \\(\\?,\\?,\\?,\\?,\\?,\\?,\\?\\)")',failure)
+        expression=re.search(r'("INSERT OR IGNORE INTO notifications \(id,type,title,body,customer_id,estimate_id,created_at\) VALUES \(\?,\?,\?,\?,\?,\?,\?\)")',failure)
         self.assertIsNotNone(expression,"Exact idempotent source INSERT must be present")
         sql=expression.group(1)[1:-1]
         db=sqlite3.connect(":memory:")
