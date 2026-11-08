@@ -7,7 +7,8 @@
  * credentials or raw customer links from chat. No token is printed or saved.
  * This is hosted observation, NOT hosted source, nonowner identity or release proof.
  */
-import {createInterface, emitKeypressEvents} from 'node:readline';
+import {emitKeypressEvents} from 'node:readline';
+import {createInterface} from 'node:readline/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 
@@ -46,9 +47,14 @@ function safeGet(url,headers={}){
     headers,signal:AbortSignal.timeout(15000)});
 }
 
-async function visiblePrompt(message){
-  const rl=createInterface({input:process.stdin,output:process.stdout});
-  try{return (await rl.question(message)).trim();}finally{rl.close();}
+export async function visiblePrompt(message,{input=process.stdin,output=process.stdout}={}){
+  // node:readline's callback API returns undefined without a callback;
+  // use the real promise-based interface so consent is read, never skipped.
+  const rl=createInterface({input,output});
+  try{
+    const answer=await rl.question(message);
+    return answer.trim();
+  }finally{rl.close();}
 }
 
 async function hiddenPrompt(message){
