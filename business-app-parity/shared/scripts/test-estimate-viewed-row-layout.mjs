@@ -93,3 +93,22 @@ check(css.includes('.estimate-attention-indicator.changes-requested{')&&
   'Action-needed indicators are color-coded with readable dark-theme alternatives');
 
 console.log('PASS: Estimate eye indicator and right-aligned prices SOURCE CONTRACT; no hosted actions.');
+
+
+// Owner Acer screenshot: visual controls must be consistent across all
+// actual job/estimate action groups. Photo permission is not photo inventory.
+check(css.includes('/* FIRE visual-system phase 1')&&
+  css.includes('grid-template-columns:repeat(4,minmax(0,1fr));')&&
+  css.includes('grid-template-columns:repeat(2,minmax(0,1fr));')&&
+  css.includes('grid-template-columns:minmax(0,1fr);')&&
+  css.includes('.estimate-detail .detail-context-buttons > :is(a,button),')&&
+  css.includes('.estimate-detail .customer-contact-backups .contact-backup-actions > button{')&&
+  css.includes('min-height:48px;')&&
+  css.includes('overflow-wrap:anywhere;'),
+  'Job owner links, job tools and backup controls share 48px minimum geometry at wide/tablet/phone widths');
+check(ui.includes('<CameraOff aria-hidden="true"/>')&&
+  ui.includes('photo-permission-chip')&&
+  ui.includes('title="Signed agreement photo permission; not a count of saved photos"')&&
+  css.includes('.estimate-detail .photo-permission-chip.allowed{')&&
+  css.includes('[data-theme="dark"] .estimate-detail .photo-permission-chip.allowed{'),
+  'Signed customer photo permission has concise icon plus Yes/No/Not recorded copy and accessible light/dark treatment');
