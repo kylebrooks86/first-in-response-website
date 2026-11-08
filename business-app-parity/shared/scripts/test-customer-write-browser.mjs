@@ -44,7 +44,7 @@ window.testCustomerFlags=()=>{
  return {out:out.sign?.state,location:out.sign?.location,pickupDate:out.sign?.pickupDate,review:!!out.reviewReceivedAt,retrieved:retrieved.sign?.state,unverified:!malformed.sign&&!malformed.reviewReceivedAt};
 };
 window.setTheme=value=>document.documentElement.dataset.theme=value;
-function TestMessageDialog(){const [open,setOpen]=useState(true);return <div><button type="button" onClick={()=>setOpen(true)}>Open synthetic message</button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="message-dialog sm:max-w-[620px]" style={{display:"flex",flexDirection:"column",overflow:"hidden",maxHeight:"calc(100dvh - 24px)"}}><DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p>To: Synthetic customer</p></DialogHeader><div className="message-builder" style={{flex:"1 1 auto",minHeight:0,overflowY:"auto"}}>{Array.from({length:40},(_,index)=><p key={index}>Non-sending QA message content {index+1}</p>)}</div></DialogContent></Dialog></div>;}
+function TestMessageDialog(){const [open,setOpen]=useState(true);const variant=new URL(window.location.href).searchParams.get("variant")||"message";const classes={message:"message-dialog sm:max-w-[620px]",standard:"",estimate:"estimate-edit-dialog",job:"fire-job-dialog",voice:"voice-contact-dialog"};const flexMode=variant==="message"||variant==="job";return <div><button type="button" onClick={()=>setOpen(true)}>Open synthetic message</button><Dialog open={open} onOpenChange={setOpen}><DialogContent className={classes[variant]||""} style={{...(flexMode?{display:"flex",flexDirection:"column",overflow:"hidden"}:{}),maxHeight:"calc(100dvh - 24px)"}}><DialogHeader className={variant==="job"?"fire-job-header":"message-dialog-header"}><DialogTitle>Message</DialogTitle><p>To: Synthetic customer</p></DialogHeader><div className={variant==="job"?"fire-job-scroll":variant==="message"?"message-builder":"synthetic-modal-content"} style={flexMode?{flex:"1 1 auto",minHeight:0,overflowY:"auto"}:{}}>{Array.from({length:40},(_,index)=><p key={index}>Non-sending QA message content {index+1}</p>)}</div></DialogContent></Dialog></div>;}
 createRoot(document.getElementById('app')).render(location.pathname==='/message-close'?<TestMessageDialog/>:location.pathname==='/insights'?<InsightsView/>:location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
@@ -211,21 +211,25 @@ try{
  }
  // Actual compiled Radix dialog + compiled CSS, no real messages or network:
   // verify that the final DOM Close is top-right, not sticky at the bottom left.
-  for(const [width,theme] of [[1366,'dark'],[390,'dark'],[390,'light']]){
+  for(const variant of ['message','standard','estimate','job','voice'])for(const [width,theme] of [[1366,'dark'],[390,'dark'],[390,'light']]){
    await page.setViewportSize({width,height:700});
-   await page.goto(origin+'/message-close');
+   await page.goto(origin+'/message-close?variant='+variant);
    await page.evaluate(t=>window.setTheme(t),theme);
    const dialog=page.getByRole('dialog');
    await dialog.getByText('Message',{exact:true}).waitFor();
    const close=dialog.getByRole('button',{name:'Close',exact:true});
    const where=async()=>({box:await dialog.boundingBox(),x:await close.boundingBox()});
    const initial=await where();
-   check(initial.box&&initial.x&&initial.x.height>=40&&
+   const iconGeometry=await close.locator('svg').boundingBox();
+   const visualStyle=await close.evaluate(node=>({border:getComputedStyle(node).borderTopWidth,position:getComputedStyle(node).position}));
+   check(initial.box&&initial.x&&iconGeometry&&initial.x.height>=40&&
     initial.x.y>=initial.box.y-1&&initial.x.y-initial.box.y<=22&&
     initial.x.x>=initial.box.x+initial.box.width-74&&
-    initial.x.x+initial.x.width<=initial.box.x+initial.box.width+1,
-    'Message Close top-right and 44px clickable at '+width+' '+theme);
-   await dialog.locator('.message-builder').evaluate(node=>{node.scrollTop=node.scrollHeight;});
+    initial.x.x+initial.x.width<=initial.box.x+initial.box.width+1&&
+    iconGeometry.width<=18&&iconGeometry.height<=18&&
+    visualStyle.border==='0px'&&visualStyle.position==='absolute',
+    'Small unboxed Close X in top-right accessible 44px target: '+variant+' '+width+' '+theme);
+   await dialog.locator(variant==='job'?'.fire-job-scroll':variant==='message'?'.message-builder':'.synthetic-modal-content').evaluate(node=>{node.scrollTop=node.scrollHeight;});
    const afterScroll=await where();
    check(afterScroll.x&&Math.abs(afterScroll.x.y-initial.x.y)<2&&Math.abs(afterScroll.x.x-initial.x.x)<2,
     'Message Close stays pinned top-right while long text scrolls, '+width+' '+theme);
