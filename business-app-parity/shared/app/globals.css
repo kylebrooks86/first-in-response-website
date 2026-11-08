@@ -4378,19 +4378,50 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   ){transition:none}
 }
 
-
-/* FIRE new estimate modal scroll-fixed X.
-   Radix appends its close control after long Step 2 fields. An absolutely
-   positioned close can scroll hundreds of pixels above a short iPhone
-   viewport when DialogContent itself scrolls. The dialog is transformed
-   and therefore provides the containing block for this fixed-position X:
-   the content may scroll, but the accessible 44px X stays in the top-right
-   of the modal. Only this dialog is changed, not the close/dismiss handler. */
+/* FIRE New Estimate: scroll its CONTENT, not DialogContent itself.
+   The real Radix 44px Close control is appended after the form. If the modal
+   becomes the scroll container, even position:fixed inside its transformed
+   containing block scrolls out of reach on 320px phones. Give Step 1/2 a
+   contained, keyboard-friendly scroll viewport; leave the real Close control
+   outside it, fixed to the dialog surface. No workflow, validation or save
+   behavior changes. Same desktop/tablet/phone markup. */
+.new-estimate-dialog[data-slot="dialog-content"]{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  max-height:calc(100dvh - max(32px,env(safe-area-inset-top) + env(safe-area-inset-bottom)))!important;
+  overflow:hidden!important;
+  gap:0;
+}
+.new-estimate-dialog[data-slot="dialog-content"] > .new-estimate-dialog-scroll{
+  flex:1 1 auto;
+  display:block;
+  min-width:0;
+  min-height:0;
+  width:100%;
+  max-width:100%;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scroll-padding-block:16px;
+}
+.new-estimate-dialog[data-slot="dialog-content"] > .new-estimate-dialog-scroll > .estimate-head{
+  position:sticky;
+  top:0;
+  z-index:15;
+  background:var(--background);
+}
 .new-estimate-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{
-  position:fixed;
+  position:absolute;
   top:8px;
   right:8px;
   z-index:50;
   width:44px;
   height:44px;
+}
+@media(prefers-reduced-motion:reduce){
+  .new-estimate-dialog[data-slot="dialog-content"] > .new-estimate-dialog-scroll{
+    scroll-behavior:auto;
+  }
 }
