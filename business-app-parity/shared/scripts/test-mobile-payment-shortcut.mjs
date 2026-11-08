@@ -43,10 +43,13 @@ const important=(rule,property)=>Boolean(rule?.nodes.find(node=>node.prop===prop
 assert.equal(value(get('.payments-quick-action',false),'display'),'grid',
  'The same dollar action must be visible at desktop, tablet and phone widths');
 assert.ok(important(get('.payments-quick-action',false),'display'));
-assert.equal(value(get('.payments-quick-action',false),'min-height'),'42px');
-assert.equal(value(get('.payments-quick-action',false),'width'),'42px');
+assert.equal(value(get('.payments-quick-action',false),'min-height'),'44px');
+assert.equal(value(get('.payments-quick-action',false),'width'),'44px');
 assert.equal(get('.payments-quick-action',true),undefined,'No phone-only visibility rule');
 assert.ok(css.includes('@media(max-width:430px)'));
+assert.ok(css.includes('width:44px!important;height:44px!important;')&&
+  !css.includes('width:39px!important;height:39px!important;'),
+  'Narrow-screen Payments shortcut has a consistent 44px tap area, never 39px');
 assert.ok(css.includes('@media(max-width:360px)'));
 assert.ok(css.includes('.topbar .mobile-brand{display:none!important}'),
  'Keep all interactive buttons even on extremely narrow phones');
