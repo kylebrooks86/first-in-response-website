@@ -4378,6 +4378,24 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   ){transition:none}
 }
 
+/* FIRE follow-up quick contact: the actual controls are conditional (Voice,
+   phone backup, text, text backup, email). A fixed 3-column grid strands a
+   single action at 1/3 width or leaves two actions narrow with a blank slot.
+   Let every available action share its row, with comfortable 112px bases and
+   full-width final rows on compact phones. No action or handler changes. */
+.app-shell .followup-contact-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:stretch;
+  gap:8px;
+}
+.app-shell .followup-contact-actions > *{
+  flex:1 1 112px;
+  min-width:min(100%,112px);
+  box-sizing:border-box;
+}
+
+
 /* FIRE New Estimate: scroll its CONTENT, not DialogContent itself.
    The real Radix 44px Close control is appended after the form. If the modal
    becomes the scroll container, even position:fixed inside its transformed
