@@ -210,6 +210,8 @@ jobs:
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
       - name: Gate 8 consistent top-right small X, 44px tap and real Radix dismissal (synthetic Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-iphone-popup-tap-browser.mjs
+      - name: Gate 8 owner job actions consistent at Acer, tablet and phone widths (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-job-action-consistency-browser.mjs
       - name: Retain synthetic-only diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
