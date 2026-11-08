@@ -157,6 +157,88 @@ class SyntheticQaJobNumberActivationRehearsal(unittest.TestCase):
         ).fetchone()[0],7)
         self.assertEqual(self.db.execute('PRAGMA foreign_key_check').fetchall(),[])
 
+    def test_fresh_live_starts_at_one_without_importing_qa_jobs(self):
+        # Contract for the future launch, NOT an assertion that actual LIVE D1
+        # is empty. QA and LIVE must have separately bound physical databases.
+        self.insert_customer('synthetic-qa-customer',1)
+        for number in range(1,8):
+            self.insert_estimate(
+                'qa-quote-%02d' % number,'synthetic-qa-customer',
+                'completed' if number == 1 else 'draft',number+3
+            )
+        qa_plan=JOB.analyze(self.db)
+        self.assertEqual(qa_plan['distinctJobs'],7)
+        self.assertEqual(qa_plan['revisionLinks'],0)
+        self.assertEqual(qa_plan['completedJobs'],1)
+        JOB.rehearse_in_memory(self.db,qa_plan)
+
+        # Stand-in for an independently provisioned, genuinely empty LIVE.
+        # NEVER copy the synthetic QA estimate/number rows into this database.
+        live=sqlite3.connect(':memory:')
+        self.addCleanup(live.close)
+        migrations=sorted(QA_MIGRATIONS.glob('[0-9][0-9][0-9][0-9]_*.sql'))
+        self.assertEqual(len(migrations),25)
+        for migration in migrations:
+            live.executescript(migration.read_text(encoding='utf8'))
+        live.execute('PRAGMA foreign_keys=ON')
+        self.assertEqual(live.execute('SELECT COUNT(*) FROM estimates').fetchone()[0],0)
+        live_plan=JOB.analyze(live)
+        self.assertEqual(live_plan['distinctJobs'],0)
+        JOB.rehearse_in_memory(live,live_plan)
+        live.execute(
+            "INSERT INTO customers(id,name,created_at) VALUES "
+            "('live-first','Synthetic live-test only','2026-11-08T10:00:00Z')"
+        )
+        live.execute(
+            "INSERT INTO estimates(id,customer_id,status,subtotal_cents,"
+            "discount_cents,total_cents,deposit_cents,created_at) VALUES "
+            "('live-quote-01','live-first','draft',10000,0,10000,5000,"
+            "'2026-11-08T11:00:00Z')"
+        )
+        live.execute(
+            "INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES "
+            "('live-quote-01','2026-11-08T11:00:00Z')"
+        )
+        self.assertEqual(live.execute(
+            "SELECT job_number FROM fire_job_numbers WHERE root_estimate_id='live-quote-01'"
+        ).fetchone()[0],1)
+        self.assertEqual(live.execute(
+            "SELECT COUNT(*) FROM fire_job_numbers").fetchone()[0],1)
+        self.assertEqual(live.execute('PRAGMA foreign_key_check').fetchall(),[])
+
+        # QA remains its own counter: its seven numbered test jobs precede 8.
+        self.insert_estimate('qa-quote-08','synthetic-qa-customer','draft',11)
+        self.db.execute(
+            "INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES "
+            "('qa-quote-08','2026-10-11T12:00:00Z')"
+        )
+        self.assertEqual(self.db.execute(
+            "SELECT job_number FROM fire_job_numbers WHERE root_estimate_id='qa-quote-08'"
+        ).fetchone()[0],8)
+        self.assertEqual(self.db.execute(
+            'SELECT COUNT(*) FROM fire_job_numbers').fetchone()[0],8)
+        self.assertEqual(live.execute(
+            'SELECT COUNT(*) FROM fire_job_numbers').fetchone()[0],1)
+
+    def test_real_live_history_must_be_backfilled_not_reset(self):
+        # If LIVE has any real prelaunch records, zeroing its permanent serial
+        # would break history. Backfill preserved records before activation.
+        self.insert_customer('live-real-example',1)
+        self.insert_estimate('live-existing-01','live-real-example','completed',4)
+        self.insert_estimate('live-existing-02','live-real-example','draft',5)
+        plan=JOB.analyze(self.db)
+        self.assertEqual(plan['distinctJobs'],2)
+        JOB.rehearse_in_memory(self.db,plan)
+        self.insert_estimate('live-new-job','live-real-example','draft',6)
+        self.db.execute(
+            "INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES "
+            "('live-new-job','2026-10-06T12:00:00Z')"
+        )
+        self.assertEqual(self.db.execute(
+            "SELECT job_number FROM fire_job_numbers WHERE root_estimate_id='live-new-job'"
+        ).fetchone()[0],3)
+        self.assertEqual(self.db.execute('PRAGMA foreign_key_check').fetchall(),[])
+
     def test_superseded_without_verified_audit_cannot_be_backfilled(self):
         self.insert_customer('cust-a',1)
         self.insert_estimate('quote-01','cust-a','superseded',4)
