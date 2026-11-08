@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen
-      FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;depositCents:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
+      FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;depositCents:number;invoiceOwnershipMismatch:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
     if(!current||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||Number(current.invoiceOwnershipMismatch)!==0||currentDue!==amount){
       await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(data.id)}/expire`,{method:"POST",headers:{authorization:`Bearer ${runtime.STRIPE_SECRET_KEY}`}});
