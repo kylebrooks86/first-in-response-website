@@ -62,6 +62,65 @@ export async function exerciseGate6ShareIsolation({request,browser,origin,check,
 
   const anonymous=await browser.newContext({ignoreHTTPSErrors:true});
   try{
+    // Gate 6: an untrusted identity header, fake bearer credential and an
+    // invented QA cookie must not turn an anonymous visitor into the owner.
+    // These are NEVER the real QA Owner's credentials or hosted tokens.
+    const forgedOwner={
+      'oai-authenticated-user-email':'kylebrooks8605@gmail.com',
+      authorization:'Bearer invented-synthetic-nonowner',
+      cookie:'fire_qa_session=v1.9999999999.forged-synthetic-signature',
+      'cf-connecting-ip':'192.0.2.66'
+    };
+    for(const path of ['/api/customers','/api/estimates','/api/invoices',
+      '/api/backup','/api/dashboard-summary']){
+      const response=await anonymous.request.get(origin+path,{
+        headers:forgedOwner,timeout:15000
+      });
+      const body=await response.text();
+      check(response.status()===401&&!body.includes(alpha.customerName)&&
+        !body.includes(bravo.customerName)&&
+        !body.includes(alpha.estimate.shareToken)&&
+        !body.includes(bravo.estimate.shareToken),
+        'Local Gate6 forged nonowner identity denied private owner GET '+path);
+    }
+    for(const path of ['/api/estimates/'+alpha.estimate.id+'/share',
+      '/api/invoices/'+bravo.invoice.id+'/share']){
+      const response=await anonymous.request.post(origin+path,{
+        headers:forgedOwner,data:{},timeout:15000
+      });
+      const body=await response.text();
+      check(response.status()===401&&!body.includes(alpha.estimate.shareToken)&&
+        !body.includes(bravo.invoice.shareToken),
+        'Local Gate6 forged nonowner identity cannot issue or expose share link '+path);
+    }
+    // Browser-origin and document-type boundaries for customer token writes.
+    // Both requests must fail BEFORE any database mutation is possible.
+    for(const current of data){
+      for(const [kind,body] of [
+        ['accept',{signedName:'Synthetic Cross-Origin Impostor',
+          acceptedTerms:true,photoRelease:'no'}],
+        ['change-request',{requestId:randomUUID(),
+          message:'Cross-site synthetic change must be rejected'}]
+      ]){
+        const base='/api/public/estimates/';
+        const endpoint=base+current.estimate.shareToken+'/'+kind;
+        const originDenied=await anonymous.request.post(origin+endpoint,{
+          headers:{...forgedOwner,origin:'https://untrusted-gate6.example.invalid'},
+          data:body,timeout:15000
+        });
+        check(originDenied.status()===403,
+          'Local Gate6 cross-origin '+kind+' denied for correct share token');
+        const wrongDocument=await anonymous.request.post(
+          origin+base+current.invoice.shareToken+'/'+kind,{
+            headers:{...forgedOwner,origin},data:body,timeout:15000
+          });
+        const deniedText=await wrongDocument.text();
+        check(wrongDocument.status()===404&&
+          !deniedText.includes(current.customerName)&&
+          !deniedText.includes(current.serviceName),
+          'Local Gate6 invoice token cannot invoke public estimate '+kind);
+      }
+    }
     // A forged authentication email and forged preview hint are never owner
     // authorization. Every token resolves ONLY the one saved customer record.
     for(const current of data){
