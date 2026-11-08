@@ -4059,3 +4059,28 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   white-space:normal;
   overflow-wrap:anywhere
 }
+
+
+/* Legible, repeatable supporting copy, without recoloring alerts or statuses. */
+:root{--fire-ui-supporting-text:#586b80}
+[data-theme="dark"]{--fire-ui-supporting-text:#b5c7da}
+.app-shell :is(
+  .panel>header p,.business-panel>header p,
+  .job-main>p,.insight-kpis article>small,
+  .invoice-card>div:first-of-type>small
+){
+  color:var(--fire-ui-supporting-text);
+  font-size:12px;
+  line-height:1.45;
+  overflow-wrap:anywhere
+}
+.app-shell .record-tabs button.active{
+  border-bottom-color:var(--fire-ui-nav-accent);
+  background:var(--fire-ui-active-wash)
+}
+@media(hover:hover) and (pointer:fine){
+  .app-shell :is(.brand-button,.metric-card,.customer-card,.estimate-card):not(:disabled):active{
+    filter:brightness(.98);
+    transform:translateY(0)
+  }
+}
