@@ -17,7 +17,10 @@ for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx
  function walk(node){
   if(ts.isCallExpression(node)&&ts.isPropertyAccessExpression(node.expression)&&node.expression.name.text==='bind'){
    const prepare=node.expression.expression;
-   if(ts.isCallExpression(prepare)&&prepare.arguments[0]?.text?.includes('INSERT INTO notifications'))statements.push(node);
+   // The public estimate also has a distinct revised-deposit view event.
+   // Select only the primary first-view/approval notification SQL path;
+   // the revised-deposit branch is tested by its separate agreement suite.
+   if(ts.isCallExpression(prepare)&&prepare.arguments[0]?.text?.includes('INSERT INTO notifications ('))statements.push(node);
   }
   ts.forEachChild(node,walk);
  }
