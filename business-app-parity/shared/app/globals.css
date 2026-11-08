@@ -4121,3 +4121,22 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .app-shell .territory :is(button,a){
   touch-action:manipulation
 }
+
+
+/* Remove legacy <=430px dashboard card suppression: all four operational
+   metrics matter to the owner even on narrow iPhones. Two columns at standard
+   phone widths, one full-width column on truly tiny viewports. */
+@media(max-width:760px){
+  .app-shell .dashboard-view .metric-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .app-shell .dashboard-view .metric-grid > .metric-card:nth-child(3),
+  .app-shell .dashboard-view .metric-grid > .metric-card:nth-child(4){
+    display:block
+  }
+}
+@media(max-width:350px){
+  .app-shell .dashboard-view .metric-grid{
+    grid-template-columns:minmax(0,1fr)
+  }
+}
