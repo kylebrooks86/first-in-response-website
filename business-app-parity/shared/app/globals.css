@@ -4377,3 +4377,20 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     .photo-backup-more>summary,.photo-comparison-more>summary
   ){transition:none}
 }
+
+
+/* FIRE new estimate modal scroll-fixed X.
+   Radix appends its close control after long Step 2 fields. An absolutely
+   positioned close can scroll hundreds of pixels above a short iPhone
+   viewport when DialogContent itself scrolls. The dialog is transformed
+   and therefore provides the containing block for this fixed-position X:
+   the content may scroll, but the accessible 44px X stays in the top-right
+   of the modal. Only this dialog is changed, not the close/dismiss handler. */
+.new-estimate-dialog[data-slot="dialog-content"] > [data-slot="dialog-close"]{
+  position:fixed;
+  top:8px;
+  right:8px;
+  z-index:50;
+  width:44px;
+  height:44px;
+}
