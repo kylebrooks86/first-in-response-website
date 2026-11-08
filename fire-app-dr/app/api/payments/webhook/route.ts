@@ -4,6 +4,8 @@ type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_SECR
 
 type StripeCheckoutSession = {
   id: string;
+  currency?:string;
+  client_reference_id?:string;
   payment_status?: string;
   amount_total?: number;
   metadata?: {
@@ -12,6 +14,7 @@ type StripeCheckoutSession = {
     expected_amount_cents?: string;
     tip_amount_cents?: string;
     expected_charge_cents?: string;
+    fire_checkout_reservation_id?:string;
   };
 };
 
@@ -59,6 +62,56 @@ async function verifyStripeSignature(rawBody:string, signatureHeader:string, sec
   const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(`${timestamp}.${rawBody}`));
   const expected = toHex(digest);
   return signatures.some((signature)=>constantTimeEqual(expected, signature));
+}
+
+// A signed failed-payment event is not proof that a customer owes another
+// payment. Match the tracked checkout and record an idempotent owner alert;
+// never expire a Stripe session, release a reservation or alter paid principal.
+async function alertFailedCheckout(session:StripeCheckoutSession) {
+  const estimateId=session.metadata?.estimate_id?.trim();
+  const paymentType=session.metadata?.payment_type;
+  const amount=session.amount_total;
+  const sessionId=session.id;
+  if(!/^cs_test_[a-zA-Z0-9]+$/.test(sessionId||"")||
+     session.currency!=="usd"||session.payment_status!=="unpaid"||
+     !estimateId||session.client_reference_id!==estimateId||
+     !["deposit","balance"].includes(paymentType||"")||
+     !Number.isSafeInteger(amount)||Number(amount)<=0||
+     session.metadata?.expected_charge_cents!==String(amount))
+    return {recorded:false,reason:"failed_checkout_identity_mismatch"};
+  const reservationId=session.metadata?.fire_checkout_reservation_id;
+  if(reservationId&&!/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId))
+    return {recorded:false,reason:"invalid_checkout_reservation"};
+  const find=(id:string)=>env.DB.prepare(
+    "SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1"
+  ).bind(id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+  const tracked=await find(sessionId);
+  const reservation=tracked?null:reservationId?await find(reservationId):null;
+  const saved=tracked??reservation;
+  if(!saved||saved.estimateId!==estimateId||saved.type!==paymentType||Number(saved.amountCents)!==amount)
+    return {recorded:false,reason:"failed_checkout_untracked_or_mismatched"};
+  if(saved.status==="paid")return {recorded:false,ignored:true,reason:"checkout_already_paid"};
+  if(saved.status!=="open")return {recorded:false,ignored:true,reason:"checkout_not_open"};
+  const ledger=await env.DB.prepare(
+    "SELECT id FROM payments WHERE provider_id IN (?,?) AND status='paid' LIMIT 1"
+  ).bind(sessionId,sessionId+":tip").first<{id:string}>();
+  if(ledger)return {recorded:false,ignored:true,reason:"payment_already_recorded"};
+  const estimate=await env.DB.prepare(
+    "SELECT e.id,c.id AS customerId,c.name AS customer FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.id=? LIMIT 1"
+  ).bind(estimateId).first<{id:string;customerId:string;customer:string}>();
+  if(!estimate)return {recorded:false,reason:"failed_checkout_estimate_missing"};
+  const id="stripe-payment-failed:"+sessionId;
+  const written=await env.DB.prepare(
+    "INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)"
+  ).bind(id,"payment_failed","Stripe payment failed — "+estimate.customer,
+    "Stripe reported a failed checkout. Verify Stripe and the payment history before retrying; no paid receipt was recorded for this event.",
+    estimate.customerId,estimateId,new Date().toISOString()).run();
+  if((written as {success?:boolean}).success===false)throw Error("Failure alert write not confirmed");
+  const alert=await env.DB.prepare(
+    "SELECT id FROM notifications WHERE id=? AND type='payment_failed' AND estimate_id=? AND customer_id=? LIMIT 1"
+  ).bind(id,estimateId,estimate.customerId).first();
+  if(!alert)throw Error("Failure alert receipt not confirmed");
+  return {recorded:true,duplicate:Number(written.meta?.changes)===0};
 }
 
 async function recordCheckoutPayment(session:StripeCheckoutSession) {
@@ -323,6 +376,17 @@ export async function POST(request:Request) {
     return Response.json({received:true,refund:true,duplicate:Boolean(result.duplicate),pending:Boolean(result.pending),failed:Boolean(result.failed)});
   }
 
+  if(event.type==="checkout.session.async_payment_failed") {
+    const session=event.data?.object as StripeCheckoutSession|undefined;
+    if(!session)return Response.json({error:"Missing failed checkout session."},{status:400});
+    try {
+      const result=await alertFailedCheckout(session);
+      return Response.json({received:result.recorded||Boolean(result.ignored),...result},
+        {status:result.recorded||result.ignored?200:409});
+    }catch {
+      return Response.json({error:"Failed checkout alert was not confirmed; Stripe should retry."},{status:503});
+    }
+  }
   if (!["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type ?? "")) {
     return Response.json({ received:true, ignored:true });
   }
