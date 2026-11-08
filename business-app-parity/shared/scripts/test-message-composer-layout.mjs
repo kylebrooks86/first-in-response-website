@@ -7,6 +7,7 @@ const ui=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../app/globals.css',import.meta.url),'utf8');
 const dialog=readFileSync(new URL('../components/ui/dialog.tsx',import.meta.url),'utf8');
 const sheet=readFileSync(new URL('../components/ui/sheet.tsx',import.meta.url),'utf8');
+const preview=readFileSync(new URL('../components/owner-preview-return-link.tsx',import.meta.url),'utf8');
 const template=readFileSync(new URL('../lib/fire-templates.ts',import.meta.url),'utf8');
 const check=(ok,label)=>{assert.ok(ok,label);console.log('PASS: '+label);};
 
@@ -64,6 +65,17 @@ check(css.includes('/* App-wide CLOSE STANDARD:')&&
  sheet.includes('absolute top-2 right-2')&&sheet.includes('border-0 bg-transparent')&&
  sheet.includes('size-11 items-center')&&sheet.includes('<XIcon className="size-4" />'),
  'Dialog and sheet X: small unboxed top-right visual with 44px accessible hit area');
+const cornerClose=css.slice(css.lastIndexOf('/* FIRE unified close affordance'));
+check(cornerClose.includes('width:44px;')&&cornerClose.includes('height:44px;')&&
+ cornerClose.includes('width:16px;')&&cornerClose.includes('height:16px;')&&
+ cornerClose.includes('top:max(8px,env(safe-area-inset-top));')&&
+ cornerClose.includes('right:max(8px,env(safe-area-inset-right));')&&
+ cornerClose.includes('outline:3px solid var(--ring);')&&
+ cornerClose.includes('.owner-estimate-preview-close{')&&
+ cornerClose.includes('.notification-popover > header .notification-header-close{')&&
+ cornerClose.includes('.sidebar .mobile-close svg{')&&
+ preview.includes('aria-label={label}')&&preview.includes('window.location.replace(url.href)'),
+ 'Owner preview, notifications and mobile-menu corner X match modal sizing without losing keyboard/owner exit guards');
 check(css.includes('.voice-contact-dialog[data-slot="dialog-content"]{')&&
  css.includes('max-height:calc(100dvh - 24px);')&&
  css.includes('overscroll-behavior:contain;'),
