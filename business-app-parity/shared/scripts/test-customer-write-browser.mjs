@@ -123,6 +123,8 @@ try{
  await page.getByRole('button',{name:'Save lead callback'}).evaluate(button=>{button.click();button.click();});
  await page.getByText('Callback saved.',{exact:true}).waitFor();
  await page.getByRole('status').filter({hasText:'Callback due:'}).waitFor();
+  check(await page.locator('.customer-flag-sign-location .callback-reminder-icon').count()===1,
+   'Owner customer detail displays phone icon beside saved due callback');
  check(notePosts===2&&notes.length===2&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-22',
   'One-tap callback persists exactly once using existing notes API, no estimate or messages needed');
  check(await unsavedCustomerNote.inputValue()==='Keep this unrelated customer note draft',
@@ -132,8 +134,14 @@ try{
  await unsavedCustomerNote.fill('');
  await page.getByRole('button',{name:'Back to all customers',exact:true}).click();
  await page.getByRole('region',{name:'Due customer lead callbacks'}).waitFor();
+  check(await page.getByRole('region',{name:'Due customer lead callbacks'}).locator('.callback-reminder-icon').count()===2,
+   'Due callback overview title and review queue each display phone icon');
+  check(await page.getByRole('button',{name:'Callbacks due (1)'}).locator('.callback-reminder-icon').count()===1,
+   'Due callback customer filter includes phone icon without changing its accessible name');
  await page.getByRole('button',{name:'Callbacks due (1)'}).click();
  check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
+  check(await page.locator('.customer-card .customer-directory-alert .callback-reminder-icon').count()===1,
+   'Saved due callback in customer directory has matching phone icon on narrow viewport');
  await page.locator('.customer-card').first().click();
  await page.locator('details.customer-activity-tools > summary').click();
  await page.getByRole('button',{name:'Mark callback done'}).evaluate(button=>{button.click();button.click();});
