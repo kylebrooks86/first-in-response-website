@@ -44,7 +44,7 @@ window.testCustomerFlags=()=>{
  return {out:out.sign?.state,location:out.sign?.location,pickupDate:out.sign?.pickupDate,review:!!out.reviewReceivedAt,retrieved:retrieved.sign?.state,unverified:!malformed.sign&&!malformed.reviewReceivedAt};
 };
 window.setTheme=value=>document.documentElement.dataset.theme=value;
-function TestMessageDialog(){const [open,setOpen]=useState(true);const variant=new URL(window.location.href).searchParams.get("variant")||"message";const classes={message:"message-dialog sm:max-w-[620px]",standard:"",estimate:"estimate-edit-dialog",job:"fire-job-dialog",voice:"voice-contact-dialog"};const flexMode=variant==="message"||variant==="job";return <div><button type="button" onClick={()=>setOpen(true)}>Open synthetic message</button><Dialog open={open} onOpenChange={setOpen}><DialogContent className={classes[variant]||""} style={{...(flexMode?{display:"flex",flexDirection:"column",overflow:"hidden"}:{}),maxHeight:"calc(100dvh - 24px)"}}><DialogHeader className={variant==="job"?"fire-job-header":"message-dialog-header"}><DialogTitle>Message</DialogTitle><p>To: Synthetic customer</p></DialogHeader><div className={variant==="job"?"fire-job-scroll":variant==="message"?"message-builder":"synthetic-modal-content"} style={flexMode?{flex:"1 1 auto",minHeight:0,overflowY:"auto"}:{}}>{Array.from({length:40},(_,index)=><p key={index}>Non-sending QA message content {index+1}</p>)}</div></DialogContent></Dialog></div>;}
+function TestMessageDialog(){const [open,setOpen]=useState(true);const variant=new URL(window.location.href).searchParams.get("variant")||"message";const classes={message:"message-dialog sm:max-w-[620px]",standard:"",estimate:"estimate-edit-dialog",job:"fire-job-dialog",voice:"voice-contact-dialog"};const flexMode=variant==="message"||variant==="job"||variant==="estimate";return <div><button type="button" onClick={()=>setOpen(true)}>Open synthetic message</button><Dialog open={open} onOpenChange={setOpen}><DialogContent className={classes[variant]||""} style={{...(flexMode?{display:"flex",flexDirection:"column",overflow:"hidden"}:{}),maxHeight:"calc(100dvh - 24px)"}}><DialogHeader className={variant==="job"?"fire-job-header":"message-dialog-header"}><DialogTitle>Message</DialogTitle><p>To: Synthetic customer</p></DialogHeader><div className={variant==="job"?"fire-job-scroll":variant==="message"?"message-builder":variant==="estimate"?"estimate-edit-scroll-area":"synthetic-modal-content"} style={flexMode?{flex:"1 1 auto",minHeight:0,overflowY:"auto"}:{}}>{Array.from({length:40},(_,index)=><p key={index}>Non-sending QA message content {index+1}</p>)}</div></DialogContent></Dialog></div>;}
 createRoot(document.getElementById('app')).render(location.pathname==='/message-close'?<TestMessageDialog/>:location.pathname==='/insights'?<InsightsView/>:location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
@@ -217,6 +217,12 @@ try{
    await page.evaluate(t=>window.setTheme(t),theme);
    const dialog=page.getByRole('dialog');
    await dialog.getByText('Message',{exact:true}).waitFor();
+   // Measure only after Radix's actual entrance animation finishes; an
+   // animating centered transform otherwise changes coordinates during scroll.
+   await page.waitForFunction(()=>{
+    const content=document.querySelector('[data-slot="dialog-content"]');
+    return Boolean(content)&&content.getAnimations().every(a=>a.playState!=='running');
+   },null,{timeout:3000});
    const close=dialog.getByRole('button',{name:'Close',exact:true});
    const where=async()=>({box:await dialog.boundingBox(),x:await close.boundingBox()});
    const initial=await where();
@@ -229,13 +235,19 @@ try{
     iconGeometry.width<=18&&iconGeometry.height<=18&&
     visualStyle.border==='0px'&&visualStyle.position==='absolute',
     'Small unboxed Close X in top-right accessible 44px target: '+variant+' '+width+' '+theme);
-   const scrollTarget=variant==='job'?dialog.locator('.fire-job-scroll'):variant==='message'?dialog.locator('.message-builder'):dialog;
+   const scrollTarget=variant==='job'?dialog.locator('.fire-job-scroll'):variant==='message'?dialog.locator('.message-builder'):variant==='estimate'?dialog.locator('.estimate-edit-scroll-area'):dialog;
    const scrolled=await scrollTarget.evaluate(node=>{const available=node.scrollHeight-node.clientHeight;node.scrollTop=available;return {available,position:node.scrollTop};});
-   check(scrolled.available>=80&&scrolled.position>=80,
-    'Synthetic long '+variant+' dialog really scrolls its own content, '+width+' '+theme);
+   // Desktop standard DialogContent does not promise an internal scrollbar;
+   // long modal variants and mobile standard dialogs DO have defined scroll
+   // containers. Test only actual supported scrolling, never force hidden UI.
+   const mustScroll=variant!=='standard'||width<760;
+   check(mustScroll?(scrolled.available>=80&&scrolled.position>=80):
+     (scrolled.available<80||scrolled.position>=80),
+    'Synthetic long '+variant+' uses its supported scroll container, '+width+' '+theme+JSON.stringify(scrolled));
    const afterScroll=await where();
    check(afterScroll.x&&Math.abs(afterScroll.x.y-initial.x.y)<2&&Math.abs(afterScroll.x.x-initial.x.x)<2,
-    'Modal Close stays pinned top-right while long text scrolls, '+variant+' '+width+' '+theme);
+    'Modal Close stays pinned top-right while long text scrolls, '+variant+' '+width+' '+theme+
+    JSON.stringify({before:initial,after:afterScroll,scroll:scrolled}));
    await close.click();
    await dialog.waitFor({state:'hidden'});
    check(true,'Message Close X is actually clickable, '+width+' '+theme);
@@ -244,9 +256,13 @@ try{
    await dialog.waitFor({state:'hidden'});
    check(true,'Escape still closes synthetic message composer, '+width+' '+theme);
    await page.getByRole('button',{name:'Open synthetic message'}).click();
-   await page.mouse.click(5,5);
+   // Target the actual Radix overlay rather than an arbitrary viewport pixel:
+   // at narrow or transformed layouts (5,5) may not hit the overlay.
+   const overlay=page.locator('[data-slot="dialog-overlay"]');
+   await overlay.waitFor({state:'visible'});
+   await overlay.click({position:{x:5,y:5}});
    await dialog.waitFor({state:'hidden'});
-   check(true,'Click outside still dismisses synthetic message composer, '+width+' '+theme);
+   check(true,'Click on the visible backdrop still dismisses synthetic message composer, '+width+' '+theme);
   }
   check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
  console.log(JSON.stringify({passed:checks,actualCustomerNotes:true,actualEditCustomer:true,actualEstimateHistory:true,actualInsights:true,actualRadix:true,compiledTailwind:true,syntheticLocalhostOnly:true,hostedDataTouched:false,iPhoneTested:false}));

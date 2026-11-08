@@ -3548,3 +3548,70 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   z-index:40;
   flex:0 0 auto;
 }
+
+/* FIRE unified close affordance — 16px X, generous 44px target.  The shared
+   Radix dialogs already use this size. Carry the same upper-right treatment
+   into drawers, owner preview pages, notification popovers and the mobile menu.
+   Do not change whether dismissal is allowed or when edits need confirmation. */
+[data-slot="sheet-content"] > [data-slot="sheet-close"]{
+  top:8px;
+  right:8px;
+  min-width:44px;
+  min-height:44px;
+  width:44px;
+  height:44px;
+  border:0;
+  box-shadow:none;
+  background:transparent;
+  display:grid;
+  place-items:center
+}
+.owner-estimate-preview-close{
+  top:max(8px,env(safe-area-inset-top));
+  right:max(8px,env(safe-area-inset-right));
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+  border:0;
+  border-radius:8px;
+  box-shadow:none;
+  background:var(--background);
+  display:grid;
+  place-items:center
+}
+/* The theme toggle is adjacent to the owner preview X.  Keep their top
+   edges aligned and a full 8px apart after compacting the X hit region. */
+.owner-preview-theme-toggle{
+  top:max(8px,env(safe-area-inset-top));
+  right:calc(max(8px,env(safe-area-inset-right)) + 52px);
+  width:44px;
+  height:44px;
+  padding:0
+}
+.notification-popover > header .notification-header-close{
+  border:0;
+  box-shadow:none;
+  background:transparent
+}
+[data-slot="sheet-content"] > [data-slot="sheet-close"] svg,
+.owner-estimate-preview-close svg,
+.notification-header-close svg,
+.sidebar .mobile-close svg{
+  width:16px;
+  height:16px;
+  flex:none
+}
+[data-slot="sheet-content"] > [data-slot="sheet-close"]:focus-visible,
+.owner-estimate-preview-close:focus-visible,
+.notification-header-close:focus-visible,
+.sidebar .mobile-close:focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+
+/* Print/PDF exports must contain agreement content only, never owner UI.
+   This comes AFTER compact close styles so none can reveal the fixed X. */
+@media print{
+  .owner-estimate-preview-close{display:none!important}
+}

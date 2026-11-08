@@ -13,7 +13,7 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const root=process.cwd();
-const fixture="import React,{useState}from'react';\nimport{createRoot}from'react-dom/client';\nimport{FIRE_SERVICES as services}from'./lib/fire-services';\nimport{estimateServicePickerOptions}from'./lib/estimate-service-picker-options';\nimport{Select,SelectContent,SelectItem,SelectTrigger,SelectValue}from'./components/ui/select';\nimport{DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuTrigger}from'./components/ui/dropdown-menu';\nimport{Popover,PopoverContent,PopoverTrigger}from'./components/ui/popover';\nfunction App(){const [selected,setSelected]=useState(''),[action,setAction]=useState(''),[theme,setTheme]=useState('light');\ndocument.documentElement.dataset.theme=theme;\nreturn <main style={{padding:12,maxWidth:520,margin:'auto'}}>\n<h1>FIRE synthetic iPhone menu test</h1>\n<button type='button' onClick={()=>setTheme(x=>x==='light'?'dark':'light')}>Theme</button>\n<section style={{marginTop:24,padding:16,minHeight:170}} aria-label='Estimate service'>\n<label htmlFor='service-choice'>Service</label>\n<Select value={selected} onValueChange={setSelected}><SelectTrigger id='service-choice' aria-label='Choose service' className='estimate-service-picker-trigger'><SelectValue placeholder='Choose a service'/></SelectTrigger>\n<SelectContent className='estimate-service-picker' position='popper' sideOffset={6} collisionPadding={16}>\n{estimateServicePickerOptions(services).map(s=><SelectItem className='estimate-service-picker-item' key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select>\n<output aria-label='Selected service ID'>{selected}</output></section>\n<div style={{height:220}} aria-hidden='true'/>\n<section aria-label='Secondary actions'>\n<DropdownMenu><DropdownMenuTrigger>Actions</DropdownMenuTrigger><DropdownMenuContent>{Array.from({length:18},(_,i)=><DropdownMenuItem key={i} onSelect={()=>setAction('action '+(i+1))}>Action {i+1}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>\n<output aria-label='Selected action'>{action}</output>\n<Popover><PopoverTrigger>More details</PopoverTrigger><PopoverContent><p>Short explanatory content</p><button type='button'>Close example</button></PopoverContent></Popover>\n</section></main>};createRoot(document.getElementById('app')).render(<App/>);";
+const fixture="import React,{useState}from'react';\nimport{createRoot}from'react-dom/client';\nimport{FIRE_SERVICES as services}from'./lib/fire-services';\nimport{estimateServicePickerOptions}from'./lib/estimate-service-picker-options';\nimport{Select,SelectContent,SelectItem,SelectTrigger,SelectValue}from'./components/ui/select';\nimport{DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuTrigger}from'./components/ui/dropdown-menu';\nimport{Popover,PopoverContent,PopoverTrigger}from'./components/ui/popover';\nimport{Dialog,DialogContent,DialogTitle,DialogTrigger}from'./components/ui/dialog';\nimport{Sheet,SheetContent,SheetTitle,SheetTrigger}from'./components/ui/sheet';\nfunction App(){const [selected,setSelected]=useState(''),[action,setAction]=useState(''),[theme,setTheme]=useState('light');\ndocument.documentElement.dataset.theme=theme;\nreturn <main style={{padding:12,maxWidth:520,margin:'auto'}}>\n<h1>FIRE synthetic iPhone menu test</h1>\n<button type='button' onClick={()=>setTheme(x=>x==='light'?'dark':'light')}>Theme</button>\n<section style={{marginTop:24,padding:16,minHeight:170}} aria-label='Estimate service'>\n<label htmlFor='service-choice'>Service</label>\n<Select value={selected} onValueChange={setSelected}><SelectTrigger id='service-choice' aria-label='Choose service' className='estimate-service-picker-trigger'><SelectValue placeholder='Choose a service'/></SelectTrigger>\n<SelectContent className='estimate-service-picker' position='popper' sideOffset={6} collisionPadding={16}>\n{estimateServicePickerOptions(services).map(s=><SelectItem className='estimate-service-picker-item' key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select>\n<output aria-label='Selected service ID'>{selected}</output></section>\n<div style={{height:220}} aria-hidden='true'/>\n<section aria-label='Secondary actions'>\n<DropdownMenu><DropdownMenuTrigger>Actions</DropdownMenuTrigger><DropdownMenuContent>{Array.from({length:18},(_,i)=><DropdownMenuItem key={i} onSelect={()=>setAction('action '+(i+1))}>Action {i+1}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>\n<output aria-label='Selected action'>{action}</output>\n<Popover><PopoverTrigger>More details</PopoverTrigger><PopoverContent><p>Short explanatory content</p><button type='button'>Close example</button></PopoverContent></Popover>\n<Dialog><DialogTrigger>Open corner dialog</DialogTrigger><DialogContent><DialogTitle>Corner dialog</DialogTitle><p>Synthetic read-only modal</p></DialogContent></Dialog>\n<Sheet><SheetTrigger>Open corner drawer</SheetTrigger><SheetContent><SheetTitle>Corner drawer</SheetTitle><p>Synthetic read-only drawer</p></SheetContent></Sheet>\n</section></main>};createRoot(document.getElementById('app')).render(<App/>);";
 const bundle=(await esbuild.build({
  stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'fire-picker-test.tsx'},
  bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',
@@ -100,6 +100,36 @@ try{
   const rect=await page.locator('[data-slot="popover-content"]').boundingBox();
   check(rect&&rect.x>=-1&&rect.x+rect.width<=width+1&&rect.y>=-1&&rect.y+rect.height<=height+1,
    'Popover avoids edge clipping');
+  // Real Radix content/close controls (not stubs). Small visible X must never
+  // sacrifice the minimum 44px hit region or accessible Close name.
+  const measureClose=async (contentSelector,closeSelector)=>{
+   return page.evaluate(({contentSelector,closeSelector})=>{
+    const content=document.querySelector(contentSelector),close=content?.querySelector(closeSelector);
+    if(!content||!close)return null;
+    const c=content.getBoundingClientRect(),b=close.getBoundingClientRect(),icon=close.querySelector('svg')?.getBoundingClientRect();
+    return {width:b.width,height:b.height,iconWidth:icon?.width,iconHeight:icon?.height,top:b.top-c.top,right:c.right-b.right};
+   },{contentSelector,closeSelector});
+  };
+  await page.getByRole('button',{name:'Open corner dialog'}).click();
+  const cornerDialog=page.getByRole('dialog',{name:'Corner dialog'});
+  await cornerDialog.waitFor();
+  const dc=await measureClose('[data-slot="dialog-content"]','[data-slot="dialog-close"]');
+  check(dc&&dc.width>=43&&dc.height>=43&&dc.iconWidth<=17&&dc.iconHeight<=17&&
+   dc.iconWidth>=15&&dc.iconHeight>=15&&dc.top>=-2&&dc.top<=12&&dc.right>=-2&&dc.right<=12,
+   'Dialog uses small 16px corner X inside a 44px tap area '+width+'/'+height+'/'+theme+JSON.stringify(dc));
+  await cornerDialog.getByRole('button',{name:'Close'}).click();
+  await cornerDialog.waitFor({state:'hidden'});
+  check(!(await cornerDialog.isVisible()),'Small dialog X dismisses using real Radix close');
+  await page.getByRole('button',{name:'Open corner drawer'}).click();
+  const cornerDrawer=page.getByRole('dialog',{name:'Corner drawer'});
+  await cornerDrawer.waitFor();
+  const sc=await measureClose('[data-slot="sheet-content"]','[data-slot="sheet-close"]');
+  check(sc&&sc.width>=43&&sc.height>=43&&sc.iconWidth<=17&&sc.iconHeight<=17&&
+   sc.iconWidth>=15&&sc.iconHeight>=15&&sc.top>=-2&&sc.top<=12&&sc.right>=-2&&sc.right<=12,
+   'Drawer uses same small 16px corner X and 44px target '+width+'/'+height+'/'+theme+JSON.stringify(sc));
+  await cornerDrawer.getByRole('button',{name:'Close'}).click();
+  await cornerDrawer.waitFor({state:'hidden'});
+  check(!(await cornerDrawer.isVisible()),'Small drawer X dismisses using real Radix close');
  }
  check(errors.length===0,'No React/Radix runtime errors');
  check(outside.length===0,'All browser requests stay on isolated localhost');

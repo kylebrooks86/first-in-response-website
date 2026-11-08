@@ -53,6 +53,9 @@ const primary=ui.match(/<EstimateStatusBadge status=\{estimate\.status\}/g)||[];
 const signed=ui.match(/<EstimateSignedBadge signedAt=\{estimate\.signedAt\}/g)||[];
 check(primary.length===5&&signed.length===4,
   'Primary status icon in Home, customer history, pipeline, Estimates list, job detail; Signed milestone in all four list views');
+check(ui.includes('Photos: {estimate.photoRelease==="yes"?"Yes":estimate.photoRelease==="no"?"No":"Not recorded"}')&&
+ !ui.includes('Photos: {estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"not allowed"'),
+ 'Signed agreement photo permission is short Yes/No; missing consent remains Not recorded, never falsely Yes');
 check(ui.includes('!signedAt||!Number.isFinite(Date.parse(signedAt))||!signedName?.trim()'),
   'Agreement Signed badge requires a saved timestamp and nonempty signed name');
 check(css.includes('.estimate-status-indicators{')&&
