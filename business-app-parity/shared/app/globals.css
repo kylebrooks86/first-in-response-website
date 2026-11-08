@@ -4166,3 +4166,14 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   text-align:center;
   overflow-wrap:anywhere
 }
+
+
+/* Paired backup phone actions remain equal in height when their narrow-screen
+   safety labels wrap. Keep their neutral/dashed fallback emphasis intact. */
+.app-shell .customer-profile .customer-contact-backups .contact-backup-actions{
+  grid-auto-rows:1fr;
+  align-items:stretch
+}
+.app-shell .customer-profile .customer-contact-backups .contact-backup-actions>button{
+  height:100%
+}
