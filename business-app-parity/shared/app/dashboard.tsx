@@ -2671,6 +2671,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   };
   return <Dialog open onOpenChange={(value) => { if (!value&&!mutationLock.current&&!closeoutLock.current) onClose(); }}><DialogContent className="estimate-detail sm:max-w-[650px]">
     <DialogHeader><DialogTitle>{estimate.service}</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="text-sm text-muted-foreground">{jobNumberLabel(estimate.jobNumber)}</small>}</DialogHeader>
+    <div className="estimate-detail-scroll" role="region" aria-label="Job details" tabIndex={0}>
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong>{customerNumberLabel(estimate.customerNumber)&&<small>{customerNumberLabel(estimate.customerNumber)}</small>}<small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
@@ -2746,6 +2747,8 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {canChangeJobDate&&<Button variant="outline" onClick={() => {if(closeoutLock.current||!schedule)return;try{void update({scheduledAt:utcForCentralAppointment(schedule)});}catch(scheduleError){setError(scheduleError instanceof Error?scheduleError.message:"Choose a valid Central Time appointment.");}}} disabled={saving || checkingCloseout || !schedule}><CalendarDays className="h-4 w-4" /> Save job date</Button>}
       {estimate.status === "scheduled" && <Button variant="outline" onClick={() => void completeJob()} disabled={saving||checkingCloseout||!reportComplete}><CheckCircle2 className="h-4 w-4" /> {checkingCloseout?"Checking…":reportComplete?"Mark job complete":"Complete report first"}</Button>}
       {(estimate.status==="completed"||Boolean(estimate.invoiceId))&&<Button className="brand-button" onClick={createInvoice} disabled={saving || checkingCloseout || Boolean(estimate.invoiceId) || estimate.status !== "completed"}><Receipt className="h-4 w-4" /> {estimate.invoiceId ? "Invoice created" : "Create invoice"}</Button>}
+    </div>
+  
     </div>
   </DialogContent></Dialog>;
 }
