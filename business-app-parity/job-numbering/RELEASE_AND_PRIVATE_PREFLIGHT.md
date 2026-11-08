@@ -6,6 +6,14 @@
 
 One immutable Job # follows the initial estimate, any signed quote replacement, scheduled work, closeout, final invoice and customer-accessible document. Original estimate/invoice UUIDs, share tokens, payments, and signatures remain intact. Every new unrelated job for an existing customer receives another Job #. Distinct completed jobs are counted from completed statuses, not from the last serial.
 
+## First LIVE launch numbering policy — owner confirmation November 8, 2026
+
+- **QA and LIVE are independent physical D1 databases and numbering namespaces.** The current isolated synthetic QA rehearsal has **seven distinct test jobs**; it must NOT seed the production counter or transfer any synthetic job, customer, payment or invoice row into LIVE.
+- On a **genuinely empty LIVE job history**, install and enable numbering with an empty job serial history. The first real estimate allocates **Job #0001** (SQLite integer 1), the next **#0002**. **No Job #0000** is issued.
+- If LIVE contains **any genuine earlier work**, do NOT erase data, silently reset an existing counter, or reassign existing invoices. First do a physical LIVE-only immutable source/backup/history preflight and deterministic backfill under separate authorization, then continue at max+1. Production emptiness remains a required independently verified fact, **not established by QA having seven jobs**.
+- Once assigned, a Job # is permanent and never reused; revisions share the original number. QA may continue numbering at **#0008** for its next unrelated synthetic test job. QA numbering does not affect LIVE.
+- These are acceptance requirements and *source-only tests*, not permission to migrate QA/staging/LIVE, reset counters, delete records, set feature flags or publish the app. Official production gates remain open.
+
 ## What already exists in Draft PR #60
 
 - Source-only `job_numbers_v1.sql` **outside** all active target migration folders; immutable tables, FK/index/unique constraints and four anti-reassignment triggers.
