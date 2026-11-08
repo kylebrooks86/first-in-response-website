@@ -34,6 +34,7 @@ export async function exerciseBuiltJobDialogVisual({page,check}){
           docOverflow:document.documentElement.scrollWidth-innerWidth};
       });
       const at=width+'x'+height+' '+theme;
+      console.log('REAL JOB DETAIL GEOMETRY '+at+' '+JSON.stringify(initial));
       check(initial.box.width>0&&initial.box.x>=-1&&initial.box.right<=width+1&&
         initial.box.y>=-1&&initial.box.bottom<=height+1,
         'Real signed-in job detail fits on '+at+': '+JSON.stringify(initial.box));
@@ -65,16 +66,29 @@ export async function exerciseBuiltJobDialogVisual({page,check}){
       check(!(await dialog.isVisible()),'Keyboard activation of real top-right X closes job detail at '+at);
     }
   }finally{
-    await page.evaluate(t=>{
-      if(t===null)document.documentElement.removeAttribute('data-theme');
-      else document.documentElement.setAttribute('data-theme',t);
-    },originalTheme);
-    if(originalViewport)await page.setViewportSize(originalViewport);
-    const width=originalViewport?.width??390;
-    const home=width<=760
-      ?page.locator('.bottom-nav button').filter({hasText:'Home'}).first()
-      :page.locator('.sidebar nav button').filter({hasText:'Dashboard'}).first();
-    await home.click();
-    await page.locator('.dashboard-view').waitFor({state:'visible',timeout:12000});
+    // Preserve the original visual assertion on failure. An open Radix overlay
+    // otherwise intercepts the Home click and buries the useful geometry.
+    try{
+      const dialog=page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true});
+      if(await dialog.isVisible().catch(()=>false)){
+        await page.keyboard.press('Escape');
+        await dialog.waitFor({state:'hidden',timeout:3500});
+      }
+    }catch(error){console.warn('Job detail test cleanup: modal dismissal unavailable: '+String(error));}
+    try{
+      await page.evaluate(t=>{
+        if(t===null)document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme',t);
+      },originalTheme);
+      if(originalViewport)await page.setViewportSize(originalViewport);
+      const width=originalViewport?.width??390;
+      const home=width<=760
+        ?page.locator('.bottom-nav button').filter({hasText:'Home'}).first()
+        :page.locator('.sidebar nav button').filter({hasText:'Dashboard'}).first();
+      if(!(await page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true}).isVisible().catch(()=>false))){
+        await home.click({timeout:3500});
+        await page.locator('.dashboard-view').waitFor({state:'visible',timeout:3500});
+      }
+    }catch(error){console.warn('Job detail test cleanup: Home return unavailable: '+String(error));}
   }
 }
