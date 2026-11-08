@@ -1752,7 +1752,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><ClipboardList className="h-4 w-4"/> Job report</Button></DialogTrigger>
     <DialogContent className="fire-job-dialog sm:max-w-[640px]">
-      <DialogHeader className="fire-job-header"><DialogTitle>Service completion report</DialogTitle><p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
+      <DialogHeader className="fire-job-header"><DialogTitle>Service completion report</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="fire-job-number">{jobNumberLabel(estimate.jobNumber)}</small>}<p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
       <div className="fire-job-scroll" role="region" aria-label="Job report fields" tabIndex={0}><div className="job-report">
         {readOnly&&!loading&&!loadError&&loadedReportKey===reportKey&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Reconnect and reload before editing. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>setRetry(value=>value+1)}>Reload report online</Button></p>}
         <p>{loading||loadedReportKey!==reportKey?"Loading saved report…":"Document completed work before leaving the property. Reopening updates this same report."}</p>
@@ -1915,7 +1915,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger>
     <DialogContent className="fire-job-dialog sm:max-w-[640px]" aria-describedby={undefined}>
-      <DialogHeader className="fire-job-header"><DialogTitle>Job costs &amp; profit</DialogTitle><p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
+      <DialogHeader className="fire-job-header"><DialogTitle>Job costs &amp; profit</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="fire-job-number">{jobNumberLabel(estimate.jobNumber)}</small>}<p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
       <div className="fire-job-scroll" role="region" aria-label="Job cost details" tabIndex={0}><div className="job-cost">
         {readOnly&&!loading&&!loadError&&loadedJob===estimate.id&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Costs and profit may have changed. Reconnect and reload before adding costs. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>void load()}>Reload costs online</Button></p>}
         {loading||(loadedJob!==estimate.id&&!loadError)?<p role="status">Loading job costs…</p>:loadError?<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>void load()}>Retry loading costs</Button></p>:<>
