@@ -119,6 +119,92 @@ class DRInvoiceOwnership(unittest.TestCase):
         finally:
             db.close()
 
+    def test_all_disaster_recovery_financial_post_routes_fail_closed(self):
+        # Explicit TEST opt-in must protect every DR financial POST route,
+        # not checkout alone. GET payment history remains read-only.
+        refund = (REPO / "fire-app-dr/app/api/payments/refund/route.ts").read_text(encoding="utf-8")
+        webhook = (REPO / "fire-app-dr/app/api/payments/webhook/route.ts").read_text(encoding="utf-8")
+        payments = (REPO / "fire-app-dr/app/api/payments/route.ts").read_text(encoding="utf-8")
+        for name, source in (("refund",refund),("webhook",webhook)):
+            with self.subTest(name=name):
+                post = source[source.index("export async function POST("):]
+                self.assertIn('FIRE_STRIPE_MODE',post)
+                self.assertIn('_test_',post)
+                self.assertIn('cache-control',post)
+                self.assertLess(post.index("FIRE_STRIPE_MODE"),
+                    post.index("request.json()") if name=="refund" else post.index("request.text()"),
+                    "TEST-only guard must precede all request-triggered financial actions")
+        owner_post=payments[payments.index("export async function POST("):]
+        self.assertLess(owner_post.index('FIRE_STRIPE_MODE'),owner_post.index("request.json()"))
+        self.assertIn('FIRE_STRIPE_MODE!=="test"',owner_post)
+        self.assertIn("export async function GET()",payments,"Read-only owner payment history preserved")
+        self.assertIn('! /^(?:sk|rk|rkcs)_test_'.replace('! ','!'),
+                      refund,"Refunds must reject live Stripe keys")
+        self.assertIn('! /^(?:sk|rk|rkcs)_test_'.replace('! ','!'),
+                      webhook,"Signed webhook processing must reject live Stripe keys")
+
+    def test_recovery_signed_six_events_and_failed_payment_alert_do_not_mutate_ledger(self):
+        source=(REPO / "fire-app-dr/app/api/payments/webhook/route.ts").read_text(encoding="utf-8")
+        post=source[source.index("export async function POST("):]
+        self.assertIn("verifyStripeSignature(rawBody, signature, runtime.STRIPE_WEBHOOK_SECRET)",post)
+        self.assertIn("event.livemode!==false",post)
+        self.assertIn("signedObject.livemode!==false",post)
+        self.assertLess(post.index("event.livemode!==false"),post.index("recordRefundUpdate("))
+        self.assertLess(post.index("event.livemode!==false"),post.index("alertFailedCheckout("))
+        for event in ("refund.created","refund.updated","refund.failed",
+                      "checkout.session.completed","checkout.session.async_payment_succeeded",
+                      "checkout.session.async_payment_failed"):
+            self.assertIn(event,post)
+        start=source.index("async function alertFailedCheckout(")
+        end=source.index("async function recordCheckoutPayment(",start)
+        failure=source[start:end]
+        for required in ("^cs_test_","session.currency!==\"usd\"",
+                         "session.payment_status!==\"unpaid\"",
+                         "session.client_reference_id!==estimateId",
+                         "fire_checkout_reservation_id",
+                         "saved.status===\"paid\"",
+                         "saved.status!==\"open\"",
+                         "provider_id IN (?,?)",
+                         "INSERT OR IGNORE INTO notifications",
+                         "payment_failed","SELECT id FROM notifications WHERE id=?"):
+            self.assertIn(required,failure)
+        self.assertNotIn("UPDATE payments",failure,
+                         "A signed failure must never create/alter a paid ledger entry")
+        self.assertNotIn("UPDATE payment_checkout_sessions",failure,
+                         "A signed failure must not release an uncertain checkout reservation")
+        self.assertNotIn("DELETE FROM payment_checkout_sessions",failure)
+
+    def test_failed_checkout_alert_sql_is_idempotent_for_two_synthetic_customers(self):
+        # SQL is taken from the current recovery webhook source, not an
+        # independently invented financial INSERT.
+        source=(REPO / "fire-app-dr/app/api/payments/webhook/route.ts").read_text(encoding="utf-8")
+        failure=source[source.index("async function alertFailedCheckout("):
+                       source.index("async function recordCheckoutPayment(")]
+        expression=re.search(r'("INSERT OR IGNORE INTO notifications \\(id,type,title,body,customer_id,estimate_id,created_at\\) VALUES \\(\\?,\\?,\\?,\\?,\\?,\\?,\\?\\)")',failure)
+        self.assertIsNotNone(expression,"Exact idempotent source INSERT must be present")
+        sql=expression.group(1)[1:-1]
+        db=sqlite3.connect(":memory:")
+        try:
+            db.executescript("""
+            CREATE TABLE notifications(id TEXT PRIMARY KEY,type TEXT,title TEXT,
+              body TEXT,customer_id TEXT,estimate_id TEXT,created_at TEXT);
+            CREATE TABLE payments(id TEXT PRIMARY KEY,provider_id TEXT,status TEXT);
+            INSERT INTO payments VALUES('already-paid','cs_test_paid','paid');
+            """)
+            add=('stripe-payment-failed:cs_test_alpha','payment_failed','Failed synthetic Alpha',
+                 'Verify recorded payment', 'ca','ea','now')
+            self.assertEqual(db.execute(sql,add).rowcount,1)
+            self.assertEqual(db.execute(sql,add).rowcount,0,
+                             "Replayed signed event must not send another alert")
+            bravo=('stripe-payment-failed:cs_test_bravo','payment_failed','Failed synthetic Bravo',
+                 'Verify recorded payment','cb','eb','now')
+            self.assertEqual(db.execute(sql,bravo).rowcount,1)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM notifications").fetchone()[0],2)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM payments").fetchone()[0],1,
+                             "Owner alerts do not mutate principal ledger")
+        finally:
+            db.close()
+
     def test_source_derived_invoice_sql_rejects_mismatched_customer(self):
         # These exact expressions are sourced from the DR route, not invented
         # as a competing implementation.
