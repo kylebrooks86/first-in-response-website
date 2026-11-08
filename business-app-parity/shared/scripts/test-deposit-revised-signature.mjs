@@ -8,11 +8,11 @@ import {SERVICE_AGREEMENT} from '../lib/fire-templates.ts';
 const db=new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
 for(const f of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+f,'utf8'));
-let race=null,lost=false,corruptRead=false,n=0;
+let race=null,lost=false,corruptRead=false,rotateOnInitialRead=null,n=0;
 const eq=(a,b)=>{assert.deepEqual(a,b);n++;};
 const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE:'synthetic-contract-tests-only',
  FIRE_DEPOSIT_AGREEMENT_CANDIDATE:'synthetic-signature-tests-only',
- DB:{prepare(sql){return{sql,values:[],bind(...values){return {...this,values};},async first(){const row=db.prepare(sql).get(...this.values)??null;return corruptRead&&sql.includes('FROM deposit_agreement_snapshots')&&row?{...row,agreement_text:row.agreement_text+' forged'}:row;},async all(){return{results:db.prepare(sql).all(...this.values)};}};},
+ DB:{prepare(sql){return{sql,values:[],bind(...values){return {...this,values};},async first(){const row=db.prepare(sql).get(...this.values)??null;if(rotateOnInitialRead&&sql.includes('WHERE e.share_token=? LIMIT 1')){const rotate=rotateOnInitialRead;rotateOnInitialRead=null;rotate();}return corruptRead&&sql.includes('FROM deposit_agreement_snapshots')&&row?{...row,agreement_text:row.agreement_text+' forged'}:row;},async all(){return{results:db.prepare(sql).all(...this.values)};}};},
  async batch(statements){
   if(race){const fn=race;race=null;fn();}
   db.exec('BEGIN');try{
@@ -118,6 +118,21 @@ try{
  eq((await post(lostCase,lostBody)).status,503);
  eq(get(lostCase.id).status,'approved');eq(notice(lostCase.id).length,1);eq(signed(lostCase.id).length,1);
  eq((await post(lostCase,lostBody)).status,200);eq(notice(lostCase.id).length,1);
+ // Simulate rotation AFTER the original token's successful initial SELECT
+ // but BEFORE the signed snapshot receipt replay SELECT. The old token must
+ // never recover an already accepted agreement from the same saved estimate.
+ const revoked=seed('revoked-replay'),replayBody=await payload(revoked);
+ eq((await post(revoked,replayBody)).status,201);
+ rotateOnInitialRead=()=>db.prepare('UPDATE estimates SET share_token=? WHERE id=?')
+   .run('rotated-share-'+revoked.id,revoked.id);
+ const stale=await post(revoked,replayBody);
+ eq(stale.status,409);
+ const staleBody=await stale.json();
+ eq(Object.hasOwn(staleBody,'signedName')||Object.hasOwn(staleBody,'estimateId'),false);
+ eq((await post(revoked,replayBody,{},'share-'+revoked.id)).status,404);
+ const current=await post(revoked,replayBody,{},'rotated-share-'+revoked.id);
+ eq(current.status,200);eq((await current.json()).replayed,true);
+ eq(notice(revoked.id).length,1);eq(signed(revoked.id).length,1);
  eq(ledger(),2); // injected payment and refund-race linked payment only; signing creates no payments
- console.log('PASS '+n+'/'+n+': six exact customer agreement signatures, SHA256 commitment, atomic scope/payment/audit races, source-only receipt replay, blocked scheduling, immutable scope and lost acknowledgements; no writer payments or scheduling.');
+ console.log('PASS '+n+'/'+n+': six exact customer agreement signatures, SHA256 commitment, atomic scope/payment/audit races, revoked-share-token receipt replay denial, blocked scheduling, immutable scope and lost acknowledgements; no writer payments or scheduling.');
 }finally{db.close();}
