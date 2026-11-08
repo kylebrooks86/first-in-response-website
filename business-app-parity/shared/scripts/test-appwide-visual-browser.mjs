@@ -20,8 +20,8 @@ const html='<!doctype html><html><head><meta name="viewport" content="width=devi
   '<section class="main-area">'+
   '<div class="dashboard-view"><div class="welcome-row"><h1>Home</h1></div><section class="metric-grid">'+
   '<button class="metric-card accent"><span class="metric-icon red">'+ico+'</span><p>Due now</p><strong>$100.00</strong><small>Deposits and completed-job balances</small><svg class="metric-arrow" viewBox="0 0 24 24"><path d="m8 5 8 7-8 7"/></svg></button>'+
-  '<button class="metric-card"><span class="metric-icon gold">'+ico+'</span><p>Saved estimates</p><strong>7</strong><small>$200.00 potential estimate value</small><svg class="metric-arrow" viewBox="0 0 24 24"><path d="m8 5 8 7-8 7"/></svg></button>'+
   '<button class="metric-card"><span class="metric-icon blue">'+ico+'</span><p>Upcoming jobs</p><strong>0</strong></button>'+
+  '<button class="metric-card"><span class="metric-icon gold">'+ico+'</span><p>Saved estimates</p><strong>7</strong><small>$200.00 potential estimate value</small><svg class="metric-arrow" viewBox="0 0 24 24"><path d="m8 5 8 7-8 7"/></svg></button>'+
   '<button class="metric-card"><span class="metric-icon green">'+ico+'</span><p>Completed jobs</p><strong>1</strong></button></section></div>'+
   '<div class="workspace-view"><div class="workspace-head"><h1>Customers</h1></div>'+
   '<button class="customer-card"><span>Customer with an intentionally extremely long name and contact detail that should wrap without forcing horizontal scrolling</span></button>'+
