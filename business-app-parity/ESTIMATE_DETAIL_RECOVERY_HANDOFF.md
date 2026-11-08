@@ -1,0 +1,13 @@
+# Estimate detail report-load recovery — 2026-10-09
+
+Parent 2f985b621975b0d36b4831b9f8a96d9d7104481e; clean checkout/remote match checked first. FIRE Business App only. Connected capabilities still do not expose full Cloudflare version/build/resource identity. Owner findings and 0022 plan preserved without repeated blocked endpoints or operational wrappers.
+
+Actual regression reproduced on parent: report read for a previous estimate can mark the new estimate report complete and enable its completion button. Effect now resets prior completion before reading and uses cleanup to suppress stale success/error/delayed JSON on switch/close/unmount. Successful HTTP and report-array checks keep malformed/failed reads from enabling completion. Four write handler bodies remain byte-identical: update, completeJob, createInvoice, resolveOverpayment. No billing, actual job-completion mutation, refund, API, CSS, migration or adapter change.
+
+New actual detail/effect/button checks 70/70 per target, 210/210 overall; parent negative control fails expected stale assertion. Invoice editor recovery 84/84 per target, 252/252 retained regression executions; financial processing-fee/invoice/refund/backup suite passes all three targets. Nine selected suite runs passed out of nine. TypeScript 3/3; builds 3/3; shared application parity 119/119. New test script separately synchronized. Tests are deferred synthetic reads and hook/component fixtures, not browser/device/deployed proofs. No unrelated unchanged suites rerun.
+
+Latest candidate refs/evidence updated; older snapshots and records remain untouched. Fresh ESTIMATE_DETAIL_REVIEW_MANIFEST.json generated after progress inputs finalized; hash stored separately in ESTIMATE_DETAIL_REVIEW_EVIDENCE.json. This is local review only. No deployments, remote writes, migrations, real Stripe calls, paid services or costs.
+
+Official release readiness remains 3/10 (30%), NOT READY. Formal deployed/mobile comparison 0/32; complete remote schema/journal gate 0/3. Partial owner Doomsday observations preserved; full version/artifact/source and immutable D1 UUID remain needed, 0022 is pending. Other auth/photo/mobile/sandbox/rollback gates remain open.
+
+Single most useful next step: obtain read-only authenticated capture identity, full active Cloudflare version/build settings and immutable DB UUID for the known Doomsday deployment; no migration execution. If unavailable in a future candidate batch, inspect one remaining customer-detail read for a reproducible race. Independent QC is read-only: verify cancellation and disabled-button behavior, synthetic regression, unchanged write handlers and preserved migration plan. Stop after verified development-branch save.
