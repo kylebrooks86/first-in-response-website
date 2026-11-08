@@ -21,12 +21,20 @@ export async function exerciseBuiltJobDialogVisual({page,check}){
       await estimate.click();
       const dialog=page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true});
       await dialog.waitFor({state:'visible',timeout:12000});
+      // Radix's zoom-in-95 opening animation scales *all* element rectangles
+      // briefly. Measure final tap sizes only after those transforms settle;
+      // do not silently accept a truly undersized control.
+      await dialog.evaluate(async node=>{
+        await Promise.all(node.getAnimations({subtree:false})
+          .filter(animation=>animation.playState==='running')
+          .map(animation=>animation.finished.catch(()=>{})));
+      });
       const initial=await dialog.evaluate(node=>{
         const rect=el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
         const close=node.querySelector('[data-slot="dialog-close"]');
         const icon=close?.querySelector('svg');
         const actions=[...node.querySelectorAll('.detail-actions > a, .detail-actions > button')]
-          .filter(el=>getComputedStyle(el).display!=='none');
+          .filter(el=>el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden');
         const box=rect(node);
         return {box,close:close?rect(close):null,icon:icon?rect(icon):null,
           scrollable:node.scrollHeight>node.clientHeight+2,
