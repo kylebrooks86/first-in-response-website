@@ -180,6 +180,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-checkout-invoice-owner-integrity.mjs
+      - name: Gate 6 public estimate document/payment state ownership and refund guards (native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-public-document-guards.mjs
       - name: Exercise actual built QA login, expired-session denial, synthetic estimate, Customer view, back/close, and restart
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
