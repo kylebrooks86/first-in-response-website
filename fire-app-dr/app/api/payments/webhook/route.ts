@@ -308,10 +308,14 @@ export async function POST(request:Request) {
   // The signed Stripe event envelope explicitly specifies its mode. Refuse
   // missing or LIVE mode rather than inferring sandbox status from a secret.
   // These checks run before any customer/payment D1 read or write.
-  if(event.livemode!==false)
-    return Response.json({error:"Only signed Stripe TEST events are accepted by DR."},{status:400});
+  if(!event||typeof event!=="object"||Array.isArray(event)||event.livemode!==false)
+    return Response.json({error:"Only valid signed Stripe TEST events are accepted by DR."},{status:400});
+  const signedObject=event.data?.object as (StripeCheckoutSession & StripeRefund & {livemode?:boolean})|undefined;
+  // A contradictory object mode inside a signed envelope is not trustworthy.
+  if(typeof signedObject?.livemode==="boolean"&&signedObject.livemode!==false)
+    return Response.json({error:"Stripe TEST event object mode does not match the signed envelope."},{status:400});
 
-  if (["refund.created","refund.updated"].includes(event.type ?? "")) {
+  if (["refund.created","refund.updated","refund.failed"].includes(event.type ?? "")) {
     const refund=event.data?.object as StripeRefund|undefined;
     if(!refund)return Response.json({error:"Missing Stripe refund."},{status:400});
     const result=await recordRefundUpdate(refund,runtime.STRIPE_SECRET_KEY);
