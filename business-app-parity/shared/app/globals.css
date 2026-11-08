@@ -936,6 +936,7 @@ html,body{max-width:100%;overflow-x:clip}
 .fire-job-dialog{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
 .fire-job-header{flex:0 0 auto;padding:18px 64px 14px 18px;border-bottom:1px solid var(--border);background:var(--background);text-align:left}
 .fire-job-context{margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;font-size:12px;font-weight:400;line-height:1.45;color:var(--muted-foreground)}
+.fire-job-header .fire-job-number{display:block;width:max-content;max-width:100%;margin-top:3px;font-size:12px;font-weight:800;line-height:1.35;color:var(--foreground);font-variant-numeric:tabular-nums}
 .fire-job-dialog>[data-slot="dialog-close"]{top:8px;right:8px;width:44px;height:44px;display:grid;place-items:center}
 .fire-job-scroll{min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:16px 18px;flex:1 1 auto;scroll-padding-block:12px}
 .fire-job-scroll:focus-visible{outline:2px solid var(--primary);outline-offset:-3px}
