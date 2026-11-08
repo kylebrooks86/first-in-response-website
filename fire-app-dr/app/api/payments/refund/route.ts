@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-type RuntimeEnv=Cloudflare.Env & { STRIPE_SECRET_KEY?:string };
+type RuntimeEnv=Cloudflare.Env & { STRIPE_SECRET_KEY?:string; FIRE_STRIPE_MODE?:string };
 async function authorized(){const user=await getOwnerUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 const currency=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value/100);
 
@@ -78,6 +78,15 @@ async function stripeGet(path:string,secret:string){
 
 export async function POST(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  // Independent DR is not authorized for LIVE financial operations.
+  // Fail closed BEFORE any financial D1 read/write, including manual refunds.
+  // An explicit owner-controlled TEST opt-in and TEST key are both required.
+  const testRuntime=env as RuntimeEnv;
+  if(testRuntime.FIRE_STRIPE_MODE!=="test"||
+     !testRuntime.STRIPE_SECRET_KEY||
+     !/^(?:sk|rk|rkcs)_test_/.test(testRuntime.STRIPE_SECRET_KEY))
+    return Response.json({error:"DR refunds are disabled until the isolated Stripe TEST environment is explicitly authorized."},
+      {status:503,headers:{"cache-control":"no-store"}});
   try{
     const value=await request.json() as Record<string,unknown>;
     const paymentId=String(value.paymentId??"").trim();
