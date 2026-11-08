@@ -3615,3 +3615,95 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 @media print{
   .owner-estimate-preview-close{display:none!important}
 }
+
+
+/* FIRE visual-system phase 1 — normalize all job/estimate detail action rows.
+   Match the existing 48px job tools without flattening primary/destructive
+   variants or hiding any action. Equal column widths are deliberate, while
+   long labels may wrap. This is scoped to estimate detail only. */
+.estimate-detail .detail-actions,
+.estimate-detail .detail-more-tools > .detail-actions{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  align-items:stretch;
+  gap:8px;
+  min-width:0;
+}
+.estimate-detail .detail-actions > :is(a,button){
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  width:100%;
+  height:auto;
+  min-height:48px;
+  gap:7px;
+  padding:10px 12px;
+  border-radius:9px;
+  font-size:13px;
+  line-height:1.35;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  touch-action:manipulation;
+}
+.estimate-detail .detail-actions > :is(a,button) svg{
+  width:16px;
+  height:16px;
+  flex:none;
+}
+.estimate-detail .detail-actions > small{
+  grid-column:1/-1;
+  min-width:0;
+}
+.estimate-detail .detail-context-buttons > :is(a,button),
+.estimate-detail .customer-contact-backups .contact-backup-actions > button{
+  min-height:48px;
+  height:auto;
+  font-size:13px;
+  line-height:1.35;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+/* A denied photo release is not a critical error, so it stays neutral. The
+   icon and the visible Yes/No/Not recorded label identify permission, not
+   whether any job images are stored on this device or in the cloud. */
+.estimate-detail .photo-permission-chip{
+  display:inline-flex;
+  align-items:center;
+  vertical-align:middle;
+  gap:4px;
+  min-width:0;
+  padding:2px 6px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--muted);
+  color:var(--foreground);
+  font-size:11px;
+  font-weight:750;
+  line-height:1.35;
+  white-space:nowrap;
+}
+.estimate-detail .photo-permission-chip svg{width:13px;height:13px;flex:none}
+.estimate-detail .photo-permission-chip.allowed{
+  border-color:#a6cfbd;
+  background:#e8f6ee;
+  color:#196446;
+}
+[data-theme="dark"] .estimate-detail .photo-permission-chip.allowed{
+  border-color:#477b60;
+  background:#183a2a;
+  color:#b8edce;
+}
+@media(max-width:980px){
+  .estimate-detail .detail-actions,
+  .estimate-detail .detail-more-tools > .detail-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:350px){
+  .estimate-detail .detail-actions,
+  .estimate-detail .detail-more-tools > .detail-actions{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
