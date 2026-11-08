@@ -251,9 +251,13 @@ try{
    await dialog.waitFor({state:'hidden'});
    check(true,'Escape still closes synthetic message composer, '+width+' '+theme);
    await page.getByRole('button',{name:'Open synthetic message'}).click();
-   await page.mouse.click(5,5);
+   // Target the actual Radix overlay rather than an arbitrary viewport pixel:
+   // at narrow or transformed layouts (5,5) may not hit the overlay.
+   const overlay=page.locator('[data-slot="dialog-overlay"]');
+   await overlay.waitFor({state:'visible'});
+   await overlay.click({position:{x:5,y:5}});
    await dialog.waitFor({state:'hidden'});
-   check(true,'Click outside still dismisses synthetic message composer, '+width+' '+theme);
+   check(true,'Click on the visible backdrop still dismisses synthetic message composer, '+width+' '+theme);
   }
   check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
  console.log(JSON.stringify({passed:checks,actualCustomerNotes:true,actualEditCustomer:true,actualEstimateHistory:true,actualInsights:true,actualRadix:true,compiledTailwind:true,syntheticLocalhostOnly:true,hostedDataTouched:false,iPhoneTested:false}));
