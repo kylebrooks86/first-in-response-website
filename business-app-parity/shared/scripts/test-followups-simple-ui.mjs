@@ -38,7 +38,7 @@ check(filters.includes('aria-label="Filter follow-ups: All"')&&
   filters.includes('setActionFilter("all");setUrgencyFilter("all");setHighPriorityOnly(false)'),
   "All visible reset clears every advanced filter together");
 check(filters.indexOf('<summary>More filters')<filters.indexOf('[["viewed","Viewed 24h+"]')&&
-  filters.indexOf('<summary>More filters')<filters.indexOf('[["no-answer","No answer / Not contacted"]'),
+  filters.indexOf('<summary>More filters')<filters.indexOf('["no-answer","No answer / Not contacted"]'),
   "Zero-count viewed and no-answer shortcuts stay available but hidden until expanded");
 check(section.includes('className="followup-coverage-complete" role="status"')&&
   section.indexOf('estimates checked · all available pages loaded.')<section.indexOf('<summary>More filters'),
