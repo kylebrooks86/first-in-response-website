@@ -17,7 +17,7 @@ class LocalFullAppQABuildContract(unittest.TestCase):
         self.assertLess(SOURCE.index("if (-not $Build)"), SOURCE.index("$python.Source $builder qa $destination"))
 
     def test_exact_git_source_and_nonoverwrite(self):
-        for requirement in ("work/fire-business-app-parity-2026-10-08",
+        for requirement in ("[Parameter(Mandatory=$true)]",
                             "branch --show-current", "rev-parse HEAD",
                             "refs/remotes/origin/$branch", "$head -ceq $originHead",
                             "status --porcelain --untracked-files=no",
@@ -26,15 +26,19 @@ class LocalFullAppQABuildContract(unittest.TestCase):
         self.assertIn("Join-Path $env:LOCALAPPDATA 'FIRE-QA-Builds'", SOURCE)
         self.assertNotIn("FIRE-QA-Private\\qa-owner-secrets.xml", SOURCE)
 
-    def test_explicit_current_candidate_pin_is_required_for_other_branches(self):
+    def test_every_local_build_requires_exact_selected_branch_and_sha(self):
         for required in ("[string]$CandidateBranch", "[string]$ExpectedCommit",
                          "^work/fire-[a-z0-9][a-z0-9-]{1,110}$",
-                         "A nonstandard candidate branch requires an explicitly reviewed exact commit",
+                         "Every QA candidate build requires an explicitly reviewed exact Git commit",
                          "Checked out Git commit differs from the explicitly reviewed candidate",
                          "$head -ceq $ExpectedCommit"):
             self.assertIn(required, SOURCE)
-        self.assertLess(SOURCE.index("A nonstandard candidate branch requires"),
+        self.assertLess(SOURCE.index("Every QA candidate build requires"),
                         SOURCE.index("$git = Get-Command"))
+        self.assertIn("[ValidatePattern('^[0-9a-f]{40}$')]", SOURCE)
+        self.assertNotIn("[string]$CandidateBranch =", SOURCE)
+        self.assertNotIn("[string]$ExpectedCommit =", SOURCE)
+        self.assertNotIn("if (-not [string]::IsNullOrEmpty($ExpectedCommit))", SOURCE)
         self.assertLess(SOURCE.index("$head -ceq $ExpectedCommit"),
                         SOURCE.index("$buildRoot = Join-Path"))
 
