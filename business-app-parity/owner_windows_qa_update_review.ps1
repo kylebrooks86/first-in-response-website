@@ -1,12 +1,16 @@
-# Nov 7 owner-observed QA code-only update: 89ae853c active at 100% traffic,
+# Nov 8 owner iPhone QA deployment observation: e3028e6f active at 100% traffic,
 # isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # Review an UPDATED QA Business App after the first successful hosted deployment.
 # READ ONLY: never deploys, uploads secrets, touches D1 data, or changes device vaults.
 # The first-publish script MUST NOT be reused on an existing Worker.
 [CmdletBinding()]
 param(
-    [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
-    [string]$ExpectedCommit = '',
+    [Parameter(Mandatory=$true)]
+    [ValidatePattern('^work/fire-[a-z0-9][a-z0-9-]{1,110}$')]
+    [string]$CandidateBranch,
+    [Parameter(Mandatory=$true)]
+    [ValidatePattern('^[0-9a-f]{40}$')]
+    [string]$ExpectedCommit,
     [switch]$AllowDetachedWorktree
 )
 Set-StrictMode -Version Latest
@@ -17,15 +21,15 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Nov 7 QA code-only update and owner-observed authenticated Wrangler review
-# identify this 100%-serving version. Previous owner QA checks also reported
-# its isolated D1 and no R2; verify both AGAIN against the current provider.
+# Nov 8 owner iPhone screenshots and copied full UUID identify the currently
+# reported QA version. This is owner observation, not immutable binding or
+# source proof; verify the exact Worker/D1 against authenticated Wrangler.
 # The pinned version is not a release authorization and source provenance
 # remains separate from Worker version metadata. This reviewer is READ ONLY.
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '89ae853c-f4bb-4159-8df1-9c18a50008e1'
+$expectedActiveVersion = 'e3028e6f-00b4-4717-8bd3-df558d15a37d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
@@ -34,10 +38,7 @@ function Require-Exit([string]$stage) {
     Require ($LASTEXITCODE -eq 0) ($stage + ' failed. No remote changes were attempted.')
 }
 Require ($branch -cmatch '^work/fire-[a-z0-9][a-z0-9-]{1,110}$') 'Only an expressly selected FIRE development branch is permitted.'
-Require ([string]::IsNullOrEmpty($ExpectedCommit) -or $ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'ExpectedCommit must be an exact 40-character lowercase SHA.'
-if ($branch -cne 'work/fire-business-app-parity-2026-10-08') {
-    Require ($ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'An alternate FIRE development branch MUST provide a reviewed exact commit.'
-}
+Require ($ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'Every QA update requires an explicitly reviewed exact source commit.'
 Write-Host 'FIRE QA FULL-APP UPDATE REVIEW: NO PUBLISH, NO DATABASE WRITES'
 Require ($env:OS -eq 'Windows_NT' -and -not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) 'Owner Acer Windows profile required.'
 $git = Get-Command 'git.exe' -ErrorAction SilentlyContinue
@@ -57,9 +58,7 @@ Require-Exit 'Git HEAD'
 $originHead = (& $git.Source -C $repo rev-parse ('refs/remotes/origin/' + $branch)).Trim()
 Require-Exit 'Fetched origin HEAD'
 Require ($head -cmatch '^[a-f0-9]{40}$' -and $head -ceq $originHead) 'Run a safe fast-forward Git pull first.'
-if (-not [string]::IsNullOrEmpty($ExpectedCommit)) {
-    Require ($head -ceq $ExpectedCommit) 'The checked out code differs from the explicitly reviewed commit. No remote checks performed.'
-}
+Require ($head -ceq $ExpectedCommit) 'The checked out code differs from the explicitly reviewed commit. No remote checks performed.'
 $dirty = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
 Require-Exit 'Tracked Git changes'
 Require ($dirty.Count -eq 0) 'Keep local changes; stop before review.'

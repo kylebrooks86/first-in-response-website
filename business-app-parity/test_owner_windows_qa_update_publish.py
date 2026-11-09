@@ -19,6 +19,11 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         self.assertIn("[string]$ApprovalText",S)
         self.assertIn("[string]$CandidateBranch",S)
         self.assertIn("[string]$ExpectedCommit",S)
+        self.assertIn("[Parameter(Mandatory=$true)]",S)
+        self.assertIn("[ValidatePattern('^[0-9a-f]{40}$')]",S)
+        self.assertNotIn("[string]$CandidateBranch =",S)
+        self.assertNotIn("[string]$ExpectedCommit =",S)
+        self.assertIn("Require ($head -ceq $ExpectedCommit)",S)
         self.assertIn("if ($PSBoundParameters.ContainsKey('ApprovalText'))",S)
         self.assertIn("$typed = $ApprovalText",S)
         self.assertIn("} else {\n    $typed = Read-Host",S)
@@ -39,7 +44,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "89ae853c-f4bb-4159-8df1-9c18a50008e1",
+                     "e3028e6f-00b4-4717-8bd3-df558d15a37d",
                      "owner_windows_qa_update_review.ps1",
                      "$beforeVersions.Count -eq 1",
                      "[double]$beforeVersions[0].percentage -eq 100",

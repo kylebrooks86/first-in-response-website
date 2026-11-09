@@ -24,6 +24,9 @@ class ExistingQAUpdateSafety(unittest.TestCase):
     def test_no_publish_capability_and_no_sensitive_actions(self):
         self.assertIn("[string]$CandidateBranch", S)
         self.assertIn("[string]$ExpectedCommit", S)
+        self.assertIn("[ValidatePattern('^[0-9a-f]{40}$')]", S)
+        self.assertNotIn("[string]$CandidateBranch =", S)
+        self.assertNotIn("[string]$ExpectedCommit =", S)
         self.assertNotIn("param([switch]$Publish)", S)
         for disallowed in ("--secrets-file", "Import-Clixml", "Export-Clixml",
                            "d1 migrations", "secret put",
@@ -39,10 +42,10 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("NO PUBLISH. Existing QA Worker", S)
 
     def test_exact_latest_source_and_no_overwrite_local_build(self):
-        for expected in ("work/fire-business-app-parity-2026-10-08",
+        for expected in ("[Parameter(Mandatory=$true)]",
                          "rev-parse HEAD", "refs/remotes/origin/",
                          "$head -ceq $originHead", "$head -ceq $ExpectedCommit",
-                         "An alternate FIRE development branch MUST provide a reviewed exact commit",
+                         "Every QA update requires an explicitly reviewed exact source commit",
                          "status --porcelain --untracked-files=no",
                          "FIRE-QA-Builds", "qa-' + $head",
                          "verify_materialized_candidate.py",
@@ -55,7 +58,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "89ae853c-f4bb-4159-8df1-9c18a50008e1",
+                         "e3028e6f-00b4-4717-8bd3-df558d15a37d",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -140,7 +143,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
             self.assertNotIn(forbidden,S)
 
     def test_owner_verified_readonly_pin_and_publisher_stays_locked(self):
-        # Read-only review must match the Nov 7 owner-observed authenticated current QA pin.
+        # Read-only review must match the Nov 8 owner-observed QA active-version pin; Wrangler still authenticates its resource binding.
         # The distinct -Publish script must match the currently verified version
         # but retains its own explicit approval, backup and no-default-publish gates.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
@@ -148,7 +151,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["89ae853c-f4bb-4159-8df1-9c18a50008e1"])
+        self.assertEqual(readonly_pins, ["e3028e6f-00b4-4717-8bd3-df558d15a37d"])
         self.assertEqual(review_pins, readonly_pins)
         self.assertEqual(publish_pins, readonly_pins)
         for pinned_script in (readonly, S, publisher):

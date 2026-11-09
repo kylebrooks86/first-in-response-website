@@ -1,9 +1,9 @@
-# Nov 7 owner-observed QA code-only update: 89ae853c active at 100% traffic,
+# Nov 8 owner iPhone QA deployment observation: e3028e6f active at 100% traffic,
 # isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # FIRE QA current-release evidence review — READ ONLY, no publication or data mutation.
 # Designed for the owner's existing authenticated Windows Wrangler session.
-# Nov 7 owner-approved QA code-only update and authenticated Wrangler readback
-# confirmed the pinned 100%-serving QA version and isolated physical D1.
+# Nov 8 owner iPhone screenshots + copied full UUID identify the reported
+# current QA version. Wrangler must independently verify this and the D1.
 # This is a PIN, not proof of immutable source bytes: stop if version changes,
 # traffic splits, or physical QA D1 identity differs. NEVER redeploy.
 [CmdletBinding()]
@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedVersion = '89ae853c-f4bb-4159-8df1-9c18a50008e1'
+$expectedVersion = 'e3028e6f-00b4-4717-8bd3-df558d15a37d'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'

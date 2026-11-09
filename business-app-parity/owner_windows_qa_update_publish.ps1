@@ -1,4 +1,4 @@
-# Nov 7 owner-observed QA code-only update: 89ae853c active at 100% traffic,
+# Nov 8 owner iPhone QA deployment observation: e3028e6f active at 100% traffic,
 # isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # Second (and later) QA Business App deployment. No writes unless -Publish,
 # and a fresh exact typed owner approval confirms updating this EXISTING Worker.
@@ -11,8 +11,12 @@ param(
     [switch]$OwnerConfirmedPhotoZipBackup,
     [switch]$OwnerConfirmedNoLocalPhotos,
     [string]$ApprovalText,
-    [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
-    [string]$ExpectedCommit = '',
+    [Parameter(Mandatory=$true)]
+    [ValidatePattern('^work/fire-[a-z0-9][a-z0-9-]{1,110}$')]
+    [string]$CandidateBranch,
+    [Parameter(Mandatory=$true)]
+    [ValidatePattern('^[0-9a-f]{40}$')]
+    [string]$ExpectedCommit,
     [switch]$AllowDetachedWorktree
 )
 Set-StrictMode -Version Latest
@@ -21,14 +25,14 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-# Nov 7 owner-approved QA code-only publication and authenticated Wrangler
-# inventory identify this exact 100%-serving version, with independent bound-D1
-# check. Reverify current version and physical D1 before any owner approval.
+# Nov 8 owner screenshot + manually copied full QA version ID identify this
+# reported 100%-serving baseline. Current immutable Worker bindings, complete
+# source provenance and recovery still require fresh Wrangler proof.
 # Preserve this currently working version for code-only rollback if approved.
 # This observation NEVER authorizes publication: require a fresh exact source,
 # two independently verified database identities, 25-journal, device-photo
 # protection and typed owner consent before any existing QA Worker update.
-$expectedActiveVersion = '89ae853c-f4bb-4159-8df1-9c18a50008e1'
+$expectedActiveVersion = 'e3028e6f-00b4-4717-8bd3-df558d15a37d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
@@ -67,9 +71,7 @@ if ($OwnerConfirmedNoLocalPhotos.IsPresent) {
 $head = (& $git.Source -C $repo rev-parse HEAD).Trim()
 Require-Exit 'Git source commit'
 Require ($head -cmatch '^[0-9a-f]{40}$') 'Invalid Git source checkpoint.'
-if (-not [string]::IsNullOrEmpty($ExpectedCommit)) {
-    Require ($head -ceq $ExpectedCommit) 'Current code differs from owner-reviewed exact commit; no hosted writes.'
-}
+Require ($head -ceq $ExpectedCommit) 'Current code differs from owner-reviewed exact commit; no hosted writes.'
 $candidate = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $head)
 $manifest = Join-Path $candidate 'dist\server\wrangler.json'
 Require (Test-Path -LiteralPath $manifest -PathType Leaf) 'Verified current QA build missing.'
