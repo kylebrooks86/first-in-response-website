@@ -7,6 +7,8 @@ on:
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
       - 'business-app-parity/owner_windows_qa_update_publish.ps1'
       - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/owner_windows_build_qa_candidate.ps1'
+      - 'business-app-parity/test_owner_windows_build_qa_candidate.py'
       - 'business-app-parity/test_owner_windows_qa_update_review.py'
       - 'business-app-parity/qa_d1_identity_from_info.ps1'
       - 'business-app-parity/test_qa_d1_identity_from_info.ps1'
@@ -17,6 +19,8 @@ on:
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
       - 'business-app-parity/owner_windows_qa_update_publish.ps1'
       - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/owner_windows_build_qa_candidate.ps1'
+      - 'business-app-parity/test_owner_windows_build_qa_candidate.py'
       - 'business-app-parity/test_owner_windows_qa_update_review.py'
       - 'business-app-parity/qa_d1_identity_from_info.ps1'
       - 'business-app-parity/test_qa_d1_identity_from_info.ps1'
@@ -35,6 +39,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Refuse implicit legacy QA branch or blank source SHA in local candidate builder
+        run: python3 -m unittest discover -s business-app-parity -p test_owner_windows_build_qa_candidate.py -v
       - name: Assert owner read-only QA review follows observed QA Worker but publish stays locked
         run: python3 -m unittest discover -s business-app-parity -p test_owner_windows_qa_update_review.py -v
       - name: Assert no QA publish without exact candidate, D1 and owner approval
