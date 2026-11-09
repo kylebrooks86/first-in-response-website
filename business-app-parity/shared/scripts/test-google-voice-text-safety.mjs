@@ -23,13 +23,13 @@ check(ui.includes('message={preparedMessage.body}') && action.includes("navigato
 check(action.includes("Hi, this is First In Response Exteriors. We\'re using an alternate number today."),"All personal backup SMS texts begin with the correct alternate-number disclosure");
 check(action.includes("PERSONAL_BACKUP_TEXT_INTRO + \"\\n\\n\" + original"),"Alternate-number notice prepends without editing saved message template");
 check(ui.includes("message={contactDraft?.jobId===job.id?contactDraft.text:undefined}"),"Schedule reminders and on-my-way drafts flow into both text actions");
-check(ui.includes('if(!await log("text_prepared"))return')&&ui.includes("setMessageStatus(\"Prepared for Google Voice."),"Message composer preserves saved prepared/unconfirmed audit before handoff");
+check(ui.includes('if(!await log("text_prepared"))return')&&ui.includes("setMessageStatus(\"Ready to text · not sent yet."),"Message composer preserves saved prepared/unconfirmed audit before handoff");
 check(ui.includes('preparedMessage?.channel==="text_prepared"')&&ui.includes('copyVoiceField(preparedMessage.body'),"Owner can copy the exact saved prepared message into Voice");
 check(ui.includes('copyVoiceField(customer.phone')&&ui.includes('href={GOOGLE_VOICE_URL}'),"Recipient is copyable and verified Google Voice site is opened separately");
 check(ui.includes("confirmSent=async()=>")&&ui.includes("ownerConfirmedSent:true"),"Owner-confirmation audit remains explicit and separate from preparation");
 check(action.includes('https://voice.google.com/')&&action.includes("Copy number")&&action.includes("Nothing is marked sent by FIRE unless you confirm it."),"Quick contact action does not claim automated Google Voice delivery");
 check(action.includes("JSON.stringify({ phone: recipient, message })")&&action.includes("encodeURIComponent(JSON.stringify"),"Direct text uses serialized encoded JSON with validated phone and exact message");
-check(ui.includes('message={preparedMessage.body} label="Text"')&&action.includes("name=FIRE%20Google%20Voice%20Text&input=text&text="),"Owner-tested direct text receives verified saved body; Call Shortcut stays separate");
+check(ui.includes('message={preparedMessage.body} label="Text with Google Voice"')&&action.includes("name=FIRE%20Google%20Voice%20Text&input=text&text="),"Owner-tested direct text receives verified saved body; Call Shortcut stays separate");
 check(!/\bgooglevoice:\/\//i.test(action),"No unsupported iPhone Google Voice deep link assumed");
 check(!/\b(?:twilio|sms\.send|GoogleVoiceAPI)\b/i.test(action),"No paid provider, fabricated SMS API, or automatic send path introduced");
 check(action.includes('GOOGLE_VOICE_TEXT_URL_LIMIT = 8000')&&action.includes('href.length <= GOOGLE_VOICE_TEXT_URL_LIMIT'),"Oversized encoded input refused, never truncated");
