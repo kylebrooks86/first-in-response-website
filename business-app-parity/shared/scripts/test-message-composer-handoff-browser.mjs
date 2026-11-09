@@ -107,7 +107,7 @@ try{
   const before=requests.length;
   check(await prep.isDisabled(),mode+' profile quick action blocks blank Custom message preparation');
   const status=await quick.getByRole('status').allTextContents();
-  check(status.some(x=>x.includes(mode==='Text'?'Write your text first':'Write your email first')),
+  check(status.some(x=>x.includes('Write your message first.')),
    mode+' profile quick action explains exactly how to enable preparation');
   const message='Prepared via '+mode+' profile action';
   await quick.getByLabel('Message text').fill(message);
