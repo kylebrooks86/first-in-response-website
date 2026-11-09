@@ -4713,3 +4713,86 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   outline:3px solid var(--ring);
   outline-offset:1px;
 }
+
+
+/* FIRE visual choices: same grouping language as categorized message templates.
+   These are Radix portal menus, so theme and touch styles must be scoped to content. */
+.fire-categorized-dropdown[data-slot="select-content"]{
+  max-width:calc(100vw - 24px);
+  border-color:var(--border);
+}
+.fire-categorized-dropdown [data-slot="select-viewport"]{
+  min-width:min(280px,calc(100vw - 42px));
+  padding:6px 5px max(20px,env(safe-area-inset-bottom))!important;
+  scroll-padding-block:8px max(22px,env(safe-area-inset-bottom));
+  overflow-y:auto;
+}
+.fire-menu-group+.fire-menu-group{margin-top:6px}
+.fire-menu-category{
+  display:flex;align-items:center;gap:9px;
+  min-height:40px;margin:3px 2px 4px;padding:7px 9px;
+  border:1px solid var(--border);border-radius:9px;
+  background:var(--muted);color:var(--foreground);
+  font-size:12px;font-weight:800;line-height:1.25;
+}
+.fire-menu-category strong{flex:1;min-width:0}
+.fire-menu-category small{
+  margin-left:auto;min-width:22px;
+  border-radius:99px;background:var(--card);
+  color:var(--muted-foreground);padding:3px 6px;
+  text-align:center;font-size:11px;font-variant-numeric:tabular-nums;
+}
+.fire-menu-symbol{
+  display:inline-grid;flex:0 0 24px;place-items:center;
+  width:24px;height:24px;border:1px solid var(--fire-choice-line,#aeb9c6);
+  border-radius:7px;background:var(--fire-choice-bg,#edf2f7);
+  color:var(--fire-choice-ink,#334155);
+}
+.fire-menu-symbol svg{height:15px;width:15px}
+.fire-visual-option[data-slot="select-item"]{
+  min-height:48px;max-width:100%;
+  border-left:4px solid var(--fire-choice-line,#8a99aa);
+  border-radius:6px;margin:2px 2px;padding:10px 32px 10px 8px;
+  color:var(--foreground);
+  white-space:normal;overflow-wrap:anywhere;
+  line-height:1.35;
+}
+.fire-visual-option:where([data-highlighted]){
+  background:var(--fire-choice-bg,var(--muted));
+  color:var(--foreground);
+  outline:2px solid var(--fire-choice-line,#94a3b8);
+  outline-offset:-2px;
+}
+.fire-visual-option-body{display:flex;align-items:center;gap:9px;min-width:0;width:100%}
+.fire-option-name{min-width:0;flex:1;white-space:normal;overflow-wrap:anywhere;font-weight:650}
+.fire-option-addon{flex:none;padding:3px 6px;border-radius:99px;border:1px solid var(--border);font-size:10px;font-weight:750;color:var(--muted-foreground)}
+.fire-categorized-dropdown [data-tone="custom"]{--fire-choice-line:#8970c9;--fire-choice-bg:#f3edff;--fire-choice-ink:#5c3b9f}
+.fire-categorized-dropdown [data-tone="exterior"]{--fire-choice-line:#5089c9;--fire-choice-bg:#e9f2fc;--fire-choice-ink:#255e99}
+.fire-categorized-dropdown [data-tone="drainage"]{--fire-choice-line:#2f9caf;--fire-choice-bg:#e6f6f8;--fire-choice-ink:#166979}
+.fire-categorized-dropdown [data-tone="glass"]{--fire-choice-line:#6591c5;--fire-choice-bg:#edf5ff;--fire-choice-ink:#315e93}
+.fire-categorized-dropdown [data-tone="outdoor"]{--fire-choice-line:#42956e;--fire-choice-bg:#e8f7ee;--fire-choice-ink:#206b48}
+.fire-categorized-dropdown [data-tone="vents"]{--fire-choice-line:#b08338;--fire-choice-bg:#fff3de;--fire-choice-ink:#81561b}
+.fire-categorized-dropdown [data-tone="vehicles"]{--fire-choice-line:#c47c51;--fire-choice-bg:#fff0e7;--fire-choice-ink:#995026}
+.fire-categorized-dropdown [data-tone="special"]{--fire-choice-line:#8592a5;--fire-choice-bg:#edf0f5;--fire-choice-ink:#4e6078}
+.fire-categorized-dropdown [data-tone="digital"]{--fire-choice-line:#4889cc;--fire-choice-bg:#eaf3ff;--fire-choice-ink:#2864a3}
+.fire-categorized-dropdown [data-tone="people"]{--fire-choice-line:#3c9b78;--fire-choice-bg:#e7f6ed;--fire-choice-ink:#23694c}
+.fire-categorized-dropdown [data-tone="field"]{--fire-choice-line:#b38a43;--fire-choice-bg:#fff5df;--fire-choice-ink:#75571f}
+.fire-categorized-dropdown [data-tone="materials"]{--fire-choice-line:#679b75;--fire-choice-bg:#eef8ec;--fire-choice-ink:#336943}
+.fire-categorized-dropdown [data-tone="operations"]{--fire-choice-line:#947cc3;--fire-choice-bg:#f4eeff;--fire-choice-ink:#625096}
+.fire-categorized-dropdown [data-tone="electronic"]{--fire-choice-line:#377cbe;--fire-choice-bg:#eaf3fc;--fire-choice-ink:#265e93}
+.fire-categorized-dropdown [data-tone="manual"]{--fire-choice-line:#a97853;--fire-choice-bg:#fbefe8;--fire-choice-ink:#805036}
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone]{
+  --fire-choice-bg:#1a2e43;--fire-choice-ink:#d5e9fc;
+}
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone="outdoor"],
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone="people"],
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone="materials"]{--fire-choice-bg:#18392e;--fire-choice-ink:#c5edcf}
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone="vehicles"],
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone="vents"],
+html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-choice-bg:#3b2b20;--fire-choice-ink:#f6d7b0}
+@media(max-width:760px){
+ .fire-categorized-dropdown[data-slot="select-content"]{max-height:min(56dvh,var(--radix-select-content-available-height,56dvh))}
+ .fire-categorized-dropdown.estimate-service-picker[data-slot="select-content"]{max-height:min(50dvh,var(--radix-select-content-available-height,50dvh))}
+ .fire-categorized-dropdown [data-slot="select-viewport"]{max-height:min(52dvh,var(--radix-select-content-available-height,52dvh));-webkit-overflow-scrolling:touch}
+ .fire-categorized-dropdown.estimate-service-picker [data-slot="select-viewport"]{max-height:min(46dvh,var(--radix-select-content-available-height,46dvh))}
+}

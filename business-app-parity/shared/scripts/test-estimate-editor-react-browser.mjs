@@ -23,7 +23,7 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{FIRE_SERVICES as services,serviceDescriptionFor}from'./lib/fire-services';
-import{estimateServicePickerOptions}from'./lib/estimate-service-picker-options';
+import{CategorizedServiceOptions}from'./components/visual-selection-options';
 import{exactMoneyInputCents}from'./lib/exact-money-input';
 import{useEstimateBundleDiscount}from'./components/estimate-bundle-discount';
 import{useServicePricing}from'./components/service-pricing';import{EstimateLinePricing}from'./components/estimate-line-pricing';
@@ -65,7 +65,22 @@ try{
  const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async dialog=>{if(dialog.type()!=='confirm'||!['Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged.','The last estimate save may already have committed. Closing discards only local editor entries. Check the saved estimate before another edit. Close?'].includes(dialog.message())){errors.push('Unexpected dialog: '+dialog.message());await dialog.dismiss();return;}await dialog.accept();});
  await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
  const check=(ok,label)=>{assert.ok(ok,label);checks++;}; page.setDefaultTimeout(5000);
- for(const [width,height]of [[320,568],[375,667],[390,844],[430,932],[760,900],[768,1024],[1024,800],[667,375]])for(const theme of ['light','dark']){
+
+ // Inspect a real Radix portal: category rows, colors, and unchanged option count.
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
+ await page.getByRole('combobox',{name:'Choose service'}).first().click();
+ const picker=page.locator('.estimate-service-picker[data-slot="select-content"]');
+ await picker.waitFor();
+ check(await picker.locator('.fire-menu-category').count()>=7,'Service picker shows real category headings');
+ check(await picker.getByRole('option').count()===FIRE_SERVICES.length,'Real Radix list retains all service choices');
+ check(await picker.getByRole('option',{name:'Custom Service'}).count()===1,'Custom Service remains one tap away');
+ check(await picker.getByText('Gutters & Drainage',{exact:true}).count()===1,'Gutter service category is visible');
+ check(await picker.locator('.fire-menu-category[data-tone="drainage"]').evaluate(n=>getComputedStyle(n).fontWeight!=='400'),'Category header visibly emphasized');
+ check(await picker.locator('.fire-visual-option').first().evaluate(n=>getComputedStyle(n).borderLeftWidth==='4px'),'Real options have a color-coded stripe');
+ await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Close',exact:true}).last().click();
+  for(const [width,height]of [[320,568],[375,667],[390,844],[430,932],[760,900],[768,1024],[1024,800],[667,375]])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
   const trigger=page.getByRole('button',{name:'Edit estimate',exact:true});await trigger.click({timeout:5000});
   const dialog=page.locator('.estimate-edit-dialog'),scroll=dialog.locator('.estimate-edit-scroll-area'),close=dialog.getByRole('button',{name:'Close',exact:true}),save=dialog.getByRole('button',{name:'Save estimate changes'});
