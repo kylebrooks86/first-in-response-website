@@ -2,7 +2,7 @@ import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-st
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
-import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight } from "lucide-react";
+import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight, BadgeCheck, AlertTriangle } from "lucide-react";
 import { publicInvoiceFooter } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { PayButton } from "../../pay/[id]/pay-button";
@@ -72,7 +72,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const balance=state.balanceCents??0;
   const paymentReviewPending=state.review||Number(row.openCheckoutCount??0)>0;
   const manualPaymentEligible=canOfferManualPayment({status:row.estimateStatus,acceptedAt:row.estimateAcceptedAt,signedAt:row.estimateSignedAt,billingVerified:state.safe,balanceCents:balance,reviewPending:paymentReviewPending});
-  const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
+  const showReviewInvitation=state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
   const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
   const close=ownerPreview?<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} label="Close invoice preview"/></>:null;
   if(!state.safe)return <main className={`pay-page invoice-page${ownerPreview?' owner-estimate-preview':''}`}>{close}<section className="pay-card"><h1>Invoice account review</h1><p>We are checking this invoice. Please contact First In Response Exteriors before making a payment.</p></section></main>;
@@ -90,7 +90,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
       <span><small>Payments received</small><strong>{currency(Number(row.paidCents))}</strong></span>
       <span className="invoice-balance-row"><small>Balance due</small><strong className={balance>0?"red-text":"green-text"}>{currency(balance)}</strong></span>
     </div>
-    <p className="invoice-due"><CalendarDays/> {paymentReviewPending?"Account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
+    <p className={"invoice-due "+(paymentReviewPending?"needs-review":balance===0?"is-paid":"is-due")}>{paymentReviewPending?<AlertTriangle aria-hidden="true"/>:balance===0?<BadgeCheck aria-hidden="true"/>:<CalendarDays aria-hidden="true"/>} {paymentReviewPending?"Account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
     {showReviewInvitation&&<CustomerReviewInvitation/>}
     {manualPaymentEligible&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={Number(row.totalCents)} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
     {manualPaymentEligible&&<>

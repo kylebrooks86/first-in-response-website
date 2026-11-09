@@ -37,4 +37,7 @@ for(const zone of ['America/Chicago','UTC','Asia/Seoul']){
  assert.equal(result.status,0,zone+': '+(result.stderr||result.stdout));
  console.log('PASS invoice public due date matches Tulsa calendar in '+zone);
 }
+const invoiceUX=readFileSync('app/invoice/[token]/page.tsx','utf8');
+assert.ok(invoiceUX.includes('balance===0?<BadgeCheck aria-hidden="true"/>'),'Paid invoice must use paid icon');
+assert.ok(invoiceUX.includes('paymentReviewPending?<AlertTriangle aria-hidden="true"/>'),'Invoice review hold must show warning');
 console.log('PASS 18/18 real public invoice local-day cases (3 process timezones); read-only source fixture.');

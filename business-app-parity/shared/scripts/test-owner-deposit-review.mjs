@@ -17,6 +17,8 @@ check(ui.includes('e.confirmation_id===pending.confirmationId'),'Only exact conf
 check(ui.includes('owner-deposit-refresh')&&ui.includes('Refresh deposit and scheduling status'),'Deposit refresh retains a labelled non-primary action');
 check(ui.includes('Deposit still due')&&ui.includes('money(state.policy.remainingDepositCents)'),'Summary reports verified remaining due rather than vague standard policy');
 check(ui.includes('Not ready yet')&&ui.includes('state.policy.message'),'Plain-language scheduling copy retains exact policy explanation');
+check(ui.includes('const completed=verifiedStatus==="completed"')&&ui.includes('Not applicable · job completed')&&ui.includes('Closed · job completed'),'Completed policy shows closed job, never a new deposit request');
+check(ui.includes('use the saved invoice and payment history'),'Completion truth belongs to saved invoice, not pre-job policy');
 check(ui.includes('owner-deposit-breakdown')&&ui.includes('current.depositCents')&&ui.includes('current.paidCents'),'Financial source totals remain accessible in disclosure');
 check(!ui.includes('Blocked until other requirements are met'),'Do not reintroduce vague blocking label');
 check(!ui.includes('stripe'),'Panel must never access payments provider');

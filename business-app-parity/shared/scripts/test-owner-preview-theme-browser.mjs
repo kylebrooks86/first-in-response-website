@@ -33,6 +33,11 @@ try{
   check(await page.locator('html').getAttribute('data-theme')===theme,`${width}/${kind}: saved ${theme} loaded`);
   const toggle=page.locator('.owner-preview-theme-toggle'),close=page.getByRole('link',{name:'Close customer view'}),a=await toggle.boundingBox(),b=await close.boundingBox();
   check(a.width>=44&&a.height>=44&&a.x>=0&&a.x+a.width<=b.x-4&&Math.abs(a.y-b.y)<1&&b.x+b.width<=width,`${width}/${kind}: separate visible theme/X touch targets`);
+  if(width<=760){
+   check(a.y>=28&&b.y>=28,`${width}/${kind}: safe top edge for theme and close`);
+   const card=await page.locator('.pay-card').boundingBox();
+   check(card.y>=a.y+a.height+8,`${width}/${kind}: owner preview content below controls`);
+  }
   const colors=await page.locator('.portal-service-description').evaluate(n=>({fg:getComputedStyle(n).color,bg:getComputedStyle(n.closest('.pay-card')).backgroundColor}));
   check(contrast(colors.fg,colors.bg)>=4.5,`${width}/${kind}/${theme}: service description contrast`);
   const before=await page.locator('.pay-summary').innerText();await toggle.click();const next=theme==='dark'?'light':'dark';await page.waitForFunction(t=>document.documentElement.dataset.theme===t,next);

@@ -45,6 +45,9 @@ assert.ok(estimate.includes("!paymentExceptionsPending?await confirmPayment(sess
 assert.ok(estimate.includes("const checkedOpenCheckout=paymentConfirmed?await env.DB.prepare("),"After verification, recheck remaining open Stripe sessions before a review invite");
 assert.ok(estimate.includes("const paymentReviewPending=paymentExceptionsPending||Number(checkedOpenCheckout?.count??row.openCheckoutCount??0)>0"),"Remaining unresolved checkouts still block review and new payment");
 assert.ok(invoice.includes("invoicePaymentState(row)") && invoice.includes("row.estimateStatus"),"Invoice uses existing validated ledger and job state");
+assert.ok(invoice.includes("const showReviewInvitation=state.safe&&balance===0&&shouldOfferReviewAfterPayment("),"Authenticated owner preview and paid customer invoice show the same gated review invitation");
+assert.ok(component.includes('Or visit {FIRE_CUSTOMER_REVIEW_URL.replace('),"Paid invoice displays original review URL in text for printing");
+assert.ok(invoice.includes('balance===0?<BadgeCheck aria-hidden="true"/>')&&invoice.includes('paymentReviewPending?<AlertTriangle aria-hidden="true"/>'),"Paid icon and payment review warning replace misleading due-date calendar");
 assert.ok(component.includes("FIRE_CUSTOMER_REVIEW_URL") && component.includes("honest experience"),"Non-incentivized review request uses existing hub");
 assert.ok(component.includes('target="_blank"') && component.includes('noopener noreferrer'),"External navigation is customer-initiated and safe");
 assert.ok(!/fetch\(|auto.?send|window\.location/.test(component),"Review UI never performs message/payment operations");

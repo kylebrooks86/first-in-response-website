@@ -14,6 +14,7 @@ export function CustomerReviewInvitation() {
           Leave a review <ArrowUpRight className="h-4 w-4" aria-hidden="true"/>
         </a>
         <p className="mt-2 text-xs text-slate-500">Optional · Opens our review page in a new tab.</p>
+        <p className="mt-1 break-all text-xs text-slate-600">Or visit {FIRE_CUSTOMER_REVIEW_URL.replace(/^https?:\/\//,"")}</p>
       </div>
     </div>
   </aside>;

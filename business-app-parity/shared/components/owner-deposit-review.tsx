@@ -56,6 +56,8 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
  const current=state?.currentSnapshot,review=state?.exceptionReview;
  const verifiedStatus=current?.status??state?.policy.estimateStatus;
  const historical=verifiedStatus==="declined"||verifiedStatus==="superseded";
+ // Deposit policy describes pre-job scheduling, never final invoice settlement.
+ const completed=verifiedStatus==="completed";
  const historicalDepositCents=current?.depositCents??state?.policy.storedRequiredCents;
  const allowed=Boolean(current&&review?.canReviewUnsignedDraft&&!uncertain&&!busy);
  let proposed:{required:number;basis?:number;fixed?:number}|null=null,validation="";
@@ -117,6 +119,9 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
     {historical?<><span>Original deposit (not due)<strong>{typeof historicalDepositCents==='number'&&Number.isSafeInteger(historicalDepositCents)&&historicalDepositCents>=0?money(historicalDepositCents):"Not verified"}</strong></span>
     <span>Scheduling<strong>Closed · inactive estimate</strong></span>
     <p className="owner-deposit-guidance">Historical quote only. No deposit is currently collectible or job scheduling available from this declined or replaced estimate. The original amounts remain in the saved record.</p></>:
+    completed?<><span>Deposit policy<strong>Not applicable · job completed</strong></span>
+    <span>Scheduling<strong>Closed · job completed</strong></span>
+    <p className="owner-deposit-guidance">This policy checks requirements before scheduling. To confirm final payment and balance, use the saved invoice and payment history. This panel does not verify processor settlement.</p></>:
     <><span>Deposit still due<strong>{state.policy.remainingDepositCents===null?"Not verified":money(state.policy.remainingDepositCents)}</strong></span>
     <span>Scheduling<strong>{state.policy.canSchedule?"Policy checks passed":"Not ready yet"}</strong></span>
     {state.policy.message&&<p className="owner-deposit-guidance">{state.policy.message}</p>}</>}
