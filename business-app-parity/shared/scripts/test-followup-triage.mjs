@@ -21,7 +21,7 @@ check(job('appointmentReminder','followup',{estimate:{scheduledAt:'invalid'}}),'
 check(job('winBack6','repeat',{dueAt:at(-4)}),'past-target',/passed by 4d/);
 check(job('winBack6','repeat',{dueAt:at(10)}),'upcoming',/in 10d/);
 check(job('winBack11','repeat',{dueAt:at(0)}),'due',/target reached/);
-check(job('review','review'),'review',/Review request suggested/);
+check(job('review','review'),'review',/Review suggested/);
 check(job('history','history',{estimate:{paymentOverageOpen:1}}),'review',/Billing exception/,0);
 check(job('estimate','followup',{estimate:{status:'draft'}}),'review',/Unsent estimate draft/);
 const viewCue=context.exports.viewedEstimateReminderCue;
@@ -133,10 +133,13 @@ assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection
 const contactStart=followUpSection.indexOf('className="followup-contact-actions"'),optionalStart=followUpSection.indexOf('className="followup-optional-tools"');
 assert.ok(contactStart>0&&optionalStart>contactStart,'Follow-ups keep immediate contact ahead of secondary tools');n++;
 const directContact=followUpSection.slice(contactStart,optionalStart);
-for(const target of ['GoogleVoiceCallAction','MessageComposer','initialTemplate="custom"','PersonalPhoneBackupAction','Open email app for ']){assert.ok(directContact.includes(target),'Customer contact remains available: '+target);n++;}
- assert.ok(!directContact.includes('sms:'),'Follow-ups never open personal-number SMS');n++;
+for(const target of ['GoogleVoiceCallAction','Open email app for ']){assert.ok(directContact.includes(target),'Direct contact remains available: '+target);n++;}
+assert.ok(!directContact.includes('PersonalPhoneBackupAction')&&!directContact.includes('initialTemplate="custom"')&&!directContact.includes('sms:'),'Optional personal-number backups and generic texts are not promoted over the prepared template');n++;
 const optionalTools=followUpSection.slice(optionalStart,followUpSection.indexOf('className="followup-contact-panel"',optionalStart));
-assert.ok(optionalTools.includes('Recent contact')&&optionalTools.includes('Open estimate')&&optionalTools.includes('Customer history')&&optionalTools.includes('Saved estimate activity ('),'Optional tools retain complete customer, estimate and activity history');n++;
+for(const target of ['Recent contact','Open estimate','Customer history','Saved estimate activity (','initialTemplate="custom"','PersonalPhoneBackupAction','Personal-number backups']){
+  assert.ok(optionalTools.includes(target),'Optional tools still reach '+target);n++;
+}
+assert.ok(optionalTools.includes('Your personal number may be shown'),'Personal-number exposure warning remains visible on expansion');n++;
 const homeSource=view.slice(view.indexOf('function DashboardView('),view.indexOf('function AddCustomer('));
 assert.ok(homeSource.indexOf('dashboard-next-job')<homeSource.indexOf('<ScheduleWeather compact'),'Today places next job before the compact forecast');n++;
 assert.ok(homeSource.includes('<details className="panel quick-actions-panel dashboard-shortcut-disclosure">')&&homeSource.includes('<summary>More shortcuts</summary>'),'Repeated home shortcuts start collapsed without removing destinations');n++;
