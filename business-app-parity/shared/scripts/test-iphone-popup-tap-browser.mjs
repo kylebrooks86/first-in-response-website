@@ -82,6 +82,23 @@ try{
    const viewport=popup.locator('[data-slot="select-viewport"]');
    await viewport.hover();
    await page.mouse.wheel(0,4800);
+   // Chromium can deliver compositor-driven wheel scrolling after wheel()
+   // resolves. Wait for the REAL item geometry; never fake scrollTop.
+   const lastOnScreen=()=>page.waitForFunction(()=>{
+     const popup=document.querySelector('.estimate-service-picker[data-slot="select-content"]');
+     const list=popup?.querySelector('[data-slot="select-viewport"]');
+     const items=list?.querySelectorAll('[data-slot="select-item"]');
+     const item=items?.[items.length-1];
+     if(!item||!list)return false;
+     const r=item.getBoundingClientRect(),v=list.getBoundingClientRect();
+     return list.scrollTop>0&&r.top>=v.top-1&&r.bottom<=v.bottom+1&&r.top>=-1&&r.bottom<=innerHeight+1;
+   },null,{timeout:1800}).catch(()=>false);
+   if(!(await lastOnScreen())){
+     // If initial wheel was intercepted mid-layout, try a second actual wheel.
+     await viewport.hover();
+     await page.mouse.wheel(0,4800);
+     await lastOnScreen();
+   }
    hit=await measureLast();
   }
   check(hit.ok&&hit.top>=-1&&hit.bottom<=height+1,
