@@ -16,7 +16,7 @@ const categoryList=ast.statements.find(n=>ts.isVariableStatement(n)&&n.declarati
 const categoryIcon=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageTemplateCategoryIcon');
 assert.ok(categoryList&&categoryIcon,'Real template-group dependencies must be in browser fixture');
 const fixture=`import React,{useState,useRef,useEffect}from'react';import{createRoot}from'react-dom/client';
-import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';
+import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem,SelectGroup,SelectLabel}from'./components/ui/select';
 import{MessageSquareText,Copy,ExternalLink,Mail,Send,ClipboardList,Receipt,CalendarDays,CheckCircle2,FileText}from'lucide-react';
