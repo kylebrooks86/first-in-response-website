@@ -5510,7 +5510,13 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
       if(confirmed)void load();
     }
   };
-  const icon=(type:string)=>type==="estimate_change_requested"?<MessageSquareText/>:type==="estimate_viewed"?<Eye/>:type==="invoice_viewed"?<Receipt/>:type==="estimate_accepted"?<CheckCircle2/>:<CircleDollarSign/>;
+  // Financial exceptions must not inherit the icon for money received.
+  // Unknown events remain neutral; this changes no saved status or ledger.
+  const icon=(type:string)=>type==="payment_failed"||type==="payment_overage"?<AlertTriangle aria-hidden="true"/>:
+    type==="estimate_change_requested"?<MessageSquareText aria-hidden="true"/>:
+    type==="estimate_viewed"||type==="invoice_viewed"?<Eye aria-hidden="true"/>:
+    type==="estimate_accepted"?<CheckCircle2 aria-hidden="true"/>:
+    type==="payment_received"?<CircleDollarSign aria-hidden="true"/>:<Bell aria-hidden="true"/>;
   const attentionCount=attentionSummary.status==="ready"?attentionSummary.count:0;
   const showActivity=activityExpanded??unread>0;
   const visibleItems=showRead?items:items.filter(item=>!item.readAt);

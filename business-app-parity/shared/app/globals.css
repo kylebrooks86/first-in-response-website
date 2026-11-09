@@ -4646,3 +4646,16 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
  .app-shell .contract-list>button>.agreement-status-indicators{grid-column:2;grid-row:2;max-width:100%}
  .app-shell .contract-list>button>svg:last-child{grid-column:3;grid-row:1/3}
 }
+
+/* Notification event colors distinguish saved financial exceptions from
+   ordinary activity. Marking activity read never resolves an exception. */
+.app-shell .notification-icon.payment_failed{background:#fae7ea;color:#a32532}
+.app-shell .notification-icon.payment_overage{background:#fff0dd;color:#854b08}
+.app-shell .notification-icon.estimate_viewed{background:#e0f6f2;color:#086f6c}
+.app-shell .notification-icon.estimate_accepted{background:#e6f7eb;color:#166844}
+.app-shell .notification-icon.payment_received{background:#e6f2ff;color:#215c9c}
+[data-theme="dark"] .app-shell .notification-icon.payment_failed{background:#481f29;color:#ffb9c2}
+[data-theme="dark"] .app-shell .notification-icon.payment_overage{background:#523215;color:#ffe0a6}
+[data-theme="dark"] .app-shell .notification-icon.estimate_viewed{background:#153b3c;color:#a7ede1}
+[data-theme="dark"] .app-shell .notification-icon.estimate_accepted{background:#173c2d;color:#b2eac6}
+[data-theme="dark"] .app-shell .notification-icon.payment_received{background:#173552;color:#b6dbff}
