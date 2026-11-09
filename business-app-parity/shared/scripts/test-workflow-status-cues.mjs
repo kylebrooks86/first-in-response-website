@@ -26,7 +26,7 @@ check(ui.includes('className={"followup-urgency rounded-full')&&
  ui.includes('urgency.bucket==="upcoming"?<CalendarDays aria-hidden="true"/>:<Clock3 aria-hidden="true"/>'),
  'Follow-up urgency keeps saved classification and accessible text with consistent icon');
 check(css.includes('.app-shell .followup-urgency svg')&&
- css.includes('bg-rose-100 text-rose-900')&&css.includes('bg-sky-100 text-sky-900'),
+ ui.includes('bg-rose-100 text-rose-900')&&ui.includes('bg-sky-100 text-sky-900'),
  'Existing semantic follow-up colors retained with restrained icon sizing');
 check(ui.includes('payment-review-state')&&
  ui.includes('Prepared · send unconfirmed')&&ui.includes('No confirmed review request'),
