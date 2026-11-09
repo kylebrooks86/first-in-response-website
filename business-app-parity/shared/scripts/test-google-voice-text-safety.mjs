@@ -13,7 +13,7 @@ check(ui.includes('contactEmail&&<MessageComposer customer={selected} initialTem
 for(const location of [
  'estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"',
  'contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text"',
- 'customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Write custom text"'
+ '<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Write custom text"'
 ])check(ui.includes(location),"Customer/estimate direct Text and optional Follow-ups custom Text all use saved templates and manual Voice preparation: "+location);
 check((ui.match(/<GoogleVoiceCallAction\b/g)||[]).length===5,"All five direct customer Call buttons use business Google Voice handoff");
 check((ui.match(/<PersonalPhoneBackupAction\b/g)||[]).length===11,"Personal backup options exist on five call, five text and prepared-message actions");
