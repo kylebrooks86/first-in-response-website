@@ -4884,3 +4884,36 @@ html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-c
 .message-dialog .message-pending-drafts[open] > summary::after,
 .message-dialog .composer-template-search-disclosure[open] > summary::after,
 .message-dialog .message-secondary-options[open] > summary::after{content:"⌃"}
+
+/* Source-backed workflow cues: accessible text + small consistent icons.
+   Owner UI only. Never imply message delivery, settled payouts or review receipts. */
+.app-shell .customers-view .record-tabs button{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;column-gap:5px;row-gap:3px}
+.app-shell .customers-view .record-tabs .customer-tab-icon{width:15px;height:15px;flex:0 0 15px;color:var(--muted-foreground)}
+.app-shell .customers-view .record-tabs button.active .customer-tab-icon{color:currentColor}
+.app-shell .customers-view .record-tabs button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.app-shell .customers-view .customer-invoice-state{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0;margin-top:5px}
+.app-shell .customers-view .customer-invoice-state>small{margin:0;overflow-wrap:anywhere;color:var(--muted-foreground)}
+.app-shell .followup-urgency{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%;white-space:normal}
+.app-shell .followup-urgency svg{width:14px;height:14px;flex:0 0 14px}
+.app-shell .payment-review-state{display:inline-flex;align-items:center;gap:5px;width:fit-content;max-width:100%;margin-top:5px;padding:4px 8px;border-radius:9px;font-size:12px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.app-shell .payment-review-state svg{width:14px;height:14px;flex:0 0 14px}
+.app-shell .payment-review-state.prepared{background:#fff0dd;color:#854b08}
+.app-shell .payment-review-state.ready{background:#eef2f6;color:#455b71}
+[data-theme="dark"] .app-shell .payment-review-state.prepared{background:#523215;color:#ffe0a6}
+[data-theme="dark"] .app-shell .payment-review-state.ready{background:#263346;color:#c4d4e4}
+.app-shell .closeout-state{display:inline-flex;align-items:center;gap:5px;max-width:100%;white-space:normal;overflow-wrap:anywhere;font-weight:700;line-height:1.35}
+.app-shell .closeout-state svg{width:14px;height:14px;flex:0 0 14px}
+.app-shell .closeout-state.due{background:#fff0dd;color:#854b08}
+.app-shell .closeout-state.waiting{background:#e7f1fc;color:#225f9e}
+.app-shell .closeout-state.snoozed{background:#edf1f5;color:#526173}
+.app-shell .closeout-state.received{background:#e6f7eb;color:#166844}
+.app-shell .closeout-state.needs-review{background:#fff0dd;color:#854b08}
+[data-theme="dark"] .app-shell .closeout-state.due,
+[data-theme="dark"] .app-shell .closeout-state.needs-review{background:#523215;color:#ffe0a6}
+[data-theme="dark"] .app-shell .closeout-state.waiting{background:#173552;color:#b6dbff}
+[data-theme="dark"] .app-shell .closeout-state.snoozed{background:#2c394a;color:#cbd5e1}
+[data-theme="dark"] .app-shell .closeout-state.received{background:#173c2d;color:#b2eac6}
+@media(forced-colors:active){
+ .app-shell .customers-view .record-tabs .customer-tab-icon{color:currentColor}
+ .app-shell .payment-review-state,.app-shell .closeout-state{border:1px solid CanvasText;forced-color-adjust:auto}
+}

@@ -1,8 +1,14 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from './ui/button';
+import {AlertTriangle, BadgeCheck, CalendarDays, Clock3} from 'lucide-react';
 import {validCloseoutHistoryItem,type CloseoutHistoryItem,type CloseoutHistoryState} from '../lib/job-closeout-history';
 const labels:Record<CloseoutHistoryState,string>={due:'Check due',waiting:'Awaiting review',snoozed:'Snoozed',received:'Review received', 'needs-review':'Needs verification'};
+const stateIcons={due:Clock3,waiting:Clock3,snoozed:CalendarDays,received:BadgeCheck,'needs-review':AlertTriangle} as const;
+function CloseoutStatus({state}:{state:CloseoutHistoryState}){
+ const Icon=stateIcons[state];
+ return <span className={'closeout-state '+state}><Icon aria-hidden="true"/>{labels[state]}</span>;
+}
 const date=(value:string)=>new Date(value).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
 export function JobCloseoutHistory({searchQuery='',onOpenCustomer,onOpenEstimate}:{searchQuery?:string;onOpenCustomer:(id:string)=>void;onOpenEstimate:(id:string)=>void}){
  const [items,setItems]=useState<CloseoutHistoryItem[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[nextCursor,setNextCursor]=useState<string|null>(null);
@@ -71,7 +77,7 @@ export function JobCloseoutHistory({searchQuery='',onOpenCustomer,onOpenEstimate
   {error&&<div role="alert"><p>{error} Previously shown records may be out of date; snoozing is disabled until refreshed.</p><Button variant="outline" disabled={loading||saving} onClick={()=>void load(retryAppend.current)}>Retry review progress</Button></div>}
   {confirm&&<section id="closeout-check-confirmation" className="closeout-confirmation" tabIndex={-1} role="region" aria-label="Confirm review check snooze"><strong>Defer the review status check for {confirm.customerName}?</strong><p>Check again in 7 days. This does not send another review request or log a received review.</p><div><Button disabled={saving||loading||!!error} onClick={()=>void snooze()}>{saving?'Saving…':'Confirm check snooze'}</Button><Button variant="outline" disabled={saving} onClick={()=>{const id=confirm.customerId;setConfirm(null);const node=document.getElementById('closeout-progress-'+id);node?.focus({preventScroll:true});node?.scrollIntoView({block:'center',behavior:'instant'});}}>Cancel</Button></div></section>}
   {loading&&!items.length?<p role="status">Checking saved review progress…</p>:matches.length?<div className="closeout-progress-list">{matches.map(item=><article key={item.customerId} id={'closeout-progress-'+item.customerId} tabIndex={-1} className={'closeout-progress-card '+item.state}>
-   <div><strong>{item.customerName}</strong><span className="closeout-state">{labels[item.state]}</span></div>
+   <div><strong>{item.customerName}</strong><CloseoutStatus state={item.state}/></div>
    {item.requestedAt&&<p>Review request send confirmed by owner · {date(item.requestedAt)}. Delivery is unverified.</p>}
    {!item.requestedAt&&item.state==='snoozed'&&<p>Review request deferred · sending remains unconfirmed.</p>}
    {item.checkDueAt&&item.state==='waiting'&&<p>Check review status after {date(item.checkDueAt)}.</p>}
