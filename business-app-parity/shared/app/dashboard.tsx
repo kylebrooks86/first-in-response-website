@@ -4521,7 +4521,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
         })();
         return;
       }
-      setFocusError({id:focusEstimateId,message:"No day 1/3/7 reminder is suggested for this estimate. Check its saved status before outreach."});
+      setFocusError({id:focusEstimateId,message:"No 1/3/7-day reminder is suggested. Check the estimate before contacting."});
       onFocusHandled?.(focusEstimateId);
       return;
     }
@@ -4556,17 +4556,17 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)&&<p role="status" className="followup-coverage-complete">Selected older estimate · {rows.length} others checked. Remaining historical pages are not verified.</p>}
-    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>to check</small></div></span><details className="followup-summary-details"><summary>Details{bucketCount("due")+bucketCount("past-target")>0?` · ${bucketCount("due")} due · ${bucketCount("past-target")} past target`:""}</summary><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past target · {bucketCount("due")} due · {bucketCount("upcoming")} upcoming · {bucketCount("review")} need review. Counts cover loaded records only.</p></details></div>}
+    {!loading&&!error&&<div className={"followup-summary "+(bucketCount("due")+bucketCount("past-target")>0?"has-due":"no-due")}><span><Clock3/><div><strong>{actions.length}</strong><small>to check</small></div></span><details className="followup-summary-details"><summary>Details{bucketCount("due")+bucketCount("past-target")>0?` · ${bucketCount("due")} due · ${bucketCount("past-target")} past target`:""}</summary><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past target · {bucketCount("due")} due · {bucketCount("upcoming")} upcoming · {bucketCount("review")} need review. Counts cover loaded records only.</p>{!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">{rows.length} estimates checked · all available pages loaded.</p>}</details></div>}
     {!loading&&!error&&nextCursor&&<section className="followup-backlog-coverage" aria-label="Older customer record coverage">
       <div><strong>Older records still unchecked</strong><p>Only {rows.length} estimates checked; older records may need attention. Scanning does not send messages or change records.</p></div>
       <Button variant="outline" onClick={()=>void load(true,4)}>Scan next 200 older records</Button>
     </section>}
-    {!loading&&!error&&!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">{rows.length} estimates checked · all available pages loaded.</p>}
     {!loading&&!error&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
-      {([["all","All"],["viewed","Viewed 24h+"],["no-answer","No answer / Not contacted"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}{key==="viewed"?` (${viewedReadyCount})`:key==="no-answer"?` (${unansweredCount})`:""}</button>)}
+      <button type="button" aria-label="Filter follow-ups: All" aria-pressed={actionFilter==="all"&&urgencyFilter==="all"&&!highPriorityOnly} onClick={()=>{setActionFilter("all");setUrgencyFilter("all");setHighPriorityOnly(false);}}>All ({actions.length})</button>
       <details className="followup-more-filters">
-      <summary>More filters{actionFilter!=="all"&&!["viewed","no-answer"].includes(actionFilter)||urgencyFilter!=="all"||highPriorityOnly?" · active":""}</summary>
+      <summary>More filters{actionFilter!=="all"||urgencyFilter!=="all"||highPriorityOnly?" · active":""}</summary>
       <div className="followup-extra-categories" role="group" aria-label="Additional follow-up types">
+        {([["viewed","Viewed 24h+"],["no-answer","No answer / Not contacted"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label} ({key==="viewed"?viewedReadyCount:unansweredCount})</button>)}
         {([["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
       </div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter follow-ups by timing">
@@ -4576,7 +4576,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       {(actionFilter!=="all"||highPriorityOnly||urgencyFilter!=="all")&&<p role="status">{visibleActions.length} matching of {actions.length} loaded items.</p>}
     </div>}
     {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
-      <div><strong>Today's priorities</strong><small>{todayQueue.length>3?"Top 3 · more below":`${todayQueue.length} customer${todayQueue.length===1?"":"s"} to check`}</small></div>
+      <div><strong>Check next</strong><small>{todayQueue.length>3?"Top 3 · more below":`${todayQueue.length} customer${todayQueue.length===1?"":"s"} to review`}</small></div>
       <div className="followup-priority-buttons">{todayQueue.slice(0,3).map(({item,lane,additionalCustomerActions})=>{
         const {estimate,template,reason,kind}=item;
         const latest=followupLatestContact(estimate,now);
@@ -4584,7 +4584,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
           <span className={"followup-today-lane "+(lane==="now"?"now":"verify")}>{lane==="now"?"Act now":"Verify first"}</span>
           <div className="followup-today-actions">
             <button type="button" onClick={()=>jumpToAction(estimate.id,template)} aria-label={"Jump to "+estimate.customer+" "+template+" action"}>
-              <span><strong>{estimate.customer}</strong><small>{kind==="history"?"Check contact history before outreach":reason}</small><small>{latest.label}{latest.at?" · "+new Date(latest.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):""}</small>{additionalCustomerActions>0&&<small>{additionalCustomerActions} more saved action{additionalCustomerActions===1?"":"s"} for this customer in full list</small>}</span><ChevronRight aria-hidden="true"/>
+              <span><strong>{estimate.customer}</strong><small>{kind==="history"?(latest.kind==="prepared"?"Message prepared · sending unconfirmed":"Check contact history before outreach"):reason}</small>{kind!=="history"&&<small>{latest.label}</small>}{latest.at&&<small>{new Date(latest.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</small>}{additionalCustomerActions>0&&<small>{additionalCustomerActions} more saved action{additionalCustomerActions===1?"":"s"} in full list</small>}</span><ChevronRight aria-hidden="true"/>
             </button>
             {onOpenCustomer&&estimate.customerId&&<button className="followup-today-customer" type="button" onClick={()=>onOpenCustomer(estimate.customerId!)} aria-label={"Open customer profile for "+estimate.customer}>Customer</button>}
           </div>
