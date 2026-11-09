@@ -58,7 +58,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "e3028e6f-00b4-4717-8bd3-df558d15a37d",
+                         "d430dd95-a9d1-4e08-aeb4-49e5a8a34f9d",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -143,7 +143,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
             self.assertNotIn(forbidden,S)
 
     def test_owner_verified_readonly_pin_and_publisher_stays_locked(self):
-        # Read-only review must match the Nov 8 owner-observed QA active-version pin; Wrangler still authenticates its resource binding.
+        # Read-only review must match the Nov 9 owner-observed QA active-version pin; Wrangler still authenticates its resource binding.
         # The distinct -Publish script must match the currently verified version
         # but retains its own explicit approval, backup and no-default-publish gates.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
@@ -151,7 +151,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["e3028e6f-00b4-4717-8bd3-df558d15a37d"])
+        self.assertEqual(readonly_pins, ["d430dd95-a9d1-4e08-aeb4-49e5a8a34f9d"])
         self.assertEqual(review_pins, readonly_pins)
         self.assertEqual(publish_pins, readonly_pins)
         for pinned_script in (readonly, S, publisher):

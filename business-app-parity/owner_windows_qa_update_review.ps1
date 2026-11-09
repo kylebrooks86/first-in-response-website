@@ -1,4 +1,4 @@
-# Nov 8 owner iPhone QA deployment observation: e3028e6f active at 100% traffic,
+# Nov 9 owner-confirmed QA deployed version d430dd95 active at 100% traffic,
 # isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # Review an UPDATED QA Business App after the first successful hosted deployment.
 # READ ONLY: never deploys, uploads secrets, touches D1 data, or changes device vaults.
@@ -21,7 +21,7 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Nov 8 owner iPhone screenshots and copied full UUID identify the currently
+# Nov 9 owner QA read-back identifies the currently
 # reported QA version. This is owner observation, not immutable binding or
 # source proof; verify the exact Worker/D1 against authenticated Wrangler.
 # The pinned version is not a release authorization and source provenance
@@ -29,7 +29,7 @@ $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = 'e3028e6f-00b4-4717-8bd3-df558d15a37d'
+$expectedActiveVersion = 'd430dd95-a9d1-4e08-aeb4-49e5a8a34f9d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }

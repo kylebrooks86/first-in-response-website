@@ -44,7 +44,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "e3028e6f-00b4-4717-8bd3-df558d15a37d",
+                     "d430dd95-a9d1-4e08-aeb4-49e5a8a34f9d",
                      "owner_windows_qa_update_review.ps1",
                      "$beforeVersions.Count -eq 1",
                      "[double]$beforeVersions[0].percentage -eq 100",
