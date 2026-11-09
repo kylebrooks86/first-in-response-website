@@ -30,10 +30,10 @@ check(ui.includes('window.visualViewport?.addEventListener("resize",measure)')&&
  css.includes('max-height:var(--fire-message-visible-height,calc(100dvh - 24px))!important;'),
  'Message height and centering follow the actual visual viewport despite app-wide !important CSS when a keyboard opens');
 check(ui.includes('if(open&&preparedMessage)messageBuilderRef.current?.scrollTo({top:0,behavior:"auto"})')&&
- ui.includes('Confirm here only after you send the prepared')&&
- ui.includes('I sent the prepared message')&&
- ui.includes('Not sent — keep editing')&&
- ui.includes('Discard unsent draft'),
+ ui.includes('Did you send it?')&&
+ ui.includes('Yes, mark sent')&&
+ ui.includes('Not yet · edit')&&
+ ui.includes('Discard unsent draft')&&ui.includes('message-secondary-options'),
  'Preparing a draft reveals confirmation controls without auto-confirming delivery');
 for(const category of ['Estimates','Invoices','Scheduling','After service','Documents'])
  check(ui.includes('name:"'+category+'"')&&template.includes('category:"'+category+'"'),
