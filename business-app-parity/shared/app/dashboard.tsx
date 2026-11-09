@@ -754,7 +754,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
         {!preparedMessage&&<div className="composer-template-controls">
           <Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label>
-          <Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}>
+          <Select value={template} onValueChange={chooseTemplate} disabled={working}>
             <SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger>
             <SelectContent className="composer-template-menu">
               <SelectGroup>
