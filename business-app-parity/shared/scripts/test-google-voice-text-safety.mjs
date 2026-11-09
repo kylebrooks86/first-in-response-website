@@ -13,8 +13,8 @@ check(ui.includes('contactEmail&&<MessageComposer customer={selected} initialTem
 for(const location of [
  'estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"',
  'contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text"',
- 'customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"'
-])check(ui.includes(location),"Primary customer, estimate and follow-up Text offers saved templates/custom text and manual Voice preparation: "+location);
+ '<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Write custom text"'
+])check(ui.includes(location),"Customer/estimate direct Text and optional Follow-ups custom Text all use saved templates and manual Voice preparation: "+location);
 check((ui.match(/<GoogleVoiceCallAction\b/g)||[]).length===5,"All five direct customer Call buttons use business Google Voice handoff");
 check((ui.match(/<PersonalPhoneBackupAction\b/g)||[]).length===11,"Personal backup options exist on five call, five text and prepared-message actions");
 check(action.includes("window.confirm(warning)") && action.includes("PERSONAL cellphone number") && action.includes("Phone app"),"Personal backups warn before exposing the owner number");

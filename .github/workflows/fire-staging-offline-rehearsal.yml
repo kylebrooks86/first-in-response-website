@@ -398,6 +398,7 @@ jobs:
           node scripts/test-estimate-attention-milestones.mjs
           node scripts/test-message-composer-layout.mjs
           node scripts/test-workflow-status-cues.mjs
+          node scripts/test-followups-simple-ui.mjs
           node scripts/test-owner-preview-exit-states.mjs
           node scripts/test-owner-invoice-job-number-render.mjs
           node scripts/test-customer-job-number-views.mjs

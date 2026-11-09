@@ -85,7 +85,7 @@ export function followupUrgency(item:FollowupUrgencyInput,now:number):{bucket:Fo
  if(item.template==="invoiceReminder")return {bucket:"review",label:"Billing review · invoice due date unverified",rank:4};
  if(item.estimate.status==="draft")return {bucket:"review",label:"Unsent estimate draft · review next",rank:5};
  if(item.kind==="history")return {bucket:"review",label:"Saved history needs owner review",rank:4};
- if(item.kind==="review")return {bucket:"review",label:"Review request suggested",rank:6};
+ if(item.kind==="review")return {bucket:"review",label:"Review suggested",rank:6};
  return {bucket:"review",label:"Review next action",rank:6};
 }
 

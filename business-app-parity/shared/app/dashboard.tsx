@@ -4444,7 +4444,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     }
     const serviceDate=estimate.scheduledAt||estimate.createdAt;
     const serviceAgeDays=Math.max(0,Math.floor((now-new Date(serviceDate).getTime())/86400000));
-    if(reviewFollowupEligible({...estimate,billingTotalCents:resolvedBillingTotalCents(estimate)},serviceAgeDays,now))items.push({estimate,template:"review",reason:"Paid and complete — ask for a Google-first review",priority:4,kind:"review"});
+    if(reviewFollowupEligible({...estimate,billingTotalCents:resolvedBillingTotalCents(estimate)},serviceAgeDays,now))items.push({estimate,template:"review",reason:"Paid job · invite an honest review",priority:4,kind:"review"});
     if(estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&!estimate.lastRebookMessageAt){const cadence=estimate.repeatMonths===null?0:estimate.repeatMonths??repeatCadenceMonths(estimate.service);if(cadence===0)return items;const due=addMonths(serviceDate,cadence);const daysUntil=Math.ceil((due.getTime()-now)/86400000);if(daysUntil<=45)items.push({estimate,template:cadence<=6?"winBack6":"winBack11",reason:daysUntil<0?`Suggested repeat-service target was ${Math.abs(daysUntil)} days ago`:`Repeat service is suggested in ${daysUntil} days`,priority:daysUntil<0?4:2,kind:"repeat",dueAt:due.toISOString()});}
     return items;
   }).filter((item)=>item.estimate.id===focusedRecord?.id||[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>followupUrgency(a,now).rank-followupUrgency(b,now).rank||b.priority-a.priority||(Date.parse(a.estimate.createdAt)||0)-(Date.parse(b.estimate.createdAt)||0)||a.estimate.id.localeCompare(b.estimate.id));
@@ -4521,7 +4521,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
         })();
         return;
       }
-      setFocusError({id:focusEstimateId,message:"This saved estimate was found, but no day 1/3/7 follow-up is currently recommended. Open its record to verify the latest status."});
+      setFocusError({id:focusEstimateId,message:"No 1/3/7-day reminder is suggested. Check the estimate before contacting."});
       onFocusHandled?.(focusEstimateId);
       return;
     }
@@ -4556,27 +4556,27 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)&&<p role="status" className="followup-coverage-complete">Selected older estimate · {rows.length} others checked. Remaining historical pages are not verified.</p>}
-    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>actions</small></div></span><details className="followup-summary-details"><summary>Details · {bucketCount("due")} due · {bucketCount("past-target")} past target</summary><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past target · {bucketCount("due")} due · {bucketCount("upcoming")} upcoming · {bucketCount("review")} need review. Counts cover loaded records only.</p></details></div>}
+    {!loading&&!error&&<div className={"followup-summary "+(bucketCount("due")+bucketCount("past-target")>0?"has-due":"no-due")}><span><Clock3/><div><strong>{actions.length}</strong><small>to check</small></div></span><details className="followup-summary-details"><summary>Details{bucketCount("due")+bucketCount("past-target")>0?` · ${bucketCount("due")} due · ${bucketCount("past-target")} past target`:""}</summary><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past target · {bucketCount("due")} due · {bucketCount("upcoming")} upcoming · {bucketCount("review")} need review. Counts cover loaded records only.</p>{!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">{rows.length} estimates checked · all available pages loaded.</p>}</details></div>}
     {!loading&&!error&&nextCursor&&<section className="followup-backlog-coverage" aria-label="Older customer record coverage">
       <div><strong>Older records still unchecked</strong><p>Only {rows.length} estimates checked; older records may need attention. Scanning does not send messages or change records.</p></div>
       <Button variant="outline" onClick={()=>void load(true,4)}>Scan next 200 older records</Button>
     </section>}
-    {!loading&&!error&&!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">{rows.length} estimates checked · all available pages loaded.</p>}
     {!loading&&!error&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
-      {([["all","All"],["viewed","Viewed 24h+"],["no-answer","No answer / Not contacted"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}{key==="viewed"?` (${viewedReadyCount})`:key==="no-answer"?` (${unansweredCount})`:""}</button>)}
+      <button type="button" aria-label="Filter follow-ups: All" aria-pressed={actionFilter==="all"&&urgencyFilter==="all"&&!highPriorityOnly} onClick={()=>{setActionFilter("all");setUrgencyFilter("all");setHighPriorityOnly(false);}}>All ({actions.length})</button>
       <details className="followup-more-filters">
-      <summary>More filters{actionFilter!=="all"&&!["viewed","no-answer"].includes(actionFilter)||urgencyFilter!=="all"||highPriorityOnly?" · active":""}</summary>
+      <summary>More filters{actionFilter!=="all"||urgencyFilter!=="all"||highPriorityOnly?" · active":""}</summary>
       <div className="followup-extra-categories" role="group" aria-label="Additional follow-up types">
+        {([["viewed","Viewed 24h+"],["no-answer","No answer / Not contacted"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label} ({key==="viewed"?viewedReadyCount:unansweredCount})</button>)}
         {([["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
       </div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter follow-ups by timing">
       {([["all","All timing"],["past-target","Past target"],["due","Due now"],["upcoming","Upcoming"],["review","Needs review"]] as const).map(([bucket,label])=><button type="button" key={bucket} aria-label={"Timing: "+label} aria-pressed={urgencyFilter===bucket} onClick={()=>setUrgencyFilter(bucket)}>{label} ({bucket==="all"?actions.length:bucketCount(bucket)})</button>)}
       </div><div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button></div>
       </details>
-      <p role="status">{visibleActions.length} of {actions.length} actions · loaded records only.</p>
+      {(actionFilter!=="all"||highPriorityOnly||urgencyFilter!=="all")&&<p role="status">{visibleActions.length} matching of {actions.length} loaded items.</p>}
     </div>}
     {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
-      <div><strong>Today's priorities</strong><small>{todayQueue.length>3?"Top 3 · more below":`${todayQueue.length} customer${todayQueue.length===1?"":"s"} to check`}</small></div>
+      <div><strong>Check next</strong><small>{todayQueue.length>3?"Top 3 · more below":`${todayQueue.length} customer${todayQueue.length===1?"":"s"} to review`}</small></div>
       <div className="followup-priority-buttons">{todayQueue.slice(0,3).map(({item,lane,additionalCustomerActions})=>{
         const {estimate,template,reason,kind}=item;
         const latest=followupLatestContact(estimate,now);
@@ -4584,7 +4584,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
           <span className={"followup-today-lane "+(lane==="now"?"now":"verify")}>{lane==="now"?"Act now":"Verify first"}</span>
           <div className="followup-today-actions">
             <button type="button" onClick={()=>jumpToAction(estimate.id,template)} aria-label={"Jump to "+estimate.customer+" "+template+" action"}>
-              <span><strong>{estimate.customer}</strong><small>{kind==="history"?"Check saved history before outreach":reason}</small><small>{latest.label}{latest.at?" · "+new Date(latest.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):""}</small>{additionalCustomerActions>0&&<small>{additionalCustomerActions} more saved action{additionalCustomerActions===1?"":"s"} for this customer in full list</small>}</span><ChevronRight aria-hidden="true"/>
+              <span><strong>{estimate.customer}</strong><small>{kind==="history"?(latest.kind==="prepared"?"Message prepared · sending unconfirmed":"Check contact history before outreach"):reason}</small>{kind!=="history"&&<small>{latest.kind==="prepared"?"Message prepared · sending unconfirmed":latest.label}</small>}{latest.at&&<small>{new Date(latest.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</small>}{additionalCustomerActions>0&&<small>{additionalCustomerActions} more saved action{additionalCustomerActions===1?"":"s"} in full list</small>}</span><ChevronRight aria-hidden="true"/>
             </button>
             {onOpenCustomer&&estimate.customerId&&<button className="followup-today-customer" type="button" onClick={()=>onOpenCustomer(estimate.customerId!)} aria-label={"Open customer profile for "+estimate.customer}>Customer</button>}
           </div>
@@ -4593,7 +4593,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       {todayQueue.length>3&&<button type="button" className="followup-all-actions-link" onClick={()=>document.querySelector(".followup-list")?.scrollIntoView({block:"start",behavior:"smooth"})}>All follow-ups · {visibleActions.length}</button>}
 
     </section>}
-    {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind,dueAt})=>{const urgency=followupUrgency({estimate,template,kind,dueAt,priority:0},now);const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={cardTarget(estimate.id,template)} tabIndex={-1} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><div className="flex flex-wrap items-center gap-2 py-1"><span className={"followup-urgency rounded-full px-2 py-0.5 text-xs font-semibold "+(urgency.bucket==="past-target"?"bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200":urgency.bucket==="upcoming"?"bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200":"bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200")}>{urgency.bucket==="past-target"||urgency.bucket==="review"?<AlertTriangle aria-hidden="true"/>:urgency.bucket==="upcoming"?<CalendarDays aria-hidden="true"/>:<Clock3 aria-hidden="true"/>}{urgency.label}</span></div><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small>
+    {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind,dueAt})=>{const urgency=followupUrgency({estimate,template,kind,dueAt,priority:0},now);const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={cardTarget(estimate.id,template)} tabIndex={-1} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><div className="flex flex-wrap items-center gap-2 py-1"><span className={"followup-urgency rounded-full px-2 py-0.5 text-xs font-semibold "+(urgency.bucket==="past-target"?"bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200":urgency.bucket==="upcoming"?"bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200":"bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200")}>{urgency.bucket==="past-target"||urgency.bucket==="review"?<AlertTriangle aria-hidden="true"/>:urgency.bucket==="upcoming"?<CalendarDays aria-hidden="true"/>:<Clock3 aria-hidden="true"/>}{urgency.label}</span></div><p>{reason}</p><small>{estimate.service}{kind==="review"?"":` · ${money(billingBalanceCents(estimate))} balance`}</small>
       {((estimate.lastConfirmedMessageAt&&Number.isFinite(Date.parse(estimate.lastConfirmedMessageAt)))||(estimate.lastPreparedAt&&Number.isFinite(Date.parse(estimate.lastPreparedAt)))||(estimate.lastManualContactAt&&Number.isFinite(Date.parse(estimate.lastManualContactAt))))&&<details className="followup-message-details">
         <summary>Previous contact · saved status</summary>
         {estimate.lastConfirmedMessageAt&&Number.isFinite(Date.parse(estimate.lastConfirmedMessageAt))&&<small className="block">Owner-confirmed message: {new Date(estimate.lastConfirmedMessageAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · delivery unverified</small>}
@@ -4604,13 +4604,23 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
 {["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="no_answer"))} onClick={()=>void recordAction(estimate,"no_answer")}>No answer · not contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
 <div className="followup-card-tools">
   <div className="followup-contact-actions" role="group" aria-label={"Contact "+estimate.customer}>
-    {customer.phone&&<GoogleVoiceCallAction phone={customer.phone} customerName={estimate.customer}/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="call" customerName={estimate.customer}/>}
-    {customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>}
+    {customer.phone&&<GoogleVoiceCallAction phone={customer.phone} customerName={estimate.customer}/>}
     {customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}
   </div>
   <details className="followup-optional-tools">
-    <summary>More tools</summary>
+    <summary>More options</summary>
     <div className="followup-optional-grid">
+      {customer.phone&&<div className="followup-optional-contact" role="group" aria-label={"Other ways to contact "+estimate.customer}>
+        <MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Write custom text"/>
+        <details className="followup-backup-tools">
+          <summary>Personal-number backups</summary>
+          <div>
+            <PersonalPhoneBackupAction phone={customer.phone} mode="call" customerName={estimate.customer}/>
+            <PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>
+          </div>
+          <small>Use only if FIRE Google Voice is unavailable. Your personal number may be shown.</small>
+        </details>
+      </div>}
       <button type="button" aria-label={"Toggle saved contact history for "+estimate.customer+" "+template} aria-expanded={contactHistory?.key===estimate.id+":"+template} onClick={()=>toggleContactHistory(estimate,template)}><MessageSquareText aria-hidden="true"/> Recent contact</button>
       {onOpenEstimate&&<button type="button" onClick={()=>onOpenEstimate(estimate.id)} aria-label={"Open saved estimate for "+estimate.customer}><FileText aria-hidden="true"/> Open estimate</button>}
       {onOpenCustomer&&customer.id&&<button type="button" onClick={()=>onOpenCustomer(customer.id)} aria-label={"Open saved customer history for "+estimate.customer}><Users aria-hidden="true"/> Customer history</button>}
@@ -4628,7 +4638,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   {contactHistory.status==="ready"&&<Button variant="outline" onClick={()=>readContactHistory(estimate,template)}>Refresh history</Button>}
 </section>}
 </article>;})}</section>:actions.length?<div className="customers-state"><Clock3/><strong>No matches in this filter</strong><p>Choose All to see {actions.length} other follow-ups.</p><Button variant="outline" onClick={()=>{setActionFilter("all");setHighPriorityOnly(false);setUrgencyFilter("all");}}>Show all follow-ups</Button></div>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups in the loaded records.</p></div>}
-    <p role="status">{rows.length} estimates checked{nextCursor?" · older records available":""}.</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&error&&retryAppend.current&&<Button variant="outline" disabled={loading} onClick={()=>void load(true,4)}>Retry older-record scan</Button>}
+    {(loading||nextCursor)&&<p role="status">{rows.length} estimates checked{nextCursor?" · older records available":""}.</p>}{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&error&&retryAppend.current&&<Button variant="outline" disabled={loading} onClick={()=>void load(true,4)}>Retry older-record scan</Button>}
   </div>;
 }
 
