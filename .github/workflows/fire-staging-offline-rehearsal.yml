@@ -255,6 +255,9 @@ jobs:
           node scripts/test-customer-invoice-balances.mjs
           node scripts/test-public-invoice-due-central-time.mjs
           node scripts/test-review-after-payment.mjs
+          node scripts/test-google-voice-text-safety.mjs
+          node scripts/test-pending-customer-messages.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-message-composer-handoff-browser.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-preview-theme-browser.mjs
           node scripts/test-api-route-access-inventory.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-promotion-history-browser.mjs
