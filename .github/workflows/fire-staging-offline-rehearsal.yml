@@ -264,6 +264,10 @@ jobs:
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
       - name: Gate 8 real MapLibre action footer and provider credits geometry (synthetic Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-territory-browser.mjs
+      - name: Gate 8 financial-exception notification icons and read-state recovery (synthetic Chrome)
+        run: |
+          node scripts/test-notification-read-recovery.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-notification-persistence-browser.mjs
       - name: Gate 8 consistent top-right small X, 44px tap and real Radix dismissal (synthetic Chrome)
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-iphone-popup-tap-browser.mjs
       - name: Gate 8 app-wide card/navigation polish across Acer, tablet and phone widths (synthetic Chrome)
