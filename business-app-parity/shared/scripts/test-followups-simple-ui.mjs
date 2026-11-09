@@ -30,4 +30,20 @@ check(section.includes('actionFilter!=="all"||highPriorityOnly||urgencyFilter!==
 check(section.includes('reason:"Paid job · invite an honest review"')&&timing.includes('label:"Review suggested"'),"Review suggestion never steers customer ratings");
 check(css.includes(".followups-view .followup-backup-tools>summary:focus-visible")&&css.includes("min-height:48px"),"Nested backup actions keep keyboard focus and large tap targets");
 check(!/auto.?send|navigator\.share/.test(optional),"Optional actions do not introduce automatic sending");
+check(section.includes('className={"followup-summary "+(bucketCount("due")+bucketCount("past-target")>0?"has-due":"no-due")}')&&
+  css.includes(".followups-view .followup-summary.no-due"),
+  "When there are zero due or overdue actions the queue is neutral, not alarming red");
+const filters=section.slice(section.indexOf('className="followup-filter-panel"'),section.indexOf('className="followup-priority-jumps"'));
+check(filters.includes('aria-label="Filter follow-ups: All"')&&
+  filters.includes('setActionFilter("all");setUrgencyFilter("all");setHighPriorityOnly(false)'),
+  "All visible reset clears every advanced filter together");
+check(filters.indexOf('<summary>More filters')<filters.indexOf('[["viewed","Viewed 24h+"]')&&
+  filters.indexOf('<summary>More filters')<filters.indexOf('[["no-answer","No answer / Not contacted"]'),
+  "Zero-count viewed and no-answer shortcuts stay available but hidden until expanded");
+check(section.includes('className="followup-coverage-complete" role="status"')&&
+  section.indexOf('estimates checked · all available pages loaded.')<section.indexOf('<summary>More filters'),
+  "Completed scan coverage remains available inside the summary instead of repeating above the cards");
+check(section.includes('<strong>Check next</strong>')&&
+  section.includes('latest.kind==="prepared"?"Message prepared · sending unconfirmed"'),
+  "Customer priority displays one concise state without claiming a message was sent");
 console.log("PASS "+checks+" source-backed Follow-ups simplification checks. No hosted, customer or message writes.");
