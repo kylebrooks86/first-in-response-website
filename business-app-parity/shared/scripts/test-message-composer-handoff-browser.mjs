@@ -12,14 +12,19 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const composer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageComposer');assert.ok(composer);
+const categoryList=ast.statements.find(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>d.name.getText(ast)==='messageTemplateCategories'));
+const categoryIcon=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageTemplateCategoryIcon');
+assert.ok(categoryList&&categoryIcon,'Real template-group dependencies must be in browser fixture');
 const fixture=`import React,{useState,useRef,useEffect}from'react';import{createRoot}from'react-dom/client';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
-import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
-import{MessageSquareText,Copy,ExternalLink,Mail,Send}from'lucide-react';
+import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem,SelectGroup,SelectLabel}from'./components/ui/select';
+import{MessageSquareText,Copy,ExternalLink,Mail,Send,ClipboardList,Receipt,CalendarDays,CheckCircle2,FileText}from'lucide-react';
 import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';
 import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
 const money=n=>'$'+(n/100).toFixed(2),dateTime=v=>v,reviewLink='https://example.invalid/review',resolvedBillingTotalCents=e=>e.totalCents,billingBalanceCents=e=>e.totalCents;
+${categoryList.getText(ast)}
+${categoryIcon.getText(ast)}
 ${composer.getText(ast)}
 const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
 const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer.name,service:'House Wash',totalCents:12300,invoiceId:null,shareToken:'',invoiceShareToken:''};
