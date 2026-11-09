@@ -31,8 +31,9 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @($qa,$staging) -Compress -Depth 6)
   }
   'deployments status' {
-    $version = 'd430dd95-a9d1-4e08-aeb4-49e5a8a34f9d'
-    if ($scenario -eq 'stale-previous-version') { $version = 'e3028e6f-00b4-4717-8bd3-df558d15a37d' }
+    $version = 'bf7cfad4-62a8-47a6-8906-625d715a754c'
+    if ($scenario -eq 'stale-previous-version') { $version = 'd430dd95-a9d1-4e08-aeb4-49e5a8a34f9d' }
+    if ($scenario -eq 'earlier-stale-version') { $version = 'e3028e6f-00b4-4717-8bd3-df558d15a37d' }
     if ($scenario -eq 'retained-v25-rollback') { $version = '956f023b-8134-4a66-9598-56c25fb6afab' }
     if ($scenario -eq 'older-historical-version') { $version = 'db6ef897-edd3-439e-8679-b6f6620f18af' }
     if ($scenario -eq 'wrong-version' -or ($scenario -eq 'version-changed-during-check' -and $priorStatus -ge 1)) {
@@ -45,7 +46,7 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @{versions=$versions} -Compress -Depth 6)
   }
   'versions view' {
-    $version='d430dd95-a9d1-4e08-aeb4-49e5a8a34f9d'
+    $version='bf7cfad4-62a8-47a6-8906-625d715a754c'
     $physicalDb='8ccfb1f8-1657-4074-b1b2-47de78f95003'
     $binding=@{type='d1';name='DB';id=$physicalDb}
     if ($scenario -eq 'wrong-physical-db' -or ($scenario -eq 'changed-physical-db-during-check' -and $priorStatus -ge 2)) { $binding.id='ffffffff-ffff-4fff-8fff-ffffffffffff' }
@@ -89,6 +90,7 @@ $cases = @(
   @{name='wrong-db';pass=$false;calls=1},
   @{name='wrong-version';pass=$false;calls=2},
   @{name='stale-previous-version';pass=$false;calls=2},
+  @{name='earlier-stale-version';pass=$false;calls=2},
   @{name='retained-v25-rollback';pass=$false;calls=2},
   @{name='older-historical-version';pass=$false;calls=2},
   @{name='split-traffic';pass=$false;calls=2},
