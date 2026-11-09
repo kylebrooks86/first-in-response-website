@@ -81,7 +81,7 @@ eq(quick.length,2,'Two unique customer preview actions, three original saved ite
 eq(v.filter(n=>n.type===stubs.MessageComposer).length,3,'All three original actions remain in the full list');
 const snippets=v.filter(n=>typeof n.props?.className==='string'&&n.props.className.includes('followup-today-item'));
 eq(snippets.length,2,'Mobile queue cards are bounded by customer');
-eq(JSON.stringify(snippets[0]).includes('Prepared/copied'),true,'The queue shows latest prepared state, not a false sent status');
+eq(JSON.stringify(snippets[0]).includes('Message prepared · sending unconfirmed'),true,'The queue shows concise prepared/not-sent truth rather than an assumed delivery');
 eq(JSON.stringify(snippets[0]).includes('more saved action'),true,'Grouped secondary action is disclosed even when its count renders as a separate React text node');
 quick[0].props.onClick();
 eq(focuses[0],'followup-action-q1','Quick jump focuses the exact original action');
