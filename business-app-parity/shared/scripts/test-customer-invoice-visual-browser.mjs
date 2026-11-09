@@ -12,6 +12,10 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const root=process.cwd();
+const dashboardSource=readFileSync('app/dashboard.tsx','utf8');
+assert.ok(dashboardSource.includes('<InvoiceStatusIndicator invoice={invoice}/>'),'Invoice list uses truthful, icon-labelled source status');
+assert.ok(dashboardSource.includes('<AgreementStatusIndicators estimate={estimate}/>'),'Agreements source keeps signing and change requests separate');
+
 const css=(await postcss([tailwind({base:root})]).process(
   readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')}
 )).css;
@@ -26,7 +30,13 @@ const html='<!doctype html><html><head><meta name="viewport" content="width=devi
   action('button','Call (Backup)')+action('button','Text (Backup)')+'</div></details>'+
   '<details class="customer-property-links"><summary>Property links</summary></details>'+
   '</div></section><article class="invoice-card" style="max-width:700px;width:100%;margin:auto;padding:12px">'+
-  '<div class="invoice-actions">'+action('a','Open invoice')+action('button','Record payment')+'</div></article></div></body></html>';
+  '<span class="invoice-icon">'+icon+'</span><div><strong>Customer / invoice</strong><small>Service record</small></div>'+
+  '<span class="status-chip invoice-status-indicator review">'+icon+'Payment review</span><div class="invoice-total"><strong>$120.00</strong></div>'+
+  '<div class="invoice-actions">'+action('a','Open invoice')+action('button','Record payment')+'</div></article>'+
+  '<section class="contract-list" style="max-width:700px;width:100%;margin:12px auto"><button type="button">'+
+  '<span class="contract-state signed">'+icon+'</span><span><strong>Signed synthetic agreement</strong><small>Service</small></span>'+
+  '<span class="agreement-status-indicators"><span class="status-chip agreement-status-chip signed">'+icon+'Signed</span>'+
+  '<span class="status-chip agreement-status-chip changes">'+icon+'Changes requested</span></span>'+icon+'</button></section></div></body></html>';
 const server=createServer((req,res)=>{
   if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css);return;}
   res.setHeader('content-type','text/html; charset=utf-8');res.end(html);
@@ -61,10 +71,20 @@ try {
         contact:measure('.customer-profile .customer-contact > a, .customer-profile .customer-contact > button'),
         backup:measure('.customer-profile .contact-backup-actions > button'),
         invoices:measure('.invoice-card .invoice-actions > a, .invoice-card .invoice-actions > button'),
+        statuses:measure('.invoice-status-indicator,.agreement-status-indicators .status-chip'),
+        agreementRow:measure('.contract-list > button'),
+        agreementLabels:document.querySelector('.agreement-status-indicators')?.textContent,
+        statusVisible:[...document.querySelectorAll('.invoice-status-indicator,.agreement-status-indicators .status-chip')].map(el=>getComputedStyle(el).display!=='none'),
         pageWidth:document.documentElement.scrollWidth
       };
     });
     const controls=[...geometry.contact,...geometry.backup,...geometry.invoices];
+    check(geometry.statuses.length===3&&geometry.statusVisible.every(Boolean),
+      'Invoice and two agreement facts have visible status icons/text at '+width+'/'+theme);
+    check(geometry.statuses.every(s=>s.iconWidth>=13&&s.iconHeight>=13&&s.height>10&&s.left>=-1&&s.right<=width+1),
+      'Invoice and agreement status pills have visible icons without clipping '+width+'/'+theme+JSON.stringify(geometry.statuses));
+    check(geometry.agreementLabels?.includes('Signed')&&geometry.agreementLabels?.includes('Changes requested'),
+      'Signed document and unresolved changes remain two separate facts '+width+'/'+theme);
     check(controls.length===9,'All 9 customer/contact/invoice action controls present at '+width+'/'+theme);
     check(controls.every(x=>x.height>=47&&x.iconWidth>=15&&x.iconWidth<=17&&x.iconHeight>=15&&x.iconHeight<=17),
       'Contact/invoice control targets are 48px with 16px icons at '+width+'/'+theme+JSON.stringify(controls));
