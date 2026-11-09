@@ -1,0 +1,64 @@
+import fs from 'node:fs';
+const dashboard=fs.readFileSync('app/dashboard.tsx','utf8');
+const css=fs.readFileSync('app/globals.css','utf8');
+const estimate=fs.readFileSync('app/estimate/[token]/page.tsx','utf8');
+const nav=fs.readFileSync('app/customer-portal-nav.tsx','utf8');
+const templates=fs.readFileSync('lib/fire-templates.ts','utf8');
+const acceptButton=fs.readFileSync('app/estimate/[token]/accept-button.tsx','utf8');
+const checks=[];
+const expect=(ok,label)=>{checks.push({label,ok});console.log(`${ok?'PASS':'FAIL'}  ${label}`);if(!ok)process.exitCode=1;};
+expect(dashboard.includes('id==="dashboard"?"Home":label'),'Bottom navigation labels dashboard as Home while drawer uses Dashboard');
+expect(dashboard.includes('mobile-back-button')&&dashboard.indexOf('mobile-back-button')<dashboard.indexOf('mobile-home-button')&&dashboard.indexOf('mobile-home-button')<dashboard.indexOf('mobile-theme-button')&&dashboard.indexOf('mobile-theme-button')<dashboard.indexOf('menu-button'),'Top mobile controls ordered Back → Home → Theme → Menu');
+expect(dashboard.includes('Completed jobs')&&dashboard.includes('Review completed work'),'Home metrics include Completed jobs');
+expect(!dashboard.includes('Payment processing</p><strong className="setup-text">Not connected'),'Old payment-processing metric removed');
+expect(dashboard.includes('Quick actions')&&dashboard.includes('Common field shortcuts'),'Quick actions panel present');
+expect(dashboard.includes('Wave, Cash App, Venmo, cash, check, card, or bank transfer'),'Home payment wording matches live v49');
+expect(dashboard.includes('["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"]'),'Record Payment method order matches live v49');
+expect(dashboard.includes('Deposit due')&&dashboard.includes('Full balance'),'Record Payment due reference cards present');
+expect(dashboard.includes('Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}'),'Record Payment handles visible');
+expect(dashboard.includes('["dashboard","contracts","customers","estimates","schedule"].includes(id)'),'Bottom navigation uses exactly Home / Contracts / Customers / Estimates / Schedule');
+expect(!dashboard.includes('Wave, cash, check, card, or bank transfer.'),'No stale owner payment wording remains without Cash App/Venmo');
+expect(estimate.includes('After approval, Kyle will contact you to schedule the job and arrange the 50% deposit.'),'Estimate approval/deposit wording matches live v49');
+expect(templates.includes('A 50% deposit reserves your spot'), 'Estimate-ready message deposit wording matches captured LIVE');
+expect(templates.includes('A 50% deposit reserves your service date'), 'Estimate footer deposit wording matches captured LIVE');
+expect(estimate.includes('<strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.'),'Estimate manual-payment wording matches live v49');
+expect(nav.includes('portal-back')&&nav.includes('<span>Back</span>')&&nav.includes('<span>Home</span>'),'Customer portal Back / Home control present');
+expect(css.includes('backdrop-filter:none!important')&&css.includes('-webkit-backdrop-filter:none!important'),'Mobile header blur explicitly disabled');
+expect(css.includes('.search-box')&&css.includes('grid-row:2!important'),'Mobile search bar occupies live-style second header row');
+expect(dashboard.includes('!["estimates","schedule"].includes(tab)&&<label className="search-box"'),'Estimates and Schedule suppress the live mobile search row');
+expect(dashboard.includes('topbar ${["estimates","schedule"].includes(tab)?"compact-mobile":""}'),'Estimates and Schedule use compact live mobile header');
+expect(dashboard.includes('Past job dates that still need to be completed, rescheduled, or paid.'),'Schedule includes live Needs attention explanation');
+expect(dashboard.includes('const needsAttention=scheduled.filter'),'Schedule computes past-due jobs needing attention');
+expect(dashboard.includes('const upcoming=scheduled.filter')&&dashboard.includes('row.status==="scheduled"'),'Schedule separates future scheduled jobs from overdue jobs');
+expect(dashboard.includes('No upcoming jobs')&&dashboard.includes('Open an approved estimate and save a job date.'),'Schedule empty state matches live v49');
+expect(!dashboard.includes('Ready to schedule</h2>')&&!dashboard.includes('Waiting on deposit</h2>'),'Old Schedule auxiliary sections removed from live parity view');
+expect(css.includes('.needs-attention')&&css.includes('.topbar.compact-mobile'),'Schedule attention styling and compact header styling present');
+
+expect(dashboard.includes('Track Wave, Cash App, Venmo, cash, check, card, and bank payments without waiting for a processor connection.'),'Payments intro wording matches live v49');
+expect(dashboard.includes('Record money after it reaches Wave, Cash App, Venmo, or your account.'),'Balances-to-collect wording matches live v49');
+expect(dashboard.includes('const remainingBalance=(estimate:EstimateRow)=>Math.max(0,estimate.totalCents-estimate.paidCents)'),'Payments outstanding uses full remaining balance like live v49');
+expect(dashboard.includes('<small>remaining</small>'),'Payments balance rows label amounts as remaining');
+expect(dashboard.includes('<p className="eyebrow">Start workflow</p><h1>Follow-ups</h1>'),'Follow-ups eyebrow matches live v49');
+expect(dashboard.includes('<DialogTitle>Add customer</DialogTitle>')&&dashboard.includes('<Label>How they found FIRE</Label>'),'Add customer modal matches verified live fields');
+
+expect(dashboard.includes('Edit estimate')&&dashboard.includes('Save estimate changes'),'Estimate detail includes live Edit estimate workflow');
+expect(dashboard.includes('Add another service')&&dashboard.includes('Discount amount'),'Edit estimate supports multiple services and dollar discount');
+expect(dashboard.includes('Price per {item.unit}')&&dashboard.includes('Service description and expectations'),'Edit estimate exposes live per-service quantity/rate/description controls');
+expect(dashboard.includes('<small>Deposit</small>')&&dashboard.includes('<small>Paid</small>')&&dashboard.includes('<small>Balance</small>'),'Estimate detail payment summary matches live Deposit / Paid / Balance labels');
+expect(dashboard.includes('Open Stride')&&dashboard.includes('Google Earth')&&dashboard.includes('Job report')&&dashboard.includes('Job costs')&&dashboard.includes('Record payment'),'Estimate detail action grid includes verified live field tools');
+expect(!dashboard.includes('job-stage-strip')&&!dashboard.includes('payment-progress-card'),'Estimate detail omits independent-only stage/progress helper panels');
+expect(dashboard.includes('after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.'),'Customer Payments empty-state wording matches captured LIVE');
+expect(dashboard.includes('{paymentTypeLabel(payment.type)} payment'),'Customer Payments populated payment method is title-cased like LIVE');
+
+expect(estimate.includes('<small>Services subtotal</small>')&&estimate.includes('<small>Discount</small>'),'Customer estimate shows Services subtotal / Discount block');
+expect(estimate.includes('<small>Estimate total</small>')&&estimate.includes('<small>50% deposit</small>'),'Customer estimate shows Estimate total / 50% deposit block');
+expect(dashboard.includes('Job costs and profit')&&dashboard.includes('["Supplies","Chemicals","Equipment","Fuel","Labor","Other"]'),'Job costs modal matches verified live categories');
+for(const item of ['Property condition documented','Before photos captured','Plants and fragile areas protected','Service completed as quoted','After photos captured','Customer walkthrough completed']) expect(dashboard.includes(item),`Service completion report includes ${item}`);
+for(const heading of ['1. SCOPE OF SERVICES','3. PRE-EXISTING CONDITIONS','4. CHEMICALS, WATER, AND OVERSPRAY','5. CUSTOMER PREPARATION AND ACCESS','6. ROOFS AND ELEVATED WORK','7. CONCRETE, PAVERS, DECKS, AND FENCES','8. WINDOWS, SCREENS, FRAMES, AND OXIDATION','9. GUTTERS, DOWNSPOUTS, AND GUTTER GUARDS','10. UNDERGROUND DOWNSPOUTS AND FRENCH DRAINS','11. DRYER VENTS','12. A/C CONDENSER CLEANING','13. COBWEB AND SPIDERWEB REMOVAL','14. VEHICLES, RVs, BOATS, AND TRAILERS','15. PLANTS AND LANDSCAPING']) expect(templates.includes(heading),`Service agreement includes ${heading}`);
+
+const services=fs.readFileSync('lib/fire-services.ts','utf8');
+for(const name of ['House Wash','Soft-Wash Roof Cleaning','Gutter Cleaning + Flush','Remove & Reinstall Existing Gutter Guards','Gutter Brightening','Driveway / Concrete Cleaning','Deck / Patio Cleaning','Fence Cleaning','1st Floor Exterior Windows','2nd Floor Exterior Windows','1st Floor Exterior French-Pane Windows','2nd Floor Exterior French-Pane Windows','1st Floor Window Screen Cleaning','2nd Floor Window Screen Cleaning','1st Floor Deep Exterior Window Frame & Sill Cleaning','2nd Floor Deep Exterior Window Frame & Sill Cleaning','Window Frame Oxidation Removal','Trash Bin Cleaning','Underground Downspout Flush — First Line','Additional Underground Line — Same Visit','French Drain Flush','Premium Fence Restoration','AC Condenser Rinse Add-On','RV / Boat / Trailer / Work Vehicle Wash','Detailed Cobweb Removal Add-On','Dryer Vent Cleaning','Seasonal / Holiday Lighting','Commercial Exterior Cleaning','Specialty Exterior Service','Custom Service']) expect(services.includes(`name: "${name}"`),`Service catalog includes ${name}`);
+expect(templates.includes('Venmo (@FirstInResponseExteriors), and Cash App ($FIREExteriors).'),'Agreement payment methods include exact live v49 handles');
+expect(acceptButton.includes('Estimate approved and agreement signed. Kyle will contact you to schedule.'),'Approved estimate banner matches live v49 exactly');
+if(process.exitCode) {console.error(`\nParity audit failed: ${checks.filter(x=>!x.ok).length} of ${checks.length} checks.`);process.exit(1);}
+console.log(`\nLive v49 known-screen parity audit passed: ${checks.length}/${checks.length}.`);
