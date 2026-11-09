@@ -44,7 +44,7 @@ export function CategorizedServiceOptions({catalog}:{catalog:readonly {id:string
       <span className="fire-visual-option-body">
        <GroupMark tone={group.tone as SelectVisualTone}/>
        <span className="fire-option-name">{service.name}</span>
-       {service.category==='supplemental'&&<small className="fire-option-addon">Add-on</small>}
+       {service.category==='supplemental'&&<small className="fire-option-addon" aria-hidden="true">Add-on</small>}
       </span>
    </SelectItem>)}
  </SelectGroup>)}</>;

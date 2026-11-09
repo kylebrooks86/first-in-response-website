@@ -57,6 +57,7 @@ check(visualSource.includes('className="estimate-service-picker-item fire-visual
  'All categorized service choices retain the existing 48px tap target');
 check(visualSource.includes('textValue={service.name}'),'Service keyboard/typeahead uses original service name');
 check(visualSource.includes('aria-label={service.name}'),'Decorative add-on badges do not change the original accessible service name');
+check(visualSource.includes('className="fire-option-addon" aria-hidden="true"'),'Supplemental visual badge stays out of Radix option accessible name');
 check(visualSource.includes('aria-label={value}'),'Long dropdown options preserve exact accessible names');
 const visualGroups=estimateServicePickerGroups(catalog);
 same(visualGroups[0].key,'custom','Custom remains visually first');
