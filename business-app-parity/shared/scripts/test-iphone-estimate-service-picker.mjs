@@ -10,7 +10,7 @@ const helper=readFileSync('lib/estimate-service-picker-options.ts','utf8');
 const js=ts.transpileModule(helper,{
  compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}
 }).outputText;
-const {estimateServicePickerOptions}=await import(
+const {estimateServicePickerOptions,estimateServicePickerGroups,ESTIMATE_SERVICE_VISUAL_GROUPS}=await import(
  'data:text/javascript;charset=utf-8,'+encodeURIComponent(js)
 );
 let checks=0;
@@ -50,10 +50,24 @@ const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const selectPart='<SelectContent className="estimate-service-picker" position="popper" sideOffset={6} collisionPadding={16}>';
 same(dashboard.split(selectPart).length-1,3,
  'All 3 NewEstimate, EditEstimate, EditInvoice dropdowns receive collision-safe content');
-same(dashboard.split('estimateServicePickerOptions(services).map((svc)').length-1,3,
- 'All three dropdowns display custom first without mutating full service catalog');
-same(dashboard.split('className="estimate-service-picker-item"').length-1,3,
- 'All three selectors get scoped tap target class');
+same(dashboard.split('<CategorizedServiceOptions catalog={services}/>').length-1,3,
+ 'All three dropdowns use the same visual catalog grouping component');
+const visualSource=readFileSync('components/visual-selection-options.tsx','utf8');
+check(visualSource.includes('className="estimate-service-picker-item fire-visual-option"'),
+ 'All categorized service choices retain the existing 48px tap target');
+check(visualSource.includes('textValue={service.name}'),'Service keyboard/typeahead uses original service name');
+const visualGroups=estimateServicePickerGroups(catalog);
+same(visualGroups[0].key,'custom','Custom remains visually first');
+same(visualGroups.flatMap(group=>group.items).length,catalog.length,'No services lost in visual grouping');
+same([...new Set(visualGroups.flatMap(group=>group.items.map(service=>service.id)))].length,catalog.length,'No repeated service choice in visual groups');
+same(visualGroups.flatMap(group=>group.items.map(item=>item.id)).sort(),catalog.map(item=>item.id).sort(),'Service IDs and selection values remain identical');
+check(visualGroups.some(group=>group.key==='drainage'&&group.items.some(item=>item.id==='gutters')),'Gutter family is clearly labeled');
+check(visualGroups.some(group=>group.key==='glass'&&group.items.some(item=>item.id==='windows')),'Window family is clearly labeled');
+check(ESTIMATE_SERVICE_VISUAL_GROUPS.length>=7,'Color categories cover the main services');
+const unknown=estimateServicePickerGroups([{id:'new-owner-service',name:'New owner service'}]);
+same(unknown[0].key,'other','Future services remain selectable in fallback group');
+for(const kind of ['source','payment','expense'])check(visualSource.includes(' '+kind+':['),'Other long option sets reuse visual grouping without saving changes');
+
 check(dashboard.includes('value={item.serviceId} onValueChange='),
  'Existing controlled service selection retained, including ability to edit name/pricing');
 check(dashboard.includes('updateItem(index,{serviceId:value,name:svc.name'),
@@ -83,7 +97,7 @@ check(css.includes('.estimate-edit-modal-footer')&&css.includes('padding-bottom:
  'Estimate editing save footer provides home-indicator clearance');
 check(css.includes('.estimate-new-services-step')&&css.includes('padding-bottom:max(34px,calc(env(safe-area-inset-bottom) + 18px))'),
  'New estimate bottom actions are not flush against iPhone edge');
-check(!helper.includes('fetch(')&&!helper.includes('localStorage'),
+check(!helper.includes('fetch(')&&!helper.includes('localStorage')&&!visualSource.includes('fetch('),
  'Picker is display-only, no network, writes, or persistence changes');
 
 const selectBase=readFileSync('components/ui/select.tsx','utf8');
