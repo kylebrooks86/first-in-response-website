@@ -167,19 +167,27 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await profile();await page.getByRole('button',{name:/^Messages\s+2$/}).click();
  await page.setViewportSize({width:390,height:568});
  await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
- await composer().getByRole('button',{name:/Resume email/}).click();
+ const pendingDrafts=composer().locator('details.message-pending-drafts');
+ check(await pendingDrafts.count()===1&&await pendingDrafts.evaluate(node=>!node.open),'Unconfirmed draft history is collapsed by default');
+ await pendingDrafts.locator(':scope > summary').click();
+ await pendingDrafts.getByRole('button',{name:/^Email ·/}).click();
  await page.waitForFunction(()=>{const dialog=document.querySelector(".message-dialog");if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.top>=-2&&rect.bottom<=innerHeight+2;});
  const preparedDialog=composer();
+ const discardDetails=preparedDialog.locator('details.message-secondary-options').last();
  check(await preparedDialog.getByRole('region',{name:'Prepared email handoff'}).isVisible()&&
-   await preparedDialog.getByRole('button',{name:'I sent the prepared message'}).count()===1&&
-   await preparedDialog.getByRole('button',{name:'Not sent — keep editing'}).count()===1&&
-   await preparedDialog.getByRole('button',{name:'Discard unsent draft'}).count()===1,
-   'Recovered synthetic email keeps explicit sent / not-sent / discard choices visible in modal');
+   await preparedDialog.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible()&&
+   await preparedDialog.getByRole('button',{name:'Not yet · edit',exact:true}).isVisible()&&
+   await discardDetails.evaluate(node=>!node.open),
+   'Recovered email shows concise send verification and keeps discard collapsed');
+ await discardDetails.locator(':scope > summary').click();
+ check(await discardDetails.getByRole('button',{name:'Discard unsent draft',exact:true}).isVisible(),
+   'Original owner-only draft discard remains accessible on demand');
+ await discardDetails.locator(':scope > summary').click();
  const geometry=await preparedDialog.evaluate(node=>{
    const dialog=node.getBoundingClientRect(),builder=node.querySelector('.message-builder'),scroll=builder?.getBoundingClientRect();
    return {top:dialog.top,bottom:dialog.bottom,scrollerBottom:scroll?.bottom,scrollHeight:builder?.scrollHeight,clientHeight:builder?.clientHeight};
  });
- check(geometry.top>=-2&&geometry.bottom<=570&&geometry.scrollHeight>geometry.clientHeight&&geometry.scrollerBottom<=568,
+ check(geometry.top>=-2&&geometry.bottom<=570&&geometry.scrollHeight>=geometry.clientHeight&&geometry.scrollerBottom<=568,
    'Prepared email modal stays within 568px viewport while long confirmation and template details scroll independently: '+JSON.stringify(geometry));
  await preparedDialog.locator('.message-builder').evaluate(node=>{node.scrollTop=node.scrollHeight;});
  check(await preparedDialog.getByRole('button',{name:'Close',exact:true}).isVisible(),
