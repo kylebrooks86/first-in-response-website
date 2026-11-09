@@ -168,7 +168,8 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await page.setViewportSize({width:390,height:568});
  await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
  const pendingDrafts=composer().locator('details.message-pending-drafts');
- check(await pendingDrafts.count()===1&&await pendingDrafts.evaluate(node=>!node.open),'Unconfirmed draft history is collapsed by default');
+ await pendingDrafts.waitFor({state:'visible'});
+ check(await pendingDrafts.evaluate(node=>!node.open),'Unconfirmed draft history is collapsed by default after asynchronous saved-draft load');
  await pendingDrafts.locator(':scope > summary').click();
  await pendingDrafts.getByRole('button',{name:/^Email ·/}).click();
  await page.waitForFunction(()=>{const dialog=document.querySelector(".message-dialog");if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.top>=-2&&rect.bottom<=innerHeight+2;});
