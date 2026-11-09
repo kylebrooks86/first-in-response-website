@@ -4659,3 +4659,57 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 [data-theme="dark"] .notification-popover .notification-icon.estimate_viewed{background:#153b3c;color:#a7ede1}
 [data-theme="dark"] .notification-popover .notification-icon.estimate_accepted{background:#173c2d;color:#b2eac6}
 [data-theme="dark"] .notification-popover .notification-icon.payment_received{background:#173552;color:#b6dbff}
+
+
+/* FIRE Map & Activity: consistent readable disclosure rows below the map.
+   Scope to this workspace; never change generic forms or public documents. */
+.door-workspace .territory-help,
+.door-workspace .ui-help,
+.door-workspace .territory-offline>details,
+.door-workspace .door-more-tools{
+  min-width:0;
+  margin:4px 0;
+  border-bottom:1px solid var(--border);
+  color:var(--foreground);
+  font-size:13px;
+}
+.door-workspace .territory-help>summary,
+.door-workspace .ui-help>summary,
+.door-workspace .territory-offline>details>summary,
+.door-workspace .door-more-tools>summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:100%;
+  min-height:48px;
+  padding:9px 3px;
+  color:var(--foreground);
+  font-size:14px;
+  font-weight:700;
+  line-height:1.4;
+  list-style:none;
+  cursor:pointer;
+}
+.door-workspace .territory-help>summary::-webkit-details-marker,
+.door-workspace .ui-help>summary::-webkit-details-marker,
+.door-workspace .territory-offline>details>summary::-webkit-details-marker,
+.door-workspace .door-more-tools>summary::-webkit-details-marker{display:none}
+.door-workspace .territory-help>summary::after,
+.door-workspace .ui-help>summary::after,
+.door-workspace .territory-offline>details>summary::after,
+.door-workspace .door-more-tools>summary::after{
+  content:"▾";
+  flex:none;
+  margin-left:12px;
+  color:var(--muted-foreground);
+  font-size:12px;
+  transform:none;
+}
+.door-workspace .territory-help[open]>summary::after,
+.door-workspace .ui-help[open]>summary::after,
+.door-workspace .territory-offline>details[open]>summary::after,
+.door-workspace .door-more-tools[open]>summary::after{transform:rotate(180deg)}
+.door-workspace :is(.territory-help,.ui-help,.door-more-tools,.territory-offline>details)>summary:focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:1px;
+}

@@ -52,7 +52,7 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
    let initialView=TERRITORY_DEFAULT_VIEW;
    try{const stored=sessionStorage.getItem(TERRITORY_VIEW_KEY);const parsed:unknown=stored?JSON.parse(stored):null;if(validTerritoryView(parsed))initialView=parsed;}catch{/* Private browsing/storage denial: use Tulsa default. */}
    lib.addProtocol('fire-map',async parameters=>{if(!packRef.current)throw Error('No downloaded streets.');return{data:offlineMapResource(packRef.current,parameters.url)};});
-   instance=new lib.Map({container:host.current,style:selectedBaseStyle(onlineRef.current,baseRef.current,packRef.current),center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true}});map.current=instance;styleOnline.current=onlineRef.current;appliedBase.current=baseRef.current;
+   instance=new lib.Map({container:host.current,style:selectedBaseStyle(onlineRef.current,baseRef.current,packRef.current),center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true},cooperativeGestures:true});map.current=instance;styleOnline.current=onlineRef.current;appliedBase.current=baseRef.current;
    instance.on('moveend',()=>{if(canceled||!instance)return;const c=instance.getCenter();const view={lat:c.lat,lng:c.lng,zoom:instance.getZoom()};if(validTerritoryView(view))try{sessionStorage.setItem(TERRITORY_VIEW_KEY,JSON.stringify(view));}catch{/* Navigation keeps working without storage. */}});
    instance.addControl(new lib.NavigationControl({showCompass:false}),'top-right');
    instance.addControl(new lib.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showAccuracyCircle:true}),'top-right');
@@ -79,7 +79,16 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
   const element=host.current;return()=>{canceled=true;clear();element?.removeEventListener('pointerdown',down);element?.removeEventListener('pointermove',cancelMove);element?.removeEventListener('pointerup',clear);element?.removeEventListener('pointercancel',clear);element?.removeEventListener('touchstart',multi);instance?.remove();map.current=null;};
  },[]);
  useEffect(()=>{const instance=map.current;if(instance&&(styleOnline.current!==online||appliedBase.current!==baseStyle)){styleOnline.current=online;appliedBase.current=baseStyle;setReady(false);instance.setStyle(selectedBaseStyle(online,baseStyle,offlinePack));}},[online,baseStyle]);
- useEffect(()=>{const id=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(id);},[expanded]);
+ useEffect(()=>{
+  const instance=map.current;
+  if(!instance)return;
+  // Inline map: one finger scrolls the page, two fingers move the map.
+  // Expanded map: restore direct one-finger navigation without remounting.
+  if(expanded)instance.cooperativeGestures.disable();
+  else instance.cooperativeGestures.enable();
+  const id=requestAnimationFrame(()=>instance.resize());
+  return()=>cancelAnimationFrame(id);
+ },[expanded,ready]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-places') as GeoJSONSource|undefined)?.setData(geo);},[ready,geo]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-draft') as GeoJSONSource|undefined)?.setData({type:'FeatureCollection',features:draft?[{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[draft.point.lng,draft.point.lat]}}]:[]});},[ready,draft]);
  const selectedLastVisitId=current?.houseId?book.houses.find(h=>h.id===current.houseId)?.visits.at(-1)?.id:null;
@@ -199,6 +208,6 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
     {online&&!p.point&&<button type="button" className="territory-row-locate" aria-label={'Locate '+p.address} disabled={searching} onClick={()=>void search(p.address,false,true)}>Locate</button>}
     {filter==='revisits-due'&&<a className="territory-row-directions" aria-label={`Directions to ${p.address}`} href={'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(p.point?`${p.point.lat},${p.point.lng}`:p.address)} target="_blank" rel="noopener noreferrer">Directions</a>}
    </li>)}{!listedPlaces.length&&<li>{placeQuery.trim()?"No matching saved places.":"No places in this filter."}</li>}{listedPlaces.length>listLimit&&<li className="territory-places-more"><button type="button" onClick={()=>setListLimit(n=>n+60)}>Show more · {listedPlaces.length-listLimit} remaining</button></li>}</ul></>}
-  <details className="territory-help"><summary>Map help</summary><p>Long-press or use Drop pin. Saved addresses and customer names stay in the local search. New numbered street addresses use the US Census lookup; review any approximate location before saving. Street maps: OpenFreeMap / OpenStreetMap. Aerial: USGS The National Map / USDA imagery, which may be older and needs internet. Offline pins are available under Offline pins. Downloadable map imagery is not available yet.</p></details>
- <details className="ui-help"><summary>Offline streets</summary><p>Save a neighborhood around the map center · up to 8 MB. Street zoom 8–14; imagery stays online.</p><button type="button" disabled={!online||downloading} onClick={()=>void downloadArea()}>{downloading?'Downloading…':'Save street area'}</button>{downloading&&<button type="button" onClick={()=>downloadAbort.current?.abort()}>Cancel download</button>}{offlinePack&&<small>Saved {new Date(offlinePack.createdAt).toLocaleDateString()} · {(offlinePack.bytes/1024/1024).toFixed(1)} MB</small>}{downloadStatus&&<p role="status">{downloadStatus}</p>}</details><OfflineFieldSetup/></section>;
+  <details className="territory-help ui-help"><summary>Map Help</summary><p>Swipe with one finger to scroll the page, or use two fingers to move the embedded map. Expand lets you move the map with one finger. Long-press or use Drop pin. Saved addresses and customer names stay in the local search. New numbered street addresses use the US Census lookup; review any approximate location before saving. Street maps: OpenFreeMap / OpenStreetMap. Aerial: USGS The National Map / USDA imagery, which may be older and needs internet. Offline pins are available under Offline pins. Downloadable map imagery is not available yet.</p></details>
+ <details className="ui-help"><summary>Offline Streets</summary><p>Save a neighborhood around the map center · up to 8 MB. Street zoom 8–14; imagery stays online.</p><button type="button" disabled={!online||downloading} onClick={()=>void downloadArea()}>{downloading?'Downloading…':'Save street area'}</button>{downloading&&<button type="button" onClick={()=>downloadAbort.current?.abort()}>Cancel download</button>}{offlinePack&&<small>Saved {new Date(offlinePack.createdAt).toLocaleDateString()} · {(offlinePack.bytes/1024/1024).toFixed(1)} MB</small>}{downloadStatus&&<p role="status">{downloadStatus}</p>}</details><OfflineFieldSetup/></section>;
 }

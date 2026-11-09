@@ -431,4 +431,22 @@ for(const scene of [
  }
 assert.match(source,/onOpenChange=\{changeComposerOpen\}/,'Customer composer X, Escape and outside taps share the same guarded close callback');checks++;
 
+// All Map & Activity disclosures follow the same capitalization and preserve functionality.
+const mapSource=readFileSync('components/territory-map.tsx','utf8');
+const offlineSetupSource=readFileSync('components/offline-field-setup.tsx','utf8');
+const offlinePinsSource=readFileSync('components/territory-offline-drafts.tsx','utf8');
+const trackerSource=readFileSync('components/door-knocking.tsx','utf8');
+for(const [filename,body,label] of [
+ ['territory-map.tsx',mapSource,'Map Help'],['territory-map.tsx',mapSource,'Offline Streets'],
+ ['offline-field-setup.tsx',offlineSetupSource,'Offline Field Mode'],
+ ['territory-offline-drafts.tsx',offlinePinsSource,'Offline Pins'],
+ ['door-knocking.tsx',trackerSource,'Export &amp; Help']]){
+ assert.ok(body.includes('<summary>'+label+'</summary>')||
+  body.includes('>'+label+'</summary>'),filename+' needs consistent '+label+' disclosure');
+ checks++;
+}
+assert.match(mapSource,/cooperativeGestures:true/,'Inline MapLibre does not steal regular scroll gestures');checks++;
+assert.match(mapSource,/instance\.cooperativeGestures\.disable\(\)/,'Expanded map keeps direct one-finger navigation');checks++;
+assert.match(mapSource,/instance\.cooperativeGestures\.enable\(\)/,'Collapsed map returns to page-scroll gestures');checks++;
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
