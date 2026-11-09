@@ -24,8 +24,11 @@ const base={id:'abcdef-synthetic-invoice',estimateId:'synthetic-estimate',custom
  service:'Synthetic service',status:'sent',totalCents:2500,paidCents:0,shareToken:'synthetic-preview-only'};
 function render(invoice,card=cards[0]){
  const compiled=ts.transpileModule('const card=('+card+');',{compilerOptions:{jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText;
- const build=new Function('React','Receipt','ExternalLink','RecordPayment','customerNumberLabel','jobNumberLabel','money','statusLabel','invoice','estimate','load',compiled+';return card;');
- return renderToStaticMarkup(build(React,()=>null,()=>null,()=>null,customerNumberLabel,jobNumberLabel,
+ const build=new Function('React','Receipt','ExternalLink','RecordPayment','InvoiceStatusIndicator','customerNumberLabel','jobNumberLabel','money','statusLabel','invoice','estimate','load',compiled+';return card;');
+ // This fixture tests immutable Job # labels, not invoice status semantics;
+ // supply a visible test-only status component while preserving original JSX.
+ const statusOnly=({invoice:row})=>React.createElement('span',{'data-test-invoice-status':row.status},row.status);
+ return renderToStaticMarkup(build(React,()=>null,()=>null,()=>null,statusOnly,customerNumberLabel,jobNumberLabel,
   cents=>'$'+(cents/100).toFixed(2),s=>s,invoice,{id:invoice.estimateId},()=>{}));
 }
 let checks=0;
