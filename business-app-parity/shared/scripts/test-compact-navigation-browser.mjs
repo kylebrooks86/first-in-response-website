@@ -11,6 +11,7 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8');
+assert.match(source,/\["door-knocking", "Map & Activity", MapPin\]/,'Map & Activity is the owner-facing map section without changing its persisted route ID');
 
 /* Owner's iPhone UX: visible estimating tools and low-clutter headers must not regress.
    Test the source actually compiled into the QA app, not a mock screenshot. */
@@ -80,7 +81,7 @@ try{
   const toggle=more.locator('summary');
   await toggle.focus();await page.keyboard.press('Enter');
   check(await more.evaluate(el=>el.open),width+': Enter opens more tools');
-  check(await nav.getByRole('button',{name:'Door knocking'}).isVisible()&&await nav.getByRole('button',{name:'Business',exact:true}).isVisible()&&await nav.getByRole('button',{name:'Insights'}).isVisible()&&await nav.getByRole('button',{name:'Settings'}).isVisible(),width+': every original advanced section still available');
+  check(await nav.getByRole('button',{name:'Map & Activity'}).isVisible()&&await nav.getByRole('button',{name:'Business',exact:true}).isVisible()&&await nav.getByRole('button',{name:'Insights'}).isVisible()&&await nav.getByRole('button',{name:'Settings'}).isVisible(),width+': all advanced sections, including Map & Activity, remain available');
   await nav.getByRole('button',{name:'Business',exact:true}).click();
   check(await page.evaluate(()=>window.__navTab==='business'&&window.__mobileMenu===false),width+': business tab activates and closes mobile menu');
   await page.evaluate(()=>window.__reopenMenu());

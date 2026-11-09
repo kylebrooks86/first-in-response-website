@@ -2355,7 +2355,8 @@ html,body{max-width:100%;overflow-x:clip}
 
 /* Territory uses the shared app palette; map content never controls page navigation. */
 .app-shell .door-workspace{padding-top:12px}
-.door-workspace-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.door-workspace-head{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+@media(max-width:480px){.door-workspace-head>h1{min-width:0;flex:1 1 100%}.door-workspace-head>div{width:100%;justify-content:space-between;min-width:0}.door-workspace-head>div>button{flex:1 1 auto;min-width:0;white-space:normal}}
 .door-workspace-head h1{font-size:22px;margin:0}
 .door-workspace-head div{display:flex;gap:4px}
 .door-workspace-head button,.territory button,.territory a{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background-color:var(--background);color:var(--foreground);font-size:13px;font-weight:650;cursor:pointer}
