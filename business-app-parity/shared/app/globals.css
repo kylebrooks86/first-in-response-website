@@ -4809,3 +4809,22 @@ html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-c
    box-shadow:0 2px 8px #0003;-webkit-backdrop-filter:none;backdrop-filter:none;
  }
 }
+
+/* Compact owner messaging: show the drafted text and primary handoff first.
+   Manual paths and personal-number backup stay available on explicit expand. */
+.message-dialog .message-status-note{margin:0;color:var(--muted-foreground);font-size:.875rem;line-height:1.45}
+.message-dialog .message-editor{display:grid;gap:8px}
+.message-dialog .message-editor textarea{min-height:90px;max-height:min(28dvh,230px);font-size:16px}
+.message-dialog .message-handoff-compact{display:grid;gap:7px;min-width:0}
+.message-dialog .message-handoff-hint{margin:0;font-size:.8rem;color:var(--muted-foreground);line-height:1.35}
+.message-dialog .message-secondary-options{min-width:0;border-top:1px solid var(--border)}
+.message-dialog .message-secondary-options summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:.85rem;font-weight:600;color:var(--muted-foreground)}
+.message-dialog .message-secondary-options[open] summary{margin-bottom:6px}
+.message-dialog .message-secondary-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.message-dialog .message-secondary-actions>*{min-height:44px;max-width:100%}
+.message-dialog .message-handoff-compact .message-email-primary{width:100%;font-weight:700}
+.message-dialog .message-confirm-actions{display:grid;gap:7px}
+.message-dialog .message-confirm-actions>p{margin:0;font-size:.9rem;font-weight:600}
+.message-dialog .message-confirm-primary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.message-dialog .message-confirm-primary button{width:100%;min-width:0;min-height:44px}
+@media(max-width:360px){.message-dialog .message-confirm-primary{grid-template-columns:minmax(0,1fr)}}
