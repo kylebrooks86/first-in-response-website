@@ -79,8 +79,11 @@ try{
   const before=requests.length;await dialog.getByRole('button',{name:'Text',exact:true}).click();
   const voice=dialog.getByRole('region',{name:'Google Voice text handoff'});await voice.waitFor();
   check(requests.length===before+1&&requests.at(-1).body==='Exact synthetic message\nSecond line','Whitespace-normalized text reaches actual prepared Voice UI at '+width+'/'+theme);
-  check(await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),'Preparation requires separate owner send confirmation');
-  await dialog.getByRole('button',{name:'Not sent — keep editing',exact:true}).click();
+  check(await dialog.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),'Preparation requires separate owner send confirmation');
+  check(!(await voice.getByRole('button',{name:'Copy message',exact:true}).isVisible()),'Voice manual options collapsed by default');
+  await voice.getByText('Other sending options',{exact:true}).click();
+  check(await voice.getByRole('button',{name:'Copy message',exact:true}).isVisible(),'Manual Voice options available after expansion');
+  await dialog.getByRole('button',{name:'Not yet · edit',exact:true}).click();
   await dialog.getByRole('button',{name:'Email',exact:true}).click();
   const email=dialog.getByRole('link',{name:'Open email app',exact:true});await email.waitFor();
   const href=await email.getAttribute('href'),url=new URL(href);
@@ -89,7 +92,9 @@ try{
   await email.scrollIntoViewIfNeeded();const box=await email.boundingBox();
   check(box.x>=0&&box.x+box.width<=width+1&&box.height>=44,'Email handoff fits 44px mobile touch target');
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Composer has no horizontal page overflow');
-  check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback remains available');
+  check(!(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible()),'Secondary email copy is collapsed by default');
+  await dialog.getByText('Other sending options',{exact:true}).click();
+  check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback is available after expansion');
  }
  // Direct customer-profile Text/Email buttons must open a usable editor, not
  // appear dead when the default Custom message is blank. No OS handoff occurs
@@ -112,7 +117,7 @@ try{
   else await quick.getByRole('link',{name:'Open email app',exact:true}).waitFor();
   check(requests.length===before+1&&requests.at(-1).body===message&&requests.at(-1).channel===(mode==='Text'?'text_prepared':'email_prepared'),
    mode+' profile action prepares one exact saved draft, not an actual send');
-  check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
+  check(await quick.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
  // A sent appointment confirmation must refer to a real saved date and
@@ -242,7 +247,7 @@ try{
  check(requests.length===beforeDenied+1&&requests.at(-1).body==='Revised after definite auth refusal',
    'Definite 401 clears only the false pending lock so a new authorized draft may be prepared');
  denyConfirmation=true;
- await authDialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
+ await authDialog.getByRole('button',{name:'Yes, mark sent',exact:true}).click();
  await authDialog.getByText('Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.',{exact:true}).waitFor();
  check(await authDialog.getByRole('region',{name:'Google Voice text handoff'}).count()===1,
    '401 on confirmation preserves unconfirmed draft; never marks message as sent');
