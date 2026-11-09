@@ -4965,3 +4965,22 @@ html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-c
 .app-shell .followups-view .followup-optional-contact > :is(a,button):focus-visible{
   outline:3px solid var(--ring);outline-offset:2px;
 }
+
+/* Read-only follow-up queue is neutral unless a suggested action is actually due.
+   Never imply that a review suggestion or unconfirmed send is overdue. */
+.app-shell .followups-view .followup-summary.no-due{
+  background:var(--card);
+  border-color:var(--border);
+}
+.app-shell .followups-view .followup-summary.no-due > span > svg{
+  color:var(--muted-foreground);
+}
+.app-shell .followups-view .followup-summary-details .followup-coverage-complete{
+  margin-top:8px;font-size:11px;line-height:1.45;
+}
+.app-shell .followups-view .followup-filter-panel > .followup-more-filters{
+  flex:1 1 160px;
+}
+.app-shell .followups-view .followup-filter-panel > button{
+  min-width:100px;
+}
