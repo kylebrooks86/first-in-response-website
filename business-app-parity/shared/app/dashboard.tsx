@@ -626,7 +626,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       onLogged?.(saved);
       window.dispatchEvent(new Event("fire:attention-saved"));
       if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)]);}
-      setMessageStatus(channel==="copy"?"Saved; copying…":"Ready to send · not sent yet.");
+      setMessageStatus(channel==="copy"?"Saved; copying…":"Ready to send · sending unconfirmed.");
       return true;
     }catch{
       if(scope!==messageScope.current)return false;
@@ -737,21 +737,23 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         {templateStatus==="error"&&!preparedMessage&&<div role="alert"><p>{templateFailureMessage}</p><Button type="button" variant="outline" disabled={working} onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}
         {!preparedMessage&&pendingLoading&&<p role="status">Checking saved unconfirmed messages…</p>}
         {!preparedMessage&&pendingError&&<p role="alert">{pendingError} Sending is not confirmed.</p>}
-        {!preparedMessage&&pendingMessages.length>0&&<section aria-label="Saved unconfirmed messages" className="rounded-lg border p-3">
-          <strong>Saved messages awaiting confirmation ({pendingMessages.length})</strong>
-          <p className="text-sm">Resume an unsent draft.</p>
-          <div className="flex flex-col gap-2">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
-            draftEdited.current=true;setTemplate(item.template);setBody(item.body);
-            setPreparedMessage(item);setMessageStatus("Draft restored · not sent.");
-          }}>Resume {item.channel==="text_prepared"?"text":"email"} · {new Date(item.createdAt).toLocaleString()} · {item.template}</Button>)}</div>
-          {pendingNextCursor&&<Button variant="outline" disabled={pendingOlderLoading||working} onClick={()=>void loadOlderPendingMessages()}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
-          {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
-        </section>}
+        {!preparedMessage&&pendingMessages.length>0&&<details className="message-pending-drafts" aria-label="Saved unconfirmed messages">
+          <summary>Messages to check ({pendingMessages.length})</summary>
+          <div className="message-pending-inner">
+            <p>Check whether these were sent before trying again.</p>
+            <div className="message-draft-list">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
+              draftEdited.current=true;setTemplate(item.template);setBody(item.body);
+              setPreparedMessage(item);setMessageStatus("Message opened · sending unconfirmed.");
+            }}>
+              {item.channel==="text_prepared"?"Text":"Email"} · {templates.find(t=>t.key===item.template)?.name??(item.template==="custom"?"Custom message":item.template)} · {new Date(item.createdAt).toLocaleDateString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric"})}
+            </Button>)}</div>
+            {pendingNextCursor&&<Button variant="outline" disabled={pendingOlderLoading||working} onClick={()=>void loadOlderPendingMessages()}>{pendingOlderLoading?"Loading…":"See older messages"}</Button>}
+            {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
+          </div>
+        </details>}
         {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
         {!preparedMessage&&<div className="composer-template-controls">
           <Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label>
-          {!preparedMessage&&<Input type="search" aria-label="Find a message template" placeholder="Find a template (estimate, invoice, reminder…)" value={templateQuery} onChange={event=>setTemplateQuery(event.target.value)} disabled={working} className="composer-template-search"/>}
-          {!preparedMessage&&templateSearch&&<small role="status">{composerMatchCount} matching saved template{composerMatchCount===1?"":"s"}. Custom message is always available.</small>}
           <Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}>
             <SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger>
             <SelectContent className="composer-template-menu">
@@ -769,9 +771,14 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
               {composerMatchCount===0&&templateSearch&&<SelectLabel>No saved templates match your search.</SelectLabel>}
             </SelectContent>
           </Select>
+          <details className="composer-template-search-disclosure">
+            <summary>Find another template</summary>
+            <Input type="search" aria-label="Find a message template" placeholder="Search templates…" value={templateQuery} onChange={event=>setTemplateQuery(event.target.value)} disabled={working} className="composer-template-search"/>
+            {templateSearch&&<small role="status">{composerMatchCount} matching template{composerMatchCount===1?"":"s"}.</small>}
+          </details>
         </div>}
         <div className="message-editor"><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={preparedMessage?4:6}/>
-        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!verifiedTemplate?templateFailureMessage:!appointmentReadiness.ready?appointmentReadiness.reason:!linkReadiness.ready?documentLinkMessage:customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||"Ready to prepare. Sending still requires a separate approval in Google Voice or your email app."}</p>}
+        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!verifiedTemplate?templateFailureMessage:!appointmentReadiness.ready?appointmentReadiness.reason:!linkReadiness.ready?documentLinkMessage:!body.trim()?"Write your message first.":customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||""}</p>}
         {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!linkReadiness.ready&&<p role="status">{documentLinkMessage}</p>}
         {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!appointmentReadiness.ready&&<p role="status">{appointmentReadiness.reason}</p>}
         {!preparedMessage&&activeLinkError&&((needsEstimateLink&&estimate)||(needsInvoiceLink&&estimate?.invoiceId))&&<Button type="button" variant="outline" disabled={working} onClick={()=>setLinkRetry(value=>value+1)}>Retry link</Button>}</div>
