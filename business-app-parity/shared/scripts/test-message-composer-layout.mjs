@@ -30,11 +30,20 @@ check(ui.includes('window.visualViewport?.addEventListener("resize",measure)')&&
  css.includes('max-height:var(--fire-message-visible-height,calc(100dvh - 24px))!important;'),
  'Message height and centering follow the actual visual viewport despite app-wide !important CSS when a keyboard opens');
 check(ui.includes('if(open&&preparedMessage)messageBuilderRef.current?.scrollTo({top:0,behavior:"auto"})')&&
- ui.includes('Confirm here only after you send the prepared')&&
- ui.includes('I sent the prepared message')&&
- ui.includes('Not sent — keep editing')&&
- ui.includes('Discard unsent draft'),
+ ui.includes('Did you send it?')&&
+ ui.includes('Yes, mark sent')&&
+ ui.includes('Not yet · edit')&&
+ ui.includes('Discard unsent draft')&&ui.includes('message-secondary-options'),
  'Preparing a draft reveals confirmation controls without auto-confirming delivery');
+check(ui.includes('<details className="message-pending-drafts"')&&
+ ui.includes('Messages to check ({pendingMessages.length})')&&
+ ui.includes('Check whether these were sent before trying again.')&&
+ ui.includes('<details className="composer-template-search-disclosure">')&&
+ ui.includes('Find another template')&&
+ css.includes('.message-dialog .message-confirm-primary{display:grid;grid-template-columns:1fr 1fr;')&&
+ css.includes('.message-dialog .message-pending-inner{display:grid;')&&
+ ui.includes('Message opened · sending unconfirmed.'),
+ 'Collapsed draft recovery, template search, and compact send confirmation preserve uncertain status');
 for(const category of ['Estimates','Invoices','Scheduling','After service','Documents'])
  check(ui.includes('name:"'+category+'"')&&template.includes('category:"'+category+'"'),
   'Saved template category '+category+' gets icon/color organization, without renaming saved keys');

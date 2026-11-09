@@ -12,14 +12,19 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const composer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageComposer');assert.ok(composer);
+const categoryList=ast.statements.find(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>d.name.getText(ast)==='messageTemplateCategories'));
+const categoryIcon=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageTemplateCategoryIcon');
+assert.ok(categoryList&&categoryIcon,'Real template-group dependencies must be in browser fixture');
 const fixture=`import React,{useState,useRef,useEffect}from'react';import{createRoot}from'react-dom/client';
-import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';
+import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
-import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
-import{MessageSquareText,Copy,ExternalLink,Mail,Send}from'lucide-react';
+import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem,SelectGroup,SelectLabel}from'./components/ui/select';
+import{MessageSquareText,Copy,ExternalLink,Mail,Send,ClipboardList,Receipt,CalendarDays,CheckCircle2,FileText}from'lucide-react';
 import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';
 import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
 const money=n=>'$'+(n/100).toFixed(2),dateTime=v=>v,reviewLink='https://example.invalid/review',resolvedBillingTotalCents=e=>e.totalCents,billingBalanceCents=e=>e.totalCents;
+${categoryList.getText(ast)}
+${categoryIcon.getText(ast)}
 ${composer.getText(ast)}
 const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
 const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer.name,service:'House Wash',totalCents:12300,invoiceId:null,shareToken:'',invoiceShareToken:''};
@@ -27,7 +32,7 @@ const scheduledEstimate={...estimate,id:'synthetic-scheduled-estimate',status:'s
 createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment unscheduled" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment scheduled" customer={customer} estimate={scheduledEstimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false;const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false,seededPending=[];const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
@@ -35,7 +40,7 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,d
   res.setHeader('content-type','application/json');
   if(req.method==='GET'){
    if(denyHistory){res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');}
-   return res.end(JSON.stringify({pending:[],nextCursor:null}));
+   return res.end(JSON.stringify({pending:seededPending,nextCursor:null}));
   }
   if((req.method==='POST'&&denyPreparation)||(req.method==='PATCH'&&denyConfirmation)){
    res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');
@@ -79,8 +84,11 @@ try{
   const before=requests.length;await dialog.getByRole('button',{name:'Text',exact:true}).click();
   const voice=dialog.getByRole('region',{name:'Google Voice text handoff'});await voice.waitFor();
   check(requests.length===before+1&&requests.at(-1).body==='Exact synthetic message\nSecond line','Whitespace-normalized text reaches actual prepared Voice UI at '+width+'/'+theme);
-  check(await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),'Preparation requires separate owner send confirmation');
-  await dialog.getByRole('button',{name:'Not sent — keep editing',exact:true}).click();
+  check(await dialog.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),'Preparation requires separate owner send confirmation');
+  check(!(await voice.getByRole('button',{name:'Copy message',exact:true}).isVisible()),'Voice manual options collapsed by default');
+  await voice.getByText('Other sending options',{exact:true}).click();
+  check(await voice.getByRole('button',{name:'Copy message',exact:true}).isVisible(),'Manual Voice options available after expansion');
+  await dialog.getByRole('button',{name:'Not yet · edit',exact:true}).click();
   await dialog.getByRole('button',{name:'Email',exact:true}).click();
   const email=dialog.getByRole('link',{name:'Open email app',exact:true});await email.waitFor();
   const href=await email.getAttribute('href'),url=new URL(href);
@@ -89,8 +97,42 @@ try{
   await email.scrollIntoViewIfNeeded();const box=await email.boundingBox();
   check(box.x>=0&&box.x+box.width<=width+1&&box.height>=44,'Email handoff fits 44px mobile touch target');
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Composer has no horizontal page overflow');
-  check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback remains available');
+  check(!(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible()),'Secondary email copy is collapsed by default');
+  await dialog.getByText('Other sending options',{exact:true}).click();
+  check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback is available after expansion');
  }
+ // Three previously prepared handoffs remain recoverable without filling the editor.
+ seededPending=[
+  {id:'pending-text',customerId:'synthetic',estimateId:null,channel:'text_prepared',template:'invoice',body:'Synthetic invoice message',createdAt:'2026-11-09T20:46:55Z'},
+  {id:'pending-email-1',customerId:'synthetic',estimateId:null,channel:'email_prepared',template:'review',body:'Synthetic review request one',createdAt:'2026-10-18T00:51:01Z'},
+  {id:'pending-email-2',customerId:'synthetic',estimateId:null,channel:'email_prepared',template:'review',body:'Synthetic review request two',createdAt:'2026-10-18T00:34:49Z'}
+ ];
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Message',exact:true}).click();
+ const draftsDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ const drawer=draftsDialog.locator('details.message-pending-drafts');
+ await drawer.getByText('Messages to check (3)',{exact:true}).waitFor();
+ check(!(await drawer.evaluate(n=>n.open)),'Saved unconfirmed drafts collapsed by default');
+ check(await draftsDialog.getByLabel('Message text').isVisible(),'Collapsed history leaves the composer usable');
+ check(!(await drawer.locator('button').first().isVisible()),'Draft actions hidden until expanded');
+ await drawer.locator('summary').click();
+ check(await drawer.locator('button').first().isVisible(),'Expanded history reveals recovery choices');
+ const requestsBeforeRecover=requests.length;
+ await drawer.locator('button').first().click();
+ check(await draftsDialog.getByLabel('Message text').inputValue()==='Synthetic invoice message'&&
+   await draftsDialog.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),
+  'Resumed draft retains exact message and still needs explicit send confirmation');
+ check(requests.length===requestsBeforeRecover,'Resuming draft never sends or saves a new message');
+ seededPending=[];
+ await page.goto(origin);await page.getByRole('button',{name:'Message',exact:true}).click();
+ const templateDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ const searchDisclosure=templateDialog.locator('details.composer-template-search-disclosure');
+ await searchDisclosure.locator('summary').waitFor();
+ check(!(await searchDisclosure.evaluate(n=>n.open)),'Template search collapsed by default');
+ await searchDisclosure.locator('summary').click();
+ check(await templateDialog.getByRole('searchbox',{name:'Find a message template'}).isVisible(),
+  'Optional template search can be expanded');
+
  // Direct customer-profile Text/Email buttons must open a usable editor, not
  // appear dead when the default Custom message is blank. No OS handoff occurs
  // until the owner chooses the prepared action separately.
@@ -102,7 +144,7 @@ try{
   const before=requests.length;
   check(await prep.isDisabled(),mode+' profile quick action blocks blank Custom message preparation');
   const status=await quick.getByRole('status').allTextContents();
-  check(status.some(x=>x.includes(mode==='Text'?'Write your text first':'Write your email first')),
+  check(status.some(x=>x.includes('Write your message first.')),
    mode+' profile quick action explains exactly how to enable preparation');
   const message='Prepared via '+mode+' profile action';
   await quick.getByLabel('Message text').fill(message);
@@ -112,7 +154,7 @@ try{
   else await quick.getByRole('link',{name:'Open email app',exact:true}).waitFor();
   check(requests.length===before+1&&requests.at(-1).body===message&&requests.at(-1).channel===(mode==='Text'?'text_prepared':'email_prepared'),
    mode+' profile action prepares one exact saved draft, not an actual send');
-  check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
+  check(await quick.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
  // A sent appointment confirmation must refer to a real saved date and
@@ -242,7 +284,7 @@ try{
  check(requests.length===beforeDenied+1&&requests.at(-1).body==='Revised after definite auth refusal',
    'Definite 401 clears only the false pending lock so a new authorized draft may be prepared');
  denyConfirmation=true;
- await authDialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
+ await authDialog.getByRole('button',{name:'Yes, mark sent',exact:true}).click();
  await authDialog.getByText('Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.',{exact:true}).waitFor();
  check(await authDialog.getByRole('region',{name:'Google Voice text handoff'}).count()===1,
    '401 on confirmation preserves unconfirmed draft; never marks message as sent');

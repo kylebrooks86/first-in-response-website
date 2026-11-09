@@ -626,7 +626,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       onLogged?.(saved);
       window.dispatchEvent(new Event("fire:attention-saved"));
       if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)]);}
-      setMessageStatus(channel==="copy"?"Message saved to activity; copying…":"Prepared — sending is not confirmed. Return here after sending to confirm.");
+      setMessageStatus(channel==="copy"?"Saved; copying…":"Ready to send · sending unconfirmed.");
       return true;
     }catch{
       if(scope!==messageScope.current)return false;
@@ -639,13 +639,13 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     const ready=customerMessageHandoffReadiness("text",customer.phone,body);
     if(!ready.ready){setMessageStatus(ready.reason);return;}
     if(!await log("text_prepared"))return;
-    setMessageStatus("Prepared for Google Voice. Tap Text in the handoff section to approve in your Shortcut. Sending remains unconfirmed.");
+    setMessageStatus("Ready to text · not sent yet.");
   };
   const sendEmail=async()=>{
     const ready=customerMessageHandoffReadiness("email",customer.email,body);
     if(!ready.ready){setMessageStatus(ready.reason);return;}
     if(!await log("email_prepared"))return;
-    setMessageStatus("Email prepared. Tap Open email app below, then send from your business account. Sending remains unconfirmed.");
+    setMessageStatus("Ready to email · not sent yet. Open email app below.");
   };
   const confirmSent=async()=>{
     if(!preparedMessage||preparationLock.current)return;
@@ -732,30 +732,29 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     <DialogContent className="message-dialog sm:max-w-[620px]" style={{maxHeight:dialogBounds?.height??"calc(100dvh - 24px)",top:dialogBounds?`${dialogBounds.centerY}px`:undefined,display:"flex",flexDirection:"column",overflow:"hidden",...{"--fire-message-visible-height":dialogBounds?`${dialogBounds.height}px`:"calc(100dvh - 24px)"}}}>
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
       <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0} style={{flex:"1 1 auto",minHeight:0,overflowY:"auto",overflowX:"hidden"}}>
-        {messageStatus&&<p role="status">{messageStatus}</p>}
+        {messageStatus&&<p role="status" className="message-status-note">{messageStatus}</p>}
         {templateStatus==="loading"&&template!=="custom"&&!preparedMessage&&<p role="status">Loading saved message templates…</p>}
         {templateStatus==="error"&&!preparedMessage&&<div role="alert"><p>{templateFailureMessage}</p><Button type="button" variant="outline" disabled={working} onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}
         {!preparedMessage&&pendingLoading&&<p role="status">Checking saved unconfirmed messages…</p>}
         {!preparedMessage&&pendingError&&<p role="alert">{pendingError} Sending is not confirmed.</p>}
-        {!preparedMessage&&pendingMessages.length>0&&<section aria-label="Saved unconfirmed messages" className="rounded-lg border p-3">
-          <strong>Saved messages awaiting confirmation ({pendingMessages.length})</strong>
-          <p className="text-sm">Resume a saved draft. Only confirm if you actually sent it.</p>
-          <div className="flex flex-col gap-2">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
-            draftEdited.current=true;setTemplate(item.template);setBody(item.body);
-            setPreparedMessage(item);setMessageStatus("Recovered an unconfirmed prepared message. Check the text before confirming a send.");
-          }}>Resume {item.channel==="text_prepared"?"text":"email"} · {new Date(item.createdAt).toLocaleString()} · {item.template}</Button>)}</div>
-          {pendingNextCursor&&<Button variant="outline" disabled={pendingOlderLoading||working} onClick={()=>void loadOlderPendingMessages()}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
-          {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
-        </section>}
+        {!preparedMessage&&pendingMessages.length>0&&<details className="message-pending-drafts" aria-label="Saved unconfirmed messages">
+          <summary>Messages to check ({pendingMessages.length})</summary>
+          <div className="message-pending-inner">
+            <p>Check whether these were sent before trying again.</p>
+            <div className="message-draft-list">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
+              draftEdited.current=true;setTemplate(item.template);setBody(item.body);
+              setPreparedMessage(item);setMessageStatus("Message opened · sending unconfirmed.");
+            }}>
+              {item.channel==="text_prepared"?"Text":"Email"} · {templates.find(t=>t.key===item.template)?.name??(item.template==="custom"?"Custom message":item.template)} · {new Date(item.createdAt).toLocaleDateString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric"})}
+            </Button>)}</div>
+            {pendingNextCursor&&<Button variant="outline" disabled={pendingOlderLoading||working} onClick={()=>void loadOlderPendingMessages()}>{pendingOlderLoading?"Loading…":"See older messages"}</Button>}
+            {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
+          </div>
+        </details>}
         {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
-        {preparedMessage?.channel==="text_prepared"&&<section className="rounded-lg border p-3" aria-label="Google Voice text handoff"><strong>Send using FIRE Google Voice</strong><p>To: {customer.name} · {customer.phone}</p><div className="flex flex-wrap gap-2"><GoogleVoiceTextShortcutAction phone={customer.phone} message={preparedMessage.body} label="Text"/><Button variant="outline" type="button" onClick={()=>void copyVoiceField(customer.phone,"Customer number copied for Google Voice. Sending not yet confirmed.","Copy failed. Enter the displayed recipient number in Google Voice.")}><Copy className="h-4 w-4"/> Copy number</Button><Button variant="outline" type="button" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared message copied. Paste and send it in Google Voice.","Copy failed. Select the saved message below to copy it.")}><Copy className="h-4 w-4"/> Copy message</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4"/> Open Google Voice</a><PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={customer.name} message={preparedMessage.body}/></div><small>Approve the recipient and message in your Shortcut, or paste them into Google Voice. Text (Backup) uses your personal number and adds an alternate-number introduction.</small></section>}
-        {preparedMessage?.channel==="email_prepared"&&<section className="rounded-lg border p-3" aria-label="Prepared email handoff"><strong>Send email</strong>{usableCustomerEmail(customer.email)?<a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid customer email before sending.</p>}<small>Choose your business sender in the email app. If no app opens, copy the message into your business email.</small><Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared email copied. Sending remains unconfirmed.","Copy failed. Select the saved message below to copy it.")}>Copy email message</Button></section>}
-         {preparedMessage&&<div className="message-confirm-actions"><p>Confirm here only after you send the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}. Opening another app does not confirm sending.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
-        <div className="composer-template-controls">
+        {!preparedMessage&&<div className="composer-template-controls">
           <Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label>
-          {!preparedMessage&&<Input type="search" aria-label="Find a message template" placeholder="Find a template (estimate, invoice, reminder…)" value={templateQuery} onChange={event=>setTemplateQuery(event.target.value)} disabled={working} className="composer-template-search"/>}
-          {!preparedMessage&&templateSearch&&<small role="status">{composerMatchCount} matching saved template{composerMatchCount===1?"":"s"}. Custom message is always available.</small>}
-          <Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}>
+          <Select value={template} onValueChange={chooseTemplate} disabled={working}>
             <SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger>
             <SelectContent className="composer-template-menu">
               <SelectGroup>
@@ -772,13 +771,47 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
               {composerMatchCount===0&&templateSearch&&<SelectLabel>No saved templates match your search.</SelectLabel>}
             </SelectContent>
           </Select>
-        </div>
-        <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/>
-        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!verifiedTemplate?templateFailureMessage:!appointmentReadiness.ready?appointmentReadiness.reason:!linkReadiness.ready?documentLinkMessage:customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||"Ready to prepare. Sending still requires a separate approval in Google Voice or your email app."}</p>}
+          <details className="composer-template-search-disclosure">
+            <summary>Find another template</summary>
+            <Input type="search" aria-label="Find a message template" placeholder="Search templates…" value={templateQuery} onChange={event=>setTemplateQuery(event.target.value)} disabled={working} className="composer-template-search"/>
+            {templateSearch&&<small role="status">{composerMatchCount} matching template{composerMatchCount===1?"":"s"}.</small>}
+          </details>
+        </div>}
+        <div className="message-editor"><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={preparedMessage?4:6}/>
+        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!verifiedTemplate?templateFailureMessage:!appointmentReadiness.ready?appointmentReadiness.reason:!linkReadiness.ready?documentLinkMessage:!body.trim()?"Write your message first.":customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||""}</p>}
         {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!linkReadiness.ready&&<p role="status">{documentLinkMessage}</p>}
         {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!appointmentReadiness.ready&&<p role="status">{appointmentReadiness.reason}</p>}
         {!preparedMessage&&activeLinkError&&((needsEstimateLink&&estimate)||(needsInvoiceLink&&estimate?.invoiceId))&&<Button type="button" variant="outline" disabled={working} onClick={()=>setLinkRetry(value=>value+1)}>Retry link</Button>}</div>
-        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()||!verifiedTemplate||!linkReadiness.ready||!appointmentReadiness.ready}><Copy className="h-4 w-4"/> Copy</Button>{usableCustomerEmail(customer.email)&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!verifiedTemplate||!linkReadiness.ready||!customerMessageHandoffReadiness("email",customer.email,body).ready||!appointmentReadiness.ready}><Mail className="h-4 w-4"/> Email</Button>}{usableCustomerPhone(customer.phone)&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!verifiedTemplate||!linkReadiness.ready||!customerMessageHandoffReadiness("text",customer.phone,body).ready||!appointmentReadiness.ready}><Send className="h-4 w-4"/> Text</Button>}</div>
+        {preparedMessage?.channel==="text_prepared"&&<section className="message-handoff-compact rounded-lg border p-3" aria-label="Google Voice text handoff">
+          <GoogleVoiceTextShortcutAction phone={customer.phone} message={preparedMessage.body} label="Text with Google Voice"/>
+          <p className="message-handoff-hint">Review the recipient and message in your Shortcut.</p>
+          <details className="message-secondary-options"><summary>Other sending options</summary>
+            <div className="message-secondary-actions">
+              <Button variant="outline" type="button" onClick={()=>void copyVoiceField(customer.phone,"Number copied. Send not confirmed.","Could not copy number. Enter it manually in Google Voice.")}><Copy className="h-4 w-4"/> Copy number</Button>
+              <Button variant="outline" type="button" onClick={()=>void copyVoiceField(preparedMessage.body,"Message copied. Send not confirmed.","Could not copy message. Select the text above.")}><Copy className="h-4 w-4"/> Copy message</Button>
+              <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4"/> Open Google Voice</a>
+              <PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={customer.name} message={preparedMessage.body}/>
+            </div>
+            <small>Backup text may use your personal number.</small>
+          </details>
+        </section>}
+        {preparedMessage?.channel==="email_prepared"&&<section className="message-handoff-compact rounded-lg border p-3" aria-label="Prepared email handoff">
+          {usableCustomerEmail(customer.email)?<a className="message-email-primary inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid email address before sending.</p>}
+          <details className="message-secondary-options"><summary>Other sending options</summary>
+            <Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Email copied. Send not confirmed.","Could not copy email. Select the text above.")}>Copy email message</Button>
+          </details>
+        </section>}
+        {preparedMessage&&<div className="message-confirm-actions">
+          <p>Did you send it?</p>
+          <div className="message-confirm-primary">
+            <Button className="brand-button" onClick={()=>void confirmSent()} disabled={working}>Yes, mark sent</Button>
+            <Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Not sent · editing draft.");}}>Not yet · edit</Button>
+          </div>
+          <details className="message-secondary-options"><summary>Discard this draft</summary>
+            <Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button>
+          </details>
+        </div>}
+        {!preparedMessage&&<div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()||!verifiedTemplate||!linkReadiness.ready||!appointmentReadiness.ready}><Copy className="h-4 w-4"/> Copy</Button>{usableCustomerEmail(customer.email)&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!verifiedTemplate||!linkReadiness.ready||!customerMessageHandoffReadiness("email",customer.email,body).ready||!appointmentReadiness.ready}><Mail className="h-4 w-4"/> Email</Button>}{usableCustomerPhone(customer.phone)&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!verifiedTemplate||!linkReadiness.ready||!customerMessageHandoffReadiness("text",customer.phone,body).ready||!appointmentReadiness.ready}><Send className="h-4 w-4"/> Text</Button>}</div>}
       </div>
     </DialogContent>
   </Dialog>;

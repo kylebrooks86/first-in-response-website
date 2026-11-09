@@ -98,11 +98,11 @@ try{
  const dashboard=readFileSync("app/dashboard.tsx","utf8");
  const a=dashboard.indexOf("function MessageComposer("),z=dashboard.indexOf("\nfunction ",a+20),ui=dashboard.slice(a,z);
  check(ui.includes('fetch("/api/customer-messages?"+query.toString()')&&ui.includes('cache:"no-store"'),"Composer fetches fresh exact-owner saved draft history on reopening");
- check(ui.includes("Saved messages awaiting confirmation")&&ui.includes("Resume ")&&ui.includes("setPreparedMessage(item)"),"Mobile owner can resume selected message without generating a new send event");
+ check(ui.includes("Messages to check (")&&ui.includes("message-pending-drafts")&&ui.includes("setPreparedMessage(item)"),"Mobile owner can resume selected message without generating a new send event");
  check(ui.includes("Load older prepared messages")&&ui.includes("loadOlderPendingMessages")&&ui.includes("pendingNextCursor"),"Mobile owner can deliberately retrieve older saved drafts");
  check(ui.includes("pendingPageRequest.current++")&&ui.includes("pendingOlderLock.current"),"Late page results cannot replace a newer customer/job scope");
  check(ui.includes("Previously loaded drafts remain available.")&&ui.includes("setPendingMessages(current=>{"),"Interrupted older-page read preserves confirmed existing draft history");
- check(ui.includes('Only confirm if you actually sent it.')&&ui.includes('Sending is not confirmed.'),"Resumed draft is not recorded as delivered automatically");
+ check(ui.includes('Check whether these were sent before trying again.')&&ui.includes('ownerConfirmedSent:true'),"Resumed draft is not recorded as delivered automatically");
  check(ui.includes('current.filter(item=>item.id!==draft.id)')&&ui.includes('receipt.id!==draft.id+":owner-confirmed"'),"Confirmed messages leave the pending recovery UI only after owner save");
  check(ui.includes("Discard unsent draft")&&ui.includes("ownerConfirmedNotSent:true")&&ui.includes("draft.id+\":owner-cancelled\""),"Mobile composer offers explicit owner-only discard with linked server receipt");
  check(dashboard.includes('draft discarded')&&dashboard.includes('Owner-confirmed not sent'),"Customer timeline shows discarded-not-sent status, never delivered");

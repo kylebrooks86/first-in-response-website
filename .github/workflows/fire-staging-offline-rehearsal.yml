@@ -251,9 +251,13 @@ jobs:
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-deposit-ux-browser.mjs
           node scripts/test-deposit-policy.mjs
           node scripts/test-owner-deposit-review.mjs
+          node scripts/test-customer-job-journey.mjs
           node scripts/test-customer-invoice-balances.mjs
           node scripts/test-public-invoice-due-central-time.mjs
           node scripts/test-review-after-payment.mjs
+          node scripts/test-google-voice-text-safety.mjs
+          node scripts/test-pending-customer-messages.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-message-composer-handoff-browser.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-preview-theme-browser.mjs
           node scripts/test-api-route-access-inventory.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-promotion-history-browser.mjs

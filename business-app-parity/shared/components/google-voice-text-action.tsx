@@ -34,19 +34,19 @@ export function GoogleVoiceTextShortcutAction({ phone, message, label = "Text vi
   const href = googleVoiceTextShortcutHref(phone, message);
   const blocked = !usableCustomerPhone(phone) ? "A valid customer number is required." :
     !message.trim() ? "Write a message before opening the Shortcut." :
-    !href ? "This message is too long for the Shortcut handoff. Copy the full message into Google Voice instead." : "";
+    !href ? "Message is too long for the Shortcut. Use manual Google Voice options." : "";
   function launch() {
     if (!href || (lock.current?.phone === phone && lock.current.message === message)) return;
     if (!supportsGoogleVoiceTextShortcut(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)) {
-      setAttempt({ phone, message, requested: false, status: "Use Copy number / Copy message and Open Google Voice on this device. Nothing was sent by FIRE." });
+      setAttempt({ phone, message, requested: false, status: "Shortcut unavailable here. Use manual Google Voice options; nothing was sent." });
       return;
     }
     lock.current = { phone, message };
-    setAttempt({ phone, message, requested: true, status: "Shortcut handoff requested — sending is unconfirmed. Approve only in your Shortcut. If it did not open or you cancelled, use the manual options. Check Google Voice before retrying." });
+    setAttempt({ phone, message, requested: true, status: "Shortcut requested · not confirmed sent. Check Google Voice before retrying." });
     try { window.location.assign(href); }
     catch {
       lock.current = null;
-      setAttempt({ phone, message, requested: false, status: "The Shortcut could not be opened. Use the manual Google Voice options. Sending remains unconfirmed." });
+      setAttempt({ phone, message, requested: false, status: "Shortcut did not open. Use manual Google Voice options; not sent by FIRE." });
     }
   }
   return <div className="min-w-0">
