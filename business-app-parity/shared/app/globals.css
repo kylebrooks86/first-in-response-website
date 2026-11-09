@@ -4796,3 +4796,16 @@ html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-c
  .fire-categorized-dropdown [data-slot="select-viewport"]{max-height:min(52dvh,var(--radix-select-content-available-height,52dvh));-webkit-overflow-scrolling:touch}
  .fire-categorized-dropdown.estimate-service-picker [data-slot="select-viewport"]{max-height:min(46dvh,var(--radix-select-content-available-height,46dvh))}
 }
+
+/* FIRE paid invoice and owner preview safe-area corrections; print remains unchanged. */
+.invoice-page .invoice-due.is-paid svg{color:#15803d}
+.invoice-page .invoice-due.needs-review svg{color:#b45309}
+@media screen and (max-width:760px){
+ .pay-page.owner-estimate-preview{padding-top:max(104px,calc(env(safe-area-inset-top) + 84px))!important}
+ .pay-page.owner-estimate-preview .owner-preview-theme-toggle,
+ .pay-page.owner-estimate-preview .owner-estimate-preview-close{
+   top:max(28px,calc(env(safe-area-inset-top) + 24px));min-width:44px;min-height:44px;
+   border:1px solid var(--border);border-radius:10px;background:var(--background);
+   box-shadow:0 2px 8px #0003;-webkit-backdrop-filter:none;backdrop-filter:none;
+ }
+}

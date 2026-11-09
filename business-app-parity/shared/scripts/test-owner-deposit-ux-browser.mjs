@@ -80,6 +80,19 @@ const inactive=body();inactive.currentSnapshot.status='declined';
     throw Error('Original collectible-deposit policy failed to return after accepted synthetic refresh. Actual UI: '+JSON.stringify(shown));
    }
   }
+  if(width===390&&theme==='dark'){
+   const finishedOnly={policy:{...body().policy,estimateStatus:'completed',remainingDepositCents:null,canSchedule:false}};
+   await refresh.click();await respond(200,finishedOnly);
+   await panel.getByText('Closed · job completed',{exact:true}).waitFor();
+   const ended=await panel.locator('.owner-deposit-summary').innerText();
+   check(ended.includes('Not applicable · job completed')&&!ended.includes('Deposit still due')&&!ended.includes('Not ready yet'),'Completed policy-only readback does not claim scheduling or deposit due');
+   const paid=body();paid.currentSnapshot.status='completed';paid.currentSnapshot.paidCents=paid.currentSnapshot.totalCents;
+   await refresh.click();await respond(200,paid);
+   await panel.getByText('Not applicable · job completed',{exact:true}).waitFor();
+   check(requests.every(r=>r.method==='GET'),'Final-state deposit policy stays read only');
+   await refresh.click();await respond(200,body());
+   await panel.getByText('Not ready yet',{exact:true}).waitFor();
+  }
   await sample('signed-collapsed');
   await panel.getByText('Deposit breakdown',{exact:true}).click();await sample('signed-breakdown');
   const long=body();long.exceptionReview.latestEventId='6a55ed09-a39e-499d-bd55-163c0e460dbf';long.exceptionReview.events=Array.from({length:13},(_,i)=>({id:i===0?long.exceptionReview.latestEventId:'7a55ed09-a39e-499d-bd55-'+String(i).padStart(12,'0'),confirmation_id:'9a55ed09-a39e-499d-bd55-163c0e460dbf',created_at:'2026-10-29T10:00:00.000Z',mode:'schedule-before-deposit',previous_deposit_cents:123456789,new_deposit_cents:123456789,actor_email:'synthetic@example.invalid',reason:'Synthetic audit reason '+('long-reference-'.repeat(15))}));
