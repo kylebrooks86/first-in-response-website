@@ -24,7 +24,7 @@ check(optional.includes("Your personal number may be shown."),"Personal phone di
 check(optional.includes("Recent contact")&&optional.includes("Open estimate")&&optional.includes("Customer history")&&optional.includes("Saved estimate activity ("),"Saved activity and navigation remain reachable");
 check(section.includes('triggerLabel="Prepare message"')&&section.includes("onSent={(message,status)=>"),"Primary prepared template still requires separate confirmed send result");
 check(section.includes('className="followup-message-details"')&&section.includes("sending unconfirmed")&&section.includes('contactHistory.status'),"Unconfirmed messages and full histories remain distinguishable");
-check(section.includes('kind==="history"?"Check contact history before outreach"')&&section.includes('Review estimate</Button>'),"Unverified history asks for inspection rather than new outreach");
+check(section.includes('latest.kind==="prepared"?"Message prepared · sending unconfirmed":"Check contact history before outreach"')&&section.includes('Review estimate</Button>'),"Unverified history asks for inspection rather than new outreach and never claims a prepared message was sent");
 check(section.includes('Details{bucketCount("due")+bucketCount("past-target")>0?')&&section.includes("bucketCount(\"review\")"),"Summary hides misleading zero due counts while keeping a full urgency breakdown");
 check(section.includes('actionFilter!=="all"||highPriorityOnly||urgencyFilter!=="all"')&&section.includes("matching of {actions.length}"),"Filter count shown only when filter modifies the full list");
 check(section.includes('reason:"Paid job · invite an honest review"')&&timing.includes('label:"Review suggested"'),"Review suggestion never steers customer ratings");
