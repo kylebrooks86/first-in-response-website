@@ -161,11 +161,15 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
   </div>
   {recordError&&<p role={online?"alert":"status"}>{recordError} {online&&<button type="button" onClick={()=>void loadRecords()}>Retry</button>}</p>}
   {searchError&&<p role="alert">{searchError}</p>}
-  <div className={"territory-stage"+(expanded?" territory-expanded":"")}><div ref={host} className="territory-canvas" aria-label="Tulsa street map"/>
+  <div className={"territory-stage"+(expanded?" territory-expanded":"")}><div className="territory-map-surface"><div ref={host} className="territory-canvas" aria-label="Tulsa street map"/>
    <div className="territory-legend"><button type="button" aria-expanded={legend} onClick={()=>setLegend(!legend)}>Legend</button>{legend&&<ul>{Object.entries(TERRITORY_CATEGORIES).map(([key,c])=><li key={key}><i style={{background:c.color}}/><span>{c.label}</span><b>{visible.filter(p=>p.point&&p.category===key).length}</b></li>)}<li><i style={{background:'#334155'}}/><span>{unknownOffline?'Status unavailable':'Not visited'}</span><b>{visible.filter(p=>p.point&&!p.category).length}</b></li><li><i className="territory-revisit-key"/><span>Gold outline · revisit due</span><b>{visible.filter(p=>p.point&&p.revisitOn&&p.revisitOn<=today).length}</b></li></ul>}</div>
-   <span className="territory-crosshair" aria-hidden="true">+</span><button type="button" className="territory-expand" aria-pressed={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?"Done":"Expand"}</button>
-   <button type="button" className="territory-overview" onClick={()=>map.current?.fitBounds([[-96.48,35.8],[-95.52,36.55]],{padding:24,maxZoom:11,duration:0})} disabled={!ready} aria-label="Show Tulsa and surrounding towns">Tulsa area</button>
-   <button type="button" className="territory-drop" onClick={()=>{const center=map.current?.getCenter();if(center){setDraft({point:{lat:center.lat,lng:center.lng},address:''});setSelected(null);}}} disabled={!ready}>Drop pin</button>
+   <span className="territory-crosshair" aria-hidden="true">+</span>
+   </div>
+   <div className="territory-map-actions" role="group" aria-label="Map actions">
+    <button type="button" className="territory-expand" aria-pressed={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?"Done":"Expand"}</button>
+    <button type="button" className="territory-overview" onClick={()=>map.current?.fitBounds([[-96.48,35.8],[-95.52,36.55]],{padding:24,maxZoom:11,duration:0})} disabled={!ready} aria-label="Show Tulsa and surrounding towns">Tulsa area</button>
+    <button type="button" className="territory-drop" onClick={()=>{const center=map.current?.getCenter();if(center){setDraft({point:{lat:center.lat,lng:center.lng},address:''});setSelected(null);}}} disabled={!ready}>Drop pin</button>
+   </div>
   </div>
   {mapError&&<p role="status">{mapError}</p>}
   {draft&&<section className="territory-card" aria-label="Place pin"><header><h2>Place pin</h2><button type="button" aria-label="Cancel pin" onClick={()=>{setDraft(null);if(autoFind)changeAutoFind(false);}}>×</button></header><label>House address<input value={draft.address} maxLength={240} onChange={e=>setDraft({...draft,address:e.target.value})}/></label><small>{draft.matched?`Approximate match: ${draft.matched}. Check the pin before saving.`:"Check the address and location before saving."}</small><div className="territory-pin-adjust"><small>Pin misplaced? Move the map to the house, then use the center.</small><button type="button" disabled={!ready} onClick={useMapCenter}>Use map center</button></div>{autoFind&&draft.source==='auto'&&<button type="button" className="territory-skip-address" onClick={()=>setDraft(null)}>Skip this address</button>}<button type="button" disabled={disabled||!draft.address.trim()} onClick={()=>void saveLocation()}>Save location</button>{existingDraft&&<small>Uses the existing address. No duplicate customer.</small>}</section>}
