@@ -1,4 +1,4 @@
-# Nov 8 owner iPhone QA deployment observation: e3028e6f active at 100% traffic,
+# Nov 9 owner-confirmed QA deployed version d430dd95 active at 100% traffic,
 # isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
 # Second (and later) QA Business App deployment. No writes unless -Publish,
 # and a fresh exact typed owner approval confirms updating this EXISTING Worker.
@@ -25,14 +25,14 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-# Nov 8 owner screenshot + manually copied full QA version ID identify this
+# Nov 9 owner QA read-back + full version ID identify this
 # reported 100%-serving baseline. Current immutable Worker bindings, complete
 # source provenance and recovery still require fresh Wrangler proof.
 # Preserve this currently working version for code-only rollback if approved.
 # This observation NEVER authorizes publication: require a fresh exact source,
 # two independently verified database identities, 25-journal, device-photo
 # protection and typed owner consent before any existing QA Worker update.
-$expectedActiveVersion = 'e3028e6f-00b4-4717-8bd3-df558d15a37d'
+$expectedActiveVersion = 'd430dd95-a9d1-4e08-aeb4-49e5a8a34f9d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
