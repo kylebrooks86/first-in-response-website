@@ -1,0 +1,5804 @@
+"use client";
+import {QuoteVersions} from '../components/quote-versions';
+import {BusinessPreferencesPanel} from '../components/business-preferences';
+import {DoorKnocking} from "../components/door-knocking";
+import {JobCloseoutHistory} from "../components/job-closeout-history";
+import {NewEstimatePromotions} from "../components/new-estimate-promotions";
+import type {PromotionEvidence} from "../lib/estimate-promotion-attribution";
+import {EstimatePromotionHistory} from "../components/estimate-promotion-history";
+import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
+import {taskDueBucket} from "../lib/task-due";
+import {tightScheduleTurnarounds} from "../lib/schedule-turnarounds";
+import {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness} from "../lib/customer-contact-links";
+import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
+import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
+import {businessTaskContext,taskLinkedFlag} from "../lib/business-task-context";
+import {expenseDateInstant,expenseBusinessDay,expenseBusinessDateLabel} from "../lib/expense-date";
+import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,loadCustomerEstimateHandoff,saveCustomerEstimateHandoff,clearCustomerEstimateHandoff,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
+import {completeEstimatePages} from "@/lib/estimate-pagination";
+import {estimatePaymentMilestone} from "../lib/estimate-payment-milestones.mjs";
+import {estimateAttentionMilestones} from "../lib/estimate-attention-milestones.mjs";
+import {jobNumberLabel} from "../lib/job-numbering.mjs";
+import {customerNumberLabel,completedCustomerJobHistory,matchesCustomerNumberQuery} from "../lib/customer-numbering.mjs";
+import {hasCollectibleJobValue,summarizeCustomerBalances} from "@/lib/customer-balance-summary";
+
+import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
+import type {PropertyEstimateSelection} from '../lib/customer-properties';
+import {CustomerLookup,validLookupCustomer,type LookupCustomer} from '../components/customer-lookup';
+import {EstimateChangeHistory} from '../components/estimate-change-history';
+import {OwnerDepositReview} from '../components/owner-deposit-review';
+import {GlobalSearch,type SearchResult} from '../components/global-search';
+import {CustomerProperties} from '../components/customer-properties';
+import {OwnerJobSnapshotsProvider,useOwnerJobSnapshots,type OwnerJobSnapshotAccess} from '../components/owner-job-snapshots';
+import { OwnerAccountView } from "./owner-account";
+import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
+import {countOfflinePhotos,OFFLINE_PHOTO_CHANGES_CHANNEL} from "../lib/local-photo-vault";
+import { GoogleVoiceTextAction, GoogleVoiceTextShortcutAction, GoogleVoiceCallAction, PersonalPhoneBackupAction, GOOGLE_VOICE_URL } from "../components/google-voice-text-action";
+import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clearOfflinePhotoCustomerDirectory,type OfflinePhotoCustomer} from "../lib/offline-photo-customer-directory";
+import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
+import { estimateFollowUpTiming, estimateReminderStage, viewedEstimateReminderCue, followupUrgency, todayActionLane, todayCustomerQueue, followupLatestContact, noAnswerStillUncontacted } from "../lib/follow-up-timing";
+import { messageHistoryEntries } from "../lib/message-history";
+import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
+import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
+import {validDoorFollowUpDate,type DoorRevisit} from "../lib/door-knocking";
+import type {DashboardReviewCheck} from "../lib/dashboard-review-checks";
+import { summarizeProcessing } from "../lib/processing-fees";
+import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
+import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
+import {exactMoneyInputCents} from "../lib/exact-money-input";
+import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney, validEditablePrice } from "../lib/editable-line-totals";
+import { reuseEstimateServiceLine } from "../lib/reuse-estimate-service-line";
+import { matchesReviewedEstimateReceipt } from "../lib/estimate-quote-receipt";
+import { moveEstimateServiceLine } from "../lib/reorder-estimate-service-line";
+import {estimateCreateStorage,readPendingEstimateCreate,reservePendingEstimateCreate,releasePendingEstimateCreate} from "../lib/pending-estimate-create";
+
+import {weatherIconKind,formatDailyTemperatures,weatherDayHeading} from "../lib/tulsa-weather";
+
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  AlertTriangle,
+  Bell,
+  BarChart3,
+  BadgeCheck,
+  ArrowLeft,
+  BriefcaseBusiness,
+  Clock3,
+  Camera,
+  CameraOff,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  ChevronDown,
+  CircleDollarSign,
+  ClipboardList,
+  Copy,
+  CreditCard,
+  Download,
+  ExternalLink,
+  CheckCircle2,
+  Cloud,
+  CloudFog,
+  CloudLightning,
+  CloudMoon,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
+  Gauge,
+  Globe2,
+  House,
+  Images,
+  Eye,
+  FileText,
+  Mail,
+  MapPin,
+  Navigation,
+  Menu,
+  MessageSquareText,
+  Moon,
+  Phone,
+  PhoneCall,
+  Plus,
+  Receipt,
+  RefreshCw,
+  Search,
+  Save,
+  Send,
+  Settings,
+  SquareKanban,
+  List,
+  Star,
+  Sparkles,
+  StickyNote,
+  Sun,
+  TrendingUp,
+  Trash2,
+  PenLine,
+  Upload,
+  UserPlus,
+  Users,
+  Wind,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { FIRE_TEMPLATES, fillTemplate, type FireTemplate } from "@/lib/fire-templates";
+import {useEstimateBundleDiscount} from "../components/estimate-bundle-discount";
+import { PricingSettings, useServicePricing } from "../components/service-pricing";
+import { EstimateLinePricing } from "../components/estimate-line-pricing";
+import { FIRE_SERVICES as services, serviceDescriptionFor } from "@/lib/fire-services";
+import {CategorizedServiceOptions,VisualChoiceOptions} from "../components/visual-selection-options";
+import { DEFAULT_CASH_APP_HANDLE, DEFAULT_VENMO_HANDLE } from "@/lib/payment-methods";
+import { reviewFollowupEligible } from "@/lib/review-followup-eligibility";
+import { customerJobJourney } from "@/lib/customer-job-journey";
+
+// Display cents when present; keep whole-dollar figures compact without rounding away money.
+const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(cents / 100);
+
+type EstimateItemRow = { id:string; name:string; description:string; quantity:number; unit:string; totalCents:number };
+type EstimateRow = { customerNumber?:number|null; repeatMonths?:number|null; jobNumber?:number|null; id:string; customerId?:string; customer:string; email?:string; phone?:string; address?:string;serviceAddressSource?:string;propertyId?:string|null;propertyRevision?:number|null; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number;bundleDiscountCents?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;lastNoAnswerAt?:string|null;noAnswerCount?:number;lastConfirmedMessageAt?:string|null;lastPreparedAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; pendingRefundCount?:number; openCheckoutCount?:number; reviewReceivedAt?:string|null; reviewSnoozeUntil?:string|null; createdAt:string };
+type CustomerRow = { customerNumber?:number|null; id:string; name:string; email:string; phone:string; address:string; leadSource?:string; createdAt:string; estimateCount:number; estimateTotal:number; paidTotal:number };
+type CustomerEstimate = { customerNumber?:number|null; jobNumber?:number|null; address?:string|null;serviceAddressSource?:string;id:string; customerId:string; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number;bundleDiscountCents?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;lastConfirmedMessageAt?:string|null;lastPreparedAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; pendingRefundCount?:number; openCheckoutCount?:number; reviewReceivedAt?:string|null; reviewSnoozeUntil?:string|null; createdAt:string };
+type CustomerNote = { id:string; customerId:string; body:string; createdAt:string };
+type CustomerRecordFocus={id:string;customerId:string;kind:"payment"|"note"|"property"};
+type YardSignPickupDraft={customerId:string;customerName:string;pickupDate:string;location:string;placedAt:string};
+type ReviewCheckDraft={customerId:string;customerName:string;requestedAt:string;dueDate:string};
+type InvoiceRow = { customerNumber?:number|null; jobNumber?:number|null; paymentReviewPending?:boolean;pendingRefundCount?:number;storedStatus?:string; estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
+type CustomerPhoto = { id:string; customerId:string; category:"before"|"after"|"property"; caption?:string; filename:string; contentType:string; sizeBytes:number; createdAt:string };
+type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"contact_recorded"|"contact_no_answer"|"followup_snoozed"|"review_snoozed"|"review_check_snoozed"|"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"|"send_cancelled"; template:string; body:string; createdAt:string };
+type AppNotification = { id:string; type:string; title:string; body:string; customerId?:string|null; estimateId?:string|null; invoiceId?:string|null; readAt?:string|null; resolvedAt?:string|null; createdAt:string };
+type TaskRow = { id:string; title:string; customerId?:string|null; customer?:string|null; dueAt?:string|null; status:string; notes?:string|null; createdAt:string; completedAt?:string|null };
+type ExpenseRow = { id:string; estimateId?:string|null; category:string; description:string; amountCents:number; incurredAt:string; customer?:string|null; service?:string|null };
+type PaymentRow = { pendingRefundId?:string|null; pendingRefundAmountCents?:number|null; refundedCents?:number; refundableCents?:number; stripePayment?:number; processingFeeCents?:number|null; grossReceivedCents?:number|null; bundledTipCents?:number|null; processingMethod?:string|null; id:string; estimateId:string; customerId?:string; customer?:string; service?:string; type:string; amountCents:number; status:string; reference?:string|null; createdAt:string };
+type JobReportRow = { id:string; estimateId:string; customerId:string; checklist:string; notes?:string; airflowBefore?:string; airflowAfter?:string; status:string; createdAt:string; completedAt?:string|null };
+
+const statusLabel = (value: string) => value.replaceAll("_"," ").replace(/^./,letter=>letter.toUpperCase());
+const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString("en-US", { month:"short", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit", timeZone:"America/Chicago" }) : "Not scheduled";
+/** An estimate link was opened; this is NOT confirmation of the viewer's identity or approval. */
+function EstimateViewedBadge({firstViewedAt}:{firstViewedAt?:string|null}) {
+  if(typeof firstViewedAt!=="string"||!Number.isFinite(Date.parse(firstViewedAt)))return null;
+  const label="Estimate link opened "+dateTime(firstViewedAt)+"; viewer identity unverified";
+  return <span className="estimate-viewed-indicator" aria-label={label} title={label}><Eye aria-hidden="true"/> Viewed</span>;
+}
+/** Visual-only status legend. Never derive sent/delivery/approval from a link view. */
+const estimateStatusVisuals={
+  draft:{Icon:FileText,tone:"draft",label:"Draft",hint:"Estimate saved as a draft"},
+  sent:{Icon:Mail,tone:"sent",label:"Sent",hint:"Estimate marked sent; actual delivery is not verified"},
+  viewed:{Icon:Eye,tone:"viewed",label:"Viewed",hint:"Estimate in viewed state; link opening does not identify the visitor"},
+  approved:{Icon:CheckCircle2,tone:"approved",label:"Approved",hint:"Estimate marked approved"},
+  scheduled:{Icon:CalendarDays,tone:"scheduled",label:"Scheduled",hint:"A job appointment has been scheduled"},
+  completed:{Icon:Check,tone:"completed",label:"Completed",hint:"Job marked completed"},
+  declined:{Icon:X,tone:"declined",label:"Declined",hint:"Estimate marked declined"},
+  superseded:{Icon:FileText,tone:"superseded",label:"Replaced",hint:"Historical estimate replaced by another quote"},
+} as const;
+function EstimateStatusBadge({status,className=""}:{status:string;className?:string}){
+  const visual=estimateStatusVisuals[status as keyof typeof estimateStatusVisuals];
+  const Icon=visual?.Icon??FileText;
+  const label=visual?.label??statusLabel(status);
+  return <span className={["estimate-lifecycle-badge",visual?.tone??"other",className].filter(Boolean).join(" ")}
+    title={visual?.hint??"Saved estimate status"}><Icon aria-hidden="true"/>{label}</span>;
+}
+/** Deposit and full payment are accounting badges, not quote/job statuses.
+ * Display only when saved net payments reconcile to the amount required.
+ */
+function EstimatePaymentBadge({estimate}:{estimate:Pick<EstimateRow,"status"|"totalCents"|"depositCents"|"paidCents">&Partial<Pick<EstimateRow,"invoiceTotalCents"|"pendingRefundCount"|"paymentOverageOpen"|"openCheckoutCount">>}){
+  const milestone=estimatePaymentMilestone(estimate);
+  if(!milestone)return null;
+  const paidInFull=milestone==="paid-in-full";
+  const Icon=paidInFull?BadgeCheck:CircleDollarSign;
+  return <span className={"estimate-payment-indicator "+milestone}
+    title={paidInFull?"Recorded payments equal the current saved billing total; pending processor settlement is not independently verified":"Saved net payments cover the deposit, but a balance remains"}>
+    <Icon aria-hidden="true"/>{paidInFull?"Paid in full":"Deposit paid"}
+  </span>;
+}
+
+/** Only explicit, saved unresolved issues get attention badges.
+ * Do not infer approval, failed payment or a delivered message here.
+ */
+function EstimateAttentionBadges({estimate}:{estimate:Pick<EstimateRow,"pendingChangeCount"|"pendingRefundCount"|"paymentOverageOpen">}){
+  const flags=estimateAttentionMilestones(estimate);
+  if(flags.length===0)return null;
+  return <span className="estimate-attention-indicators">
+    {flags.includes("changes-requested")&&<span className="estimate-attention-indicator changes-requested" title="A customer change request is still open"><MessageSquareText aria-hidden="true"/> Changes requested</span>}
+    {flags.includes("payment-review")&&<span className="estimate-attention-indicator payment-review" title="Unresolved refund or payment overage; review payment records"><AlertTriangle aria-hidden="true"/> Payment review</span>}
+  </span>;
+}
+
+/** Signing is a separate saved agreement milestone, not the estimate's status. */
+function EstimateSignedBadge({signedAt,signedName}:{signedAt?:string|null;signedName?:string|null}){
+  if(!signedAt||!Number.isFinite(Date.parse(signedAt))||!signedName?.trim())return null;
+  return <span className="estimate-signed-indicator" title={"Agreement signed "+dateTime(signedAt)}><PenLine aria-hidden="true"/> Signed</span>;
+}
+
+/** Invoice status is a saved billing fact. A payment exception must never look paid/settled. */
+function InvoiceStatusIndicator({invoice}:{invoice:Pick<InvoiceRow,"status"|"paymentReviewPending"|"paymentOverageOpen">}){
+  const needsReview=Boolean(invoice.paymentReviewPending)||Number(invoice.paymentOverageOpen)>0;
+  const tone=needsReview?"review":invoice.status;
+  const Icon=needsReview?AlertTriangle:invoice.status==="paid"?BadgeCheck:invoice.status==="partial"?CircleDollarSign:invoice.status==="sent"?Mail:invoice.status==="viewed"?Eye:invoice.status==="overdue"?AlertTriangle:Receipt;
+  const label=needsReview?"Payment review":statusLabel(invoice.status);
+  return <span className={"status-chip invoice-status-indicator "+tone}
+    title={needsReview?"Unresolved saved payment exception; inspect the ledger before treating this as settled":"Saved invoice status; viewing does not confirm payment or delivery"}>
+    <Icon aria-hidden="true"/>{label}
+  </span>;
+}
+/** Signing and requested changes are independent persisted agreement facts. */
+function AgreementStatusIndicators({estimate}:{estimate:Pick<EstimateRow,"status"|"signedAt"|"acceptedAt"|"pendingChangeCount">}){
+  const signed=Boolean(estimate.signedAt);
+  const changeRequested=Number(estimate.pendingChangeCount)>0;
+  const label=signed?"Signed":estimate.acceptedAt?"Accepted · unsigned":estimate.status==="viewed"?"Viewed · awaiting approval":estimate.status==="sent"?"Sent · awaiting approval":estimate.status==="approved"?"Approved · unsigned":"No signature on file";
+  const tone=signed?"signed":estimate.acceptedAt||estimate.status==="approved"?"pending":estimate.status==="sent"?"sent":estimate.status==="viewed"?"viewed":"pending";
+  const Icon=signed?PenLine:estimate.status==="viewed"&&!estimate.acceptedAt?Eye:estimate.status==="sent"&&!estimate.acceptedAt?Mail:Clock3;
+  return <span className="agreement-status-indicators">
+    <span className={"status-chip agreement-status-chip "+tone} title={signed?"Signed agreement recorded":"Signature is not recorded; do not treat as signed"}><Icon aria-hidden="true"/>{label}</span>
+    {changeRequested&&<span className="status-chip agreement-status-chip changes" title="Unresolved customer change request"><MessageSquareText aria-hidden="true"/> Changes requested</span>}
+  </span>;
+}
+
+const paymentTypeLabel = (value?: string | null) => value ? value.charAt(0).toUpperCase()+value.slice(1) : "Payment";
+const resolvedBillingTotalCents = (estimate: Pick<EstimateRow,"totalCents">&Partial<Pick<EstimateRow,"invoiceTotalCents">>) => estimate.invoiceTotalCents ?? estimate.totalCents;
+const billingBalanceCents = (estimate: Pick<EstimateRow,"totalCents"|"paidCents">&Partial<Pick<EstimateRow,"invoiceTotalCents">>) => Math.max(0,resolvedBillingTotalCents(estimate)-estimate.paidCents);
+const reviewLink = "https://firstinresponseexteriors.com/review";
+const amountDueNow = (estimate: Pick<EstimateRow,"status"|"totalCents"|"depositCents"|"paidCents">&Partial<Pick<EstimateRow,"invoiceTotalCents">>) => {
+  const finalInvoiceTotal=estimate.invoiceTotalCents;
+  const limit = estimate.status === "completed" ? (finalInvoiceTotal??estimate.totalCents) : ["approved","scheduled"].includes(estimate.status) ? estimate.depositCents : 0;
+  return Math.max(0, limit - estimate.paidCents);
+};
+
+
+function useCurrentTime() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
+}
+
+function repeatCadenceMonths(service:string){
+  const value=service.toLowerCase();
+  if(value.includes("trash")||value.includes("bin"))return 3;
+  if(value.includes("commercial")||value.includes("window"))return 6;
+  if(value.includes("roof"))return 24;
+  return 12;
+}
+
+function addMonths(value:string,months:number){const date=new Date(value);date.setMonth(date.getMonth()+months);return date;}
+
+function FireMark({ small = false }: { small?: boolean }) {
+  return <img className={`fire-logo ${small ? "small" : ""}`} src="/fire-app-logo.png" alt="" aria-hidden="true" />;
+}
+
+function StrideButton({ top = false }: { top?: boolean }) {
+  const [showSetup, setShowSetup] = useState(false);
+  const shortcutUrl = "shortcuts://run-shortcut?name=Open%20Stride";
+  const openShortcut = () => { window.location.href = shortcutUrl; };
+  const openStride = () => {
+    let ready = false;
+    try { ready = window.localStorage.getItem("fire-stride-shortcut-ready") === "yes"; } catch { /* Optional device preference. */ }
+    if (ready) openShortcut();
+    else setShowSetup(true);
+  };
+  const testShortcut = () => {
+    try { window.localStorage.setItem("fire-stride-shortcut-ready", "yes"); } catch { /* Still honor this explicit launch. */ }
+    setShowSetup(false);
+    openShortcut();
+  };
+  return <>
+    <button type="button" className={top ? "top-stride-button" : undefined} onClick={openStride} aria-label="Open Stride" title="Open Stride"><Gauge /> <span>{top ? "Stride" : "Open Stride"}</span></button>
+    <Dialog open={showSetup} onOpenChange={setShowSetup}>
+      <DialogContent className="stride-setup sm:max-w-[480px]">
+        <DialogHeader><DialogTitle>Connect Stride once</DialogTitle></DialogHeader>
+        <p>Stride does not provide a direct app link, but an iPhone Shortcut can open the installed app from FIRE.</p>
+        <ol>
+          <li>Tap <strong>Open Shortcuts</strong>, then tap <strong>+</strong>.</li>
+          <li>Add the <strong>Open App</strong> action and choose <strong>Stride</strong>.</li>
+          <li>Name the shortcut exactly <strong>Open Stride</strong>, then tap <strong>Done</strong>.</li>
+          <li>Return here and tap <strong>I made it — test now</strong>.</li>
+        </ol>
+        <div className="stride-setup-actions">
+          <Button type="button" variant="outline" onClick={() => { window.location.href = "shortcuts://"; }}><Settings className="h-4 w-4" /> Open Shortcuts</Button>
+          <Button type="button" className="brand-button" onClick={testShortcut}><Gauge className="h-4 w-4" /> I made it — test now</Button>
+        </div>
+        <a className="stride-store-link" href="https://apps.apple.com/us/app/stride-mileage-tax-tracker/id1041591359" target="_blank" rel="noreferrer">Need Stride? Get or update it in the App Store <ExternalLink /></a>
+        <small>After this one-time setup, the FIRE button opens Stride directly. You will still tap “Track Miles” inside Stride.</small>
+      </DialogContent>
+    </Dialog>
+  </>;
+}
+
+function PropertyPreview({ address }: { address: string }) {
+  const encodedAddress = encodeURIComponent(address);
+  const satelliteUrl = `https://maps.google.com/maps?q=${encodedAddress}&t=k&z=19&output=embed`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+  const googleEarthUrl = `https://earth.google.com/web/search/${encodedAddress}`;
+
+  return <section className="property-preview" aria-label="Property preview">
+    <header>
+      <div><span className="property-preview-icon"><House /></span><div><strong>Property preview</strong><small>{address}</small></div></div>
+      <span className="property-preview-label">Satellite</span>
+    </header>
+    <div className="property-map-frame">
+      <iframe
+        key={address}
+        src={satelliteUrl}
+        title={`Satellite view of ${address}`}
+        loading="lazy"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allowFullScreen
+      />
+    </div>
+    <footer>
+      <a className="primary-tool" href={googleMapsUrl} target="_blank" rel="noreferrer"><Eye /> Street View</a>
+      <a href={googleEarthUrl} target="_blank" rel="noreferrer"><Globe2 /> Google Earth</a>
+      <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving&dir_action=navigate`} target="_blank" rel="noreferrer"><Navigation /> Navigate</a>
+    </footer>
+
+  </section>;
+}
+
+
+const messageTemplateCategories = [
+  {name:"Estimates",tone:"estimates",Icon:ClipboardList},
+  {name:"Invoices",tone:"invoices",Icon:Receipt},
+  {name:"Scheduling",tone:"scheduling",Icon:CalendarDays},
+  {name:"After service",tone:"after-service",Icon:CheckCircle2},
+  {name:"Documents",tone:"documents",Icon:FileText},
+] as const;
+function MessageTemplateCategoryIcon({category}:{category:FireTemplate["category"]}){
+  const group=messageTemplateCategories.find(item=>item.name===category);
+  const Icon=group?.Icon??MessageSquareText;
+  return <span className={"message-template-category-icon "+(group?.tone??"other")} aria-hidden="true"><Icon/></span>;
+}
+
+const messageLabels: Record<string,string> = Object.fromEntries(FIRE_TEMPLATES.map((item)=>[item.key,item.name]));
+
+function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, triggerAriaLabel, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; triggerAriaLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
+  const [open,setOpen]=useState(false);
+  const [dialogBounds,setDialogBounds]=useState<{height:number;centerY:number}|null>(null);
+  // Some embedded/desktop browsers keep CSS 100dvh at the original screen
+  // size after a resize. Follow the ACTUAL viewport to keep Close reachable.
+  useEffect(()=>{
+    if(!open)return;
+    const measure=()=>{
+      const viewport=window.visualViewport;
+      const visible=Math.min(window.innerHeight,viewport?.height??window.innerHeight);
+      const height=Math.max(160,Math.floor(visible-24));
+      const centerY=Math.floor((viewport?.offsetTop??0)+visible/2);
+      setDialogBounds(current=>current?.height===height&&current.centerY===centerY?current:{height,centerY});
+    };
+    measure();
+    window.addEventListener("resize",measure);
+    window.visualViewport?.addEventListener("resize",measure);
+    return ()=>{
+      window.removeEventListener("resize",measure);
+      window.visualViewport?.removeEventListener("resize",measure);
+    };
+  },[open]);
+  const [template,setTemplate]=useState(initialTemplate);
+  const [templateQuery,setTemplateQuery]=useState("");
+  const [body,setBody]=useState("");
+  const draftEdited=useRef(false);
+  const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
+  // Saved owner overrides MUST load before preparing a canned message. The
+  // bundled templates are display-only fallback, never authority to send.
+  const [templateStatus,setTemplateStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [templateRetry,setTemplateRetry]=useState(0);
+  const [shareToken,setShareToken]=useState(estimate?.shareToken||"");
+  const [invoiceShareToken,setInvoiceShareToken]=useState(estimate?.invoiceShareToken||"");
+  const [shareLinkError,setShareLinkError]=useState("");
+  const [invoiceLinkError,setInvoiceLinkError]=useState("");
+  const [linkRetry,setLinkRetry]=useState(0);
+  const [siteOrigin,setSiteOrigin]=useState("");
+  const [working,setWorking]=useState(false);
+  const preparationLock=useRef(false);
+  const messageScope=useRef(0);
+  const uncertainPreparation=useRef<{requestId:string;signature:string}|null>(null);
+  const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
+  const messageBuilderRef=useRef<HTMLDivElement>(null);
+  const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
+  const [pendingLoading,setPendingLoading]=useState(false);
+  const [pendingError,setPendingError]=useState("");
+  const [pendingNextCursor,setPendingNextCursor]=useState<string|null>(null);
+  const [pendingOlderLoading,setPendingOlderLoading]=useState(false);
+  const [pendingOlderError,setPendingOlderError]=useState("");
+  const pendingOlderLock=useRef(false),pendingPageRequest=useRef(0);
+  const [messageStatus,setMessageStatus]=useState("");
+  // When the owner prepares a text/email, show the confirmation section at
+  // the TOP of the scrolling panel. Never mark a message as sent by scrolling.
+  useEffect(()=>{
+    if(open&&preparedMessage)messageBuilderRef.current?.scrollTo({top:0,behavior:"auto"});
+  },[open,preparedMessage?.id]);
+  const sessionNotice="Your FIRE session has expired or is unavailable. Sign in again in this app to continue. Sending is not confirmed here.";
+  const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
+  const service=estimate?.service || "exterior cleaning service";
+  const scheduled=estimate?.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt)) ? dateTime(estimate.scheduledAt) : "(appointment not scheduled)";
+  const total=estimate ? money(resolvedBillingTotalCents(estimate)) : "the quoted amount";
+  const balance=estimate ? money(billingBalanceCents(estimate)) : "the remaining balance";
+  const customerLink=shareToken&&siteOrigin?`${siteOrigin}/estimate/${shareToken}`:"";
+  const invoiceLink=invoiceShareToken&&siteOrigin?`${siteOrigin}/invoice/${invoiceShareToken}`:"";
+  const variables:Record<string,string>={
+    "@customer_first_name":firstName,"@customer_last_name":customer.name.trim().split(/\s+/).slice(1).join(" "),"@customer_name":customer.name,
+    "@company_name":"First In Response Exteriors","@service_list":service,"@service_address":(estimate?.address??customer.address)||"the service address",
+    "@estimate_total":total,"@estimate_link":customerLink,"@invoice_total":balance,"@invoice_link":invoiceLink,
+    "@schedule_date":scheduled,"@callback_number":"918-922-9366","@form_link":"","@review_link":reviewLink,
+  };
+  // Include a blank custom choice alongside the saved customer message templates.
+  const customMessageTemplate:FireTemplate={key:"custom",name:"Custom message",category:"Estimates",channel:"both",subject:"Message from First In Response Exteriors",body:""};
+  const activeTemplate=template==="custom"?customMessageTemplate:templates.find((item)=>item.key===template)??templates[0];
+  const renderedBody=fillTemplate(activeTemplate?.body??"",variables).replace(/\s{2,}/g," ").trim();
+  const renderedSubject=fillTemplate(activeTemplate?.subject||"A message from First In Response Exteriors",variables);
+  // When launched from Text, do not offer email-only templates that cannot be sent by Google Voice.
+  const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel==="Text"?(item.channel==="both"||item.channel==="sms"):triggerLabel==="Email"?(item.channel==="both"||item.channel==="email"):true))];
+  // Search is display-only: it never selects a different message or edits a draft.
+  const templateSearch=templateQuery.trim().toLocaleLowerCase("en-US");
+  const visibleComposerTemplates=composerTemplates.filter(item=>item.key==="custom"||
+    !templateSearch||[item.name,item.category,item.channel].some(value=>value.toLocaleLowerCase("en-US").includes(templateSearch)));
+  const composerMatchCount=visibleComposerTemplates.filter(item=>item.key!=="custom").length;
+  const verifiedTemplate=template==="custom"||(templateStatus==="ready"&&templates.some((item)=>item.key===template));
+  const templateFailureMessage=templateStatus==="loading"?"Loading saved message templates…":"Saved message templates are unavailable. Retry templates or choose Custom message.";
+  const linkReadiness=customerTemplateLinkReadiness(activeTemplate?.body??"",activeTemplate?.subject??"",body,customerLink,invoiceLink);
+  const appointmentReadiness=customerAppointmentTemplateReadiness(
+    activeTemplate?.body??"",activeTemplate?.subject??"",estimate?.scheduledAt,estimate?.status,
+    (estimate?.address??customer.address)
+  );
+  const needsInvoiceLink=linkReadiness.requiresInvoice;
+  const needsEstimateLink=linkReadiness.requiresEstimate;
+  const activeLinkError=needsEstimateLink?shareLinkError:needsInvoiceLink?invoiceLinkError:"";
+  const documentLinkMessage=(needsEstimateLink&&!estimate?"Open a saved estimate to use this template.":needsInvoiceLink&&!estimate?.invoiceId?"Create or open an invoice to use this template.":"")||activeLinkError||linkReadiness.reason;
+  useEffect(()=>{
+    messageScope.current++;setWorking(false);uncertainPreparation.current=null;
+    draftEdited.current=false;setBody("");setTemplate(initialTemplate);setTemplateQuery("");setMessageStatus("");
+    setShareToken(estimate?.shareToken||"");setInvoiceShareToken(estimate?.invoiceShareToken||"");
+    setShareLinkError("");setInvoiceLinkError("");
+    pendingPageRequest.current++;pendingOlderLock.current=false;
+    setPreparedMessage(null);setPendingMessages([]);setPendingError("");
+    setPendingNextCursor(null);setPendingOlderLoading(false);setPendingOlderError("");
+    return()=>{messageScope.current++;};
+  },[customer.id,estimate?.id]);
+  // Recover only owner-scoped unconfirmed drafts after SMS/Mail switches apps.
+  // These are not proof of an actual send or delivery.
+  useEffect(()=>{
+    if(!open)return;
+    let active=true;const request=++pendingPageRequest.current;
+    pendingOlderLock.current=false;setPendingOlderLoading(false);setPendingOlderError("");
+    setPendingLoading(true);setPendingError("");
+    const query=new URLSearchParams({customerId:customer.id,estimateId:estimate?.id??""});
+    void (async()=>{
+      try{
+        const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
+        if(response.status===401)throw Error(sessionNotice);
+        const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
+        if(!response.ok||!Array.isArray(result.pending))throw Error(result.error||"Unconfirmed messages could not be checked.");
+        if(active&&request===pendingPageRequest.current){setPendingNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);setPendingMessages(result.pending.filter(item=>
+          item.customerId===customer.id&&(item.estimateId??"")===(estimate?.id??"")&&
+          ["text_prepared","email_prepared"].includes(item.channel)));}
+      }catch(reason){if(active&&request===pendingPageRequest.current)setPendingError(reason instanceof Error?reason.message:"Unconfirmed message history is unavailable.");}
+      finally{if(active)setPendingLoading(false);}
+    })();
+    return()=>{active=false;pendingPageRequest.current++;pendingOlderLock.current=false;};
+  },[open,customer.id,estimate?.id]);
+  useEffect(()=>{
+    if(!open)return;
+    let active=true;
+    setTemplateStatus("loading");
+    void (async()=>{
+      try{
+        const response=await fetch("/api/message-templates",{cache:"no-store"});
+        if(!response.ok)throw Error("Saved templates could not be retrieved.");
+        const result=await response.json() as {templates?:FireTemplate[]};
+        // A partial-but-200 reply cannot authorize unrelated stale bundled
+        // copy. Match the full Settings catalog by immutable key and metadata.
+        if(!Array.isArray(result.templates)||result.templates.length!==FIRE_TEMPLATES.length||
+           result.templates.some(item=>
+             !item||typeof item.key!=="string"||!item.key||
+             typeof item.name!=="string"||!item.name||
+             typeof item.subject!=="string"||typeof item.body!=="string"||!item.body.trim()||
+             !["sms","email","both","document"].includes(item.channel))||
+           new Set(result.templates.map(item=>item.key)).size!==FIRE_TEMPLATES.length||
+           !FIRE_TEMPLATES.every(original=>result.templates!.some(item=>
+             item.key===original.key&&item.name===original.name&&
+             item.category===original.category&&item.channel===original.channel)))
+          throw Error("Saved templates could not be verified.");
+        if(active){setTemplates(result.templates);setTemplateStatus("ready");}
+      }catch{
+        if(active)setTemplateStatus("error");
+      }
+    })();
+    return()=>{active=false;};
+  },[open,templateRetry]);
+  useEffect(()=>{
+    if(!open||!verifiedTemplate||!estimate||shareToken||!needsEstimateLink)return;
+    let active=true;
+    setShareLinkError("");
+    void (async()=>{try{
+      const response=await fetch(`/api/estimates/${estimate.id}/share`,{method:"POST"});
+      const result=await response.json() as {shareToken?:string};
+      if(!response.ok||typeof result.shareToken!=="string"||!result.shareToken.trim())throw new Error("Estimate share link unavailable");
+      if(active)setShareToken(result.shareToken);
+    }catch{if(active)setShareLinkError("Estimate link unavailable. Retry before preparing this message.");}})();
+    return()=>{active=false;};
+  },[open,verifiedTemplate,estimate,shareToken,needsEstimateLink,linkRetry]);
+  useEffect(()=>{
+    if(!open||!verifiedTemplate||!estimate?.invoiceId||invoiceShareToken||!needsInvoiceLink)return;
+    let active=true;
+    setInvoiceLinkError("");
+    void (async()=>{try{
+      const response=await fetch(`/api/invoices/${estimate.invoiceId}/share`,{method:"POST"});
+      const result=await response.json() as {shareToken?:string};
+      if(!response.ok||typeof result.shareToken!=="string"||!result.shareToken.trim())throw new Error("Invoice share link unavailable");
+      if(active)setInvoiceShareToken(result.shareToken);
+    }catch{if(active)setInvoiceLinkError("Invoice link unavailable. Retry before preparing this message.");}})();
+    return()=>{active=false;};
+  },[open,verifiedTemplate,estimate,invoiceShareToken,needsInvoiceLink,linkRetry]);
+  useEffect(()=>{if(open&&!draftEdited.current)setBody(renderedBody);},[open,renderedBody,customer.id,estimate?.id]);
+  const loadOlderPendingMessages=async()=>{
+    const cursor=pendingNextCursor;
+    if(!open||!cursor||pendingOlderLock.current||pendingOlderLoading||pendingLoading||working)return;
+    pendingOlderLock.current=true;
+    const page=++pendingPageRequest.current,scopeCustomer=customer.id,scopeJob=estimate?.id??"";
+    setPendingOlderLoading(true);setPendingOlderError("");
+    try{
+      const query=new URLSearchParams({customerId:scopeCustomer,estimateId:scopeJob,cursor});
+      const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
+      if(response.status===401)throw Error(sessionNotice);
+      const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
+      if(!response.ok||!Array.isArray(result.pending)||Boolean(result.mayHaveMore)&&typeof result.nextCursor!=="string")
+        throw Error(result.error||"Older prepared messages could not be verified.");
+      if(page!==pendingPageRequest.current)return;
+      const verified=result.pending.filter(item=>
+        item.customerId===scopeCustomer&&(item.estimateId??"")===scopeJob&&
+        ["text_prepared","email_prepared"].includes(item.channel));
+      if(verified.length!==result.pending.length)throw Error("Older message scope could not be verified.");
+      setPendingMessages(current=>{
+        const ids=new Set(current.map(item=>item.id));
+        return [...current,...verified.filter(item=>{if(ids.has(item.id))return false;ids.add(item.id);return true;})];
+      });
+      setPendingNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);
+    }catch(reason){
+      if(page===pendingPageRequest.current)setPendingOlderError(reason instanceof Error?reason.message:"Older prepared messages are unavailable.");
+    }finally{
+      if(page===pendingPageRequest.current){pendingOlderLock.current=false;setPendingOlderLoading(false);}
+    }
+  };
+  const chooseTemplate=(value:string)=>{
+    if(value===template)return;
+    if(draftEdited.current&&!window.confirm("Replace your edited message with another template?"))return;
+    draftEdited.current=false;setTemplate(value);setTemplateQuery("");setBody("");
+  };
+  const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
+    if(preparationLock.current)return false;
+    if(!verifiedTemplate){setMessageStatus(templateFailureMessage);return false;}
+    if(!linkReadiness.ready){setMessageStatus(documentLinkMessage);return false;}
+    if(!appointmentReadiness.ready){setMessageStatus(appointmentReadiness.reason);return false;}
+    // Match the API's normalization before signing or comparing its receipt.
+    // Keep internal line breaks; only surrounding whitespace is discarded.
+    const messageBody=body.trim();
+    if(!messageBody){setMessageStatus("Write a message before preparing it.");return false;}
+    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body:messageBody};
+    const signature=JSON.stringify(payload);
+    if(uncertainPreparation.current&&uncertainPreparation.current.signature!==signature){
+      setMessageStatus("A previous message preparation is unconfirmed. Restore its original text and retry the same request, or reopen saved drafts to verify it first.");
+      return false;
+    }
+    if(!uncertainPreparation.current)uncertainPreparation.current={requestId:crypto.randomUUID(),signature};
+    const operation=uncertainPreparation.current,scope=messageScope.current;
+    preparationLock.current=true;setWorking(true);setMessageStatus("Preparing message…");
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch("/api/customer-messages",{method:"POST",signal:controller.signal,headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
+      if(response.status===401){
+        if(scope!==messageScope.current)return false;
+        // Auth rejects before database writes; a definitive 401 is NOT an
+        // uncertain save even when an upstream gateway returns non-JSON HTML.
+        uncertainPreparation.current=null;
+        setMessageStatus("FIRE sign-in is unavailable. Sign in again to prepare this draft. No text or email handoff was started.");
+        return false;
+      }
+      const result=await response.json() as {message?:CustomerMessage;error?:string};
+      const saved=result.message;
+      if(scope!==messageScope.current)return false;
+      if(!response.ok||!saved){
+        if(definitiveUnwrittenMessagePreparation(response.status)){
+          // These explicit API rejections occur before customer-message
+          // writes. The draft is definitively NOT saved, so allow editing
+          // and a new operation ID. Never apply this to 409, 5xx or timeout:
+          // those may involve an existing immutable message or unknown write.
+          uncertainPreparation.current=null;
+          setMessageStatus(result.error||"This draft was rejected before saving. Correct it and try again.");
+        }else{
+          setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
+        }
+        return false;
+      }
+      if(saved.id!=="owner-message-prep:"+operation.requestId||saved.customerId!==customer.id||
+        (saved.estimateId??"")!==(estimate?.id??"")||saved.channel!==channel||saved.template!==template||saved.body!==messageBody){
+        setMessageStatus("The saved message receipt does not match this preparation. Review saved drafts before trying again.");
+        return false;
+      }
+      uncertainPreparation.current=null;
+      onLogged?.(saved);
+      window.dispatchEvent(new Event("fire:attention-saved"));
+      if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)]);}
+      setMessageStatus(channel==="copy"?"Saved; copying…":"Ready to send · sending unconfirmed.");
+      return true;
+    }catch{
+      if(scope!==messageScope.current)return false;
+      setMessageStatus("Message preparation may already be saved. Retry the unchanged draft with the same request or reopen saved drafts.");
+      return false;
+    }finally{clearTimeout(timeout);preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
+  };
+  const copyVoiceField=async(text:string,success:string,failure:string)=>{try{await navigator.clipboard.writeText(text);setMessageStatus(success);}catch{setMessageStatus(failure);}};
+  const sendText=async()=>{
+    const ready=customerMessageHandoffReadiness("text",customer.phone,body);
+    if(!ready.ready){setMessageStatus(ready.reason);return;}
+    if(!await log("text_prepared"))return;
+    setMessageStatus("Ready to text · not sent yet.");
+  };
+  const sendEmail=async()=>{
+    const ready=customerMessageHandoffReadiness("email",customer.email,body);
+    if(!ready.ready){setMessageStatus(ready.reason);return;}
+    if(!await log("email_prepared"))return;
+    setMessageStatus("Ready to email · not sent yet. Open email app below.");
+  };
+  const confirmSent=async()=>{
+    if(!preparedMessage||preparationLock.current)return;
+    const draft=preparedMessage,scope=messageScope.current;
+    preparationLock.current=true;setWorking(true);setMessageStatus("");
+    try{
+      const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedSent:true})});
+      if(response.status===401)throw new Error("Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.");
+      const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};
+      if(scope!==messageScope.current)return;
+      const receipt=result.message;
+      if(!response.ok)throw new Error(result.error||"Send confirmation could not be saved.");
+      if(!receipt||receipt.id!==draft.id+":owner-confirmed"||receipt.customerId!==draft.customerId||
+        (receipt.estimateId??"")!==(draft.estimateId??"")||receipt.template!==draft.template||receipt.body!==draft.body||
+        receipt.channel!==(draft.channel==="text_prepared"?"text_confirmed":"email_confirmed")||
+        typeof receipt.createdAt!=="string"||!Number.isFinite(Date.parse(receipt.createdAt)))
+        throw new Error("The send receipt does not match this prepared message. Sending remains unconfirmed here. Retry this same confirmation or reopen saved history to verify it.");
+      onLogged?.(receipt);setPreparedMessage(null);setPendingMessages(current=>current.filter(item=>item.id!==draft.id));
+      setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");
+      window.dispatchEvent(new Event("fire:attention-saved"));
+      if(draft.template===initialTemplate){
+        try{await onSent?.(receipt,result.estimateStatus);}
+        catch{if(scope===messageScope.current)setMessageStatus("Send confirmation saved. Customer records could not be refreshed; reopen saved history before taking another action. Delivery and read status are unknown.");}
+      }
+    }catch(error){if(scope===messageScope.current)setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved. Retry this same prepared message.");}
+    finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
+  };
+  const cancelPrepared=async()=>{
+    if(!preparedMessage||preparationLock.current||working||!window.confirm("Mark this prepared message as NOT sent? It will leave your pending list but stay in the customer audit history."))return;
+    const draft=preparedMessage,scope=messageScope.current;
+    preparationLock.current=true;setWorking(true);setMessageStatus("");
+    try{
+      const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedNotSent:true})});
+      if(response.status===401)throw Error("Sign in to FIRE again before discarding this prepared draft. Its status is still unconfirmed.");
+      const result=await response.json() as {message?:CustomerMessage;cancelled?:boolean;error?:string};
+      if(scope!==messageScope.current)return;
+      if(!response.ok||result.cancelled!==true||result.message?.id!==draft.id+":owner-cancelled"||result.message.customerId!==customer.id)
+        throw Error(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status.");
+      onLogged?.(result.message);
+      setPendingMessages(current=>current.filter(item=>item.id!==draft.id));
+      setPreparedMessage(null);draftEdited.current=false;setBody(renderedBody);
+      setMessageStatus("Marked not sent. Removed from pending messages; original draft remains in customer history.");
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+    }catch(err){if(scope===messageScope.current)setMessageStatus(err instanceof Error?err.message:"Cannot confirm that the unsent draft was discarded.");}
+    finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
+  };
+  const copy=async()=>{
+    // A copied outgoing message must first have an owner-scoped, read-back
+    // confirmed audit entry. Do not put unrecorded text on the clipboard
+    // when saving is offline, uncertain or rejected.
+    if(!await log("copy"))return;
+    try{
+      await navigator.clipboard.writeText(body.trim());
+      setMessageStatus("Copied. Sending is not confirmed.");
+    }catch{
+      setMessageStatus("Message saved, but clipboard copy failed. Select and copy the text manually. Sending is not confirmed.");
+    }
+  };
+  const changeComposerOpen=(value:boolean)=>{
+    if(!value){
+      if(working||preparationLock.current){
+        window.alert("FIRE is checking this message. Keep the editor open until preparation or confirmation finishes.");
+        return;
+      }
+      if(uncertainPreparation.current){
+        if(!window.confirm("Message preparation may already be saved, but sending is NOT confirmed. Closing will not cancel that request. Reopen this customer and review the SAME prepared message before trying again. Close?"))return;
+      }else if(preparedMessage){
+        if(!window.confirm("This prepared message is not confirmed sent. Closing does not mark it sent; reopen this customer to confirm or mark it not sent. Close?"))return;
+      }else if(draftEdited.current){
+        if(!window.confirm("Discard your unfinished message edits? No text or email has been sent by FIRE."))return;
+        draftEdited.current=false;
+        setBody("");
+      }
+      setOpen(false);
+      return;
+    }
+    setTemplateStatus("loading");
+    setTemplateQuery("");
+    setOpen(true);
+    setSiteOrigin(window.location.origin);
+  };
+  return <Dialog open={open} onOpenChange={changeComposerOpen}>
+    <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
+    <DialogContent className="message-dialog sm:max-w-[620px]" style={{maxHeight:dialogBounds?.height??"calc(100dvh - 24px)",top:dialogBounds?`${dialogBounds.centerY}px`:undefined,display:"flex",flexDirection:"column",overflow:"hidden",...{"--fire-message-visible-height":dialogBounds?`${dialogBounds.height}px`:"calc(100dvh - 24px)"}}}>
+      <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
+      <div ref={messageBuilderRef} className="message-builder" role="region" aria-label="Message editor and confirmation controls" tabIndex={0} style={{flex:"1 1 auto",minHeight:0,overflowY:"auto",overflowX:"hidden"}}>
+        {messageStatus&&<p role="status" className="message-status-note">{messageStatus}</p>}
+        {templateStatus==="loading"&&template!=="custom"&&!preparedMessage&&<p role="status">Loading saved message templates…</p>}
+        {templateStatus==="error"&&!preparedMessage&&<div role="alert"><p>{templateFailureMessage}</p><Button type="button" variant="outline" disabled={working} onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}
+        {!preparedMessage&&pendingLoading&&<p role="status">Checking saved unconfirmed messages…</p>}
+        {!preparedMessage&&pendingError&&<p role="alert">{pendingError} Sending is not confirmed.</p>}
+        {!preparedMessage&&pendingMessages.length>0&&<details className="message-pending-drafts" aria-label="Saved unconfirmed messages">
+          <summary>Messages to check ({pendingMessages.length})</summary>
+          <div className="message-pending-inner">
+            <p>Check whether these were sent before trying again.</p>
+            <div className="message-draft-list">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
+              draftEdited.current=true;setTemplate(item.template);setBody(item.body);
+              setPreparedMessage(item);setMessageStatus("Message opened · sending unconfirmed.");
+            }}>
+              {item.channel==="text_prepared"?"Text":"Email"} · {templates.find(t=>t.key===item.template)?.name??(item.template==="custom"?"Custom message":item.template)} · {new Date(item.createdAt).toLocaleDateString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric"})}
+            </Button>)}</div>
+            {pendingNextCursor&&<Button variant="outline" disabled={pendingOlderLoading||working} onClick={()=>void loadOlderPendingMessages()}>{pendingOlderLoading?"Loading…":"See older messages"}</Button>}
+            {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
+          </div>
+        </details>}
+        {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
+        {!preparedMessage&&<div className="composer-template-controls">
+          <Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label>
+          <Select value={template} onValueChange={chooseTemplate} disabled={working}>
+            <SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger>
+            <SelectContent className="composer-template-menu">
+              <SelectGroup>
+                <SelectLabel className="composer-template-category-label"><MessageSquareText aria-hidden="true"/> Custom</SelectLabel>
+                <SelectItem value="custom">Custom message</SelectItem>
+              </SelectGroup>
+              {messageTemplateCategories.map(group=>{
+                const options=visibleComposerTemplates.filter(item=>item.key!=="custom"&&item.category===group.name);
+                return options.length?<SelectGroup key={group.name}>
+                  <SelectLabel className={"composer-template-category-label "+group.tone}><MessageTemplateCategoryIcon category={group.name}/> {group.name} <small>({options.length})</small></SelectLabel>
+                  {options.map(item=><SelectItem className={"composer-template-option "+group.tone} key={item.key} value={item.key} disabled={templateStatus!=="ready"}>{item.name}</SelectItem>)}
+                </SelectGroup>:null;
+              })}
+              {composerMatchCount===0&&templateSearch&&<SelectLabel>No saved templates match your search.</SelectLabel>}
+            </SelectContent>
+          </Select>
+          <details className="composer-template-search-disclosure">
+            <summary>Find another template</summary>
+            <Input type="search" aria-label="Find a message template" placeholder="Search templates…" value={templateQuery} onChange={event=>setTemplateQuery(event.target.value)} disabled={working} className="composer-template-search"/>
+            {templateSearch&&<small role="status">{composerMatchCount} matching template{composerMatchCount===1?"":"s"}.</small>}
+          </details>
+        </div>}
+        <div className="message-editor"><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={preparedMessage?4:6}/>
+        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{!verifiedTemplate?templateFailureMessage:!appointmentReadiness.ready?appointmentReadiness.reason:!linkReadiness.ready?documentLinkMessage:!body.trim()?"Write your message first.":customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||""}</p>}
+        {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!linkReadiness.ready&&<p role="status">{documentLinkMessage}</p>}
+        {!preparedMessage&&triggerLabel!=="Text"&&triggerLabel!=="Email"&&verifiedTemplate&&!appointmentReadiness.ready&&<p role="status">{appointmentReadiness.reason}</p>}
+        {!preparedMessage&&activeLinkError&&((needsEstimateLink&&estimate)||(needsInvoiceLink&&estimate?.invoiceId))&&<Button type="button" variant="outline" disabled={working} onClick={()=>setLinkRetry(value=>value+1)}>Retry link</Button>}</div>
+        {preparedMessage?.channel==="text_prepared"&&<section className="message-handoff-compact rounded-lg border p-3" aria-label="Google Voice text handoff">
+          <GoogleVoiceTextShortcutAction phone={customer.phone} message={preparedMessage.body} label="Text with Google Voice"/>
+          <p className="message-handoff-hint">Review the recipient and message in your Shortcut.</p>
+          <details className="message-secondary-options"><summary>Other sending options</summary>
+            <div className="message-secondary-actions">
+              <Button variant="outline" type="button" onClick={()=>void copyVoiceField(customer.phone,"Number copied. Send not confirmed.","Could not copy number. Enter it manually in Google Voice.")}><Copy className="h-4 w-4"/> Copy number</Button>
+              <Button variant="outline" type="button" onClick={()=>void copyVoiceField(preparedMessage.body,"Message copied. Send not confirmed.","Could not copy message. Select the text above.")}><Copy className="h-4 w-4"/> Copy message</Button>
+              <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4"/> Open Google Voice</a>
+              <PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={customer.name} message={preparedMessage.body}/>
+            </div>
+            <small>Backup text may use your personal number.</small>
+          </details>
+        </section>}
+        {preparedMessage?.channel==="email_prepared"&&<section className="message-handoff-compact rounded-lg border p-3" aria-label="Prepared email handoff">
+          {usableCustomerEmail(customer.email)?<a className="message-email-primary inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid email address before sending.</p>}
+          <details className="message-secondary-options"><summary>Other sending options</summary>
+            <Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Email copied. Send not confirmed.","Could not copy email. Select the text above.")}>Copy email message</Button>
+          </details>
+        </section>}
+        {preparedMessage&&<div className="message-confirm-actions">
+          <p>Did you send it?</p>
+          <div className="message-confirm-primary">
+            <Button className="brand-button" onClick={()=>void confirmSent()} disabled={working}>Yes, mark sent</Button>
+            <Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Not sent · editing draft.");}}>Not yet · edit</Button>
+          </div>
+          <details className="message-secondary-options"><summary>Discard this draft</summary>
+            <Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button>
+          </details>
+        </div>}
+        {!preparedMessage&&<div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()||!verifiedTemplate||!linkReadiness.ready||!appointmentReadiness.ready}><Copy className="h-4 w-4"/> Copy</Button>{usableCustomerEmail(customer.email)&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!verifiedTemplate||!linkReadiness.ready||!customerMessageHandoffReadiness("email",customer.email,body).ready||!appointmentReadiness.ready}><Mail className="h-4 w-4"/> Email</Button>}{usableCustomerPhone(customer.phone)&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!verifiedTemplate||!linkReadiness.ready||!customerMessageHandoffReadiness("text",customer.phone,body).ready||!appointmentReadiness.ready}><Send className="h-4 w-4"/> Text</Button>}</div>}
+      </div>
+    </DialogContent>
+  </Dialog>;
+}
+
+function CustomerPhotos({customer,photos,setPhotos}:{customer:CustomerRow;photos:CustomerPhoto[];setPhotos:React.Dispatch<React.SetStateAction<CustomerPhoto[]>>}){
+  const cameraRef=useRef<HTMLInputElement>(null);
+  const libraryRef=useRef<HTMLInputElement>(null);
+  const [category,setCategory]=useState<"before"|"after"|"property">("before");
+  const [caption,setCaption]=useState("");
+  const [uploading,setUploading]=useState(false);
+  const [beforeId,setBeforeId]=useState("");
+  const [afterId,setAfterId]=useState("");
+  const [comparing,setComparing]=useState(false);
+  const [error,setError]=useState("");
+  const [deletingId,setDeletingId]=useState<string|null>(null);
+  const [uncertain,setUncertain]=useState(false);
+  const [refreshing,setRefreshing]=useState(false);
+  const [reviewed,setReviewed]=useState(false);
+  const mutationLock=useRef(false);
+  const refreshPhotos=async()=>{
+    setRefreshing(true);setReviewed(false);
+    try{
+      const response=await fetch('/api/customers',{cache:'no-store'});const result=await response.json() as {photos?:CustomerPhoto[]};
+      if(!response.ok||!Array.isArray(result.photos)||result.photos.some(photo=>!photo||typeof photo.id!=='string'||typeof photo.customerId!=='string'))throw Error('Photo records could not be refreshed. No photo action was retried.');
+      const own=result.photos.filter(photo=>photo.customerId===customer.id);
+      if(new Set(own.map(photo=>photo.id)).size!==own.length)throw Error('Photo records could not be verified.');
+      setPhotos(current=>[...current.filter(photo=>photo.customerId!==customer.id),...own]);setReviewed(true);
+    }catch(refreshError){setError(current=>(current?current+' ':'')+(refreshError instanceof Error?refreshError.message:'Photo records unavailable.'));}
+    finally{setRefreshing(false);}
+  };
+  const upload=async(files:FileList|null)=>{
+    if(!files?.length||mutationLock.current||uncertain||refreshing)return;
+    mutationLock.current=true;
+    setUploading(true);setError("");
+    let safelyRejected=false;
+    try{
+      for(const file of Array.from(files)){
+        const form=new FormData();form.append("customerId",customer.id);form.append("category",category);form.append("caption",caption);form.append("photo",file);
+        const response=await fetch("/api/customer-photos",{method:"POST",body:form});
+        const result=await response.json() as {photo?:CustomerPhoto;error?:string;saveUncertain?:boolean};
+        if(!response.ok||!result.photo){safelyRejected=response.status>=400&&response.status<500&&!result.saveUncertain;throw new Error(result.error||'Photo upload was not confirmed.');}
+        if(result.photo.customerId!==customer.id||typeof result.photo.id!=='string')throw new Error('Photo save receipt could not be verified.');
+        setPhotos((current)=>[result.photo!,...current]);
+      }
+      setCaption("");
+    }catch(uploadError){if(!safelyRejected)setUncertain(true);setError(uploadError instanceof Error?uploadError.message:'Photo upload was not confirmed.');await refreshPhotos();}
+    finally{mutationLock.current=false;setUploading(false);if(cameraRef.current)cameraRef.current.value="";if(libraryRef.current)libraryRef.current.value="";}
+  };
+  const remove=async(photo:CustomerPhoto)=>{
+    if(mutationLock.current||uncertain||refreshing||!window.confirm(`Delete this ${photo.category} photo?`))return;
+    mutationLock.current=true;setDeletingId(photo.id);setError('');let safelyRejected=false;
+    try{
+      const response=await fetch(`/api/customer-photos/${photo.id}`,{method:'DELETE'});
+      const result=await response.json() as {ok?:boolean;error?:string;deleteUncertain?:boolean;cleanupUncertain?:boolean};
+      if(!response.ok||result.ok!==true){safelyRejected=response.status>=400&&response.status<500&&!result.deleteUncertain&&!result.cleanupUncertain;throw Error(result.error||'Photo deletion was not confirmed.');}
+      setPhotos(current=>current.filter(item=>item.id!==photo.id));
+    }catch(deleteError){if(!safelyRejected)setUncertain(true);setError(deleteError instanceof Error?deleteError.message:'Photo deletion was not confirmed.');await refreshPhotos();}
+    finally{mutationLock.current=false;setDeletingId(null);}
+  };
+  const own=photos.filter((photo)=>photo.customerId===customer.id);
+  const beforePhotos=own.filter((photo)=>photo.category==="before");
+  const afterPhotos=own.filter((photo)=>photo.category==="after");
+  const selectedBefore=beforePhotos.find((photo)=>photo.id===(beforeId||beforePhotos[0]?.id));
+  const selectedAfter=afterPhotos.find((photo)=>photo.id===(afterId||afterPhotos[0]?.id));
+  const createComparison=async()=>{
+    if(!selectedBefore||!selectedAfter)return;
+    setComparing(true);setError("");
+    try{
+      const load=(src:string)=>new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error("A selected photo could not be loaded."));image.src=src;});
+      const [before,after]=await Promise.all([load(`/api/customer-photos/${selectedBefore.id}`),load(`/api/customer-photos/${selectedAfter.id}`)]);
+      const canvas=document.createElement("canvas");canvas.width=1600;canvas.height=980;
+      const context=canvas.getContext("2d");if(!context)throw new Error("Comparison image is unavailable on this device.");
+      const drawCover=(image:HTMLImageElement,x:number,y:number,width:number,height:number)=>{const scale=Math.max(width/image.naturalWidth,height/image.naturalHeight);const drawWidth=image.naturalWidth*scale;const drawHeight=image.naturalHeight*scale;context.drawImage(image,x+(width-drawWidth)/2,y+(height-drawHeight)/2,drawWidth,drawHeight);};
+      context.fillStyle="#0e1b2d";context.fillRect(0,0,1600,980);drawCover(before,0,0,796,870);drawCover(after,804,0,796,870);
+      context.fillStyle="rgba(14,27,45,.86)";context.fillRect(0,0,796,70);context.fillRect(804,0,796,70);
+      context.fillStyle="#fff";context.font="700 30px system-ui, sans-serif";context.textAlign="center";context.fillText("BEFORE",398,46);context.fillText("AFTER",1202,46);
+      context.textAlign="left";context.font="700 28px system-ui, sans-serif";context.fillText("FIRST IN RESPONSE EXTERIORS",38,930);
+      context.textAlign="right";context.font="500 22px system-ui, sans-serif";context.fillStyle="#c7d0dc";context.fillText(customer.name,1562,930);
+      const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob((value)=>value?resolve(value):reject(new Error("Comparison image could not be created.")),"image/png"));
+      const safeName=customer.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")||"customer";
+      const file=new File([blob],`${safeName}-before-after.png`,{type:"image/png"});
+      if(navigator.share&&navigator.canShare?.({files:[file]})){await navigator.share({title:`${customer.name} before and after`,files:[file]});}
+      else{const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=file.name;link.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    }catch(compareError){if(compareError instanceof Error&&compareError.name!=="AbortError")setError(compareError.message||"Comparison image could not be created.");}
+    finally{setComparing(false);}
+  };
+  return <div className="photo-panel">
+    <div className="photo-toolbar">
+      <div><Label>Photo type</Label><Select value={category} onValueChange={(value)=>setCategory(value as typeof category)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="before">Before</SelectItem><SelectItem value="after">After</SelectItem><SelectItem value="property">Property / damage</SelectItem></SelectContent></Select></div>
+      <div className="photo-caption"><Label htmlFor="photoCaption">Optional note</Label><Input id="photoCaption" value={caption} onChange={(event)=>setCaption(event.target.value)} placeholder="North siding, cracked outlet cover…"/></div>
+      <div className="photo-buttons"><Button className="brand-button" onClick={()=>cameraRef.current?.click()} disabled={uploading||Boolean(deletingId)||uncertain||refreshing}><Camera className="h-4 w-4"/>{uploading?"Uploading…":"Camera"}</Button><Button variant="outline" onClick={()=>libraryRef.current?.click()} disabled={uploading||Boolean(deletingId)||uncertain||refreshing}><Images className="h-4 w-4"/>Photo library</Button></div>
+      <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={(event)=>void upload(event.target.files)}/>
+      <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={(event)=>void upload(event.target.files)}/>
+    </div>
+    {error&&<p className="save-error" role="alert">{error}</p>}
+    {uncertain&&<section className="space-y-2" aria-label="Unconfirmed photo action"><p role="status">The photo action was not confirmed. Upload and delete actions are paused; no automatic retry was made.</p><Button variant="outline" disabled={refreshing||uploading||Boolean(deletingId)} onClick={()=>void refreshPhotos()}>Review stored photos</Button>{reviewed&&<><p>Stored photo records were refreshed. Image-storage cleanup may still require separate review.</p><Button variant="outline" disabled={refreshing||uploading||Boolean(deletingId)} onClick={()=>{if(window.confirm('I reviewed the refreshed photo records. Any unconfirmed image-storage cleanup will be handled separately. Enable new deliberate photo actions?')){setUncertain(false);setReviewed(false);}}}>Continue after reviewing photos</Button></>}</section>}
+    {beforePhotos.length>0&&afterPhotos.length>0&&<section className="before-after-builder"><header><div><strong>Before &amp; after</strong></div><Images/></header><div><label><span>Before photo</span><Select value={selectedBefore?.id} onValueChange={setBeforeId}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{beforePhotos.map((photo)=><SelectItem key={photo.id} value={photo.id}>{photo.caption||`${new Date(photo.createdAt).toLocaleDateString()} · ${photo.filename}`}</SelectItem>)}</SelectContent></Select></label><label><span>After photo</span><Select value={selectedAfter?.id} onValueChange={setAfterId}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{afterPhotos.map((photo)=><SelectItem key={photo.id} value={photo.id}>{photo.caption||`${new Date(photo.createdAt).toLocaleDateString()} · ${photo.filename}`}</SelectItem>)}</SelectContent></Select></label><Button className="brand-button" onClick={()=>void createComparison()} disabled={comparing}><Download className="h-4 w-4"/>{comparing?"Creating…":"Create comparison"}</Button></div><div className="before-after-preview"><figure><img src={`/api/customer-photos/${selectedBefore?.id}`} alt="Selected before"/><figcaption>Before</figcaption></figure><figure><img src={`/api/customer-photos/${selectedAfter?.id}`} alt="Selected after"/><figcaption>After</figcaption></figure></div></section>}
+    {own.length?<div className="photo-groups">{(["before","after","property"] as const).map((type)=>{const group=own.filter((photo)=>photo.category===type);if(!group.length)return null;return <section key={type}><header><strong>{type==="property"?"Property / damage":statusLabel(type)}</strong><span>{group.length}</span></header><div className="photo-grid">{group.map((photo)=><article className="photo-card" key={photo.id}><a href={`/api/customer-photos/${photo.id}`} target="_blank" rel="noreferrer"><img src={`/api/customer-photos/${photo.id}`} alt={`${statusLabel(photo.category)} photo${photo.caption?`: ${photo.caption}`:""}`} loading="lazy"/></a><div><p>{photo.caption||photo.filename}</p><small>{new Date(photo.createdAt).toLocaleDateString()}</small></div><button disabled={uploading||Boolean(deletingId)||uncertain||refreshing} onClick={()=>void remove(photo)} aria-label="Delete photo"><Trash2/></button></article>)}</div></section>})}</div>:<div className="record-empty"><Camera/><strong>No property photos yet</strong><p>Choose a category, then add a photo.</p></div>}
+  </div>;
+}
+
+type DiscountMode = "percent" | "dollar";
+type EditableEstimateItem={id?:string;serviceId:string;name:string;description:string;quantity:number;unit:string;unitRateCents:number;flatPriceCents?:number;preservedLineTotalCents?:number;draftKey?:string};
+
+function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, rawValue:number, hasPricedService=false, bundleDiscountCents=0){
+  const appreciationCents=appreciation?Math.round(subtotal*0.05):0;
+  let additionalCents=0;
+  if(mode==="percent") {
+    const maxPercent=appreciation?45:50;
+    const percent=Math.min(maxPercent,Math.max(0,Number(rawValue)||0));
+    additionalCents=Math.round(subtotal*(Math.round(percent*100)/10000));
+  } else {
+    additionalCents=Math.min(subtotal,Math.max(0,Math.round((Number(rawValue)||0)*100)));
+  }
+  const requestedDiscount=Math.min(subtotal,appreciationCents+additionalCents+bundleDiscountCents);
+  const total=subtotal>0||hasPricedService?Math.max(0,subtotal-requestedDiscount):0;
+  const appliedDiscount=Math.max(0,subtotal-total);
+  return {appreciationCents,additionalCents,requestedDiscount,total,appliedDiscount,deposit:Math.round(total/2)};
+}
+
+/** A percentage is stored in hundredths of one percent; a dollar value in cents.
+ * Reject invalid owner input instead of silently rounding or treating it as zero.
+ */
+function parseDiscountCents(raw:string,mode:DiscountMode,maxPercent=50):number|null{
+  if(raw==='')return 0;
+  if(!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(raw))return null;
+  const [whole,fraction='']=raw.split('.');
+  const cents=Number(whole||0)*100+Number(fraction.padEnd(2,'0'));
+  if(!Number.isSafeInteger(cents)||cents<0)return null;
+  if(mode==='percent'&&cents>maxPercent*100)return null;
+  return cents;
+}
+function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClosed,openOnMount=false,onAutoOpened,revisionSource }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void;openOnMount?:boolean;onAutoOpened?:()=>void;revisionSource?:EstimateRow }) {
+  const [open, setOpen] = useState(false);
+  const pricing=useServicePricing(open);
+  const services=pricing.services;
+  const revisionBundle=useEstimateBundleDiscount(Boolean(open&&revisionSource),revisionSource?.id??"",revisionSource?.totalCents??0);
+  const revisionSeeded=useRef(false);
+  const [step, setStep] = useState(1);
+  const [selectedCustomer,setSelectedCustomer]=useState<LookupCustomer|null>(customer??null);
+  const [customerMode,setCustomerMode]=useState<'lookup'|'existing'|'new'>(customer?'existing':'lookup');
+  const [customerLoading,setCustomerLoading]=useState(false),[identityConfirmed,setIdentityConfirmed]=useState(false);
+  const customerRequest=useRef(0);
+  const [propertyWorkflowReady,setPropertyWorkflowReady]=useState(false);
+  const [customerName,setCustomerName]=useState(customer?.name??"");
+  const [email,setEmail]=useState(customer?.email??"");
+  const [phone,setPhone]=useState(customer?.phone??"");
+  const [address,setAddress]=useState(customer?.address??"");
+  const nextDraftKey=useRef(0);
+  const blankServiceLine=():EditableEstimateItem=>({serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0,draftKey:"new-line-"+(++nextDraftKey.current)});
+  const [items,setItems]=useState<EditableEstimateItem[]>(()=>[blankServiceLine()]);
+  const [appreciationDiscount,setAppreciationDiscount]=useState(false);
+  const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
+  const [discountValue,setDiscountValue]=useState("");
+  const [bundleValue,setBundleValue]=useState("");
+  const [promotionsVerifiedFor,setPromotionsVerifiedFor]=useState<string|null>(null);
+  const [promotionOwnerOverride,setPromotionOwnerOverride]=useState(false);
+  const [promotionEvidence,setPromotionEvidence]=useState<PromotionEvidence|null>(null);
+  const [bookingConfirmedOn,setBookingConfirmedOn]=useState<string|null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [estimateProperty,setEstimateProperty]=useState<PropertyEstimateSelection|null>(null);
+  const [propertyBlocked,setPropertyBlocked]=useState(Boolean(customer));
+  const [propertyRefresh,setPropertyRefresh]=useState(0);
+  const [forcePropertyReview,setForcePropertyReview]=useState(false);
+  const [uncertainSave,setUncertainSave]=useState(false);
+  const saveLock=useRef(false);
+  const [reviewedRecords,setReviewedRecords]=useState<EstimateRow[]>([]);
+  const [reviewingRecords,setReviewingRecords]=useState(false);
+  const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number;jobNumber?:number}|null>(null);
+  const createRequestRef=useRef<string|null>(null);
+  const [pendingCreateId,setPendingCreateId]=useState<string|null>(null);
+  const [createStorageReady,setCreateStorageReady]=useState(false);
+  const [createStorageError,setCreateStorageError]=useState("");
+  const [checkingPending,setCheckingPending]=useState(false);
+  const [pendingCheck,setPendingCheck]=useState<{found:boolean;recognized?:boolean;estimate?:{id:string;customer:string;status:string;totalCents:number;depositCents:number}}|null>(null);
+  useEffect(()=>{
+    const state=readPendingEstimateCreate(estimateCreateStorage());
+    setCreateStorageReady(state.usable);setPendingCreateId(state.requestId);
+    if(!state.usable)setCreateStorageError("Browser storage is unavailable or contains a damaged recovery marker. No new estimate will be sent until this is resolved.");
+  },[]);
+  const inspectPendingCreate=async()=>{
+    if(!pendingCreateId||checkingPending)return;
+    const currentId=pendingCreateId;setCheckingPending(true);setPendingCheck(null);setCreateStorageError("");
+    try{
+      const response=await fetch('/api/estimates/create-status?requestId='+encodeURIComponent(currentId),{cache:'no-store'});
+      const data=await response.json() as {found?:boolean;recognized?:boolean;requestId?:string;estimate?:{id:string;customer:string;status:string;totalCents:number;depositCents:number};error?:string};
+      if(!response.ok||data.requestId!==currentId||typeof data.found!=='boolean')throw Error(data.error||'Saved estimate check could not be verified.');
+      setPendingCheck({found:data.found,recognized:data.recognized,estimate:data.estimate});
+    }catch(e){setCreateStorageError(e instanceof Error?e.message:'Saved estimate check unavailable. The recovery hold stays in place.');}
+    finally{setCheckingPending(false);}
+  };
+  const clearReviewedPending=()=>{
+    if(!pendingCreateId||!pendingCheck)return;
+    const warning=pendingCheck.found
+      ?"This quote already exists. Confirm you reviewed the saved estimate and will not create a duplicate for the same job. Release the recovery hold?"
+      :"No saved quote was found at the instant of the check, but another device or delayed request could still finish saving it. Only release after independently reviewing stored quotes and ensuring no older save is in progress. Release the hold?";
+    if(!window.confirm(warning))return;
+    if(!releasePendingEstimateCreate(estimateCreateStorage(),pendingCreateId)){setCreateStorageError('The browser could not clear the protected request marker. No new quote was sent.');return;}
+    createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);setUncertainSave(false);setCreateStorageError("");setError("");
+  };
+  const acceptProperty=useCallback((selection:PropertyEstimateSelection|null)=>{
+    if(selection&&selection.property.customerId!==selectedCustomer?.id){setEstimateProperty(null);setPropertyBlocked(true);return;}
+    setEstimateProperty(selection);
+  },[selectedCustomer?.id]);
+  const chooseCustomer=async(input:LookupCustomer|null,initial=false)=>{
+    if(saving||uncertainSave)return;
+    if(!initial&&hasUnsavedChanges&&!window.confirm('Switch customer? This discards the unfinished estimate, including customer information, property choices, services, prices and discounts. Choose Cancel to keep all changes.'))return;
+    const generation=++customerRequest.current;setCustomerLoading(true);setError('');
+    try{
+      let fresh:LookupCustomer|null=null;
+      if(input){const response=await fetch('/api/customers/lookup?customerId='+encodeURIComponent(input.id),{cache:'no-store'});const data=await response.json() as {customer?:unknown;error?:string};if(!response.ok||!validLookupCustomer(data.customer)||data.customer.id!==input.id)throw Error(data.error||'Selected customer could not be verified.');fresh=data.customer;}
+      if(generation!==customerRequest.current)return;
+      if(!initial){setItems([blankServiceLine()]);setAppreciationDiscount(false);setDiscountMode('percent');setDiscountValue('');setBundleValue('');setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);}
+      setSelectedCustomer(fresh);setCustomerMode(fresh?'existing':'new');setCustomerName(fresh?.name??'');setEmail(fresh?.email??'');setPhone(fresh?.phone??'');setAddress(fresh?.address??'');
+      setEstimateProperty(null);setPropertyBlocked(Boolean(fresh));setPropertyWorkflowReady(false);setForcePropertyReview(!initial);setPropertyRefresh(count=>count+1);setIdentityConfirmed(true);setStep(1);
+    }catch(err){if(generation===customerRequest.current){setIdentityConfirmed(false);setError(err instanceof Error?err.message:'Customer verification failed.');}}
+    finally{if(generation===customerRequest.current)setCustomerLoading(false);}
+  };
+  useEffect(()=>{
+    if(!open||!revisionSource||!identityConfirmed||revisionSeeded.current||!revisionBundle.ready)return;
+    revisionSeeded.current=true;
+    setItems((revisionSource.items?.length?revisionSource.items:[{name:revisionSource.service,description:revisionSource.serviceDescription||serviceDescriptionFor(revisionSource.service),quantity:1,unit:'job',totalCents:revisionSource.totalCents}]).map(item=>({serviceId:services.find(s=>s.name===item.name)?.id??'custom',name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,...restoreEditableLineMoney(item.quantity,item.totalCents),draftKey:'revision-'+(++nextDraftKey.current)})));
+    setAppreciationDiscount(Boolean(revisionSource.appreciationDiscount));setDiscountMode(revisionSource.additionalDiscountType==='dollar'?'dollar':'percent');setDiscountValue(revisionSource.additionalDiscountValue?String(revisionSource.additionalDiscountValue/100):'');setBundleValue(revisionBundle.value);setPromotionOwnerOverride(true);
+  },[open,revisionSource,identityConfirmed,revisionBundle.ready]);
+  const resolvedAddress=estimateProperty&&estimateProperty.property.customerId===selectedCustomer?.id?estimateProperty.property.address+(estimateProperty.property.designation?' · '+estimateProperty.property.designation:''):address;
+  const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>selectedCustomer?row.customerId===selectedCustomer.id:true));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
+  const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
+  const promotionServiceIds=[...new Set(items.map(item=>item.serviceId).filter(id=>services.some(service=>service.id===id)))];
+  const promotionQuoteKey=JSON.stringify({services:promotionServiceIds,subtotal,appreciationDiscount,bookingConfirmedOn,lineCount:items.length,lineScope:items.map(({serviceId,name,description,quantity,unit,unitRateCents,flatPriceCents})=>({serviceId,name,description,quantity,unit,unitRateCents,flatPriceCents}))});
+  const discountInputCents=parseDiscountCents(discountValue,discountMode,appreciationDiscount?45:50);
+  const bundleInputCents=parseDiscountCents(bundleValue,"dollar");
+  const bundleInvalid=bundleInputCents===null||bundleInputCents>subtotal;
+  const discountInvalid=discountInputCents===null||(discountMode==="dollar"&&discountInputCents>subtotal);
+  const discount=discountMath(subtotal,appreciationDiscount,discountMode,discountInputCents===null?0:discountInputCents/100,items.some(item=>Boolean(item.name)&&item.quantity>0&&validEditablePrice(item)),bundleInputCents??0);
+  const total=discount.total;
+  const deposit=discount.deposit;
+  const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
+  const addService=()=>setItems((current)=>[...current,blankServiceLine()]);
+  const moveService=(index:number,direction:-1|1)=>{
+    if(saving||uncertainSave)return;
+    setItems(current=>moveEstimateServiceLine(current,index,index+direction));
+    setError("");
+  };
+  const reuseService=(index:number)=>{
+    if(saving||uncertainSave)return;
+    setItems(current=>{
+      const source=current[index];
+      if(!source||!source.name.trim())return current;
+      return [...current.slice(0,index+1),{...reuseEstimateServiceLine(source),draftKey:"new-line-"+(++nextDraftKey.current)},...current.slice(index+1)];
+    });
+    setError("");
+  };
+
+  const saveEstimate = async () => {
+    if(saveLock.current||saving||uncertainSave)return;
+    if(!createStorageReady||pendingCreateId&&pendingCreateId!==createRequestRef.current){setError("An earlier estimate request needs a read-only review before another quote can be saved.");return;}
+    if(promotionsVerifiedFor!==promotionQuoteKey){setStep(2);setError("Review saved promotions or explicitly continue without a verified promotion check.");return;}
+    if(customerMode==='lookup'||!identityConfirmed||customerLoading){setStep(1);setError('Select a saved customer or choose Create New Customer.');return;}
+    if(estimateProperty&&estimateProperty.property.customerId!==selectedCustomer?.id){setStep(1);setPropertyBlocked(true);setError('The service property does not belong to this customer. Review their properties again.');return;}
+    if(selectedCustomer&&propertyBlocked){setStep(1);setError('Review and select an active service property before saving.');return;}
+    if(!customerName.trim()){setStep(1);setError("Customer name is required.");return;}
+    if(!Number.isSafeInteger(subtotal)||!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!validEditablePrice(item))){setStep(2);setError("Every service needs a service, quantity, and valid price.");return;}
+    if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
+    if(discountInputCents===null){setError("Enter a valid nonnegative discount with at most two decimals and within the percentage limit.");return;}
+    if(discountMode==="dollar"&&discountInputCents>subtotal){setError("Dollar discount cannot exceed the service subtotal.");return;}
+    const requestId=createRequestRef.current??crypto.randomUUID();
+    if(!reservePendingEstimateCreate(estimateCreateStorage(),requestId)){setError("Could not reserve a safe new-estimate request ID. Review the pending request or browser storage; no quote was sent.");return;}
+    createRequestRef.current=requestId;setPendingCreateId(requestId);setPendingCheck(null);
+    saveLock.current=true;setSaving(true);setError("");
+    let safelyRejected=false;
+    try {
+      const payloadItems=items.map((item)=>({name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
+      const response = await fetch("/api/estimates", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId,...(revisionSource?{revisionOf:revisionSource.id}:{}),customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, ...(promotionEvidence?{promotionEvidence}:{} ) }),
+      });
+      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;jobNumber?:number|null;address?:string;propertyId?:string|null;propertyRevision?:number|null;items?:EstimateItemRow[];error?: string };
+      if(!response.ok){
+        safelyRejected=response.status>=400&&response.status<500;
+        if(response.status>=500)setUncertainSave(true);
+        else if(response.status===409){setStep(1);if(selectedCustomer)setIdentityConfirmed(false);setForcePropertyReview(true);setEstimateProperty(null);setPropertyBlocked(true);setPropertyRefresh(value=>value+1);}
+        throw new Error(result.error||'The estimate could not be saved.');
+      }
+      if(promotionEvidence&&result.promotionAttributionSaved!==true){setUncertainSave(true);throw new Error("Verified saved promotion receipt was not confirmed. Review stored estimates before another attempt.");}
+      if(!matchesReviewedEstimateReceipt(result,{subtotalCents:subtotal,discountCents:discount.appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents:bundleInputCents??0})){setUncertainSave(true);throw new Error('Saved estimate totals or deposit did not match this reviewed quote. Review stored estimates before another attempt.');}
+      if(result.id!==requestId||result.requestId!==requestId||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
+      const confirmedItems=result.items;
+      if(!Array.isArray(confirmedItems)||confirmedItems.length!==payloadItems.length||
+        confirmedItems.some((row,index)=>{
+          const requested=payloadItems[index];
+          return !row||typeof row.id!=="string"||!row.id||row.id.startsWith("new-")||
+            row.name!==requested.name||row.description!==requested.description||
+            Number(row.quantity)!==requested.quantity||row.unit!==requested.unit||
+            Number(row.totalCents)!==requested.totalCents;
+        })||new Set(confirmedItems.map(row=>row.id)).size!==confirmedItems.length){
+        setUncertainSave(true);
+        throw new Error("Saved estimate services were not confirmed. Review the existing estimate before submitting another quote.");
+      }
+      if(!releasePendingEstimateCreate(estimateCreateStorage(),requestId)){setUncertainSave(true);throw new Error("Estimate was saved but its on-device recovery marker could not be cleared. Check stored estimates before sending another quote.");}
+      createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);
+      const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
+      const savedJobNumber=jobNumberLabel(result.jobNumber)?Number(result.jobNumber):undefined;
+      setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit),jobNumber:savedJobNumber});
+      const createdAt = new Date().toISOString();
+      onSaved?.({ id: result.id,jobNumber:savedJobNumber, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:confirmedItems, status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
+      setSaved(true);
+    } catch (saveError) { if(!safelyRejected)setUncertainSave(true);setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
+    finally { setSaving(false);saveLock.current=false; }
+  };
+
+  const initialItem = {serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0,draftKey:items[0]?.draftKey};
+  const hasUnsavedChanges = !saved && ((selectedCustomer?.id??null)!==(customer?.id??null) || Boolean(estimateProperty&&estimateProperty.property.id!==propertySelection?.property.id) || customerName !== (customer?.name??"") || email !== (customer?.email??"")
+    || phone !== (customer?.phone??"") || address !== (customer?.address??"")
+    || JSON.stringify(items) !== JSON.stringify([initialItem]) || appreciationDiscount || discountMode !== "percent" || discountValue !== "" || bundleValue !== "" || bookingConfirmedOn!==null);
+  const reset = (value: boolean) => {
+    if (!value && saving) return; // A pending response must finish before the dialog can close.
+    if (!value && (hasUnsavedChanges||uncertainSave) && !window.confirm(uncertainSave?"Save was not confirmed. Closing does not cancel a possibly saved estimate. Review stored estimates before creating another. Close this draft?":"Discard this unfinished estimate? Customer details, services, quantities, prices and discounts will be lost. Choose Cancel to keep editing.")) return;
+    if(value){setIdentityConfirmed(false);setForcePropertyReview(false);setEstimateProperty(null);setPropertyBlocked(Boolean(customer));setPropertyRefresh(count=>count+1);if(customer)void chooseCustomer(customer,true);else{setCustomerMode('lookup');setSelectedCustomer(null);}}
+    setOpen(value);
+    if (!value) {
+      // Closing an unconfirmed draft never authorizes the next draft to reuse
+      // this operation. The opaque recovery marker remains for exact lookup.
+      createRequestRef.current=null;setPendingCheck(null);
+      customerRequest.current++;setCustomerLoading(false);setIdentityConfirmed(false);setSelectedCustomer(customer??null);setCustomerMode(customer?'existing':'lookup');setPropertyWorkflowReady(false);setEstimateProperty(null);
+      onClosed?.();
+      // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
+      revisionSeeded.current=false;setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setItems([blankServiceLine()]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");setBundleValue("");setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);
+      setCustomerName(customer?.name??"");setEmail(customer?.email??"");setPhone(customer?.phone??"");setAddress(customer?.address??"");
+    }
+  };
+
+  // Launch the original verified estimate flow once. No write or implicit booking.
+  useEffect(()=>{if(openOnMount){reset(true);onAutoOpened?.();}},[]);
+  return <Dialog open={open} onOpenChange={reset}>
+    <DialogTrigger asChild><Button className="brand-button" title={disabledReason}><Plus className="h-4 w-4" /> {revisionSource?"Revise quote":"New estimate"}</Button></DialogTrigger>
+    <DialogContent aria-describedby={undefined} className="new-estimate-dialog max-h-[92vh] overflow-hidden border-0 p-0 sm:max-w-[620px]">
+      <div className="new-estimate-dialog-scroll">
+      <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader>{step===2&&!saved&&<button type="button" className="estimate-header-back" aria-label="Back to customer details" disabled={saving||uncertainSave} onClick={()=>setStep(1)}><ArrowLeft aria-hidden="true"/> Customer details</button>}<p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
+      {!saved&&!saving&&(!createStorageReady||pendingCreateId)&&<section className="mx-6 mt-4 space-y-2 rounded-lg border p-3" aria-label="Unresolved new estimate request">
+        <strong>New estimate save protection</strong>
+        {pendingCreateId?<><p className="text-sm">A quote request is recorded on this device. Do not submit a new quote until the exact request has been checked. Request ID: <code>{pendingCreateId}</code></p>
+        <Button type="button" variant="outline" disabled={checkingPending} onClick={()=>void inspectPendingCreate()}>{checkingPending?"Checking saved quote…":"Check saved quote by request ID"}</Button>
+        {pendingCheck?.found&&<p role="status">A saved estimate exists: {pendingCheck.estimate?.customer||"Customer"} · {money(pendingCheck.estimate?.totalCents??0)} total · {money(pendingCheck.estimate?.depositCents??0)} deposit · {pendingCheck.estimate?.status}. Review that existing job, not a replacement.</p>}
+        {pendingCheck&&!pendingCheck.found&&<p role="status">No matching saved estimate was found at the time of this read. A delayed save may still complete. Independently review stored quotes before releasing this hold.</p>}
+        {pendingCheck?.found&&!pendingCheck.recognized&&<p role="alert">The stored record has no trustworthy matching creation receipt. Inspect it before proceeding.</p>}
+        {pendingCheck&&<Button type="button" variant="outline" onClick={clearReviewedPending}>Release recovery hold after owner review</Button>}</>
+        :<p role="alert">Browser recovery storage is unavailable. New quote creation is disabled to prevent untraceable repeat saves.</p>}
+        {createStorageError&&<p role="alert">{createStorageError}</p>}
+      </section>}
+      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2>{jobNumberLabel(savedReceipt?.jobNumber)&&<p className="mt-2 font-semibold">{jobNumberLabel(savedReceipt?.jobNumber)}</p>}<p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total · {money(savedReceipt?.deposit??deposit)} deposit. The remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
+      :step===1?<div className="space-y-5 px-6 py-6">
+        <CustomerLookup disabled={Boolean(revisionSource)||saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
+        {customerLoading&&<p role="status">Checking saved customer information…</p>}{revisionSource&&revisionBundle.error&&<div role="alert"><p>{revisionBundle.error}</p><Button variant="outline" onClick={()=>void revisionBundle.reload()}>Retry saved discounts</Button></div>}
+        {customerMode==='lookup'?<p>Choose a saved customer or create a new one.</p>:<>
+          <p role="status">{selectedCustomer?"Saved customer":"New customer"}</p>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-name">Customer name</Label><Input id="estimate-customer-name" placeholder="Full name" value={customerName} onChange={event=>setCustomerName(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-email">Email</Label><Input id="estimate-customer-email" type="email" placeholder="customer@email.com" value={email} onChange={event=>setEmail(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-phone">Phone</Label><Input id="estimate-customer-phone" inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={event=>setPhone(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-address">Service address</Label><Input id="estimate-customer-address" aria-label="Estimate service address" placeholder="Tulsa-area address" value={resolvedAddress} onChange={event=>setAddress(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+        </>}
+        {selectedCustomer&&open&&!uncertainSave&&<CustomerProperties key={selectedCustomer.id+'-'+propertyRefresh} customerId={selectedCustomer.id} onRecordsChange={setPropertyBlocked} onSelectionChange={acceptProperty} onWorkflowChange={setPropertyWorkflowReady} initialPropertyId={!forcePropertyReview&&selectedCustomer.id===customer?.id?propertySelection?.property.id:undefined} compact/>}
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        {selectedCustomer&&!identityConfirmed&&!customerLoading&&<Button variant="outline" onClick={()=>void chooseCustomer(selectedCustomer,true)}>Refresh selected customer</Button>}
+        <Button className="brand-button w-full" disabled={customerMode==='lookup'||!identityConfirmed||customerLoading||Boolean(selectedCustomer)&&propertyBlocked||uncertainSave||Boolean(revisionSource)&&(!revisionBundle.ready||!revisionSeeded.current)} onClick={()=>{if(!customerName.trim()){setError('Customer name is required.');return;}setError('');setStep(2);}}>Continue to services <ChevronRight className="h-4 w-4"/></Button>
+      </div>
+      :<div className="estimate-new-services-step space-y-5 px-6 py-6">
+        {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.draftKey||item.id||index}><header><strong>Service {index+1}</strong><div className="flex items-center gap-2">
+          {Boolean(item.name.trim())&&<button type="button" className="inline-flex min-h-11 items-center gap-1 rounded-md border px-2 text-xs font-semibold" disabled={saving||uncertainSave} onClick={()=>reuseService(index)} aria-label={`Reuse service setup from line ${index+1}`} title="Copy this service and price setup into a new line with an empty quantity"><Copy className="h-4 w-4"/> Reuse setup</button>}
+          {items.length>1&&<button type="button" className="min-h-11 min-w-11" disabled={saving||uncertainSave} onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}
+          </div></header>
+          {items.length>1&&<div className="flex flex-wrap gap-2" aria-label={"Arrange service "+(index+1)}>
+            {index>0&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,-1)} aria-label={"Move service "+(index+1)+" up"}>↑ Move up</button>}
+            {index<items.length-1&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,1)} aria-label={"Move service "+(index+1)+" down"}>↓ Move down</button>}
+          </div>}
+          <div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});setError("");}}><SelectTrigger className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker fire-categorized-dropdown" position="popper" sideOffset={6} collisionPadding={16}><CategorizedServiceOptions catalog={services}/></SelectContent></Select></div>
+          <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label htmlFor={`estimate-service-description-${index}`}>Scope &amp; description</Label><Textarea id={`estimate-service-description-${index}`} rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div>
+          <div className="edit-quantity-row"><div><Label htmlFor={`estimate-quantity-${index}`}>Quantity</Label><Input id={`estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit||"unit"}</span></div>
+          <EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>
+        </section>)}</div>
+        <Button variant="outline" className="w-full" disabled={saving||uncertainSave} onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
+        <details className="ui-help"><summary>Service help</summary><p className="text-xs text-muted-foreground">Descriptions appear on estimates and invoices. Reuse copies the service and rate, leaving quantity blank. Use Move up/down to reorder.</p></details>
+        <NewEstimatePromotions active={open&&step===2&&items.some(item=>Boolean(item.name)&&item.quantity>0)} quoteKey={promotionQuoteKey} serviceIds={promotionServiceIds} subtotalCents={subtotal} appreciationDiscount={appreciationDiscount} bookingConfirmedOn={bookingConfirmedOn} onBookingConfirmedOn={setBookingConfirmedOn} manualOverride={promotionOwnerOverride} onApply={(basisPoints,dollars,evidence)=>{setPromotionEvidence(evidence);setDiscountMode("percent");setDiscountValue(basisPoints?String(basisPoints/100):"");setBundleValue(dollars?(dollars/100).toFixed(2):"");setPromotionOwnerOverride(false);}} onVerified={setPromotionsVerifiedFor}/>
+        <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
+        <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>{setDiscountValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose % or $ savings. Bundle discounts are separate and can stack. Combined percentage discounts are capped at 50%.</p></section>
+        <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>{setBundleValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}</section><details className="ui-help"><summary>Promotion help</summary><p className="service-description-help">Eligible saved estimate-date promotions are filled in automatically unless you manually adjust them. Booking-based promotions, including October 15%, remain reminders until you explicitly confirm the booking date above. Customer signature and schedule are separate. Saved quotes retain agreed totals.</p></details><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        <div className="estimate-new-save-actions flex gap-3"><Button type="button" variant="outline" onClick={()=>setStep(1)} disabled={saving||uncertainSave}>Back</Button><Button type="button" className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||!createStorageReady||Boolean(pendingCreateId&&pendingCreateId!==createRequestRef.current)||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked||promotionsVerifiedFor!==promotionQuoteKey}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
+      </div>}
+      {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
+      </div>
+    </DialogContent>
+  </Dialog>;
+}
+function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNavigate,onOpenEstimate,onOpenCustomer,onOpenCustomerActivity,onOpenTask,onOpenDoorHouse}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[];summaryVerified:boolean;onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void;onOpenCustomerActivity?:(id:string,kind:"sign"|"review")=>void;onOpenTask?:(id:string)=>void;onOpenDoorHouse?:(id:string)=>void}) {
+  const now = useCurrentTime();
+  const [priorityTasks,setPriorityTasks]=useState<TaskRow[]>([]);
+  const [priorityTaskStatus,setPriorityTaskStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [taskRefresh,setTaskRefresh]=useState(0);
+  useEffect(()=>{
+    let cancelled=false,generation=0;const controller=new AbortController();
+    const load=async()=>{
+      const request=++generation;
+      try{
+        const response=await fetch("/api/tasks",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Task read unavailable");
+        const data=await response.json() as {tasks?:unknown};
+        if(!Array.isArray(data.tasks)||data.tasks.some((task:unknown)=>!task||typeof task!=="object"||typeof (task as TaskRow).id!=="string"||typeof (task as TaskRow).title!=="string"||!["open","completed"].includes((task as TaskRow).status)||((task as TaskRow).dueAt!=null&&(typeof (task as TaskRow).dueAt!=="string"||!Number.isFinite(Date.parse((task as TaskRow).dueAt!))))))throw new Error("Invalid task response");
+        if(!cancelled&&request===generation){setPriorityTasks(data.tasks as TaskRow[]);setPriorityTaskStatus("ready");}
+      }catch{if(!cancelled&&request===generation){setPriorityTasks([]);setPriorityTaskStatus("error");}}
+    };
+    void load();
+    const refresh=()=>{if(document.visibilityState==="visible")void load();};
+    window.addEventListener("focus",refresh);
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
+  },[taskRefresh]);
+  // Exactly the same owner-local due-time classification as Business → Tasks.
+  const dueTasks=priorityTaskStatus==="ready"?priorityTasks.filter(task=>{const state=taskDueBucket(task,new Date(now));return state==="overdue"||state==="today";}).sort((a,b)=>Date.parse(a.dueAt!)-Date.parse(b.dueAt!)||a.id.localeCompare(b.id)):[];
+  const pastDueTasks=dueTasks.filter(task=>taskDueBucket(task,new Date(now))==="overdue").length;
+  const [signs,setSigns]=useState<DashboardYardSign[]>([]);
+  const [signStatus,setSignStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [signReload,setSignReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false,generation=0;
+    const controller=new AbortController();
+    const read=async()=>{
+      const request=++generation;
+      try{
+        const response=await fetch("/api/dashboard-yard-signs",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Yard sign read unavailable");
+        const data=await response.json() as {signs?:unknown};
+        if(!Array.isArray(data.signs)||data.signs.some((row:unknown)=>!row||typeof row!=="object"||typeof (row as DashboardYardSign).customerId!=="string"||typeof (row as DashboardYardSign).customerName!=="string"||typeof (row as DashboardYardSign).pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test((row as DashboardYardSign).pickupDate)||typeof (row as DashboardYardSign).location!=="string"))throw new Error("Unverified yard sign response");
+        if(!cancelled&&request===generation){setSigns(data.signs as DashboardYardSign[]);setSignStatus("ready");}
+      }catch{if(!cancelled&&request===generation){setSigns([]);setSignStatus("error");}}
+    };
+    void read();
+    const refresh=()=>{if(document.visibilityState==="visible")void read();};
+    window.addEventListener("focus",refresh);
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
+  },[signReload]);
+  const [doorRevisits,setDoorRevisits]=useState<DoorRevisit[]>([]);
+  const [doorDueCount,setDoorDueCount]=useState(0);
+  const [doorUpcomingCount,setDoorUpcomingCount]=useState(0);
+  const [doorStatus,setDoorStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [doorReload,setDoorReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false,generation=0;const controller=new AbortController();
+    const read=async()=>{
+      const request=++generation;
+      try{
+        const response=await fetch('/api/door-knocking/followups',{cache:'no-store',signal:controller.signal});
+        if(!response.ok)throw Error('Saved house revisits unavailable');
+        const data=await response.json() as {today?:unknown;dueCount?:unknown;upcomingCount?:unknown;items?:unknown};
+        const today=data.today;
+        if(!validDoorFollowUpDate(today)||!Number.isSafeInteger(data.dueCount)||Number(data.dueCount)<0||
+          !Number.isSafeInteger(data.upcomingCount)||Number(data.upcomingCount)<0||
+          !Array.isArray(data.items)||data.items.length>5||data.items.some((item:unknown)=>{
+           if(!item||typeof item!=='object')return true;
+           const row=item as DoorRevisit;
+           return typeof row.houseId!=='string'||!row.houseId||typeof row.address!=='string'||!row.address.trim()||
+             !validDoorFollowUpDate(row.followUpOn)||typeof row.due!=='boolean'||typeof row.overdue!=='boolean'||
+             typeof row.lastVisitAt!=='string'||!Number.isFinite(Date.parse(row.lastVisitAt))||
+             row.due!==(row.followUpOn<=today)||row.overdue!==(row.followUpOn<today);
+          }))throw Error('Unverified house revisit queue');
+        if(!cancelled&&request===generation){setDoorRevisits(data.items as DoorRevisit[]);setDoorDueCount(Number(data.dueCount));setDoorUpcomingCount(Number(data.upcomingCount));setDoorStatus('ready');}
+      }catch{if(!cancelled&&request===generation){setDoorRevisits([]);setDoorDueCount(0);setDoorUpcomingCount(0);setDoorStatus('error');}}
+    };
+    void read();
+    const refresh=()=>{if(document.visibilityState==='visible')void read();};
+    window.addEventListener('focus',refresh);
+    window.addEventListener('fire:attention-saved',refresh);
+    document.addEventListener('visibilitychange',refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener('focus',refresh);window.removeEventListener('fire:attention-saved',refresh);document.removeEventListener('visibilitychange',refresh);window.clearInterval(timer);};
+  },[doorReload]);
+  const localDay=new Date(now).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  const pickupDue=signs.filter(sign=>sign.pickupDate<=localDay).length;
+  const [reviewChecks,setReviewChecks]=useState<DashboardReviewCheck[]>([]);
+  const [reviewChecksStatus,setReviewChecksStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [reviewChecksReload,setReviewChecksReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false,generation=0;
+    const controller=new AbortController();
+    const loadChecks=async()=>{
+      const request=++generation;
+      try{
+        const response=await fetch("/api/dashboard-review-checks",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Review checks unavailable");
+        const data=await response.json() as {checks?:unknown};
+        if(!Array.isArray(data.checks)||data.checks.some((row:unknown)=>!row||typeof row!=="object"||
+          typeof (row as DashboardReviewCheck).customerId!=="string"||typeof (row as DashboardReviewCheck).customerName!=="string"||
+          typeof (row as DashboardReviewCheck).requestedAt!=="string"||
+          !Number.isFinite(Date.parse((row as DashboardReviewCheck).requestedAt))||
+          !Number.isInteger((row as DashboardReviewCheck).elapsedDays)||(row as DashboardReviewCheck).elapsedDays<7))
+          throw new Error("Invalid review check response");
+        if(!cancelled&&request===generation){setReviewChecks(data.checks as DashboardReviewCheck[]);setReviewChecksStatus("ready");}
+      }catch{if(!cancelled&&request===generation){setReviewChecks([]);setReviewChecksStatus("error");}}
+    };
+    void loadChecks();
+    const refresh=()=>{if(document.visibilityState==="visible")void loadChecks();};
+    window.addEventListener("focus",refresh);
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
+  },[reviewChecksReload]);
+  // Paid-closeout review requests and 7-day review STATUS checks are distinct.
+  // A prepared text/email is not a confirmed send, and reading creates no action.
+  const [paidReviewActions,setPaidReviewActions]=useState<PaymentCloseoutAction[]>([]);
+  const [paidReviewStatus,setPaidReviewStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [paidReviewMore,setPaidReviewMore]=useState(false);
+  const [paidReviewReload,setPaidReviewReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false,generation=0;
+    const controller=new AbortController();
+    const read=async()=>{
+      const request=++generation;
+      try{
+        const response=await fetch("/api/payment-closeouts",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw Error("Review request queue unavailable");
+        const data=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean};
+        if(!Array.isArray(data.actions)||typeof data.mayHaveMore!=="boolean"||data.actions.length>200||
+          data.actions.some(row=>!row||typeof row.estimateId!=="string"||!row.estimateId||
+            typeof row.customerId!=="string"||!row.customerId||
+            typeof row.customerName!=="string"||!row.customerName.trim()||
+            !Number.isSafeInteger(row.totalCents)||row.totalCents<=0||
+            typeof row.lastPaidAt!=="string"||!Number.isFinite(Date.parse(row.lastPaidAt))||
+            !["ready","prepared"].includes(row.state))||
+          new Set(data.actions.map(row=>row.estimateId)).size!==data.actions.length)
+            throw Error("Review request queue not verified");
+        if(!cancelled&&request===generation){
+          setPaidReviewActions(data.actions);setPaidReviewMore(data.mayHaveMore);
+          setPaidReviewStatus("ready");
+        }
+      }catch{
+        if(!cancelled&&request===generation){
+          setPaidReviewActions([]);setPaidReviewMore(false);setPaidReviewStatus("error");
+        }
+      }
+    };
+    void read();
+    const refresh=()=>{if(document.visibilityState==="visible")void read();};
+    window.addEventListener("focus",refresh);
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.clearInterval(timer);
+      window.removeEventListener("focus",refresh);
+      window.removeEventListener("fire:attention-saved",refresh);
+      document.removeEventListener("visibilitychange",refresh);};
+  },[paidReviewReload]);
+  // Match Schedule: future completed/declined jobs are not upcoming appointments.
+  // The first supplied record is not necessarily the next appointment.
+  const scheduledSource=Array.isArray(metrics.upcomingJobs)?metrics.upcomingJobs:estimates;
+  const upcomingJobs=scheduledSource.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+  // All scheduled records are counted by the DB, not just the first 25 cards.
+  const upcoming=Number.isSafeInteger(metrics.upcomingCount)&&Number(metrics.upcomingCount)>=0?Number(metrics.upcomingCount):upcomingJobs.length;
+  const completed = Number.isSafeInteger(metrics.completedJobs)&&Number(metrics.completedJobs)>=0?Number(metrics.completedJobs):estimates.filter((estimate)=>estimate.status === "completed").length;
+  const nextJob=upcomingJobs[0];
+  // Native dial/compose shortcuts never submit or send through FIRE.
+  // Reject malformed contact details instead of constructing ambiguous URLs.
+  const rawPhone=nextJob?.phone?.trim()??"";
+  const digits=/^[+0-9().\s-]+$/.test(rawPhone)?rawPhone.replace(/\D/g,""):"";
+  const nextJobPhone=digits.length===10?"+1"+digits:digits.length===11&&digits.startsWith("1")?"+"+digits:null;
+  const nextJobEmail=nextJob?.email?.trim()??"";
+  const canEmailNextJob=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(nextJobEmail);
+  // The same owner-saved message composer belongs on Home's Next Job as in
+  // customer profiles/estimate details. Never create message history without
+  // a verified saved customer ID, and never infer contact fields from a name.
+  const nextJobMessageCustomer:CustomerRow|null=nextJob?.customerId?.trim()?{
+    id:nextJob.customerId,name:nextJob.customer,
+    email:canEmailNextJob?nextJobEmail:"",
+    phone:nextJobPhone??"",
+    address:nextJob.address??"",createdAt:nextJob.createdAt,
+    estimateCount:1,estimateTotal:nextJob.totalCents,paidTotal:nextJob.paidCents,
+  }:null;
+  // The customer profile may hold other details, so report only fields
+  // available on THIS scheduled appointment. Highlight today/tomorrow only.
+  const nextJobCentralDay=nextJob?.scheduledAt?new Date(nextJob.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):null;
+  const tomorrowDate=new Date(localDay+"T12:00:00Z");tomorrowDate.setUTCDate(tomorrowDate.getUTCDate()+1);
+  const tomorrowDay=tomorrowDate.toISOString().slice(0,10);
+  const nearTermNextJob=nextJobCentralDay===localDay||nextJobCentralDay===tomorrowDay;
+  const nextJobNeedsAddress=Boolean(nearTermNextJob&&nextJob&&!nextJob.address?.trim());
+  const nextJobNeedsContact=Boolean(nearTermNextJob&&nextJob&&!nextJobPhone&&!canEmailNextJob);
+  const nextJobNeedsPrep=nextJobNeedsAddress||nextJobNeedsContact;
+  // More than the next job may need preparation. Only the currently loaded
+  // scheduled appointments for today/tomorrow qualify; other screens have
+  // the full record history. Do not treat bad phone/email as usable contact.
+  const nearTermPrepJobs=upcomingJobs.filter(job=>{
+    const day=new Date(job.scheduledAt!).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+    if(day!==localDay&&day!==tomorrowDay)return false;
+    const phone=job.phone?.trim()??"";
+    const phoneDigits=/^[+0-9().\s-]+$/.test(phone)?phone.replace(/\D/g,""):"";
+    const validPhone=phoneDigits.length===10||phoneDigits.length===11&&phoneDigits.startsWith("1");
+    const validEmail=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(job.email?.trim()??"");
+    return !job.address?.trim()||!validPhone&&!validEmail;
+  });
+  // API order is not an owner priority guarantee: pick the oldest due pickup
+  // and the longest outstanding confirmed review request deterministically.
+  const dueSign=signStatus==="ready"?signs.filter(sign=>sign.pickupDate<=localDay)
+    .sort((a,b)=>a.pickupDate.localeCompare(b.pickupDate)||a.customerId.localeCompare(b.customerId))[0]:undefined;
+  const dueReviews=reviewChecksStatus==="ready"?reviewChecks.length:0;
+  const oldestReviewCheck=reviewChecksStatus==="ready"?reviewChecks.slice().sort((a,b)=>b.elapsedDays-a.elapsedDays||a.requestedAt.localeCompare(b.requestedAt)||a.customerId.localeCompare(b.customerId))[0]:undefined;
+  // Unconfirmed prepared messages need an owner send/receipt check before newer requests.
+  const oldestPaidReview=paidReviewStatus==="ready"?paidReviewActions.slice()
+    .sort((a,b)=>(a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId))[0]:undefined;
+  const preparedPaidReviewCount=paidReviewActions.filter(row=>row.state==="prepared").length;
+  const unsentPaidReviewCount=paidReviewActions.length-preparedPaidReviewCount;
+  const oldestUnpreparedReview=paidReviewStatus==="ready"?paidReviewActions.filter(row=>row.state!=="prepared")
+    .sort((a,b)=>Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId))[0]:undefined;
+  // Surface viewed quotes needing a human follow-up; never infer delivery or scan coverage beyond loaded estimates.
+  const viewedFollowups=summaryVerified?estimates.filter(row=>(row.status==="sent"||row.status==="viewed")&&Boolean(row.firstViewedAt)&&!row.acceptedAt&&!row.signedAt&&!row.scheduledAt&&Number.isFinite(Date.parse(row.firstViewedAt!))&&now-Date.parse(row.firstViewedAt!)>=24*60*60*1000).sort((a,b)=>Date.parse(a.firstViewedAt!)-Date.parse(b.firstViewedAt!)||a.id.localeCompare(b.id)):[];
+  const priorityCount=nearTermPrepJobs.length+viewedFollowups.length+(signStatus==="ready"?pickupDue:0)+(doorStatus==="ready"?doorDueCount:0)+dueReviews+dueTasks.length+(paidReviewStatus==="ready"?paidReviewActions.length:0);
+  const incompletePrioritySources=signStatus==="error"||doorStatus==="error"||reviewChecksStatus==="error"||priorityTaskStatus==="error"||paidReviewStatus==="error";
+  return (
+    <div className="dashboard-view">
+      <section className="welcome-row"><div><h1>Today</h1></div><NewEstimate onSaved={onSaved} /></section>
+      {summaryVerified&&metrics.estimates===0&&estimates.length===0&&<section className="business-panel" role="region" aria-label="Start using your empty FIRE app">
+        <header><div><h2>No estimates yet</h2></div></header>
+        
+        <Button className="brand-button" onClick={()=>onNavigate("customers")}><Users className="h-4 w-4"/> Customers</Button>
+      </section>}
+      {(priorityCount>0||incompletePrioritySources)&&<section className="dashboard-priority-strip" aria-label="Needs attention" role="region">
+        <header><div><h2><AlertTriangle aria-hidden="true"/> Needs attention <span>{priorityCount} item{priorityCount===1?"":"s"}</span></h2></div></header>
+        <div className="dashboard-priority-actions">
+          {nearTermPrepJobs.length>0&&<button type="button" aria-label="Review upcoming appointment preparation" onClick={()=>onOpenEstimate?onOpenEstimate(nearTermPrepJobs[0].id):onNavigate("schedule")}><CalendarDays aria-hidden="true"/><span><strong>{nearTermPrepJobs.length} job{nearTermPrepJobs.length===1?"":"s"} need details</strong><small>Today/tomorrow · address or contact missing</small></span><ChevronRight aria-hidden="true"/></button>}
+          {viewedFollowups.length>0&&<button type="button" aria-label="Follow up on viewed estimate" onClick={()=>onOpenEstimate?onOpenEstimate(viewedFollowups[0].id):onNavigate("followups")}><Eye aria-hidden="true"/><span><strong>{viewedFollowups.length} viewed estimate{viewedFollowups.length===1?"":"s"} awaiting reply</strong><small>{viewedFollowups[0].customer} · opened 24h+ ago · no approval recorded</small></span><ChevronRight aria-hidden="true"/></button>}
+          {doorStatus==="ready"&&doorDueCount>0&&doorRevisits.find(item=>item.due)&&<button type="button" aria-label="Review due property revisits" onClick={()=>{const first=doorRevisits.find(item=>item.due);if(first&&onOpenDoorHouse)onOpenDoorHouse(first.houseId);else onNavigate("door-knocking");}}><MapPin aria-hidden="true"/><span><strong>{doorDueCount} house revisit{doorDueCount===1?"":"s"} due</strong><small>Open saved house</small></span><ChevronRight aria-hidden="true"/></button>}
+          {dueSign&&<button type="button" aria-label="Review overdue yard sign pickup" onClick={()=>onOpenCustomerActivity?onOpenCustomerActivity(dueSign.customerId,"sign"):onOpenCustomer?onOpenCustomer(dueSign.customerId):onNavigate("customers")}><MapPin aria-hidden="true"/><span><strong>{pickupDue} yard sign pickup{pickupDue===1?"":"s"} due</strong><small>Open {dueSign.customerName} · target {dueSign.pickupDate}</small></span><ChevronRight aria-hidden="true"/></button>}
+          {dueTasks.length>0&&<button type="button" className={pastDueTasks?"priority-task-overdue":""} aria-label="Review due Business tasks" onClick={()=>onOpenTask?onOpenTask(dueTasks[0].id):onNavigate("business")}><ClipboardList aria-hidden="true"/><span><strong>{dueTasks.length} Business task{dueTasks.length===1?"":"s"} due</strong><small>{pastDueTasks?pastDueTasks+" past due":"Due today"}{pastDueTasks&&dueTasks.length>pastDueTasks?" · "+(dueTasks.length-pastDueTasks)+" later today":""} · {dueTasks[0].title}</small></span><ChevronRight aria-hidden="true"/></button>}
+          {preparedPaidReviewCount>0&&oldestPaidReview&&<button type="button" aria-label="Confirm prepared review messages" onClick={()=>onOpenEstimate?onOpenEstimate(oldestPaidReview.estimateId):onNavigate("payments")}><Star aria-hidden="true"/><span><strong>{preparedPaidReviewCount}{paidReviewMore?"+":""} prepared review message{preparedPaidReviewCount===1&&!paidReviewMore?"":"s"} to confirm</strong><small>{oldestPaidReview.customerName} · confirm if sent{paidReviewMore?" · more in Payments":""}</small></span><ChevronRight aria-hidden="true"/></button>}
+          {unsentPaidReviewCount>0&&oldestUnpreparedReview&&<button type="button" aria-label="Open paid job without prepared review request" onClick={()=>onOpenEstimate?onOpenEstimate(oldestUnpreparedReview.estimateId):onNavigate("payments")}><Star aria-hidden="true"/><span><strong>{unsentPaidReviewCount} paid job{unsentPaidReviewCount===1?"":"s"} need a review message prepared</strong><small>{oldestUnpreparedReview.customerName} · not marked sent</small></span><ChevronRight aria-hidden="true"/></button>}
+          {oldestReviewCheck&&<button type="button" aria-label="Review customer review-status checks" onClick={()=>onOpenCustomerActivity?onOpenCustomerActivity(oldestReviewCheck.customerId,"review"):onOpenCustomer?onOpenCustomer(oldestReviewCheck.customerId):onNavigate("customers")}><Star aria-hidden="true"/><span><strong>{dueReviews} review status check{dueReviews===1?"":"s"}</strong><small>Check for a new review</small></span><ChevronRight aria-hidden="true"/></button>}
+          {priorityTaskStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable Business tasks" onClick={()=>setTaskRefresh(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Business task status unavailable</strong><small>Retry — due task counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
+          {doorStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable house revisit status" onClick={()=>setDoorReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>House revisit history unavailable</strong><small>Retry — overdue follow-ups may be missing</small></span><ChevronRight aria-hidden="true"/></button>}
+          {signStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable yard sign status" onClick={()=>setSignReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Yard sign status unavailable</strong><small>Retry — pickup counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
+          {paidReviewStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable paid-job review requests" onClick={()=>setPaidReviewReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Paid-job review requests unavailable</strong><small>Retry — completed paid jobs may need requests</small></span><ChevronRight aria-hidden="true"/></button>}
+          {reviewChecksStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable review checks" onClick={()=>setReviewChecksReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Review checks unavailable</strong><small>Retry — follow-up counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
+        </div>
+        
+      </section>}
+      {upcomingJobs[0]&&<section className={`dashboard-next-job${nextJobNeedsPrep?" dashboard-next-job-needs-prep":""}`} aria-label="Next scheduled job">
+        <div className="dashboard-next-job-info">
+          <p className="eyebrow">Next job</p>
+          <h2>{onOpenCustomer&&upcomingJobs[0].customerId?.trim()?<button type="button" className="dashboard-next-customer-link" aria-label={`View ${upcomingJobs[0].customer} profile`} onClick={()=>onOpenCustomer(upcomingJobs[0].customerId!)}>{upcomingJobs[0].customer}</button>:upcomingJobs[0].customer}</h2>
+          <p>{jobNumberLabel(upcomingJobs[0].jobNumber)&&<>{jobNumberLabel(upcomingJobs[0].jobNumber)} · </>}{upcomingJobs[0].service} · {dateTime(upcomingJobs[0].scheduledAt!)}</p>
+          <small>{upcomingJobs[0].address||"No job address saved"}</small>
+          {nextJobNeedsPrep&&<div className="dashboard-next-prep" role="status" aria-label="Next job details to review"><strong><AlertTriangle aria-hidden="true"/> Check before this appointment</strong><div>{nextJobNeedsAddress&&<span>Service address not saved on job</span>}{nextJobNeedsContact&&<span>No usable phone or email on job</span>}</div><small>Check job details and customer profile.</small></div>}
+        </div>
+        <div className="dashboard-next-job-actions">
+          <Button className="brand-button" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open next job <ChevronRight className="h-4 w-4"/></Button>
+          {upcomingJobs[0].address?.trim()&&<a className="dashboard-next-directions" aria-label="Directions to next job" href={`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(upcomingJobs[0].address.trim())}`} target="_blank" rel="noopener noreferrer"><Navigation className="h-4 w-4"/> Directions</a>}
+          {(nextJobPhone||canEmailNextJob)&&<details className="dashboard-next-contact-tools">
+            <summary><Phone className="h-4 w-4" aria-hidden="true"/> Contact customer <ChevronDown className="h-4 w-4" aria-hidden="true"/></summary>
+            <div className="dashboard-next-contact-options">
+              {nextJobPhone&&<GoogleVoiceCallAction phone={nextJobPhone} customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="call" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
+              {nextJobPhone&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Text" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:nextJobPhone&&<Button variant="outline" className="dashboard-next-directions dashboard-next-contact" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open job to text</Button>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="text" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
+              {canEmailNextJob&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email next job customer" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
+            </div>
+          </details>}
+          <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
+        </div>
+      </section>}
+      <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
+      <section className="metric-grid">
+        <button className="metric-card accent" onClick={()=>onNavigate("payments")}><span className="metric-icon red"><CircleDollarSign /></span><p>Due now</p><strong>{money(metrics.outstanding)}</strong><small>Deposits and completed-job balances</small><ChevronRight className="metric-arrow"/></button>
+        <button className="metric-card" onClick={()=>onNavigate("schedule")}><span className="metric-icon blue"><CalendarDays /></span><p>Upcoming jobs</p><strong>{upcoming}</strong><ChevronRight className="metric-arrow"/></button>
+        <button className="metric-card" onClick={()=>onNavigate("estimates")}><span className="metric-icon gold"><ClipboardList /></span><p>Saved estimates</p><strong>{metrics.estimates}</strong><small>{money(metrics.openValue)} potential estimate value</small><ChevronRight className="metric-arrow"/></button>
+        <button className="metric-card" onClick={()=>onNavigate("estimates")}><span className="metric-icon green"><CheckCircle2 /></span><p>Completed jobs</p><strong>{completed}</strong><ChevronRight className="metric-arrow"/></button>
+      </section>
+      {/* Keep urgent counts in Needs attention; tuck duplicate detailed queues out of the main iPhone scroll. */}
+      {(doorStatus==="ready"&&(doorDueCount+doorUpcomingCount)>0
+        ||signStatus==="error"||signStatus==="ready"&&signs.length>0
+        ||reviewChecksStatus==="error"||reviewChecksStatus==="ready"&&reviewChecks.length>0)&&
+        <details className="dashboard-extra-reminders">
+          <summary>More reminders <span>{(doorStatus==="ready"?doorRevisits.length:0)+(signStatus==="ready"?signs.length:0)+(reviewChecksStatus==="ready"?reviewChecks.length:0)} tracked</span></summary>
+          <div className="dashboard-extra-reminder-content">
+      {doorStatus==="ready"&&(doorDueCount+doorUpcomingCount)>0&&<section className={"dashboard-sign-reminders"+(doorDueCount?" needs-pickup":"")} role="region" aria-label="Scheduled property revisits">
+        <header><div><h2><MapPin aria-hidden="true"/> House revisits</h2><p>{doorDueCount} due or overdue · {doorUpcomingCount} upcoming · owner reminders only</p></div><button type="button" aria-label="Refresh house revisit reminders" onClick={()=>setDoorReload(n=>n+1)}><RefreshCw aria-hidden="true"/> Refresh</button></header>
+        <div className="dashboard-sign-list">{doorRevisits.slice(0,3).map(item=><button type="button" key={item.houseId} aria-label={"Open house revisit: "+item.address} onClick={()=>onOpenDoorHouse?onOpenDoorHouse(item.houseId):onNavigate("door-knocking")}><span><strong>{item.address}</strong><small>Owner-recorded callback · no automatic contact</small></span><span className={item.due?"pickup-due":"pickup-planned"}>{item.overdue?"Overdue":item.due?"Due today":"Upcoming"} · {item.followUpOn}<ChevronRight aria-hidden="true"/></span></button>)}</div>
+        <div className="dashboard-sign-footer"><small>Latest saved visits only</small><button type="button" onClick={()=>onNavigate("door-knocking")}>Open Map &amp; Activity <ChevronRight aria-hidden="true"/></button></div>
+      </section>}
+      {(signStatus==="error"||signStatus==="ready"&&signs.length>0)&&<section className={`dashboard-sign-reminders${pickupDue?" needs-pickup":""}`} role="region" aria-label="Outstanding yard sign pickups">
+        <header><div><h2><MapPin aria-hidden="true"/> Yard signs to pick up</h2>{signStatus==="ready"&&<p>{signs.length} outstanding · {pickupDue?pickupDue+" due or overdue":"No pickups due yet"}</p>}</div><button type="button" onClick={()=>setSignReload(n=>n+1)} aria-label="Refresh yard sign reminders"><RefreshCw aria-hidden="true"/> Refresh</button></header>
+        {signStatus==="error"?<p role="alert">Yard sign status could not be verified. Refresh to try again; no signs are marked cleared.</p>:<div className="dashboard-sign-list">{signs.slice(0,3).map(sign=><button type="button" key={sign.customerId} onClick={()=>onOpenCustomer?onOpenCustomer(sign.customerId):onNavigate("customers")}><span><strong>{sign.customerName}</strong><small>{sign.location}</small></span><span className={sign.pickupDate<=localDay?"pickup-due":"pickup-planned"}>{sign.pickupDate<=localDay?"Pickup due":"Pickup"} · {sign.pickupDate}<ChevronRight aria-hidden="true"/></span></button>)}</div>}
+        {signStatus==="ready"&&<div className="dashboard-sign-footer"><small>Owner-logged placements only · pickup is not automatically confirmed{signs.length>3?` · ${signs.length-3} more in Customers`:""}</small><button type="button" onClick={()=>onNavigate("customers")}>View all in Customers <ChevronRight aria-hidden="true"/></button></div>}
+      </section>}
+      {(reviewChecksStatus==="error"||reviewChecksStatus==="ready"&&reviewChecks.length>0)&&<section className="dashboard-review-reminders" role="region" aria-label="Review status checks on dashboard">
+        <header><div><h2><Star aria-hidden="true"/> Review status checks</h2>{reviewChecksStatus==="ready"&&<p>{reviewChecks.length} customer{reviewChecks.length===1?"":"s"} to review · not automatic outreach</p>}</div><button type="button" aria-label="Refresh review status checks" onClick={()=>setReviewChecksReload(n=>n+1)}><RefreshCw aria-hidden="true"/> Refresh</button></header>
+        {reviewChecksStatus==="error"?<p role="alert">Review check status could not be verified. Refresh to try again; no customers are marked cleared.</p>:<div className="dashboard-review-list">{reviewChecks.slice(0,3).map(row=><button type="button" key={row.customerId} onClick={()=>onOpenCustomerActivity?onOpenCustomerActivity(row.customerId,"review"):onOpenCustomer?onOpenCustomer(row.customerId):onNavigate("customers")}><span><strong>{row.customerName}</strong><small>Review request recorded {row.elapsedDays} days ago</small></span><span>Check status <ChevronRight aria-hidden="true"/></span></button>)}</div>}
+        {reviewChecksStatus==="ready"&&<div className="dashboard-review-footer"><small>Only confirmed requests on completed work. Logged reviews are excluded.{reviewChecks.length>3?` ${reviewChecks.length-3} more in Customers.`:""}</small><button type="button" onClick={()=>onNavigate("customers")}>Review in Customers <ChevronRight aria-hidden="true"/></button></div>}
+      </section>}
+          </div>
+        </details>}
+      <div className="content-grid">
+        <section className="panel"><header><div><h2>Recent estimates</h2></div><button onClick={() => onNavigate("estimates")}>View all</button></header><div className="job-list">{estimates.length?estimates.slice(0,3).map((estimate) => <button className="job-row recent-estimate-row" key={estimate.id} onClick={()=>onOpenEstimate?onOpenEstimate(estimate.id):onNavigate("estimates")}><span className="date-tile"><b>{new Date(estimate.createdAt).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(estimate.createdAt).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><div className="job-main"><strong>{estimate.customer}</strong><p>{estimate.service}</p><EstimateStatusBadge status={estimate.status} className="recent-estimate-status"/><EstimateViewedBadge firstViewedAt={estimate.firstViewedAt}/><EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/><small className="recent-estimate-dates">Created {dateTime(estimate.createdAt)}</small>{estimate.scheduledAt&&<small className="recent-estimate-appointment">Service · {dateTime(estimate.scheduledAt)}</small>}</div><strong className="job-price">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight className="row-arrow" /></button>):<div className="real-empty"><strong>No estimates yet</strong><p>Create your first estimate to start the customer record.</p></div>}</div></section>
+        <details className="panel quick-actions-panel dashboard-shortcut-disclosure"><summary>More shortcuts</summary><div className="quick-actions-grid">
+          <button onClick={()=>onNavigate("customers")}><span className="quick-icon red"><Users/></span><span><strong>Customers</strong><small>Profiles, photos, and history</small></span><ChevronRight/></button>
+          <button onClick={()=>onNavigate("schedule")}><span className="quick-icon blue"><CalendarDays/></span><span><strong>Schedule</strong><small>Jobs and driving plan</small></span><ChevronRight/></button>
+          <button onClick={()=>onNavigate("followups")}><span className="quick-icon gold"><Clock3/></span><span><strong>Follow-ups</strong><small>Reminders and customer contact</small></span><ChevronRight/></button>
+          <button onClick={()=>onNavigate("payments")}><span className="quick-icon green"><CircleDollarSign/></span><span><strong>Payments</strong><small>Deposits and balances</small></span><ChevronRight/></button>
+        </div></details>
+      </div>
+    </div>
+  );
+}
+
+function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (customer: CustomerRow, startEstimate?:boolean) => void;initialAddress?:string;onAddressUsed?:()=>void }) {
+  const [open,setOpen]=useState(false);
+  const [name,setName]=useState("");const [email,setEmail]=useState("");const [phone,setPhone]=useState("");const [address,setAddress]=useState("");
+  const [leadSource,setLeadSource]=useState("Unknown");const [saving,setSaving]=useState(false);const [pending,setPending]=useState(false);const [error,setError]=useState("");
+  const [review,setReview]=useState<CreatedCustomer|null>(null);
+  const requestId=useRef<string|null>(null),attempt=useRef<CustomerCreateInput|null>(null),saveLock=useRef(false),mounted=useRef(true),startEstimateAfterSave=useRef(false);
+  const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
+  useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);}return()=>{mounted.current=false;};},[]);
+  const setOpenSafe=(value:boolean)=>{
+    if(!value){
+      if(saveLock.current||saving){
+        window.alert("A customer save is being checked. Keep this form open until the result is known.");
+        return;
+      }
+      if(pending||requestId.current){
+        if(!window.confirm("This customer save is not confirmed. Closing will not cancel the original request. Reopen Add customer and check the SAME request before entering another record. Close?"))return;
+      }else if(name.trim()||email.trim()||phone.trim()||address.trim()||leadSource!=="Unknown"){
+        if(!window.confirm("Discard unsaved customer details? No customer will be created."))return;
+        setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
+      }
+      setOpen(false);
+      return;
+    }
+    const id=requestId.current??loadCustomerCreateRequest(storage());
+    if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}
+    setOpen(true);
+  };
+  useEffect(()=>{if(!initialAddress)return;if(!requestId.current){setAddress(initialAddress);setLeadSource("Door knocking");}setOpenSafe(true);onAddressUsed?.();},[initialAddress]);
+  const finish=(customer:CreatedCustomer)=>{
+    const id=requestId.current;
+    const startEstimate=Boolean(startEstimateAfterSave.current||id&&loadCustomerEstimateHandoff(storage(),id));
+    if(id){clearCustomerEstimateHandoff(storage(),id);clearCustomerCreateRequest(storage(),id);}
+    requestId.current=null;attempt.current=null;setPending(false);setReview(null);setOpen(false);
+    setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
+    startEstimateAfterSave.current=false;
+    onAdded(customer,startEstimate);
+  };
+  const save=async(startEstimate=false)=>{
+    if(saveLock.current)return;
+    const input:CustomerCreateInput={name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    if(!pending&&!input.name){setError("Customer name is required.");return;}
+    const id=requestId.current??crypto.randomUUID();
+    if(!saveCustomerCreateRequest(storage(),id)){setError("FIRE could not preserve this save identifier, or another customer save needs review. Keep this form open and check browser storage before saving.");return;}
+    if(!pending){
+      if(startEstimate&&!saveCustomerEstimateHandoff(storage(),id)){
+        clearCustomerCreateRequest(storage(),id);
+        setError("Could not preserve the Save & estimate handoff. Check browser storage before trying again; no customer was sent.");return;
+      }
+      if(!startEstimate)clearCustomerEstimateHandoff(storage(),id);
+      startEstimateAfterSave.current=startEstimate;
+    }
+    requestId.current=id;saveLock.current=true;setSaving(true);setError("");setReview(null);
+    const wasPending=pending;
+    if(!wasPending)attempt.current=input;
+    setPending(true);
+    let confirmed:CreatedCustomer|null=null;
+    const checkSaved=async()=>{
+      const response=await fetch(`/api/customers/confirmation?requestId=${encodeURIComponent(id)}`,{cache:"no-store"});
+      const result=await response.json() as {error?:string;requestId?:string;confirmed?:boolean;customer?:unknown};
+      if(!response.ok)throw new Error(result.error||"Customer save status is uncertain.");
+      if(result.requestId===id&&result.confirmed===false&&result.customer===null)return null;
+      const customer=confirmedCreatedCustomer(result,id);
+      if(!customer)throw new Error("The saved customer receipt does not match this request. Keep the save identifier for review.");
+      return customer;
+    };
+    try{
+      if(wasPending){
+        confirmed=await checkSaved();
+        if(!confirmed&&!attempt.current){setPending(false);setError("No saved customer was found yet. Re-enter the details to retry using this same save identifier.");return;}
+      }
+      if(!confirmed){
+        let message="Customer save confirmation is uncertain.",rejected=false;
+        try{
+          const response=await fetch("/api/customers",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({requestId:id,...attempt.current})});
+          if(!response.ok){const result=await response.json() as {error?:string};message=result.error||message;rejected=[400,409].includes(response.status);}
+        }catch{/* The write may have committed. Read once; never auto-repeat a POST. */}
+        confirmed=await checkSaved();
+        if(!confirmed){if(rejected){setPending(false);attempt.current=null;}throw new Error(message);}
+      }
+    }catch(saveError){setError((saveError instanceof Error?saveError.message:"Customer save status is uncertain.")+" Check this SAME save before creating another record.");}
+    finally{saveLock.current=false;setSaving(false);}
+    if(confirmed&&mounted.current){
+      if(attempt.current&&!sameCustomerCreateInput(confirmed,attempt.current)){clearCustomerEstimateHandoff(storage(),id);startEstimateAfterSave.current=false;setReview(confirmed);setError("The saved customer now has different details. Review the current record below; FIRE has not overwritten it.");}
+      else finish(confirmed);
+    }
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}>
+    <DialogTrigger asChild><Button className="brand-button"><UserPlus className="h-4 w-4"/>{pending?"Check previous customer save":"Add customer"}</Button></DialogTrigger>
+    <DialogContent className="sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
+      <DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader><div className="customer-form customer-create-form">
+        <div><Label htmlFor="newCustomerName">Customer name</Label><Input id="newCustomerName" disabled={saving||pending} placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/></div>
+        <div><Label htmlFor="newCustomerEmail">Email</Label><Input id="newCustomerEmail" disabled={saving||pending} type="email" placeholder="customer@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+        <div><Label htmlFor="newCustomerPhone">Phone</Label><Input id="newCustomerPhone" disabled={saving||pending} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div><Label htmlFor="newCustomerAddress">Service address</Label><Input id="newCustomerAddress" disabled={saving||pending} placeholder="Tulsa-area address" value={address} onChange={e=>setAddress(e.target.value)}/></div>
+        <details className="customer-create-source"><summary>Lead source · {leadSource}</summary><div><Label htmlFor="newCustomerSource">How they found FIRE</Label><Select disabled={saving||pending} value={leadSource} onValueChange={setLeadSource}><SelectTrigger id="newCustomerSource"><SelectValue/></SelectTrigger><SelectContent className="fire-categorized-dropdown"><VisualChoiceOptions kind="source" values={["Unknown","Facebook","Google","Referral","Website","Repeat customer","Door knocking","Other"]}/></SelectContent></Select></div></details>
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        {review&&<div className="record-card" role="region" aria-label="Saved customer to review"><strong>{review.name}</strong><p>{[review.email,review.phone,review.address].filter(Boolean).join(" · ")}</p><Button className="brand-button" onClick={()=>finish(review)}>Open saved customer</Button></div>}
+        {!review&&<div className="flex flex-wrap gap-2"><Button className="brand-button min-h-11 flex-1 basis-40" onClick={()=>void save()} disabled={saving}>{saving?"Checking customer…":pending?attempt.current?"Check / retry same customer save":"Check previous save":"Save customer"}</Button>{!pending&&<Button type="button" className="min-h-11 flex-1 basis-40" variant="outline" disabled={saving} onClick={()=>void save(true)}>Save &amp; estimate</Button>}</div>}
+      </div>
+    </DialogContent>
+  </Dialog>;
+}
+
+function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdated: (customer: CustomerRow) => void }) {
+  const [open,setOpen]=useState(false);
+  const saveLock=useRef(false);
+  const currentCustomer=useRef(customer.id);currentCustomer.current=customer.id;
+  useEffect(()=>{currentCustomer.current=customer.id;return()=>{currentCustomer.current="";};},[customer.id]);
+  const [name,setName]=useState(customer.name??"");const [email,setEmail]=useState(customer.email??"");const [phone,setPhone]=useState(customer.phone??"");const [address,setAddress]=useState(customer.address??"");
+  const [leadSource,setLeadSource]=useState(customer.leadSource||"Unknown");
+  const [saving,setSaving]=useState(false);
+  const [checking,setChecking]=useState(false);
+  const [uncertain,setUncertain]=useState(false);
+  const [error,setError]=useState("");
+  const attempted=useRef<{id:string;name:string;email:string;phone:string;address:string;leadSource:string}|null>(null);
+  const matchesSaved=(row:CustomerRow|undefined|null,payload:NonNullable<typeof attempted.current>)=>
+    Boolean(row&&Object.entries(payload).every(([key,value])=>row[key as keyof CustomerRow]===value));
+  const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
+  const customerDirty=name!==(customer.name??"")||email!==(customer.email??"")||phone!==(customer.phone??"")||address!==(customer.address??"")||leadSource!==(customer.leadSource||"Unknown");
+  const changeOpen=(value:boolean)=>{
+    if(saveLock.current||saving||checking||currentCustomer.current!==customer.id)return;
+    if(!value&&(customerDirty||uncertain)&&!window.confirm(uncertain
+      ?"Save confirmation is uncertain. Closing keeps the possible server change; reopen this customer and check the saved record before another edit. Close?"
+      :"Discard unsaved customer changes?"))return;
+    setOpen(value);
+    if(value&&!uncertain)reset();
+    else if(!value)setError("");
+  };
+  const finish=(row:CustomerRow,id:string)=>{
+    if(currentCustomer.current!==id)return;
+    setUncertain(false);attempted.current=null;onUpdated({...customer,...row});setOpen(false);
+  };
+  const checkSaved=async()=>{
+    const payload=attempted.current;
+    if(!payload||saveLock.current||currentCustomer.current!==payload.id)return;
+    saveLock.current=true;setChecking(true);setError("");
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+    try {
+      const response=await fetch("/api/customers?confirmEdit="+encodeURIComponent(payload.id),{cache:"no-store",signal:controller.signal});
+      const result=await response.json() as {customer?:CustomerRow;error?:string};
+      if(currentCustomer.current!==payload.id)return;
+      if(!response.ok||!result?.customer)throw new Error(result?.error||"Saved customer details could not be checked.");
+      if(matchesSaved(result.customer,payload)){finish(result.customer,payload.id);return;}
+      setUncertain(false);attempted.current=null;
+      setError("The saved record does not match this edit. Review these details before trying Save changes again. Nothing was resent.");
+    }catch {
+      if(currentCustomer.current===payload.id)setError("Still unable to confirm the last save. Keep these details and check again when connected. No second update was sent.");
+    }finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===payload.id)setChecking(false);}
+  };
+  const save=async()=>{
+    if(saveLock.current||currentCustomer.current!==customer.id)return;
+    if(uncertain){setError("Check saved details before trying another update.");return;}
+    if(!name.trim()){setError("Customer name is required.");return;}
+    if(email.trim()&&!usableCustomerEmail(email)){setError("Enter a valid email address or leave it blank.");return;}
+    if(phone.trim()&&!usableCustomerPhone(phone)){setError("Enter a valid 10-digit U.S. phone number or leave it blank.");return;}
+    const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    attempted.current=payload;
+    saveLock.current=true;setSaving(true);setError("");
+    let responseStatus=0;
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+    try {
+      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
+      responseStatus=response.status;
+      const result=await response.json() as {customer?:CustomerRow;error?:string};
+      if(currentCustomer.current!==id)return;
+      if(!response.ok)throw new Error(result?.error||"The customer could not be updated.");
+      if(!matchesSaved(result?.customer,payload))throw new Error("The save response did not match these customer details.");
+      finish(result.customer!,id);
+    }catch(saveError){
+      if(currentCustomer.current!==id)return;
+      if(responseStatus>=400&&responseStatus<500){
+        attempted.current=null;
+        setError(saveError instanceof Error?saveError.message:"The edit was rejected. No update was confirmed.");
+      }else {
+        setUncertain(true);
+        setError("Save confirmation was interrupted. Your entries are kept. Tap Check saved details before trying another save.");
+      }
+    }finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
+  };
+  return <Dialog open={open} onOpenChange={changeOpen}>
+    <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
+    <DialogContent className="customer-edit-dialog sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
+      <DialogHeader><DialogTitle>Edit customer</DialogTitle></DialogHeader>
+      <div className="customer-form"><fieldset disabled={saving||checking||uncertain} className="contents">
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-name"}>Customer name</Label><Input id={"edit-customer-"+customer.id+"-name"} placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-email"}>Email</Label><Input id={"edit-customer-"+customer.id+"-email"} type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-phone"}>Phone</Label><Input id={"edit-customer-"+customer.id+"-phone"} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-address"}>Service address</Label><Input id={"edit-customer-"+customer.id+"-address"} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-source"}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={"edit-customer-"+customer.id+"-source"}><SelectValue/></SelectTrigger><SelectContent className="fire-categorized-dropdown"><VisualChoiceOptions kind="source" values={["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"]}/></SelectContent></Select></div>
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        <div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>changeOpen(false)} disabled={saving||checking}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain||!customerDirty}>{saving?"Saving…":"Save changes"}</Button></div>
+      </fieldset>
+      {uncertain&&<Button variant="outline" type="button" onClick={()=>void checkSaved()} disabled={saving||checking}>{checking?"Checking…":"Check saved details"}</Button>}
+      </div>
+    </DialogContent>
+  </Dialog>;
+}
+
+// Preserve the six historical keys in saved D1 reports. The seventh is an
+// explicit alternative to a walkthrough, never evidence the customer attended.
+const reportChecks=["Property condition documented","Before photos captured","Plants and fragile areas protected","Service completed as quoted","After photos captured","Customer walkthrough completed","Customer absent — completion documented for follow-up"];
+function OwnerJobTools({estimate,onSaved}:{estimate:EstimateRow;onSaved:(complete:boolean)=>void}){
+  const snapshots=useOwnerJobSnapshots();
+  return <><JobReport estimate={estimate} onSaved={onSaved} snapshots={snapshots}/><JobCost estimate={estimate} snapshots={snapshots}/></>;
+}
+function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(complete:boolean)=>void;snapshots?:OwnerJobSnapshotAccess}){
+  const [open,setOpen]=useState(false);const [checks,setChecks]=useState<string[]>([]);const [notes,setNotes]=useState("");const [before,setBefore]=useState("");const [after,setAfter]=useState("");const [saved,setSaved]=useState(false);const [saving,setSaving]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState("");
+  const saveLock=useRef(false);const loadRequest=useRef(0);const [retry,setRetry]=useState(0);const [loadError,setLoadError]=useState("");
+  const savedReportDraft=useRef("");
+  const reportFingerprint=(marked:string[],text:string,first:string,last:string)=>JSON.stringify([reportChecks.filter(item=>marked.includes(item)),text,first,last]);
+  const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
+  const [loadedReportKey,setLoadedReportKey]=useState<string|null>(null);const reportKey=JSON.stringify([estimate.id,estimate.customerId]);
+  const reportChanged=Boolean(savedReportDraft.current&&loadedReportKey===reportKey&&savedReportDraft.current!==reportFingerprint(checks,notes,before,after));
+  const walkthroughKey=reportChecks[5],contactFreeKey=reportChecks[6];
+  const completedChecks=reportChecks.slice(0,5).filter(item=>checks.includes(item)).length+
+    (checks.includes(walkthroughKey)||checks.includes(contactFreeKey)?1:0);
+  const needsContactFreeNote=checks.includes(contactFreeKey)&&!notes.trim();
+  const isReportComplete=completedChecks===6&&!needsContactFreeNote;
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&reportChanged&&!window.confirm(error
+      ?"The report save was not confirmed. Closing loses these local edits; verify saved job reports before saving again. Close?"
+      :"Discard unsaved job report notes and checklist changes?"))return;
+    if(!value)loadRequest.current++;
+    setOpen(value);
+  };
+  useEffect(()=>{if(!open)return;const request=++loadRequest.current;setLoading(true);setSaved(false);setError("");setLoadError("");setSnapshotAt(null);let transportFailed=false;void (async()=>{try{
+    let response:Response;try{if(snapshots?.online===false)throw new TypeError("Offline");response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});}catch(error){transportFailed=error instanceof TypeError;throw error;}
+    if(response.status===401||response.status===403)snapshots?.records.revoke();
+    if(!response.ok){snapshots?.records.forget('report',estimate.id,estimate.customerId);throw new Error("Saved report unavailable.");}
+    const result=await response.json() as {reports?:JobReportRow[]};
+    if(request!==loadRequest.current)return;
+    if(!response.ok||!Array.isArray(result?.reports))throw new Error("Invalid saved report response.");
+    const report=result.reports[0];let checklist:Record<string,boolean>={};
+    if(report){
+      if(typeof report!=="object"||Array.isArray(report)||report.estimateId!==estimate.id||report.customerId!==estimate.customerId||typeof report.checklist!=="string"||[report.notes,report.airflowBefore,report.airflowAfter].some(value=>value!=null&&typeof value!=="string"))throw new Error("Invalid saved report.");
+      checklist=JSON.parse(report.checklist||"{}");
+      if(!checklist||typeof checklist!=="object"||Array.isArray(checklist)||Object.values(checklist).some(value=>typeof value!=="boolean"))throw new Error("Invalid saved checklist.");
+    }else if(result.reports.length)throw new Error("Invalid saved report.");
+    const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";
+    setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);
+    savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);
+    setLoadedReportKey(reportKey);setCheckedEpoch(snapshots?.networkEpoch??null);
+    snapshots?.records.remember('report',estimate.id,estimate.customerId,report??null);
+  }catch{if(request===loadRequest.current){
+    const cached=transportFailed?snapshots?.records.read<JobReportRow|null>('report',estimate.id,estimate.customerId):null;
+    if(cached){const report=cached.value,checklist=report?JSON.parse(report.checklist||"{}"):{};const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);setSnapshotAt(cached.checkedAt);setLoadedReportKey(reportKey);}
+    else{if(!transportFailed)snapshots?.records.forget('report',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified report is available in this app session. Reconnect and load it before editing or saving.":"The saved report could not be loaded. Retry before editing or saving.");}
+  }}finally{if(request===loadRequest.current)setLoading(false);}})();return()=>{loadRequest.current++;};},[open,estimate.id,estimate.customerId,retry]);
+  const toggle=(item:string)=>{
+    setSaved(false);
+    setChecks(current=>{
+      if(current.includes(item))return current.filter(value=>value!==item);
+      // Contact-free documentation is an alternative, not a claim that a
+      // customer walkthrough occurred. Never save both mutually exclusive.
+      const other=item===walkthroughKey?contactFreeKey:item===contactFreeKey?walkthroughKey:null;
+      return [...current.filter(value=>value!==other),item];
+    });
+  };
+  const save=async()=>{
+    if(saveLock.current||saving||loading||loadError||loadedReportKey!==reportKey||readOnly||navigator.onLine===false)return;
+    saveLock.current=true;snapshots?.records.forget('report',estimate.id,estimate.customerId);setSaved(false);setSaving(true);setError("");
+    const checklist=Object.fromEntries(reportChecks.map((item)=>[item,checks.includes(item)]));
+    const complete=isReportComplete;
+    try{
+      const response=await fetch("/api/job-reports",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,customerId:estimate.customerId,checklist,notes,airflowBefore:before,airflowAfter:after,status:complete?"complete":"draft"})});
+      const result=await response.json() as {report?:JobReportRow;error?:string};
+      if(!response.ok)throw new Error(result?.error||"The report could not be saved.");
+      const report=result?.report;
+      const unconfirmed="The saved report could not be confirmed. Keep your notes and reopen the report online before retrying.";
+      if(!report||typeof report.id!=="string"||!report.id.trim()||report.estimateId!==estimate.id||report.customerId!==estimate.customerId||report.status!==(complete?"completed":"draft")||(report.notes??"")!==notes||(report.airflowBefore??"")!==before||(report.airflowAfter??"")!==after||typeof report.checklist!=="string")throw new Error(unconfirmed);
+      let confirmed:Record<string,boolean>;
+      try{confirmed=JSON.parse(report.checklist);}catch{throw new Error(unconfirmed);}
+      if(!confirmed||typeof confirmed!=="object"||Array.isArray(confirmed)||Object.keys(confirmed).length!==reportChecks.length||reportChecks.some(item=>confirmed[item]!==checklist[item]))throw new Error(unconfirmed);
+      savedReportDraft.current=reportFingerprint(checks,notes,before,after);
+      setSaved(true);onSaved?.(complete);
+    }catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}
+    finally{saveLock.current=false;setSaving(false);}
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}>
+    <DialogTrigger asChild><Button variant="outline"><ClipboardList className="h-4 w-4"/> Job report</Button></DialogTrigger>
+    <DialogContent className="fire-job-dialog sm:max-w-[640px]">
+      <DialogHeader className="fire-job-header"><DialogTitle>Service completion report</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="fire-job-number">{jobNumberLabel(estimate.jobNumber)}</small>}<p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
+      <div className="fire-job-scroll" role="region" aria-label="Job report fields" tabIndex={0}><div className="job-report">
+        {readOnly&&!loading&&!loadError&&loadedReportKey===reportKey&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Reconnect and reload before editing. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>setRetry(value=>value+1)}>Reload report online</Button></p>}
+        <p>{loading||loadedReportKey!==reportKey?"Loading saved report…":"Document completed work before leaving the property. Reopening updates this same report."}</p>
+        {loadError&&<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>setRetry(value=>value+1)}>Retry loading report</Button></p>}
+        {!loading&&!loadError&&loadedReportKey===reportKey&&<>
+          <div className="report-progress" role="status">
+            <strong>{completedChecks} of 6 completion steps</strong>
+            <span>{isReportComplete?"Ready to save as completed":needsContactFreeNote?"Add a short note about contact-free completion":"Incomplete checklist saves as draft"}</span>
+          </div>
+          <div className="checklist" role="group" aria-label="Completion checklist">{reportChecks.map((item,index)=><label key={item}>
+            {index===5&&<small className="report-handoff-label">Finish with a walkthrough OR document why the customer wasn't present</small>}
+            <input type="checkbox" checked={checks.includes(item)} disabled={saving||loading||readOnly}
+              onChange={()=>toggle(item)}/><span>{item}</span>
+          </label>)}</div>
+          {needsContactFreeNote&&<p className="service-description-help" role="status">Add a short note about the customer being absent and where work/photos were documented. No message will be sent automatically.</p>}
+          {estimate.service.toLowerCase().includes("dryer")&&<div className="airflow-fields">
+            <label className="fire-field"><span>Airflow before (optional)</span><Input disabled={saving||readOnly} value={before} onChange={(event)=>{setBefore(event.target.value);setSaved(false);}} placeholder="Before reading"/></label>
+            <label className="fire-field"><span>Airflow after (optional)</span><Input disabled={saving||readOnly} value={after} onChange={(event)=>{setAfter(event.target.value);setSaved(false);}} placeholder="After reading"/></label>
+          </div>}
+          <div className="fire-field"><label htmlFor={`fire-job-report-notes-${estimate.id}`}>Technician notes</label>
+            <Textarea id={`fire-job-report-notes-${estimate.id}`} readOnly={saving||readOnly} value={notes}
+              onChange={(event)=>{setNotes(event.target.value);setSaved(false);}}
+              placeholder="Condition, work performed, exceptions, recommendations…" rows={4}/>
+          </div>
+
+        </>}
+      </div></div>
+      {!loading&&!loadError&&loadedReportKey===reportKey&&<div className="fire-job-footer">          <div className="fire-job-feedback">{saving&&<p role="status">Saving report. Keep this window open until confirmation.</p>}
+          {saved&&<p className="save-success" role="status">Job report saved.</p>}
+          {error&&<p className="save-error" role="alert">{error}</p>}
+          </div><Button className="brand-button fire-job-save" onClick={()=>void save()} disabled={saving||loading||readOnly}>
+            {saving?"Saving…":isReportComplete?"Save completed report":"Save draft report"}
+          </Button>
+          <p className="report-footnote">This form does not charge the customer or create an invoice.</p>
+      </div>}
+    </DialogContent>
+  </Dialog>;
+}
+
+function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobSnapshotAccess}){
+  const [open,setOpen]=useState(false);const [rows,setRows]=useState<ExpenseRow[]>([]);const [description,setDescription]=useState("");const [amount,setAmount]=useState("");const [category,setCategory]=useState("Supplies");const [saving,setSaving]=useState(false);const [saveError,setSaveError]=useState("");const [saveSuccess,setSaveSuccess]=useState("");
+  const billingTotal=resolvedBillingTotalCents(estimate);
+  const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const saveLock=useRef(false);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
+  const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
+  // A lost POST receipt must not mint a new expense ID on the next tap.
+  // Local storage keeps ONLY an opaque UUID per job, never cost details.
+  const costAttempt=useRef<{jobId:string;requestId:string;incurredAt:string;fingerprint:string}|null>(null);
+  const [pendingCostId,setPendingCostId]=useState<string|null>(null);
+  const costReceiptKind=`job-cost:${estimate.id}` as const;
+  const hasUnfinishedCost=Boolean(description.trim()||amount.trim());
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&hasUnfinishedCost&&!window.confirm(saveError
+      ?"This cost entry was not confirmed. Check saved costs before submitting it again. Discard the local fields and close?"
+      :"Discard the unfinished job cost entry?"))return;
+    if(!value){currentJob.current=null;loadRequest.current++;setDescription("");setAmount("");setSaveError("");}
+    else{setLoading(true);setLoadError("");}
+    setOpen(value);
+  };
+  const load=async()=>{
+    if(currentJob.current!==estimate.id)return;
+    const request=++loadRequest.current;setLoading(true);setLoadError("");setSnapshotAt(null);let transportFailed=false;
+    try{let response:Response;try{if(snapshots?.online===false)throw new TypeError("Offline");response=await fetch("/api/expenses",{cache:"no-store"});}catch(error){transportFailed=error instanceof TypeError;throw error;}
+      if(response.status===401||response.status===403)snapshots?.records.revoke();
+      if(!response.ok){snapshots?.records.forget('costs',estimate.id,estimate.customerId);throw new Error("Job costs unavailable.");}
+      const result=await response.json() as {expenses?:ExpenseRow[]};
+      if(request!==loadRequest.current)return;
+      if(!response.ok||!Array.isArray(result?.expenses))throw new Error("Invalid expense response.");
+      const next=result.expenses.map(row=>{
+        const rawAmount:unknown=row?.amountCents;
+        if(!row||typeof row!=="object"||Array.isArray(row)||typeof row.id!=="string"||!row.id.trim()||(row.estimateId!=null&&typeof row.estimateId!=="string")||typeof row.description!=="string"||typeof row.category!=="string"||(typeof rawAmount!=="number"&&typeof rawAmount!=="string")||(typeof rawAmount==="string"&&!rawAmount.trim()))throw new Error("Invalid expense record.");
+        const amountCents=Number(rawAmount);if(!Number.isSafeInteger(amountCents)||amountCents<0)throw new Error("Invalid expense amount.");return {...row,amountCents};
+      }).filter(row=>row.estimateId===estimate.id);
+      if(!Number.isSafeInteger(next.reduce((sum,row)=>sum+row.amountCents,0)))throw new Error("Invalid expense total.");
+      setRows(next);setLoadedJob(estimate.id);setCheckedEpoch(snapshots?.networkEpoch??null);
+      snapshots?.records.remember('costs',estimate.id,estimate.customerId,next);
+      const storage=businessReceiptStorage();
+      const receipt=readBusinessReceipt(storage,costReceiptKind);
+      if(!receipt.usable){
+        setPendingCostId("unavailable");
+        setSaveError("Job cost recovery storage is unavailable or invalid. No new cost can be submitted safely.");
+      }else if(receipt.requestId){
+        if(next.some(row=>row.id===receipt.requestId)){
+          // The matching saved row, NOT a successful HTTP status, settles the
+          // interrupted request without changing an expense amount twice.
+          if(releaseBusinessReceipt(storage,costReceiptKind,receipt.requestId)){
+            costAttempt.current=null;setPendingCostId(null);setSaveError("");
+            setSaveSuccess("Previous job cost confirmed in saved records.");
+          }else{setPendingCostId(receipt.requestId);setSaveError("Saved cost found, but recovery storage could not be cleared. Check storage before adding another cost.");}
+        }else{
+          setPendingCostId(receipt.requestId);
+          setSaveError("An earlier cost may have saved. Review the full saved cost list before retrying the original entry or clearing its pending request.");
+        }
+      }else{setPendingCostId(null);}
+    }catch{if(request===loadRequest.current){const cached=transportFailed?snapshots?.records.read<ExpenseRow[]>('costs',estimate.id,estimate.customerId):null;
+      if(cached){setRows(cached.value);setLoadedJob(estimate.id);setSnapshotAt(cached.checkedAt);}
+      else{if(!transportFailed)snapshots?.records.forget('costs',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified costs are available in this app session. Reconnect and load them before reviewing profit or adding a cost.":"Job costs could not be loaded. Retry before reviewing profit or adding a cost.");}
+    }}finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{if(!open)return;if(costAttempt.current&&costAttempt.current.jobId!==estimate.id)costAttempt.current=null;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
+  const add=async()=>{
+    if(saveLock.current||saving||readOnly||navigator.onLine===false||currentJob.current!==estimate.id)return;
+    setSaveError("");setSaveSuccess("");
+    const entered=amount.trim();
+    if(!description.trim()){setSaveError("Enter a description for this job cost.");return;}
+    if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(entered)){
+      setSaveError("Enter an amount in dollars with no more than two decimal places.");return;
+    }
+    const [dollars,cents=""]=entered.split(".");
+    const calculated=BigInt(dollars)*BigInt(100)+BigInt(cents.padEnd(2,"0"));
+    if(calculated<=BigInt(0)||calculated>BigInt(Number.MAX_SAFE_INTEGER)){
+      setSaveError("Enter a valid positive expense amount.");return;
+    }
+    const amountCents=Number(calculated),jobId=estimate.id,customerId=estimate.customerId;
+    const fingerprint=JSON.stringify({jobId,category,description:description.trim(),amountCents});
+    const storage=businessReceiptStorage(),receipt=readBusinessReceipt(storage,costReceiptKind);
+    if(!receipt.usable){setSaveError("Job cost recovery storage is unavailable; the cost was not submitted.");return;}
+    const previous=costAttempt.current?.jobId===jobId?costAttempt.current:null;
+    if(receipt.requestId&&(!previous||previous.requestId!==receipt.requestId)){
+      setPendingCostId(receipt.requestId);
+      setSaveError("An earlier job cost is unresolved. Review saved costs and clear its pending request only after checking the original entry.");
+      return;
+    }
+    if(previous&&previous.fingerprint!==fingerprint){
+      setSaveError("A prior job cost may have saved. Restore its original category, description and amount before retrying. Do not start a different entry until it is confirmed.");return;
+    }
+    const attempt=previous??{jobId,requestId:crypto.randomUUID(),incurredAt:new Date().toISOString(),fingerprint};
+    if(!reserveBusinessReceipt(storage,costReceiptKind,attempt.requestId)){
+      setSaveError("Could not preserve the job cost request ID. Nothing was submitted.");return;
+    }
+    costAttempt.current=attempt;setPendingCostId(attempt.requestId);
+    saveLock.current=true;setSaving(true);
+    try{
+      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+        estimateId:jobId,category,description:description.trim(),amountCents,incurredAt:attempt.incurredAt,requestId:attempt.requestId
+      })});
+      const result=await response.json() as {expense?:ExpenseRow;requestId?:string;confirmed?:boolean;error?:string};
+      if(!response.ok)throw new Error(result.error||"This job cost could not be saved.");
+      if(result.confirmed!==true||result.requestId!==attempt.requestId||
+         result.expense?.id!==attempt.requestId||result.expense.estimateId!==jobId||
+         Number(result.expense.amountCents)!==amountCents||result.expense.category!==category||
+         result.expense.description!==description.trim()||result.expense.incurredAt!==attempt.incurredAt)
+        throw new Error("The saved expense could not be confirmed. Review the job costs before trying again.");
+      snapshots?.records.forget('costs',jobId,customerId);
+      if(releaseBusinessReceipt(storage,costReceiptKind,attempt.requestId)){
+        costAttempt.current=null;setPendingCostId(null);
+      }else{
+        setSaveError("The cost was saved, but its pending recovery marker could not be cleared. Refresh saved costs before another entry.");
+        return;
+      }
+      if(currentJob.current===jobId){
+        setDescription("");setAmount("");setSaveSuccess("Cost recorded.");
+        await load();
+      }
+    }catch(error){
+      if(currentJob.current===jobId)setSaveError((error instanceof Error?error.message:"The result is uncertain.")+
+        " Keep this entry unchanged and retry with its original request ID, or refresh saved costs first. Another new cost may duplicate a saved charge.");
+    }finally{saveLock.current=false;if(currentJob.current===jobId)setSaving(false);}
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}>
+    <DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger>
+    <DialogContent className="fire-job-dialog sm:max-w-[640px]" aria-describedby={undefined}>
+      <DialogHeader className="fire-job-header"><DialogTitle>Job costs &amp; profit</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="fire-job-number">{jobNumberLabel(estimate.jobNumber)}</small>}<p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
+      <div className="fire-job-scroll" role="region" aria-label="Job cost details" tabIndex={0}><div className="job-cost">
+        {readOnly&&!loading&&!loadError&&loadedJob===estimate.id&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Costs and profit may have changed. Reconnect and reload before adding costs. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>void load()}>Reload costs online</Button></p>}
+        {loading||(loadedJob!==estimate.id&&!loadError)?<p role="status">Loading job costs…</p>:loadError?<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>void load()}>Retry loading costs</Button></p>:<>
+          <div className="profit-summary" aria-label="Job financial summary">
+            <span><small>{estimate.invoiceId?"Final invoice":"Estimate"}</small><strong>{money(billingTotal)}</strong></span>
+            <span><small>Recorded costs</small><strong>{money(total)}</strong></span>
+            <span><small>Estimated gross profit</small><strong>{money(billingTotal-total)}</strong></span>
+          </div>
+          {!readOnly&&<div className="cost-form">
+            <label className="fire-field"><span>Category</span><Select value={category} onValueChange={setCategory} disabled={saving}><SelectTrigger aria-label="Expense category"><SelectValue/></SelectTrigger><SelectContent className="fire-categorized-dropdown"><VisualChoiceOptions kind="expense" values={["Supplies","Chemicals","Equipment","Fuel","Labor","Other"]}/></SelectContent></Select></label>
+            <label className="fire-field cost-description"><span>What was purchased or used?</span><Input id={`job-cost-entry-${estimate.id}`} value={description} disabled={saving} maxLength={240} onChange={(event)=>{setDescription(event.target.value);setSaveError("");}} placeholder="e.g. Sodium hypochlorite"/></label>
+            <label className="fire-field"><span>Amount (USD)</span><Input value={amount} disabled={saving} onChange={(event)=>{setAmount(event.target.value);setSaveError("");}} inputMode="decimal" placeholder="0.00"/></label>
+            <Button className="brand-button cost-submit" onClick={()=>void add()} disabled={saving||Boolean(pendingCostId&&!costAttempt.current)||!description.trim()||!amount.trim()}>{saving?"Saving cost…":pendingCostId?(costAttempt.current?"Retry original cost":"Review saved costs first"):"Add cost"}</Button>
+          </div>}
+          {saveError&&<p className="save-error" role="alert">{saveError}</p>}
+          {pendingCostId&&pendingCostId!=="unavailable"&&!readOnly&&<div role="group" aria-label="Pending cost recovery" className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={saving||loading} onClick={()=>void load()}>Check saved costs</Button>
+            <Button type="button" variant="outline" disabled={saving||loading||Boolean(costAttempt.current)} onClick={()=>{
+              if(!window.confirm("I reviewed the saved expenses for this job. Clearing this old pending ID allows a NEW cost entry. If the original request later saves, a duplicate cost could result. Clear only after verifying with the saved records?"))return;
+              const storage=businessReceiptStorage();
+              if(!releaseBusinessReceipt(storage,costReceiptKind,pendingCostId)){setSaveError("Pending cost ID could not be cleared. No new entry is permitted.");return;}
+              setPendingCostId(null);setSaveError("");setSaveSuccess("Pending ID cleared after your review. The previous cost was not automatically changed.");
+            }}>Clear pending ID after review</Button>
+          </div>}
+          {saveSuccess&&!saveError&&<p className="save-success" role="status">{saveSuccess}</p>}
+          <h3 id={`job-cost-records-${estimate.id}`} className="job-record-heading" tabIndex={-1}>Saved costs ({rows.length})</h3><div className="cost-list" aria-label="Recorded expenses">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div>
+        </>}
+      </div></div>
+      <div className="fire-job-footer fire-cost-footer">
+        {!readOnly&&!loadError&&loadedJob===estimate.id&&<Button variant="outline" disabled={saving||loading} onClick={()=>{const input=document.getElementById(`job-cost-entry-${estimate.id}`);input?.scrollIntoView({block:"center"});input?.focus({preventScroll:true});}}>Cost entry</Button>}
+        {!loadError&&loadedJob===estimate.id&&<Button variant="outline" disabled={loading} onClick={()=>{const heading=document.getElementById(`job-cost-records-${estimate.id}`);heading?.scrollIntoView({block:"start"});heading?.focus({preventScroll:true});}}>Saved costs</Button>}
+        <Button variant="outline" className="cost-refresh" disabled={saving||loading||snapshots?.online===false} onClick={()=>void load()}>Refresh saved costs</Button>
+      </div>
+    </DialogContent>
+  </Dialog>;
+}
+
+
+function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>void}){
+  const refundable=Math.max(0,Number(payment.pendingRefundAmountCents??payment.refundableCents??0));
+  const stripe=Boolean(Number(payment.stripePayment));
+  const [open,setOpen]=useState(false);
+  const [amount,setAmount]=useState("");
+  const [note,setNote]=useState("");
+  const [confirmed,setConfirmed]=useState(false);
+  const [requestId,setRequestId]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  const [message,setMessage]=useState("");
+  const [submitted,setSubmitted]=useState(false);
+  const [completed,setCompleted]=useState(false);
+  const activeRefund=useRef<RefundRetryAttempt|null>(null);
+  const refundLock=useRef(false);
+  // Safari may reject localStorage in restricted sessions. Keep the same ID at
+  // least across dialog closing in memory, even when persistence is disabled.
+  const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
+  const openChange=(value:boolean)=>{
+    if(!value){
+      // Stripe can accept a refund before FIRE receives its final response.
+      // Never hide an in-flight request without its confirmation/retry context.
+      if(refundLock.current||saving){
+        window.alert("Refund submission is still being checked. Keep this window open until the request finishes.");
+        return;
+      }
+      if(submitted&&activeRefund.current){
+        if(!window.confirm("This refund is not confirmed complete. Closing will not cancel Stripe or the original refund request. Reopen Check refund to review the SAME request ID before doing anything else. Close?"))return;
+      }else if(!submitted&&(note.trim()||confirmed||amount!==(refundable/100).toFixed(2))){
+        if(!window.confirm("Discard these unsaved refund details? No refund will be sent or recorded."))return;
+      }
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if(value){
+      const pending=payment.pendingRefundId&&Number.isSafeInteger(Number(payment.pendingRefundAmountCents))&&Number(payment.pendingRefundAmountCents)>0
+        ?{requestId:payment.pendingRefundId,amountCents:Number(payment.pendingRefundAmountCents)}:null;
+      const previous=pending??activeRefund.current??loadRefundRetry(storage(),payment.id);
+      const retry=previous&&previous.amountCents>0?previous:null;
+      if(retry)activeRefund.current=retry;
+      setSubmitted(Boolean(retry));
+      setCompleted(false);
+      setAmount(((retry?.amountCents??refundable)/100).toFixed(2));
+      setNote("");
+      setConfirmed(false);
+      setRequestId(retry?.requestId??crypto.randomUUID());
+      setError("");
+      setMessage(retry?"Existing refund attempt found. Verify this SAME request rather than submitting a second refund.":"");
+    }
+  };
+  const submit=async()=>{
+    if(refundLock.current)return;
+    const amountCents=exactMoneyInputCents(amount);
+    if(amountCents===null||amountCents<=0||amountCents>refundable){setError(`Enter a refund up to ${money(refundable)} using at most two decimal places.`);return;}
+    if(!stripe&&!confirmed){setError("Send the refund through the original/manual payment method first, then confirm it here.");return;}
+    if(!requestId){setError("Refund request identity is missing. Close and reopen this refund before submitting.");return;}
+    const attempt={requestId,amountCents};
+    // A refund can leave FIRE for Stripe before the iPhone receives a reply.
+    // Require an independently readable original request ID before doing so.
+    if(!saveRefundRetry(storage(),payment.id,attempt)||
+       JSON.stringify(loadRefundRetry(storage(),payment.id))!==JSON.stringify(attempt)){
+      setError("Refund not submitted. This device cannot safely save or verify the original refund request. Review pending refunds and browser storage first.");
+      return;
+    }
+    refundLock.current=true;
+    activeRefund.current=attempt;
+    setSubmitted(true);setSaving(true);setError("");setMessage("");
+    try{
+      const response=await fetch("/api/payments/refund",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({paymentId:payment.id,requestId,amountCents,externalRefundConfirmed:!stripe&&confirmed,note})});
+      const result=await response.json() as {ok?:boolean;pending?:boolean;mode?:string;paidCents?:number;error?:string};
+      // HTTP 409/503 can legitimately include pending:true when a Stripe
+      // lookup was denied or unavailable BEFORE any Stripe refund was sent.
+      // Never describe that uncertainty as "Stripe accepted" money movement.
+      if(!response.ok)throw new Error(result.error||"Refund confirmation is unavailable. Review this same request before another attempt.");
+      if(result.pending){setMessage("Refund request is pending verification. Check this same request; do not start another refund until its outcome is confirmed.");return;}
+      if(!result.ok)throw new Error("Refund confirmation is incomplete. Review history before attempting another refund.");
+      // Only a verified completed acknowledgement clears the persisted ID.
+      clearRefundRetry(storage(),payment.id);activeRefund.current=null;
+      setCompleted(true);
+      setMessage(stripe?"Stripe refund completed and FIRE billing was updated.":"Manual refund recorded and FIRE billing was updated.");
+      onRefunded?.();
+      window.setTimeout(()=>setOpen(false),450);
+    }catch(refundError){setError((refundError instanceof Error?refundError.message:"The refund could not be completed.")+" Retry this SAME refund request; do not send the money twice.");}
+    finally{refundLock.current=false;setSaving(false);}
+  };
+  if(refundable<=0||payment.amountCents<=0)return null;
+  return <Dialog open={open} onOpenChange={openChange}>
+    <Button className="payment-refund-action" variant="outline" onClick={()=>openChange(true)}>{payment.pendingRefundId?"Check refund":"Refund"}</Button>
+    <DialogContent className="sm:max-w-[520px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>Refund payment</DialogTitle></DialogHeader>
+      <div className="payment-form">
+        <p className="payment-estimate-summary"><strong>{payment.customer||"Customer"}</strong><br/><span>{money(refundable)} still refundable from this {paymentTypeLabel(payment.type)} payment.</span></p>
+        <div><Label htmlFor={"refund-amount-"+payment.id}>Refund amount</Label><Input id={"refund-amount-"+payment.id} disabled={submitted} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>
+        <div><Label htmlFor={"refund-note-"+payment.id}>Refund note</Label><Input id={"refund-note-"+payment.id} disabled={submitted} value={note} onChange={(event)=>setNote(event.target.value)} placeholder="Reason or internal note"/></div>
+        {stripe?<p className="pay-note"><strong>Stripe payment:</strong> FIRE will submit this refund to Stripe and automatically record the refund when Stripe confirms it.</p>:<label className="payment-refund-confirm"><input type="checkbox" disabled={saving||completed} checked={confirmed} onChange={(event)=>setConfirmed(event.target.checked)}/><span>I already returned this money outside FIRE using the original payment method.</span></label>}
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        {message&&<p className={completed?"save-success":"pay-note"} role="status">{message}</p>}
+        <Button className="brand-button" onClick={()=>void submit()} disabled={saving||completed}>{saving?"Processing…":completed?"Refund confirmed":submitted?(stripe?"Check / resume original Stripe refund":"Check / resume original manual refund"):stripe?(exactMoneyInputCents(amount)===null?"Enter valid refund":`Refund ${money(exactMoneyInputCents(amount)!)} through Stripe`):"Record completed refund"}</Button>
+      </div>
+    </DialogContent>
+  </Dialog>;
+}
+
+function ProcessingDetails({payment}:{payment:PaymentRow}) {
+  if(payment.grossReceivedCents==null||!["Cash App","Venmo"].includes(payment.processingMethod??""))return null;
+  return <small className="payment-handle-note">{payment.bundledTipCents?<>Invoice payment: {money(payment.amountCents)} · Tip: {money(payment.bundledTipCents)}<br/></>:null}Customer payment: {money(payment.grossReceivedCents)}<br/>Processing fee: {payment.processingFeeCents==null?"Not recorded":`−${money(payment.processingFeeCents)}`}<br/>Net received{payment.processingFeeCents==null?" before unrecorded fees":""}: {money(payment.grossReceivedCents-(payment.processingFeeCents??0))}</small>;
+}
+function ProcessingReport({payments}:{payments:PaymentRow[]}) {
+ const fees=payments.reduce((sum,row)=>sum+(row.processingFeeCents??0),0);
+ return <details className="business-panel payment-processing-disclosure"><summary>Processing fees · {money(fees)}</summary><p>Gross includes tips. Fees reduce net deposits. Missing fees are not estimated; refunds remain separate.</p><div className="processing-report-scroll" role="region" aria-label="Processing fees by payment method"><table className="processing-report-table"><thead><tr><th scope="col">Method</th><th scope="col">Gross</th><th scope="col">Fees</th><th scope="col">Net</th></tr></thead><tbody>{["Cash App","Venmo"].map(method=>{const totals=summarizeProcessing(payments,method);return <tr key={method}><th scope="row">{method}</th><td>{money(totals.gross)}{totals.tips>0&&<small style={{display:"block"}}>Tips {money(totals.tips)}</small>}</td><td>{money(totals.fees)}</td><td>{money(totals.net)}</td></tr>;})}</tbody></table></div></details>;
+}
+
+function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"customer"|"service"|"totalCents"|"paidCents">&Partial<Pick<EstimateRow,"depositCents"|"status"|"invoiceTotalCents">>;onRecorded?:(paidCents:number)=>void}){
+  const [tipChoice,setTipChoice]=useState<"0"|"5"|"10"|"15"|"custom">("0");
+  const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  const manualRequestId=useRef<string|null>(null);
+  const initialPaymentAmount=useRef("");
+  const paymentLock=useRef(false);
+  const activeManual=useRef<ManualPaymentAttempt|null>(null);
+  const [retryPending,setRetryPending]=useState(false);
+  const [reviewedMissing,setReviewedMissing]=useState(false);
+  const [retryConfirmed,setRetryConfirmed]=useState(false);
+  const mounted=useRef(true);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
+  const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
+  const billingTotal=estimate.invoiceTotalCents??estimate.totalCents;
+  const normalized = {status:estimate.status??"completed",totalCents:billingTotal,depositCents:estimate.depositCents??Math.round(estimate.totalCents/2),paidCents:estimate.paidCents,invoiceTotalCents:estimate.invoiceTotalCents};
+  const balance=amountDueNow(normalized);
+  const totalRemaining=Math.max(0,normalized.totalCents-normalized.paidCents);
+  const depositRemaining=Math.max(0,normalized.depositCents-normalized.paidCents);
+  const collectible=normalized.status==="completed"||["approved","scheduled"].includes(normalized.status);
+  const paymentEntryLabel=retryPending?"Check payment status":!collectible?(["draft","sent","viewed"].includes(normalized.status)?"Approval required":"Payment unavailable"):balance>0?"Record payment":normalized.status==="completed"?"Record tip":normalized.depositCents===0?"No deposit required":"Deposit recorded";
+  useEffect(()=>{if(!open){setRetryPending(Boolean(activeManual.current??loadManualPaymentRetry(storage(),estimate.id)));return;}
+    const previous=activeManual.current??loadManualPaymentRetry(storage(),estimate.id);
+    if(previous){
+      activeManual.current=previous;manualRequestId.current=previous.requestId;
+      setRetryPending(true);
+      initialPaymentAmount.current=(previous.amountCents/100).toFixed(2);
+      setAmount(initialPaymentAmount.current);
+      setTip(previous.tipCents>0?(previous.tipCents/100).toFixed(2):"");
+      setTipChoice(previous.tipCents>0?"custom":"0");
+      setMethod(previous.method);setReference(previous.reference);
+      setFeeMode("fee");setFee(previous.processingFeeCents===null?"":(previous.processingFeeCents/100).toFixed(2));
+      setError("An earlier payment attempt needs confirmation. Check its saved status before retrying the same request. Keep its original details unchanged.");
+    }else{
+      // Prefill once per opening, not every time a parent balance refreshes.
+      // A later payment entry must never inherit an older reference or method.
+      initialPaymentAmount.current=balance>0?(balance/100).toFixed(2):"";
+      setRetryPending(false);setAmount(initialPaymentAmount.current);
+      setTip("");setTipChoice("0");setFee("");setFeeMode("fee");setFeeEstimate(null);
+      setMethod("Wave");setReference("");setError("");
+    }
+    setReviewedMissing(false);setRetryConfirmed(false);
+  },[open,estimate.id]);
+  const feeMethod=method==="Cash App"||method==="Venmo";
+  const grossCents=(exactMoneyInputCents(amount,true)??0)+(exactMoneyInputCents(tip,true)??0);
+  const feeProvided=Boolean(fee.trim());
+  const enteredFeeCents=feeProvided?exactMoneyInputCents(fee):null;
+  const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;
+  const feeValid=!feeProvided||(enteredFeeCents!==null&&processingFeeCents!==null&&Number.isSafeInteger(grossCents)&&Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents);
+  const checkStored=async(attempt:ManualPaymentAttempt)=>{
+    const requestId=attempt.requestId;
+    const response=await fetch(`/api/payments/confirmation?estimateId=${encodeURIComponent(estimate.id)}&requestId=${encodeURIComponent(requestId)}`,{cache:"no-store"});
+    const result=await response.json() as {error?:string;confirmed?:boolean;records?:unknown[];estimateId?:string;requestId?:string};
+    if(!response.ok)throw new Error(result.error||"Payment status is uncertain.");
+    if(result.confirmed===false&&Array.isArray(result.records)&&result.records.length===0&&result.estimateId===estimate.id&&result.requestId===requestId)return null;
+    const paid=confirmedManualPayment(result,estimate.id,attempt);
+    if(paid===null)throw new Error("The saved payment receipt does not match this attempt. Keep its details and review Payment History.");
+    return paid;
+  };
+  const finishConfirmed=(paid:number)=>{
+    clearManualPaymentRetry(storage(),estimate.id);manualRequestId.current=null;activeManual.current=null;
+    if(!mounted.current)return;
+    setRetryPending(false);setReviewedMissing(false);setRetryConfirmed(false);setOpen(false);
+    // The ledger was confirmed on this save/recovery path. Update owner
+    // attention sources only now; uncertain requests must not look paid.
+    if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+    onRecorded?.(paid);
+  };
+  const reviewPending=async()=>{
+    if(paymentLock.current||!activeManual.current)return;
+    paymentLock.current=true;setSaving(true);setError("");setReviewedMissing(false);setRetryConfirmed(false);
+    let confirmed:number|null=null;
+    try{
+      confirmed=await checkStored(activeManual.current);
+      if(confirmed===null&&mounted.current){setReviewedMissing(true);setError("No matching ledger receipt was found in this check. This does not prove an in-flight attempt failed. No payment was submitted. You may check again or explicitly retry the original request without changing its details.");}
+    }catch(error){if(mounted.current)setError((error instanceof Error?error.message:"Payment status is uncertain.")+" No payment was submitted. Keep the original attempt and check again.");}
+    finally{paymentLock.current=false;if(mounted.current)setSaving(false);}
+    if(confirmed!==null)finishConfirmed(confirmed);
+  };
+  const save=async()=>{
+    if(paymentLock.current)return;
+    if(retryPending&&(!reviewedMissing||!retryConfirmed)){setError("Check the saved payment status first, then explicitly confirm a retry of the original request.");return;}
+    const amountCents=exactMoneyInputCents(amount,true),tipCents=exactMoneyInputCents(tip,true);
+    const maxTipCents=Math.min(normalized.totalCents,50000);
+    if(amountCents===null||tipCents===null||(amountCents<=0&&tipCents<=0)||!Number.isSafeInteger(amountCents+tipCents)){setError("Enter a payment or tip in dollars using at most two decimal places.");return;}
+    if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job's tip limit cannot be represented safely.");return;}
+    if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}
+    if(feeMethod&&!feeValid){setError("Fee and net deposited must be between zero and the customer payment.");return;}
+    const requestId=manualRequestId.current??crypto.randomUUID();
+    const attempt:ManualPaymentAttempt={requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:null};
+    if(retryPending&&activeManual.current&&JSON.stringify(activeManual.current)!==JSON.stringify(attempt)){
+      setError("A previous payment is unresolved. Its amount, method and reference must remain identical. Review Payment History before creating another payment.");return;
+    }
+    const wasPending=Boolean(activeManual.current);
+    // Financial write MUST NOT start unless Safari persisted and can read
+    // the exact original ID/details. If localStorage is blocked/full, do not
+    // risk a payment that cannot be recovered after an iPhone restart.
+    if(!saveManualPaymentRetry(storage(),estimate.id,attempt)||
+       JSON.stringify(loadManualPaymentRetry(storage(),estimate.id))!==JSON.stringify(attempt)){
+      setError("Payment not submitted. This device cannot safely save the original retry ID. Check browser storage before recording a payment.");
+      return;
+    }
+    paymentLock.current=true;
+    manualRequestId.current=requestId;activeManual.current=attempt;
+    setRetryPending(true);setSaving(true);setError("");
+    let confirmed:number|null=null;
+    try{
+      // An explicit retry checks first. Never automatically repeat a POST.
+      if(wasPending)confirmed=await checkStored(attempt);
+      if(confirmed===null){
+        let postError="Payment confirmation is uncertain.";
+        try{
+          const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});
+          if(!response.ok){const result=await response.json() as {error?:string;confirmed?:boolean;records?:unknown[];estimateId?:string;requestId?:string};postError=result.error||postError;}
+        }catch{/* Read the ledger once even if the response was lost after commit. */}
+        confirmed=await checkStored(attempt);
+        if(confirmed===null)throw new Error(postError);
+      }
+    }catch(saveError){if(mounted.current){setReviewedMissing(false);setRetryConfirmed(false);setError((saveError instanceof Error?saveError.message:"Payment status is uncertain.")+" Not confirmed. Check this SAME attempt; do not enter another payment.");}}
+    finally{paymentLock.current=false;if(mounted.current)setSaving(false);}
+    if(confirmed!==null){
+      // A parent refresh failure cannot turn a confirmed payment into a retry.
+      finishConfirmed(confirmed);
+    }
+  };
+  // A manual payment may commit even when the reply is lost. Never let Escape,
+  // outside-tap, or the X silently hide a live save or an unresolved receipt.
+  const setOpenSafe=(value:boolean)=>{
+    if(value){setOpen(true);return;}
+    if(paymentLock.current||saving){
+      window.alert("Payment save or status verification is in progress. Keep this window open until it finishes.");
+      return;
+    }
+    if(retryPending){
+      if(!window.confirm("This payment has not been confirmed. Closing does not cancel an earlier attempt. Reopen Record Payment and check the SAME saved request before collecting or recording another payment. Close this window?"))return;
+    }else if(amount!==initialPaymentAmount.current||tip.trim()||fee.trim()||reference.trim()||method!=="Wave"){
+      if(!window.confirm("Discard these unsaved payment details? Closing does not record a payment."))return;
+    }
+    setOpen(false);
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><Button variant="outline" disabled={!retryPending&&(!collectible||balance<=0&&normalized.status!=="completed")}><CircleDollarSign className="h-4 w-4"/>{paymentEntryLabel}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
+    <p className="payment-estimate-summary"><strong>{estimate.customer}</strong> · {estimate.service}<br/><span>{money(totalRemaining)} remaining</span></p>{retryPending&&<section className="pending-payment-review" role="status"><strong>Payment pending confirmation</strong><span>Request {activeManual.current?.requestId}</span><p>This attempt is not proof of payment. Displayed balances are the last loaded amounts until the ledger confirms the result. Checking status never records a payment.</p></section>}
+    <div className="payment-due-options"><span><small>Deposit due</small><strong>{money(depositRemaining)}</strong></span><span><small>Full balance</small><strong>{money(totalRemaining)}</strong></span></div>
+    <div><Label htmlFor={"payment-amount-"+estimate.id}>Amount applied to invoice</Label><Input id={"payment-amount-"+estimate.id} disabled={saving||retryPending} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">Tip percentages use the invoice total. No tip is preselected.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving||retryPending} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving||retryPending} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label htmlFor={"payment-tip-"+estimate.id}>Custom tip amount</Label><Input id={"payment-tip-"+estimate.id} aria-label="Custom tip amount" disabled={saving||retryPending} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Tips do not reduce the invoice balance.</small></section>}
+    <div><Label>Payment method</Label><Select disabled={saving||retryPending} value={method} onValueChange={(value)=>{setMethod(value);setFee("");setFeeEstimate(null);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent className="fire-categorized-dropdown"><VisualChoiceOptions kind="payment" values={["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"]}/></SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
+    {feeMethod&&<details className="payment-entry-fees"><summary>Fees (optional)</summary><div className="payment-form"><div><Label htmlFor={"payment-gross-"+estimate.id}>Customer paid (invoice + tip)</Label><Input id={"payment-gross-"+estimate.id} readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label htmlFor={"payment-fee-"+estimate.id}>Processing fee</Label><Input id={"payment-fee-"+estimate.id} disabled={saving||retryPending} inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label htmlFor={"payment-net-"+estimate.id}>Net deposited</Label><Input id={"payment-net-"+estimate.id} disabled={saving||retryPending} inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Use the actual fee or net deposit. Invoice credit remains {exactMoneyInputCents(amount,true)===null?"unavailable until the amount is valid":money(exactMoneyInputCents(amount,true)!)}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
+    <div><Label htmlFor={"payment-reference-"+estimate.id}>Reference or note</Label><Input id={"payment-reference-"+estimate.id} disabled={saving||retryPending} value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
+    {error&&<p className="save-error" role="alert">{error}</p>}{retryPending?<><Button variant="outline" onClick={()=>void reviewPending()} disabled={saving}>{saving?"Checking payment…":"Check saved payment only"}</Button>{reviewedMissing&&<section className="pending-payment-review"><label><input type="checkbox" checked={retryConfirmed} disabled={saving} onChange={event=>setRetryConfirmed(event.target.checked)}/><span>I confirm retrying the original payment request with the same details and request ID.</span></label><Button className="brand-button" onClick={()=>void save()} disabled={saving||!retryConfirmed}>Retry original payment request</Button></section>}</>:<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Checking payment…":Number(amount||0)<=0&&Number(tip||0)>0?"Save tip":"Save payment"}</Button>}
+  </div></DialogContent></Dialog>;
+}
+
+
+function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(estimate:EstimateRow)=>void}){
+  const [open,setOpen]=useState(false);
+  const pricing=useServicePricing(open);
+  const services=pricing.services;
+  const bundle=useEstimateBundleDiscount(open,estimate.id,estimate.totalCents);
+  const bundleValue=bundle.value,setBundleValue=bundle.setValue;
+  const saveLock=useRef(false);
+  const initialEditSnapshot=useRef("");
+  const [items,setItems]=useState<EditableEstimateItem[]>([]);
+  const [appreciationDiscount,setAppreciationDiscount]=useState(false);
+  const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
+  const [discountValue,setDiscountValue]=useState("");
+  const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  const [uncertain,setUncertain]=useState(false);
+  const [savedLinesVerified,setSavedLinesVerified]=useState(false);
+  const hydrate=()=>{
+    const source=Array.isArray(estimate.items)?estimate.items:[];
+    // All entry screens must supply durable saved service rows. A summary
+    // is NEVER an editable one-service estimate; totalCents might include
+    // discounts and the comma-separated names are not genuine D1 line IDs.
+    const verified=source.length>0&&Number.isSafeInteger(estimate.subtotalCents)&&
+      Number(estimate.subtotalCents)>=0&&
+      source.every(item=>item&&typeof item.id==="string"&&item.id.length>0&&
+        typeof item.name==="string"&&item.name.trim().length>0&&
+        typeof item.description==="string"&&typeof item.unit==="string"&&item.unit.length>0&&
+        Number.isFinite(Number(item.quantity))&&Number(item.quantity)>0&&
+        Number.isSafeInteger(Number(item.totalCents))&&Number(item.totalCents)>=0)&&
+      new Set(source.map(item=>item.id)).size===source.length&&
+      source.reduce((sum,item)=>sum+Number(item.totalCents),0)===Number(estimate.subtotalCents);
+    setSavedLinesVerified(verified);
+    const nextItems=verified?source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};}):[];
+    setItems(nextItems);
+    const appreciation=Boolean(Number(estimate.appreciationDiscount||0));setAppreciationDiscount(appreciation);
+    const mode:DiscountMode=estimate.additionalDiscountType==="dollar"?"dollar":"percent";setDiscountMode(mode);
+    const stored=Number(estimate.additionalDiscountValue||0);const input=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";
+    setDiscountValue(input);
+    setError(verified?"":"Saved estimate services could not be verified. Reopen this job in Estimates before editing; saved prices are unchanged.");
+    initialEditSnapshot.current=JSON.stringify({items:nextItems,appreciationDiscount:appreciation,discountMode:mode,discountValue:input});
+  };
+  const currentEditSnapshot=JSON.stringify({items,appreciationDiscount,discountMode,discountValue});
+  const bundleCents=parseDiscountCents(bundleValue,"dollar");
+  const changedSinceOpen=Boolean(initialEditSnapshot.current&&currentEditSnapshot!==initialEditSnapshot.current)||(bundle.ready&&(bundleCents===null||bundleCents!==Number(estimate.bundleDiscountCents??0)));
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&(changedSinceOpen||uncertain)&&!window.confirm(uncertain
+      ?"The last estimate save may already have committed. Closing discards only local editor entries. Check the saved estimate before another edit. Close?"
+      :"Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged."))return;
+    setOpen(value);if(value)hydrate();
+  };
+  const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
+  const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
+  const discountInputCents=parseDiscountCents(discountValue,discountMode,appreciationDiscount?45:50);
+  const bundleInputCents=parseDiscountCents(bundleValue,"dollar");
+  const bundleInvalid=bundleInputCents===null||bundleInputCents>subtotal;
+  const discountInvalid=discountInputCents===null||(discountMode==="dollar"&&discountInputCents>subtotal);
+  const discount=discountMath(subtotal,appreciationDiscount,discountMode,discountInputCents===null?0:discountInputCents/100,items.some(item=>Boolean(item.name)&&item.quantity>0&&validEditablePrice(item)),bundleInputCents??0);
+  const addService=()=>{if(savedLinesVerified)setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);};
+  const save=async()=>{
+    if(saveLock.current||!bundle.ready)return;
+    if(!savedLinesVerified){setError("Saved service details are missing. Reopen this job in Estimates before editing.");return;}
+    if(uncertain){setError("Check the saved estimate first; another Save could repeat a completed edit.");return;}
+    if(!Number.isSafeInteger(subtotal)||!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!validEditablePrice(item))){setError("Every service needs a service, quantity, and valid price.");return;}
+    if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
+    if(discountInputCents===null){setError("Enter a valid nonnegative discount with at most two decimals and within the percentage limit.");return;}
+    if(discountMode==="dollar"&&discountInputCents>subtotal){setError("Dollar discount cannot exceed the service subtotal.");return;}
+    saveLock.current=true;setSaving(true);setError("");
+    let responseStatus=0;let responseUncertain=false;
+    try{
+      const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
+      const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,appreciationDiscount,additionalDiscountType:discountMode,additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents})});
+      responseStatus=response.status;
+      const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string;saveUncertain?:boolean};
+      responseUncertain=result?.saveUncertain===true;
+      if(!response.ok||!result?.estimate||result.estimate.id!==estimate.id||
+        result.estimate.totalCents!==discount.total||
+        result.estimate.depositCents!==discount.deposit||
+        result.estimate.discountCents!==discount.appliedDiscount||
+        result.estimate.subtotalCents!==subtotal||
+        result.estimate.bundleDiscountCents!==(bundleInputCents??0)||
+        !Array.isArray(result.estimate.items)||
+        result.estimate.items.length!==payloadItems.length||
+        result.estimate.items.some((saved,index)=>{
+          const requested=payloadItems[index];
+          return !saved||typeof saved.id!=="string"||!saved.id||
+            saved.name!==requested.name||saved.description!==requested.description||
+            Number(saved.quantity)!==requested.quantity||saved.unit!==requested.unit||
+            Number(saved.totalCents)!==requested.totalCents||
+            Boolean(requested.id&&saved.id!==requested.id);
+        }))
+        throw new Error(result?.error||"Estimate save could not be confirmed. Reopen the saved job and check its services before trying another edit.");
+      // Use only server-confirmed D1 item IDs, never synthetic `new-N`
+      // placeholders that could be treated as real IDs on the next edit.
+      setUncertain(false);onSaved({...estimate,...result.estimate,items:result.estimate.items});setOpen(false);
+    }catch(saveError){
+      setError(saveError instanceof Error?saveError.message:"Estimate changes could not be saved.");
+      // D1 might have committed despite a lost response or conflicting 200.
+      // A deterministic validation 4xx is different: it cannot claim success.
+      if(responseUncertain||responseStatus===0||responseStatus>=500||
+        responseStatus>=200&&responseStatus<300)setUncertain(true);
+    }finally{saveLock.current=false;setSaving(false);}
+  };
+  const checkSaved=async()=>{
+    if(saveLock.current||saving||!uncertain)return;
+    saveLock.current=true;setSaving(true);setError("");
+    try{
+      // The owner-only history endpoint is a read, never another estimate
+      // PATCH. It carries the exact persisted lines, customer and status.
+      const response=await fetch("/api/estimate-history?focus="+encodeURIComponent(estimate.id),{cache:"no-store"});
+      const body=await response.json() as {estimates?:EstimateRow[]};
+      const saved=body?.estimates?.[0];
+      if(!response.ok||body.estimates?.length!==1||!saved||
+        saved.id!==estimate.id||(estimate.customerId&&saved.customerId!==estimate.customerId)||
+        !Number.isSafeInteger(saved.subtotalCents)||Number(saved.subtotalCents)<0||
+        !Number.isSafeInteger(saved.discountCents)||Number(saved.discountCents)<0||
+        !Number.isSafeInteger(saved.totalCents)||saved.totalCents<0||
+        !Number.isSafeInteger(saved.depositCents)||saved.depositCents<0||
+        Number(saved.subtotalCents)!==saved.totalCents+Number(saved.discountCents)||
+        !Array.isArray(saved.items)||!saved.items.length||
+        saved.items.some(item=>!item||typeof item.id!=="string"||!item.id||
+          typeof item.name!=="string"||!item.name||
+          !Number.isFinite(Number(item.quantity))||Number(item.quantity)<=0||
+          !Number.isSafeInteger(Number(item.totalCents))||Number(item.totalCents)<0)||
+        new Set(saved.items.map(item=>item.id)).size!==saved.items.length||
+        saved.items.reduce((sum,item)=>sum+Number(item.totalCents),0)!==saved.subtotalCents)
+        throw Error("The saved estimate could not be verified.");
+      // Discount components are recorded separately and must match the
+      // exact saved total. Never turn an unverified bundle into $0.
+      const discountResponse=await fetch("/api/estimates/"+encodeURIComponent(estimate.id)+"/discounts",{cache:"no-store"});
+      const discounts=await discountResponse.json() as {estimateId?:string;totalCents?:number;bundleDiscountCents?:number};
+      if(!discountResponse.ok||discounts?.estimateId!==estimate.id||
+        discounts.totalCents!==saved.totalCents||
+        !Number.isSafeInteger(discounts.bundleDiscountCents)||
+        Number(discounts.bundleDiscountCents)<0||
+        Number(discounts.bundleDiscountCents)>Number(saved.subtotalCents))
+        throw Error("Saved estimate discounts could not be verified.");
+      setUncertain(false);
+      onSaved({...estimate,...saved,bundleDiscountCents:discounts.bundleDiscountCents});
+      setOpen(false);
+    }catch{
+      setError("Saved estimate not verified yet. Check your connection and try Check saved estimate again. No new save was sent.");
+    }finally{saveLock.current=false;setSaving(false);}
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit estimate</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit estimate</DialogTitle></DialogHeader></div>
+    <div className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex={0}>
+    {bundle.error&&<div role="alert"><p>{bundle.error}</p><Button variant="outline" onClick={()=>void bundle.reload()}>Retry saved discounts</Button></div>}{!bundle.ready&&!bundle.error&&<p role="status">Verifying saved discount components…</p>}
+    <fieldset disabled={saving||!bundle.ready||!savedLinesVerified} className="contents"><details className="ui-help estimate-editor-help"><summary>Pricing help</summary><p className="service-description-help">Saved line totals stay unchanged while you edit. Choose Per unit or Reset to standard to recalculate.</p></details>
+    {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header><div><Label htmlFor={`edit-estimate-service-${index}`}>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});}}><SelectTrigger id={`edit-estimate-service-${index}`} className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker fire-categorized-dropdown" position="popper" sideOffset={6} collisionPadding={16}><CategorizedServiceOptions catalog={services}/></SelectContent></Select></div><div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label htmlFor={`edit-estimate-description-${index}`}>Scope &amp; description</Label><Textarea id={`edit-estimate-description-${index}`} rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label htmlFor={`edit-estimate-quantity-${index}`}>Quantity</Label><Input id={`edit-estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
+    <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
+    <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
+    <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose % or $ savings. Bundle discounts are separate and can stack. Combined percentage discounts are capped at 50%.</p></section>
+    <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>setBundleValue(event.target.value)} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}</section><details className="ui-help estimate-editor-help"><summary>Promotion rules</summary><p className="service-description-help">Promotions are owner-applied. October 15% requires a qualifying booking placed on the schedule by October 31, 2026; the work may be performed later. Nothing is applied automatically.</p></details><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Estimate total<strong>{money(discount.total)}</strong></span><span>50% deposit<strong>{money(discount.deposit)}</strong></span></div>
+    {error&&<p className="save-error" role="alert">{error}</p>}
+    </fieldset>
+    </div>
+    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||uncertain||!bundle.ready||!savedLinesVerified||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button>{uncertain&&<Button type="button" variant="outline" disabled={saving} onClick={()=>void checkSaved()}>{saving?"Checking saved estimate…":"Check saved estimate"}</Button>}</div>
+  </DialogContent></Dialog>;
+}
+
+
+function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(totalCents:number)=>void}){
+  const [open,setOpen]=useState(false);
+  const pricing=useServicePricing(open);
+  const services=pricing.services;
+  const saveLock=useRef(false);
+  const initialInvoiceEditSnapshot=useRef("");
+  const [items,setItems]=useState<EditableEstimateItem[]>([]);
+  // Keep the exact typed per-unit price until verified. Do not round away
+  // fractional cents and then invoice the silently changed amount.
+  const [rateDrafts,setRateDrafts]=useState<Record<string,string>>({});
+  const invoiceLineKey=(item:EditableEstimateItem,index:number)=>item.id||item.draftKey||`invoice-line-${index}`;
+  const invoiceRateInvalid=items.some((item,index)=>{
+    const draft=rateDrafts[invoiceLineKey(item,index)];
+    return draft!==undefined&&exactMoneyInputCents(draft,true)===null;
+  });
+  const [discountMode,setDiscountMode]=useState<DiscountMode>("dollar");
+  const [discountValue,setDiscountValue]=useState("");
+  const [dueMode,setDueMode]=useState<"receipt"|"date">("receipt");
+  const [dueDate,setDueDate]=useState("");
+  type InvoiceRevisionRow={id:string;subtotalCents:number;discountCents:number;discountType:DiscountMode;discountValue:number;totalCents:number;status:string;dueAt?:string|null;createdAt:string;items:EstimateItemRow[]};
+  const [revisions,setRevisions]=useState<InvoiceRevisionRow[]>([]);
+  const [expandedRevisionId,setExpandedRevisionId]=useState<string|null>(null);
+  const [loading,setLoading]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  const [uncertain,setUncertain]=useState(false);
+  const loadRequest=useRef(0);
+  const loadedInvoice=useRef<string|null>(null);
+  const invoiceKey=JSON.stringify([estimate.id,estimate.invoiceId,estimate.customerId||null]);
+  const currentInvoice=useRef(invoiceKey);currentInvoice.current=invoiceKey;
+  const [loadError,setLoadError]=useState("");
+  useEffect(()=>{currentInvoice.current=invoiceKey;loadedInvoice.current=null;setOpen(false);setItems([]);setRateDrafts({});setRevisions([]);setLoadError("");setLoading(false);setUncertain(false);return()=>{loadRequest.current++;loadedInvoice.current=null;if(currentInvoice.current===invoiceKey)currentInvoice.current="";};},[invoiceKey]);
+  const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
+  const invoiceDiscountInputCents=parseDiscountCents(discountValue,discountMode);
+  const invoiceDiscountInvalid=invoiceDiscountInputCents===null||(discountMode==="dollar"&&invoiceDiscountInputCents>subtotal);
+  const invoiceDiscount=(()=>{if(invoiceDiscountInputCents===null)return 0;if(discountMode==="percent")return Math.round(subtotal*invoiceDiscountInputCents/10000);return Math.min(subtotal,invoiceDiscountInputCents);})();
+  const total=subtotal>0?Math.max(0,subtotal-invoiceDiscount):0;
+  const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
+  const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0,draftKey:crypto.randomUUID()}]);
+  const hydrate=async()=>{
+    const request=++loadRequest.current;const key=invoiceKey;
+    loadedInvoice.current=null;initialInvoiceEditSnapshot.current="";setItems([]);setRateDrafts({});setRevisions([]);setExpandedRevisionId(null);setLoadError("");
+    if(!estimate.invoiceId){setLoadError("This job does not have an invoice to edit.");return;}
+    setLoading(true);setError("");
+    try{
+      const response=await fetch(`/api/invoices/${encodeURIComponent(estimate.invoiceId)}`,{cache:"no-store"});const result=await response.json() as {invoice?:{id?:string;estimateId?:string;customerId?:string;discountType?:DiscountMode;discountValue?:number;dueAt?:string|null;createdAt?:string;items?:EstimateItemRow[];revisions?:InvoiceRevisionRow[]};error?:string};
+      if(request!==loadRequest.current||currentInvoice.current!==key)return;
+      if(!response.ok||!result?.invoice||result.invoice.id!==estimate.invoiceId||result.invoice.estimateId!==estimate.id||(estimate.customerId&&result.invoice.customerId!==estimate.customerId))throw new Error("Saved invoice identity could not be verified.");
+      const source=result.invoice.items;
+      if(!Array.isArray(source)||!source.length||source.some((item)=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))throw new Error("Saved invoice services could not be verified.");
+      const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};});
+      setItems(nextItems);
+      const mode=result.invoice.discountType==="percent"?"percent":"dollar";setDiscountMode(mode);const stored=Number(result.invoice.discountValue||0);const nextDiscount=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";setDiscountValue(nextDiscount);
+      const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);const nextDueMode=!rawDue||(createdDay&&dueDay===createdDay)?"receipt":"date";const nextDueDate=nextDueMode==="receipt"?"":dueDay;setDueMode(nextDueMode);setDueDate(nextDueDate);
+      initialInvoiceEditSnapshot.current=JSON.stringify({items:nextItems,rateDrafts:{},discountMode:mode,discountValue:nextDiscount,dueMode:nextDueMode,dueDate:nextDueDate});
+      setRevisions((result.invoice.revisions??[]).map((revision)=>({...revision,subtotalCents:Number(revision.subtotalCents||0),totalCents:Number(revision.totalCents||0),discountCents:Number(revision.discountCents||0),discountValue:Number(revision.discountValue||0),discountType:revision.discountType==="percent"?"percent":"dollar",items:Array.isArray(revision.items)?revision.items:[]})));
+      setExpandedRevisionId(null);loadedInvoice.current=key;setUncertain(false);setError("");
+    }catch{if(request===loadRequest.current&&currentInvoice.current===key){loadedInvoice.current=null;setItems([]);setLoadError("The saved invoice could not be loaded. Reconnect and try again. No invoice changes were submitted.");}}finally{if(request===loadRequest.current&&currentInvoice.current===key)setLoading(false);}
+  };
+  const currentInvoiceEditSnapshot=JSON.stringify({items,rateDrafts,discountMode,discountValue,dueMode,dueDate});
+  const invoiceHasUnsavedChanges=Boolean(initialInvoiceEditSnapshot.current&&loadedInvoice.current===invoiceKey&&initialInvoiceEditSnapshot.current!==currentInvoiceEditSnapshot);
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&(invoiceHasUnsavedChanges||uncertain)&&!window.confirm(uncertain
+      ?"The last invoice save may already have committed. Closing discards only these local entries; reopen and check the saved invoice before another edit. Close?"
+      :"Discard unsaved invoice changes? The current saved invoice and recorded payments will stay unchanged."))return;
+    if(!value){loadRequest.current++;loadedInvoice.current=null;initialInvoiceEditSnapshot.current="";setLoading(false);}
+    setOpen(value);if(value)void hydrate();
+  };
+  const save=async()=>{
+    if(saveLock.current)return;
+    if(uncertain){setError("Check the saved invoice from the server before trying another update. No second save was sent.");return;}
+    if(!estimate.invoiceId)return;
+    if(loadedInvoice.current!==invoiceKey||currentInvoice.current!==invoiceKey){setError("Load the saved invoice before making changes.");return;}
+    if(invoiceRateInvalid){setError("Correct the highlighted unit price. FIRE accepts whole cents only; no price was rounded or saved.");return;}
+    if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.unitRateCents)||item.unitRateCents<0)){setError("Every invoice service needs a service, quantity, and valid price.");return;}
+    if(invoiceDiscountInputCents===null){setError("Enter a valid nonnegative invoice discount with at most two decimals and no more than 50%.");return;}
+    if(discountMode==="dollar"&&invoiceDiscountInputCents>subtotal){setError("Dollar discount cannot exceed the invoice subtotal.");return;}
+    const key=invoiceKey;saveLock.current=true;setSaving(true);setError("");
+    let responseStatus=0;
+    try{
+      const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
+      if(dueMode==="date"&&!dueDate){setError("Choose an invoice due date or select Due on receipt.");setSaving(false);return;}
+      const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:invoiceDiscountInputCents,dueAt:dueMode==="receipt"?"receipt":dueDate})});
+      responseStatus=response.status;
+      const result=await response.json() as {invoice?:{id?:string;totalCents?:number};error?:string};
+      if(currentInvoice.current!==key)return;
+      if(!response.ok)throw new Error(result?.error||"Invoice changes could not be saved.");
+      if(!result?.invoice||result.invoice.id!==estimate.invoiceId||!Number.isSafeInteger(result.invoice.totalCents)||Number(result.invoice.totalCents)<0)throw new Error("The save response could not be verified. Reopen this invoice to check its saved values before trying again.");
+      setUncertain(false);onSaved(Number(result.invoice.totalCents));setOpen(false);
+    }catch(saveError){if(currentInvoice.current===key){
+      setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");
+      // 503/transport/lost-JSON or an unverified HTTP 200 can hide an already
+      // committed invoice revision. Never let another tap repeat the write.
+      if(responseStatus===0||responseStatus>=500||(responseStatus>=200&&responseStatus<300))setUncertain(true);
+    }}finally{saveLock.current=false;setSaving(false);}
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit invoice</button></DialogTrigger><DialogContent className="estimate-edit-dialog invoice-edit-fields sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit final invoice</DialogTitle></DialogHeader></div>
+    <div className="estimate-edit-scroll-area" role="region" aria-label="Invoice services and payment terms" tabIndex={0}>
+    <fieldset disabled={saving} className="contents">
+    {loading?<div className="customers-state" role="status">Loading saved invoice…</div>:loadError?<div className="customers-state"><p className="save-error" role="alert">{loadError}</p><Button variant="outline" className="min-h-11" onClick={()=>void hydrate()}>Try loading invoice again</Button></div>:loadedInvoice.current!==invoiceKey?<div className="customers-state" role="status">Loading saved invoice…</div>:<>
+    <p className="service-description-help">Edit final services and discount. Accepted estimate and recorded payments stay unchanged.</p>
+    {pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove invoice service ${index+1}`}><Trash2/></button>}</header><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-service`}>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;setRateDrafts(current=>{const next={...current};delete next[invoiceLineKey(item,index)];return next;});updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,quantity:["job","quantity","each"].includes(svc.unit)?1:0});}}><SelectTrigger id={`invoice-${estimate.invoiceId}-${index}-service`} className="estimate-service-picker-trigger"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker fire-categorized-dropdown" position="popper" sideOffset={6} collisionPadding={16}><CategorizedServiceOptions catalog={services}/></SelectContent></Select></div><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-description`}>Scope &amp; description</Label><Textarea id={`invoice-${estimate.invoiceId}-${index}-description`} rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-quantity`}>Quantity</Label><Input id={`invoice-${estimate.invoiceId}-${index}-quantity`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-rate`}>Price per unit</Label><div className="discount-input"><span>$</span><Input id={`invoice-${estimate.invoiceId}-${index}-rate`} inputMode="decimal"
+  value={rateDrafts[invoiceLineKey(item,index)]??(item.unitRateCents?String(item.unitRateCents/100):"")}
+  aria-invalid={rateDrafts[invoiceLineKey(item,index)]!==undefined&&exactMoneyInputCents(rateDrafts[invoiceLineKey(item,index)],true)===null}
+  onChange={(event)=>{
+    const raw=event.target.value,key=invoiceLineKey(item,index);
+    setRateDrafts(current=>({...current,[key]:raw}));
+    const cents=exactMoneyInputCents(raw,true);
+    if(cents!==null)updateItem(index,{unitRateCents:cents});
+  }}/>
+  {rateDrafts[invoiceLineKey(item,index)]!==undefined&&exactMoneyInputCents(rateDrafts[invoiceLineKey(item,index)],true)===null&&
+    <p className="service-description-help" role="alert">Enter dollars with at most two decimal places. This amount has not been rounded.</p>}</div></div><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
+    <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
+    <section className="edit-discount-card"><Label id={`invoice-${estimate.invoiceId}-due-label`}>Payment due</Label><div className="discount-mode-row"><Button type="button" aria-pressed={dueMode==="receipt"} variant={dueMode==="receipt"?"default":"outline"} onClick={()=>{setDueMode("receipt");setDueDate("");}}>Due on receipt</Button><Button type="button" aria-pressed={dueMode==="date"} variant={dueMode==="date"?"default":"outline"} onClick={()=>setDueMode("date")}>Specific date</Button></div>{dueMode==="date"&&<Input aria-labelledby={`invoice-${estimate.invoiceId}-due-label`} type="date" value={dueDate} onChange={(event)=>setDueDate(event.target.value)}/>}</section>
+    <section className="edit-discount-card"><Label htmlFor={`invoice-${estimate.invoiceId}-discount`}>Final invoice discount</Label><div className="discount-mode-row"><Button type="button" aria-pressed={discountMode==="percent"} variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" aria-pressed={discountMode==="dollar"} variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input id={`invoice-${estimate.invoiceId}-discount`} inputMode="decimal" value={discountValue} aria-invalid={invoiceDiscountInvalid} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/>{invoiceDiscountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals, no more than 50% or the invoice subtotal.</p>}</div></section>
+    <div className="edit-totals"><span>Invoice subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(Math.max(0,subtotal-total))}</strong></span><span>Invoice total<strong>{money(total)}</strong></span><span>Paid already<strong>{money(estimate.paidCents)}</strong></span></div>
+    
+    {revisions.length>0&&<section className="edit-discount-card"><Label>Invoice revision history</Label><div className="invoice-revision-list">{revisions.slice(0,5).map((revision)=>{const expanded=expandedRevisionId===revision.id;return <div className={expanded?"invoice-revision-row expanded":"invoice-revision-row"} key={revision.id}><button type="button" className="invoice-revision-summary" onClick={()=>setExpandedRevisionId(expanded?null:revision.id)} aria-expanded={expanded}><span><strong>{money(revision.totalCents)}</strong><small>{revision.status} · {dateTime(revision.createdAt)}</small></span><span className="invoice-revision-due"><small>{revision.dueAt?`Due ${new Date(revision.dueAt).toLocaleDateString()}`:"Due on receipt"}</small><ChevronRight className={expanded?"revision-chevron open":"revision-chevron"}/></span></button>{expanded&&<div className="invoice-revision-details"><div className="revision-item-list">{revision.items.map((item,index)=><div key={`${revision.id}-${item.id||index}`}><span><strong>{item.name}</strong><small>{item.description||"No description"}</small></span><small>{Number(item.quantity)||0} {item.unit} · {money(Number(item.totalCents)||0)}</small></div>)}</div><div className="revision-totals"><span>Subtotal<strong>{money(revision.subtotalCents)}</strong></span><span>Discount<strong>−{money(revision.discountCents)}</strong></span><span>Discount mode<strong>{revision.discountType==="percent"?`${(revision.discountValue/100).toFixed(2).replace(/\.00$/,'')}%`:`${money(revision.discountValue)}`}</strong></span><span>Total<strong>{money(revision.totalCents)}</strong></span></div></div>}</div>;})}</div></section>}
+    </>}
+    </fieldset></div>
+    <div className="estimate-edit-modal-footer">{error&&<p className="save-error" role="alert">{error}</p>}<div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button>{!loading&&!loadError&&loadedInvoice.current===invoiceKey&&<Button className="brand-button" onClick={()=>void save()} disabled={saving||uncertain||invoiceRateInvalid||!invoiceHasUnsavedChanges}>{saving?"Saving…":"Save invoice changes"}</Button>}{uncertain&&<Button type="button" variant="outline" disabled={saving||loading} onClick={()=>{
+      if(window.confirm("Reload the saved invoice from the server? This replaces any unsaved fields in this editor and does not send a second invoice update."))void hydrate();
+    }}>Check saved invoice</Button>}</div></div>
+  </DialogContent></Dialog>;
+}
+
+function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { estimate: EstimateRow | null; onClose: () => void; onChanged: (estimate: EstimateRow) => void; initialScheduleDay?:string|null }) {
+  // All FIRE appointments are entered in Tulsa/Central time, not the phone's
+  // timezone. Converting via new Date("YYYY-MM-DDTHH:mm") silently moves work
+  // when the owner travels or uses a device configured outside Central Time.
+  const centralWallTime=(instant:string):string=>{
+    const ms=Date.parse(instant);
+    if(!Number.isFinite(ms))return "";
+    const parts=new Intl.DateTimeFormat("en-US",{
+      timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit",
+      hour:"2-digit",minute:"2-digit",hourCycle:"h23"
+    }).formatToParts(new Date(ms));
+    const part=(name:string)=>parts.find(entry=>entry.type===name)?.value??"";
+    return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+  };
+  const utcForCentralAppointment=(wall:string):string=>{
+    if(!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d$/.test(wall))
+      throw new Error("Choose a valid Central Time appointment.");
+    const utcWall=Date.parse(wall+":00.000Z");
+    if(!Number.isFinite(utcWall)||new Date(utcWall).toISOString().slice(0,16)!==wall)
+      throw new Error("Choose a real calendar date before saving.");
+    // Tulsa is UTC-5 in daylight time and UTC-6 in standard time.
+    // Exact wall-clock round trips reject spring-forward gaps and repeated
+    // fall-back hours rather than silently booking the wrong hour.
+    const possible=[5,6].map(hours=>utcWall+hours*3_600_000)
+      .filter(candidate=>centralWallTime(new Date(candidate).toISOString())===wall);
+    if(possible.length!==1)
+      throw new Error(possible.length===0
+        ?"This Central Time does not exist because the clocks change. Choose another time."
+        :"This Central Time occurs twice when the clocks change. Choose another time.");
+    return new Date(possible[0]).toISOString();
+  };
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [schedule, setSchedule] = useState("");
+  const [reportComplete,setReportComplete]=useState(false);
+  const [checkingCloseout,setCheckingCloseout]=useState(false);
+  const closeoutLock=useRef(false);
+  const mutationLock=useRef(false);
+  const [refundAmount,setRefundAmount]=useState("");
+  useEffect(() => {
+    let active=true;
+    setReportComplete(false);
+    if (!estimate?.scheduledAt) setSchedule(estimate?.status==="approved"&&initialScheduleDay?initialScheduleDay+"T09:00":"");
+    else setSchedule(centralWallTime(estimate.scheduledAt));
+    if(!estimate?.id)return ()=>{active=false;};
+    void (async()=>{try{const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});const result=await response.json() as {reports?:JobReportRow[]};const report=Array.isArray(result?.reports)?result.reports[0]:undefined;if(active)setReportComplete(Boolean(response.ok&&report&&report.estimateId===estimate.id&&report.customerId===estimate.customerId&&report.status==="completed"));}catch{if(active)setReportComplete(false);}})();
+    return ()=>{active=false;};
+  }, [estimate]);
+  if (!estimate) return null;
+  const update = async (body: Record<string, unknown>) => {
+    if(mutationLock.current)return;
+    mutationLock.current=true;setSaving(true);setError("");
+    try {
+      const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      const result=await response.json() as {estimate?:{id?:string;status?:string;scheduledAt?:string|null};error?:string;saveUncertain?:boolean};
+      if(!response.ok)throw new Error(result.error||"Job update was not confirmed. Reopen the saved job before trying again.");
+      const saved=result.estimate;
+      // A 200 response alone cannot authorize a Scheduled/Completed badge.
+      // Require the exact selected job ID, expected workflow state and
+      // precise saved date (when requested) before changing the iPhone view.
+      const expectedStatus=body.scheduledAt!==undefined?"scheduled":body.status;
+      const savedDate=saved?.scheduledAt;
+      if(!saved||saved.id!==estimate.id||typeof saved.status!=="string"||
+         (typeof expectedStatus==="string"&&saved.status!==expectedStatus)||
+         (body.scheduledAt!==undefined&&
+           (typeof savedDate!=="string"||!Number.isFinite(Date.parse(savedDate))||
+            Date.parse(savedDate)!==Date.parse(String(body.scheduledAt)))))
+        throw new Error("The saved job response did not verify the selected job, status and appointment. Close and reopen this job to check its saved state before trying again.");
+      onChanged({...estimate,...saved});
+    }catch(updateError){
+      setError((updateError instanceof Error?updateError.message:"Job update could not be confirmed.")+
+        " If the request was interrupted, it may already have saved. Check the job record before repeating it.");
+    }finally{mutationLock.current=false;setSaving(false);}
+  };
+  const completeJob=async()=>{
+    if(closeoutLock.current||mutationLock.current||saving||checkingCloseout)return;
+    closeoutLock.current=true;setCheckingCloseout(true);setError("");
+    try{
+      const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});
+      const result=await response.json() as {reports?:JobReportRow[];error?:string};
+      if(!response.ok||!Array.isArray(result?.reports))throw new Error("Report verification unavailable.");
+      const report=result.reports[0];
+      const complete=Boolean(report&&report.estimateId===estimate.id&&report.customerId===estimate.customerId&&report.status==="completed");
+      setReportComplete(complete);
+      if(!complete){setError("Complete and save the service completion report for this job before marking it complete.");return;}
+      await update({status:"completed"});
+    }catch{
+      setReportComplete(false);
+      setError("The saved report could not be verified. Reconnect and reopen this job before trying again. Job status was not changed.");
+    }finally{closeoutLock.current=false;setCheckingCloseout(false);}
+  };
+  // Non-destructive owner action: keep the quote and history in the Lost lane.
+  // Server guards actual D1 dependencies again inside its conditional UPDATE.
+  const canVoidUnaccepted=(["draft","sent"].includes(estimate.status))
+    && !estimate.acceptedAt && !estimate.signedAt && !estimate.scheduledAt
+    && !estimate.invoiceId && Number(estimate.paidCents)===0
+    && Number(estimate.pendingRefundCount)===0 && Number(estimate.openCheckoutCount)===0;
+  const voidUnaccepted=async()=>{
+    if(!canVoidUnaccepted||saving||mutationLock.current||closeoutLock.current)return;
+    if(!window.confirm(`Void this unaccepted estimate for ${estimate.customer}? Its customer link will no longer allow signing. FIRE will retain the quote under Lost for your records. This does NOT permanently delete it.`))return;
+    mutationLock.current=true;setSaving(true);setError("");
+    try{
+      const response=await fetch(`/api/estimates/${estimate.id}/void`,{method:"POST"});
+      const result=await response.json() as {ok?:boolean;estimate?:{id?:string;status?:string;scheduledAt?:string|null};error?:string};
+      if(!response.ok||result.ok!==true||result.estimate?.id!==estimate.id||result.estimate.status!=="declined")
+        throw new Error(result.error||"Void was not confirmed. Refresh this estimate before retrying.");
+      onChanged({...estimate,status:"declined",scheduledAt:null});
+    }catch(error){
+      setError((error instanceof Error?error.message:"Void confirmation unavailable.")+" Refresh this estimate before any further change.");
+    }finally{mutationLock.current=false;setSaving(false);}
+  };
+  const createInvoice = async () => {
+    if(mutationLock.current||closeoutLock.current)return;
+    mutationLock.current=true;setSaving(true);setError("");
+    try {
+      const response=await fetch("/api/invoices",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id})});
+      const result=await response.json() as {id?:string;estimateId?:string;customerId?:string;shareToken?:string;error?:string};
+      if(!response.ok)throw new Error(result.error||"Final invoice creation was not confirmed.");
+      // The server verifies saved invoice and every line. This view must also
+      // require a receipt for THIS job/customer and its actual owner-preview
+      // link; a 200 containing only an unrelated ID cannot change the UI.
+      if(typeof result.id!=="string"||!result.id||result.estimateId!==estimate.id||
+         result.customerId!==estimate.customerId||
+         typeof result.shareToken!=="string"||!/^[a-f0-9]{32}$/i.test(result.shareToken))
+        throw new Error("The invoice response did not verify this job, customer and saved link.");
+      onChanged({...estimate,invoiceId:result.id,invoiceShareToken:result.shareToken});
+    }catch(invoiceError){
+      setError((invoiceError instanceof Error?invoiceError.message:"Invoice status could not be verified.")+
+        " An invoice may already have saved. Close and reopen this job to check before trying again.");
+    }finally{mutationLock.current=false;setSaving(false);}
+  };
+  const encodedAddress = encodeURIComponent(estimate.address || "");
+  const zillowAddress = encodeURIComponent((estimate.address || "").trim().replace(/\s+/g,"-"));
+  const estimating=(["draft","sent","viewed"] as string[]).includes(estimate.status);
+  const travelingToJob=estimate.status==="scheduled"&&Boolean(estimate.scheduledAt);
+  const workingOnJob=estimate.status==="scheduled"||estimate.status==="completed";
+  const historicalQuote=estimate.status==="declined"||estimate.status==="superseded";
+  // Show appointment editing only when the API can actually save it.
+  // Completed jobs retain their historical time as a read-only fact.
+  const canChangeJobDate=estimate.status==="scheduled"||
+    (estimate.status==="approved"&&Boolean(estimate.acceptedAt)&&Boolean(estimate.signedAt));
+  const messageCustomer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};
+  const shownDescription=estimate.serviceDescription||serviceDescriptionFor(estimate.service);
+  const paymentReviewMessage=Number(estimate.pendingRefundCount)>0?"Refund in progress. Verify its outcome before closing out this job.":"Checkout still open. Verify payment status before closing out this job.";
+  const billingTotalCents=estimate.invoiceTotalCents??estimate.totalCents;
+  const balanceCents=Math.max(0,billingTotalCents-estimate.paidCents);
+  const resolveOverpayment=async(resolutionMode:"refund"|"keep")=>{
+    if(mutationLock.current||closeoutLock.current)return;
+    const refundAmountCents=resolutionMode==="refund"?exactMoneyInputCents(refundAmount):undefined;
+    if(resolutionMode==="refund"&&(refundAmountCents===null||refundAmountCents===undefined||refundAmountCents<=0)){
+      setError("Enter the refund already issued, using no more than two decimal places.");
+      return; // Invalid input never sent a request; do not warn about a lost write.
+    }
+    mutationLock.current=true;setSaving(true);setError("");
+    try{
+      const response=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({
+        estimateId:estimate.id,resolveOverpayment:true,reconciliationHandled:true,resolutionMode,refundAmountCents
+      })});
+      const result=await response.json() as {ok?:boolean;estimateId?:string;resolutionMode?:string;remainingOverpaymentCount?:number;paidCents?:number;error?:string};
+      if(!response.ok||result.ok!==true||result.estimateId!==estimate.id||result.resolutionMode!==resolutionMode||
+         !Number.isSafeInteger(result.remainingOverpaymentCount)||Number(result.remainingOverpaymentCount)<0||
+         (resolutionMode==="refund"&&(!Number.isSafeInteger(result.paidCents)||Number(result.paidCents)<0)))
+        throw new Error(result.error||"Overpayment resolution was not confirmed. Reopen the saved job before any retry.");
+      setRefundAmount("");
+      onChanged({...estimate,paidCents:resolutionMode==="refund"?result.paidCents!:estimate.paidCents,paymentOverageOpen:result.remainingOverpaymentCount!});
+    }catch(resolveError){
+      setError((resolveError instanceof Error?resolveError.message:"Overpayment resolution is uncertain.")+
+        " The previous action may have saved. Refresh the job and payment history before trying again.");
+    }finally{mutationLock.current=false;setSaving(false);}
+  };
+  return <Dialog open onOpenChange={(value) => { if (!value&&!mutationLock.current&&!closeoutLock.current) onClose(); }}><DialogContent className="estimate-detail sm:max-w-[650px]">
+    <DialogHeader><DialogTitle>{estimate.service}</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="text-sm text-muted-foreground">{jobNumberLabel(estimate.jobNumber)}</small>}</DialogHeader>
+    <div className="estimate-detail-scroll" role="region" aria-label="Job details" tabIndex={0}>
+    <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong>{customerNumberLabel(estimate.customerNumber)&&<small>{customerNumberLabel(estimate.customerNumber)}</small>}<small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
+    {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
+    {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
+    <div className="detail-actions" aria-label="Customer and estimate actions">
+      {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`} aria-label="Open customer-facing estimate preview"><ExternalLink/> Customer view</a>}
+      {!estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable: this estimate does not have a saved private link.</small>}
+      {["superseded","declined"].includes(estimate.status)&&<small role="status" className="service-description-help">Customer view unavailable for replaced or withdrawn estimates. The saved history remains available.</small>}
+      {!["superseded","declined"].includes(estimate.status)&&<EditEstimateDialog estimate={estimate} onSaved={onChanged}/>}
+      {estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
+      {!["superseded","declined"].includes(estimate.status)&&estimate.customerId&&<MessageComposer
+        customer={messageCustomer}
+        estimate={estimate}
+        initialTemplate={estimate.invoiceId?"invoice":"estimate"}
+        triggerLabel={estimate.invoiceId?"Send invoice":"Send estimate"}
+        onSent={!estimate.invoiceId&&estimate.status==="draft"?(_message,status)=>onChanged({...estimate,status:status||estimate.status}):undefined}
+      />}
+      {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
+      {estimate.customerId&&estimate.status==="completed"&&!estimate.lastReviewRequestAt&&!estimate.reviewReceivedAt&&Number(estimate.paymentOverageOpen)===0&&Number(estimate.pendingRefundCount)===0&&Number(estimate.openCheckoutCount)===0&&Number.isSafeInteger(resolvedBillingTotalCents(estimate))&&resolvedBillingTotalCents(estimate)>0&&estimate.paidCents===resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
+      {estimate.phone&&<GoogleVoiceCallAction phone={estimate.phone} customerName={estimate.customer}/>}
+      {estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}
+      {estimate.phone&&<details className="customer-contact-backups">
+        <summary>Personal phone backups</summary>
+        <div className="contact-backup-actions">
+          <PersonalPhoneBackupAction phone={estimate.phone} mode="call" customerName={estimate.customer}/>
+          <PersonalPhoneBackupAction phone={estimate.phone} mode="text" customerName={estimate.customer}/>
+        </div>
+        <small>Only use these if FIRE Google Voice is unavailable; your personal number may be shown.</small>
+      </details>}
+      {estimating&&estimate.address&&<div className="detail-context-tools" role="group" aria-label="Estimate research"><strong>Estimate research</strong><div className="detail-context-buttons"><a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a><a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a></div></div>}
+      {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}</div></div>}
+      {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
+      {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
+      {!["superseded","declined"].includes(estimate.status)&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
+    </div>
+    {(workingOnJob||["declined","superseded"].includes(estimate.status))?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
+    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents} estimateStatus={estimate.status}/>
+    {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
+    <details className="detail-more-tools">
+      <summary>More tools</summary>
+      <QuoteVersions key={estimate.id} estimateId={estimate.id}/>
+      {canVoidUnaccepted&&<div className="detail-context-tools" role="group" aria-label="Estimate removal">
+        <Button type="button" variant="outline" className="min-h-11" disabled={saving||checkingCloseout} onClick={()=>void voidUnaccepted()}>
+          Void unaccepted estimate
+        </Button>
+        <p className="service-description-help">Moves this quote to Lost and blocks signing. Preserves history; does not permanently delete the record.</p>
+      </div>}
+      {estimate.status==='approved'&&estimate.acceptedAt&&estimate.signedAt&&estimate.paidCents===0&&!estimate.invoiceId&&<details className="ui-help"><summary>Revise approved quote</summary><p>Saving replaces the original quote immediately and disables its old payment link. The original scope and signature stay in history; the replacement needs a new signature. Available before any payment, checkout or invoice.</p><NewEstimate customer={messageCustomer} revisionSource={estimate} onSaved={next=>window.location.assign('/?openEstimate='+encodeURIComponent(next.id))}/></details>}
+      <div className="detail-actions">
+        {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
+        {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
+        {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
+        {!workingOnJob&&<OwnerJobTools estimate={estimate} onSaved={setReportComplete}/>}
+      </div>
+    </details>
+    <OwnerDepositReview key={`deposit:${estimate.id}`} estimateId={estimate.id}/>
+    <EstimateChangeHistory key={`changes:${estimate.id}`} estimateId={estimate.id} onSummary={(pending,latest)=>{if(Number(estimate.pendingChangeCount)!==pending||estimate.latestChangeRequest!==latest)onChanged({...estimate,pendingChangeCount:pending,latestChangeRequest:latest});}} />
+    {Number(estimate.paymentOverageOpen)>0&&<div className="change-alert"><CircleDollarSign/><div><strong>Overpayment needs review</strong><p>Already refunded? Enter the amount to update FIRE's records; this does not send money. Otherwise, choose Keep as overpayment. This is not a transferable customer credit.</p><div className="billing-resolution-actions"><Input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label="Amount already refunded" placeholder="Amount already refunded" value={refundAmount} onChange={(event)=>setRefundAmount(event.target.value)} disabled={saving}/><Button variant="outline" onClick={()=>void resolveOverpayment("refund")} disabled={saving}>Record refund</Button><Button variant="outline" onClick={()=>void resolveOverpayment("keep")} disabled={saving}>Keep as overpayment</Button></div></div></div>}
+    {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · <span className={"photo-permission-chip "+(estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"denied":"unknown")} title="Signed agreement photo permission; not a count of saved photos">{estimate.photoRelease==="no"?<CameraOff aria-hidden="true"/>:<Camera aria-hidden="true"/>}Photos: {estimate.photoRelease==="yes"?"Yes":estimate.photoRelease==="no"?"No":"Not recorded"}</span> · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
+    <div className="detail-grid">
+      <div><Label>Status</Label><div className="status-readonly" aria-label={`Job status: ${statusLabel(estimate.status)}`}><strong><EstimateStatusBadge status={estimate.status}/></strong><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/></div></div>
+      <div><Label htmlFor={canChangeJobDate?"scheduleDate":undefined}>Job date and time (Tulsa / Central Time)</Label>
+        {canChangeJobDate?<>{estimate.status==="approved"&&initialScheduleDay&&!estimate.scheduledAt&&<small className="schedule-date-confirmation">Calendar date selected · 9:00 AM is a placeholder. Confirm the actual start time before saving.</small>}
+          <Input id="scheduleDate" type="datetime-local" value={schedule} disabled={saving||checkingCloseout} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} />
+          {schedule&&<Button type="button" variant="outline" className="mt-2 min-h-11" onClick={()=>setSchedule("")} disabled={saving||checkingCloseout}>Clear date/time selection</Button>}
+          {estimate.scheduledAt&&<small className="service-description-help">Clearing this selection does not cancel the saved appointment.</small>}
+        </>:<div className="status-readonly" aria-label="Saved appointment"><strong>{estimate.scheduledAt?dateTime(estimate.scheduledAt):"Not scheduled"}</strong></div>}</div>
+    </div>
+    {historicalQuote&&<p className="service-description-help" role="status">Historical quote amounts only. This estimate is inactive; the amounts below are not a payment request.</p>}
+    <div className="detail-summary"><span><small>{historicalQuote?"Original deposit":"Deposit"}</small><strong>{money(estimate.depositCents)}</strong></span><span><small>Paid</small><strong>{money(estimate.paidCents)}</strong></span><span><small>{historicalQuote?"Saved balance":"Balance"}</small><strong>{money(balanceCents)}</strong></span></div>
+        {(saving||checkingCloseout)&&<p className="save-message" role="status" aria-live="polite">{checkingCloseout?"Verifying saved job report…":"Saving changes…"} Keep this job open until finished.</p>}
+    {error && <p className="save-error" role="alert">{error}</p>}
+    <div className="detail-footer">
+      {canChangeJobDate&&<Button variant="outline" onClick={() => {if(closeoutLock.current||!schedule)return;try{void update({scheduledAt:utcForCentralAppointment(schedule)});}catch(scheduleError){setError(scheduleError instanceof Error?scheduleError.message:"Choose a valid Central Time appointment.");}}} disabled={saving || checkingCloseout || !schedule}><CalendarDays className="h-4 w-4" /> Save job date</Button>}
+      {estimate.status === "scheduled" && <Button variant="outline" onClick={() => void completeJob()} disabled={saving||checkingCloseout||!reportComplete}><CheckCircle2 className="h-4 w-4" /> {checkingCloseout?"Checking…":reportComplete?"Mark job complete":"Complete report first"}</Button>}
+      {(estimate.status==="completed"||Boolean(estimate.invoiceId))&&<Button className="brand-button" onClick={createInvoice} disabled={saving || checkingCloseout || Boolean(estimate.invoiceId) || estimate.status !== "completed"}><Receipt className="h-4 w-4" /> {estimate.invoiceId ? "Invoice created" : "Create invoice"}</Button>}
+    </div>
+  
+    </div>
+  </DialogContent></Dialog>;
+}
+
+
+function CustomersView({ onEstimateSaved, onOpenEstimate, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled,createAtAddress,onCreateStarted,onOpenTerritory,onRegisterBack,onNoteDraftStatusChange }: { onNoteDraftStatusChange?:(state:{dirty:boolean;saving:boolean})=>void;onRegisterBack?:(handler:(()=>void)|null)=>void;onOpenTerritory?:(address:string)=>void;createAtAddress?:string;onCreateStarted?:()=>void;onEstimateSaved: (estimate: EstimateRow) => void; onOpenEstimate?:(estimateId:string)=>void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
+  /** Search saved contact fields as entered, and accept the last four or more
+   * phone digits without requiring matching parentheses, dashes or spaces.
+   * Numeric address searches still use the ordinary text match. */
+  function matchesCustomerDirectory(customer:Pick<CustomerRow,"name"|"email"|"phone"|"address"|"customerNumber">,query:string){
+    const term=query.trim().toLocaleLowerCase();
+    if(!term)return true;
+    if(matchesCustomerNumberQuery(customer.customerNumber,term))return true;
+    // Keep names, email and street-number searches usable at any length.
+    if([customer.name,customer.email,customer.address].join(" ").toLocaleLowerCase().includes(term))return true;
+    // Numeric phone search requires 4+ digits even when punctuation matches
+    // the saved number exactly; otherwise a short fragment can show false leads.
+    if(!/^[+()\d.\s-]+$/.test(term))return customer.phone.toLocaleLowerCase().includes(term);
+    const digits=term.replace(/\D/g,"");
+    return digits.length>=4&&customer.phone.replace(/\D/g,"").includes(digits);
+  }
+  /** Choose the next saved appointment, not whichever quote happens to be first in the API response. */
+  function pickCustomerNextEstimate(rows:CustomerEstimate[],now:number):CustomerEstimate|undefined{
+    const dated=rows.filter(row=>row.status==="scheduled"&&typeof row.scheduledAt==="string"&&Number.isFinite(Date.parse(row.scheduledAt)))
+      .sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+    // Future appointments take priority; after those, show the most recent overdue job.
+    // Invalid/missing dates never displace a verified scheduled appointment.
+    return dated.find(row=>Date.parse(row.scheduledAt!)>=now)
+      ??dated.at(-1)
+      ??rows.find(row=>row.status==="scheduled")
+      ??rows.find(row=>["approved","sent","draft"].includes(row.status))
+      ??rows.find(row=>row.status==="completed"&&row.paidCents<resolvedBillingTotalCents(row))
+      ??rows[0];
+  }
+  /** Read-only customer flag presentation: owner actions are not automatically external sends. */
+  function customerFlagPresentation(input:{
+    estimateSent:boolean;estimateMarkedSent?:boolean;hasDraftEstimate?:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;
+    followupContactRecorded:boolean;followupSendConfirmed:boolean;
+    reviewRequestRecorded:boolean;reviewSendConfirmed:boolean;reviewReceivedAt:string|null;
+    sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
+    reviewDue:boolean;today:string
+  }){
+    const needs:string[]=[];
+    if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)needs.push("Yard sign pickup is due");
+    if(input.reviewDue&&!input.reviewReceivedAt)needs.push("Review status needs checking");
+    return {
+      estimate:input.estimateSent?"Sent recorded":input.estimateMarkedSent?"Marked sent · verify":input.hasDraftEstimate?"Draft · not sent":"Not recorded",
+      invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send not confirmed":"Not created",
+      followup:input.followupSendConfirmed?"Send confirmed":input.followupContactRecorded?"Contact recorded":"Not recorded",
+      reviewRequest:input.reviewSendConfirmed?"Send confirmed":input.reviewRequestRecorded?"Request recorded":"Not recorded",
+      reviewReceived:input.reviewReceivedAt?"Owner logged":"Not logged",
+      sign:input.sign?.state==="out"?(input.sign.pickupDate&&input.sign.pickupDate<=input.today?"Pickup due":"Placed · pickup "+(input.sign.pickupDate||"not specified")):input.sign?.state==="picked_up"?"Picked up":"Not logged",
+      needs
+    };
+  }
+  /** Chronological, read-only receipts. Never render note bodies or infer delivery from prepared messages. */
+  function buildCustomerTimeline(input:{
+    estimates:readonly CustomerEstimate[];invoices:readonly InvoiceRow[];
+    messages:readonly {message:CustomerMessage;prepared?:CustomerMessage}[];
+    notes:readonly CustomerNote[];payments:readonly PaymentRow[]
+  }){
+    type Section="estimates"|"invoices"|"payments"|"messages"|"notes";
+    type Event={key:string;id:string;section:Section;category:"estimates"|"messages"|"billing"|"notes";title:string;detail:string;at:string;day:string;timestamp:number};
+    const events:Event[]=[];
+    const add=(section:Section,id:string,at:string|undefined|null,title:string,detail:string)=>{
+      if(!id||!at)return;
+      const timestamp=Date.parse(at);
+      if(!Number.isFinite(timestamp))return;
+      const category=section==="invoices"||section==="payments"?"billing":section;
+      const day=new Date(timestamp).toLocaleDateString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",year:"numeric"});
+      events.push({key:section+":"+id+":"+timestamp+":"+title,id,section,category,title,detail,at,day,timestamp});
+    };
+    for(const estimate of input.estimates){
+      add("estimates",estimate.id,estimate.createdAt,"Estimate created",estimate.service||"Saved estimate");
+      add("estimates",estimate.id,estimate.firstViewedAt,"Estimate link viewed","Link opened · viewer identity and intent unverified");
+      if(estimate.scheduledAt&&["scheduled","completed"].includes(estimate.status))add("estimates",estimate.id,estimate.scheduledAt,"Job scheduled","Saved scheduling status · open exact job");
+      add("estimates",estimate.id,estimate.acceptedAt,"Estimate accepted",estimate.service||"Saved estimate");
+      add("estimates",estimate.id,estimate.signedAt,"Agreement signed",estimate.service||"Saved estimate");
+      // An owner-confirmed message is a separate, stronger audit event.
+      if(estimate.firstEstimateSentAt&&!input.messages.some(row=>
+        row.message.estimateId===estimate.id&&row.message.template==="estimate"&&
+        (row.message.channel==="text_confirmed"||row.message.channel==="email_confirmed")))
+        add("estimates",estimate.id,estimate.firstEstimateSentAt,"Estimate send recorded","Saved status · delivery not verified");
+      // Surface older saved follow-up milestones when no corresponding confirmed
+      // send/contact receipt is available. These are history markers, not proof
+      // that a text or email was delivered, and always open the saved estimate.
+      for(const [template,at,title] of [
+        ["followUp1",estimate.stage1At,"Day 1 follow-up milestone"],
+        ["followUp3",estimate.stage3At,"Day 3 follow-up milestone"],
+        ["followUp7",estimate.stage7At,"Day 7 follow-up milestone"]
+      ] as const){
+        const audited=input.messages.some(({message})=>message.estimateId===estimate.id&&message.template===template&&
+          (message.channel==="text_confirmed"||message.channel==="email_confirmed"||message.channel==="contact_recorded"));
+        if(!audited)add("estimates",estimate.id,at,title,"Saved follow-up history · delivery unverified");
+      }
+      if(estimate.lastManualContactAt&&!input.messages.some(({message})=>message.estimateId===estimate.id&&
+        message.channel==="contact_recorded"&&message.createdAt===estimate.lastManualContactAt))
+        add("estimates",estimate.id,estimate.lastManualContactAt,"Manual contact logged","Saved owner contact · delivery unverified");
+      if(estimate.lastReviewRequestAt&&!input.messages.some(({message})=>message.estimateId===estimate.id&&
+        message.template==="review"&&(message.channel==="text_confirmed"||message.channel==="email_confirmed")))
+        add("estimates",estimate.id,estimate.lastReviewRequestAt,"Review request recorded","Saved owner request · delivery unverified");
+    }
+    for(const invoice of input.invoices)
+      add("invoices",invoice.id,invoice.createdAt,"Invoice created","Created · send not confirmed");
+    for(const payment of input.payments)
+      add("payments",payment.id,payment.createdAt,"Payment entry recorded",
+        (payment.type||"Payment")+" · "+(payment.status||"status unverified"));
+    const subject=(template:string)=>
+      template==="estimate"?"Estimate":template==="invoice"?"Invoice":
+      template==="review"?"Review request":template.startsWith("followUp")?"Estimate follow-up":
+      template==="invoiceReminder"||template==="overdue"?"Invoice follow-up":"Customer message";
+    for(const {message} of input.messages){
+      const isConfirmed=message.channel==="text_confirmed"||message.channel==="email_confirmed";
+      const isPrepared=message.channel==="text_prepared"||message.channel==="email_prepared";
+      const kind=subject(message.template);
+      const title=message.channel==="contact_recorded"?"Customer contact recorded":
+        message.channel==="contact_no_answer"?"No answer · customer not contacted":
+        message.channel==="review_snoozed"?"Review request snoozed":
+        message.channel==="review_check_snoozed"?"Review status check snoozed":
+        message.channel==="followup_snoozed"?"Follow-up snoozed":
+        message.channel==="send_cancelled"?kind+" draft discarded":isConfirmed?kind+" send confirmed":isPrepared?kind+" prepared":
+        message.channel==="copy"?kind+" copy prepared":"Communication record";
+      const detail=message.channel==="send_cancelled"?"Owner-confirmed not sent · saved draft retained":isConfirmed?"Owner-confirmed send · delivery unverified":
+        isPrepared?"Sending unconfirmed":message.channel==="copy"?"Copy prepared · clipboard result unverified":
+        message.channel==="contact_recorded"?"Owner logged contact":
+        message.channel==="contact_no_answer"?"Unanswered attempt logged · no customer contact or message sent":
+        message.channel==="review_snoozed"?"Request deferred · no message sent":
+        message.channel==="review_check_snoozed"?"Status check deferred · no message sent or review received":
+        message.channel==="followup_snoozed"?"Follow-up deferred · owner recorded":"Legacy entry · delivery unverified";
+      add("messages",message.id,message.createdAt,title,detail);
+    }
+    for(const note of input.notes){
+      const title=note.body===LEAD_NO_ANSWER_NOTE?"Lead call unanswered · not contacted":
+        note.body===LEAD_CONTACTED_NOTE?"Lead contact logged · send unverified":
+        note.body==="[FIRE FLAG] LEAD_CALLBACK_HANDLED"?"Lead callback marked handled":
+        note.body.startsWith("[FIRE FLAG] LEAD_CALLBACK | due:")?"Lead callback date saved":
+        note.body==="[FIRE FLAG] REVIEW_RECEIVED"?"Review received (owner logged)":
+        note.body==="[FIRE FLAG] YARD_SIGN_PICKED_UP"?"Yard sign pickup logged":
+        note.body.startsWith("[FIRE FLAG] YARD_SIGN_PLACED | pickup:")?"Yard sign placement logged":
+        "Customer note saved";
+      // Never copy arbitrary note body into a timeline (access codes, private details).
+      add("notes",note.id,note.createdAt,title,"Saved note · view original in Notes");
+    }
+    return events.sort((a,b)=>b.timestamp-a.timestamp||a.key.localeCompare(b.key)).slice(0,100);
+  }
+  /** Only flags that require owner review, never automatic sends, payments or notes. */
+  function buildCustomerNextActions(input:{
+    sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
+    reviewDue:boolean;invoices:readonly InvoiceRow[];estimates:readonly CustomerEstimate[];
+    messages:readonly CustomerMessage[];today:string;now:number;
+  }){
+    type Action={key:string;kind:"sign"|"review"|"invoice"|"estimate"|"followup"|"billing";title:string;detail:string;invoiceId?:string;estimateId?:string;priority:number};
+    const actions:Action[]=[];
+    if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)
+      actions.push({key:"sign",kind:"sign",title:"Yard sign pickup due",detail:"Review pickup and record it when completed",priority:100});
+    if(input.reviewDue)
+      actions.push({key:"review",kind:"review",title:"Review status check due",detail:"Verify before logging a review or sending anything",priority:80});
+    for(const estimate of input.estimates){
+      if(!estimate.id||!["draft","sent"].includes(estimate.status)||estimate.invoiceId)continue;
+      // An in-app send receipt is stronger than a status label; a copied or
+      // prepared message never proves delivery. Avoid false follow-up urgency
+      // for estimates explicitly snoozed to a future local calendar date.
+      const confirmed=input.messages.some(message=>message.estimateId===estimate.id&&message.template==="estimate"&&
+        (message.channel==="text_confirmed"||message.channel==="email_confirmed"));
+      const savedSend=Boolean(estimate.firstEstimateSentAt||estimate.lastEstimateSentAt);
+      const snoozed=Boolean(estimate.snoozeUntil&&Number.isFinite(Date.parse(estimate.snoozeUntil))&&Date.parse(estimate.snoozeUntil)>input.now);
+      if(!confirmed&&!savedSend&&estimate.status==="draft")
+        actions.push({key:"estimate:"+estimate.id,kind:"estimate",estimateId:estimate.id,title:"Review unsent estimate",
+          detail:"Draft estimate · sending not confirmed in app",priority:55});
+      else if(!confirmed&&!savedSend&&estimate.status==="sent"&&!snoozed)
+        actions.push({key:"estimate:"+estimate.id,kind:"estimate",estimateId:estimate.id,title:"Verify estimate send",
+          detail:"Estimate marked sent · no saved send timestamp or confirmed message",priority:50});
+      // Reuse the Follow-up Action Center's timing, not another reminder system.
+      // A prepared message or active snooze never becomes a due-send claim.
+      if(estimate.status==="sent"&&(confirmed||savedSend)){
+        const stage=estimateReminderStage(estimate,input.now);
+        if(stage.reviewReason)actions.push({key:"followup:"+estimate.id,kind:"followup",estimateId:estimate.id,
+          title:"Review follow-up history",detail:stage.reviewReason,priority:52});
+        else if(stage.template){
+          const days=stage.template==="followUp7"?7:stage.template==="followUp3"?3:1;
+          const viewed=viewedEstimateReminderCue(estimate,input.now);
+          actions.push({key:"followup:"+estimate.id,kind:"followup",estimateId:estimate.id,
+            title:viewed?"Viewed estimate · check in":"Estimate follow-up ready",
+            detail:viewed?"Link opened "+viewed.hoursSinceView+" hours ago · approval not recorded; consider a friendly follow-up":"Suggested day "+days+" · review confirmed contact before any outreach",
+            priority:viewed?76:days===7?78:days===3?70:62});
+        }
+      }
+    }
+    for(const invoice of input.invoices){
+      if(!invoice.id||!invoice.estimateId||["void","cancelled"].includes(invoice.status))continue;
+      // Refund/payment exceptions remain reviewable even for paid invoices.
+      if(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0||Number(invoice.pendingRefundCount)>0){
+        actions.push({key:"billing:"+invoice.id,kind:"billing",invoiceId:invoice.id,title:"Review payment exception",
+          detail:"Check saved payment and refund records before contacting the customer",priority:95});
+        continue;
+      }
+      if(["paid","draft"].includes(invoice.status))continue;
+      const confirmed=input.messages.some(message=>message.estimateId===invoice.estimateId&&message.template==="invoice"&&
+        (message.channel==="text_confirmed"||message.channel==="email_confirmed"));
+      if(!confirmed)actions.push({key:"invoice:"+invoice.id,kind:"invoice",invoiceId:invoice.id,title:"Check invoice send record",
+        detail:"Created invoice · owner send not confirmed in app",priority:45});
+      else if(invoice.dueAt&&Number.isFinite(Date.parse(invoice.dueAt))&&Date.parse(invoice.dueAt)<input.now&&
+        Number.isSafeInteger(invoice.totalCents)&&typeof invoice.paidCents==="number"&&Number.isSafeInteger(invoice.paidCents)&&invoice.totalCents>invoice.paidCents){
+        actions.push({key:"billing:"+invoice.id,kind:"billing",invoiceId:invoice.id,title:"Review past-due invoice",
+          detail:"Saved due date passed · confirm balance before a reminder",priority:72});
+      }
+    }
+    return actions.sort((a,b)=>b.priority-a.priority||a.key.localeCompare(b.key)).slice(0,8);
+  }
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
+  const [notes, setNotes] = useState<CustomerNote[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [photos,setPhotos]=useState<CustomerPhoto[]>([]);
+  const [messages,setMessages]=useState<CustomerMessage[]>([]);
+  const [propertyEstimateBlocked,setPropertyEstimateBlocked]=useState(true);
+  const [selectedProperty,setSelectedProperty]=useState<PropertyEstimateSelection|null>(null);
+  const [propertyWorkflowReady,setPropertyWorkflowReady]=useState(false);
+  const [propertyListRefresh,setPropertyListRefresh]=useState(0);
+  const [payments,setPayments]=useState<PaymentRow[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [paymentReferenceCopyFeedback,setPaymentReferenceCopyFeedback]=useState<{id:string;ok:boolean}|null>(null);
+  // Suppress stale async clipboard feedback after a newer copy or customer switch.
+  const paymentReferenceCopyAttempt=useRef(0);
+  useEffect(()=>{
+    paymentReferenceCopyAttempt.current++;
+    setPaymentReferenceCopyFeedback(null);
+  },[selectedId]);
+  const copyPaymentReference=async(id:string,reference:string)=>{
+    const attempt=++paymentReferenceCopyAttempt.current;
+    setPaymentReferenceCopyFeedback(null);
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(reference);
+      if(attempt===paymentReferenceCopyAttempt.current)setPaymentReferenceCopyFeedback({id,ok:true});
+    }catch{
+      if(attempt===paymentReferenceCopyAttempt.current)setPaymentReferenceCopyFeedback({id,ok:false});
+    }
+  };
+  // Topbar Back returns to the directory before leaving Customers.
+  // Register it after the save guards so an active write can't be hidden.
+  // Photo badge shows ONLY IndexedDB on-device photos. Historical hosted
+  // photo records are separately disclosed inside the gallery; never mix them.
+  const [onDevicePhotoCount,setOnDevicePhotoCount]=useState<number|null>(null);
+  const photoCountEpoch=useRef(0),selectedPhotoCustomer=useRef<string|null>(selectedId);
+  selectedPhotoCustomer.current=selectedId;
+  const acceptPhotoCount=useCallback((customerId:string,count:number)=>{
+    if(customerId!==selectedPhotoCustomer.current||!Number.isSafeInteger(count)||count<0)return;
+    photoCountEpoch.current++;
+    setOnDevicePhotoCount(count);
+  },[]);
+  useEffect(()=>{
+    let cancelled=false;
+    setOnDevicePhotoCount(null);
+    if(!selectedId)return;
+    const refreshCount=()=>{
+      const epoch=++photoCountEpoch.current;
+      void countOfflinePhotos(selectedId).then(count=>{
+        if(!cancelled&&epoch===photoCountEpoch.current)setOnDevicePhotoCount(count);
+      }).catch(()=>{if(!cancelled&&epoch===photoCountEpoch.current)setOnDevicePhotoCount(null);});
+    };
+    refreshCount();
+    const channel=typeof BroadcastChannel!=="undefined"?new BroadcastChannel(OFFLINE_PHOTO_CHANGES_CHANNEL):null;
+    const onVaultChange=(event:MessageEvent)=>{
+      if(event.data?.type==="changed"&&typeof event.data.source==="string")refreshCount();
+    };
+    channel?.addEventListener("message",onVaultChange);
+    const onFocus=()=>refreshCount();
+    const onVisibility=()=>{if(document.visibilityState==="visible")refreshCount();};
+    window.addEventListener("focus",onFocus);
+    document.addEventListener("visibilitychange",onVisibility);
+    return()=>{
+      cancelled=true;photoCountEpoch.current++;
+      channel?.removeEventListener("message",onVaultChange);channel?.close();
+      window.removeEventListener("focus",onFocus);
+      document.removeEventListener("visibilitychange",onVisibility);
+    };
+  },[selectedId]);
+  const [showUnansweredLeadsOnly,setShowUnansweredLeadsOnly]=useState(false);
+  const [showDueCallbacksOnly,setShowDueCallbacksOnly]=useState(false);
+  const [directorySearch,setDirectorySearch]=useState("");
+  const [estimateAfterCreateId,setEstimateAfterCreateId]=useState<string|null>(null);
+  const [directoryLimit,setDirectoryLimit]=useState(40);
+  useEffect(()=>{setDirectoryLimit(40);},[directorySearch,searchQuery,showDueCallbacksOnly,showUnansweredLeadsOnly]);
+  const [timelineShown,setTimelineShown]=useState(6);
+  const [journeyShown,setJourneyShown]=useState(1);
+  const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
+  const [timelineSearch,setTimelineSearch]=useState("");
+  const [timelineTarget,setTimelineTarget]=useState<{customerId:string;section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string}|null>(null);
+  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);setJourneyShown(1);},[selectedId]);
+  useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
+  const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
+  const [section, setSection] = useState("estimates");
+  const [customerQuoteView,setCustomerQuoteView]=useState<"all"|"agreements">("all");
+  useEffect(()=>setCustomerQuoteView("all"),[selectedId]);
+  const [recordSearch,setRecordSearch]=useState("");
+  useEffect(()=>{setRecordSearch("");},[selectedId,section,recordRequestKey]);
+  const [noteText, setNoteText] = useState("");
+  const [signPickupDate,setSignPickupDate]=useState("");
+  const [callbackDate,setCallbackDate]=useState("");
+  const [signLocation,setSignLocation]=useState("");
+  useEffect(()=>{setSignPickupDate("");setSignLocation("");setCallbackDate("");},[selectedId]);
+  const noteDrafts=useRef<Record<string,string>>({}),noteDraftCustomer=useRef<string|null>(null);
+  useEffect(()=>{if(noteDraftCustomer.current)noteDrafts.current[noteDraftCustomer.current]=noteText;noteDraftCustomer.current=selectedId;setNoteText(selectedId?noteDrafts.current[selectedId]??"":"");},[selectedId]);
+  const [loadedRecordKey,setLoadedRecordKey]=useState(-1);
+  const [recordFocusError,setRecordFocusError]=useState("");
+  useEffect(()=>{setRecordFocusError("");},[selectedId]);
+  const [savingNote, setSavingNote] = useState(false);
+  const [reviewCheckSnoozing,setReviewCheckSnoozing]=useState(false);
+  // Keep the parent informed of both note writes and review-check deferrals.
+  // Only clear this guard when Customers really unmounts, not on every edit.
+  useEffect(()=>{
+    const dirty=Boolean(noteText.trim())||Object.values(noteDrafts.current).some(value=>Boolean(value.trim()));
+    onNoteDraftStatusChange?.({dirty,saving:savingNote||reviewCheckSnoozing});
+  },[noteText,selectedId,savingNote,reviewCheckSnoozing,onNoteDraftStatusChange]);
+  useEffect(()=>()=>onNoteDraftStatusChange?.({dirty:false,saving:false}),[onNoteDraftStatusChange]);
+  const [reviewCheckSnoozeError,setReviewCheckSnoozeError]=useState("");
+  const reviewCheckSnoozeAttempt=useRef<{customerId:string;requestedAt:string;operationId:string}|null>(null);
+  const reviewCheckSnoozeLock=useRef(false);
+  const noteSaveLock=useRef(false),noteSavingCustomer=useRef<string|null>(null);
+  const closeCustomerRecord=useCallback(()=>{
+    if(noteSaveLock.current||reviewCheckSnoozeLock.current){
+      window.alert("A customer update is saving. Wait for confirmation before closing this record.");
+      return;
+    }
+    setSelectedId(null);setActiveEstimate(null);setSection("estimates");
+  },[]);
+  useEffect(()=>{
+    onRegisterBack?.(selectedId?closeCustomerRecord:null);
+    return()=>onRegisterBack?.(null);
+  },[selectedId,onRegisterBack,closeCustomerRecord]);
+  const noteAttempts=useRef(new Map<string,string>());
+  const noteSelection=useRef(selectedId);noteSelection.current=selectedId;
+  const noteMounted=useRef(true),noteAccessEpoch=useRef(0);
+  const [noteFeedback,setNoteFeedback]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
+  const [activityNotice,setActivityNotice]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
+  useEffect(()=>{noteMounted.current=true;return()=>{noteMounted.current=false;};},[]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshIssue,setRefreshIssue]=useState(false);
+  const [offlinePhotoOnly,setOfflinePhotoOnly]=useState(false);
+  const [offlinePhotoCustomers,setOfflinePhotoCustomers]=useState<OfflinePhotoCustomer[]>([]);
+  const loadRequest=useRef(0);
+  const load = async (quiet=false) => {
+    const request=++loadRequest.current;
+    if(!quiet){setLoading(true);setError("");}
+    let networkFailed=false,responseStatus:number|undefined;
+    try {
+      let response:Response;
+      // GET only: give a stalled connection a finite retry path instead of an
+      // endless Customers spinner. Do NOT apply timeouts/retries to writes.
+      try{
+        const signal=typeof AbortSignal!=="undefined"&&typeof AbortSignal.timeout==="function"
+          ?AbortSignal.timeout(15000):null;
+        response=await fetch("/api/customers",signal?{cache:"no-store",signal}:{cache:"no-store"});
+      }catch(networkError){
+        networkFailed=true;
+        const name=networkError&&typeof networkError==="object"&&"name" in networkError?String(networkError.name):"";
+        if(name==="TimeoutError"||name==="AbortError")
+          throw new Error("Customer records took too long to load. Nothing was changed. Check your connection and try again.");
+        throw networkError;
+      }
+      responseStatus=response.status;
+      if(mustClearOfflinePhotoDirectory(response.status)&&request===loadRequest.current){
+        // Authentication denial takes precedence over any previously visible
+        // offline fallback. Never keep stale customer names rendered.
+        noteAccessEpoch.current++;noteAttempts.current.clear();setNoteFeedback(null);
+        setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
+        setSelectedId(null);setCustomers([]);setEstimates([]);setInvoices([]);
+        setPhotos([]);setMessages([]);setNotes([]);setPayments([]);
+        // Persistent labels are removed, while local photo bytes remain intact.
+        await clearOfflinePhotoCustomerDirectory().catch(()=>{});
+      }
+      const result = await response.json() as { customers?: CustomerRow[]; estimates?: CustomerEstimate[]; notes?:CustomerNote[]; invoices?:InvoiceRow[]; photos?:CustomerPhoto[]; messages?:CustomerMessage[]; payments?:PaymentRow[]; error?: string };
+      if(request!==loadRequest.current)return;
+      if (!response.ok) throw new Error(result?.error || "Customer records could not be loaded.");
+      const keys=["customers","estimates","notes","invoices","photos","messages","payments"] as const;
+      if(!result||keys.some((key)=>!Array.isArray(result[key])||result[key]!.some((row)=>!row||typeof row!=="object"||Array.isArray(row)||typeof row.id!=="string"||!row.id)))throw new Error("Customer records could not be read. Try again.");
+      if(keys.some((key)=>new Set(result[key]!.map((row)=>row.id)).size!==result[key]!.length))throw new Error("Duplicate customer history records were returned. Refresh before using totals.");
+      if(result.customers!.some((row)=>typeof row.name!=="string"))throw new Error("Customer names could not be read. Try again.");
+      const asNumber=(value:unknown)=>{if((typeof value!=="number"&&typeof value!=="string")||(typeof value==="string"&&!value.trim())||!Number.isSafeInteger(Number(value)))throw new Error("Customer amounts could not be verified as exact whole cents. Refresh before using totals.");return Number(value);};
+      const nextCustomers=(result.customers ?? []).map((item) => ({ ...item, estimateCount: asNumber(item.estimateCount), estimateTotal: asNumber(item.estimateTotal), paidTotal: asNumber(item.paidTotal) }));
+      const nextEstimates=(result.estimates ?? []).map((item) => ({ ...item, totalCents: asNumber(item.totalCents), depositCents: asNumber(item.depositCents), paidCents: asNumber(item.paidCents) }));
+      const nextNotes=result.notes ?? [];
+      const nextInvoices=(result.invoices ?? []).map((item)=>({...item,totalCents:asNumber(item.totalCents)}));
+      const nextPhotos=(result.photos??[]).map((item)=>({...item,sizeBytes:asNumber(item.sizeBytes)}));
+      const nextMessages=result.messages??[];
+      const nextPayments=(result.payments??[]).map((item)=>({...item,amountCents:asNumber(item.amountCents)}));
+      setCustomers(nextCustomers);
+      // Cache only authenticated customer IDs/names, never financial records.
+      // Failure is visible but never prevents online customer operations.
+      try{
+        await saveOfflinePhotoCustomerDirectory(nextCustomers.map(item=>({id:item.id,name:item.name})));
+      }catch{/* Customer directory storage may be unavailable on this device. */}
+      if(request!==loadRequest.current)return;
+      setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
+      setEstimates(nextEstimates);
+      setNotes(nextNotes);
+      setInvoices(nextInvoices);
+      setPhotos(nextPhotos);
+      setMessages(nextMessages);
+      setPayments(nextPayments);
+      setRefreshIssue(false);
+      setLoadedRecordKey(recordRequestKey);
+    }catch(loadError){
+      if(request!==loadRequest.current)return;
+      // Keep confirmed local records visible on transient refresh failures, but
+      // never silently imply that dependent activity is up to date.
+      // Authorization denials must still hide owner-only history entirely.
+      if(quiet&&!mustClearOfflinePhotoDirectory(responseStatus??0)){setRefreshIssue(true);return;}
+      if(mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})){
+        try{
+          const cached=await loadOfflinePhotoCustomerDirectory();
+          if(request!==loadRequest.current)return;
+          if(cached.length>0){
+            setOfflinePhotoCustomers(cached);setOfflinePhotoOnly(true);setError("");
+            return;
+          }
+        }catch{/* No usable cached directory: show the original error. */}
+      }
+      if(request===loadRequest.current){
+        setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
+        setError(loadError instanceof Error?loadError.message:"Customer records could not be loaded.");
+      }
+    }
+    finally { if(request===loadRequest.current)setLoading(false); }
+  };
+  useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, [recordRequestKey]);
+  // All confirmed message/contact/flag changes broadcast this owner-only event.
+  // Refresh the same authenticated API instead of tracking a second copy of
+  // the customer's activity, invoices or review/yard-sign statuses.
+  useEffect(()=>{
+    const refresh=()=>{void load(true);};
+    window.addEventListener("fire:attention-saved",refresh);
+    return()=>window.removeEventListener("fire:attention-saved",refresh);
+  },[recordRequestKey]);
+  useEffect(()=>{
+    if(!focusCustomerId||loading||error||offlinePhotoOnly||savingNote||reviewCheckSnoozing)return;
+    const customer=customers.find(row=>row.id===focusCustomerId);
+    if(customer){setSelectedId(customer.id);setSection(focusSection);}
+    else setError("The selected customer is unavailable. Refresh the customer list or check your connection.");
+    onFocusHandled?.(focusCustomerId);
+  },[focusCustomerId,loading,error,offlinePhotoOnly,customers,focusSection,savingNote,reviewCheckSnoozing]);
+  // A reminder targets the flag inside its actual customer, not just the Customers tab.
+  // Wait until that saved profile has rendered, then move visual and keyboard focus.
+  useEffect(()=>{
+    if(!activityFocus||loading||error||offlinePhotoOnly||selectedId!==activityFocus.customerId)return;
+    const prefix=activityFocus.kind==="sign"?"customer-sign-flag-":"customer-review-check-";
+    const target=document.getElementById(prefix+selectedId)||document.getElementById("customer-flags-"+selectedId);
+    if(!target)return;
+    if(activityFocus.kind==="sign"){
+      const profile=target.closest(".customer-profile");
+      const tracking=profile?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
+      if(tracking)tracking.open=true;
+    }
+    const optionalActions=target.closest<HTMLDetailsElement>("details.customer-activity-tools");
+    if(optionalActions)optionalActions.open=true;
+    const hiddenStatus=target.closest<HTMLDetailsElement>("details.customer-sign-form");
+    if(hiddenStatus)hiddenStatus.open=true;
+    target.scrollIntoView({block:"start",behavior:"instant"});
+    target.focus({preventScroll:true});
+    onActivityFocusHandled?.(activityFocus.request);
+  },[activityFocus,selectedId,loading,error,offlinePhotoOnly]);
+  const selected = customers.find((customer) => customer.id === selectedId) ?? null;
+  // Use the authoritative Estimates workspace for customer record shortcuts.
+  // Avoid mobile dismissal of tall dialogs nested inside the customer record.
+  // The local modal fallback is retained for isolated synthetic fixtures.
+  const openCustomerSavedJob=(estimate:CustomerEstimate)=>{
+    if(!selected)return;
+    if(onOpenEstimate){onOpenEstimate(estimate.id);return;}
+    setActiveEstimate({...estimate,customer:selected.name,customerNumber:selected.customerNumber,email:selected.email,phone:selected.phone,address:estimate.address??undefined});
+  };
+  const contactPhone=usableCustomerPhone(selected?.phone),contactEmail=usableCustomerEmail(selected?.email);
+  const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
+  const customerNotes = notes.filter((note)=>note.customerId === selectedId);
+  // Group customer activity once per saved records change, not again on every
+  // tap/open/close. Preserve original note ordering and flag semantics.
+  const flagsByCustomer=useMemo(()=>{
+    const notesById=new Map<string,CustomerNote[]>();
+    for(const note of notes){
+      const group=notesById.get(note.customerId);
+      if(group)group.push(note);
+      else notesById.set(note.customerId,[note]);
+    }
+    const flags=new Map<string,ReturnType<typeof deriveCustomerManualFlags>>();
+    for(const customer of customers)flags.set(customer.id,deriveCustomerManualFlags(notesById.get(customer.id)??[]));
+    return flags;
+  },[customers,notes]);
+  const manualFlags=flagsByCustomer.get(selectedId??"")??deriveCustomerManualFlags(customerNotes);
+  const flaggedSignCustomers=customers.map(customer=>({customer,...flagsByCustomer.get(customer.id)!})).filter(item=>item.sign?.state==="out");
+  const tulsaToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  const pendingLeadCallbacks=customers.map(customer=>({
+    customer,callback:flagsByCustomer.get(customer.id)?.leadCallback
+  })).filter(item=>item.callback?.state==="pending"&&Boolean(item.callback.dueDate))
+   .sort((a,b)=>(a.callback?.dueDate??"").localeCompare(b.callback?.dueDate??"")||a.customer.name.localeCompare(b.customer.name));
+  const dueLeadCallbacks=pendingLeadCallbacks.filter(item=>(item.callback?.dueDate??"")<=tulsaToday);
+  const stagePickupTask=(customer:CustomerRow,sign:{state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null)=>{
+    if(sign?.state!=="out"||!sign.pickupDate||!onPreparePickupTask)return;
+    onPreparePickupTask({customerId:customer.id,customerName:customer.name,pickupDate:sign.pickupDate,location:sign.location||customer.address||"Location not specified",placedAt:sign.at});
+  };
+  const customerInvoices = invoices.filter((invoice)=>invoice.customerId === selectedId);
+  const customerPhotos=photos.filter((photo)=>photo.customerId===selectedId);
+  const customerMessages=messages.filter((message)=>message.customerId===selectedId);
+  const historyEntries=messageHistoryEntries(customerMessages);
+  const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
+  const completedCustomerJobs=completedCustomerJobHistory(customerEstimates);
+  const customerJourneys=customerEstimates.slice().sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||a.id.localeCompare(b.id))
+    .map(estimate=>({estimate,journey:customerJobJourney(estimate,customerMessages)}));
+  const timelineEntries=buildCustomerTimeline({estimates:customerEstimates,invoices:customerInvoices,
+    messages:historyEntries,notes:customerNotes,payments:customerPayments});
+  const safeTimelineQuery=timelineSearch.trim().toLocaleLowerCase();
+  const filteredTimelineEntries=timelineEntries.filter(entry=>(timelineFilter==="all"||entry.category===timelineFilter)&&
+    (!safeTimelineQuery||[entry.title,entry.detail,entry.day].join(" ").toLocaleLowerCase().includes(safeTimelineQuery)));
+  const visibleTimelineEntries=filteredTimelineEntries.slice(0,timelineShown);
+  const openTimelineEntry=(entry:{section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string})=>{
+    if(!selected)return;
+    setRecordSearch("");
+    setSection(entry.section);
+    setTimelineTarget({customerId:selected.id,section:entry.section,id:entry.id});
+  };
+  useEffect(()=>{
+    if(!timelineTarget||timelineTarget.customerId!==selectedId||timelineTarget.section!==section||recordSearch)return;
+    const target=document.getElementById("customer-"+timelineTarget.section.slice(0,-1)+"-"+timelineTarget.id);
+    if(!target)return;
+    target.scrollIntoView({block:"center",behavior:"instant"});
+    target.focus({preventScroll:true});
+    setTimelineTarget(null);
+  },[timelineTarget,selectedId,section,recordSearch]);
+  const confirmedMessage=(templates:string[])=>customerMessages.some(message=>(message.channel==="text_confirmed"||message.channel==="email_confirmed")&&templates.includes(message.template));
+  const customerEstimateSent=customerEstimates.some(estimate=>Boolean(estimate.firstEstimateSentAt||estimate.lastEstimateSentAt))||confirmedMessage(["estimate"]);
+  const customerEstimateMarkedSent=customerEstimates.some(estimate=>estimate.status==="sent");
+  const invoiceSent=confirmedMessage(["invoice"]);
+  const followupContactRecorded=customerEstimates.some(estimate=>Boolean(estimate.stage1At||estimate.stage3At||estimate.stage7At||estimate.lastManualContactAt))||
+    customerMessages.some(message=>message.channel==="contact_recorded");
+  const followupSendConfirmed=confirmedMessage(["followUp1","followUp3","followUp7","invoiceReminder","overdue"]);
+  const reviewRequestRecorded=customerEstimates.some(estimate=>Boolean(estimate.lastReviewRequestAt));
+  const reviewSendConfirmed=confirmedMessage(["review"]);
+  const reviewCheck=reviewFollowupEligibility(customerEstimates,customerMessages,manualFlags.reviewReceivedAt,Date.now());
+  const activitySummary=customerFlagPresentation({
+    estimateSent:customerEstimateSent,estimateMarkedSent:customerEstimateMarkedSent,hasDraftEstimate:customerEstimates.some(estimate=>estimate.status==="draft"),invoiceCreated:customerInvoices.length>0,invoiceSendConfirmed:invoiceSent,
+    followupContactRecorded,followupSendConfirmed,reviewRequestRecorded,reviewSendConfirmed,
+    reviewReceivedAt:manualFlags.reviewReceivedAt,
+    sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",today:tulsaToday
+  });
+  const nextCustomerActions=buildCustomerNextActions({
+    sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",
+    invoices:customerInvoices,estimates:customerEstimates,messages:customerMessages,today:tulsaToday,now:Date.now()
+  });
+  const openCustomerAction=(action:{kind:"sign"|"review"|"invoice"|"estimate"|"followup"|"billing";invoiceId?:string;estimateId?:string})=>{
+    if(!selected)return;
+    if((action.kind==="invoice"||action.kind==="billing")&&action.invoiceId){openTimelineEntry({section:"invoices",id:action.invoiceId});return;}
+    if((action.kind==="estimate"||action.kind==="followup")&&action.estimateId){openTimelineEntry({section:"estimates",id:action.estimateId});return;}
+    const element=document.getElementById(action.kind==="sign"?
+      "customer-sign-flag-"+selected.id:"customer-review-check-"+selected.id);
+    if(action.kind==="sign"){
+      const tracking=element?.closest(".customer-profile")?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
+      if(tracking)tracking.open=true;
+    }
+    const optionalActions=element?.closest<HTMLDetailsElement>("details.customer-activity-tools");
+    if(optionalActions)optionalActions.open=true;
+    const hiddenStatus=element?.closest<HTMLDetailsElement>("details.customer-sign-form");
+    if(hiddenStatus)hiddenStatus.open=true;
+    element?.scrollIntoView({block:"center",behavior:"instant"});
+    element?.focus({preventScroll:true});
+  };
+  const dueReviewChecks=customers.map(customer=>{
+    const customerNotesForReview=notes.filter(note=>note.customerId===customer.id);
+    const customerReview=deriveCustomerManualFlags(customerNotesForReview);
+    const state=reviewFollowupEligibility(estimates.filter(estimate=>estimate.customerId===customer.id),messages.filter(message=>message.customerId===customer.id),customerReview.reviewReceivedAt,Date.now());
+    return {customer,state};
+  }).filter(({state})=>state.status==="due");
+  const snoozeReviewStatusCheck=async(customer:CustomerRow,requestedAt:string|null)=>{
+    if(!requestedAt||reviewCheckSnoozeLock.current)return;
+    const pending=reviewCheckSnoozeAttempt.current;
+    if(pending&&(pending.customerId!==customer.id||pending.requestedAt!==requestedAt)){
+      setReviewCheckSnoozeError("A previous review-check save is uncertain. Reopen that customer and verify the saved history before starting another.");
+      return;
+    }
+    const attempt=pending??{customerId:customer.id,requestedAt,operationId:crypto.randomUUID()};
+    reviewCheckSnoozeAttempt.current=attempt;
+    reviewCheckSnoozeLock.current=true;setReviewCheckSnoozing(true);setReviewCheckSnoozeError("");
+    try{
+      const response=await fetch("/api/dashboard-review-checks/snooze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(attempt)});
+      const body=await response.json() as {saved?:boolean;customerId?:string;snoozeUntil?:string;error?:string};
+      if(!response.ok||body.saved!==true||body.customerId!==attempt.customerId||typeof body.snoozeUntil!=="string"||!Number.isFinite(Date.parse(body.snoozeUntil)))
+        throw Error(body.error||"Review check deferral could not be verified.");
+      reviewCheckSnoozeAttempt.current=null;
+      await load(true);
+      window.dispatchEvent(new Event("fire:attention-saved"));
+    }catch(reason){
+      setReviewCheckSnoozeError((reason instanceof Error?reason.message:"Review check deferral is uncertain.")+" No message was sent and no review was marked received. Retry the same saved action.");
+    }finally{reviewCheckSnoozeLock.current=false;setReviewCheckSnoozing(false);}
+  };
+  const stageReviewCheck=(customer:CustomerRow,requestedAt:string|null)=>{
+    if(!requestedAt||!onPrepareReviewTask)return;
+    // This reminder schedules an owner check, never an automated review request.
+    onPrepareReviewTask({customerId:customer.id,customerName:customer.name,requestedAt,dueDate:new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"})});
+  };
+  const prepareManualFlag=(draft:string)=>{
+    if(!selected||savingNote)return;
+    if(noteText.trim()&&noteText.trim()!==draft&&!window.confirm("Replace your unsaved customer note draft?"))return;
+    noteDrafts.current[selected.id]=draft;
+    setNoteText(draft);setNoteFeedback(null);setRecordSearch("");setSection("notes");
+    // The note is only prepared. Bring its existing save control into view on
+    // narrow phones, without changing the owner-confirmed Add note workflow.
+    if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(()=>{
+      const input=document.getElementById("customer-note-draft-"+selected.id);
+      input?.scrollIntoView({block:"center",behavior:"instant"});
+      input?.focus({preventScroll:true});
+    });
+  };
+  useEffect(()=>{
+    if(!focusRecord||focusRecord.kind==="property"||loading||loadedRecordKey!==recordRequestKey)return;
+    if(error||offlinePhotoOnly){onRecordFocusHandled?.(focusRecord.id);return;}
+    if(selectedId!==focusRecord.customerId||section!==(focusRecord.kind==="payment"?"payments":"notes"))return;
+    const row=(focusRecord.kind==="payment"?payments:notes).find(item=>item.id===focusRecord.id&&item.customerId===focusRecord.customerId);
+    setRecordFocusError("");
+    if(row){const element=document.getElementById("customer-"+focusRecord.kind+"-"+row.id);if(!element)return;element.scrollIntoView({block:"center"});element.focus({preventScroll:true});}
+    else setRecordFocusError("The selected "+(focusRecord.kind==="payment"?"payment record":"note")+" is unavailable. Refresh the customer profile or check your connection.");
+    onRecordFocusHandled?.(focusRecord.id);
+  },[focusRecord,loading,error,offlinePhotoOnly,selectedId,section,payments,notes,loadedRecordKey,recordRequestKey]);
+  const recordQuery=focusRecord?.customerId===selectedId?"":recordSearch.trim().toLocaleLowerCase();
+  const recordMatches=(values:unknown[])=>values.filter(value=>value!=null).join(" ").toLocaleLowerCase().includes(recordQuery);
+  const agreementEligible=(row:CustomerEstimate)=>Boolean(row.signedAt||row.acceptedAt||Number(row.pendingChangeCount)>0||["sent","viewed","approved","scheduled","completed"].includes(row.status));
+  const customerAgreementRows=customerEstimates.filter(agreementEligible);
+  const matchingEstimates=customerEstimates.filter(row=>(customerQuoteView==="all"||agreementEligible(row))&&recordMatches([row.id,row.service,row.status,row.address,row.createdAt,row.signedName]));
+  const matchingInvoices=customerInvoices.filter(row=>recordMatches([row.id,row.status,row.createdAt,customerEstimates.find(job=>job.id===row.estimateId)?.service]));
+  const matchingPayments=customerPayments.filter(row=>recordMatches([row.id,row.type,row.reference,row.createdAt]));
+  const matchingNotes=customerNotes.filter(row=>recordMatches([row.body,row.createdAt]));
+  const matchingMessages=historyEntries.filter(({message})=>recordMatches([message.body,message.channel,message.template,message.createdAt]));
+  const recordCounts=section==="estimates"?[matchingEstimates.length,customerQuoteView==="agreements"?customerAgreementRows.length:customerEstimates.length]:section==="invoices"?[matchingInvoices.length,customerInvoices.length]:section==="payments"?[matchingPayments.length,customerPayments.length]:section==="notes"?[matchingNotes.length,customerNotes.length]:[matchingMessages.length,historyEntries.length];
+  const manuallyUnansweredLeadIds=new Set(customers.filter(customer=>
+    flagsByCustomer.get(customer.id)?.leadContact?.state==="no_answer"
+  ).map(customer=>customer.id));
+  const dueLeadCallbackIds=new Set(dueLeadCallbacks.map(item=>item.customer.id));
+  const filteredCustomers = customers.filter((customer)=>
+    (!showUnansweredLeadsOnly||manuallyUnansweredLeadIds.has(customer.id))&&
+    (!showDueCallbacksOnly||dueLeadCallbackIds.has(customer.id))&&
+    [searchQuery,directorySearch].every(term=>matchesCustomerDirectory(customer,term))
+  );
+  const activeCustomerEstimate=pickCustomerNextEstimate(customerEstimates,Date.now());
+  const customerBalances=summarizeCustomerBalances(customerEstimates);
+  const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
+  const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
+  const saveNote = async (directBody?:string,flagAction:"schedule"|"handled"|"no_answer"|"contacted"="schedule") => {
+    const draft=directBody??noteText,asFlag=typeof directBody==="string";
+    if(!noteMounted.current||noteSaveLock.current||!selected||noteSelection.current!==selected.id||!draft.trim()||draft.trim().length>5000)return;
+    const customerId=selected.id,body=draft.trim(),epoch=noteAccessEpoch.current;
+    const attemptKey=JSON.stringify([customerId,body]);
+    const requestId=noteAttempts.current.get(attemptKey)??crypto.randomUUID();
+    noteAttempts.current.set(attemptKey,requestId);
+    if(!asFlag)noteDrafts.current[customerId]=draft;
+    noteSaveLock.current=true;noteSavingCustomer.current=customerId;
+    setSavingNote(true);if(asFlag)setActivityNotice(null);else setNoteFeedback(null);
+    try {
+      const response=await fetch("/api/customer-notes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId,body,requestId})});
+      const result=await response.json() as {note?:CustomerNote;error?:string};
+      if(!noteMounted.current||noteAccessEpoch.current!==epoch)return;
+      const note=result?.note;
+      if(!response.ok||!note||typeof note.id!=="string"||note.id!==requestId||note.customerId!==customerId||note.body!==body||typeof note.createdAt!=="string"||!Number.isFinite(Date.parse(note.createdAt)))throw new Error("Unconfirmed note save.");
+      noteAttempts.current.delete(attemptKey);
+      setNotes((current)=>[note,...current.filter(row=>row.id!==note.id)]);
+      if(!asFlag){
+        if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
+        if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
+        setNoteFeedback({customerId,kind:"success",text:"Note saved."});
+      }else setActivityNotice({customerId,kind:"success",text:flagAction==="handled"?"Callback marked done.":flagAction==="no_answer"?"No answer logged.":flagAction==="contacted"?"Contact logged.":"Callback saved."});
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+    }catch{
+      if(noteMounted.current&&noteAccessEpoch.current===epoch){
+        if(asFlag)setActivityNotice({customerId,kind:"error",text:flagAction==="handled"?"Completion not confirmed. Tap Mark done again; FIRE checks for duplicates.":flagAction==="no_answer"?"No-answer save unconfirmed. Retry once; FIRE checks for duplicates.":flagAction==="contacted"?"Contact log unconfirmed. Retry once; FIRE checks for duplicates.":"Callback save not confirmed. Retry with the same date; FIRE checks for duplicates."});
+        else setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Retry Add note with the same text safely; FIRE reuses this request so a saved note is not added twice. You can also refresh saved notes."});
+      }
+    }finally{
+      noteSaveLock.current=false;noteSavingCustomer.current=null;
+      if(noteMounted.current)setSavingNote(false);
+    }
+  };
+  // The server-backed customer workflow is intentionally NOT rendered when
+  // offline. Only a previously authenticated, minimally cached photo directory
+  // can be browsed, and photos remain stored locally in IndexedDB.
+  if(offlinePhotoOnly){
+    const selectedOffline=offlinePhotoCustomers.find(customer=>customer.id===selectedId);
+    return <div className="customers-view">
+      <section className="business-panel" role="status">
+        <h2>Offline customer photos</h2>
+        <p>The server is unreachable. FIRE is showing names last saved on this device and your on-device photos only. Estimates, invoices, payments, messaging, and editing are unavailable until you reconnect.</p>
+        <Button variant="outline" onClick={()=>void load()}>Reconnect & refresh customer records</Button>
+      </section>
+      {selectedOffline?<><button type="button" className="back-link" aria-label="Back to offline customers" onClick={()=>setSelectedId(null)}><ArrowLeft aria-hidden="true"/> Offline customers</button>
+        <h2>{selectedOffline.name} — on-device photos</h2>
+        <OfflineCustomerPhotos key={selectedOffline.id} customerId={selectedOffline.id} customerName={selectedOffline.name} knownCustomerIds={offlinePhotoCustomers.map(item=>item.id)}/>
+       </>:<div className="customer-list">{offlinePhotoCustomers.filter(customer=>customer.name.toLowerCase().includes(searchQuery.toLowerCase())).map(customer=>
+        <button className="customer-list-item" type="button" key={customer.id} onClick={()=>setSelectedId(customer.id)}>{customer.name} — local photos <ChevronRight/></button>
+       )}</div>}
+    </div>;
+  }
+  if(loading||error)return <div className="customers-view">
+    {selected&&<button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>}
+    {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
+  </div>;
+  if (selected) return <div className="customers-view">
+    <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={updated=>{setActiveEstimate(current=>current?.id===updated.id?updated:current);void load(true);}} />
+    <button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>
+    {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
+    <section className="customer-profile">
+      {recordFocusError&&<p role="alert">{recordFocusError}</p>}
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1>{customerNumberLabel(selected.customerNumber)&&<small className="block text-sm text-muted-foreground">{customerNumberLabel(selected.customerNumber)}</small>}</div><div className="profile-head-actions"><NewEstimate key={selected.id} openOnMount={estimateAfterCreateId===selected.id} onAutoOpened={()=>setEstimateAfterCreateId(null)} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /><details className="customer-header-more"><summary>More actions</summary><div className="customer-header-more-items"><MessageComposer customer={selected} initialTemplate="photoEstimate" triggerLabel="Request photos" onLogged={(message)=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div></details></div></div>
+      <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
+        {contactPhone&&<GoogleVoiceCallAction phone={contactPhone} customerName={selected.name}/>}
+        {contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}
+        {contactPhone&&<details className="customer-contact-backups">
+          <summary>Personal phone backups</summary>
+          <div className="contact-backup-actions">
+            <PersonalPhoneBackupAction phone={contactPhone} mode="call" customerName={selected.name}/>
+            <PersonalPhoneBackupAction phone={contactPhone} mode="text" customerName={selected.name}/>
+          </div>
+          <small>Only use these if FIRE Google Voice is unavailable; your personal number may be shown.</small>
+        </details>}
+        {contactEmail&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email customer" onLogged={message=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}
+        {selected.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noopener noreferrer" aria-label="Directions to customer in Google Maps"><Navigation />Google Maps</a>}
+        {selected.address&&onOpenTerritory&&<button type="button" aria-label="Show customer on Territory Map" onClick={()=>onOpenTerritory(selected.address)}><MapPin aria-hidden="true"/> Territory</button>}
+        {!contactPhone&&!contactEmail&&!selected.phone&&!selected.email&&<small className="customer-contact-empty">Add a phone or email under More actions → Edit customer to contact them.</small>}
+        {(selected.phone&&!contactPhone||selected.email&&!contactEmail)&&<small className="customer-contact-warning" role="status">Check {selected.phone&&!contactPhone?"phone":""}{selected.phone&&!contactPhone&&selected.email&&!contactEmail?" and ":""}{selected.email&&!contactEmail?"email":""} in Edit customer.</small>}
+        {selected.address&&<details className="customer-property-research-disclosure"><summary>Property research</summary><div className="customer-property-research" role="group" aria-label="Property research for estimates">
+          <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noopener noreferrer" aria-label="Research customer property on Zillow"><House aria-hidden="true"/> Zillow</a>
+          <a href={`https://earth.google.com/web/search/${encodeURIComponent(selected.address)}`} target="_blank" rel="noopener noreferrer" aria-label="Research customer property on Google Earth"><Globe2 aria-hidden="true"/> Google Earth</a>
+        </div></details>}
+      </div>
+      {activeCustomerEstimate&&<button type="button" className="customer-next-job" aria-label={`Open ${activeCustomerEstimate.service} ${activeCustomerEstimate.status==="scheduled"?"scheduled job":activeCustomerEstimate.status==="completed"?"completed job":activeCustomerEstimate.status==="draft"?"draft estimate":"estimate"}`} onClick={()=>openCustomerSavedJob(activeCustomerEstimate)}><span><Sparkles/><span><small>{activeCustomerEstimate.status==="scheduled"?"Open scheduled job":activeCustomerEstimate.status==="completed"?"Open completed job":activeCustomerEstimate.status==="draft"?"Continue draft estimate":"Open estimate"}</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
+    <nav className="record-tabs" id={`customer-history-${selected.id}`} aria-label="Customer record sections" tabIndex={-1}>
+      <button aria-current={section === "estimates"?"page":undefined} className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}><ClipboardList className="customer-tab-icon" aria-hidden="true"/>Estimates <b>{customerEstimates.length}</b></button>
+      <button aria-current={section === "payments"?"page":undefined} className={section === "payments" ? "active" : ""} onClick={() => setSection("payments")}><CreditCard className="customer-tab-icon" aria-hidden="true"/>Payments</button>
+      <button aria-current={section === "invoices"?"page":undefined} className={section === "invoices" ? "active" : ""} onClick={() => setSection("invoices")}><Receipt className="customer-tab-icon" aria-hidden="true"/>Invoices</button>
+      <button aria-current={section === "photos"?"page":undefined} className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}><Images className="customer-tab-icon" aria-hidden="true"/>Photos {onDevicePhotoCount!==null&&<b aria-label={onDevicePhotoCount+" on-device photos"} title="Photos on this device only">{onDevicePhotoCount}</b>}</button>
+      <button aria-current={section === "messages"?"page":undefined} className={section === "messages" ? "active" : ""} onClick={() => setSection("messages")}><MessageSquareText className="customer-tab-icon" aria-hidden="true"/>Messages <b>{historyEntries.length}</b></button>
+      <button aria-current={section === "notes"?"page":undefined} className={section === "notes" ? "active" : ""} onClick={() => setSection("notes")}><StickyNote className="customer-tab-icon" aria-hidden="true"/>Notes <b>{customerNotes.length}</b></button>
+    </nav>
+    {section==="estimates"&&<div className="customer-quote-switch" role="group" aria-label="Customer estimates and signed agreements"><button type="button" aria-pressed={customerQuoteView==="all"} className={customerQuoteView==="all"?"active":""} onClick={()=>setCustomerQuoteView("all")}>All estimates ({customerEstimates.length})</button><button type="button" aria-pressed={customerQuoteView==="agreements"} className={customerQuoteView==="agreements"?"active":""} onClick={()=>setCustomerQuoteView("agreements")}>Agreements ({customerAgreementRows.length})</button></div>}
+    {section!=="photos"&&<div className="customer-history-tools"><Label htmlFor={`customer-history-search-${selected.id}`}>Search records</Label><Input id={`customer-history-search-${selected.id}`} type="search" value={recordSearch} onChange={event=>setRecordSearch(event.target.value)} placeholder="Search history"/>{recordSearch&&<Button variant="outline" onClick={()=>setRecordSearch("")}>Clear history search</Button>}{(recordSearch||section==="estimates"&&customerQuoteView==="agreements")&&<p role="status">{recordCounts[0]} of {recordCounts[1]} found</p>}</div>}
+    <section className="customer-records">
+      {section === "estimates" && (matchingEstimates.length ? matchingEstimates.map((estimate) => <button className="customer-record record-button customer-estimate-record" id={"customer-estimate-"+estimate.id} key={estimate.id} onClick={()=>openCustomerSavedJob(estimate)}><div><strong>{estimate.service}</strong>{customerNumberLabel(selected.customerNumber)&&<small>{customerNumberLabel(selected.customerNumber)}</small>}{jobNumberLabel(estimate.jobNumber)&&<small>{jobNumberLabel(estimate.jobNumber)}</small>}<small>{new Date(estimate.createdAt).toLocaleDateString()}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}{!estimate.signedAt&&estimate.acceptedAt?" · Accepted, unsigned":Number(estimate.pendingChangeCount)>0?" · Changes requested":""}</small><span className="estimate-status-indicators"><EstimateStatusBadge status={estimate.status}/><EstimateViewedBadge firstViewedAt={estimate.firstViewedAt}/><EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/></span></div><strong className="customer-estimate-price">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>{customerEstimates.length?customerQuoteView==="agreements"?"No agreements found":"No estimates found":"No estimates yet"}</strong>{customerEstimates.length>0&&<p>{customerQuoteView==="agreements"?"Choose All estimates or clear search.":"Clear search to see estimates."}</p>}</div>)}
+      {section === "payments" && (matchingPayments.length ? matchingPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id} id={"customer-payment-"+payment.id} tabIndex={-1}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="customer-payment-reference-copy-button" onClick={()=>void copyPaymentReference(payment.id,payment.reference!)}>Copy</button></span>}</small>{paymentReferenceCopyFeedback?.id===payment.id&&<small className="customer-payment-copy-feedback" role={paymentReferenceCopyFeedback.ok?"status":"alert"}>{paymentReferenceCopyFeedback.ok?"Reference copied.":<>Clipboard unavailable. Select the reference: <code className="break-all select-text">{payment.reference}</code></>}</small>}<ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>{customerPayments.length?"No matching payments":"No payments recorded"}</strong><p>{customerPayments.length?"Clear search to see payments.":"Record received money from an estimate."}</p></div>)}
+      {section === "invoices" && (matchingInvoices.length ? matchingInvoices.map((invoice)=>{
+        const details=<><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong>
+          {customerNumberLabel(selected.customerNumber)&&<small>{customerNumberLabel(selected.customerNumber)}</small>}
+          {jobNumberLabel(invoice.jobNumber)&&<small>{jobNumberLabel(invoice.jobNumber)}</small>}
+          <span className="customer-invoice-state"><InvoiceStatusIndicator invoice={invoice}/>{!invoice.paymentReviewPending&&Number(invoice.paymentOverageOpen)===0&&invoice.status!=="paid"&&<small>Due {invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}</small>}</span>
+        </div><strong>{money(invoice.totalCents)}</strong></>;
+        const recordId="customer-invoice-"+invoice.id;
+        // A missing historic preview token must not look like a tappable
+        // invoice link that silently does nothing. Keep the real link
+        // keyboard reachable when a saved token exists.
+        return invoice.shareToken?
+          <a className="customer-record record-button" id={recordId} key={invoice.id} href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`}>{details}<ExternalLink aria-hidden="true"/></a>:
+          <div className="customer-record" id={recordId} tabIndex={-1} key={invoice.id}>{details}<small role="status">Preview unavailable · open Invoices to review.</small></div>;
+      }) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear search to see invoices.":"Create one from an estimate."}</p></div>)}
+      {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length} onPhotoCountChange={acceptPhotoCount}/>}
+      {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{matchingMessages.length?matchingMessages.map(({message,prepared})=><article className="message-history" id={"customer-message-"+message.id} tabIndex={-1} key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":message.template==="reviewCheckSnooze"?"Review status check deferred":message.template==="reviewSnooze"?"Review request deferred":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel==="review_snoozed"?"Owner deferred request until "+dateTime(message.body)+" · no message sent":message.channel==="review_check_snoozed"?"Owner deferred check until "+dateTime(message.body)+" · no message sent":message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copy prepared · clipboard result unverified; sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>{historyEntries.length?"No matching messages":"No messages prepared yet"}</strong><p>{historyEntries.length?"Clear the history search to see all saved messages.":"Compose a personalized text or email above. Prepared drafts and your send confirmations appear here."}</p></div>}</section>}
+      {section === "notes" && <div className="notes-panel"><div className="note-compose"><Label className="sr-only" htmlFor={`customer-note-draft-${selected.id}`}>Customer note</Label><Textarea rows={4} maxLength={5000} id={`customer-note-draft-${selected.id}`} value={noteText} disabled={savingNote&&noteSavingCustomer.current===selected.id} onChange={(event)=>{const value=event.target.value;noteDrafts.current[selected.id]=value;setNoteText(value);setNoteFeedback(null);}} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim() || noteText.trim().length>5000}><Plus className="h-4 w-4" /> {savingNote?"Saving note…":"Add note"}</Button></div><p className="note-draft-help">{noteText.length.toLocaleString()} / 5,000 · Tap Add note to save.</p>{noteFeedback?.customerId===selected.id&&<p className={noteFeedback.kind==="error"?"save-error":"save-success"} role={noteFeedback.kind==="error"?"alert":"status"}>{noteFeedback.text}</p>}{noteFeedback?.customerId===selected.id&&noteFeedback.kind==="error"&&<Button variant="outline" className="min-h-11" onClick={()=>void load()} disabled={savingNote}>Refresh saved notes</Button>}{matchingNotes.length ? matchingNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>{customerNotes.length?"No matching notes":"No notes yet"}</strong><p>{customerNotes.length?"Clear the history search to see all saved notes.":"Save access details and job-specific reminders here."}</p></div>}</div>}
+    </section>
+      <div className="customer-snapshot">
+        <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
+        <span><small>Current stage</small><strong>{activeCustomerEstimate?statusLabel(activeCustomerEstimate.status):"No active job"}</strong></span>
+        <span><small>Paid</small><strong>{money(customerPaidTotal)}</strong></span>
+        <span><small>Job balance</small><strong>{money(customerBalances.collectibleCents)}</strong></span>
+        <details className="customer-snapshot-more"><summary>More amounts</summary><div className="customer-snapshot-extra">
+          <span><small>Deposit still required</small><strong>{money(customerBalances.depositRemainingCents)}</strong></span>
+          <span><small>Potential estimate value</small><strong>{money(customerBalances.potentialCents)}</strong></span>
+        </div></details>
+      </div>
+      <details className="customer-balance-explanation"><summary>How balances work</summary><p>Collectible balances include approved or scheduled jobs and issued invoices, including amounts due on completion. Draft, sent and viewed estimates remain potential work. Declined and replaced quotes are historical, not collectible unless an issued invoice remains due. Deposits are part of the job balance; tips are separate.</p></details>
+      <details className="business-panel customer-journey-disclosure" aria-label="Completed jobs history">
+        <summary>Completed jobs ({completedCustomerJobs.length})</summary>
+        <div className="flex flex-col gap-2 pt-3">
+          {completedCustomerJobs.length?completedCustomerJobs.map(job=><button type="button" key={job.id}
+            className="customer-record record-button" onClick={()=>openCustomerSavedJob(job)}>
+            <span><strong>{job.service||"Completed service"}</strong><small className="block">{jobNumberLabel(job.jobNumber)||"Completed job"} · {new Date(job.scheduledAt||job.createdAt).toLocaleDateString()}</small></span>
+            <strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight aria-hidden="true"/>
+          </button>):<p className="text-sm text-muted-foreground">No completed jobs yet. Draft and scheduled estimates are not counted.</p>}
+        </div>
+      </details>
+      <details className="business-panel customer-journey-disclosure"><summary>Job progress ({customerJourneys.length})</summary><section role="region" aria-label="Customer estimate to scheduled job journey">
+        <header><div><h2>Estimate → scheduled job</h2></div></header>
+        {customerJourneys.length?<div className="flex flex-col gap-3">
+          {customerJourneys.slice(0,journeyShown).map(({estimate,journey})=><article key={estimate.id} className="rounded-xl border border-border p-3 sm:p-4" aria-label={"Job journey for "+estimate.service}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><strong className="block">{estimate.service||"Saved job"}</strong><small className="block text-muted-foreground">{journey.headline} · {new Date(estimate.createdAt).toLocaleDateString()}</small></div>
+              <Button variant="outline" onClick={()=>openCustomerSavedJob(estimate)}>Open exact job</Button></div>
+            <details className="customer-job-milestones mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">View {journey.steps.length} progress milestones</summary><ol className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {journey.steps.map(step=><li key={step.key} className="rounded-lg border border-border p-2">
+                <span className="flex items-center gap-1 text-xs font-semibold">{step.state==="done"?<CheckCircle2 className="h-4 w-4 text-emerald-600"/>:step.state==="verify"?<AlertTriangle className="h-4 w-4 text-amber-600"/>:<Clock3 className="h-4 w-4 text-muted-foreground"/>}{step.title}</span>
+                <small className="mt-1 block text-muted-foreground">{step.detail}</small>
+                {step.at&&<time className="mt-1 block text-xs" dateTime={step.at}>{dateTime(step.at)}</time>}
+              </li>)}
+            </ol></details>
+          </article>)}
+          {customerJourneys.length>journeyShown&&<Button variant="outline" onClick={()=>setJourneyShown(n=>Math.min(n+3,customerJourneys.length))}>Show {Math.min(3,customerJourneys.length-journeyShown)} older job journeys</Button>}
+        </div>:<p className="customer-timeline-empty">No estimates recorded for this customer yet.</p>}
+      </section></details>
+      <section id={`customer-flags-${selected.id}`} tabIndex={-1} className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
+        <div className="customer-flag-heading"><div><h2>Follow-up & activity</h2></div><ClipboardList aria-hidden="true"/></div>
+        {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
+        <details className="customer-sign-form customer-activity-tools"><summary>{manualFlags.leadCallback?.state==="pending"&&<PhoneCall className="callback-reminder-icon" aria-hidden="true"/>}Contact, callbacks & optional tracking{manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&<span> · Callback {manualFlags.leadCallback.dueDate}</span>}</summary>
+        <details className="customer-sign-form"><summary>More statuses</summary><div className="customer-flag-grid">
+          <span><small>Estimate</small><strong>{activitySummary.estimate}</strong></span>
+          <span><small>Invoice</small><strong>{activitySummary.invoice}</strong></span>
+          <span><small>Follow-up</small><strong>{activitySummary.followup}</strong></span>
+          <span><small>Review request</small><strong>{activitySummary.reviewRequest}</strong></span>
+          <span><small>Review received</small><strong>{activitySummary.reviewReceived}</strong></span>
+          <span id={`customer-sign-flag-${selected.id}`} tabIndex={-1} className={activitySummary.needs.includes("Yard sign pickup is due")?"customer-flag-action-needed":""}><small>Yard sign</small><strong>{activitySummary.sign}</strong></span>
+        </div></details>
+        {reviewCheck.status==="due"&&<div id={`customer-review-check-${selected.id}`} tabIndex={-1} className="customer-review-check" role="region" aria-label="Review follow-up check due"><div><strong><Star aria-hidden="true"/> Review status check available</strong><p>Review request recorded {reviewCheck.elapsedDays} days ago; no review is logged. Check whether a review has appeared before contacting the customer again.</p></div><div className="flex flex-wrap gap-2">{onPrepareReviewTask&&<Button variant="outline" aria-label="Prepare review status check task" onClick={()=>stageReviewCheck(selected,reviewCheck.requestedAt)}>Create check task</Button>}<Button variant="outline" aria-label="Defer review status check seven days" disabled={reviewCheckSnoozing} onClick={()=>void snoozeReviewStatusCheck(selected,reviewCheck.requestedAt)}>{reviewCheckSnoozing?"Saving check…":"Check later · 7 days"}</Button></div>{reviewCheckSnoozeError&&<p role="alert" className="save-error">{reviewCheckSnoozeError}</p>}</div>}
+        <div className="customer-flag-actions">
+          <Button variant="outline" aria-label="Log lead no answer" disabled={savingNote} onClick={()=>void saveNote(LEAD_NO_ANSWER_NOTE,"no_answer")}>No answer · not contacted</Button>
+          <Button variant="outline" aria-label="Log lead contacted" disabled={savingNote} onClick={()=>void saveNote(LEAD_CONTACTED_NOTE,"contacted")}>Log lead contacted</Button>
+          {manualFlags.leadCallback?.state==="pending"&&
+            <Button variant="outline" aria-label="Mark callback done" disabled={savingNote} onClick={()=>void saveNote(LEAD_CALLBACK_HANDLED_NOTE,"handled")}>Mark callback done</Button>}
+          <details className="customer-sign-form">
+            <summary>Schedule or reschedule lead callback</summary>
+            <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>{setCallbackDate(event.target.value);setActivityNotice(null);}}/></label>
+            <Button variant="outline" aria-label="Save lead callback" disabled={!callbackDate||savingNote||(manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate)} onClick={()=>{try{void saveNote(leadCallbackNote(callbackDate));}catch{setActivityNotice({customerId:selected.id,kind:"error",text:"Choose a valid callback date."});}}}>{savingNote?"Saving…":manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate?"Saved":"Save callback"}</Button>
+          </details>
+        </div>
+        <details className="customer-extra-tracking">
+          <summary>More tracking <span>Reviews &amp; yard signs</span></summary>
+          <div className="customer-flag-actions">
+          {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
+          {manualFlags.sign?.state==="out"?<><Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>{onPreparePickupTask&&<Button variant="outline" aria-label="Prepare yard sign pickup reminder" onClick={()=>stagePickupTask(selected,manualFlags.sign)}>Create pickup task</Button>}</>:
+          <details className="customer-sign-form"><summary>Track a yard sign</summary><label>Pickup target <input type="date" aria-label="Yard sign pickup date" value={signPickupDate} onChange={event=>setSignPickupDate(event.target.value)}/></label><label>Sign location <input aria-label="Yard sign location" value={signLocation} onChange={event=>setSignLocation(event.target.value)} placeholder={selected.address||"Address / where placed"}/></label><Button variant="outline" disabled={!signPickupDate} aria-label="Prepare yard sign placed note" onClick={()=>{try{prepareManualFlag(signPlacedNote(signPickupDate,signLocation.trim()||selected.address||"Location not specified"));}catch{}}}>Prepare placement note</Button></details>}
+          </div>
+        </details>
+        {activityNotice?.customerId===selected.id&&<p role={activityNotice.kind==="error"?"alert":"status"} className={activityNotice.kind==="error"?"save-error":"save-success"}>{activityNotice.text}</p>}
+        {manualFlags.leadContact&&<p role="status" className="customer-flag-help" aria-label="Last lead contact">
+          <strong>Contact: </strong>
+          {manualFlags.leadContact.state==="no_answer"
+            ?`No answer · not contacted · ${manualFlags.leadContact.unansweredAttempts} unanswered attempt${manualFlags.leadContact.unansweredAttempts===1?"":"s"} · ${dateTime(manualFlags.leadContact.at)}`
+            :`Contacted · ${dateTime(manualFlags.leadContact.at)}`}
+        </p>}
+        {manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&
+          <p className="customer-flag-sign-location" role="status">
+            <strong><PhoneCall className="callback-reminder-icon" aria-hidden="true"/> {manualFlags.leadCallback.dueDate<=tulsaToday?"Callback due":"Upcoming callback"}:</strong> {manualFlags.leadCallback.dueDate}.
+          </p>}
+        {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Yard sign: {manualFlags.sign.location||"Location not specified"} · Pickup {manualFlags.sign.pickupDate}.</p>}
+        <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Contact and callback buttons save directly. Other flags prepare notes; tap <strong>Add note</strong> to save those. Callback dates are tracked here; no automatic alerts. No messages or push alerts are sent. Pickup tasks must be saved separately.</p></details>
+        </details>
+      </section>
+      {nextCustomerActions.length>0&&<section className="customer-action-review" role="region" aria-label="Review next customer actions">
+        <div className="customer-timeline-heading"><div><h2>Review next</h2></div><span>{nextCustomerActions.length} to check</span></div>
+        {nextCustomerActions.length?<div className="customer-action-items">{nextCustomerActions.map(action=><button type="button" key={action.key} onClick={()=>openCustomerAction(action)} aria-label={"Open "+action.title}>
+          <span className="customer-timeline-copy"><strong>{action.title}</strong><small>{action.detail}</small></span><ChevronRight aria-hidden="true"/>
+        </button>)}</div>:<p className="customer-timeline-empty">Nothing needs review right now.</p>}
+        {nextCustomerActions.length===8&&<p className="customer-timeline-empty">8 shown · more in Customer history.</p>}
+      </section>}
+      <details className="customer-timeline-disclosure">
+        <summary>Recent activity <span>{timelineEntries.length}{timelineEntries.length===100?"+":""} events</span></summary>
+        <section className="customer-timeline" role="region" aria-label="Recent customer activity">
+        <div className="customer-timeline-controls">
+          <div className="customer-timeline-filters" role="group" aria-label="Filter customer activity">
+            {([["all","All"],["estimates","Estimates"],["messages","Messages"],["billing","Billing"],["notes","Notes & flags"]] as const).map(([key,label])=><button key={key} type="button" aria-label={"Filter activity: "+label} aria-pressed={timelineFilter===key} onClick={()=>{setTimelineFilter(key);setTimelineShown(6);}}>{label}</button>)}
+          </div>
+          <label className="customer-timeline-search">Search activity titles <input type="search" aria-label="Search recent activity" value={timelineSearch} onChange={event=>{setTimelineSearch(event.target.value);setTimelineShown(6);}} placeholder="Example: review, invoice, Oct 20"/></label>
+          <p role="status">Showing {Math.min(timelineShown,filteredTimelineEntries.length)} of {filteredTimelineEntries.length} matching events · searches labels, not private note text</p>
+        </div>
+        {visibleTimelineEntries.length>0?<ol className="customer-timeline-list">
+          {visibleTimelineEntries.map((entry,index)=><li key={entry.key}>
+            {(index===0||visibleTimelineEntries[index-1].day!==entry.day)&&<p className="customer-timeline-day">{entry.day}</p>}
+            <button type="button" onClick={()=>openTimelineEntry(entry)} aria-label={"Open "+entry.title+" in "+entry.section}>
+              <span className="customer-timeline-copy"><strong>{entry.title}</strong><small>{entry.detail}</small></span>
+              <span className="customer-timeline-meta"><time dateTime={entry.at}>{dateTime(entry.at)}</time><ChevronRight aria-hidden="true"/></span>
+            </button>
+          </li>)}
+        </ol>:<p className="customer-timeline-empty">{timelineEntries.length?"No matching activity. Choose All or clear the search.":"No dated activity has been recorded for this customer yet."}</p>}
+        {filteredTimelineEntries.length>timelineShown&&<button type="button" className="customer-timeline-more" onClick={()=>setTimelineShown(current=>Math.min(current+6,filteredTimelineEntries.length))}>Show next {Math.min(6,filteredTimelineEntries.length-timelineShown)} events · {filteredTimelineEntries.length-timelineShown} remaining</button>}
+        </section>
+      </details>
+
+      {selected.address && <PropertyPreview address={selected.address} />}
+      <CustomerProperties key={selected.id+'-'+propertyListRefresh} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked} onSelectionChange={setSelectedProperty} onWorkflowChange={setPropertyWorkflowReady} focusPropertyId={focusRecord?.kind==="property"&&focusRecord.customerId===selected.id?focusRecord.id:undefined} onPropertyFocusHandled={onRecordFocusHandled}/>
+    </section>
+  </div>;
+  return <div className="customers-view">
+    <section className="customers-head"><div><h1>Customers</h1></div><AddCustomer initialAddress={createAtAddress} onAddressUsed={onCreateStarted} onAdded={(customer,startEstimate) => { setCustomers((current) => [customer, ...current.filter(item=>item.id!==customer.id)]); if(startEstimate)setEstimateAfterCreateId(customer.id); setSelectedId(customer.id);void load(true); }} /></section>
+    {(dueReviewChecks.length>0||flaggedSignCustomers.length>0)&&<details className="customer-secondary-reminders">
+      <summary>Reviews &amp; yard signs <span>{dueReviewChecks.length} review checks · {flaggedSignCustomers.length} signs</span></summary>
+      <div className="customer-secondary-reminder-list">
+    {dueReviewChecks.length>0&&<section className="customer-review-overview" role="region" aria-label="Review checks to consider"><div><strong>{dueReviewChecks.length} review check{dueReviewChecks.length===1?"":"s"} to consider</strong><small>Only completed work with a confirmed request over seven days ago and no review logged</small></div><div>{dueReviewChecks.slice(0,5).map(({customer,state})=><div key={customer.id} className="customer-review-entry"><button type="button" onClick={()=>setSelectedId(customer.id)}>{customer.name} · {state.elapsedDays} days since review request <ChevronRight aria-hidden="true"/></button>{onPrepareReviewTask&&<button type="button" aria-label={`Prepare review check task for ${customer.name}`} onClick={()=>stageReviewCheck(customer,state.requestedAt)}>Create task <Plus aria-hidden="true"/></button>}</div>)}</div>{dueReviewChecks.length>5&&<small>{dueReviewChecks.length-5} more customers — open their profiles to review</small>}</section>}
+    {flaggedSignCustomers.length>0&&<section className="customer-sign-overview" role="region" aria-label="Outstanding yard signs"><strong>{flaggedSignCustomers.length} yard sign{flaggedSignCustomers.length===1?"":"s"} to pick up</strong><div>{flaggedSignCustomers.map(({customer,sign})=><div className="customer-sign-entry" key={customer.id}><button type="button" onClick={()=>setSelectedId(customer.id)}>{customer.name} · {sign?.pickupDate&&sign.pickupDate<=tulsaToday?"Pickup due":"Pickup "+sign?.pickupDate}<ChevronRight aria-hidden="true"/></button>{onPreparePickupTask&&<button type="button" aria-label={`Prepare pickup task for ${customer.name}`} onClick={()=>stagePickupTask(customer,sign)}>Create task <Plus aria-hidden="true"/></button>}</div>)}</div></section>}
+      </div>
+    </details>}
+    {dueLeadCallbacks.length>0&&<section className="customer-review-overview" role="region" aria-label="Due customer lead callbacks">
+      <div><strong><PhoneCall className="callback-reminder-icon" aria-hidden="true"/> {dueLeadCallbacks.length} lead callback{dueLeadCallbacks.length===1?"":"s"} due</strong><small>Owner-saved callback dates · today and overdue · nothing is sent automatically</small></div>
+      <div>{dueLeadCallbacks.slice(0,5).map(({customer,callback})=><div key={customer.id} className="customer-review-entry">
+        <button type="button" onClick={()=>setSelectedId(customer.id)} aria-label={`Open due callback for ${customer.name}`}>
+          <span className="callback-reminder-label"><PhoneCall className="callback-reminder-icon" aria-hidden="true"/>{customer.name} · callback {callback?.dueDate}</span><ChevronRight aria-hidden="true"/>
+        </button>
+      </div>)}</div>
+      {dueLeadCallbacks.length>5&&<small>{dueLeadCallbacks.length-5} more due callbacks · use the callback filter to review them</small>}
+    </section>}
+    {!loading&&!error&&(manuallyUnansweredLeadIds.size>0||dueLeadCallbackIds.size>0||showUnansweredLeadsOnly||showDueCallbacksOnly)&&<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter manually logged lead contact attempts">
+      {(manuallyUnansweredLeadIds.size>0||showUnansweredLeadsOnly)&&<Button type="button" variant="outline" aria-pressed={showUnansweredLeadsOnly} onClick={()=>{setShowDueCallbacksOnly(false);setShowUnansweredLeadsOnly(current=>!current);}}>
+        {showUnansweredLeadsOnly?"Show all customers":`No answer / not contacted (${manuallyUnansweredLeadIds.size})`}
+      </Button>}
+      {(dueLeadCallbackIds.size>0||showDueCallbacksOnly)&&<Button type="button" variant="outline" aria-pressed={showDueCallbacksOnly} onClick={()=>{setShowUnansweredLeadsOnly(false);setShowDueCallbacksOnly(current=>!current);}}>
+        {!showDueCallbacksOnly&&<PhoneCall className="callback-reminder-icon" aria-hidden="true"/>}{showDueCallbacksOnly?"Show all customers":`Callbacks due (${dueLeadCallbackIds.size})`}
+      </Button>}
+    </div>}
+    {!loading&&!error&&customers.length>0&&<div className="customer-directory-tools">
+      <label className="customer-directory-search"><span className="sr-only">Find saved customer</span><input type="search" aria-label="Find saved customer" value={directorySearch} maxLength={128} placeholder="Find name, Customer #, address or phone" onChange={event=>setDirectorySearch(event.target.value)}/></label>
+      {directorySearch&&<button type="button" className="customer-directory-clear" onClick={()=>setDirectorySearch("")}>Clear</button>}
+      <small role="status">{filteredCustomers.length} of {customers.length} customers</small>
+    </div>}
+    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <><section className="customer-list">{filteredCustomers.slice(0,directoryLimit).map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong>{customerNumberLabel(customer.customerNumber)&&<small>{customerNumberLabel(customer.customerNumber)}</small>}<small>{[customer.address?.trim(),customer.phone||customer.email].filter(Boolean).join(" · ")||"Add address or contact"}</small>{dueLeadCallbackIds.has(customer.id)&&<small className="customer-directory-alert"><PhoneCall className="callback-reminder-icon" aria-hidden="true"/>Callback due</small>}{manuallyUnansweredLeadIds.has(customer.id)&&<small className="customer-directory-contact-state">No answer · not contacted</small>}</span>{customer.estimateCount>0&&<span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span>}<ChevronRight /></button>)}</section>{filteredCustomers.length>directoryLimit&&<button type="button" className="customer-directory-more" onClick={()=>setDirectoryLimit(n=>Math.min(n+40,filteredCustomers.length))}>Show next {Math.min(40,filteredCustomers.length-directoryLimit)} customers · {filteredCustomers.length-directoryLimit} remaining</button>}</> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery||directorySearch ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery||directorySearch ? "Try another name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
+  </div>;
+}
+
+function EstimatesView({ onSaved, searchQuery, focusEstimateId, onFocusHandled,initialSection="estimates" }: { onSaved:(estimate:EstimateRow)=>void; searchQuery:string; focusEstimateId?:string|null; onFocusHandled?:(id:string)=>void; initialSection?:"estimates"|"agreements" }) {
+  const [rows,setRows]=useState<EstimateRow[]>([]);
+  const [filter,setFilter]=useState("all");
+  const [historySearch,setHistorySearch]=useState(searchQuery);
+  useEffect(()=>setHistorySearch(searchQuery),[searchQuery]);
+  const [view,setView]=useState<"pipeline"|"list">("list");
+  const [section,setSection]=useState<"estimates"|"agreements">(initialSection);
+  const [selected,setSelected]=useState<EstimateRow|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+  const [focusError,setFocusError]=useState("");
+  const [nextCursor,setNextCursor]=useState<string|null>(null);
+  const [viewedOnly,setViewedOnly]=useState(false);
+  const loadRequest=useRef(0);
+  const retryAppend=useRef(false);
+  const load=async(append=false)=>{
+    const request=++loadRequest.current;
+    retryAppend.current=append;
+    setLoading(true);setError("");
+    try{
+      const response=await fetch(`/api/estimate-history?limit=50&q=${encodeURIComponent(historySearch)}&status=${encodeURIComponent(filter)}${append&&nextCursor?`&cursor=${encodeURIComponent(nextCursor)}`:""}`);
+      const result=await response.json() as {estimates?:EstimateRow[];nextCursor?:string|null;error?:string};
+      if(!response.ok)throw new Error(result?.error||"Estimates could not be loaded.");
+      if(!result||!Array.isArray(result.estimates)||result.estimates.length>50||result.estimates.some(item=>!item||typeof item.id!=="string"||!item.id||typeof item.customer!=="string"||typeof item.service!=="string")||new Set(result.estimates.map(item=>item.id)).size!==result.estimates.length)throw new Error("Estimate records could not be read. Try again.");
+      if(!(result.nextCursor===null||(typeof result.nextCursor==="string"&&result.nextCursor.length>0&&result.nextCursor.length<=512&&result.estimates.length>0))||(append&&result.nextCursor===nextCursor))throw new Error("Estimate paging did not advance. Try again.");
+      const cents=(value:unknown)=>{if((typeof value!=="number"&&typeof value!=="string")||(typeof value==="string"&&!/^\d+$/.test(value.trim()))||!Number.isSafeInteger(Number(value))||Number(value)<0)throw new Error("Estimate amounts could not be read. Try again.");return Number(value);};
+      if(request!==loadRequest.current)return;
+      const incoming=result.estimates.map((item)=>({...item,subtotalCents:cents(item.subtotalCents??item.totalCents),discountCents:cents(item.discountCents??0),totalCents:cents(item.totalCents),depositCents:cents(item.depositCents),paidCents:cents(item.paidCents),invoiceTotalCents:item.invoiceTotalCents==null?item.invoiceTotalCents:cents(item.invoiceTotalCents)}));
+      setRows(current=>append?[...current,...incoming.filter(item=>!current.some(row=>row.id===item.id))]:incoming);setNextCursor(result.nextCursor??null);
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Estimates could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{loadRequest.current++;retryAppend.current=false;setLoading(true);setError("");setSelected(null);const timer=window.setTimeout(()=>void load(),200);return()=>{window.clearTimeout(timer);loadRequest.current++;};},[historySearch,filter]);
+  useEffect(()=>{if(!focusEstimateId)return;setFocusError("");let cancelled=false;void(async()=>{try{const response=await fetch(`/api/estimate-history?focus=${encodeURIComponent(focusEstimateId)}`);const result=await response.json() as {estimates?:EstimateRow[];error?:string};if(!response.ok||!Array.isArray(result.estimates)||result.estimates.length!==1||result.estimates[0]?.id!==focusEstimateId)throw new Error(result.error||"The selected estimate could not be found.");if(!cancelled){setSelected(result.estimates[0]);onFocusHandled?.(focusEstimateId);}}catch(error){if(!cancelled){setFocusError(error instanceof Error?error.message:"The selected estimate could not be read.");onFocusHandled?.(focusEstimateId);}}})();return()=>{cancelled=true;};},[focusEstimateId]);
+  const searched=rows;
+  // A viewed link is only an observed event. This is an owner-side review
+  // filter, not a claim that the customer dislikes the price or needs a send.
+  const isViewedAwaitingDecision=(row:EstimateRow)=>{
+    const opened=row.firstViewedAt?Date.parse(row.firstViewedAt):NaN;
+    const accepted=row.acceptedAt?Date.parse(row.acceptedAt):NaN;
+    return row.status==="sent"&&!row.invoiceId&&!Number(row.paymentOverageOpen??0)&&
+      Number.isFinite(opened)&&opened<=Date.now()-86400000&&
+      (!Number.isFinite(accepted)||accepted> Date.now());
+  };
+  const viewedQueue=searched.filter(isViewedAwaitingDecision)
+    .sort((a,b)=>Date.parse(a.firstViewedAt!)-Date.parse(b.firstViewedAt!)||a.id.localeCompare(b.id));
+  const shownRows=viewedOnly?viewedQueue:searched;
+  const visible=shownRows.filter((row)=>filter==="all"||row.status===filter);
+  const pipeline=[
+    {key:"draft",label:"New quotes",rows:shownRows.filter((row)=>row.status==="draft"&&row.paidCents<resolvedBillingTotalCents(row))},
+    {key:"sent",label:"Follow up",rows:shownRows.filter((row)=>row.status==="sent"&&row.paidCents<resolvedBillingTotalCents(row))},
+    {key:"approved",label:"Approved",rows:shownRows.filter((row)=>row.status==="approved"&&row.paidCents<resolvedBillingTotalCents(row))},
+    {key:"scheduled",label:"Scheduled",rows:shownRows.filter((row)=>row.status==="scheduled"&&row.paidCents<resolvedBillingTotalCents(row))},
+    {key:"completed",label:"Completed",rows:shownRows.filter((row)=>row.status==="completed"&&row.paidCents<resolvedBillingTotalCents(row))},
+    {key:"paid",label:"Paid",rows:shownRows.filter((row)=>resolvedBillingTotalCents(row)>0&&row.paidCents>=resolvedBillingTotalCents(row))},
+    {key:"declined",label:"Lost",rows:shownRows.filter((row)=>row.status==="declined"&&row.paidCents<resolvedBillingTotalCents(row))},
+  ];
+  const changed=(estimate:EstimateRow)=>{setRows((current)=>current.some(row=>row.id===estimate.id)?current.map((row)=>row.id===estimate.id?estimate:row):[...current,estimate]);setSelected(current=>current?.id===estimate.id?estimate:current);};
+  const firstUseEmpty=!loading&&!error&&!rows.length&&!nextCursor&&!historySearch.trim()&&filter==="all"&&!viewedOnly;
+  const clearEstimateFilters=()=>{setHistorySearch("");setFilter("all");setViewedOnly(false);setView("list");};
+  const sectionTabs=<div className="estimate-section-switch" role="group" aria-label="Estimates and agreements">
+    <button type="button" aria-pressed={section==="estimates"} className={section==="estimates"?"active":""} onClick={()=>setSection("estimates")}>All estimates</button>
+    <button type="button" aria-pressed={section==="agreements"} className={section==="agreements"?"active":""} onClick={()=>setSection("agreements")}>Agreements</button>
+  </div>;
+  if(section==="agreements")return <div className="workspace-view">
+    <section className="workspace-head"><div><h1>Estimates</h1></div><NewEstimate onSaved={(estimate)=>{onSaved(estimate);setRows(current=>[estimate,...current]);setSection("estimates");}}/></section>
+    {sectionTabs}
+    <Input aria-label="Search estimate history" placeholder="Search customers or jobs" maxLength={128} value={historySearch} onChange={event=>setHistorySearch(event.target.value)}/>
+    <ContractsView searchQuery={historySearch} embedded/>
+  </div>;
+  return <div className="workspace-view">
+    <EstimateDetail estimate={selected} onClose={()=>setSelected(null)} onChanged={changed}/>
+    <section className="workspace-head"><div><h1>Estimates</h1></div><div className="workspace-head-actions">{!firstUseEmpty&&<div className="view-switch" aria-label="Estimate view"><button className={view==="pipeline"?"active":""} onClick={()=>{setView("pipeline");setFilter("all");}}><SquareKanban/> Pipeline</button><button className={view==="list"?"active":""} onClick={()=>setView("list")}><List/> List</button></div>}<NewEstimate onSaved={(estimate)=>{onSaved(estimate);setRows((current)=>[estimate,...current]);}}/></div></section>
+    {focusError&&<p role="alert" className="save-error">{focusError}</p>}
+    {sectionTabs}
+    {!firstUseEmpty&&<div className="estimate-quick-find"><Input type="search" aria-label="Search estimate history" placeholder="Search customers or jobs" maxLength={128} value={historySearch} onChange={event=>setHistorySearch(event.target.value)}/>{historySearch.trim()&&<button type="button" aria-label="Clear estimate search" onClick={()=>setHistorySearch("")}>Clear</button>}</div>}
+    {!loading&&!error&&<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Estimate view tracking filters">
+      {(viewedQueue.length>0||viewedOnly)&&<Button variant="outline" aria-pressed={viewedOnly} onClick={()=>{setViewedOnly(current=>!current);setFilter("all");setView("list");}}>Viewed · awaiting decision ({viewedQueue.length})</Button>}
+      {viewedOnly&&<small className="text-muted-foreground" role="status">Link opened at least 24 hours ago; no approval recorded. Loaded estimates only.</small>}
+    </div>}
+    {view==="list"&&!firstUseEmpty&&<div className="filter-row estimate-simple-filters" role="group" aria-label="Filter saved estimates by status">
+      {["all","draft","sent","approved","scheduled"].map((status)=><button key={status} type="button" aria-pressed={filter===status} className={filter===status?"active":""} onClick={()=>setFilter(status)}>{statusLabel(status)}</button>)}
+      <details className="estimate-filter-more">
+        <summary>More statuses{["completed","declined"].includes(filter)?" · "+statusLabel(filter):""}</summary>
+        <div className="estimate-extra-filters">{["completed","declined"].map(status=><button key={status} type="button" aria-pressed={filter===status} className={filter===status?"active":""} onClick={()=>setFilter(status)}>{statusLabel(status)}</button>)}</div>
+      </details>
+    </div>}
+    {loading&&!retryAppend.current?<div className="customers-state">Loading estimates…</div>:error&&!retryAppend.current?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:firstUseEmpty?<div className="estimate-first-use-empty" role="status"><ClipboardList aria-hidden="true"/><strong>No estimates yet</strong><span>Create your first estimate above.</span></div>:view==="pipeline"?(pipeline.some(column=>column.rows.length>0)?<section className="pipeline-board" aria-label="Active estimate pipeline stages">{pipeline.filter(column=>column.rows.length>0).map((column)=><section className={`pipeline-column ${column.key}`} key={column.key}><header><div><strong>{column.label}</strong><small>{money(column.rows.reduce((sum,row)=>sum+resolvedBillingTotalCents(row),0))}</small></div><b>{column.rows.length}</b></header><div>{column.rows.map((estimate)=><button className="pipeline-card" key={estimate.id} onClick={()=>{setFocusError("");setSelected(estimate);}}><span><strong>{estimate.customer}</strong>{customerNumberLabel(estimate.customerNumber)&&<small>{customerNumberLabel(estimate.customerNumber)}</small>}{resolvedBillingTotalCents(estimate)>=100000&&<em><Star/> High value</em>}</span><p>{estimate.service}</p>{jobNumberLabel(estimate.jobNumber)&&<small>{jobNumberLabel(estimate.jobNumber)}</small>}<span className="estimate-status-indicators"><EstimateStatusBadge status={estimate.status} className="estimate-card-state"/><EstimateViewedBadge firstViewedAt={estimate.firstViewedAt}/><EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/></span>{estimate.scheduledAt&&<small><CalendarDays/> {dateTime(estimate.scheduledAt)}</small>}<footer><span>{estimate.paidCents>0?`${money(estimate.paidCents)} paid`:new Date(estimate.createdAt).toLocaleDateString()}</span><strong>{money(resolvedBillingTotalCents(estimate))}</strong></footer></button>)}</div></section>)}</section>:<div className="estimate-pipeline-empty" role="status"><ClipboardList aria-hidden="true"/><strong>{rows.length===0&&!historySearch.trim()?"No estimates yet":"No estimates in this view"}</strong><small>{rows.length===0&&!historySearch.trim()?"Create your first estimate to get started.":"Try the List view or another search."}</small></div>):visible.length?<section className="estimate-list">{visible.map((estimate)=><button key={estimate.id} className="estimate-card" onClick={()=>{setFocusError("");setSelected(estimate);}}><span className={`status-bar ${estimate.status}`}/><span className="estimate-person"><strong>{estimate.customer}</strong><small>{estimate.service} · {new Date(estimate.createdAt).toLocaleDateString()}</small>{jobNumberLabel(estimate.jobNumber)&&<small>{jobNumberLabel(estimate.jobNumber)}</small>}<span className="estimate-status-indicators"><EstimateStatusBadge status={estimate.status} className="estimate-card-state"/><EstimateViewedBadge firstViewedAt={estimate.firstViewedAt}/><EstimateSignedBadge signedAt={estimate.signedAt} signedName={estimate.signedName}/><EstimateAttentionBadges estimate={estimate}/><EstimatePaymentBadge estimate={estimate}/></span>{viewedOnly&&<small>Link opened {dateTime(estimate.firstViewedAt!)} · approval not recorded</small>}</span>{estimate.scheduledAt&&<span className="scheduled-chip"><CalendarDays/> {dateTime(estimate.scheduledAt)}</span>}<strong className="estimate-amount">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight/></button>)}</section>:<div className="estimate-no-matches" role="status"><ClipboardList aria-hidden="true"/><strong>No matching estimates</strong><small>Try another search or status.</small>{(historySearch.trim()||filter!=="all"||viewedOnly)&&<button type="button" onClick={clearEstimateFilters}>Show all estimates</button>}</div>}
+    {(!loading&&!error||retryAppend.current)&&rows.length>0&&<p role="status">{rows.length} estimate{rows.length===1?"":"s"} loaded{nextCursor?" · older estimates available":""}.</p>}{error&&retryAppend.current&&<p role="alert">{error} Previously loaded records remain available.</p>}{nextCursor&&(!error||retryAppend.current)&&<Button variant="outline" disabled={loading} onClick={()=>void load(true)}>{loading?"Loading…":error?"Retry older estimates":"Load older estimates"}</Button>}
+  </div>;
+}
+
+type WeatherDay={date:string;temperatureMax:number|null;temperatureMin:number|null;rainChance:number|null;windMax:number|null};
+type WeatherResponse={location:string;updatedAt:string;current:{temperature:number;description:string};daily:WeatherDay[]};
+function WeatherConditionIcon({description}:{description:string}){
+ const kind=weatherIconKind(description);
+ const Icon=kind==="sun"?Sun:kind==="sun-cloud"?CloudSun:kind==="clear"?Moon:
+  kind==="moon-cloud"?CloudMoon:kind==="rain"?CloudRain:kind==="snow"?CloudSnow:
+  kind==="storm"?CloudLightning:kind==="fog"?CloudFog:kind==="wind"?Wind:Cloud;
+ return <Icon aria-hidden="true" />;
+}
+function ScheduleWeather({nextJobAt,compact=false,requestedJobAt=null}:{nextJobAt?:string|null;compact?:boolean;requestedJobAt?:string|null;reviewKey?:number}){
+ const [weather,setWeather]=useState<WeatherResponse|null>(null);
+ const [unavailable,setUnavailable]=useState(false);
+ const [weatherReload,setWeatherReload]=useState(0);
+ const [weatherRefreshing,setWeatherRefreshing]=useState(false);
+ useEffect(()=>{
+  let cancelled=false;let running=false;const controller=new AbortController();
+  const load=async()=>{
+   if(running||cancelled)return;
+   running=true;setWeatherRefreshing(true);
+   try{
+    const response=await fetch("/api/weather",{cache:"no-store",signal:controller.signal});
+    if(!response.ok)throw Error("weather");
+    const result=await response.json() as WeatherResponse;
+    if(!Number.isFinite(result.current?.temperature)||!result.daily?.length)throw Error("weather");
+    if(!cancelled){setWeather(result);setUnavailable(false);}
+   }catch{if(!cancelled)setUnavailable(true);}
+   finally{running=false;if(!cancelled)setWeatherRefreshing(false);}
+  };
+  const resume=()=>{if(document.visibilityState==="visible")void load();};
+  void load();
+  const timer=window.setInterval(()=>void load(),15*60*1000);
+  window.addEventListener("focus",resume);document.addEventListener("visibilitychange",resume);
+  return()=>{cancelled=true;controller.abort();window.clearInterval(timer);window.removeEventListener("focus",resume);document.removeEventListener("visibilitychange",resume);};
+ },[weatherReload]);
+ if(unavailable&&!weather)return <section className="weather-strip weather-simple unavailable"><CloudRain/><div><strong>Weather unavailable</strong><button type="button" className="weather-week-retry" disabled={weatherRefreshing} onClick={()=>setWeatherReload(n=>n+1)} aria-label="Retry seven-day Tulsa forecast">{weatherRefreshing?"Checking…":"Try again"}</button></div></section>;
+ if(!weather)return <section className="weather-strip weather-simple loading"><CloudRain/><div><strong>Loading Tulsa weather…</strong></div></section>;
+ const days=weather.daily.slice(0,7);
+ const activeJobAt=requestedJobAt??nextJobAt;
+ const jobDate=activeJobAt&&Number.isFinite(Date.parse(activeJobAt))?new Date(activeJobAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):"";
+ const degrees=(value:number|null)=>value==null?"—":`${Math.round(value)}°`;
+ const rain=days.some(day=>day.rainChance!=null&&day.rainChance>=50);
+ const freeze=days.some(day=>day.temperatureMin!=null&&day.temperatureMin<=32);
+ const wind=days.some(day=>day.windMax!=null&&day.windMax>=20);
+ const heat=days.some(day=>day.temperatureMax!=null&&day.temperatureMax>=85);
+ const cautions=[...(rain?["Rain possible"]:[]),...(freeze?["Freezing temperatures possible"]:[]),...(wind?["Wind ≥20 mph possible"]:[]),...(heat?["Hot weather possible"]:[])];
+ return <section className={`weather-strip weather-simple ${compact?"home-weather":""}`} aria-label="Tulsa current and seven-day weather">
+   <div className={`weather-current condition-${weatherIconKind(weather.current.description)}`}>
+     <WeatherConditionIcon description={weather.current.description}/>
+     <span><small>{weather.location} · Current weather</small><strong>{degrees(weather.current.temperature)} · {weather.current.description}</strong></span>
+   </div>
+   <div className="weather-days" role="region" aria-label="Seven-day Tulsa weather forecast" tabIndex={0}>
+     {days.map(day=><article key={day.date} data-forecast-date={day.date} aria-label={new Date(day.date+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})} className={day.date===jobDate?"job-day":""}>
+       <small>{day.date===jobDate?`Next job · ${weatherDayHeading(day,new Date(weather.updatedAt).getTime())}`:weatherDayHeading(day,new Date(weather.updatedAt).getTime())}</small>
+       <strong>{formatDailyTemperatures(day)}</strong>
+       <span><CloudRain aria-hidden="true"/><span aria-label="Chance of rain">{day.rainChance==null?"—":`${Math.round(day.rainChance)}%`}</span></span>
+     </article>)}
+   </div>
+   {compact&&<small className="weather-scroll-hint" aria-hidden="true">Swipe to see all 7 days →</small>}
+   <div className="weather-simple-footer">
+     {cautions.length>0&&<small className="weather-simple-cautions">{cautions.join(" · ")}</small>}
+     <button type="button" disabled={weatherRefreshing} onClick={()=>setWeatherReload(n=>n+1)} aria-label={unavailable?"Retry seven-day Tulsa forecast":"Refresh seven-day Tulsa weather forecast"}>{weatherRefreshing?"Checking…":"Refresh"}</button>
+     {unavailable&&<small role="alert">Update failed · showing the last available forecast</small>}
+   </div>
+ </section>;
+}
+
+
+function ScheduleMonthCalendar({jobs,selectedDate,onSelectDate}:{jobs:EstimateRow[];selectedDate:string;onSelectDate:(date:string)=>void}){
+ const centralToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+ const [month,setMonth]=useState(()=>selectedDate.slice(0,7)||centralToday.slice(0,7));
+ // Keep the visible month aligned when a date is chosen through other schedule controls.
+ // Changing months also selects that month's first day, so the booking controls
+ // cannot silently keep an old month while the calendar displays a new one.
+ useEffect(()=>{if(/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(selectedDate))setMonth(selectedDate.slice(0,7));},[selectedDate]);
+ const first=new Date(month+"-01T12:00:00Z");
+ const year=first.getUTCFullYear(),monthIndex=first.getUTCMonth();
+ const count=new Date(Date.UTC(year,monthIndex+1,0)).getUTCDate();
+ const leading=first.getUTCDay();
+ const cells=Array.from({length:Math.ceil((leading+count)/7)*7},(_,index)=>{
+  const day=index-leading+1;
+  return day>=1&&day<=count?month+"-"+String(day).padStart(2,"0"):null;
+ });
+ const byDay=new Map<string,EstimateRow[]>();
+ for(const job of jobs){
+  if(!job.scheduledAt||!["scheduled","completed"].includes(job.status)||!Number.isFinite(Date.parse(job.scheduledAt)))continue;
+  const day=new Date(job.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  byDay.set(day,[...(byDay.get(day)??[]),job]);
+ }
+ const moveMonth=(offset:number)=>{
+  const next=new Date(Date.UTC(year,monthIndex+offset,1,12));
+  const nextDate=next.toISOString().slice(0,10);
+  setMonth(nextDate.slice(0,7));
+  onSelectDate(nextDate);
+ };
+ return <section className="schedule-month" role="region" aria-label="Monthly job calendar">
+  <header className="schedule-month-header">
+   <button type="button" aria-label="Previous month" onClick={()=>moveMonth(-1)}>←</button>
+   <h2>{first.toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"})}</h2>
+   <button type="button" aria-label="Next month" onClick={()=>moveMonth(1)}>→</button>
+   <button type="button" className="schedule-month-today" onClick={()=>{setMonth(centralToday.slice(0,7));onSelectDate(centralToday);}}>Today</button>
+  </header>
+  <div className="schedule-month-weekdays" aria-hidden="true">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(label=><span key={label}>{label}</span>)}</div>
+  <div className="schedule-month-grid" role="group" aria-label="Select a calendar date">
+   {cells.map((date,index)=>date?(()=>{
+    const jobsForDay=byDay.get(date)??[],scheduled=jobsForDay.filter(job=>job.status==="scheduled").length,completed=jobsForDay.length-scheduled;
+    return <button key={date} type="button" className={["schedule-month-day",date===selectedDate?"selected":"",date===centralToday?"today":""].filter(Boolean).join(" ")} aria-pressed={date===selectedDate} aria-label={new Date(date+"T12:00:00Z").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"UTC"})+", "+jobsForDay.length+" jobs: "+scheduled+" scheduled, "+completed+" completed"} onClick={()=>onSelectDate(date)}>
+      <span className="schedule-month-number">{Number(date.slice(-2))}</span>
+      <span className="schedule-month-dots" aria-hidden="true">{jobsForDay.slice(0,3).map(job=><i key={job.id} className={job.status==="completed"?"done":"booked"}/>)}{jobsForDay.length>3&&<small>+{jobsForDay.length-3}</small>}</span>
+    </button>;
+   })():<span key={"empty-"+index} className="schedule-month-empty" aria-hidden="true"/>)}
+  </div>
+  <div className="schedule-month-legend"><span><i className="booked"/> Scheduled</span><span><i className="done"/> Completed</span></div>
+ </section>;
+}
+
+function ScheduleView({ searchQuery,onNavigate,onOpenCustomer }:{searchQuery:string;onNavigate?:(tab:"customers"|"estimates")=>void;onOpenCustomer?:(customerId:string)=>void}) {
+  const [rows,setRows]=useState<EstimateRow[]>([]);
+  const [selected,setSelected]=useState<EstimateRow|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+    const [dayFilter,setDayFilter]=useState<"all"|"today"|"tomorrow"|"week"|"date">("date");
+  const [selectedDate,setSelectedDate]=useState(()=>new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"}));
+  const [openContactJobId,setOpenContactJobId]=useState<string|null>(null);
+  const [contactDraft,setContactDraft]=useState<{jobId:string;kind:"reminder"|"arrival";text:string;status:"copying"|"copied"|"manual"}|null>(null);
+  const [weatherReview,setWeatherReview]=useState<{at:string;key:number}|null>(null);
+  const [bookingDate,setBookingDate]=useState<string|null>(null);
+  const [showBookingOptions,setShowBookingOptions]=useState(false);
+  const [bookingSearch,setBookingSearch]=useState("");
+  const [bookingLimit,setBookingLimit]=useState(20);
+  const [scheduleCardLimit,setScheduleCardLimit]=useState(20);
+  const [attentionCardLimit,setAttentionCardLimit]=useState(10);
+  useEffect(()=>{setScheduleCardLimit(20);},[dayFilter,selectedDate,searchQuery]);
+  const weatherReviewCount=useRef(0);
+  const weatherPanelRef=useRef<HTMLDivElement>(null);
+  const planningToolsRef=useRef<HTMLDivElement>(null);
+  const reviewScheduledWeather=(scheduledAt:string)=>{
+    weatherReviewCount.current++;
+    setWeatherReview({at:scheduledAt,key:weatherReviewCount.current});
+    // Weather is always visible on Schedule; scroll directly to it.
+    weatherPanelRef.current?.scrollIntoView?.({block:"start",behavior:"smooth"});
+  };
+  // Drafts are local only. They never send a message or mark an appointment confirmed.
+  const copyScheduledMessage=async(job:EstimateRow,kind:"reminder"|"arrival")=>{
+    if(!job.scheduledAt||!Number.isFinite(Date.parse(job.scheduledAt)))return;
+    const when=new Date(job.scheduledAt).toLocaleString("en-US",{weekday:"long",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago",timeZoneName:"short"});
+    const customer=job.customer?.trim()||"there";
+    const service=job.service?.trim()||"exterior cleaning";
+    const message=kind==="reminder"
+      ?`Hi ${customer}! This is First In Response Exteriors. Just confirming your ${service} appointment for ${when}. Please let us know if anything has changed or if we need special access. Thank you!`
+      :`Hi ${customer}! This is First In Response Exteriors. I'm on my way for your ${service} appointment. I'll see you soon!`;
+    setContactDraft({jobId:job.id,kind,text:message,status:"copying"});
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(message);
+      setContactDraft(draft=>draft?.jobId===job.id&&draft.text===message?{...draft,status:"copied"}:draft);
+    }catch{
+      setContactDraft(draft=>draft?.jobId===job.id&&draft.text===message?{...draft,status:"manual"}:draft);
+    }
+  };
+  const loadRequest=useRef(0);
+  const load=async()=>{
+    const request=++loadRequest.current;
+    setLoading(true);setError("");setSelected(null);setWeatherReview(null);setOpenContactJobId(null);setContactDraft(null);
+    try{
+      const response=await fetch("/api/estimate-history?limit=50",{cache:"no-store"});
+      const result=await response.json() as {estimates?:EstimateRow[];error?:string};
+      if(!response.ok)throw new Error(result.error||"Schedule could not be loaded.");
+      if(!Array.isArray(result.estimates))throw new Error("Schedule records could not be read. Try again.");
+      const complete=await completeEstimatePages<EstimateRow>(result,(url)=>fetch(url,{cache:"no-store"}),()=>request===loadRequest.current);if(!complete)return;
+      if(request!==loadRequest.current)return;
+      // Do not publish partial schedules, routes or currency figures from unverified reads.
+      // Cents must remain exact integers; financial strings from D1 are normal, fractional
+      // cents and unsafe numeric conversions are not.
+      const exactCents=(raw:unknown)=>{
+        // D1 may return decimal integer strings. Refuse negative, fractional,
+        // hexadecimal and scientific-notation amounts before exposing routes
+        // or job balances; never coerce a malformed financial record to zero.
+        if((typeof raw!=="number"&&typeof raw!=="string")||
+           (typeof raw==="string"&&!/^\d+$/.test(raw.trim()))||
+           !Number.isSafeInteger(Number(raw))||Number(raw)<0)
+          throw new Error("Schedule amounts could not be verified. Refresh before using balances or routes.");
+        return Number(raw);
+      };
+      const verified=complete.map((item)=>{
+        if(item.scheduledAt&&(!Number.isFinite(Date.parse(item.scheduledAt))||typeof item.scheduledAt!=="string"))
+          throw new Error("A job appointment date could not be verified. Refresh the schedule before using directions.");
+        return {...item,
+          subtotalCents:exactCents(item.subtotalCents??item.totalCents),
+          discountCents:exactCents(item.discountCents??0),
+          totalCents:exactCents(item.totalCents),
+          depositCents:exactCents(item.depositCents),
+          paidCents:exactCents(item.paidCents),
+          invoiceTotalCents:item.invoiceTotalCents==null?null:exactCents(item.invoiceTotalCents)
+        };
+      });
+      setRows(verified);
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Schedule could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
+  const matches=(row:EstimateRow)=>[row.customer,row.service,row.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase());
+  const now=useCurrentTime();
+  // Advisory only: a shared start minute is worth reviewing, but without
+  // duration/crew data it does not prove the two jobs actually overlap.
+  // Calculate across all verified records so a search cannot conceal another job.
+  const bookedMinutes=new Map<number,Set<string>>();
+  for(const job of rows){
+    if(job.status!=="scheduled"||!job.scheduledAt||!job.id)continue;
+    const start=Date.parse(job.scheduledAt);
+    if(!Number.isFinite(start)||start+60_000<=now)continue;
+    const minute=Math.floor(start/60_000);
+    const ids=bookedMinutes.get(minute)??new Set<string>();
+    ids.add(job.id);bookedMinutes.set(minute,ids);
+  }
+  const startConflicts=[...bookedMinutes].filter(([,ids])=>ids.size>1)
+    .sort(([a],[b])=>a-b).map(([minute,ids])=>({minute,ids:[...ids]}));
+  const startConflictIds=new Set(startConflicts.flatMap(conflict=>conflict.ids));
+  // Complete verified owner list only; neither search nor date filters can hide
+  // another appointment. Equal start minutes already have a separate warning.
+  const turnarounds=tightScheduleTurnarounds(rows,now);
+  const scheduled=rows.filter((row)=>row.scheduledAt&&matches(row)).sort((a,b)=>new Date(a.scheduledAt!).getTime()-new Date(b.scheduledAt!).getTime());
+  const needsAttention=scheduled.filter((row)=>new Date(row.scheduledAt!).getTime()<now&&row.status!=="declined"&&(row.status!=="completed"||row.paidCents<resolvedBillingTotalCents(row)));
+  const tulsaDay=(value:string|number)=>new Date(value).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  const today=tulsaDay(now),tomorrowDate=new Date(today+"T12:00:00Z");tomorrowDate.setUTCDate(tomorrowDate.getUTCDate()+1);const tomorrow=tomorrowDate.toISOString().slice(0,10);
+  const weekEnd=new Date(today+"T12:00:00Z");weekEnd.setUTCDate(weekEnd.getUTCDate()+6);
+  const lastWeekDay=weekEnd.toISOString().slice(0,10);
+  const selectAdjacentDay=(step:-1|1)=>{
+    const base=dayFilter==="date"&&selectedDate?selectedDate:today;
+    const day=new Date(base+"T12:00:00Z");
+    if(!Number.isFinite(day.getTime()))return;
+    day.setUTCDate(day.getUTCDate()+step);
+    const next=day.toISOString().slice(0,10);
+    setSelectedDate(next);setDayFilter("date");setWeatherReview(null);
+  };
+  // A missing field is an owner checklist cue, never a claim that a customer's
+  // saved profile or a job site has been independently verified.
+  const safePhone=(value?:string)=>{
+    const raw=value?.trim()??"";
+    const digits=/^[+0-9().\s-]+$/.test(raw)?raw.replace(/\D/g,""):"";
+    return digits.length===10?"+1"+digits:digits.length===11&&digits.startsWith("1")?"+"+digits:null;
+  };
+  const safeEmail=(value?:string)=>{
+    const raw=value?.trim()??"";
+    return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(raw)?raw:null;
+  };
+  const allVerifiedUpcoming=rows.filter(row=>row.status==="scheduled"&&row.scheduledAt&&Date.parse(row.scheduledAt)>=now)
+    .sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+  const jobPrepIssues=allVerifiedUpcoming.map(job=>({
+    job,missingAddress:!job.address?.trim(),missingContact:!safePhone(job.phone)&&!safeEmail(job.email)
+  })).filter(issue=>issue.missingAddress||issue.missingContact);
+  const allUpcoming=scheduled.filter((row)=>new Date(row.scheduledAt!).getTime()>=now&&row.status==="scheduled");
+  const todayCount=allUpcoming.filter(row=>tulsaDay(row.scheduledAt!)===today).length;
+  const tomorrowCount=allUpcoming.filter(row=>tulsaDay(row.scheduledAt!)===tomorrow).length;
+  const weekCount=allUpcoming.filter(row=>tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay).length;
+  // Date-specific browsing also shows already-completed work, even for past days;
+  // the normal upcoming windows remain strictly future scheduled appointments.
+  const selectedDaySavedJobs=rows.filter(job=>job.scheduledAt&&["scheduled","completed"].includes(job.status)&&tulsaDay(job.scheduledAt!)===selectedDate);
+  const nextBookedJob=dayFilter==="date"&&selectedDaySavedJobs.length===0
+    ?allVerifiedUpcoming.find(job=>tulsaDay(job.scheduledAt!)>selectedDate)
+    :undefined;
+  const chosenDayJobs=dayFilter==="date"&&selectedDate
+    ?scheduled.filter(row=>(row.status==="scheduled"||row.status==="completed")&&tulsaDay(row.scheduledAt!)===selectedDate)
+    :null;
+  const upcoming=chosenDayJobs??allUpcoming.filter(row=>dayFilter==="all"||
+    (dayFilter==="today"?tulsaDay(row.scheduledAt!)===today:
+    dayFilter==="tomorrow"?tulsaDay(row.scheduledAt!)===tomorrow:
+    tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay));
+  // Route discovery must use ALL verified upcoming appointments, never the
+  // global text-search list. Search can hide a job card, but must not silently
+  // remove its stop from driving directions or route-missing-address warnings.
+  // Date/window selections still determine the work day being routed.
+  const visibleUpcoming=upcoming.slice(0,scheduleCardLimit);
+  const visibleAttention=needsAttention.slice(0,attentionCardLimit);
+  const routeDayCandidates=allVerifiedUpcoming.filter(row=>
+    dayFilter==="date"?tulsaDay(row.scheduledAt!)===selectedDate:
+    dayFilter==="today"?tulsaDay(row.scheduledAt!)===today:
+    dayFilter==="tomorrow"?tulsaDay(row.scheduledAt!)===tomorrow:
+    dayFilter==="week"?tulsaDay(row.scheduledAt!)<=lastWeekDay:true);
+  const routeDate=routeDayCandidates[0]?.scheduledAt?new Date(routeDayCandidates[0].scheduledAt):null;
+  const routeDayJobs=routeDate?routeDayCandidates.filter(row=>tulsaDay(row.scheduledAt!)===tulsaDay(routeDate.getTime())):[];
+  const routeMissingAddress=routeDayJobs.filter(row=>!row.address?.trim());
+  const routeWithAddress=routeDayJobs.filter(row=>!!row.address?.trim());
+  // Eight new jobs per segment is intentionally conservative for maps waypoint
+  // limits; continuation routes explicitly start at the prior segment's last stop.
+  const routeGroups=Array.from({length:Math.ceil(routeWithAddress.length/8)},(_,index)=>{
+    const jobs=routeWithAddress.slice(index*8,(index+1)*8);
+    const previous=index>0?routeWithAddress[index*8-1]:null;
+    const origin=previous?`&origin=${encodeURIComponent(previous.address!.trim())}`:"";
+    const url=`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate${origin}&destination=${encodeURIComponent(jobs.at(-1)!.address!.trim())}${jobs.length>1?`&waypoints=${jobs.slice(0,-1).map(job=>encodeURIComponent(job.address!.trim())).join("%7C")}`:""}`;
+    return {url,jobs,start:index*8+1,end:index*8+jobs.length};
+  });
+  const routeJobs=routeGroups[0]?.jobs??[];
+  const routeUrl=routeGroups[0]?.url??"";
+  const readyToBook=rows.filter(job=>job.status==="approved"&&!job.scheduledAt);
+  const filteredReadyToBook=readyToBook.filter(job=>[job.customer,job.service,job.address].join(" ").toLowerCase().includes(bookingSearch.trim().toLowerCase()));
+  const routeLabel=routeDate&&tulsaDay(routeDate.getTime())===today?"Route today":routeDate&&tulsaDay(routeDate.getTime())===tomorrow?"Route tomorrow":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"})}`:"Route next jobs";
+  return <div className="workspace-view schedule-view"><EstimateDetail estimate={loading||error?null:selected} initialScheduleDay={bookingDate} onClose={()=>{setSelected(null);setBookingDate(null);}} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><h1>Schedule</h1></div><div className="schedule-header-actions"><button type="button" disabled={loading} aria-label="Refresh schedule" title="Refresh schedule" onClick={()=>void load()}><RefreshCw aria-hidden="true"/></button></div></section>{!loading&&!error&&<ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}/>}
+  {!loading&&!error&&<section className="schedule-day-actions" aria-label="Selected calendar day">
+   <div><strong>{new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}</strong><small>{selectedDaySavedJobs.length} saved {selectedDaySavedJobs.length===1?"job":"jobs"}</small></div>
+   {nextBookedJob&&<button type="button" className="schedule-next-booked" aria-label="Jump to next booked day" onClick={()=>{setSelectedDate(tulsaDay(nextBookedJob.scheduledAt!));setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}>Next booked: {new Date(nextBookedJob.scheduledAt!).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Chicago"})} <ChevronRight aria-hidden="true"/></button>}
+   <div className="schedule-day-buttons">
+    <button type="button" onClick={()=>{setShowBookingOptions(v=>!v);setBookingSearch("");setBookingLimit(20);}} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
+    {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/><span className="route-day-label">{routeLabel}</span><small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}{searchQuery.trim()?" · search does not filter route":""}</small></a>}
+   </div>
+   {showBookingOptions&&<div id="schedule-choose-job" className="schedule-choose-job" role="region" aria-label="Choose an approved job to schedule">
+    <strong>Choose an approved job</strong>
+    {readyToBook.length>6&&<div className="schedule-booking-search"><label htmlFor="schedule-booking-find">Find approved job</label><div><input id="schedule-booking-find" type="search" maxLength={128} value={bookingSearch} placeholder="Customer, service or address" onChange={event=>{setBookingSearch(event.target.value);setBookingLimit(20);}}/>{bookingSearch&&<button type="button" onClick={()=>{setBookingSearch("");setBookingLimit(20);}}>Clear</button>}</div><small role="status">{filteredReadyToBook.length} of {readyToBook.length} ready to schedule</small></div>}
+    {filteredReadyToBook.length?filteredReadyToBook.slice(0,bookingLimit).map(job=><button type="button" key={job.id} onClick={()=>{setBookingDate(selectedDate);setSelected(job);setShowBookingOptions(false);setBookingSearch("");setBookingLimit(20);}}>{job.customer} · {job.service}<ChevronRight aria-hidden="true"/></button>):<p>{readyToBook.length?"No approved jobs match this search. Clear the search to see the full list.":"No approved jobs waiting for a date."}</p>}
+    {filteredReadyToBook.length>bookingLimit&&<button type="button" className="schedule-booking-more" onClick={()=>setBookingLimit(count=>Math.min(count+20,filteredReadyToBook.length))}>Show next {Math.min(20,filteredReadyToBook.length-bookingLimit)} jobs · {filteredReadyToBook.length-bookingLimit} remaining</button>}
+    <button type="button" onClick={()=>onNavigate?.("estimates")}>Open estimates <ChevronRight aria-hidden="true"/></button>
+    <button type="button" onClick={()=>onNavigate?.("customers")}>Add customer <ChevronRight aria-hidden="true"/></button>
+   </div>}
+  </section>}
+  {!loading&&!error&&<section className="schedule-board"><header><h2>{dayFilter==="date"?"Selected day’s jobs":"Upcoming jobs"}</h2><span>{upcoming.length}</span></header>{upcoming.length?visibleUpcoming.map((job)=>{const phone=safePhone(job.phone);const email=safeEmail(job.email);const nearDay=tulsaDay(job.scheduledAt!);const nearTerm=job.status==="scheduled"&&Date.parse(job.scheduledAt!)>=now&&(nearDay===today||nearDay===tomorrow);const missingAddress=!job.address?.trim();const missingContact=!phone&&!email;return <div className={`schedule-job-shell${nearTerm&&(missingAddress||missingContact)?" schedule-job-needs-prep":""}`} key={job.id}><button className="schedule-job" onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{jobNumberLabel(job.jobNumber)&&<>{jobNumberLabel(job.jobNumber)} · </>}{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small><em>{job.address||"No address saved"}</em>{nearTerm&&<span className="schedule-job-inline-flags">{dayFilter!=="today"&&dayFilter!=="tomorrow"&&<small className="schedule-job-day-chip">{nearDay===today?"Today":"Tomorrow"}</small>}{missingAddress&&<small className="schedule-job-prep-chip">Review address</small>}{missingContact&&<small className="schedule-job-prep-chip">Review contact</small>}</span>}{dayFilter==="date"&&<small className="schedule-history-status">{statusLabel(job.status)}</small>}{startConflictIds.has(job.id)&&<small className="schedule-conflict-chip">Shares a start time — review</small>}</span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>{job.status==="scheduled"&&Date.parse(job.scheduledAt!)>=now&&<div className="schedule-job-utilities">{job.address?.trim()&&<a className="schedule-job-directions-action" aria-label={`Directions to ${job.customer} job`} href={`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(job.address.trim())}`} target="_blank" rel="noopener noreferrer"><Navigation aria-hidden="true"/> Directions</a>}{(phone||email)&&<button type="button" className="schedule-job-contact-toggle" aria-label={`Contact ${job.customer} for scheduled job`} aria-expanded={openContactJobId===job.id} onClick={()=>{setContactDraft(null);setOpenContactJobId(current=>current===job.id?null:job.id);}}><Phone aria-hidden="true"/> Contact</button>}{onOpenCustomer&&job.customerId?.trim()&&<button type="button" className="schedule-job-customer-action" aria-label={`View ${job.customer} profile`} onClick={()=>onOpenCustomer(job.customerId!)}><Users aria-hidden="true"/> Customer</button>}<button type="button" className="schedule-job-weather-action" aria-label={`Check weather for ${job.customer} job`} onClick={()=>reviewScheduledWeather(job.scheduledAt!)}><CloudSun aria-hidden="true"/> Weather</button></div>}{openContactJobId===job.id&&(phone||email)&&<div className="schedule-job-contact-panel" role="group" aria-label={`Contact options for ${job.customer}`}>{phone&&<><GoogleVoiceCallAction phone={phone} customerName={job.customer}/><PersonalPhoneBackupAction phone={phone} mode="call" customerName={job.customer}/><GoogleVoiceTextAction phone={phone} customerName={job.customer} message={contactDraft?.jobId===job.id?contactDraft.text:undefined} label="Text" ariaLabel={`Text ${job.customer} about scheduled job using Google Voice`}/><PersonalPhoneBackupAction phone={phone} mode="text" message={contactDraft?.jobId===job.id?contactDraft.text:undefined} customerName={job.customer}/></>}{email&&<a aria-label={`Email ${job.customer} about scheduled job`} href={"mailto:"+encodeURIComponent(email)}><Mail aria-hidden="true"/> Email</a>}<div className="schedule-job-message-tools"><button type="button" aria-label={`Copy appointment reminder for ${job.customer}`} onClick={()=>void copyScheduledMessage(job,"reminder")}><Copy aria-hidden="true"/> Copy reminder</button>{nearDay===today&&<button type="button" aria-label={`Copy on-my-way message for ${job.customer}`} onClick={()=>void copyScheduledMessage(job,"arrival")}><Copy aria-hidden="true"/> Copy on my way</button>}</div>{contactDraft?.jobId===job.id&&<div className="schedule-job-message-preview"><strong role="status">{contactDraft.status==="copied"?"Message copied — paste into a text or email.":contactDraft.status==="manual"?"Clipboard unavailable — select and copy this message manually.":"Copying message…"}</strong><textarea readOnly aria-label={`Prepared message for ${job.customer}`} value={contactDraft.text} rows={3} onFocus={event=>event.currentTarget.select()}/><small>Review or edit after pasting. Nothing was sent or marked confirmed.</small></div>}<small>Contact links open your phone apps; nothing is sent automatically.</small></div>}</div>}):dayFilter==="date"?<div className="schedule-day-empty" role="status"><CalendarDays aria-hidden="true"/><span>No jobs on this day</span></div>:<div className="record-empty"><CalendarDays/><strong>{dayFilter==="all"?"No upcoming jobs":dayFilter==="today"?"No upcoming jobs today":dayFilter==="tomorrow"?"No upcoming jobs tomorrow":"No upcoming jobs in the next 7 days"}</strong><p>{dayFilter==="all"?"Open an approved estimate and save a job date.":"Choose All upcoming to see later appointments. Past-due work remains under Needs attention."}</p></div>}{upcoming.length>scheduleCardLimit&&<button type="button" className="schedule-show-more" onClick={()=>setScheduleCardLimit(count=>Math.min(count+20,upcoming.length))}>Show next {Math.min(20,upcoming.length-scheduleCardLimit)} jobs · {upcoming.length-scheduleCardLimit} remaining</button>}</section>}
+  {!loading&&!error&&(startConflicts.length>0||turnarounds.length>0||jobPrepIssues.length>0)&&<button type="button" className="schedule-check-shortcut" aria-label="Review upcoming schedule checks" onClick={()=>{const panel=planningToolsRef.current;if(panel)panel.scrollIntoView({block:"start",behavior:"smooth"});}}>
+   <AlertTriangle aria-hidden="true"/>
+   <span><strong>Upcoming schedule checks</strong><small>{[startConflicts.length?`${startConflicts.length} same-time start${startConflicts.length===1?"":"s"}`:null,turnarounds.length?`${turnarounds.length} tight gap${turnarounds.length===1?"":"s"}`:null,jobPrepIssues.length?`${jobPrepIssues.length} missing-detail job${jobPrepIssues.length===1?"":"s"}`:null].filter(Boolean).join(" · ")}</small></span>
+   <ChevronRight aria-hidden="true"/>
+  </button>}
+    {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
+      {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2></div><b>{needsAttention.length}</b></header>{visibleAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}{needsAttention.length>attentionCardLimit&&<button type="button" className="schedule-show-more" onClick={()=>setAttentionCardLimit(count=>Math.min(count+10,needsAttention.length))}>Show next {Math.min(10,needsAttention.length-attentionCardLimit)} attention items · {needsAttention.length-attentionCardLimit} remaining</button>}</section>}
+      <div ref={planningToolsRef} className="schedule-planning-content">
+        <div className="schedule-weather-anchor" ref={weatherPanelRef}><ScheduleWeather nextJobAt={!loading&&!error?(weatherReview?.at??upcoming.find(row=>row.status==="scheduled"&&Date.parse(row.scheduledAt!)>=now)?.scheduledAt):undefined} requestedJobAt={!loading&&!error?weatherReview?.at:null} reviewKey={!loading&&!error?weatherReview?.key:0}/></div>
+        {routeDate&&(routeGroups.length>1||routeMissingAddress.length>0)&&<section className={`schedule-route-review${routeMissingAddress.length?" schedule-route-missing":""}`} role="region" aria-label="Route coverage review"><div><strong>{routeLabel} · check stops</strong><p>{routeWithAddress.length} of {routeDayJobs.length} upcoming job{routeDayJobs.length===1?"":"s"} on this day have usable saved addresses. {routeGroups.length>1?`Open ${routeGroups.length} route segments in appointment order.`:""}</p></div>{routeMissingAddress.length>0&&<div className="schedule-route-missing-list"><strong>{routeMissingAddress.length} stop{routeMissingAddress.length===1?"":"s"} not mapped — address missing</strong>{routeMissingAddress.map(job=><button type="button" key={job.id} onClick={()=>setSelected(job)}>{job.customer} · Review address <ChevronRight aria-hidden="true"/></button>)}</div>}{routeGroups.length>1&&<div className="schedule-route-extra-links"><strong>Additional route segments</strong>{routeGroups.slice(1).map(group=><a key={group.start} href={group.url} target="_blank" rel="noopener noreferrer" aria-label={`Route stops ${group.start} to ${group.end}`}><Navigation aria-hidden="true"/> Stops {group.start}–{group.end} <small>Continue from prior stop</small></a>)}</div>}<small>Routes follow scheduled stop order, not optimized driving time. Each segment includes at most eight new addressed stops; check Maps before driving.</small></section>}
+      {startConflicts.length>0&&<section className="schedule-start-conflicts" role="region" aria-label="Appointments sharing a start time"><div><strong>Check same-time appointments</strong><p>{startConflicts.length} start time{startConflicts.length===1?"":"s"} shared by multiple upcoming jobs. Review timing and travel; this is not a confirmed overlap.</p></div>{startConflicts.map(conflict=><button type="button" key={conflict.minute} onClick={()=>{setSelectedDate(tulsaDay(conflict.minute*60_000));setDayFilter("date");setWeatherReview(null);}}><span>{new Date(conflict.minute*60_000).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central · {conflict.ids.length} jobs</span><span>Review day <ChevronRight aria-hidden="true"/></span></button>)}</section>}
+      {turnarounds.length>0&&<section className="schedule-turnaround-review" role="region" aria-label="Closely spaced upcoming appointments">
+        <div><strong>Review tight turnaround times</strong>
+          <p>{turnarounds.length} consecutive start-time gap{turnarounds.length===1?"":"s"} of two hours or less on the same Tulsa work day. This is an advisory, not proof of overlapping jobs.</p>
+        </div>
+        <details className="schedule-turnaround-details"><summary>Review affected appointment pairs ({turnarounds.length})</summary>
+        {turnarounds.map(window=>{
+          const first=rows.filter(job=>window.firstIds.includes(job.id));
+          const next=rows.filter(job=>window.nextIds.includes(job.id));
+          return <div className="schedule-turnaround-pair" key={window.firstAt+"|"+window.nextAt}>
+            <strong>{window.gapMinutes} min between starts · {new Date(window.firstAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} → {new Date(window.nextAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central</strong>
+            <div className="schedule-turnaround-jobs">{[...first,...next].map(job=><button className="schedule-turnaround-job" key={job.id} type="button" onClick={()=>setSelected(job)} aria-label={`Review scheduled job for ${job.customer}`}>{job.customer} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}<ChevronRight aria-hidden="true"/></button>)}</div>
+          </div>;
+        })}
+        <small>Check actual cleaning duration, setup and driving time before committing to additional work. No appointment was moved or customer contacted.</small></details>
+      </section>}
+      {jobPrepIssues.length>0&&<details className="schedule-prep-alert" aria-label="Upcoming job details to review"><summary><span><strong>Check appointment details</strong><small>{jobPrepIssues.length} upcoming job{jobPrepIssues.length===1?"":"s"} missing an address or a usable phone/email in the job record</small></span><ChevronRight aria-hidden="true"/></summary><div className="schedule-prep-items">{jobPrepIssues.map(({job,missingAddress,missingContact})=><button type="button" key={job.id} onClick={()=>setSelected(job)}><span><strong>{job.customer}</strong><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central · {missingAddress?"Address missing":""}{missingAddress&&missingContact?" · ":""}{missingContact?"Phone/email missing":""}</small></span><span>Review <ChevronRight aria-hidden="true"/></span></button>)}</div><p>Checks use saved job details only. Review each customer profile if information is already available there.</p></details>}
+      <div className="schedule-window-controls" role="group" aria-label="Schedule date range">{(["all","today","tomorrow","week"] as const).map(value=><Button key={value} variant={dayFilter===value?"default":"outline"} aria-pressed={dayFilter===value} onClick={()=>{setDayFilter(value);setWeatherReview(null);}}>{value==="all"?`All upcoming (${allUpcoming.length})`:value==="today"?`Today (${todayCount})`:value==="tomorrow"?`Tomorrow (${tomorrowCount})`:`Next 7 days (${weekCount})`}</Button>)}</div>
+      <div className="schedule-date-picker" role="group" aria-label="Browse a specific schedule date">
+        <label htmlFor="schedule-specific-date">Choose a work date</label>
+        <div className="schedule-date-picker-actions">
+          <Button variant="outline" aria-label="Previous work date" title="Previous day" onClick={()=>selectAdjacentDay(-1)}>←</Button>
+          <input id="schedule-specific-date" aria-label="Choose a work date" type="date" value={dayFilter==="date"?selectedDate:""} onChange={event=>{setSelectedDate(event.target.value);setDayFilter(event.target.value?"date":"all");setWeatherReview(null);}}/>
+          <Button variant="outline" aria-label="Next work date" title="Next day" onClick={()=>selectAdjacentDay(1)}>→</Button>
+        </div>
+        {dayFilter==="date"&&selectedDate&&<p role="status">Showing scheduled and completed jobs for {new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric",timeZone:"UTC"})}. Driving routes are available only for future scheduled stops.</p>}
+      </div>
+      </div>
+
+    </>}
+  </div>;
+}
+
+function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:string;focusInvoiceId?:string|null;onFocusHandled?:(id:string)=>void}) {
+  const [rows,setRows]=useState<InvoiceRow[]>([]);
+  const [invoiceSearch,setInvoiceSearch]=useState("");
+  const [attentionOnly,setAttentionOnly]=useState(false);
+  const [invoiceLimit,setInvoiceLimit]=useState(40);
+  // The direct-link focus may expand the page beyond 40; keep it visible until the owner changes filters.
+  useEffect(()=>{setInvoiceLimit(40);},[searchQuery]);
+  const needsInvoiceAttention=(invoice:InvoiceRow)=>invoice.totalCents>Number(invoice.paidCents??0)||Boolean(invoice.paymentReviewPending)||Number(invoice.paymentOverageOpen)>0||Number(invoice.pendingRefundCount??0)>0;
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+  const loadRequest=useRef(0);
+  const load=async()=>{
+    const request=++loadRequest.current;
+    setLoading(true);setError("");
+    try{
+      const response=await fetch("/api/invoices");
+      const result=await response.json() as {invoices?:InvoiceRow[];error?:string};
+      if(!response.ok)throw new Error(result.error||"Invoices could not be loaded.");
+      if(!Array.isArray(result.invoices))throw new Error("Invoice records could not be read. Try again.");
+      if(request!==loadRequest.current)return;
+      // Do not silently coerce fractional, missing or corrupt money into an
+      // invoice balance, then offer the owner a payment action on that record.
+      // D1 can return integer cents as numbers or decimal integer strings.
+      const exactCents=(raw:unknown)=>{
+        if((typeof raw!=="number"&&typeof raw!=="string")||(typeof raw==="string"&&!/^\d+$/.test(raw.trim()))||
+           !Number.isSafeInteger(Number(raw))||Number(raw)<0)
+          throw new Error("Invoice amounts could not be verified. Refresh before taking payment.");
+        return Number(raw);
+      };
+      setRows(result.invoices.map((item)=>{
+        if(!item||typeof item.id!=="string"||!item.id||typeof item.estimateId!=="string"||!item.estimateId)
+          throw new Error("Invoice records could not be verified. Refresh before taking payment.");
+        return {...item,totalCents:exactCents(item.totalCents),paidCents:exactCents(item.paidCents??0),
+          depositCents:item.depositCents==null?undefined:exactCents(item.depositCents)};
+      }));
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Invoices could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
+  useEffect(()=>{
+    if(!focusInvoiceId||loading||error)return;
+    const invoice=rows.find(row=>row.id===focusInvoiceId);
+    if(!invoice){setError("The selected invoice is unavailable. Refresh the invoice list or check your connection.");onFocusHandled?.(focusInvoiceId);return;}
+    if(invoiceSearch||attentionOnly||invoiceLimit<rows.length){setInvoiceSearch("");setAttentionOnly(false);setInvoiceLimit(rows.length);}
+    const element=document.getElementById('invoice-'+invoice.id);
+    if(element){element.scrollIntoView({block:"center"});element.focus({preventScroll:true});onFocusHandled?.(focusInvoiceId);}
+  },[focusInvoiceId,loading,error,rows,invoiceSearch,attentionOnly,invoiceLimit]);
+  const visible=rows.filter(row=>
+    (!attentionOnly||needsInvoiceAttention(row))&&
+    [searchQuery,invoiceSearch].every(term=>[row.customer,row.service,row.status].join(" ").toLowerCase().includes(term.trim().toLowerCase()))
+  );
+  return <div className="workspace-view invoices-view"><section className="workspace-head"><div><h1>Invoices</h1></div></section>
+    {!loading&&!error&&rows.length>0&&<div className="invoice-directory-tools">
+      <label className="invoice-directory-search"><span className="sr-only">Find saved invoice</span><input type="search" aria-label="Find saved invoice" maxLength={128} value={invoiceSearch} onChange={event=>{setInvoiceSearch(event.target.value);setInvoiceLimit(40);}} placeholder="Find customer or service"/></label>
+      <button type="button" className={attentionOnly?"active":""} aria-pressed={attentionOnly} onClick={()=>{setAttentionOnly(value=>!value);setInvoiceLimit(40);}}>Needs attention · {rows.filter(needsInvoiceAttention).length}</button>
+      {(invoiceSearch||attentionOnly)&&<button type="button" onClick={()=>{setInvoiceSearch("");setAttentionOnly(false);setInvoiceLimit(40);}}>Clear filters</button>}
+      <small role="status">{visible.length} of {rows.length} invoices</small>
+    </div>}
+    {loading?<div className="customers-state">Loading invoices…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<><section className="invoice-list">{visible.slice(0,invoiceLimit).map((invoice)=>{const estimate={id:invoice.estimateId,customer:invoice.customer||"Customer",service:invoice.service||"Service",status:invoice.estimateStatus,depositCents:invoice.depositCents,totalCents:invoice.totalCents,paidCents:Number(invoice.paidCents??0)};return <article className="invoice-card" id={`invoice-${invoice.id}`} tabIndex={-1} key={invoice.id}><span className="invoice-icon"><Receipt/></span><div><strong>{invoice.customer}</strong>{customerNumberLabel(invoice.customerNumber)&&<small>{customerNumberLabel(invoice.customerNumber)}</small>}{jobNumberLabel(invoice.jobNumber)&&<small>{jobNumberLabel(invoice.jobNumber)}</small>}<small>{invoice.service} · Invoice #{invoice.id.slice(0,6).toUpperCase()}</small></div><InvoiceStatusIndicator invoice={invoice}/><div className="invoice-total"><strong>{money(invoice.totalCents)}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Billing exception open":`${money(Math.max(0,invoice.totalCents-Number(invoice.paidCents??0)))} balance`}</small></div><div className="invoice-actions">{invoice.shareToken&&<a href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=invoices`}><ExternalLink/>Open</a>}<RecordPayment key={estimate.id} estimate={estimate} onRecorded={()=>void load()}/></div></article>;})}</section>{visible.length>invoiceLimit&&<button type="button" className="invoice-directory-more" onClick={()=>setInvoiceLimit(n=>Math.min(n+40,visible.length))}>Show next {Math.min(40,visible.length-invoiceLimit)} invoices · {visible.length-invoiceLimit} remaining</button>}</>:<div className="customers-state"><Receipt/><strong>{rows.length?"No matching invoices":"No invoices yet"}</strong><p>{rows.length?"Change the search or clear Needs attention to see all invoices.":"Open an estimate and choose Create invoice."}</p>{rows.length>0&&(invoiceSearch||attentionOnly)&&<Button variant="outline" onClick={()=>{setInvoiceSearch("");setAttentionOnly(false);setInvoiceLimit(40);}}>Show all invoices</Button>}</div>}</div>;
+}
+
+function ContractsView({searchQuery,embedded=false}:{searchQuery:string;embedded?:boolean}){
+  const [rows,setRows]=useState<EstimateRow[]>([]);const [selected,setSelected]=useState<EstimateRow|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
+  const loadRequest=useRef(0);
+  const load=async()=>{
+    const request=++loadRequest.current;
+    setLoading(true);setError("");setSelected(null);
+    try{
+      const response=await fetch("/api/estimate-history?limit=50");
+      const result=await response.json() as {estimates?:EstimateRow[];error?:string};
+      if(!response.ok)throw new Error(result.error||"Agreements could not be loaded.");
+      if(!Array.isArray(result.estimates))throw new Error("Agreement records could not be read. Try again.");
+      if(request!==loadRequest.current)return;
+      const complete=await completeEstimatePages<EstimateRow>(result,fetch,()=>request===loadRequest.current);if(!complete)return;
+      // Agreements share the same strict cents boundary as the Estimates and Schedule lists.
+      // Malformed or unsafe values must never open a misleading signed financial record.
+      const exactWhole=(raw:unknown)=>{
+        if((typeof raw!=="string"&&typeof raw!=="number")||
+          (typeof raw==="string"&&!/^\d+$/.test(raw.trim()))||
+          !Number.isSafeInteger(Number(raw))||Number(raw)<0)
+          throw new Error("Agreement amounts or changes could not be verified. Refresh before opening agreements.");
+        return Number(raw);
+      };
+      setRows(complete.map((item)=>({...item,
+        subtotalCents:exactWhole(item.subtotalCents??item.totalCents),
+        discountCents:exactWhole(item.discountCents??0),
+        totalCents:exactWhole(item.totalCents),
+        depositCents:exactWhole(item.depositCents),
+        paidCents:exactWhole(item.paidCents),
+        pendingChangeCount:exactWhole(item.pendingChangeCount??0)
+      })));
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Agreements could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);const agreementRows=rows.filter(row=>Boolean(row.signedAt||row.acceptedAt||Number(row.pendingChangeCount)>0||["sent","viewed","approved","scheduled","completed"].includes(row.status)));const visible=agreementRows.filter((row)=>[row.customer,row.service,row.signedName].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));const signed=agreementRows.filter((row)=>row.signedAt).length;
+  return <div className={embedded?"agreements-embedded":"workspace-view"}><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={()=>{setSelected(null);void load();}}/>{!embedded&&<section className="workspace-head"><div><h1>Agreements</h1></div></section>}{!loading&&!error&&<details className="agreement-status-details"><summary>{signed} signed · {agreementRows.filter(row=>!row.signedAt).length} unsigned · Show details</summary><section className="business-metrics"><article><small>Signed agreements</small><strong>{signed}</strong></article><article><small>Unsigned records</small><strong>{agreementRows.filter(row=>!row.signedAt).length}</strong></article><article><small>Change requests</small><strong>{agreementRows.reduce((sum,row)=>sum+Number(row.pendingChangeCount??0),0)}</strong></article></section></details>}{loading?<div className="customers-state">Loading agreements…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<section className="contract-list">{visible.map((estimate)=><button key={estimate.id} onClick={()=>setSelected(estimate)}><span className={`contract-state ${estimate.signedAt?"signed":Number(estimate.pendingChangeCount)>0?"change":"pending"}`}>{estimate.signedAt?<PenLine/>:Number(estimate.pendingChangeCount)>0?<MessageSquareText/>:<Clock3/>}</span><span><strong>{estimate.customer}</strong>{customerNumberLabel(estimate.customerNumber)&&<small>{customerNumberLabel(estimate.customerNumber)}</small>}<small>{estimate.service} · {money(estimate.totalCents)}</small></span><AgreementStatusIndicators estimate={estimate}/><ChevronRight/></button>)}</section>:<div className="customers-state"><PenLine/><strong>{agreementRows.length?"No matching agreements":"No agreements yet"}</strong><p>{agreementRows.length?"Try another customer, service, or signer.":"Send an estimate for approval. Signed and pending agreements appear here."}</p></div>}</div>;
+}
+
+function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimate,onOpenCustomer}:{searchQuery:string;focusEstimateId?:string|null;onFocusHandled?:(id:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void}){
+  /** Read-only presentation: prepared/recorded never means sent or delivered. */
+  function contactLabel(event:{channel:string;template:string}){
+    const about=event.template==="estimate"?"Estimate":event.template==="invoice"?"Invoice":
+      event.template==="review"?"Review request":event.template.startsWith("followUp")?"Estimate follow-up":
+      event.template==="appointmentReminder"?"Appointment reminder":"Customer communication";
+    switch(event.channel){
+      case "text_confirmed":return {title:about+" · owner-confirmed text",detail:"Owner confirmed send · delivery unverified"};
+      case "email_confirmed":return {title:about+" · owner-confirmed email",detail:"Owner confirmed send · delivery unverified"};
+      case "text_prepared":case "email_prepared":return {title:about+" prepared",detail:"Sending unconfirmed"};
+      case "copy":return {title:about+" copied",detail:"Sending unconfirmed"};
+      case "contact_recorded":return {title:"Contact logged",detail:"Owner recorded contact · no send claimed"};
+      case "contact_no_answer":return {title:"No answer · still not contacted",detail:"Owner logged an unanswered attempt · no message sent or contact confirmed"};
+      case "followup_snoozed":return {title:"Reminder snoozed",detail:"No customer message claimed"};
+      default:return {title:"Legacy communication record",detail:"Sending and delivery unverified"};
+    }
+  }
+  /** Read-only saved estimate milestones: a timestamp is not proof of external delivery. */
+  function followupMilestones(estimate:EstimateRow){
+    const events:{key:string;at:string;title:string;time:number}[]=[];
+    const add=(key:string,at:string|null|undefined,title:string)=>{
+      const time=at?Date.parse(at):NaN;
+      if(Number.isFinite(time))events.push({key,at:at!,title,time});
+    };
+    add("created",estimate.createdAt,"Estimate created");
+    add("viewed",estimate.firstViewedAt,"Estimate viewed · approval not implied");
+    add("send-recorded",estimate.firstEstimateSentAt,"Estimate send recorded · delivery unverified");
+    add("last-send",estimate.lastEstimateSentAt,"Most recent estimate send recorded · delivery unverified");
+    add("contact",estimate.lastEstimateContactAt,"Estimate contact recorded");
+    add("manual",estimate.lastManualContactAt,"Manual contact logged · no message send claimed");
+    add("no-answer",estimate.lastNoAnswerAt,"No answer · customer still not contacted");
+    add("stage1",estimate.stage1At,"Day 1 follow-up stage recorded");
+    add("stage3",estimate.stage3At,"Day 3 follow-up stage recorded");
+    add("stage7",estimate.stage7At,"Day 7 follow-up stage recorded");
+    add("snooze",estimate.snoozeUntil,"Reminder snooze-until date recorded");
+    add("review",estimate.lastReviewRequestAt,"Review request status recorded");
+    return events.sort((a,b)=>b.time-a.time||a.key.localeCompare(b.key)).slice(0,6);
+  }
+  const followupGroup=(template:string,kind:"followup"|"repeat"|"review"|"history")=>
+    kind==="history"?"history":kind==="review"?"reviews":kind==="repeat"?"repeat":
+    ["invoiceReminder","overdue"].includes(template)?"billing":template==="appointmentReminder"?"schedule":"quotes";
+  const [rows,setRows]=useState<EstimateRow[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+  const [nextCursor,setNextCursor]=useState<string|null>(null);
+  const [reviewEstimate,setReviewEstimate]=useState<EstimateRow|null>(null);
+  const [focusError,setFocusError]=useState<{id:string;message:string}|null>(null);
+  const [actionStatus,setActionStatus]=useState("");
+  const [actionError,setActionError]=useState(false);
+  const [actionBusy,setActionBusy]=useState(false);
+  const [actionFilter,setActionFilter]=useState<"all"|"viewed"|"no-answer"|"quotes"|"billing"|"schedule"|"reviews"|"repeat"|"history">("all");
+  const [highPriorityOnly,setHighPriorityOnly]=useState(false);
+  const [urgencyFilter,setUrgencyFilter]=useState<"all"|"past-target"|"due"|"upcoming"|"review">("all");
+  const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
+  const [focusedRecord,setFocusedRecord]=useState<EstimateRow|null>(null);
+  const contactReadId=useRef(0);
+  const readContactHistory=(estimate:EstimateRow,template:string)=>{
+    const customerId:string=typeof estimate.customerId==="string"?estimate.customerId:"";
+    if(!customerId)return;
+    const key=estimate.id+":"+template,request=++contactReadId.current;
+    setContactHistory({key,status:"loading",events:[],hasMore:false});
+    void (async()=>{
+      try{
+        const url="/api/followup-contact-history?estimateId="+encodeURIComponent(estimate.id)+"&customerId="+encodeURIComponent(customerId);
+        const response=await fetch(url,{cache:"no-store"});
+        const data=await response.json() as {estimateId?:string;customerId?:string;events?:{id:string;channel:string;template:string;createdAt:string}[];hasMore?:boolean};
+        if(!response.ok||data.estimateId!==estimate.id||data.customerId!==customerId||!Array.isArray(data.events)||
+          data.events.length>12||typeof data.hasMore!=="boolean"||data.events.some(item=>!item||typeof item.id!=="string"||!item.id||
+            typeof item.channel!=="string"||typeof item.template!=="string"||typeof item.createdAt!=="string"||!Number.isFinite(Date.parse(item.createdAt))))
+          throw Error("History could not be verified");
+        if(request===contactReadId.current)setContactHistory({key,status:"ready",events:data.events,hasMore:data.hasMore});
+      }catch{if(request===contactReadId.current)setContactHistory({key,status:"error",events:[],hasMore:false});}
+    })();
+  };
+  const toggleContactHistory=(estimate:EstimateRow,template:string)=>{
+    if(contactHistory?.key===estimate.id+":"+template){contactReadId.current++;setContactHistory(null);return;}
+    readContactHistory(estimate,template);
+  };
+  const actionPending=useRef(false);
+  // Preserve one operation ID across uncertain replies, so retry cannot append a second history row.
+  const actionRetry=useRef<{customerId:string;estimateId:string;action:"contacted"|"snooze"|"no_answer";operationId:string}|null>(null);
+  const loadRequest=useRef(0);
+  const loadedPages=useRef(1);
+  const retryAppend=useRef(false);
+  const focusedLookup=useRef<{id:string;token:number}|null>(null);
+  const focusedLookupSequence=useRef(0);
+  const load=async(append=false,scanPages=1)=>{
+    const request=++loadRequest.current;
+    retryAppend.current=append;
+    setLoading(true);setError("");
+    try{
+      // Refresh every page already loaded; publish only after the full read succeeds.
+      // Each request remains bounded to 50 records. Never write or retry a send here.
+      // Explicit older-record scans read no more than four 50-item cursor pages.
+      // Publish only when every requested page succeeds; never save partial batches.
+      const pageLimit=append?Math.max(1,Math.min(4,Math.floor(scanPages))):loadedPages.current;
+      let cursor=append?nextCursor:null;
+      const incoming:EstimateRow[]=[];
+      let pagesRead=0;
+      for(let page=0;page<pageLimit;page++){
+        const response=await fetch(`/api/followups?limit=50${cursor?`&cursor=${encodeURIComponent(cursor)}`:""}`,{cache:"no-store"});
+        const result=await response.json() as {estimates?:EstimateRow[];nextCursor?:string|null;error?:string};
+        if(request!==loadRequest.current)return;
+        if(!response.ok)throw new Error(result.error||"Customer follow-ups could not be loaded.");
+        if(!Array.isArray(result.estimates)||!(result.nextCursor==null||typeof result.nextCursor==="string"))throw new Error("Follow-up records could not be read. Try again.");
+        incoming.push(...result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+        pagesRead++;
+        const following=result.nextCursor??null;
+        if(following&&following===cursor)throw new Error("Follow-up paging did not advance. Try again.");
+        cursor=following;
+        if(!cursor)break;
+      }
+      if(request!==loadRequest.current)return;
+      const unique=incoming.filter((item,index)=>incoming.findIndex(row=>row.id===item.id)===index);
+      setRows(current=>append?[...current,...unique.filter(item=>!current.some(row=>row.id===item.id))]:unique);
+      loadedPages.current=append?loadedPages.current+pagesRead:pagesRead;
+      setNextCursor(cursor);
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Customer follow-ups could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  const recordAction=async(estimate:EstimateRow,action:"contacted"|"snooze"|"no_answer")=>{
+    if(actionPending.current)return;
+    const customerId=estimate.customerId;
+    if(!customerId){setActionError(true);setActionStatus("This estimate has no verified customer. Refresh its record before recording contact or snooze.");return;}
+    const prior=actionRetry.current;
+    if(prior&&(prior.customerId!==customerId||prior.estimateId!==estimate.id||prior.action!==action)){
+      setActionError(true);
+      setActionStatus("An earlier follow-up save is unconfirmed. Retry the same action safely or refresh and review saved history before choosing a different action.");
+      return;
+    }
+    const attempt=prior??{customerId,estimateId:estimate.id,action,operationId:crypto.randomUUID()};
+    actionRetry.current=attempt;
+    actionPending.current=true;setActionBusy(true);setActionStatus("");setActionError(false);
+    try{
+      const response=await fetch("/api/followup-actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(attempt)});
+      const result=await response.json() as {action?:string;createdAt?:string;snoozeUntil?:string|null;error?:string};
+      const createdAt=typeof result?.createdAt==="string"&&Number.isFinite(Date.parse(result.createdAt))?result.createdAt:null;
+      const snoozeUntil=typeof result?.snoozeUntil==="string"&&Number.isFinite(Date.parse(result.snoozeUntil))?result.snoozeUntil:null;
+      if(!response.ok||result.action!==action||!createdAt||(action==="snooze"&&(!snoozeUntil||Date.parse(snoozeUntil)<=Date.parse(createdAt))))
+        throw Error(result?.error||"Action save could not be verified.");
+      // The idempotent API has confirmed this exact attempt. No automatic POST retries.
+      actionRetry.current=null;
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+      setRows(current=>current.map(row=>row.id===estimate.id?{...row,...(action==="contacted"?{lastManualContactAt:createdAt}:action==="snooze"?{snoozeUntil}:{lastNoAnswerAt:createdAt,noAnswerCount:(Number(row.noAnswerCount)||0)+1})}:row));
+      setActionStatus(action==="contacted"?"Contact recorded. Estimate reminders paused for 24 hours; no message send is claimed.":action==="no_answer"?"No answer recorded. Customer remains NOT contacted; follow-up reminder is still available. No message was sent.":"Estimate reminders snoozed for 7 days. Billing reminders remain active.");
+      await load();
+    }catch{
+      setActionError(true);
+      setActionStatus("Follow-up action not confirmed. Review saved history before retrying. Retrying the same action reuses its original operation ID to avoid a duplicate.");
+    }finally{actionPending.current=false;setActionBusy(false);}
+  };
+  useEffect(()=>{void load();return()=>{loadRequest.current++;focusedLookup.current=null;};},[]);
+  const now=Math.max(useCurrentTime(),Date.now());
+  // A notification's exact older record is displayed separately from page scans.
+  const actionRows=focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)?[...rows,focusedRecord]:rows;
+  const actions=actionRows.flatMap((estimate)=>{
+    const {ageDays,confirmedContact}=estimateFollowUpTiming(estimate,now);
+    const quoteReason=(days:number)=>estimate.status==="draft"?`Unsent draft is at least ${days} day${days===1?"":"s"} old — prepare the estimate`:confirmedContact?`No confirmed estimate contact for at least ${days} day${days===1?"":"s"}`:`Estimate has been open at least ${days} day${days===1?"":"s"}; send date unconfirmed`;
+    const scheduledTime=estimate.scheduledAt?new Date(estimate.scheduledAt).getTime():0;
+    const items:{estimate:EstimateRow;template:string;reason:string;priority:number;kind:"followup"|"repeat"|"review"|"history";dueAt?:string|null}[]=[];
+    if(Number(estimate.paymentOverageOpen)>0||Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)items.push({estimate,template:"invoiceReminder",reason:"Billing exception: open overpayment, refund or checkout needs verification before customer outreach",priority:6,kind:"history"});
+    else if(estimate.invoiceId&&billingBalanceCents(estimate)>0)items.push({estimate,template:"invoiceReminder",reason:"Invoice balance needs a reminder",priority:4,kind:"followup"});
+    else if(estimate.status==="scheduled"&&scheduledTime>now&&scheduledTime-now<=36*3600000)items.push({estimate,template:"appointmentReminder",reason:"Job is coming up within 36 hours",priority:5,kind:"followup"});
+    else if(estimate.status==="draft"&&!estimate.invoiceId&&estimate.paidCents<resolvedBillingTotalCents(estimate)&&ageDays>=1)items.push({estimate,template:"estimate",reason:quoteReason(ageDays>=7?7:ageDays>=3?3:1),priority:1,kind:"followup"});
+    else if(estimate.status==="sent"&&!estimate.invoiceId&&estimate.paidCents<resolvedBillingTotalCents(estimate)){
+      const stage=estimateReminderStage(estimate,now);
+      if(stage.reviewReason)items.push({estimate,template:"history",reason:stage.reviewReason,priority:2,kind:"history"});
+      else if(stage.template){
+         const viewed=viewedEstimateReminderCue(estimate,now);
+         items.push({estimate,template:stage.template,reason:viewed?`Estimate viewed ${viewed.hoursSinceView}h ago; approval not recorded. Consider a friendly check-in — no reason for delay is assumed.`:`Confirmed estimate follow-up: ${stage.template==="followUp7"?7:stage.template==="followUp3"?3:1}-day stage`,priority:viewed?4:stage.template==="followUp7"?3:stage.template==="followUp3"?2:1,kind:"followup"});
+       }
+    }
+    const serviceDate=estimate.scheduledAt||estimate.createdAt;
+    const serviceAgeDays=Math.max(0,Math.floor((now-new Date(serviceDate).getTime())/86400000));
+    if(reviewFollowupEligible({...estimate,billingTotalCents:resolvedBillingTotalCents(estimate)},serviceAgeDays,now))items.push({estimate,template:"review",reason:"Paid and complete — ask for a Google-first review",priority:4,kind:"review"});
+    if(estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&!estimate.lastRebookMessageAt){const cadence=estimate.repeatMonths===null?0:estimate.repeatMonths??repeatCadenceMonths(estimate.service);if(cadence===0)return items;const due=addMonths(serviceDate,cadence);const daysUntil=Math.ceil((due.getTime()-now)/86400000);if(daysUntil<=45)items.push({estimate,template:cadence<=6?"winBack6":"winBack11",reason:daysUntil<0?`Suggested repeat-service target was ${Math.abs(daysUntil)} days ago`:`Repeat service is suggested in ${daysUntil} days`,priority:daysUntil<0?4:2,kind:"repeat",dueAt:due.toISOString()});}
+    return items;
+  }).filter((item)=>item.estimate.id===focusedRecord?.id||[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>followupUrgency(a,now).rank-followupUrgency(b,now).rank||b.priority-a.priority||(Date.parse(a.estimate.createdAt)||0)-(Date.parse(b.estimate.createdAt)||0)||a.estimate.id.localeCompare(b.estimate.id));
+  // Owner-side triage: high priority is an ordering cue, never an overdue or
+  // delivery claim. Saved-record exceptions always remain reviewable.
+  const isHighPriority=(item:{priority:number;kind:"followup"|"repeat"|"review"|"history";template:string;estimate:EstimateRow;dueAt?:string|null})=>item.priority>=4||item.kind==="history"||followupUrgency(item,now).bucket==="past-target"||followupUrgency(item,now).rank<=1;
+  const highPriorityCount=actions.filter(isHighPriority).length;
+  const bucketCount=(bucket:"past-target"|"due"|"upcoming"|"review")=>actions.filter(item=>followupUrgency(item,now).bucket===bucket).length;
+  const isViewedReady=(item:{estimate:EstimateRow;template:string;kind:"followup"|"repeat"|"review"|"history"})=>
+    item.kind==="followup"&&["followUp1","followUp3","followUp7"].includes(item.template)&&
+    !item.estimate.invoiceId&&Number(item.estimate.paymentOverageOpen)===0&&Number(item.estimate.pendingRefundCount)===0&&Number(item.estimate.openCheckoutCount)===0&&
+    viewedEstimateReminderCue(item.estimate,now)!==null;
+  // A separate count for viewed-but-unverified jobs lets owners spot data that
+  // needs a status check without falsely recommending another message.
+  const viewedReviewCount=actionRows.filter(estimate=>estimate.status==="sent"&&!estimate.invoiceId&&
+    Number(estimate.paymentOverageOpen)===0&&Number(estimate.pendingRefundCount)===0&&Number(estimate.openCheckoutCount)===0&&
+    typeof estimate.firstViewedAt==="string"&&Number.isFinite(Date.parse(estimate.firstViewedAt))&&
+    Date.parse(estimate.firstViewedAt)<=now-86400000&&
+    !estimate.acceptedAt&&!estimate.scheduledAt&&
+    !estimate.stage1At&&!estimate.stage3At&&!estimate.stage7At&&
+    !estimate.lastEstimateContactAt&&!estimate.lastManualContactAt&&
+    !estimate.lastConfirmedMessageAt&&
+    !actions.some(item=>item.estimate.id===estimate.id&&isViewedReady(item))).length;
+  const viewedReadyCount=actions.filter(isViewedReady).length;
+  const isUncontactedMissed=(item:{estimate:EstimateRow;kind:string})=>item.kind==="followup"&&noAnswerStillUncontacted(item.estimate,now);
+  const unansweredCount=actions.filter(isUncontactedMissed).length;
+  const visibleActions=actions.filter(item=>(actionFilter==="all"||(actionFilter==="viewed"?isViewedReady(item):actionFilter==="no-answer"?isUncontactedMissed(item):followupGroup(item.template,item.kind)===actionFilter))&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
+  // Same saved actions as the full list; one preview per verified customer, no extra API or writes.
+  const todayQueue=todayCustomerQueue(visibleActions,now);
+  const actionableCount=visibleActions.filter(item=>todayActionLane(item,now)!==null).length;
+  const cardTarget=(id:string,template:string)=>["followUp1","followUp3","followUp7"].includes(template)?"followup-action-"+id:"followup-card-"+id+"-"+template;
+  const jumpToAction=(id:string,template:string)=>{
+    const node=document.getElementById(cardTarget(id,template));
+    node?.scrollIntoView({block:"center",behavior:"instant"});
+    node?.focus({preventScroll:true});
+  };
+  useEffect(()=>{
+    // A superseded notification must never inject an old customer's result.
+    if(focusedLookup.current&&focusedLookup.current.id!==focusEstimateId)focusedLookup.current=null;
+    if(!focusEstimateId||loading||error)return;
+    // Exact deep links override stale on-screen filters, without saving or sending.
+    if(actionFilter!=="all"||highPriorityOnly||urgencyFilter!=="all"){setActionFilter("all");setHighPriorityOnly(false);setUrgencyFilter("all");return;}
+    const target=actions.find(item=>item.estimate.id===focusEstimateId&&["followUp1","followUp3","followUp7"].includes(item.template));
+    if(!target){
+      if(!actionRows.some(row=>row.id===focusEstimateId)){
+        if(focusedLookup.current?.id===focusEstimateId)return;
+        const id=focusEstimateId,token=++focusedLookupSequence.current;
+        focusedLookup.current={id,token};setFocusError(null);
+        // One owner-authenticated read of this exact estimate; no cursor scan.
+        void (async()=>{
+          try{
+            const response=await fetch("/api/followups?estimateId="+encodeURIComponent(id),{cache:"no-store"});
+            const result=await response.json() as {estimateId?:string;estimates?:EstimateRow[];nextCursor?:string|null;pageSize?:number};
+            if(focusedLookup.current?.id!==id||focusedLookup.current?.token!==token)return;
+            if(!response.ok||result.estimateId!==id||result.pageSize!==1||result.nextCursor!==null||
+               !Array.isArray(result.estimates)||result.estimates.length>1)throw Error("Unverified exact estimate response");
+            const record=result.estimates[0];
+            if(!record){
+              setFocusError({id,message:"This saved estimate was not found for the notification. No contact or completion has been recorded."});
+              onFocusHandled?.(id);return;
+            }
+            if(record.id!==id||typeof record.customerId!=="string"||!record.customerId||
+              typeof record.createdAt!=="string"||!Number.isFinite(Date.parse(record.createdAt))||
+              ![record.totalCents,record.depositCents,record.paidCents].every(value=>Number.isFinite(Number(value))))
+              throw Error("Unverified saved estimate identity");
+            setFocusedRecord({...record,subtotalCents:Number(record.subtotalCents??record.totalCents),
+              discountCents:Number(record.discountCents??0),totalCents:Number(record.totalCents),
+              depositCents:Number(record.depositCents),paidCents:Number(record.paidCents)});
+          }catch{
+            if(focusedLookup.current?.id!==id||focusedLookup.current?.token!==token)return;
+            setFocusError({id,message:"Could not verify this older follow-up. No message was sent or action recorded. Open the saved estimate to check its status."});
+            onFocusHandled?.(id);
+          }
+        })();
+        return;
+      }
+      setFocusError({id:focusEstimateId,message:"This saved estimate was found, but no day 1/3/7 follow-up is currently recommended. Open its record to verify the latest status."});
+      onFocusHandled?.(focusEstimateId);
+      return;
+    }
+    const element=document.getElementById("followup-action-"+target.estimate.id);
+    if(!element)return;
+    setFocusError(null);
+    element.scrollIntoView({block:"center",behavior:"instant"});
+    element.focus({preventScroll:true});
+    onFocusHandled?.(focusEstimateId);
+  },[focusEstimateId,loading,error,rows,focusedRecord,searchQuery,actionFilter,highPriorityOnly,urgencyFilter]);
+  // Read-only reconciliation: keep active Follow-ups aligned with confirmed
+  // customer actions elsewhere. Preserve all loaded pages, never POST or
+  // retry an ambiguous outbound message. The load request counter rejects
+  // late stale responses, and unmount cancels the relevance of pending reads.
+  useEffect(()=>{
+    if(typeof window==="undefined"||typeof document==="undefined")return;
+    const refresh=()=>{
+      if(document.visibilityState==="visible"&&!actionPending.current)void load();
+    };
+    window.addEventListener("fire:attention-saved",refresh);
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{
+      window.removeEventListener("fire:attention-saved",refresh);
+      window.removeEventListener("focus",refresh);
+      document.removeEventListener("visibilitychange",refresh);
+      window.clearInterval(timer);
+    };
+  },[]);
+  return <div className="workspace-view followups-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(current=>current?.id===value.id?value:current);void load();}}/><section className="workspace-head"><div><h1>Follow-ups</h1></div></section>
+    {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
+    {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
+    {focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)&&<p role="status" className="followup-coverage-complete">Selected older estimate · {rows.length} others checked. Remaining historical pages are not verified.</p>}
+    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>actions</small></div></span><details className="followup-summary-details"><summary>Details · {bucketCount("due")} due · {bucketCount("past-target")} past target</summary><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past target · {bucketCount("due")} due · {bucketCount("upcoming")} upcoming · {bucketCount("review")} need review. Counts cover loaded records only.</p></details></div>}
+    {!loading&&!error&&nextCursor&&<section className="followup-backlog-coverage" aria-label="Older customer record coverage">
+      <div><strong>Older records still unchecked</strong><p>Only {rows.length} estimates checked; older records may need attention. Scanning does not send messages or change records.</p></div>
+      <Button variant="outline" onClick={()=>void load(true,4)}>Scan next 200 older records</Button>
+    </section>}
+    {!loading&&!error&&!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">{rows.length} estimates checked · all available pages loaded.</p>}
+    {!loading&&!error&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
+      {([["all","All"],["viewed","Viewed 24h+"],["no-answer","No answer / Not contacted"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}{key==="viewed"?` (${viewedReadyCount})`:key==="no-answer"?` (${unansweredCount})`:""}</button>)}
+      <details className="followup-more-filters">
+      <summary>More filters{actionFilter!=="all"&&!["viewed","no-answer"].includes(actionFilter)||urgencyFilter!=="all"||highPriorityOnly?" · active":""}</summary>
+      <div className="followup-extra-categories" role="group" aria-label="Additional follow-up types">
+        {([["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
+      </div>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter follow-ups by timing">
+      {([["all","All timing"],["past-target","Past target"],["due","Due now"],["upcoming","Upcoming"],["review","Needs review"]] as const).map(([bucket,label])=><button type="button" key={bucket} aria-label={"Timing: "+label} aria-pressed={urgencyFilter===bucket} onClick={()=>setUrgencyFilter(bucket)}>{label} ({bucket==="all"?actions.length:bucketCount(bucket)})</button>)}
+      </div><div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button></div>
+      </details>
+      <p role="status">{visibleActions.length} of {actions.length} actions · loaded records only.</p>
+    </div>}
+    {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
+      <div><strong>Today's priorities</strong><small>{todayQueue.length>3?"Top 3 · more below":`${todayQueue.length} customer${todayQueue.length===1?"":"s"} to check`}</small></div>
+      <div className="followup-priority-buttons">{todayQueue.slice(0,3).map(({item,lane,additionalCustomerActions})=>{
+        const {estimate,template,reason,kind}=item;
+        const latest=followupLatestContact(estimate,now);
+        return <div className="followup-today-item" key={estimate.id+":"+template}>
+          <span className={"followup-today-lane "+(lane==="now"?"now":"verify")}>{lane==="now"?"Act now":"Verify first"}</span>
+          <div className="followup-today-actions">
+            <button type="button" onClick={()=>jumpToAction(estimate.id,template)} aria-label={"Jump to "+estimate.customer+" "+template+" action"}>
+              <span><strong>{estimate.customer}</strong><small>{kind==="history"?"Check saved history before outreach":reason}</small><small>{latest.label}{latest.at?" · "+new Date(latest.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):""}</small>{additionalCustomerActions>0&&<small>{additionalCustomerActions} more saved action{additionalCustomerActions===1?"":"s"} for this customer in full list</small>}</span><ChevronRight aria-hidden="true"/>
+            </button>
+            {onOpenCustomer&&estimate.customerId&&<button className="followup-today-customer" type="button" onClick={()=>onOpenCustomer(estimate.customerId!)} aria-label={"Open customer profile for "+estimate.customer}>Customer</button>}
+          </div>
+        </div>;
+      })}</div>
+      {todayQueue.length>3&&<button type="button" className="followup-all-actions-link" onClick={()=>document.querySelector(".followup-list")?.scrollIntoView({block:"start",behavior:"smooth"})}>All follow-ups · {visibleActions.length}</button>}
+
+    </section>}
+    {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind,dueAt})=>{const urgency=followupUrgency({estimate,template,kind,dueAt,priority:0},now);const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={cardTarget(estimate.id,template)} tabIndex={-1} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><div className="flex flex-wrap items-center gap-2 py-1"><span className={"followup-urgency rounded-full px-2 py-0.5 text-xs font-semibold "+(urgency.bucket==="past-target"?"bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200":urgency.bucket==="upcoming"?"bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200":"bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200")}>{urgency.bucket==="past-target"||urgency.bucket==="review"?<AlertTriangle aria-hidden="true"/>:urgency.bucket==="upcoming"?<CalendarDays aria-hidden="true"/>:<Clock3 aria-hidden="true"/>}{urgency.label}</span></div><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small>
+      {((estimate.lastConfirmedMessageAt&&Number.isFinite(Date.parse(estimate.lastConfirmedMessageAt)))||(estimate.lastPreparedAt&&Number.isFinite(Date.parse(estimate.lastPreparedAt)))||(estimate.lastManualContactAt&&Number.isFinite(Date.parse(estimate.lastManualContactAt))))&&<details className="followup-message-details">
+        <summary>Previous contact · saved status</summary>
+        {estimate.lastConfirmedMessageAt&&Number.isFinite(Date.parse(estimate.lastConfirmedMessageAt))&&<small className="block">Owner-confirmed message: {new Date(estimate.lastConfirmedMessageAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · delivery unverified</small>}
+        {estimate.lastPreparedAt&&Number.isFinite(Date.parse(estimate.lastPreparedAt))&&<small className="block">Last message prepared: {new Date(estimate.lastPreparedAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · sending unconfirmed</small>}
+        {estimate.lastManualContactAt&&Number.isFinite(Date.parse(estimate.lastManualContactAt))&&<small className="block">Contact logged: {new Date(estimate.lastManualContactAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · no message send claimed</small>}
+      </details>}
+      {noAnswerStillUncontacted(estimate,now)&&estimate.lastNoAnswerAt&&<small className="block">Not contacted · {Number(estimate.noAnswerCount)} unanswered attempt{Number(estimate.noAnswerCount)===1?"":"s"} · last {new Date(estimate.lastNoAnswerAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})}. Reminder remains eligible; no send claimed.</small>}</div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
+{["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="no_answer"))} onClick={()=>void recordAction(estimate,"no_answer")}>No answer · not contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
+<div className="followup-card-tools">
+  <div className="followup-contact-actions" role="group" aria-label={"Contact "+estimate.customer}>
+    {customer.phone&&<GoogleVoiceCallAction phone={customer.phone} customerName={estimate.customer}/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="call" customerName={estimate.customer}/>}
+    {customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>}
+    {customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}
+  </div>
+  <details className="followup-optional-tools">
+    <summary>More tools</summary>
+    <div className="followup-optional-grid">
+      <button type="button" aria-label={"Toggle saved contact history for "+estimate.customer+" "+template} aria-expanded={contactHistory?.key===estimate.id+":"+template} onClick={()=>toggleContactHistory(estimate,template)}><MessageSquareText aria-hidden="true"/> Recent contact</button>
+      {onOpenEstimate&&<button type="button" onClick={()=>onOpenEstimate(estimate.id)} aria-label={"Open saved estimate for "+estimate.customer}><FileText aria-hidden="true"/> Open estimate</button>}
+      {onOpenCustomer&&customer.id&&<button type="button" onClick={()=>onOpenCustomer(customer.id)} aria-label={"Open saved customer history for "+estimate.customer}><Users aria-hidden="true"/> Customer history</button>}
+      {milestones.length>0&&<details className="followup-milestones"><summary>Saved estimate activity ({milestones.length})</summary><ol>{milestones.map(item=><li key={item.key}><strong>{item.title}</strong><time dateTime={item.at}>{new Date(item.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>)}</ol><small>Owner-side saved status only. Open the estimate for more detail; a recorded timestamp does not prove delivery.</small></details>}
+    </div>
+  </details>
+</div>
+{contactHistory?.key===estimate.id+":"+template&&<section className="followup-contact-panel" role="region" aria-label={"Saved contact history for "+estimate.customer+" "+template}>
+  <strong>Saved contact history</strong><small>Exact estimate only · message bodies hidden · opening never sends</small>
+  {contactHistory.status==="loading"?<p role="status">Checking saved contact…</p>:contactHistory.status==="error"?
+    <div role="alert"><p>Saved contact activity couldn't be verified. Do not assume there was no contact.</p><Button variant="outline" onClick={()=>readContactHistory(estimate,template)}>Retry history</Button></div>:
+    contactHistory.events.length?<ol>{contactHistory.events.map(entry=>{const label=contactLabel(entry);return <li key={entry.id}><span><strong>{label.title}</strong><small>{label.detail}</small></span><time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>;})}</ol>:
+    <p>No saved activity for this estimate. Full customer history may contain other contact.</p>}
+  {contactHistory.status==="ready"&&contactHistory.hasMore&&<p>Latest 12 · Older events in Customer history.</p>}
+  {contactHistory.status==="ready"&&<Button variant="outline" onClick={()=>readContactHistory(estimate,template)}>Refresh history</Button>}
+</section>}
+</article>;})}</section>:actions.length?<div className="customers-state"><Clock3/><strong>No matches in this filter</strong><p>Choose All to see {actions.length} other follow-ups.</p><Button variant="outline" onClick={()=>{setActionFilter("all");setHighPriorityOnly(false);setUrgencyFilter("all");}}>Show all follow-ups</Button></div>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups in the loaded records.</p></div>}
+    <p role="status">{rows.length} estimates checked{nextCursor?" · older records available":""}.</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&error&&retryAppend.current&&<Button variant="outline" disabled={loading} onClick={()=>void load(true,4)}>Retry older-record scan</Button>}
+  </div>;
+}
+
+type CheckoutIssue={id:string;estimateId:string;customer:string;type:string;amountCents:number;createdAt:string};
+function ReconcileCheckout({issue,onResolved}:{issue:CheckoutIssue;onResolved:()=>void}){
+  const [sessionId,setSessionId]=useState(issue.id.startsWith("cs_")?issue.id:"");
+  const [busy,setBusy]=useState(false);
+  const verificationLock=useRef(false);
+  const [message,setMessage]=useState("");
+  const [error,setError]=useState("");
+  const verify=async()=>{
+    if(verificationLock.current)return;
+    verificationLock.current=true;
+    setBusy(true);setMessage("");setError("");
+    try{
+      const response=await fetch("/api/payments/checkout/reconcile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reservationId:issue.id,sessionId:sessionId.trim()})});
+      const result=await response.json() as {resolved?:boolean;message?:string;error?:string};
+      if(!response.ok&&!result.message)throw Error(result.error||"Stripe checkout verification failed.");
+      if(result.resolved){setMessage(result.message||"Checkout reconciled.");onResolved();}
+      else setMessage(result.message||"Checkout remains under review.");
+    }catch(err){setError(err instanceof Error?err.message:"Stripe checkout verification failed.");}
+    finally{verificationLock.current=false;setBusy(false);}
+  };
+  return <div className="checkout-reconciliation flex flex-col gap-2"><Label htmlFor={"checkout-session-"+issue.id}>Stripe Checkout Session ID</Label><Input id={"checkout-session-"+issue.id} disabled={busy} value={sessionId} readOnly={issue.id.startsWith("cs_")} onChange={event=>setSessionId(event.target.value)} placeholder="cs_test_… or cs_live_…" autoComplete="off"/><Button variant="outline" disabled={busy||!sessionId.trim()} onClick={()=>void verify()}>{busy?"Verifying…":"Verify in Stripe & reconcile"}</Button>{message&&<p role="status">{message}</p>}{error&&<p role="alert" className="save-error">{error}</p>}</div>;
+}
+
+type PaymentCloseoutAction={estimateId:string;customerId:string;customerName:string;totalCents:number;lastPaidAt:string;state:"ready"|"prepared";reviewPreparedAt:string|null};
+function PaymentsView({searchQuery,onOpenCustomerReview,onOpenEstimate}:{searchQuery:string;onOpenCustomerReview?:(id:string)=>void;onOpenEstimate?:(id:string)=>void}){
+  const [estimates,setEstimates]=useState<EstimateRow[]>([]);const [payments,setPayments]=useState<PaymentRow[]>([]);const [checkoutIssues,setCheckoutIssues]=useState<CheckoutIssue[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
+  const [showAllPayments,setShowAllPayments]=useState(false);
+  const [paymentReferenceCopy,setPaymentReferenceCopy]=useState<{id:string;status:"copying"|"copied"|"manual"}|null>(null);
+  const paymentReferenceCopyAttempt=useRef(0);
+  const copyHistoryPaymentReference=async(id:string,reference:string)=>{
+    const attempt=++paymentReferenceCopyAttempt.current;
+    setPaymentReferenceCopy({id,status:"copying"});
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(reference);
+      if(attempt===paymentReferenceCopyAttempt.current)setPaymentReferenceCopy({id,status:"copied"});
+    }catch{
+      if(attempt===paymentReferenceCopyAttempt.current)setPaymentReferenceCopy({id,status:"manual"});
+    }
+  };
+  const [balanceSearch,setBalanceSearch]=useState("");
+  const [balanceLimit,setBalanceLimit]=useState(20);
+  const [reviewCloseouts,setReviewCloseouts]=useState<PaymentCloseoutAction[]>([]);
+  const [reviewCloseoutError,setReviewCloseoutError]=useState("");
+  const [reviewMoreAvailable,setReviewMoreAvailable]=useState(false);
+  const [reviewNextCursor,setReviewNextCursor]=useState<string|null>(null);
+  const [reviewOlderError,setReviewOlderError]=useState("");
+  const [reviewOlderLoading,setReviewOlderLoading]=useState(false);
+  const [reviewSnoozingId,setReviewSnoozingId]=useState<string|null>(null);
+  const [reviewSnoozeError,setReviewSnoozeError]=useState("");
+  const reviewSnoozeOps=useRef<Record<string,string>>({});
+  const reviewSnoozeLock=useRef(false);
+  const [showAllReviewCloseouts,setShowAllReviewCloseouts]=useState(false);
+  const [reviewCloseoutFilter,setReviewCloseoutFilter]=useState<"all"|"prepared"|"unprepared">("all");
+  const [reviewCloseoutOrder,setReviewCloseoutOrder]=useState<"priority"|"newest"|"customer">("priority");
+  const [reviewCloseoutSearch,setReviewCloseoutSearch]=useState("");
+  const reviewOlderLock=useRef(false),reviewPageRequest=useRef(0);
+  const loadRequest=useRef(0);
+  const [closeoutStage,setCloseoutStage]=useState<"requests"|"progress">("requests");
+  const reviewLoadedPages=useRef(1),reviewLoading=useRef(false),closeoutStageRef=useRef(closeoutStage);closeoutStageRef.current=closeoutStage;
+  const validReviewPage=(page:{actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null})=>Array.isArray(page.actions)&&page.actions.length<=200&&typeof page.mayHaveMore==="boolean"&&
+            (page.nextCursor==null||typeof page.nextCursor==="string")&&page.actions.every(item=>item&&typeof item.estimateId==="string"&&!!item.estimateId&&typeof item.customerId==="string"&&!!item.customerId&&typeof item.customerName==="string"&&Number.isSafeInteger(item.totalCents)&&item.totalCents>0&&Number.isFinite(Date.parse(item.lastPaidAt))&&["ready","prepared"].includes(item.state)&&(item.reviewPreparedAt===null||typeof item.reviewPreparedAt==="string"&&Number.isFinite(Date.parse(item.reviewPreparedAt)))&&(item.state!=="prepared"||item.reviewPreparedAt!==null));
+  const load=async()=>{
+    const request=++loadRequest.current;
+    reviewPageRequest.current++;reviewOlderLock.current=false;
+    setReviewOlderLoading(false);setReviewOlderError("");
+    reviewLoading.current=true;setLoading(true);setError("");
+    try{
+      const [estimateResponse,paymentResponse,reviewRead]=await Promise.all([
+        fetch("/api/estimate-history?limit=50"),fetch("/api/payments"),
+        fetch("/api/payment-closeouts",{cache:"no-store"}).then(async response=>{
+          const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null;error?:string};
+
+          if(!response.ok||!validReviewPage(result))throw Error(result.error||"Review follow-up queue could not be checked.");
+          const actions=[...result.actions!],seenCursors=new Set<string>();let cursor=result.nextCursor??null,more=result.mayHaveMore!;
+          for(let page=1;page<reviewLoadedPages.current&&cursor;page++){
+            if(seenCursors.has(cursor))throw Error("Review follow-up paging did not advance.");seenCursors.add(cursor);
+            const extra=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store"});const data=await extra.json() as typeof result;
+            if(request!==loadRequest.current)throw Error("Superseded review refresh");
+            if(!extra.ok||!validReviewPage(data)||data.nextCursor===cursor)throw Error(data.error||"Loaded review follow-ups could not be refreshed.");
+            actions.push(...data.actions!);cursor=data.nextCursor??null;more=data.mayHaveMore!;
+          }
+          return {actions:[...new Map(actions.map(item=>[item.estimateId,item])).values()],mayHaveMore:more,nextCursor:cursor};
+        }).catch((reason:unknown)=>({error:reason instanceof Error?reason.message:"Review follow-up queue is unavailable."}))
+      ]);
+      const estimateResult=await estimateResponse.json() as {estimates?:EstimateRow[];error?:string};
+      const paymentResult=await paymentResponse.json() as {payments?:PaymentRow[];checkoutIssues?:CheckoutIssue[];error?:string};
+      if(!estimateResponse.ok)throw new Error(estimateResult.error||"Job balances could not be loaded.");
+      if(!paymentResponse.ok)throw new Error(paymentResult.error||"Payment history could not be loaded.");
+      if(!Array.isArray(estimateResult.estimates)||!Array.isArray(paymentResult.payments))throw new Error("Payment records could not be read. Try again.");
+      const complete=await completeEstimatePages<EstimateRow>(estimateResult,fetch,()=>request===loadRequest.current);if(!complete)return;
+      const nextEstimates=complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)}));
+      if(nextEstimates.some(item=>[item.totalCents,item.depositCents,item.paidCents,...(item.invoiceTotalCents==null?[]:[Number(item.invoiceTotalCents)])].some(value=>!Number.isSafeInteger(value)||value<0)||item.depositCents>item.totalCents))throw Error("Job balances contain accounting values that require owner review.");
+      if(Object.values(summarizeCustomerBalances(nextEstimates)).some(value=>!Number.isSafeInteger(value)))throw Error("Complete job totals exceed FIRE's safe accounting range. Review records before recording payment.");
+      const nextPayments=paymentResult.payments.map((item)=>({...item,amountCents:Number(item.amountCents)}));
+      if(request!==loadRequest.current)return;
+      setEstimates(nextEstimates);setPayments(nextPayments);setCheckoutIssues(Array.isArray(paymentResult.checkoutIssues)?paymentResult.checkoutIssues:[]);
+      if("error" in reviewRead){
+        setReviewCloseouts([]);setReviewMoreAvailable(false);setReviewNextCursor(null);setReviewCloseoutError(reviewRead.error);
+      }else{
+        setReviewCloseouts(reviewRead.actions);setReviewMoreAvailable(reviewRead.mayHaveMore);setReviewNextCursor(reviewRead.nextCursor);setReviewCloseoutError("");
+      }
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Payment records could not be loaded.");}
+    finally{if(request===loadRequest.current){reviewLoading.current=false;setLoading(false);}}
+  };
+  const loadOlderReviewCloseouts=async()=>{
+    const cursor=reviewNextCursor;
+    if(!cursor||reviewOlderLock.current||loading||error)return;
+    reviewOlderLock.current=true;
+    const page=++reviewPageRequest.current,mainRequest=loadRequest.current;
+    setReviewOlderLoading(true);setReviewOlderError("");
+    try{
+      const response=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store"});
+      const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null;error?:string};
+      if(!response.ok||!validReviewPage(result)||result.nextCursor===cursor)throw Error(result.error||"Older review follow-ups could not be loaded.");
+      if(page!==reviewPageRequest.current||mainRequest!==loadRequest.current)return;
+      setReviewCloseouts(current=>{
+        const seen=new Set(current.map(item=>item.estimateId));
+        return [...current,...result.actions!.filter(item=>{if(seen.has(item.estimateId))return false;seen.add(item.estimateId);return true;})];
+      });
+      setReviewMoreAvailable(Boolean(result.mayHaveMore));
+      setReviewNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);
+      reviewLoadedPages.current++;setShowAllReviewCloseouts(true);
+    }catch(loadError){
+      if(page===reviewPageRequest.current&&mainRequest===loadRequest.current)setReviewOlderError(loadError instanceof Error?loadError.message:"Older review follow-ups could not be loaded.");
+    }finally{
+      if(page===reviewPageRequest.current&&mainRequest===loadRequest.current){
+        reviewOlderLock.current=false;setReviewOlderLoading(false);
+      }
+    }
+  };
+  useEffect(()=>{void load();const cleanup=()=>{loadRequest.current++;reviewPageRequest.current++;reviewOlderLock.current=false;};
+    if(typeof window==="undefined"||typeof document==="undefined")return cleanup;
+    const refresh=()=>{if(document.visibilityState==="visible"&&!reviewSnoozeLock.current&&!reviewOlderLock.current&&!reviewLoading.current&&closeoutStageRef.current==="requests")void load();};
+    window.addEventListener("fire:attention-saved",refresh);window.addEventListener("focus",refresh);window.addEventListener("online",refresh);document.addEventListener("visibilitychange",refresh);const timer=window.setInterval(refresh,60000);
+    return()=>{cleanup();window.clearInterval(timer);window.removeEventListener("fire:attention-saved",refresh);window.removeEventListener("focus",refresh);window.removeEventListener("online",refresh);document.removeEventListener("visibilitychange",refresh);};
+  },[]);
+  const snoozeReviewCloseout=async(item:PaymentCloseoutAction)=>{
+    if(reviewSnoozeLock.current||reviewSnoozingId||loading||error)return;
+    reviewSnoozeLock.current=true;setReviewSnoozingId(item.estimateId);setReviewSnoozeError("");
+    const operationId=reviewSnoozeOps.current[item.estimateId]??crypto.randomUUID();
+    reviewSnoozeOps.current[item.estimateId]=operationId;
+    try{
+      const response=await fetch("/api/payment-closeouts/snooze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        estimateId:item.estimateId,customerId:item.customerId,operationId
+      })});
+      const result=await response.json() as {saved?:boolean;estimateId?:string;customerId?:string;snoozeUntil?:string;error?:string};
+      if(!response.ok||result.saved!==true||result.estimateId!==item.estimateId||result.customerId!==item.customerId||
+        !result.snoozeUntil||!Number.isFinite(Date.parse(result.snoozeUntil)))
+        throw Error(result.error||"Snooze status is unconfirmed. Keep this job on your review list and retry.");
+      delete reviewSnoozeOps.current[item.estimateId];
+      setReviewCloseouts(current=>current.filter(row=>row.estimateId!==item.estimateId));
+      window.dispatchEvent(new Event("fire:attention-saved"));
+    }catch(reason){
+      setReviewSnoozeError(reason instanceof Error?reason.message:"Review snooze status is uncertain. Retry with the same request.");
+    }finally{reviewSnoozeLock.current=false;setReviewSnoozingId(null);}
+  };
+  const remainingBalance=(estimate:EstimateRow)=>billingBalanceCents(estimate);
+  const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase())&&
+    [item.customerName,item.estimateId,item.customerId].join(" ").toLowerCase().includes(reviewCloseoutSearch.trim().toLowerCase())&&
+    (reviewCloseoutFilter==="all"||(reviewCloseoutFilter==="prepared"?item.state==="prepared":item.state!=="prepared")));
+  // Prepared drafts require owner verification first; within each state, handle the oldest payment first.
+  const prioritizedReviewCloseouts=matchingReviewCloseouts.slice().sort((a,b)=>reviewCloseoutOrder==="customer"?
+    a.customerName.localeCompare(b.customerName)||a.estimateId.localeCompare(b.estimateId):reviewCloseoutOrder==="newest"?
+    Date.parse(b.lastPaidAt)-Date.parse(a.lastPaidAt)||a.estimateId.localeCompare(b.estimateId):
+    (a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId));
+  const shownReviewCloseouts=showAllReviewCloseouts?prioritizedReviewCloseouts:prioritizedReviewCloseouts.slice(0,5);
+  const preparedReviewVisible=matchingReviewCloseouts.filter(item=>item.state==="prepared").length;
+  const unpreparedReviewVisible=matchingReviewCloseouts.length-preparedReviewVisible;
+  const open=estimates.filter((item)=>hasCollectibleJobValue(item)&&remainingBalance(item)>0&&[item.customer,item.service,item.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
+  const matchingOpen=open.filter(item=>[item.customer,item.service,item.status,item.address].join(" ").toLowerCase().includes(balanceSearch.trim().toLowerCase()));
+  const visibleOpen=matchingOpen.slice(0,balanceLimit);
+  const receivedPayments=payments.filter((item)=>item.status==="paid");
+  const balanceSummary=summarizeCustomerBalances(estimates);const collected=receivedPayments.filter(item=>!["Tip","Tip Refund"].includes(item.type)).reduce((sum,item)=>sum+item.amountCents,0);const netTips=receivedPayments.filter((item)=>item.type==="Tip"||item.type==="Tip Refund").reduce((sum,item)=>sum+item.amountCents,0);const outstanding=balanceSummary.collectibleCents;
+  return <div className="workspace-view payments-view"><section className="workspace-head"><div><h1>Payments</h1></div></section>{!loading&&!error&&checkoutIssues.length>0&&<section className="business-panel" role="alert" aria-label="Stripe checkouts needing review"><header><div><h2>Check Stripe payments ({checkoutIssues.length})</h2><p>Verify open checkouts in Stripe before recording another payment. Never clear an unverified session.</p></div></header><div className="balance-list">{checkoutIssues.map(issue=><article key={issue.id}><div><strong>{issue.customer}</strong><small>{issue.type} · {new Date(issue.createdAt).toLocaleString()}</small><small>Job: {issue.estimateId}</small></div><strong>{money(Number(issue.amountCents))}</strong><ReconcileCheckout issue={issue} onResolved={()=>void load()}/></article>)}</div><Button variant="outline" onClick={()=>void load()}>Refresh alerts</Button></section>}{!loading&&!error&&<><section className="business-metrics payments-primary-metrics"><article><small>Job balances due</small><strong>{money(outstanding)}</strong></article><article><small>Deposits due</small><strong>{money(balanceSummary.depositRemainingCents)}</strong></article><article><small>Job payments (net)</small><strong>{money(collected)}</strong></article></section><details className="payments-secondary-metrics"><summary>More totals</summary><div className="business-metrics"><article><small>Unpaid jobs</small><strong>{open.length}</strong></article><article><small>Unapproved quote value</small><strong>{money(balanceSummary.potentialCents)}</strong></article><article><small>Net tips</small><strong>{money(netTips)}</strong></article></div></details></>}{!loading&&!error&&<ProcessingReport payments={receivedPayments}/>}{loading?<div className="customers-state">Loading balances…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<div className="payment-layout"><section className="business-panel"><header><div><h2>Unpaid jobs</h2><details className="payments-balance-help"><summary>What counts?</summary><p>Approved jobs and issued invoices. Draft quotes are excluded. Record payment uses the amount currently due.</p></details></div></header>{open.length>5&&<div className="payment-balance-tools"><label className="payment-balance-search"><span className="sr-only">Find collectible job balance</span><input type="search" aria-label="Find collectible job balance" placeholder="Find customer, service or address" maxLength={128} value={balanceSearch} onChange={event=>{setBalanceSearch(event.target.value);setBalanceLimit(20);}}/></label>{balanceSearch&&<button type="button" onClick={()=>{setBalanceSearch("");setBalanceLimit(20);}}>Clear</button>}<small role="status">{matchingOpen.length} of {open.length} unpaid jobs</small></div>}<div className="balance-list">{matchingOpen.length?visibleOpen.map((estimate)=><article key={estimate.id}><div><strong>{estimate.customer}</strong><small>{estimate.service} · {statusLabel(estimate.status)}</small></div><span><strong>{money(remainingBalance(estimate))}</strong><small>Remaining</small></span><RecordPayment key={estimate.id} estimate={estimate} onRecorded={()=>void load()}/></article>):open.length?<div className="record-empty"><strong>No matching job balances</strong><p>Try another customer, service or address.</p></div>:<div className="record-empty"><CheckCircle2/><strong>All caught up</strong><p>No unpaid job balances.</p></div>}</div>{matchingOpen.length>balanceLimit&&<button type="button" className="payment-balance-more" onClick={()=>setBalanceLimit(count=>Math.min(count+20,matchingOpen.length))}>Show next {Math.min(20,matchingOpen.length-balanceLimit)} jobs · {matchingOpen.length-balanceLimit} remaining</button>}</section><details className="business-panel payments-history-disclosure"><summary>Payment history · {payments.length}</summary><div className="payment-history">{payments.length?(showAllPayments?payments:payments.slice(0,8)).map((payment)=><article key={payment.id}><span className="payment-method"><CircleDollarSign/></span><div><strong>{payment.customer||"Customer"}</strong><small>{payment.type} · {statusLabel(payment.status)} · {payment.service||"Service"} · {new Date(payment.createdAt).toLocaleDateString()}</small>{payment.reference&&<><span className="inline-flex max-w-full flex-wrap items-center gap-1"><em title={payment.reference}>Ref …{payment.reference.slice(-12)}</em><button type="button" aria-label="Copy full payment reference" className="payment-reference-copy-button" disabled={paymentReferenceCopy?.id===payment.id&&paymentReferenceCopy.status==="copying"} onClick={()=>void copyHistoryPaymentReference(payment.id,payment.reference!)}>{paymentReferenceCopy?.id===payment.id&&paymentReferenceCopy.status==="copying"?"Copying…":"Copy"}</button></span>{paymentReferenceCopy?.id===payment.id&&<span className="payment-reference-copy-feedback" role={paymentReferenceCopy.status==="manual"?"alert":"status"}>{paymentReferenceCopy.status==="copied"?"Reference copied.":paymentReferenceCopy.status==="copying"?"Copying reference…":<>Clipboard unavailable. Select and copy this reference manually: <code className="payment-reference-manual">{payment.reference}</code></>}</span>}</>}{payment.status==="paid"&&payment.grossReceivedCents!=null&&["Cash App","Venmo"].includes(payment.processingMethod??"")&&<details className="payment-fee-details"><summary>Fees &amp; net</summary><ProcessingDetails payment={payment}/></details>}</div><strong className="payment-history-amount">{money(payment.amountCents)}</strong>{payment.status==="paid"&&<RefundPayment payment={payment} onRefunded={()=>void load()}/>}</article>):<div className="record-empty"><CreditCard/><strong>No payments recorded</strong><p>Record a payment from an unpaid job.</p></div>}</div>{payments.length>8&&<button type="button" className="payment-history-more" aria-expanded={showAllPayments} onClick={()=>setShowAllPayments(value=>!value)}>{showAllPayments?"Show recent 8 payments":`View all ${payments.length} payments`}</button>}</details></div>}{!loading&&!error&&<section className="business-panel" aria-label="Paid jobs ready for review follow-up">
+  <header><div><h2>Review requests</h2><p>Nothing sends automatically.</p></div>
+    {closeoutStage==="requests"&&<Button variant="outline" onClick={()=>void load()}>Refresh</Button>}
+  </header>
+  <div className="closeout-stage-controls" role="group" aria-label="Job closeout stage"><Button variant={closeoutStage==="requests"?"default":"outline"} aria-pressed={closeoutStage==="requests"} onClick={()=>setCloseoutStage("requests")}>Needs request</Button><Button variant={closeoutStage==="progress"?"default":"outline"} aria-pressed={closeoutStage==="progress"} onClick={()=>setCloseoutStage("progress")}>Review progress</Button></div>
+  {closeoutStage==="progress"?<JobCloseoutHistory searchQuery={searchQuery} onOpenCustomer={id=>onOpenCustomerReview?onOpenCustomerReview(id):window.location.assign('/?openCustomer='+encodeURIComponent(id))} onOpenEstimate={id=>onOpenEstimate?onOpenEstimate(id):window.location.assign('/?openEstimate='+encodeURIComponent(id))}/>:<>
+  <label className="flex flex-col gap-1 text-sm font-semibold">Find customer or job
+    <input className="min-h-11 rounded-lg border px-3 py-2" type="search" value={reviewCloseoutSearch} onChange={event=>{setReviewCloseoutSearch(event.target.value);setShowAllReviewCloseouts(false);}} placeholder="Customer name or job ID" aria-label="Search paid review follow-ups"/>
+  </label>
+  {(reviewCloseoutSearch||reviewCloseoutFilter!=="all"||reviewCloseoutOrder!=="priority")&&<Button variant="outline" onClick={()=>{setReviewCloseoutSearch("");setReviewCloseoutFilter("all");setReviewCloseoutOrder("priority");setShowAllReviewCloseouts(false);}}>Clear filters</Button>}
+  <details className="payment-review-options"><summary>Filter &amp; sort</summary><div className="flex flex-wrap gap-2" role="group" aria-label="Filter paid review requests">
+    {([["all","All"],["prepared","Verify send"],["unprepared","Not prepared"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutFilter===key?"default":"outline"} aria-pressed={reviewCloseoutFilter===key} onClick={()=>{setReviewCloseoutFilter(key);setShowAllReviewCloseouts(false);}}>{label} ({key==="all"?reviewCloseouts.length:reviewCloseouts.filter(item=>key==="prepared"?item.state==="prepared":item.state!=="prepared").length})</Button>)}
+  </div>
+  <div className="flex flex-wrap gap-2" role="group" aria-label="Sort paid review requests">
+    {([["priority","Needs action first"],["newest","Newest paid"],["customer","Customer A–Z"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutOrder===key?"default":"outline"} aria-pressed={reviewCloseoutOrder===key} onClick={()=>{setReviewCloseoutOrder(key);setShowAllReviewCloseouts(false);}}>{label}</Button>)}
+  </div></details>
+  {!reviewCloseoutError&&<p className="pay-note" role="status">{matchingReviewCloseouts.length} jobs · {preparedReviewVisible} to verify · {unpreparedReviewVisible} to prepare{reviewMoreAvailable?" · Older jobs not loaded":""}. Prepared does not mean sent.</p>}
+  {reviewCloseoutError?<p role="alert" className="save-error">{reviewCloseoutError} Other payment records remain available.</p>:
+  matchingReviewCloseouts.length?<div className="balance-list">{shownReviewCloseouts.map(item=><article key={item.estimateId}>
+    <div><strong>{item.customerName}</strong><small>{money(item.totalCents)} paid in full · {new Date(item.lastPaidAt).toLocaleDateString()}</small>
+      <span className={"payment-review-state "+item.state}>{item.state==="prepared"?<Clock3 aria-hidden="true"/>:<Star aria-hidden="true"/>}{item.state==="prepared"?"Prepared · send unconfirmed":"No confirmed review request"}</span></div>
+    <div className="flex flex-wrap items-center gap-2">
+      <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-current px-3 py-2 text-sm font-semibold" href={`/?openEstimate=${encodeURIComponent(item.estimateId)}`} onClick={event=>{if(onOpenEstimate){event.preventDefault();onOpenEstimate(item.estimateId);}}}><ExternalLink className="h-4 w-4"/> Open job</a>
+      <Button variant="outline" disabled={Boolean(reviewSnoozingId)} onClick={()=>void snoozeReviewCloseout(item)}>{reviewSnoozingId===item.estimateId?"Saving snooze…":"Snooze 7 days"}</Button>
+    </div>
+  </article>)}</div>:<p className="record-empty">{reviewCloseouts.length?"No matching review requests. Clear filters or choose All.":"No review requests in loaded jobs."}</p>}
+  {matchingReviewCloseouts.length>5&&<Button variant="outline" onClick={()=>setShowAllReviewCloseouts(value=>!value)}>{showAllReviewCloseouts?"Show fewer":`Show all ${matchingReviewCloseouts.length} ready jobs`}</Button>}
+  {reviewMoreAvailable&&reviewNextCursor&&<Button variant="outline" disabled={reviewOlderLoading} onClick={()=>void loadOlderReviewCloseouts()}>{reviewOlderLoading?"Loading older jobs…":"Load older paid jobs"}</Button>}
+  {reviewOlderError&&<p role="alert" className="save-error">{reviewOlderError} Previously loaded jobs are still available.</p>}
+  {reviewSnoozeError&&<p role="alert" className="save-error">{reviewSnoozeError} No customer message was sent.</p>}
+  {reviewMoreAvailable&&!reviewNextCursor&&<p className="pay-note">Older review records require an additional verification. Refresh this list or inspect the original job.</p>}
+  </>}
+</section>}</div>;
+}
+
+function BusinessView({onWorkStatusChange,initialPickupDraft,onPickupDraftConsumed,initialReviewDraft,onReviewDraftConsumed,focusTaskId,focusTaskCustomerId,focusTaskActivity,onFocusTaskHandled,onOpenCustomer,onOpenCustomerActivity }:{onWorkStatusChange?:(state:{dirty:boolean;saving:boolean})=>void;initialPickupDraft?:YardSignPickupDraft|null;onPickupDraftConsumed?:()=>void;initialReviewDraft?:ReviewCheckDraft|null;onReviewDraftConsumed?:()=>void;focusTaskId?:string|null;focusTaskCustomerId?:string|null;focusTaskActivity?:"sign"|"review"|null;onFocusTaskHandled?:()=>void;onOpenCustomer?:(customerId:string)=>void;onOpenCustomerActivity?:(customerId:string,kind:"sign"|"review")=>void}={}){
+  const [tasks,setTasks]=useState<TaskRow[]>([]);const [expenses,setExpenses]=useState<ExpenseRow[]>([]);const [customers,setCustomers]=useState<CustomerRow[]>([]);const [estimates,setEstimates]=useState<CustomerEstimate[]>([]);
+  // Only prefill. The existing guarded Add task flow remains the sole writer.
+  const [pickupTarget]=useState(initialPickupDraft??null);
+  const [reviewTarget]=useState(initialReviewDraft??null);
+  const pickupMarker=pickupTarget?`FIRE yard sign placement: ${pickupTarget.placedAt}`:"";
+  const reviewMarker=reviewTarget?`FIRE review request: ${reviewTarget.requestedAt}`:"";
+  const [title,setTitle]=useState(pickupTarget?"Pick up yard sign":reviewTarget?"Check customer review status":"");
+  const [dueAt,setDueAt]=useState(pickupTarget?pickupTarget.pickupDate+"T12:00":reviewTarget?reviewTarget.dueDate+"T12:00":"");
+  const [taskNotes,setTaskNotes]=useState(pickupTarget?`Location: ${pickupTarget.location}. Pickup target: ${pickupTarget.pickupDate}. ${pickupMarker}`:reviewTarget?`Review request recorded: ${reviewTarget.requestedAt}. Check for a posted review before deciding whether a personal follow-up is appropriate. Do not send duplicate requests. ${reviewMarker}`:"");
+  const [taskCustomer,setTaskCustomer]=useState(pickupTarget?.customerId??reviewTarget?.customerId??"none");
+  useEffect(()=>{if(pickupTarget)onPickupDraftConsumed?.();if(reviewTarget)onReviewDraftConsumed?.();},[]);const [description,setDescription]=useState("");const [amount,setAmount]=useState("");const [expenseDate,setExpenseDate]=useState("");const [category,setCategory]=useState("Supplies");const [expenseEstimate,setExpenseEstimate]=useState("none");
+  const [taskSaving,setTaskSaving]=useState(false);const [expenseSaving,setExpenseSaving]=useState(false);const [taskToggling,setTaskToggling]=useState<string|null>(null);const [businessMessage,setBusinessMessage]=useState("");
+  const taskFocusHandled=useRef<string|null>(null);
+  const [highlightTaskId,setHighlightTaskId]=useState(focusTaskId??null);
+  const [contextTaskId,setContextTaskId]=useState<string|null>(focusTaskId??null);
+  const [taskFocusNotice,setTaskFocusNotice]=useState<{id:string;status:"missing"|"changed"|"restored";customerId:string|null;activity:"sign"|"review"|null}|null>(null);
+  const [taskSearch,setTaskSearch]=useState("");const [taskFilter,setTaskFilter]=useState<"all"|"open"|"completed"|"overdue"|"today">("all");
+  const [expenseSearch,setExpenseSearch]=useState("");const [expenseLimit,setExpenseLimit]=useState(12);
+  const [taxYear,setTaxYear]=useState(()=>expenseBusinessDay(new Date().toISOString())?.slice(0,4)??String(new Date().getUTCFullYear()));
+  const taskCreateLock=useRef(false),expenseCreateLock=useRef(false);
+  const taskStatusLock=useRef(false),taskStatusRefreshLock=useRef(false);
+  const [rescheduleEditingId,setRescheduleEditingId]=useState<string|null>(null);
+  const [rescheduleDateInput,setRescheduleDateInput]=useState("");
+  const [rescheduleSaving,setRescheduleSaving]=useState(false);
+  const [taskStatusUncertain,setTaskStatusUncertain]=useState(false);
+  const [taskStatusMessage,setTaskStatusMessage]=useState("");
+  const taskCreateAttempt=useRef<{requestId:string;fingerprint:string}|null>(null);
+  const expenseCreateAttempt=useRef<{requestId:string;fingerprint:string;incurredAt:string}|null>(null);
+  const [taskRecoveryId,setTaskRecoveryId]=useState<string|null>(null),[expenseRecoveryId,setExpenseRecoveryId]=useState<string|null>(null);
+  const [receiptError,setReceiptError]=useState(""),[discardReceipt,setDiscardReceipt]=useState<BusinessCreateKind|null>(null);
+  const [pendingBackup,setPendingBackup]=useState<Record<string,unknown>|null>(null);const [restoreMessage,setRestoreMessage]=useState("");const [restoreBusy,setRestoreBusy]=useState(false);const restoreInput=useRef<HTMLInputElement>(null);
+  const [loading,setLoading]=useState(true);const [loadError,setLoadError]=useState("");const loadRequest=useRef(0);
+  // Keep unsaved Business drafts and in-flight writes from being stranded by a section jump.
+  const businessDraftDirty=Boolean(title.trim()||dueAt||taskNotes.trim()||taskCustomer!=="none"||
+    description.trim()||amount.trim()||expenseDate||category!=="Supplies"||expenseEstimate!=="none"||
+    rescheduleEditingId||rescheduleDateInput||taskRecoveryId||expenseRecoveryId||pendingBackup);
+  const businessWriteSaving=taskSaving||expenseSaving||Boolean(taskToggling)||rescheduleSaving||restoreBusy;
+  useEffect(()=>{onWorkStatusChange?.({dirty:businessDraftDirty,saving:businessWriteSaving});},
+    [businessDraftDirty,businessWriteSaving,onWorkStatusChange]);
+  useEffect(()=>()=>onWorkStatusChange?.({dirty:false,saving:false}),[onWorkStatusChange]);
+  // A Dashboard shortcut may select a saved task, but never toggles completion.
+  // Wait for authoritative task records before scrolling, and do this once.
+  useEffect(()=>{
+    if(!focusTaskId){taskFocusHandled.current=null;return;}
+    if(taskFocusHandled.current===focusTaskId||loading||loadError)return;
+    const task=tasks.find(row=>row.id===focusTaskId);
+    if(!task){
+      // A successful owner read proves absence from the list, not deletion.
+      setTaskFocusNotice({id:focusTaskId,status:"missing",customerId:typeof focusTaskCustomerId==="string"&&focusTaskCustomerId?focusTaskCustomerId:null,activity:focusTaskActivity??null});
+      setContextTaskId(null);setHighlightTaskId(null);
+      taskFocusHandled.current=focusTaskId;onFocusTaskHandled?.();return;
+    }
+    setTaskFocusNotice(task.status!=="open"||!["today","overdue"].includes(taskDueBucket(task,new Date()))?
+      {id:task.id,status:"changed",customerId:task.customerId??null,activity:taskLinkedFlag(task)?.kind??null}:null);
+    setTaskSearch("");setTaskFilter("all");setContextTaskId(task.id);setHighlightTaskId(task.id);
+    const target=document.getElementById("business-task-"+task.id);
+    if(target){
+      taskFocusHandled.current=focusTaskId;
+      target.scrollIntoView({block:"center",behavior:"auto"});
+      target.focus({preventScroll:true});
+      onFocusTaskHandled?.();
+    }
+  },[focusTaskId,focusTaskCustomerId,focusTaskActivity,loading,loadError,tasks,onFocusTaskHandled]);
+
+  const reconcileReceipts=(savedTasks:TaskRow[],savedExpenses:ExpenseRow[])=>{
+    const storage=businessReceiptStorage();
+    const taskReceipt=readBusinessReceipt(storage,"task"),expenseReceipt=readBusinessReceipt(storage,"expense");
+    if(!taskReceipt.usable||!expenseReceipt.usable){
+      setReceiptError("Browser recovery storage is unavailable or damaged. New task and expense submissions are blocked to prevent duplicates after a restart.");
+      return;
+    }
+    setReceiptError("");
+    for(const [kind,receipt,exists] of [
+      ["task",taskReceipt,savedTasks.some(row=>row.id===taskReceipt.requestId)],
+      ["expense",expenseReceipt,savedExpenses.some(row=>row.id===expenseReceipt.requestId)]
+    ] as const){
+      if(receipt.requestId&&exists&&releaseBusinessReceipt(storage,kind,receipt.requestId)){
+        if(kind==="task"){setTaskRecoveryId(null);taskCreateAttempt.current=null;}
+        else{setExpenseRecoveryId(null);expenseCreateAttempt.current=null;}
+        setBusinessMessage(kind==="task"?"Previous task save verified in saved records.":"Previous expense save verified in saved records.");
+      }else if(kind==="task")setTaskRecoveryId(receipt.requestId);
+      else setExpenseRecoveryId(receipt.requestId);
+    }
+  };
+  const load=async()=>{
+    const request=++loadRequest.current;setLoading(true);setLoadError("");
+    try{
+      const responses=await Promise.all([fetch("/api/tasks",{cache:"no-store"}),fetch("/api/expenses",{cache:"no-store"}),fetch("/api/customers",{cache:"no-store"})]);
+      const [taskResult,expenseResult,customerResult]=await Promise.all(responses.map(response=>response.json())) as [{tasks?:TaskRow[];error?:string},{expenses?:ExpenseRow[];error?:string},{customers?:CustomerRow[];estimates?:CustomerEstimate[];error?:string}];
+      for(const [index,label] of ["Tasks","Expenses","Customers"].entries())if(!responses[index].ok)throw new Error([taskResult,expenseResult,customerResult][index]?.error||`${label} could not be loaded.`);
+      if(!Array.isArray(taskResult.tasks)||!Array.isArray(expenseResult.expenses)||!Array.isArray(customerResult.customers)||!Array.isArray(customerResult.estimates))throw new Error("Business records could not be read. Try again.");
+      if([taskResult.tasks,expenseResult.expenses,customerResult.customers,customerResult.estimates].some(rows=>rows.some(row=>!row||typeof row!=="object"||Array.isArray(row))))throw new Error("Business records could not be read. Try again.");
+      if(taskResult.tasks.some(row=>typeof row.id!=="string"||typeof row.title!=="string"||!["open","completed"].includes(row.status))||customerResult.customers.some(row=>typeof row.id!=="string"||typeof row.name!=="string")||customerResult.estimates.some(row=>typeof row.id!=="string"))throw new Error("Business records could not be read. Try again.");
+      if(expenseResult.expenses.some(row=>(typeof row.amountCents!=="number"&&typeof row.amountCents!=="string")||(typeof row.amountCents==="string"&&!String(row.amountCents).trim())||typeof row.incurredAt!=="string"))throw new Error("Expense records need review before totals can be shown.");
+      const nextExpenses=expenseResult.expenses.map(row=>({...row,amountCents:Number(row.amountCents)}));
+      if(nextExpenses.some(row=>!Number.isSafeInteger(row.amountCents)||row.amountCents<0||!expenseBusinessDay(row.incurredAt)))throw new Error("Expense records need review before totals can be shown.");
+      if(request!==loadRequest.current)return;
+      setTasks(taskResult.tasks);setExpenses(nextExpenses);setCustomers(customerResult.customers);setEstimates(customerResult.estimates);
+      // Reconcile every visible notification-task explanation after each complete,
+      // successful owner read. A previously recovered task may disappear again,
+      // become completed, or become due; never keep a stale "found" message.
+      if(taskFocusNotice){
+        const savedTask=taskResult.tasks.find(row=>row.id===taskFocusNotice.id);
+        const dueNow=Boolean(savedTask?.status==="open"&&["today","overdue"].includes(taskDueBucket(savedTask,new Date())));
+        const currentStatus=!savedTask?"missing":dueNow?"restored":"changed";
+        setTaskFocusNotice({id:taskFocusNotice.id,status:currentStatus,
+          customerId:savedTask?(savedTask.customerId??null):taskFocusNotice.customerId,
+          activity:savedTask?(taskLinkedFlag(savedTask)?.kind??null):taskFocusNotice.activity});
+        if(savedTask){
+          setTaskSearch("");setTaskFilter("all");setContextTaskId(savedTask.id);setHighlightTaskId(savedTask.id);
+        }else{
+          setContextTaskId(null);setHighlightTaskId(null);
+        }
+      }
+      reconcileReceipts(taskResult.tasks,nextExpenses);
+    }catch(error){if(request===loadRequest.current)setLoadError(error instanceof Error?error.message:"Business records could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{
+    const storage=businessReceiptStorage();
+    const taskReceipt=readBusinessReceipt(storage,"task"),expenseReceipt=readBusinessReceipt(storage,"expense");
+    setTaskRecoveryId(taskReceipt.requestId);setExpenseRecoveryId(expenseReceipt.requestId);
+    if(!taskReceipt.usable||!expenseReceipt.usable)setReceiptError("Browser recovery storage is unavailable or damaged. New task and expense submissions are blocked.");
+    void load();
+    return()=>{loadRequest.current++;};
+  },[]);
+  const matchedPickupTask=pickupTarget?tasks.find(task=>task.customerId===pickupTarget.customerId&&task.notes?.includes(pickupMarker)):undefined;
+  const duplicatePickupDraft=Boolean(matchedPickupTask&&taskCustomer===pickupTarget?.customerId&&title.trim()==="Pick up yard sign"&&taskNotes.includes(pickupMarker));
+  const matchedReviewTask=reviewTarget?tasks.find(task=>task.customerId===reviewTarget.customerId&&task.notes?.includes(reviewMarker)):undefined;
+  const duplicateReviewDraft=Boolean(matchedReviewTask&&taskCustomer===reviewTarget?.customerId&&taskNotes.includes(reviewMarker));
+  const addTask=async()=>{
+    if(duplicatePickupDraft||duplicateReviewDraft){setBusinessMessage("A reminder for this same event is already saved. Review the existing task below.");return;}
+    if(taskCreateLock.current)return;
+    const submittedTitle=title.trim(),customerId=taskCustomer==="none"?null:taskCustomer;
+    if(!submittedTitle){setBusinessMessage("Enter a task or reminder first.");return;}
+    const parsedDueAt=dueAt?new Date(dueAt):null;
+    if(parsedDueAt&&!Number.isFinite(parsedDueAt.getTime())){setBusinessMessage("Choose a valid task due date.");return;}
+    const fields={title:submittedTitle,dueAt:parsedDueAt?.toISOString()??null,notes:taskNotes,customerId};
+    const fingerprint=JSON.stringify(fields);
+    const previous=taskCreateAttempt.current;
+    if(previous&&previous.fingerprint!==fingerprint){setBusinessMessage("A previous task save may have succeeded. Restore its original details and retry, or refresh the saved tasks before starting a different task.");return;}
+    const storage=businessReceiptStorage(),receipt=readBusinessReceipt(storage,"task");
+    if(!receipt.usable){setBusinessMessage("Task not submitted. Browser recovery storage is unavailable; no request was sent.");return;}
+    if(receipt.requestId&&(!previous||previous.requestId!==receipt.requestId)){setTaskRecoveryId(receipt.requestId);setBusinessMessage("An earlier task save is unresolved. Check saved records and review its pending ID before creating another task.");return;}
+    const attempt=previous??{requestId:crypto.randomUUID(),fingerprint};
+    if(!reserveBusinessReceipt(storage,"task",attempt.requestId)){setBusinessMessage("Task not submitted. The recovery request ID could not be saved.");return;}
+    taskCreateAttempt.current=attempt;setTaskRecoveryId(attempt.requestId);
+    taskCreateLock.current=true;setTaskSaving(true);setBusinessMessage("");
+    try{
+      const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...fields,requestId:attempt.requestId})});
+      const result=await response.json() as {task?:TaskRow;requestId?:string;confirmed?:boolean;error?:string};
+      if(!response.ok)throw new Error(result?.error||"Task save was rejected.");
+      const task=result?.task;
+      if(result?.confirmed!==true||result.requestId!==attempt.requestId||!task||task.id!==attempt.requestId||task.title!==submittedTitle||task.customerId!==customerId||task.status!=="open")throw new Error("The saved task response could not be verified.");
+      taskCreateAttempt.current=null;
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+      if(releaseBusinessReceipt(storage,"task",attempt.requestId))setTaskRecoveryId(null);
+      setTitle("");setDueAt("");setTaskNotes("");setTaskCustomer("none");setBusinessMessage("Task added.");
+      await load();
+    }catch(error){
+      setBusinessMessage(`Task save not confirmed: ${error instanceof Error?error.message:"Connection unavailable."} Your draft is kept. Retry unchanged details to reuse the same request ID, or check saved tasks first.`);
+    }finally{taskCreateLock.current=false;setTaskSaving(false);}
+  };
+  const toggleTask=async(task:TaskRow)=>{
+    if(taskStatusLock.current||taskStatusRefreshLock.current||taskStatusUncertain)return;
+    if(task.status!=="open"&&task.status!=="completed"){setTaskStatusMessage("Task status is invalid. Refresh saved tasks before making changes.");setTaskStatusUncertain(true);return;}
+    taskStatusLock.current=true;setTaskToggling(task.id);setTaskStatusMessage("");
+    const nextStatus=task.status==="open"?"completed":"open";
+    try{
+      const response=await fetch("/api/tasks",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:task.id,status:nextStatus,expectedStatus:task.status})});
+      const result=await response.json() as {ok?:boolean;id?:string;status?:string;completedAt?:string|null;error?:string};
+      if(!response.ok||result?.ok!==true||result.id!==task.id||result.status!==nextStatus||(nextStatus==="completed"&&(typeof result.completedAt!=="string"||!Number.isFinite(Date.parse(result.completedAt))))||(nextStatus==="open"&&result.completedAt!==null))throw new Error(result?.error||"The task update was not confirmed.");
+      setTasks(current=>current.map(item=>item.id===task.id?{...item,status:nextStatus,completedAt:result.completedAt}:item));
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+      setTaskStatusMessage("Task status confirmed.");
+    }catch{
+      setTaskStatusUncertain(true);
+      setTaskStatusMessage("Task status not confirmed. It may have saved. Refresh saved tasks before updating any task again.");
+    }finally{taskStatusLock.current=false;setTaskToggling(null);}
+  };
+  const localTaskDueInput=(value:string|null|undefined)=>{
+    if(!value)return "";
+    const date=new Date(value);
+    if(!Number.isFinite(date.getTime()))return "";
+    const pad=(part:number)=>String(part).padStart(2,"0");
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+  const rescheduleTask=async(task:TaskRow)=>{
+    if(taskStatusLock.current||taskStatusRefreshLock.current||taskStatusUncertain||rescheduleEditingId!==task.id)return;
+    if(task.status!=="open"){setTaskStatusUncertain(true);setTaskStatusMessage("Task is not open. Refresh saved tasks before rescheduling.");return;}
+    const parsed=rescheduleDateInput?new Date(rescheduleDateInput):null;
+    if(parsed&&!Number.isFinite(parsed.getTime())){setTaskStatusMessage("Choose a valid due date and time.");return;}
+    const nextDueAt=parsed?.toISOString()??null;
+    if(nextDueAt===(task.dueAt??null)){setRescheduleEditingId(null);setTaskStatusMessage("Task due date unchanged.");return;}
+    taskStatusLock.current=true;setRescheduleSaving(true);setTaskToggling(task.id);setTaskStatusMessage("");
+    try{
+      const response=await fetch("/api/tasks",{method:"PATCH",headers:{"content-type":"application/json"},
+        body:JSON.stringify({operation:"reschedule",id:task.id,expectedStatus:"open",expectedDueAt:task.dueAt??null,dueAt:nextDueAt})});
+      const result=await response.json() as {ok?:boolean;id?:string;status?:string;dueAt?:string|null;error?:string};
+      if(!response.ok||result.ok!==true||result.id!==task.id||result.status!=="open"||result.dueAt!==nextDueAt)
+        throw new Error(result.error||"The saved due date was not confirmed.");
+      // Immediately keep the verified owner list in the same order as the SQL GET:
+      // dated open reminders first, undated open work next, completed records last.
+      setTasks(current=>current.map(row=>row.id===task.id?{...row,dueAt:nextDueAt}:row).sort((a,b)=>{
+        const rank=(entry:TaskRow)=>entry.status==="open"?(entry.dueAt?0:1):2;
+        const priority=rank(a)-rank(b);
+        if(priority)return priority;
+        if(a.dueAt&&b.dueAt&&a.dueAt!==b.dueAt)return a.dueAt<b.dueAt?-1:1;
+        if(a.createdAt!==b.createdAt)return a.createdAt>b.createdAt?-1:1;
+        return a.id.localeCompare(b.id);
+      }));
+      setRescheduleEditingId(null);
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")
+        window.dispatchEvent(new Event("fire:attention-saved"));
+      setTaskStatusMessage(nextDueAt?"Task due date saved and verified.":"Task due date cleared and verified.");
+    }catch{
+      // Lost responses and 409 conflicts are indistinguishable without another owner GET.
+      // Do not retry a PATCH or silently overwrite a changed date.
+      setTaskStatusUncertain(true);
+      setTaskStatusMessage("Task due date not confirmed. It may have changed. Refresh saved tasks and review the recorded date before editing again.");
+    }finally{taskStatusLock.current=false;setRescheduleSaving(false);setTaskToggling(null);}
+  };
+  const refreshTaskStatuses=async()=>{
+    if(taskStatusLock.current||taskStatusRefreshLock.current)return;
+    taskStatusRefreshLock.current=true;setTaskStatusMessage("");
+    // A full Business GET started earlier must not replace this newer server-confirmed list.
+    loadRequest.current++;
+    try{
+      const response=await fetch("/api/tasks",{cache:"no-store"});
+      const result=await response.json() as {tasks?:TaskRow[];error?:string};
+      if(!response.ok||!Array.isArray(result.tasks)||result.tasks.some(row=>!row||typeof row.id!=="string"||!row.id||typeof row.title!=="string"||(row.status!=="open"&&row.status!=="completed")||(row.status==="completed"&&(!row.completedAt||!Number.isFinite(Date.parse(row.completedAt))))))throw new Error("Task statuses could not be verified.");
+      setTasks(result.tasks);
+      // A prior editor may contain a request whose response was lost. A saved
+      // GET releases the mutation hold, not permission to replay that old input.
+      setRescheduleEditingId(null);
+      setRescheduleDateInput("");
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+      setTaskStatusUncertain(false);
+      setTaskStatusMessage("Task statuses refreshed from saved records.");
+    }catch{
+      setTaskStatusUncertain(true);
+      setTaskStatusMessage("Task status refresh failed. No additional task changes are allowed until the saved list can be verified.");
+    }finally{taskStatusRefreshLock.current=false;}
+  };
+  const addExpense=async()=>{
+    if(expenseCreateLock.current)return;
+    const submittedDescription=description.trim(),estimateId=expenseEstimate==="none"?null:expenseEstimate;
+    // Money is exact to cents. Never silently round a third decimal place or accept exponent notation.
+    const amountParts=/^(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/.exec(amount.trim());
+    const dollars=amountParts?Number(amountParts[1]??"0"):NaN;
+    const cents=amountParts?Number((amountParts[2]??amountParts[3]??"").padEnd(2,"0")):NaN;
+    const amountCents=Number.isSafeInteger(dollars)&&dollars>=0&&dollars<=Math.floor(Number.MAX_SAFE_INTEGER/100)
+      ?dollars*100+cents:NaN;
+    if(!submittedDescription){setBusinessMessage("Enter what the expense was for.");return;}
+    if(!Number.isSafeInteger(amountCents)||amountCents<=0){setBusinessMessage("Enter a positive dollar amount with no more than two decimal places.");return;}
+    const selectedDate=expenseDate.trim();
+    const chosenIncurredAt=selectedDate?expenseDateInstant(selectedDate):null;
+    if(selectedDate&&!chosenIncurredAt){setBusinessMessage("Choose a valid expense purchase date.");return;}
+    const fields={category,description:submittedDescription,amountCents,estimateId};
+    const fingerprint=JSON.stringify({...fields,chosenIncurredAt});
+    const previous=expenseCreateAttempt.current;
+    if(previous&&previous.fingerprint!==fingerprint){setBusinessMessage("A previous expense save may have succeeded. Restore its original details and retry, or refresh saved expenses before entering a different expense.");return;}
+    const storage=businessReceiptStorage(),receipt=readBusinessReceipt(storage,"expense");
+    if(!receipt.usable){setBusinessMessage("Expense not submitted. Browser recovery storage is unavailable; no request was sent.");return;}
+    if(receipt.requestId&&(!previous||previous.requestId!==receipt.requestId)){setExpenseRecoveryId(receipt.requestId);setBusinessMessage("An earlier expense save is unresolved. Check saved records and review its pending ID before creating another expense.");return;}
+    const attempt=previous??{requestId:crypto.randomUUID(),fingerprint,incurredAt:chosenIncurredAt??new Date().toISOString()};
+    if(!reserveBusinessReceipt(storage,"expense",attempt.requestId)){setBusinessMessage("Expense not submitted. The recovery request ID could not be saved.");return;}
+    expenseCreateAttempt.current=attempt;setExpenseRecoveryId(attempt.requestId);
+    expenseCreateLock.current=true;setExpenseSaving(true);setBusinessMessage("");
+    try{
+      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...fields,incurredAt:attempt.incurredAt,requestId:attempt.requestId})});
+      const result=await response.json() as {expense?:ExpenseRow;requestId?:string;confirmed?:boolean;error?:string};
+      if(!response.ok)throw new Error(result?.error||"Expense save was rejected.");
+      const saved=result?.expense;
+      if(result?.confirmed!==true||result.requestId!==attempt.requestId||!saved||saved.id!==attempt.requestId||saved.description!==submittedDescription||saved.category!==category||saved.estimateId!==estimateId||saved.amountCents!==amountCents||saved.incurredAt!==attempt.incurredAt)throw new Error("The saved expense response could not be verified.");
+      expenseCreateAttempt.current=null;
+      if(releaseBusinessReceipt(storage,"expense",attempt.requestId))setExpenseRecoveryId(null);
+      setDescription("");setAmount("");setExpenseDate("");setExpenseEstimate("none");setBusinessMessage("Expense recorded.");
+      await load();
+    }catch(error){
+      setBusinessMessage(`Expense save not confirmed: ${error instanceof Error?error.message:"Connection unavailable."} Your draft is kept. Retry unchanged details to reuse the same request ID, or check saved expenses first.`);
+    }finally{expenseCreateLock.current=false;setExpenseSaving(false);}
+  };
+  const chooseBackup=async(file:File)=>{setRestoreMessage("");try{if(file.size>5_000_000)throw new Error("That backup is larger than 5 MB.");const parsed=JSON.parse(await file.text()) as Record<string,unknown>;const normal=parsed?.format==="fire-app-records-backup"&&parsed?.version===1;const snapshot=parsed?.backup_format==="FIRE App live database snapshot"&&parsed?.format_version===1&&typeof parsed?.verification==="object"&&parsed?.verification!==null&&(parsed.verification as Record<string,unknown>).all_tables_complete===true&&(parsed.verification as Record<string,unknown>).truncated===false;if(!normal&&!snapshot)throw new Error("This is not a valid or complete FIRE App records backup.");setPendingBackup(parsed);}catch(error){setRestoreMessage(error instanceof Error?error.message:"The backup could not be opened.");}finally{if(restoreInput.current)restoreInput.current.value="";}};
+  const restoreBackup=async()=>{if(!pendingBackup)return;setRestoreBusy(true);setRestoreMessage("");try{const response=await fetch("/api/backup",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(pendingBackup)});const result=await response.json() as {restored?:number;duplicatesPreserved?:number;photoMetadataSkipped?:number;error?:string};if(!response.ok)throw new Error(result.error||"The backup could not be restored.");setPendingBackup(null);setRestoreMessage(`${result.restored??0} missing records restored; ${result.duplicatesPreserved??0} existing records preserved.${result.photoMetadataSkipped?` ${result.photoMetadataSkipped} photo references skipped because photo files require a separate archive.`:""}`);void load();}catch(error){setRestoreMessage(error instanceof Error?error.message:"The backup could not be restored.");}finally{setRestoreBusy(false);}};
+  const taskQuery=taskSearch.trim().toLocaleLowerCase(),expenseQuery=expenseSearch.trim().toLocaleLowerCase();
+  const taskNow=new Date(),dueCounts={overdue:0,today:0};
+  for(const task of tasks){const bucket=taskDueBucket(task,taskNow);if(bucket==="overdue")dueCounts.overdue++;if(bucket==="today")dueCounts.today++;}
+  const visibleTasks=tasks.filter(task=>(taskFilter==="all"||(["overdue","today"].includes(taskFilter)?taskDueBucket(task,taskNow)===taskFilter:task.status===taskFilter))&&[task.title,task.notes,task.customer].filter(Boolean).join(" ").toLocaleLowerCase().includes(taskQuery));
+  const matchingExpenses=expenses.filter(row=>[row.description,row.category,row.customer,row.service].filter(Boolean).join(" ").toLocaleLowerCase().includes(expenseQuery));
+  const jumpTo=(id:string)=>{const section=document.getElementById(id);if(section){section.scrollIntoView({block:"start",behavior:"auto"});section.focus({preventScroll:true});}};
+  // Use Tulsa owner business dates for monthly totals, tax-year filters
+  // and export links even when the phone is on a trip or UTC passed Jan 1.
+  const businessToday=expenseBusinessDay(new Date().toISOString());
+  const monthExpenses=expenses.filter(row=>Boolean(businessToday)&&expenseBusinessDay(row.incurredAt)?.slice(0,7)===businessToday!.slice(0,7)).reduce((sum,row)=>sum+row.amountCents,0);
+  const taxYears=[...new Set([businessToday?.slice(0,4),...expenses.map(item=>expenseBusinessDay(item.incurredAt)?.slice(0,4))].filter((year):year is string=>Boolean(year)))].sort((a,b)=>b.localeCompare(a));
+  const taxExpenses=expenses.filter(item=>expenseBusinessDay(item.incurredAt)?.slice(0,4)===taxYear);
+  const taxExpenseTotal=taxExpenses.reduce((sum,item)=>sum+item.amountCents,0);
+  const taxCategories=Object.entries(taxExpenses.reduce<Record<string,number>>((totals,item)=>{totals[item.category]=(totals[item.category]??0)+item.amountCents;return totals;},{})).sort(([a],[b])=>a.localeCompare(b));
+  return <div className="workspace-view"><section className="workspace-head"><div><h1>Business</h1></div><details className="business-backup-tools"><summary>Backups &amp; exports</summary><div className="workspace-head-actions"><a className="export-button" href="/api/backup"><Download/> Full records backup</a><a className="export-button" href="/api/backup/photos"><Images/> Photo archive</a><a className="export-button" href="/api/backup/photos/storage"><Images/> Complete photo storage backup</a><button type="button" className="export-button" disabled={restoreBusy} onClick={()=>restoreInput.current?.click()}><Upload/> Restore missing records</button><input ref={restoreInput} type="file" accept="application/json,.json" hidden onChange={(event)=>{const file=event.target.files?.[0];if(file)void chooseBackup(file);}}/><a className="export-button" href="/api/expenses?format=csv"><Download/> Export for Wave</a></div></details></section>{restoreMessage&&<p className="save-message" role="status">{restoreMessage}</p>}{businessMessage&&<p className={businessMessage.includes("added")||businessMessage.includes("recorded")||businessMessage.includes("verified")?"save-success":"save-error"} role="status">{businessMessage}</p>}
+    {receiptError&&<p className="save-error" role="alert">{receiptError}</p>}
+    {(taskRecoveryId||expenseRecoveryId)&&<section className="business-panel" role="status" aria-label="Pending save recovery">
+      <h2>Check interrupted save</h2>
+      <p>Verify the last {taskRecoveryId?"task":"expense"} save before retrying to avoid duplicates.</p>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading||taskSaving||expenseSaving}>Check saved records</Button>
+        {taskRecoveryId&&<Button variant="outline" onClick={()=>setDiscardReceipt("task")} disabled={taskSaving}>Review task reset</Button>}
+        {expenseRecoveryId&&<Button variant="outline" onClick={()=>setDiscardReceipt("expense")} disabled={expenseSaving}>Review expense reset</Button>}
+      </div>
+    </section>}{loading?<div className="customers-state">Loading business records…</div>:loadError?<div className="customers-state" role="alert"><p>{loadError}</p>{focusTaskId&&<p>This notification's task could not be verified. It has not been completed, changed, or dismissed. Retry reading saved Business records.</p>}<Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>{taskFocusNotice&&<section className="business-task-recovery" role="status" aria-label="Notification task recovery"><strong>{taskFocusNotice.status==="missing"?"Notification task not found in latest saved records":taskFocusNotice.status==="restored"?"Notification task found after recheck":"Notification task status has changed"}</strong><p>{taskFocusNotice.status==="missing"?"The task ID was not in the latest verified Business list. This does not prove it was deleted. Review its customer's saved activity or recheck; no task status or customer contact was changed.":taskFocusNotice.status==="restored"?"The task is present in the refreshed list. Review its saved details before acting.":"The saved task is no longer an open task due now. Review the current saved status before taking action; no contact or completion was recorded."}</p><div className="business-task-recovery-actions"><Button variant="outline" onClick={()=>void load()} disabled={loading||Boolean(taskToggling)}>Recheck saved tasks</Button>{taskFocusNotice.status==="restored"&&<Button variant="outline" onClick={()=>{setTaskSearch("");setTaskFilter("all");setContextTaskId(taskFocusNotice.id);setHighlightTaskId(taskFocusNotice.id);}}>Review recovered task</Button>}{(()=>{const customer=taskFocusNotice.customerId?customers.find(row=>row.id===taskFocusNotice.customerId):null;return customer?<>{onOpenCustomer&&<Button variant="outline" onClick={()=>onOpenCustomer(customer.id)}>Open verified customer profile</Button>}{taskFocusNotice.activity&&onOpenCustomerActivity&&<Button variant="outline" onClick={()=>onOpenCustomerActivity(customer.id,taskFocusNotice.activity!)}>Check saved {taskFocusNotice.activity==="sign"?"yard-sign":"review"} flag</Button>}</>:<small>Linked customer not verified in the loaded owner records. Open Customers to search manually.</small>;})()}</div></section>}<nav className="business-section-links" aria-label="Business sections"><Button variant="outline" onClick={()=>jumpTo("business-tasks-heading")}>Tasks</Button><Button variant="outline" onClick={()=>jumpTo("business-expenses-heading")}>Expenses</Button></nav><section className="business-metrics business-operations-metrics"><article><small>Open tasks</small><strong>{tasks.filter((task)=>task.status==="open").length}</strong></article><article><small>Past-due tasks</small><strong>{dueCounts.overdue}</strong></article><article><small>Due today</small><strong>{dueCounts.today}</strong></article></section><details className="business-secondary-metrics"><summary>Expense totals</summary><div className="business-metrics"><article><small>This month&apos;s expenses</small><strong>{money(monthExpenses)}</strong></article><article><small>Recorded expenses</small><strong>{expenses.length}</strong></article></div></details><details className="business-tax-prep"><summary>Tax prep</summary><div className="business-tax-prep-body">
+      <div className="business-tax-prep-heading"><label htmlFor="business-tax-year">Tax year</label><select id="business-tax-year" value={taxYear} onChange={event=>setTaxYear(event.target.value)}>{taxYears.map(year=><option key={year} value={year}>{year}</option>)}</select></div>
+      {loadError?<p role="alert">Expense records could not be verified. Refresh Business before using these totals.</p>:loading?<p>Checking saved expenses…</p>:<>
+        <p role="status"><strong>{money(taxExpenseTotal)}</strong> recorded across {taxExpenses.length} expense{taxExpenses.length===1?"":"s"} in {taxYear}.</p>
+        {taxCategories.length>0?<div className="business-tax-categories">{taxCategories.map(([name,amount])=><div key={name}><span>{name}</span><strong>{money(amount)}</strong></div>)}</div>:<p>No expenses saved for this year.</p>}
+        <a className="export-button" href={`/api/expenses?format=csv&year=${encodeURIComponent(taxYear)}`}><Download/> Export {taxYear} expenses (Wave CSV)</a>
+      </>}
+      <p className="business-tax-caveat">These are only expenses saved in FIRE—not taxable profit or verified deductions. Reconcile with Wave payments, refunds, fees and receipts; add business mileage from Stride on Home. Avoid counting job costs twice.</p>
+    </div></details><div className="business-grid"><section className="business-panel"><header><div><h2 id="business-tasks-heading" tabIndex={-1}>Tasks</h2></div></header>{reviewTarget&&<div className="business-pickup-draft" role="status"><strong><Star aria-hidden="true"/> Review status check draft</strong><p>{duplicateReviewDraft?"A task for this review request is already saved. Avoid creating a duplicate.":"Review the customer and due date, then choose Add task. No customer message is prepared or sent."}</p><small>First check whether a review is posted or already logged. This is an owner reminder, not an automatic second review request.</small></div>}{pickupTarget&&<div className="business-pickup-draft" role="status"><strong><MapPin aria-hidden="true"/> Yard sign pickup reminder</strong><p>{duplicatePickupDraft?"This placement already has a saved task. Avoid creating a duplicate.":"Review customer, pickup date/time and location, then choose Add task. No task has been created yet."}</p><small>Pickup time defaults to noon on this device; adjust as needed. Mark the physical sign picked up separately in the customer's Activity & flags.</small></div>}<details className="business-task-entry" open={Boolean(pickupTarget||reviewTarget)}><summary>Add task</summary><div className="business-form"><div className="business-field"><Label htmlFor="business-task-title">Task or reminder</Label><Input id="business-task-title" disabled={taskSaving} value={title} onChange={(event)=>setTitle(event.target.value)} placeholder="Task, call, or reminder"/></div><div className="business-field"><Label id="business-task-customer-label" htmlFor="business-task-customer">Customer</Label><Select value={taskCustomer} disabled={taskSaving} onValueChange={setTaskCustomer}><SelectTrigger id="business-task-customer" aria-labelledby="business-task-customer-label"><SelectValue placeholder="Link a customer"/></SelectTrigger><SelectContent><SelectItem value="none">General business task</SelectItem>{customers.map((customer)=><SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent></Select></div><div className="business-field"><Label htmlFor="business-task-due">Due date and time (optional)</Label><Input id="business-task-due" disabled={taskSaving} type="datetime-local" value={dueAt} onChange={(event)=>setDueAt(event.target.value)}/></div><div className="business-field"><Label htmlFor="business-task-notes">Notes (optional)</Label><Textarea id="business-task-notes" disabled={taskSaving} value={taskNotes} onChange={(event)=>setTaskNotes(event.target.value)} placeholder="Optional notes" rows={2}/></div><Button className="brand-button" onClick={()=>void addTask()} disabled={taskSaving||loading||Boolean(loadError)||duplicatePickupDraft||duplicateReviewDraft}><Plus className="h-4 w-4"/> {taskSaving?"Adding…":"Add task"}</Button></div></details>{taskStatusMessage&&<p className={taskStatusUncertain?"save-error":"save-message"} role={taskStatusUncertain?"alert":"status"}>{taskStatusMessage}</p>}{taskStatusUncertain&&<Button variant="outline" onClick={()=>void refreshTaskStatuses()} disabled={Boolean(taskToggling)}>Refresh task statuses</Button>}<div className="business-record-tools"><Label htmlFor="business-task-search">Find a task</Label><Input id="business-task-search" type="search" value={taskSearch} onChange={event=>setTaskSearch(event.target.value)} placeholder="Search task, customer, or notes"/><div className="business-task-filters" role="group" aria-label="Task filters">{(["all","open","completed","overdue","today"] as const).map(value=><Button key={value} variant={taskFilter===value?"default":"outline"} aria-pressed={taskFilter===value} onClick={()=>setTaskFilter(value)}>{value==="all"?"All":value==="open"?"Open":value==="completed"?"Completed":value==="overdue"?"Past due":"Due today"} ({value==="all"?tasks.length:value==="overdue"||value==="today"?dueCounts[value]:tasks.filter(task=>task.status===value).length})</Button>)}</div><p role="status">Showing {visibleTasks.length} of {tasks.length} tasks.</p>{(taskQuery||taskFilter!=="all")&&<Button variant="outline" onClick={()=>{setTaskSearch("");setTaskFilter("all");}}>Clear task filters</Button>}</div><div className="task-list">{visibleTasks.map(task=>{
+ const context=businessTaskContext(task,customers,estimates);
+ const expanded=contextTaskId===task.id;
+ return <div key={task.id} className={"business-task-item"+(highlightTaskId===task.id?" task-dashboard-focus":"")}>
+ <div className="business-task-row">
+ <button type="button" className={"business-task-toggle "+task.status} aria-label={`Toggle completion for ${task.title}`} aria-pressed={task.status==="completed"} aria-busy={taskToggling===task.id} onClick={()=>void toggleTask(task)} disabled={Boolean(taskToggling)||taskStatusUncertain}><span className="task-check">{task.status==="completed"&&<Check/>}</span><span><strong>{task.title}</strong><small>{task.customer?`${task.customer} · `:""}{task.dueAt?dateTime(task.dueAt):"No due date"}</small>{taskDueBucket(task,taskNow)==="overdue"&&<span className="business-due-chip overdue">Past due</span>}{taskDueBucket(task,taskNow)==="today"&&<span className="business-due-chip today">Due today</span>}</span></button>
+ <button type="button" id={"business-task-"+task.id} className="business-task-details-button" aria-expanded={expanded} aria-controls={"business-task-context-"+task.id} aria-label={`Review details for ${task.title}`} onClick={()=>setContextTaskId(current=>current===task.id?null:task.id)}><FileText aria-hidden="true"/><span>{expanded?"Hide":"Details"}</span></button>
+ </div>
+ {expanded&&<section id={"business-task-context-"+task.id} className="business-task-context" role="region" aria-label={`Task context for ${task.title}`}>
+ <div className="business-task-context-heading"><strong>{task.title}</strong><span>{task.status==="completed"?"Completed":taskDueBucket(task,taskNow)==="overdue"?"Past due":taskDueBucket(task,taskNow)==="today"?"Due today":"Open"}</span></div>
+ <p>{task.dueAt?"Due "+dateTime(task.dueAt):"No due date"}</p>{task.notes&&<p className="business-task-saved-notes"><strong>Notes:</strong> {task.notes}</p>}
+ {task.status==="open"&&<div className="flex flex-wrap items-center gap-2">
+   <Button variant="outline" disabled={Boolean(taskToggling)||taskStatusUncertain} onClick={()=>{setRescheduleEditingId(task.id);setRescheduleDateInput(localTaskDueInput(task.dueAt));setTaskStatusMessage("");}}>Change due date</Button>
+   {rescheduleEditingId===task.id&&<div className="flex w-full flex-wrap items-end gap-2" role="group" aria-label={`Reschedule ${task.title}`}>
+     <div className="business-field"><Label htmlFor={`business-task-reschedule-${task.id}`}>Due date &amp; time (blank clears)</Label>
+       <Input id={`business-task-reschedule-${task.id}`} type="datetime-local" value={rescheduleDateInput} onChange={event=>setRescheduleDateInput(event.target.value)} disabled={rescheduleSaving||taskStatusUncertain}/></div>
+     <Button onClick={()=>void rescheduleTask(task)} disabled={rescheduleSaving||Boolean(taskToggling)||taskStatusUncertain}>{rescheduleSaving?"Saving…":"Save date"}</Button>
+     <Button variant="outline" onClick={()=>setRescheduleEditingId(null)} disabled={rescheduleSaving}>Cancel</Button>
+     <small className="w-full">Only the due date changes. Customer notes and flags are unchanged.</small>
+   </div>}
+ </div>}
+ {context.customer?<><div className="business-task-customer-summary"><strong>{context.customer.name}</strong>{context.customer.address&&<small>{context.customer.address}</small>}{context.customer.phone&&<small>{context.customer.phone}</small>}<small>{context.estimateCount} saved estimate{context.estimateCount===1?"":"s"} · {context.scheduledCount} scheduled · {context.completedCount} completed</small></div>
+ {context.flag?<><p>{context.flag.kind==="sign"?"Linked yard-sign placement":"Linked review request"} · saved task marker {context.flag.recordedAt}. Verify the actual flag and its current status in Customer Activity &amp; Flags. A completed task alone does not confirm a pickup or posted review.</p>
+ {onOpenCustomerActivity&&<button type="button" className="business-task-context-link" onClick={()=>onOpenCustomerActivity(context.customer!.id,context.flag!.kind)}><Users aria-hidden="true"/> {context.flag.kind==="sign"?"Open exact yard-sign flag":"Open exact review flag"} <ChevronRight aria-hidden="true"/></button>}</>:
+ <p>No matching yard-sign or review-event marker is recorded for this task. Review the saved customer profile for broader history.</p>}
+ {onOpenCustomer&&<button type="button" className="business-task-context-link" onClick={()=>onOpenCustomer(context.customer!.id)}><Users aria-hidden="true"/> Open customer profile <ChevronRight aria-hidden="true"/></button>}
+ </>:task.customerId?<p role="status">The linked customer could not be verified in the loaded customer list. No customer flag was assumed.</p>:<p>General business task · no linked customer.</p>}
+ <button type="button" className="business-task-context-close" aria-label={`Back to task list from ${task.title}`} onClick={()=>setContextTaskId(null)}><ArrowLeft aria-hidden="true"/> Back to tasks</button>
+ </section>}
+ </div>;
+ })}{!visibleTasks.length&&<p className="business-record-empty">{tasks.length?"No matching tasks.":"No tasks yet."}</p>}</div></section><section className="business-panel"><header><div><h2 id="business-expenses-heading" tabIndex={-1}>Expenses</h2></div></header><details className="business-expense-entry"><summary>Add expense</summary><div className="business-form"><div className="business-field"><Label id="business-expense-category-label" htmlFor="business-expense-category">Expense category</Label><Select value={category} disabled={expenseSaving} onValueChange={setCategory}><SelectTrigger id="business-expense-category" aria-labelledby="business-expense-category-label"><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Insurance","Marketing","Labor","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div><div className="business-field"><Label id="business-expense-job-label" htmlFor="business-expense-job">Job</Label><Select value={expenseEstimate} disabled={expenseSaving} onValueChange={setExpenseEstimate}><SelectTrigger id="business-expense-job" aria-labelledby="business-expense-job-label"><SelectValue placeholder="Link a job"/></SelectTrigger><SelectContent><SelectItem value="none">General business expense</SelectItem>{estimates.map((estimate)=>{const customer=customers.find((item)=>item.id===estimate.customerId);return <SelectItem key={estimate.id} value={estimate.id}>{customer?.name||"Customer"} · {estimate.service}</SelectItem>;})}</SelectContent></Select></div><div className="business-field"><Label htmlFor="business-expense-description">Expense description</Label><Input id="business-expense-description" disabled={expenseSaving} value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="What was the expense?"/></div><div className="business-field"><Label htmlFor="business-expense-amount">Amount ($)</Label><Input id="business-expense-amount" disabled={expenseSaving} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="$ Amount"/></div><div className="business-field"><Label htmlFor="business-expense-date">Purchase date (optional)</Label><Input id="business-expense-date" type="date" disabled={expenseSaving} value={expenseDate} onChange={(event)=>setExpenseDate(event.target.value)}/></div><Button className="brand-button" onClick={()=>void addExpense()} disabled={expenseSaving}><Plus className="h-4 w-4"/> {expenseSaving?"Adding…":"Add expense"}</Button></div></details><div className="business-record-tools"><Label htmlFor="business-expense-search">Find an expense</Label><Input id="business-expense-search" type="search" value={expenseSearch} onChange={event=>{setExpenseSearch(event.target.value);setExpenseLimit(12);}} placeholder="Search expense, category, customer, or job"/>{expenseQuery&&<Button variant="outline" onClick={()=>{setExpenseSearch("");setExpenseLimit(12);}}>Clear expense search</Button>}<p role="status">Showing {Math.min(expenseLimit,matchingExpenses.length)} of {matchingExpenses.length}{expenseQuery?" matching":""} expenses. {expenseQuery?`${expenses.length} saved in total.`:""}</p></div><div className="expense-list">{matchingExpenses.slice(0,expenseLimit).map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}{row.customer?` · ${row.customer}`:""} · {expenseBusinessDateLabel(row.incurredAt)}</small></span><b>{money(row.amountCents)}</b></div>)}{!matchingExpenses.length&&<p className="business-record-empty">{expenses.length?"No matching expenses.":"No expenses recorded yet."}</p>}</div>{matchingExpenses.length>expenseLimit&&<div className="business-record-more"><Button variant="outline" onClick={()=>setExpenseLimit(current=>Math.min(current+12,matchingExpenses.length))}>Show {Math.min(12,matchingExpenses.length-expenseLimit)} more expenses</Button></div>}</section></div></>}<AlertDialog open={Boolean(pendingBackup)} onOpenChange={(open)=>{if(!open&&!restoreBusy)setPendingBackup(null);}}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Restore missing FIRE App records?</AlertDialogTitle><AlertDialogDescription>The app will add records that are missing from this backup. It will not delete or overwrite records already in the app. Customer photo files are not included and will be skipped.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={restoreBusy}>Cancel</AlertDialogCancel><AlertDialogAction disabled={restoreBusy} onClick={(event)=>{event.preventDefault();void restoreBackup();}}>{restoreBusy?"Restoring…":"Restore missing records"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog><AlertDialog open={Boolean(discardReceipt)} onOpenChange={(open)=>{if(!open)setDiscardReceipt(null);}}>
+    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Abandon the pending {discardReceipt==="task"?"task":"expense"} request ID?</AlertDialogTitle>
+    <AlertDialogDescription>Only do this after checking saved Business records. The earlier save could still have succeeded; clearing its receipt allows a new submission that might create a duplicate. No saved record will be deleted.</AlertDialogDescription></AlertDialogHeader>
+    <AlertDialogFooter><AlertDialogCancel>Keep recovery ID</AlertDialogCancel>
+    <AlertDialogAction onClick={(event)=>{event.preventDefault();if(!discardReceipt)return;
+      const storage=businessReceiptStorage(),receipt=readBusinessReceipt(storage,discardReceipt);
+      if(receipt.requestId&&releaseBusinessReceipt(storage,discardReceipt,receipt.requestId)){
+        if(discardReceipt==="task"){taskCreateAttempt.current=null;setTaskRecoveryId(null);}else{expenseCreateAttempt.current=null;setExpenseRecoveryId(null);}
+        setBusinessMessage("Recovery ID abandoned by owner. Verify the earlier save did not create a record before submitting again.");
+      }else setReceiptError("Recovery ID could not be cleared safely. No new request was authorized.");
+      setDiscardReceipt(null);
+    }}>I reviewed the list — abandon ID</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+    </AlertDialog></div>;
+}
+
+type InsightRange="30"|"ytd"|"lifetime";
+function InsightsView(){
+  const [range,setRange]=useState<InsightRange>("30");
+  const [customers,setCustomers]=useState<CustomerRow[]>([]);const [estimates,setEstimates]=useState<CustomerEstimate[]>([]);const [invoices,setInvoices]=useState<InvoiceRow[]>([]);const [payments,setPayments]=useState<PaymentRow[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
+  const loadRequest=useRef(0);
+  const load=async()=>{
+    const request=++loadRequest.current;setLoading(true);setError("");
+    try{
+      const response=await fetch("/api/customers",{cache:"no-store"});
+      const result=await response.json() as {customers?:CustomerRow[];estimates?:CustomerEstimate[];invoices?:InvoiceRow[];payments?:PaymentRow[];error?:string};
+      if(request!==loadRequest.current)return;
+      if(!response.ok)throw new Error(result?.error||"Insights are temporarily unavailable.");
+      const collections=[result?.customers,result?.estimates,result?.invoices,result?.payments];
+      if(collections.some(rows=>!Array.isArray(rows)||rows.some(row=>!row||typeof row!=="object"||Array.isArray(row)||typeof row.id!=="string"||!row.id)||new Set(rows.map(row=>row.id)).size!==rows.length))throw new Error("Insight records could not be read. Reconnect and try again; totals are unavailable.");
+      const validDate=(value:unknown)=>typeof value==="string"&&Number.isFinite(Date.parse(value));
+      const cents=(value:unknown)=>{if((typeof value!=="number"&&typeof value!=="string")||(typeof value==="string"&&!value.trim())||!Number.isSafeInteger(Number(value)))throw new Error("Insight amounts need review before totals can be shown.");return Number(value);};
+      if(result.customers!.some(row=>typeof row.name!=="string"||!validDate(row.createdAt)||(row.leadSource!=null&&typeof row.leadSource!=="string"))||result.estimates!.some(row=>!validDate(row.createdAt)||typeof row.status!=="string"||typeof row.service!=="string"||!Array.isArray(row.items)||row.items.some(item=>!item||typeof item.name!=="string"))||result.invoices!.some(row=>typeof row.estimateId!=="string")||result.payments!.some(row=>!validDate(row.createdAt)||typeof row.estimateId!=="string"||typeof row.type!=="string"))throw new Error("Insight records need review before totals can be shown.");
+      const nextEstimates=result.estimates!.map(row=>({...row,totalCents:cents(row.totalCents),invoiceTotalCents:row.invoiceTotalCents==null?null:cents(row.invoiceTotalCents),paidCents:cents(row.paidCents),items:row.items!.map(item=>({...item,totalCents:cents(item.totalCents)}))}));
+      const nextInvoices=result.invoices!.map(row=>({...row,totalCents:cents(row.totalCents)}));
+      const nextPayments=result.payments!.map(row=>({...row,amountCents:cents(row.amountCents)}));
+      // Bound absolute sums as well as individual cents before existing metrics run.
+      for(const values of [nextEstimates.flatMap(row=>[row.totalCents,row.invoiceTotalCents??0,...row.items.map(item=>item.totalCents)]),nextInvoices.map(row=>row.totalCents),nextPayments.map(row=>row.amountCents)]){let total=0;for(const value of values){total+=Math.abs(value);if(!Number.isSafeInteger(total))throw new Error("Insight totals exceed the safe accounting range. Review records before using these totals.");}}
+      setCustomers(result.customers!);setEstimates(nextEstimates);setInvoices(nextInvoices);setPayments(nextPayments);
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Insights are temporarily unavailable.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
+  };
+  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
+  const start=useMemo(()=>{const now=new Date();if(range==="30")return new Date(now.getTime()-30*86400000);if(range==="ytd")return new Date(now.getFullYear(),0,1);return null;},[range]);
+  const inRange=(value:string)=>!start||new Date(value)>=start;
+  const rangedEstimates=estimates.filter((row)=>inRange(row.createdAt));const rangedCustomers=customers.filter((row)=>inRange(row.createdAt));const rangedPayments=payments.filter((row)=>inRange(row.createdAt));
+  const completed=rangedEstimates.filter((row)=>row.status==="completed");const decided=rangedEstimates.filter((row)=>["sent","approved","scheduled","completed","declined"].includes(row.status));const won=decided.filter((row)=>["approved","scheduled","completed"].includes(row.status));const closeRate=decided.length?Math.round(won.length/decided.length*100):0;
+  const completedValue=completed.reduce((sum,row)=>sum+resolvedBillingTotalCents(row),0);const averageJob=completed.length?Math.round(completedValue/completed.length):0;const collected=rangedPayments.reduce((sum,row)=>sum+row.amountCents,0);
+  const paymentsByEstimate=new Map<string,number>();for(const payment of payments.filter((row)=>row.type!=='Tip'&&row.type!=='Tip Refund'))paymentsByEstimate.set(payment.estimateId,(paymentsByEstimate.get(payment.estimateId)??0)+payment.amountCents);
+  const unpaid=invoices.reduce((sum,invoice)=>sum+Math.max(0,invoice.totalCents-(paymentsByEstimate.get(invoice.estimateId)??0)),0);
+  const serviceTotals=new Map<string,number>();for(const estimate of completed){const items=estimate.items?.length?estimate.items:[{id:estimate.id,name:estimate.service||"Custom service",description:"",quantity:1,unit:"job",totalCents:resolvedBillingTotalCents(estimate)}];for(const item of items)serviceTotals.set(item.name,(serviceTotals.get(item.name)??0)+Number(item.totalCents));}
+  const services=[...serviceTotals.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);const maxService=Math.max(1,...services.map(([,value])=>value));
+  const noActivity=!customers.length&&!estimates.length&&!invoices.length&&!payments.length;
+  const sourceTotals=new Map<string,number>();for(const customer of rangedCustomers){const source=customer.leadSource?.trim()||"Unknown";sourceTotals.set(source,(sourceTotals.get(source)??0)+1);}const sources=[...sourceTotals.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);const maxSource=Math.max(1,...sources.map(([,value])=>value));
+  return <div className="workspace-view insights-view"><section className="workspace-head"><div><h1>Insights</h1></div>{!loading&&!error&&!noActivity&&<div className="insight-range" aria-label="Insights date range">{(["30","ytd","lifetime"] as const).map((value)=><button key={value} className={range===value?"active":""} onClick={()=>setRange(value)}>{value==="30"?"30 days":value==="ytd"?"Year to date":"Lifetime"}</button>)}</div>}</section>
+    {loading?<div className="customers-state">Loading insights…</div>:error?<div className="customers-state" role="alert"><BarChart3/><strong>Insights unavailable</strong><p>{error}</p><Button variant="outline" className="min-h-11" onClick={()=>void load()}>Try again</Button></div>:noActivity?<section className="insights-first-use" role="status"><BarChart3 aria-hidden="true"/><strong>No business activity yet</strong><p>Insights appear as you add customers, estimates, and jobs.</p></section>:<><section className="insight-kpis"><article><span><TrendingUp/></span><small>Close rate</small><strong>{closeRate}%</strong><p>{won.length} of {decided.length} decided estimates</p></article><article><span><CircleDollarSign/></span><small>Collected</small><strong>{money(collected)}</strong></article><article><span><BriefcaseBusiness/></span><small>Average completed job</small><strong>{money(averageJob)}</strong><p>{completed.length} completed job{completed.length===1?"":"s"}</p></article><article><span><Receipt/></span><small>Unpaid invoice balance</small><strong>{money(unpaid)}</strong><p>Current all-time amount</p></article></section><div className="insight-grid"><section className="insight-panel"><header><div><h2>Completed work by service</h2></div><BarChart3/></header>{services.length?<div className="insight-bars">{services.map(([name,value])=><article key={name}><div><strong>{name}</strong><span>{money(value)}</span></div><i><b style={{width:`${Math.max(4,value/maxService*100)}%`}}/></i></article>)}</div>:<div className="insight-empty">No completed jobs in this period.</div>}</section><section className="insight-panel"><header><div><h2>Leads by source</h2></div><Users/></header>{sources.length?<div className="insight-bars sources">{sources.map(([name,value])=><article key={name}><div><strong>{name}</strong><span>{value} lead{value===1?"":"s"}</span></div><i><b style={{width:`${Math.max(4,value/maxSource*100)}%`}}/></i></article>)}</div>:<div className="insight-empty">No new customer sources in this period.</div>}</section></div></>}
+  </div>;
+}
+
+function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:boolean)=>void;onSavingChange?:(saving:boolean)=>void}){
+  const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
+  const [templateSearch,setTemplateSearch]=useState("");
+  const [selectedKey,setSelectedKey]=useState("estimate");
+  const [draft,setDraft]=useState<FireTemplate>(FIRE_TEMPLATES[0]);
+  const [saving,setSaving]=useState(false);
+  const [message,setMessage]=useState("");
+  const [templatesLoading,setTemplatesLoading]=useState(true);
+  const [templatesError,setTemplatesError]=useState("");
+  const [templateRetry,setTemplateRetry]=useState(0);
+  const templateSaveLock=useRef(false);
+  const validTemplate=(value:unknown):value is FireTemplate=>{
+    if(!value||typeof value!=="object")return false;
+    const row=value as FireTemplate,original=FIRE_TEMPLATES.find(item=>item.key===row.key);
+    return Boolean(original&&row.name===original.name&&row.category===original.category&&row.channel===original.channel&&typeof row.subject==="string"&&typeof row.body==="string"&&row.body.trim());
+  };
+  useEffect(()=>{let active=true;setTemplatesLoading(true);setTemplatesError("");void (async()=>{
+    try{const response=await fetch("/api/message-templates",{cache:"no-store"});const result=await response.json() as {templates?:FireTemplate[]};
+      if(!response.ok||!Array.isArray(result.templates)||result.templates.length!==FIRE_TEMPLATES.length||!result.templates.every(validTemplate)||new Set(result.templates.map(item=>item.key)).size!==FIRE_TEMPLATES.length)throw new Error("Templates could not be loaded. Retry before editing.");
+      if(!active)return;setTemplates(result.templates);const chosen=result.templates.find(item=>item.key===selectedKey)!;setDraft(chosen);
+    }catch{if(active)setTemplatesError("Templates could not be loaded. Retry before editing.");}
+    finally{if(active)setTemplatesLoading(false);}
+  })();return()=>{active=false;};},[templateRetry]);
+  const settingsSearch=templateSearch.trim().toLocaleLowerCase("en-US");
+  const templateMatches=(item:FireTemplate)=>!settingsSearch||[item.name,item.category,item.channel].some(value=>value.toLocaleLowerCase("en-US").includes(settingsSearch));
+  const savedTemplate=templates.find((item)=>item.key===draft.key);
+  const hasUnsavedTemplateChanges=Boolean(savedTemplate&&(savedTemplate.subject!==draft.subject||savedTemplate.body!==draft.body));
+  // The shell guards in-app tab changes; beforeunload below covers leaving the site.
+  // Editing must not unregister the shell guard between keystrokes or save-state changes.
+  // Only the actual Settings unmount should clear these flags.
+  useEffect(()=>{onDirtyChange?.(hasUnsavedTemplateChanges);},[hasUnsavedTemplateChanges,onDirtyChange]);
+  useEffect(()=>()=>onDirtyChange?.(false),[onDirtyChange]);
+  useEffect(()=>{onSavingChange?.(saving);},[saving,onSavingChange]);
+  useEffect(()=>()=>onSavingChange?.(false),[onSavingChange]);
+  const choose=(item:FireTemplate)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;setSelectedKey(item.key);setDraft(item);setMessage("");};
+  useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(!hasUnsavedTemplateChanges)return;event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[hasUnsavedTemplateChanges]);
+  const save=async(reset=false)=>{
+    if(templateSaveLock.current||templatesLoading||templatesError)return;
+    if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;
+    // Capture the exact owner-reviewed copy, not a later editor selection.
+    const selectedKey=draft.key;
+    const expected=reset?FIRE_TEMPLATES.find(item=>item.key===selectedKey):draft;
+    if(!expected)return;
+    const subject=expected.subject.trim(),body=expected.body.trim();
+    templateSaveLock.current=true;setSaving(true);setMessage("");
+    try{
+      const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:selectedKey,reset:true}:{key:selectedKey,subject:draft.subject,body:draft.body})});
+      const result=await response.json() as {template?:FireTemplate;error?:string};
+      if(!response.ok)throw new Error(result.error||"Template save was not confirmed. Your edits are retained; check the saved version before retrying.");
+      if(!validTemplate(result.template)||result.template.key!==selectedKey||
+         result.template.subject!==subject||result.template.body!==body)
+        throw new Error("The saved template response did not match your subject and message. Keep these edits and reopen Settings to verify the saved version before trying again.");
+      // Only an exact confirmed readback may replace visible owner edits.
+      setTemplates((current)=>current.map((item)=>item.key===selectedKey?result.template!:item));
+      setDraft(result.template);
+      setMessage(reset?"Default restored.":"Template saved.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"Template save could not be verified. Your edits are retained.");
+    }finally{templateSaveLock.current=false;setSaving(false);}
+  };
+  const tags=["@customer_first_name","@customer_name","@service_list","@service_address","@estimate_total","@estimate_link","@invoice_total","@invoice_link","@schedule_date","@callback_number","@review_link"];
+  return <div className="workspace-view settings-view"><section className="workspace-head"><div><h1>Settings</h1></div></section>
+    <details className="pricing-disclosure"><summary>Service catalog</summary><PricingSettings/></details>
+    <details className="pricing-disclosure"><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details><h2 className="template-section-title">Message templates</h2><div className="template-mobile-picker"><Label htmlFor="message-template-choice">Template</Label><select id="message-template-choice" disabled={saving||templatesLoading||Boolean(templatesError)} value={selectedKey} onChange={event=>{const item=templates.find(item=>item.key===event.target.value);if(item)choose(item);}}>{(["Estimates","Invoices","Scheduling","After service","Documents"] as const).map(category=><optgroup key={category} label={category}>{templates.filter(item=>item.category===category).map(item=><option key={item.key} value={item.key}>{item.name}</option>)}</optgroup>)}</select></div><div className="template-layout"><aside className="template-list">
+        <div className="settings-template-search"><Label htmlFor="settings-template-search">Find a template</Label><Input id="settings-template-search" type="search" placeholder="Search estimate, invoice, reminder…" value={templateSearch} onChange={event=>setTemplateSearch(event.target.value)}/></div>
+        {messageTemplateCategories.map(group=>{
+          const items=templates.filter(item=>item.category===group.name&&templateMatches(item));
+          return items.length?<section key={group.name} className={"template-category-section "+group.tone}>
+            <h2><MessageTemplateCategoryIcon category={group.name}/>{group.name} <small>({items.length})</small></h2>
+            {items.map(item=><button key={item.key} className={selectedKey===item.key?"active":""} onClick={()=>choose(item)}><span><MessageTemplateCategoryIcon category={item.category}/></span><div><strong>{item.name}</strong><small>{item.channel==="both"?"Text + email":statusLabel(item.channel)}</small></div><ChevronRight/></button>)}
+          </section>:null;
+        })}
+        {settingsSearch&&templates.every(item=>!templateMatches(item))&&<p className="settings-template-empty" role="status">No templates match this search. Clear the search to see every category.</p>}
+      </aside>
+      <section className="template-editor">{templatesLoading&&<p role="status">Loading templates…</p>}{templatesError&&<div role="alert"><p>{templatesError}</p><Button variant="outline" onClick={()=>setTemplateRetry(value=>value+1)}>Retry templates</Button></div>}<header><div><p className="eyebrow">{draft.category}</p><h2>{draft.name}</h2></div><span className="template-channel">{draft.channel==="both"?"Text + email":statusLabel(draft.channel)}</span></header>
+        {draft.channel!=="sms"&&draft.channel!=="document"&&<div><Label htmlFor="templateSubject">Email subject</Label><Input id="templateSubject" disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.subject} onChange={(event)=>setDraft({...draft,subject:event.target.value})}/></div>}
+        <div><Label htmlFor="templateBody">{draft.channel==="document"?"Service agreement text":"Message"}</Label><Textarea id="templateBody" rows={11} disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.body} onChange={(event)=>setDraft({...draft,body:event.target.value})}/><small>{draft.channel==="document"?"This is the full agreement customers review before signing once.":"Personalized fields are filled automatically when you prepare the message."}</small></div>
+        {draft.channel!=="document"&&<details className="ui-help template-fields"><summary>Personalized fields</summary><div className="merge-tags"><div>{tags.map((tag)=><button key={tag} disabled={saving||templatesLoading||Boolean(templatesError)} onClick={()=>setDraft({...draft,body:`${draft.body}${draft.body.endsWith(" ")?"":" "}${tag}`})}>{tag}</button>)}</div></div></details>}
+        {message&&<p className={message==="Template saved."||message==="Default restored."?"save-success":"save-error"} role={message==="Template saved."||message==="Default restored."?"status":"alert"}>{message}</p>}
+        {hasUnsavedTemplateChanges&&<p className="template-unsaved-state" role="status">Unsaved edits — save or discard before leaving.</p>}
+        <footer>{hasUnsavedTemplateChanges&&<Button variant="outline" type="button" disabled={saving||templatesLoading||Boolean(templatesError)} onClick={()=>{if(savedTemplate){setDraft(savedTemplate);setMessage("");}}}>Discard edits</Button>}<Button variant="outline" onClick={()=>void save(true)} disabled={saving||templatesLoading||Boolean(templatesError)}>Restore default</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||templatesLoading||Boolean(templatesError)||!draft.body.trim()||!hasUnsavedTemplateChanges}><Save className="h-4 w-4"/>{saving?"Saving…":"Save template"}</Button></footer>
+      </section>
+    </div>
+  </div>;
+}
+
+function EmptyView({ tab, onSaved }: { tab: string; onSaved: (estimate: EstimateRow) => void }) {
+  const content: Record<string, { title: string; text: string; icon: React.ReactNode }> = {
+    estimates: { title: "Estimates", text: "Create, send, approve, and track every estimate in one place.", icon: <ClipboardList /> },
+    customers: { title: "Customers", text: "Customer details, addresses, notes, and complete job history.", icon: <Users /> },
+    schedule: { title: "Schedule", text: "Plan jobs and keep upcoming work visible from your phone.", icon: <CalendarDays /> },
+    payments: { title: "Payments", text: "Collect deposits and final balances. Connect Stripe before accepting live payments.", icon: <CreditCard /> },
+  };
+  const view = content[tab];
+  return <section className="empty-view"><span>{view.icon}</span><h1>{view.title}</h1><p>{view.text}</p>{tab === "estimates" && <NewEstimate onSaved={onSaved} />}{tab === "payments" && <Button disabled>Stripe connection coming later</Button>}</section>;
+}
+
+type NotificationAttentionItem=AttentionEstimateItem|{key:string;kind:"task"|"sign"|"review"|"closeout";title:string;detail:string;estimateId?:string;taskId?:string;customerId?:string;customerActivity?:"sign"|"review";urgent:boolean;priority:number;sortAt?:number};
+/** Live attention remains separate from persisted activity notifications.
+ * Clicking navigates to the actual task/customer; reading never resolves it.
+ */
+function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null,taskId?:string|null,customerActivity?:"sign"|"review")=>boolean;onClose:()=>void;onSummary?:(summary:{status:"ready"|"loading"|"error";count:number})=>void;refreshKey?:number}){
+ const [rows,setRows]=useState<NotificationAttentionItem[]>([]);
+ const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
+ const [reload,setReload]=useState(0);
+ const [shown,setShown]=useState(8);
+ const [view,setView]=useState<"all"|"priority">("all");
+ const [hasOlder,setHasOlder]=useState(false);
+ const [hasMoreReviewCloseouts,setHasMoreReviewCloseouts]=useState(false);
+ const [reviewPageDepth,setReviewPageDepth]=useState(1);
+ const [checkedReviewCount,setCheckedReviewCount]=useState(0);
+ const [checkedEstimateCount,setCheckedEstimateCount]=useState(0);
+ // First 50, then 200 older per owner tap; cap at 450 records inside the bell.
+ const [followupPageDepth,setFollowupPageDepth]=useState(1);
+ useEffect(()=>{
+   let stopped=false,requestId=0;
+   const controller=new AbortController();
+   setStatus("loading");
+   const read=async()=>{
+     // Focus, visibility and 60-second reads may overlap; only the newest result
+     // may replace the currently verified reminder collection.
+     const thisRequest=++requestId;
+     try{
+       const urls=["/api/tasks","/api/dashboard-yard-signs","/api/dashboard-review-checks","/api/followups?limit=50","/api/payment-closeouts"];
+       const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-store",signal:controller.signal})));
+       if(responses.some(r=>!r.ok))throw Error("Attention read unavailable");
+       const [taskData,signData,reviewData,followupData,closeoutData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]},{estimates?:AttentionEstimate[];nextCursor?:string|null},{actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null}];
+       if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks)||!Array.isArray(followupData.estimates)||!(followupData.nextCursor==null||typeof followupData.nextCursor==="string")||!Array.isArray(closeoutData.actions)||typeof closeoutData.mayHaveMore!=="boolean"||!(closeoutData.nextCursor==null||typeof closeoutData.nextCursor==="string"))throw Error("Unverified attention response");
+        const malformedTask=taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||
+         typeof t.title!=="string"||!["open","completed"].includes(t.status)||
+         (t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt)))));
+        const malformedSign=signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||
+         typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||
+         !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate));
+        const malformedReview=reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||
+         typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||
+         !Number.isFinite(c.elapsedDays));
+        const malformedFollowup=followupData.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||
+         typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string");
+        const malformedCloseout=closeoutData.actions.length>200||closeoutData.actions.some(c=>!c||
+         typeof c.estimateId!=="string"||!c.estimateId||typeof c.customerId!=="string"||!c.customerId||
+         typeof c.customerName!=="string"||!c.customerName.trim()||
+         !["ready","prepared"].includes(c.state)||!Number.isSafeInteger(c.totalCents)||c.totalCents<=0||
+         typeof c.lastPaidAt!=="string"||!Number.isFinite(Date.parse(c.lastPaidAt)));
+        if(malformedTask||malformedSign||malformedReview||malformedFollowup||malformedCloseout)
+          throw Error("Malformed attention records");
+       // Re-read a bounded number of cursor pages as a single atomic owner snapshot.
+       // Any failed/invalid page makes the whole attention read unavailable, never "all clear".
+       const checked:[AttentionEstimate[],string|null,number]=[[...followupData.estimates],followupData.nextCursor??null,1];
+       const cursors=new Set<string>();
+       while(checked[1]&&checked[2]<followupPageDepth){
+         const cursor=checked[1];
+         if(!cursor||cursors.has(cursor)||cursor.length>512)throw Error("Follow-up cursor did not advance");
+         cursors.add(cursor);
+         const extraResponse=await fetch("/api/followups?limit=50&cursor="+encodeURIComponent(cursor),{cache:"no-store",signal:controller.signal});
+         if(!extraResponse.ok)throw Error("Older follow-up page unavailable");
+         const extra=await extraResponse.json() as {estimates?:AttentionEstimate[];nextCursor?:string|null};
+         if(!Array.isArray(extra.estimates)||!(extra.nextCursor==null||typeof extra.nextCursor==="string")||
+            extra.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string")||
+            (extra.nextCursor!=null&&(extra.nextCursor===cursor||cursors.has(extra.nextCursor))))throw Error("Older follow-up page not verified");
+         checked[0].push(...extra.estimates);checked[1]=extra.nextCursor??null;checked[2]++;
+       }
+       // Read-only, owner-invoked keyset expansion. No partial result is
+       // published if an older page is malformed or unavailable.
+       const reviewRows=[...closeoutData.actions],seenReviews=new Set(reviewRows.map(x=>x.estimateId));
+       const seenReviewCursors=new Set<string>();
+       let reviewCursor=closeoutData.nextCursor??null,reviewMore=closeoutData.mayHaveMore,reviewPages=1;
+       while(reviewMore&&reviewCursor&&reviewPages<reviewPageDepth){
+         if(reviewCursor.length>210||seenReviewCursors.has(reviewCursor))throw Error("Review cursor did not advance");
+         const cursor=reviewCursor;seenReviewCursors.add(cursor);
+         const moreResponse=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store",signal:controller.signal});
+         if(!moreResponse.ok)throw Error("Older paid-job review page unavailable");
+         const extra=await moreResponse.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null};
+         if(!Array.isArray(extra.actions)||extra.actions.length>200||typeof extra.mayHaveMore!=="boolean"||
+           !(extra.nextCursor==null||typeof extra.nextCursor==="string")||
+           extra.actions.some(x=>!x||typeof x.estimateId!=="string"||!x.estimateId||
+             typeof x.customerId!=="string"||!x.customerId||typeof x.customerName!=="string"||!x.customerName.trim()||
+             !["ready","prepared"].includes(x.state)||!Number.isSafeInteger(x.totalCents)||x.totalCents<=0||
+             typeof x.lastPaidAt!=="string"||!Number.isFinite(Date.parse(x.lastPaidAt))||
+             seenReviews.has(x.estimateId))||
+           (extra.nextCursor!=null&&(extra.nextCursor===cursor||seenReviewCursors.has(extra.nextCursor))))
+             throw Error("Older review page not verified");
+         extra.actions.forEach(x=>{seenReviews.add(x.estimateId);reviewRows.push(x);});
+         reviewMore=extra.mayHaveMore;reviewCursor=extra.nextCursor??null;reviewPages++;
+       }
+       const seenEstimates=new Set<string>();
+       const verifiedEstimates=checked[0].filter(e=>{if(seenEstimates.has(e.id))return false;seenEstimates.add(e.id);return true;});
+       const now=new Date(),localDay=now.toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+       const dueTasks:NotificationAttentionItem[]=taskData.tasks.filter(t=>["today","overdue"].includes(taskDueBucket(t,now))).map(t=>({key:"task:"+t.id,kind:"task",taskId:t.id,customerId:typeof t.customerId==="string"&&t.customerId?t.customerId:undefined,customerActivity:taskLinkedFlag(t)?.kind,title:t.title,detail:taskDueBucket(t,now)==="overdue"?"Business task overdue":"Business task due today",urgent:true,priority:taskDueBucket(t,now)==="overdue"?110:85,sortAt:Date.parse(t.dueAt!)}));
+       const verifiedTasks=taskData.tasks??[];
+       const dueTaskIds=new Set(verifiedTasks.filter(task=>["today","overdue"].includes(taskDueBucket(task,now))).map(task=>task.id));
+       const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay&&
+         !flagHasMatchingDueTask(verifiedTasks,dueTaskIds,s.customerId,"sign",s.placedAt)).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:(s.pickupDate<localDay?"Yard sign pickup overdue · ":"Yard sign pickup due today · ")+s.pickupDate,urgent:true,priority:s.pickupDate<localDay?105:75,sortAt:Date.parse(s.pickupDate+"T12:00:00Z")}));
+       const dueReviews:NotificationAttentionItem[]=reviewData.checks.filter(c=>
+         !flagHasMatchingDueTask(verifiedTasks,dueTaskIds,c.customerId,"review",c.requestedAt)).map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
+       // Read-only post-payment reminders; never claim messages were sent.
+       const closeoutItems:NotificationAttentionItem[]=reviewRows.map(c=>({
+         key:"closeout:"+c.estimateId,kind:"closeout",estimateId:c.estimateId,customerId:c.customerId,
+         title:c.customerName,detail:c.state==="prepared"?"Review request prepared · sending not confirmed":"Paid in full · request an honest review",
+         urgent:false,priority:c.state==="prepared"?35:55,sortAt:Date.parse(c.lastPaidAt)
+       }));
+       // Review-request reminders come from the canonical, verified closeout ledger,
+       // not the older partial estimate scan: no duplicate or premature nudge.
+       const estimateChecks=estimateAttentionItems(verifiedEstimates,now.getTime()).filter(item=>item.kind!=="review-request");
+       if(!stopped&&thisRequest===requestId){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
+         const next=[...dueTasks,...dueSigns,...closeoutItems,...dueReviews,...estimateChecks].sort((a,b)=>b.priority-a.priority||timeOf(a)-timeOf(b)||a.key.localeCompare(b.key));
+         setRows(next);setHasOlder(Boolean(checked[1]));setHasMoreReviewCloseouts(reviewMore);setCheckedReviewCount(reviewRows.length);setCheckedEstimateCount(verifiedEstimates.length);setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
+     }catch{if(!stopped&&thisRequest===requestId){setRows([]);setHasOlder(false);setHasMoreReviewCloseouts(false);setCheckedReviewCount(0);setStatus("error");onSummary?.({status:"error",count:0});}}
+   };
+   void read();
+   const refresh=()=>{if(document.visibilityState==="visible")void read();};
+   window.addEventListener("focus",refresh);
+   window.addEventListener("fire:attention-saved",refresh);
+   // Installed iPhone Home Screen apps can resume via visibilitychange without focus.
+   document.addEventListener("visibilitychange",refresh);
+   const timer=window.setInterval(refresh,60000);
+   return()=>{stopped=true;requestId++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
+ },[reload,refreshKey,followupPageDepth,reviewPageDepth]);
+ const priorityCount=rows.filter(item=>item.urgent).length;
+ const visibleRows=view==="priority"?rows.filter(item=>item.urgent):rows;
+ const kindLabel=(kind:NotificationAttentionItem["kind"])=>kind==="task"?"task":kind==="sign"?"yard sign":kind==="review"?"review check":kind==="closeout"?"review request":kind==="followup"?"follow-up":kind==="review-request"?"review request":kind;
+ return <section className="notification-attention" aria-label="Needs attention">
+   <header><strong><AlertTriangle aria-hidden="true"/> Needs attention{status==="ready"&&rows.length>0?` · ${rows.length}`:""}</strong><button type="button" aria-label="Refresh attention items" onClick={()=>{setStatus("loading");onSummary?.({status:"loading",count:0});setReload(n=>n+1);}}><RefreshCw aria-hidden="true"/> Refresh</button></header>
+   {status==="ready"&&rows.length>0&&<div className="notification-attention-filters" role="group" aria-label="Filter business reminders"><button type="button" aria-pressed={view==="all"} onClick={()=>{setView("all");setShown(8);}}>All · {rows.length}</button><button type="button" aria-pressed={view==="priority"} onClick={()=>{setView("priority");setShown(8);}}>Priority · {priorityCount}</button></div>}
+   {status==="loading"?<p role="status">Checking reminders…</p>:status==="error"?<p role="alert">Attention items couldn't be verified. Refresh to try again; don't assume they are cleared.</p>:visibleRows.length?<div className="notification-attention-list">{visibleRows.slice(0,shown).map(item=><button key={item.key} type="button" className={item.urgent?"urgent":""} aria-label={`Open ${kindLabel(item.kind)}: ${item.title}`} onClick={()=>{const accepted="taskId" in item&&item.taskId
+  ?onNavigate("business",null,null,("customerId" in item?item.customerId:null)??null,item.taskId,("customerActivity" in item?item.customerActivity:undefined))
+  :"invoiceId" in item&&item.invoiceId?onNavigate("invoices",null,item.invoiceId)
+  :"estimateId" in item&&item.estimateId?onNavigate(item.kind==="followup"?"followups":"estimates",item.estimateId)
+  :"customerId" in item&&item.customerId?onNavigate("customers",null,null,item.customerId,null,item.kind==="sign"?"sign":item.kind==="review"?"review":undefined)
+  :false;
+  if(accepted)onClose();
+}}><span>{item.kind==="task"?<ClipboardList aria-hidden="true"/>:item.kind==="sign"?<MapPin aria-hidden="true"/>:item.kind==="invoice"?<Receipt aria-hidden="true"/>:item.kind==="appointment"?<CalendarDays aria-hidden="true"/>:item.kind==="followup"||item.kind==="draft"?<Clock3 aria-hidden="true"/>:<Star aria-hidden="true"/>}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight aria-hidden="true"/></button>)}</div>:<p>{view==="priority"&&rows.length?"No priority reminders. Choose All for others.":"No reminders in checked records."}</p>}
+   {status==="ready"&&visibleRows.length>shown&&<button type="button" className="notification-attention-more" onClick={()=>setShown(n=>n+8)}>Show next {Math.min(8,visibleRows.length-shown)} reminders · {visibleRows.length-shown} remaining</button>}
+   {status==="ready"&&hasOlder&&<div className="notification-attention-coverage" role="status"><small>{checkedEstimateCount} estimates checked · older ones not included.</small>{followupPageDepth<9?<button type="button" className="notification-attention-more" onClick={()=>{setFollowupPageDepth(n=>Math.min(9,n+4));setStatus("loading");}}>Check up to 200 older estimates</button>:<small>Older estimates remain · open Follow-ups.</small>}</div>}
+   {status==="ready"&&hasMoreReviewCloseouts&&<div className="notification-attention-coverage" role="status"><small>{checkedReviewCount} paid jobs checked · older reviews not included.</small>{reviewPageDepth<10?<button type="button" className="notification-attention-more" onClick={()=>{setReviewPageDepth(n=>Math.min(10,n+1));setStatus("loading");}}>Check 200 older paid jobs</button>:<button type="button" className="notification-attention-more" onClick={()=>{if(onNavigate("payments"))onClose();}}>Open Payments to load remaining jobs</button>}</div>}
+ </section>;
+}
+
+function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null,taskId?:string|null,customerActivity?:"sign"|"review")=>boolean}){
+  const [items,setItems]=useState<AppNotification[]>([]);
+  const [unread,setUnread]=useState(0);
+  const [attentionSummary,setAttentionSummary]=useState<{status:"loading"|"ready"|"error";count:number}>({status:"loading",count:0});
+  const [attentionRefreshKey,setAttentionRefreshKey]=useState(0);
+  const [open,setOpen]=useState(false);
+  // Unread stays visible; read history stays compact until requested.
+  const [activityExpanded,setActivityExpanded]=useState<boolean|null>(null);
+  const [showRead,setShowRead]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [readNotice,setReadNotice]=useState("");
+  const [needsRecheck,setNeedsRecheck]=useState(false);
+  const mutationLock=useRef(false),loadRequest=useRef(0);
+  const load=async()=>{
+    if(mutationLock.current)return;
+    const request=++loadRequest.current;
+    try{
+      const response=await fetch("/api/notifications",{cache:"no-store"});
+      const result=await response.json() as {notifications?:AppNotification[];unread?:number;error?:string};
+      if(request!==loadRequest.current||mutationLock.current)return;
+      if(!response.ok)throw Error(result?.error||"Notifications could not be refreshed.");
+      if(!Array.isArray(result?.notifications)||result.notifications.some(item=>!item||typeof item.id!=="string"||!item.id||typeof item.title!=="string"||typeof item.body!=="string"||typeof item.createdAt!=="string")||!Number.isSafeInteger(result.unread)||Number(result.unread)<0||Number(result.unread)<result.notifications.filter(item=>!item.readAt).length)throw Error("Notification records could not be verified.");
+      setItems(result.notifications);setUnread(Number(result.unread));if(Number(result.unread)>0)setReadNotice("");
+      // Only a complete verified server read may unlock an uncertain
+      // Mark All / single-item write. A lost PATCH reply might have committed.
+      setNeedsRecheck(false);
+      setError("");
+    }catch{
+      if(request===loadRequest.current&&!mutationLock.current)setError("Notifications could not be refreshed. Check your connection and try again.");
+    }
+  };
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),30000);return()=>{loadRequest.current++;window.clearInterval(timer);};},[]);
+  const updateRead=async(change:{id?:string;all?:boolean})=>{
+    if(mutationLock.current)return;
+    if(needsRecheck){setError("Refresh activity to check the saved read status before trying again.");return;}
+    mutationLock.current=true;loadRequest.current++;setBusy(true);setError("");setReadNotice("");
+    let confirmed=false;
+    try{
+      const response=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(change)});
+      const result=await response.json() as {ok?:boolean;readAt?:string;unread?:number;error?:string};
+      if(!response.ok||result?.ok!==true||typeof result.readAt!=="string"||!Number.isFinite(Date.parse(result.readAt)))throw Error("Update unconfirmed.");
+      if(change.all){
+        if(!Number.isSafeInteger(result.unread)||Number(result.unread)<0)throw Error("Unread count not confirmed.");
+        setItems(current=>current.map(item=>({...item,readAt:item.readAt||result.readAt!})));setUnread(result.unread!);setActivityExpanded(result.unread!>0?null:false);setReadNotice("Recent activity marked read.");
+      }else if(change.id){
+        const previouslyUnread=items.some(item=>item.id===change.id&&!item.readAt);
+        setItems(current=>current.map(item=>item.id===change.id?{...item,readAt:item.readAt||result.readAt!}:item));
+        if(previouslyUnread)setUnread(current=>Math.max(0,current-1));
+      }
+      confirmed=true;
+    }catch{
+      setNeedsRecheck(true);
+      setError("Notification update not confirmed. It may have saved; refresh the list before retrying.");
+    }finally{
+      mutationLock.current=false;setBusy(false);
+      if(confirmed)void load();
+    }
+  };
+  // Financial exceptions must not inherit the icon for money received.
+  // Unknown events remain neutral; this changes no saved status or ledger.
+  const icon=(type:string)=>type==="payment_failed"||type==="payment_overage"?<AlertTriangle aria-hidden="true"/>:
+    type==="estimate_change_requested"?<MessageSquareText aria-hidden="true"/>:
+    type==="estimate_viewed"||type==="invoice_viewed"?<Eye aria-hidden="true"/>:
+    type==="estimate_accepted"?<CheckCircle2 aria-hidden="true"/>:
+    type==="payment_received"?<CircleDollarSign aria-hidden="true"/>:<Bell aria-hidden="true"/>;
+  const attentionCount=attentionSummary.status==="ready"?attentionSummary.count:0;
+  const showActivity=activityExpanded??unread>0;
+  const visibleItems=showRead?items:items.filter(item=>!item.readAt);
+  const attentionDescription=attentionCount?`${attentionCount} business reminders need attention`:attentionSummary.status==="error"?"Business reminders could not be verified":undefined;
+  return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value){setActivityExpanded(null);setShowRead(false);setAttentionSummary({status:"loading",count:0});setAttentionRefreshKey(n=>n+1);setReadNotice("");void load();}}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
+    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div><div className="notification-header-actions"><button type="button" disabled={busy||needsRecheck||unread===0} title={needsRecheck?"Refresh activity to verify the previous update":"Marks recent activity read; does not complete business reminders"} onClick={()=>void updateRead({all:true})}>Mark all as read</button><button type="button" className="notification-header-close" aria-label="Close notifications" title="Close notifications" onClick={()=>setOpen(false)}><X aria-hidden="true"/></button></div></header>
+    {error&&<p className="save-error" role="alert">{error}</p>}
+    {error&&<button type="button" className="notification-activity-toggle" disabled={busy} onClick={()=>void load()}><RefreshCw aria-hidden="true"/> Refresh activity</button>}
+    {readNotice&&<p className="notification-read-notice" role="status">{readNotice}</p>}
+    {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
+    {unread===0&&attentionCount>0&&<p className="notification-read-hint">No unread activity. Reminders stay until handled.</p>}
+    <NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>
+    <button type="button" className="notification-activity-toggle" aria-controls="fire-notification-activity" aria-expanded={showActivity} onClick={()=>setActivityExpanded(!showActivity)}><span>Recent activity · {items.length}{unread?` · ${unread} unread`:""}</span><ChevronDown aria-hidden="true"/></button>
+    <button type="button" className="notification-activity-toggle" aria-pressed={showRead} onClick={()=>{setShowRead(value=>!value);setActivityExpanded(true);}}>{showRead?"Hide read notifications":"Show read notifications"}</button>
+    <div id="fire-notification-activity" className="notification-list" hidden={!showActivity}>{visibleItems.length?visibleItems.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{
+ const destination=item.type==="payment_failed"?"payments":item.type==="payment_overage"?(item.estimateId?"estimates":"payments"):item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers";
+ // A canceled unsaved-work warning is not a viewed/read notification.
+ // Navigate only after the central editor guard has accepted the transition.
+ if(!onNavigate(destination,item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId))return;
+ setOpen(false);
+ if(!item.readAt)void updateRead({id:item.id});
+}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>{items.length?"All caught up":"No notifications yet"}</strong></div>}</div>
+  </PopoverContent></Popover>;
+}
+
+export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[]}) {
+  const [tab, setTabState] = useState("dashboard");
+  const currentTab = useRef("dashboard");
+  const settingsDirtyRef = useRef(false);
+  const settingsSavingRef = useRef(false);
+  const customerNoteStateRef = useRef({dirty:false,saving:false});
+  const businessWorkStateRef = useRef({dirty:false,saving:false});
+  // Route internal section changes through a single unsaved-editor guard.
+  // A canceled transition keeps Settings mounted and its draft intact.
+  const setTab = useCallback((destination:string)=>{
+    if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.saving){
+      window.alert("A customer update is saving. Wait for confirmation before leaving Customers.");
+      return false;
+    }
+    if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.dirty){
+      if(!window.confirm("Leave Customers and discard unfinished customer notes? Choose Cancel to keep editing."))return false;
+      customerNoteStateRef.current={dirty:false,saving:false};
+    }
+    if(destination!==currentTab.current&&currentTab.current==="business"&&businessWorkStateRef.current.saving){
+      window.alert("A business update is saving. Wait for confirmation before leaving Business.");
+      return false;
+    }
+    if(destination!==currentTab.current&&currentTab.current==="business"&&businessWorkStateRef.current.dirty){
+      if(!window.confirm("Leave Business and discard unfinished task, expense, or recovery edits? Saved records are not deleted."))return false;
+      businessWorkStateRef.current={dirty:false,saving:false};
+    }
+    if(destination!==currentTab.current&&currentTab.current==="settings"&&settingsSavingRef.current){
+      window.alert("Template save is still being confirmed. Stay in Settings until it finishes.");
+      return false;
+    }
+    if(destination!==currentTab.current&&currentTab.current==="settings"&&settingsDirtyRef.current){
+      if(!window.confirm("Discard unsaved message-template edits and leave Settings? Choose Cancel to keep editing."))return false;
+      settingsDirtyRef.current=false;
+    }
+    setTabState(destination);
+    return true;
+  },[]);
+  const setSettingsDirty = useCallback((dirty:boolean)=>{settingsDirtyRef.current=dirty;},[]);
+  const setSettingsSaving = useCallback((saving:boolean)=>{settingsSavingRef.current=saving;},[]);
+  const setCustomerNoteState = useCallback((state:{dirty:boolean;saving:boolean})=>{customerNoteStateRef.current=state;},[]);
+  const setBusinessWorkState = useCallback((state:{dirty:boolean;saving:boolean})=>{businessWorkStateRef.current=state;},[]);
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => { setInteractive(true); }, []);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  useEffect(()=>{if(!mobileMenu)return;const handleEscape=(event:KeyboardEvent)=>{if(event.key==="Escape")setMobileMenu(false);};window.addEventListener("keydown",handleEscape);return()=>window.removeEventListener("keydown",handleEscape);},[mobileMenu]);
+  const [searchQuery,setSearchQuery]=useState("");
+  const [globalQuery,setGlobalQuery]=useState("");
+  const [theme,setTheme]=useState<"light"|"dark">("light");
+  const [estimateRefreshKey,setEstimateRefreshKey]=useState(0);
+  const [focusEstimateId,setFocusEstimateId]=useState<string|null>(null);
+  const [territoryCustomerAddress,setTerritoryCustomerAddress]=useState<string|undefined>();
+  const [focusCustomerId,setFocusCustomerId]=useState<string|null>(null);
+  const [customerActivityFocus,setCustomerActivityFocus]=useState<{customerId:string;kind:"sign"|"review";request:number}|null>(null);
+  const customerActivityRequest=useRef(0);
+  const [focusCustomerSection,setFocusCustomerSection]=useState<"estimates"|"invoices"|"payments"|"notes">("estimates");
+  const [focusCustomerRecord,setFocusCustomerRecord]=useState<CustomerRecordFocus|null>(null);
+  const [pickupTaskDraft,setPickupTaskDraft]=useState<YardSignPickupDraft|null>(null);
+  const [reviewTaskDraft,setReviewTaskDraft]=useState<ReviewCheckDraft|null>(null);
+  const [focusBusinessTaskId,setFocusBusinessTaskId]=useState<string|null>(null);
+  const [focusBusinessTaskHint,setFocusBusinessTaskHint]=useState<{customerId:string|null;activity:"sign"|"review"|null}>({customerId:null,activity:null});
+  const [focusFollowupEstimateId,setFocusFollowupEstimateId]=useState<string|null>(null);
+  const [focusDoorHouseId,setFocusDoorHouseId]=useState<string|null>(null);
+  const [focusTerritoryAddress,setFocusTerritoryAddress]=useState<string|null>(null);
+  const [customerRecordRequestKey,setCustomerRecordRequestKey]=useState(0);
+  const [focusInvoiceId,setFocusInvoiceId]=useState<string|null>(null);
+  const [estimateRows, setEstimateRows] = useState(estimates);
+  const [liveMetrics, setLiveMetrics] = useState(metrics);
+  const [summaryVerified,setSummaryVerified] = useState(false);
+  const tabHistory = useRef<string[]>([]);
+  const customerBackHandler = useRef<(()=>void)|null>(null);
+  const registerCustomerBack = useCallback((handler:(()=>void)|null)=>{customerBackHandler.current=handler;},[]);
+  // Back must consume history rather than record itself as a forward visit.
+  // Keep a small in-memory trail; dialogs and edits never change the section.
+  const backDestination = useRef<string|null>(null);
+  useLayoutEffect(() => {
+    if (tab === currentTab.current) return;
+    if (backDestination.current === tab) {
+      backDestination.current = null;
+    } else {
+      backDestination.current = null;
+      tabHistory.current.push(currentTab.current);
+      if (tabHistory.current.length > 30) tabHistory.current.shift();
+    }
+    currentTab.current = tab;
+    // Reset only on committed section changes; never on modal/edit updates.
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [tab]);
+  const goHome = () => { if(setTab("dashboard"))setMobileMenu(false); };
+  const goBack = () => {
+    if(mobileMenu){setMobileMenu(false);return;}
+    if(tab==="customers"&&customerBackHandler.current){customerBackHandler.current();return;}
+    if(backDestination.current!==null)return;
+    const target=tabHistory.current.at(-1)??"dashboard";
+    if(target!==currentTab.current&&setTab(target)){if(tabHistory.current.length)tabHistory.current.pop();backDestination.current=target;}
+  };
+  const nav = useMemo(() => [
+    ["dashboard", "Dashboard", House], ["customers", "Customers", Users], ["estimates", "Estimates", ClipboardList], ["schedule", "Schedule", CalendarDays], ["followups", "Follow-ups", Clock3], ["invoices", "Invoices", Receipt], ["payments", "Payments", CreditCard], ["door-knocking", "Map & Activity", MapPin], ["business", "Business", BriefcaseBusiness], ["insights", "Insights", BarChart3], ["settings", "Settings", Settings],
+  ] as const, []);
+  // Everyday sections remain one tap away. Secondary tools are only expanded
+  // when the owner requests them or a saved shortcut opens that section.
+  const [moreNavOpen,setMoreNavOpen]=useState(false);
+  useEffect(()=>{if(nav.slice(7).some(([id])=>id===tab))setMoreNavOpen(true);},[tab,nav]);
+  useEffect(()=>{
+    let saved:string|null=null;
+    try { saved=window.localStorage.getItem("fire-theme"); } catch { /* Storage denial must not prevent app startup. */ }
+    const next=saved==="dark"||saved==="light"?saved:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+    setTheme(next);
+    document.documentElement.dataset.theme=next;
+  },[]);
+  const toggleTheme=()=>{
+    const next=theme==="dark"?"light":"dark";
+    setTheme(next);
+    document.documentElement.dataset.theme=next;
+    try { window.localStorage.setItem("fire-theme",next); } catch { /* Keep the selected theme for this session. */ }
+  };
+  useEffect(()=>{
+    if(tab!=="dashboard")return;
+    let cancelled=false,generation=0;
+    const refresh=()=>{
+      if(document.visibilityState!=="visible")return;
+      const request=++generation;
+      void fetch("/api/dashboard-summary",{cache:"no-store"}).then(async(response)=>{
+        if(!response.ok){if(!cancelled&&request===generation)setSummaryVerified(false);return;}
+        const summary=await response.json() as {estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[];recent?:EstimateRow[]};
+        if(!Number.isSafeInteger(summary.estimates)||summary.estimates<0||
+          !Number.isSafeInteger(summary.openValue)||summary.openValue<0||
+          !Number.isSafeInteger(summary.outstanding)||summary.outstanding<0||
+          !Array.isArray(summary.recent)||summary.recent.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string")||
+          !Number.isSafeInteger(summary.upcomingCount)||Number(summary.upcomingCount)<0||!Array.isArray(summary.upcomingJobs)||summary.upcomingJobs.length>25||summary.upcomingJobs.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string"||row.status!=="scheduled"||typeof row.scheduledAt!=="string"||!Number.isFinite(Date.parse(row.scheduledAt)))){
+            if(!cancelled&&request===generation)setSummaryVerified(false);
+            return;
+        }
+        if(!cancelled&&request===generation){
+          setLiveMetrics({estimates:summary.estimates,openValue:summary.openValue,outstanding:summary.outstanding,upcomingCount:summary.upcomingCount,upcomingJobs:summary.upcomingJobs,...(Number.isSafeInteger(summary.completedJobs)&&Number(summary.completedJobs)>=0?{completedJobs:summary.completedJobs}:{})});
+          setEstimateRows(summary.recent);
+          setSummaryVerified(true);
+        }
+      }).catch(()=>{if(!cancelled&&request===generation)setSummaryVerified(false);});
+    };
+    refresh();window.addEventListener("focus",refresh);document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;window.clearInterval(timer);window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);};
+  },[tab,estimateRefreshKey]);
+  useEffect(()=>{
+    const url=new URL(window.location.href);
+    const estimateId=url.searchParams.get("openEstimate"),customerId=url.searchParams.get("openCustomer"),invoiceId=url.searchParams.get("openInvoice");
+    const section=url.searchParams.get("customerSection")==="invoices"?"invoices":"estimates";
+    if(!estimateId&&!customerId&&!invoiceId)return;
+    for(const key of ["openEstimate","openCustomer","openInvoice","customerSection"])url.searchParams.delete(key);
+    window.history.replaceState(null,"",`${url.pathname}${url.search}${url.hash}`);
+    const timer=window.setTimeout(()=>{
+      setSearchQuery("");
+      if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
+      else if(customerId){setFocusCustomerId(customerId);setFocusCustomerSection(section);setTab("customers");}
+      else if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}
+    },0);
+    return()=>window.clearTimeout(timer);
+  },[]);
+  const openSearchResult=(row:SearchResult)=>{
+    const destination=row.kind==="payment"||row.kind==="note"||row.kind==="property"||row.kind==="customer"?"customers":row.kind==="invoice"?"invoices":"estimates";
+    if(!setTab(destination))return false;
+    setSearchQuery("");setGlobalQuery("");setMobileMenu(false);
+    setFocusCustomerRecord(null);
+    if((row.kind==="payment"||row.kind==="note"||row.kind==="property")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":row.kind==="note"?"notes":"estimates");setFocusCustomerId(row.customerId);}
+    else if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);}
+    else if(row.kind==="invoice"){setFocusInvoiceId(row.id);}
+    else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);}
+    return true;
+  };
+  const handleSaved = (estimate: EstimateRow) => {
+    if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+    setEstimateRows((current) => [estimate, ...current]);
+    setLiveMetrics((current) => ({ ...current, estimates: current.estimates + 1, openValue: current.openValue + estimate.totalCents, outstanding: current.outstanding }));
+  };
+  return (
+    <OwnerJobSnapshotsProvider key={environment}><main className="app-shell" data-app-ready={interactive}>
+      <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
+        <div className="brand"><FireMark /><div><strong>FIRE</strong><small>Business App</small></div><button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={16} aria-hidden="true"/></button></div>
+        <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
+        <nav aria-label="All business sections">
+          <p className="sidebar-nav-heading">Everyday</p>
+          {nav.slice(0,7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} aria-current={tab===id?"page":undefined} onClick={()=>{if(setTab(id))setMobileMenu(false);}}><Icon aria-hidden="true"/><span>{label}</span>{id==="estimates"&&liveMetrics.estimates>0&&<b>{liveMetrics.estimates}</b>}</button>)}
+          <details className="sidebar-more-nav" open={moreNavOpen} onToggle={event=>setMoreNavOpen(event.currentTarget.open)}>
+            <summary aria-label="More business tools">More tools <ChevronDown aria-hidden="true"/></summary>
+            <div className="sidebar-more-items">
+              {nav.slice(7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} aria-current={tab===id?"page":undefined} onClick={()=>{if(setTab(id))setMobileMenu(false);}}><Icon aria-hidden="true"/><span>{label}</span></button>)}
+            </div>
+          </details>
+        </nav>
+        <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { if(setTab("owner-account"))setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
+      </aside>
+      <section className="main-area">
+        <header className={`topbar `}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} active={!mobileMenu} disabled={!interactive}/><div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button>{tab==="dashboard"&&<StrideButton top/>}<NotificationBell onNavigate={(next,estimateId,invoiceId,customerId,taskId,customerActivity)=>{
+  // Do not change record focus, search or task drafts until leaving the current editor is accepted.
+  const destination=taskId?"business":next==="payments"?"payments":invoiceId?"invoices":next==="followups"&&estimateId?"followups":estimateId?"estimates":customerId?"customers":next;
+  if(!setTab(destination))return false;
+  setSearchQuery("");setGlobalQuery("");
+  setCustomerActivityFocus(customerId&&customerActivity?{customerId,kind:customerActivity,request:++customerActivityRequest.current}:null);
+  if(taskId){
+    setPickupTaskDraft(null);setReviewTaskDraft(null);
+    setFocusBusinessTaskHint({customerId:customerId??null,activity:customerActivity??null});
+    setFocusBusinessTaskId(taskId);
+  }else if(next==="payments"){
+    // Payments already selected above; never replace it with a linked estimate.
+  }else if(invoiceId){
+    setFocusInvoiceId(invoiceId);
+  }else if(next==="followups"&&estimateId){
+    setFocusFollowupEstimateId(estimateId);
+  }else if(estimateId){
+    setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);
+  }else if(customerId){
+    setFocusCustomerSection("estimates");setFocusCustomerId(customerId);
+  }else if(next==="estimates"){
+    setEstimateRefreshKey(value=>value+1);
+  }
+  return true;
+}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
+        {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
+        {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
+        {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}
+        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} summaryVerified={summaryVerified} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{if(!setTab("estimates"))return;setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}} onOpenCustomerActivity={(id,kind)=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerSection("estimates");setFocusCustomerId(id);}} onOpenTask={id=>{if(!setTab("business"))return;setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:null,activity:null});setFocusBusinessTaskId(id);}} onOpenDoorHouse={id=>{if(!setTab("door-knocking"))return;setSearchQuery("");setGlobalQuery("");setFocusDoorHouseId(id);}} /> : tab === "contracts" ? <EstimatesView initialSection="agreements" onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "customers" ? <CustomersView onOpenEstimate={id=>{if(!setTab("estimates"))return;setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onRegisterBack={registerCustomerBack} onNoteDraftStatusChange={setCustomerNoteState} createAtAddress={territoryCustomerAddress} onCreateStarted={()=>setTerritoryCustomerAddress(undefined)} onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} activityFocus={customerActivityFocus} onActivityFocusHandled={request=>setCustomerActivityFocus(current=>current?.request===request?null:current)} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{if(!setTab("business"))return;setReviewTaskDraft(null);setPickupTaskDraft(draft);}} onPrepareReviewTask={draft=>{if(!setTab("business"))return;setPickupTaskDraft(null);setReviewTaskDraft(draft);}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)} onOpenTerritory={address=>{if(!setTab("door-knocking"))return;setSearchQuery("");setGlobalQuery("");setFocusTerritoryAddress(address);}}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery} focusEstimateId={focusFollowupEstimateId} onFocusHandled={id=>setFocusFollowupEstimateId(current=>current===id?null:current)} onOpenEstimate={id=>{if(!setTab("estimates"))return;setFocusFollowupEstimateId(null);setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery} onNavigate={next=>{if(!setTab(next))return;setSearchQuery("");}} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "door-knocking" ? <DoorKnocking focusHouseId={focusDoorHouseId} focusAddress={focusTerritoryAddress} onTerritoryFocusHandled={address=>setFocusTerritoryAddress(current=>current===address?null:current)} onCreateCustomer={address=>{if(!setTab("customers"))return;setTerritoryCustomerAddress(address);setFocusCustomerId(null);setSearchQuery("");setGlobalQuery("");}} mapFirst onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}} onFocusHandled={id=>setFocusDoorHouseId(current=>current===id?null:current)}/> : tab === "business" ? <BusinessView onWorkStatusChange={setBusinessWorkState} initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)} initialReviewDraft={reviewTaskDraft} onReviewDraftConsumed={()=>setReviewTaskDraft(null)} focusTaskId={focusBusinessTaskId} focusTaskCustomerId={focusBusinessTaskHint.customerId} focusTaskActivity={focusBusinessTaskHint.activity} onFocusTaskHandled={()=>setFocusBusinessTaskId(null)} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus(null);setFocusCustomerId(id);setFocusCustomerSection("estimates");}} onOpenCustomerActivity={(id,kind)=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery} onOpenEstimate={id=>{if(!setTab("estimates"))return;setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onOpenCustomerReview={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind:"review",request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
+      </section>
+      {mobileMenu && <button aria-label="Close menu overlay" className="menu-scrim" onClick={() => setMobileMenu(false)} />}
+      <nav className="bottom-nav">{nav.filter(([id])=>["dashboard","customers","estimates","schedule","followups"].includes(id)).map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} aria-current={tab===id?"page":undefined} onClick={() => setTab(id)}><Icon aria-hidden="true" /><span>{id==="dashboard"?"Home":label}</span></button>)}</nav>
+    </main></OwnerJobSnapshotsProvider>
+  );
+}
