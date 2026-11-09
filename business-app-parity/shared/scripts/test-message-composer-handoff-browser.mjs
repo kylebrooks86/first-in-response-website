@@ -27,7 +27,7 @@ const scheduledEstimate={...estimate,id:'synthetic-scheduled-estimate',status:'s
 createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment unscheduled" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment scheduled" customer={customer} estimate={scheduledEstimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false;const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false,seededPending=[];const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
@@ -35,7 +35,7 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,d
   res.setHeader('content-type','application/json');
   if(req.method==='GET'){
    if(denyHistory){res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');}
-   return res.end(JSON.stringify({pending:[],nextCursor:null}));
+   return res.end(JSON.stringify({pending:seededPending,nextCursor:null}));
   }
   if((req.method==='POST'&&denyPreparation)||(req.method==='PATCH'&&denyConfirmation)){
    res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');
@@ -96,6 +96,38 @@ try{
   await dialog.getByText('Other sending options',{exact:true}).click();
   check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback is available after expansion');
  }
+ // Three previously prepared handoffs remain recoverable without filling the editor.
+ seededPending=[
+  {id:'pending-text',customerId:'synthetic',estimateId:null,channel:'text_prepared',template:'invoice',body:'Synthetic invoice message',createdAt:'2026-11-09T20:46:55Z'},
+  {id:'pending-email-1',customerId:'synthetic',estimateId:null,channel:'email_prepared',template:'review',body:'Synthetic review request one',createdAt:'2026-10-18T00:51:01Z'},
+  {id:'pending-email-2',customerId:'synthetic',estimateId:null,channel:'email_prepared',template:'review',body:'Synthetic review request two',createdAt:'2026-10-18T00:34:49Z'}
+ ];
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Message',exact:true}).click();
+ const draftsDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ const drawer=draftsDialog.locator('details.message-pending-drafts');
+ await drawer.getByText('Messages to check (3)',{exact:true}).waitFor();
+ check(!(await drawer.evaluate(n=>n.open)),'Saved unconfirmed drafts collapsed by default');
+ check(await draftsDialog.getByLabel('Message text').isVisible(),'Collapsed history leaves the composer usable');
+ check(!(await drawer.locator('button').first().isVisible()),'Draft actions hidden until expanded');
+ await drawer.locator('summary').click();
+ check(await drawer.locator('button').first().isVisible(),'Expanded history reveals recovery choices');
+ const requestsBeforeRecover=requests.length;
+ await drawer.locator('button').first().click();
+ check(await draftsDialog.getByLabel('Message text').inputValue()==='Synthetic invoice message'&&
+   await draftsDialog.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),
+  'Resumed draft retains exact message and still needs explicit send confirmation');
+ check(requests.length===requestsBeforeRecover,'Resuming draft never sends or saves a new message');
+ seededPending=[];
+ await page.goto(origin);await page.getByRole('button',{name:'Message',exact:true}).click();
+ const templateDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ const searchDisclosure=templateDialog.locator('details.composer-template-search-disclosure');
+ await searchDisclosure.locator('summary').waitFor();
+ check(!(await searchDisclosure.evaluate(n=>n.open)),'Template search collapsed by default');
+ await searchDisclosure.locator('summary').click();
+ check(await templateDialog.getByRole('searchbox',{name:'Find a message template'}).isVisible(),
+  'Optional template search can be expanded');
+
  // Direct customer-profile Text/Email buttons must open a usable editor, not
  // appear dead when the default Custom message is blank. No OS handoff occurs
  // until the owner chooses the prepared action separately.
