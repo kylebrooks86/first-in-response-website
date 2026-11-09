@@ -90,6 +90,9 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  });
  check(emailGeometry.top>=-2&&emailGeometry.bottom<=570&&emailGeometry.overflow==='auto'&&emailGeometry.scrollerBottom<=568,
    'Email editor stays inside short laptop viewport with scrolling available when content requires it: '+JSON.stringify(emailGeometry));
+ const searchDisclosure=emailDialog.locator('details.composer-template-search-disclosure');
+ check(await searchDisclosure.evaluate(node=>!node.open),'Optional template search starts collapsed');
+ await searchDisclosure.locator(':scope > summary').click();
  const search=emailDialog.getByRole('searchbox',{name:'Find a message template'});
  await search.fill('invoice');
  await emailDialog.getByRole('combobox').click();
