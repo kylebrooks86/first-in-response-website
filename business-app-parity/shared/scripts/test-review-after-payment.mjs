@@ -46,7 +46,19 @@ assert.ok(estimate.includes("const checkedOpenCheckout=paymentConfirmed?await en
 assert.ok(estimate.includes("const paymentReviewPending=paymentExceptionsPending||Number(checkedOpenCheckout?.count??row.openCheckoutCount??0)>0"),"Remaining unresolved checkouts still block review and new payment");
 assert.ok(invoice.includes("invoicePaymentState(row)") && invoice.includes("row.estimateStatus"),"Invoice uses existing validated ledger and job state");
 assert.ok(invoice.includes("const showReviewInvitation=state.safe&&balance===0&&shouldOfferReviewAfterPayment("),"Authenticated owner preview and paid customer invoice show the same gated review invitation");
-assert.ok(component.includes('Or visit {FIRE_CUSTOMER_REVIEW_URL.replace('),"Paid invoice displays original review URL in text for printing");
+assert.ok(component.includes('Or visit <a href={FIRE_CUSTOMER_REVIEW_URL}') &&
+  component.includes('{FIRE_CUSTOMER_REVIEW_URL.replace('),
+  "Paid invoice review URL is both clickable and printed as readable text");
+assert.ok(component.includes('href={FIRE_CUSTOMER_REVIEW_URL}') &&
+  (component.match(/href=\{FIRE_CUSTOMER_REVIEW_URL\}/g)||[]).length===2,
+  "The review button and printed URL use one known website destination");
+assert.ok(component.indexOf('How did we do?') < component.indexOf('Array.from({length:5}') &&
+  component.includes('fill-none text-slate-400') &&
+  component.includes('aria-hidden="true"'),
+  "Exactly five neutral outline stars appear to the right of the heading, decorative only");
+assert.ok(component.includes('hover:text-red-700 focus-visible:outline') &&
+  component.includes('rel="noopener noreferrer"'),
+  "Printed URL retains safe opening and visible keyboard focus");
 assert.ok(invoice.includes('balance===0?<BadgeCheck aria-hidden="true"/>')&&invoice.includes('paymentReviewPending?<AlertTriangle aria-hidden="true"/>'),"Paid icon and payment review warning replace misleading due-date calendar");
 assert.ok(component.includes("FIRE_CUSTOMER_REVIEW_URL") && component.includes("honest experience"),"Non-incentivized review request uses existing hub");
 assert.ok(component.includes('target="_blank"') && component.includes('noopener noreferrer'),"External navigation is customer-initiated and safe");
