@@ -4874,3 +4874,13 @@ html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-c
 @media(max-width:340px){
   .message-dialog .message-confirm-primary{grid-template-columns:1fr}
 }
+
+/* A visible chevron makes compact secondary controls discoverable on touch screens. */
+.message-dialog .message-pending-drafts > summary::after,
+.message-dialog .composer-template-search-disclosure > summary::after,
+.message-dialog .message-secondary-options > summary::after{
+  content:"⌄";margin-left:auto;font-size:1.2rem;line-height:1;
+}
+.message-dialog .message-pending-drafts[open] > summary::after,
+.message-dialog .composer-template-search-disclosure[open] > summary::after,
+.message-dialog .message-secondary-options[open] > summary::after{content:"⌃"}
