@@ -56,6 +56,8 @@ const visualSource=readFileSync('components/visual-selection-options.tsx','utf8'
 check(visualSource.includes('className="estimate-service-picker-item fire-visual-option"'),
  'All categorized service choices retain the existing 48px tap target');
 check(visualSource.includes('textValue={service.name}'),'Service keyboard/typeahead uses original service name');
+check(visualSource.includes('aria-label={service.name}'),'Decorative add-on badges do not change the original accessible service name');
+check(visualSource.includes('aria-label={value}'),'Long dropdown options preserve exact accessible names');
 const visualGroups=estimateServicePickerGroups(catalog);
 same(visualGroups[0].key,'custom','Custom remains visually first');
 same(visualGroups.flatMap(group=>group.items).length,catalog.length,'No services lost in visual grouping');

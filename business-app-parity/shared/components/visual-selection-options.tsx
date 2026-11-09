@@ -40,7 +40,7 @@ export function CategorizedServiceOptions({catalog}:{catalog:readonly {id:string
  return <>{estimateServicePickerGroups(catalog).map(group=><SelectGroup key={group.key} className="fire-menu-group">
    <GroupHeader name={group.label} tone={group.tone as SelectVisualTone} count={group.items.length}/>
    {group.items.map(service=><SelectItem key={service.id} value={service.id} textValue={service.name}
-      className="estimate-service-picker-item fire-visual-option" data-tone={group.tone}>
+      className="estimate-service-picker-item fire-visual-option" aria-label={service.name} data-tone={group.tone}>
       <span className="fire-visual-option-body">
        <GroupMark tone={group.tone as SelectVisualTone}/>
        <span className="fire-option-name">{service.name}</span>
@@ -53,7 +53,7 @@ export function CategorizedServiceOptions({catalog}:{catalog:readonly {id:string
 export function VisualChoiceOptions({kind,values}:{kind:keyof typeof options;values:readonly string[]}){
  const allGroups=options[kind];
  const mapped=new Set<string>(allGroups.flatMap(group=>[...group.values]));
- const rendered=allGroups.map(group=>({
+ const rendered:Array<{key:string;name:string;tone:SelectVisualTone;values:string[]}>=allGroups.map(group=>({
    key:group.name,name:group.name,tone:group.tone,
    values:values.filter(value=>(group.values as readonly string[]).includes(value)),
  })).filter(group=>group.values.length);
@@ -61,7 +61,7 @@ export function VisualChoiceOptions({kind,values}:{kind:keyof typeof options;val
  if(extras.length)rendered.push({key:'Other options',name:'Other Options',tone:'special',values:extras});
  return <>{rendered.map(group=><SelectGroup className="fire-menu-group" key={group.key}>
    <GroupHeader name={group.name} tone={group.tone as SelectVisualTone} count={group.values.length}/>
-   {group.values.map(value=><SelectItem className="fire-visual-option" data-tone={group.tone} key={value} value={value} textValue={value}>
+   {group.values.map(value=><SelectItem className="fire-visual-option" data-tone={group.tone} key={value} value={value} textValue={value} aria-label={value}>
       <span className="fire-visual-option-body"><GroupMark tone={group.tone as SelectVisualTone}/><span className="fire-option-name">{value}</span></span>
     </SelectItem>)}
  </SelectGroup>)}</>;

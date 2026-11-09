@@ -127,7 +127,7 @@ export function estimateServicePickerOptions<T extends {id:string}>(catalog:read
 export function estimateServicePickerGroups<T extends {id:string}>(catalog:readonly T[]){
   const ordered=estimateServicePickerOptions(catalog);
   const known=new Set<string>(ESTIMATE_SERVICE_VISUAL_GROUPS.flatMap(group=>[...group.ids]));
-  const groups=ESTIMATE_SERVICE_VISUAL_GROUPS.map(group=>({
+  const groups:Array<{key:string;label:string;tone:string;items:T[]}>=ESTIMATE_SERVICE_VISUAL_GROUPS.map(group=>({
     key:group.key,label:group.label,tone:group.tone,
     items:ordered.filter(service=>(group.ids as readonly string[]).includes(service.id)),
   })).filter(group=>group.items.length>0);
