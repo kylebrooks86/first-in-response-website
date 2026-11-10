@@ -52,6 +52,12 @@ Provider docs:
 - https://developers.cloudflare.com/workers/static-assets/direct-upload/
 - https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/subresources/versions/methods/create/
 
+### Offline compiled static-asset manifest hashing
+
+`cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs` now includes a separate **LOCAL-ONLY** manifest builder. For a compiled `dist/client` folder it traverses only ordinary non-symlink files, refuses credential-like paths, source maps and unrecognized extensions, enforces size caps, computes the direct-upload format hash `SHA256(base64(file bytes) + extension).slice(0,32)` and reports count/bytes plus an evidence digest. It does **not** write JSON, transmit asset bytes, request an upload JWT, or call a provider. Offline Node22 tests use disposable synthetic JS and CSS files.
+
+This manifest checker is not yet proof the exact Vinext full-app build has been generated, that every route works, or that the provider can upload this set. If actual build assets contain a legitimate rejected extension or path, stop and review source rather than weakening checks silently. Full app source hash, entrypoint/modules and route parity still require independent acceptance.
+
 ## Release position
 
 Gate 9 **OPEN**. This is an inactive-version reuse no-go, not a claim that a safe new upload method has already been engineered. 4/10 formal production gates accepted (Gates 1–3 and QA-only Gate 8); all LIVE/Stripe/financial changes remain **NO-GO**. No additional owner Acer command is needed merely to reconfirm the nine unusable versions.
