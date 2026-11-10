@@ -53,3 +53,14 @@ test('refuses symlink files and noncompiled root symlinks',()=>{
   assert.throws(()=>createLocalAssetManifest(x.folder));
  }finally{rmSync(x.temporary,{recursive:true,force:true})}
 });
+
+test('skips Vite private build metadata but rejects other hidden files',()=>{
+ const x=fresh();
+ try {
+  mkdirSync(join(x.folder,'.vite'));
+  writeFileSync(join(x.folder,'.vite','manifest.json'),'{"private":true}');
+  assert.equal(Object.keys(createLocalAssetManifest(x.folder)).length,2);
+  writeFileSync(join(x.folder,'.env'),'DO_NOT_UPLOAD');
+  assert.throws(()=>createLocalAssetManifest(x.folder));
+ }finally{rmSync(x.temporary,{recursive:true,force:true})}
+});
