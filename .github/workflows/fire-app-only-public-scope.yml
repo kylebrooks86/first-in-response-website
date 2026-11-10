@@ -14,6 +14,8 @@ on:
       - '.github/workflows/fire-gate4-provider-identity-preflight.yml'
       - '.github/workflows/fire-qa-release-review-fail-closed.yml'
       - '.github/workflows/fire-qa-v25-private-backup-offline.yml'
+      - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
+      - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
       - 'ci/test-site-verifier-scope.mjs'
@@ -63,23 +65,27 @@ jobs:
               exit 1
             fi
           done
-          # Four exact PR173 verifier blobs are the ONLY site-verification exception.
+          # Four exact PR173 verifier blobs and two reviewed Gate9 CI workflow blobs are pinned exceptions.
           # Real public pages, assets, calculator and unrelated paths remain protected.
           reviewed_paths=(
             verify-site.mjs verify-site-ci.mjs ci/test-site-verifier-scope.mjs
             .github/workflows/verify-site.yml
+            .github/workflows/fire-gate9-fullapp-offline-build.yml
+            .github/workflows/fire-gate9-readonly-version-inventory.yml
           )
           reviewed_blobs=(
             4042570221cf4f31d2749534775bfd7d349ccfe1
             ccf96985afb7949af8999792708ab4761fa308b3
             5c4c28a43de2d6be5c1e6de0ba0cfd2b4c6e784e
             6c9aab68423963fa85a5b295ce4c1a16f676a7da
+            536ccba8d4994835f34f2d0b4319111ae90a41d1
+            139c9ad4b13ed75a4914c85f1edd4f860bdc5310
           )
           for i in "${!reviewed_paths[@]}"; do
             file="${reviewed_paths[$i]}"
             actual="$(git rev-parse "HEAD:${file}" 2>/dev/null || true)"
             if [[ "$actual" != "${reviewed_blobs[$i]}" ]]; then
-              echo "BLOCKED: reviewed verifier must match PR173 exact blob: $file"
+              echo "BLOCKED: reviewed verifier or Gate9 CI workflow does not match pinned blob: $file"
               exit 1
             fi
           done
@@ -90,7 +96,7 @@ jobs:
           fi
           for file in "${changed[@]}"; do
             case "$file" in
-              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml)
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml)
                 ;;
               *)
                 echo "BLOCKED: unreviewed non-app change: $file"
@@ -98,6 +104,6 @@ jobs:
                 ;;
             esac
           done
-          echo "PASS: all protected public website/calculator Git objects match main and four verifier blobs match reviewed PR173."
+          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and two reviewed Gate9 CI workflow blobs are pinned."
           echo "PASS: changed paths limited to app source, approved workflows and four pinned verifier files."
           echo "NO merge, publish, provider authentication or deployment was attempted."
