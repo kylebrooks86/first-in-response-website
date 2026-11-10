@@ -5,6 +5,7 @@ on:
       - 'business-app-parity/cloudflare-launch/materialize-stripe-test.py'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
 permissions:
@@ -61,6 +62,11 @@ jobs:
         run: |
           set -euo pipefail
           node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server"
+      - name: Assemble exact beta Worker Version request in memory with fake completion JWT only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server" "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client"
       - name: Require full compiled route matrix, no runtime or provider calls
         shell: bash
         run: |
