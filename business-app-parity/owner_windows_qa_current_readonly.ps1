@@ -1,5 +1,5 @@
-# Nov 9 owner-confirmed QA deployed version d497b695 active at 100% traffic,
-# isolated QA D1 and no R2; prior v25 preserved for rollback. NO publish consent.
+# Nov 9 owner-observed PR213 QA Worker version 2be6407d active at 100% traffic,
+# isolated QA D1 and no R2; previous code version retained for rollback. NO publish consent.
 # FIRE QA current-release evidence review — READ ONLY, no publication or data mutation.
 # Designed for the owner's existing authenticated Windows Wrangler session.
 # Nov 9 owner QA read-back identifies the reported
@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedVersion = 'd497b695-f6d3-4a83-82b9-d2a33fbc5366'
+$expectedVersion = '2be6407d-9efc-4b2a-95fc-18ed734aa943'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
