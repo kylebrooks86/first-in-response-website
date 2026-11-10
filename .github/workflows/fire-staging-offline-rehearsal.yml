@@ -259,6 +259,7 @@ jobs:
           node scripts/test-pending-customer-messages.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-message-composer-handoff-browser.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-preview-theme-browser.mjs
+          node scripts/test-owner-account.mjs
           node scripts/test-api-route-access-inventory.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-promotion-history-browser.mjs
       - name: Gate 8 actual New Estimate service reuse and editor navigation (Chrome)
