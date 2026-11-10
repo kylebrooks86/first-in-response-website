@@ -146,7 +146,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
       console.log('NO active deployment, Stripe, Access, database, secrets or LIVE changes.');
     }
   }catch(e){
-    const message=e instanceof Error&&/^STOP: Gate9 (?:owner private inactive operation|local release candidate|inactive upload|guarded TEST Cloudflare transport|Cloudflare READ ONLY) \[[A-Z_]+\]/.test(e.message)?e.message:
+    const message=e instanceof Error&&/^STOP: Gate9 (?:owner private inactive operation|local release candidate|inactive upload|guarded TEST Cloudflare transport|Cloudflare READ ONLY) \[[A-Z0-9_]+\]/.test(e.message)?e.message:
       'STOP: Gate9 private TEST inactive operation [UNVERIFIED]; no automatic retry.';
     console.error(message);
     process.exitCode=1;
