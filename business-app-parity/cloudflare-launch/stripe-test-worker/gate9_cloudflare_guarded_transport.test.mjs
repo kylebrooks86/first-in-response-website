@@ -99,6 +99,11 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=fal
      assert.equal(body.bindings.length,10);
      assert.equal(body.deploy,undefined);
      if(forbiddenLive)assert.fail('forbidden test');
+     if(versionStatus===400){
+       return new Response(JSON.stringify({success:false,
+         errors:[{code:10057,message:'FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK'}],
+         result:null}),{status:400});
+     }
      if(versionStatus)return response({blocked:'FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK'},versionStatus);
      return response({id:newId},201);
    }
@@ -176,4 +181,16 @@ test('HTTP refusal at each of 3 provider write phases reports only safe stage/co
    assert.equal(x.events.filter(e=>e.method==='POST').length,expectedPostCount);
   }finally{x.cleanup();}
  }
+});
+
+test('HTTP 400 keeps only provider numeric error code and never repeats version POST',async()=>{
+ const x=fixture({versionStatus:400});
+ try {
+  await assert.rejects(runApprovedInactiveUpload(x),error=>
+    error.message.includes('POST_INACTIVE_VERSION_HTTP_400_CODE_10057')&&
+    !error.message.includes('FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK')&&
+    !error.message.includes('SYNTHETIC_COMPLETION_JWT'));
+  assert.equal(x.events.filter(e=>e.method==='POST').length,4);
+  assert.equal(x.events.filter(e=>e.method==='POST'&&e.path.endsWith('/versions?deploy=false')).length,1);
+ }finally{x.cleanup();}
 });
