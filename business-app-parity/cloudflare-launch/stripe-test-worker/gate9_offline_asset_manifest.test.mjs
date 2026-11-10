@@ -97,3 +97,22 @@ test('permits ordinary private-labelled chunk but rejects actual token-shaped by
   assert.throws(()=>createLocalAssetManifest(x.folder));
  }finally{rmSync(x.temporary,{recursive:true,force:true})}
 });
+
+test('asset manifest insertion order is identical despite opposite filesystem creation order',()=>{
+ const a=fresh(),b=fresh();
+ try {
+  const aa=join(a.folder,'_next','static','chunks');
+  const bb=join(b.folder,'_next','static','chunks');
+  writeFileSync(join(aa,'z-last.js'),'test-last');
+  writeFileSync(join(aa,'A-first.js'),'test-first');
+  writeFileSync(join(bb,'A-first.js'),'test-first');
+  writeFileSync(join(bb,'z-last.js'),'test-last');
+  const ma=createLocalAssetManifest(a.folder);
+  const mb=createLocalAssetManifest(b.folder);
+  assert.equal(JSON.stringify(ma),JSON.stringify(mb));
+  assert.deepEqual(Object.keys(ma),Object.keys(ma).slice().sort());
+ } finally {
+  rmSync(a.temporary,{recursive:true,force:true});
+  rmSync(b.temporary,{recursive:true,force:true});
+ }
+});
