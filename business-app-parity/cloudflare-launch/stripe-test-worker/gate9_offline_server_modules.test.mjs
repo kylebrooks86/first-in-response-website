@@ -11,6 +11,7 @@ function fresh(){
   mkdirSync(join(root,'chunks'),{recursive:true});
   writeFileSync(join(root,'index.js'),'export default { fetch(){ return new Response("TEST_ONLY") } };');
   writeFileSync(join(root,'chunks','app.js'),'export const synthetic = true;');
+  writeFileSync(join(root,'BUILD_ID'),'synthetic-build-123');
   writeFileSync(join(root,'wrangler.json'),'{"main":"index.js","d1_databases":[{"database_id":"FAKE"}]}');
   return {temp,root};
 }
@@ -63,4 +64,13 @@ test('retains compiled CSS and exact root Cloudflare text-control modules, rejec
     writeFileSync(join(x.root,'run'), 'not a valid named Worker module');
     assert.throws(()=>inventoryCompiledModules(x.root,'index.js'));
   }finally{rmSync(x.temp,{recursive:true,force:true})}
+});
+
+test('refuses missing or suspicious BUILD_ID metadata rather than uploading it',()=>{
+ const x=fresh();
+ try{
+  assert.equal(inventoryCompiledModules(x.root,'index.js').buildIdSha256.length,64);
+  writeFileSync(join(x.root,'BUILD_ID'),'bad/id/with/slashes');
+  assert.throws(()=>inventoryCompiledModules(x.root,'index.js'));
+ }finally{rmSync(x.temp,{recursive:true,force:true})}
 });
