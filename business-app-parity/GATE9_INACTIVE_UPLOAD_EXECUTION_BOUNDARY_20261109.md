@@ -24,6 +24,8 @@ Before every write, independently reread predecessor bindings and 100% serving t
 
 Reject failed provider responses, expired local session budget, missing completion, drift, ambiguous results and mismatched post-upload readback. Never retry uncertain writes automatically. Reconcile actual provider inventory first; do not delete an uncertain uploaded version or attempt unapproved rollback.
 
+**Final-bucket completion guard (verified at source head `cb7e7d2761360b0f98023fef42f9b5cd7048488c`):** A premature `201` or a completion JWT in a nonfinal asset bucket is rejected. If buckets are nonempty, the *final* upload must return `201` and a valid completion token before a Worker version-create request can run. The zero-bucket cached-assets case continues to use the registration JWT, as Cloudflare documents. The coordinator neither replays uncertain uploads nor treats earlier completion as proof the entire manifest arrived. Three additional negative fixtures PASS; total focused coordinator test cases 18/18 PASS in isolated Node22 CI. Provider acceptance remains unverified.
+
 The coordinator returns only redacted identity evidence. It deliberately does not claim asset delivery or Gate 9 acceptance.
 
 ## Missing authenticated adapter: do not mistake this for an executable uploader
@@ -48,7 +50,7 @@ An account dashboard session is not an API upload credential. No browser-cookie 
 
 ## Verification scope
 
-15 new offline tests cover authorization refusal, successful/cached protocols, failed upload, absent completion, unknown/duplicate hashes, expiry, provider errors, mid-flight traffic drift, uncertain result without replay, candidate mutation and failed independent readback.
+18 targeted offline tests cover authorization refusal, successful/cached protocols, failed upload, absent completion, unknown/duplicate hashes, expiry, provider errors, mid-flight traffic drift, uncertain result without replay, candidate mutation and failed independent readback.
 These tests use a fake adapter and tokens only. No real provider acceptance, asset delivery, signed webhook, checkout, refund, ledger or idempotency result is claimed.
 
 Formal status: 4/10 accepted (Gates 1–3 and synthetic QA Gate 8); Gate 9 OPEN; production NO-GO.
