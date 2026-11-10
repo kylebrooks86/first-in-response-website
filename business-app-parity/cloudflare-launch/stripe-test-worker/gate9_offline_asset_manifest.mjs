@@ -8,7 +8,7 @@
  * production/customer/credential directories. Only accepts dist/client.
  */
 import {createHash} from 'node:crypto';
-import {readdirSync, readFileSync, realpathSync, lstatSync} from 'node:fs';
+import {readdirSync, readFileSync, realpathSync, lstatSync, existsSync} from 'node:fs';
 import {basename, extname, join, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {verifyAssetManifest} from './gate9_inactive_fullapp_contract.mjs';
@@ -42,6 +42,9 @@ export function createLocalAssetManifest(root) {
       // Reject all other hidden entries, symlinks or unexpected shapes.
       if (parents.length === 0 && name === '.vite' && entry.isDirectory()) continue;
       if (parents.length === 0 && name === '.assetsignore' && entry.isFile()) continue;
+      // Cloudflare requires these exact extensionless control files as
+      // text/plain Worker modules, NEVER ordinary static asset manifest items.
+      if (parents.length === 0 && ['_headers','_redirects'].includes(name) && entry.isFile()) continue;
       insist(!name.startsWith('.'),'DOT_ENTRY');
       insist(/^[A-Za-z0-9._-]+$/.test(name),'FILENAME_CHARSET');
       insist(!/password|secret|token|private|backup/i.test(name),'SENSITIVE_NAME');
@@ -71,6 +74,26 @@ export function createLocalAssetManifest(root) {
   catch { throw Error('STOP: Local TEST asset inventory [MANIFEST_SHAPE]. NO upload.'); }
   return manifest;
 }
+export function inspectSpecialWorkerModules(root) {
+  const folder=compiledRoot(root);
+  const result=[];
+  for(const name of ['_headers','_redirects']) {
+    const abs=join(folder,name);
+    if(!existsSync(abs))continue;
+    const stat=lstatSync(abs);
+    insist(stat.isFile() && !stat.isSymbolicLink() &&
+      stat.size>0 && stat.size<65_536,'SPECIAL_MODULE_FILE');
+    const bytes=readFileSync(abs);
+    insist(bytes.length===stat.size &&
+      !/(?:sk|rk|rkcs)_(?:live|test)_|whsec_|CLOUDFLARE_API_TOKEN/i.test(bytes.toString('utf8')),
+      'SPECIAL_MODULE_CONTENT');
+    result.push({
+      name,contentType:'text/plain',bytes:stat.size,
+      sha256:createHash('sha256').update(bytes).digest('hex')
+    });
+  }
+  return result;
+}
 export function safeLocalManifestSummary(manifest) {
   const {assetCount,assetBytes}=verifyAssetManifest(manifest);
   const digest=createHash('sha256')
@@ -84,10 +107,13 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
     insist(process.argv.length===3);
     const m=createLocalAssetManifest(process.argv[2]);
     const s=safeLocalManifestSummary(m);
+    const special=inspectSpecialWorkerModules(process.argv[2]);
     console.log('PASS: Offline TEST full-app asset manifest shape/hash calculation');
     console.log('ASSETS_COUNT='+s.assetCount);
     console.log('TOTAL_BYTES='+s.assetBytes);
     console.log('METADATA_SHA256='+s.metadataSha256);
+    for(const item of special)console.log('SEPARATE_WORKER_TEXT_MODULE='+item.name+' SHA256='+item.sha256);
+    console.log('SEPARATE_WORKER_MODULES_COUNT='+special.length);
     console.log('LOCAL_ONLY=TRUE; NO UPLOAD, NO TOKEN, NO VERSION, NO DEPLOY.');
   }catch(error){
     console.error(error instanceof Error && /^STOP: Local TEST asset inventory \[[A-Z_]+\]/.test(error.message) ? error.message : 'STOP: Local TEST asset inventory [UNKNOWN]. No remote changes.');
