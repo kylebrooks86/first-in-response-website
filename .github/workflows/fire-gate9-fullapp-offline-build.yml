@@ -46,7 +46,7 @@ jobs:
           from pathlib import Path
           text=Path(os.environ['RUNNER_TEMP'],'FIRE-GATE9-COMPILED-ROUTES.log').read_text()
           text=re.sub(r'\x1b\[[0-9;]*m','',text)
-          routes=set(re.findall(r'[^\n]*?[┌├└]\s*[λƒ]\s+(/[^\s]+)',text))
+          routes=set(re.findall(r'[^\n]*?[┌├└]\s*[λƒ]\s+(/[^\s]*)',text))
           required={
             '/', '/api/customers', '/api/estimates', '/api/invoices',
             '/api/payments/checkout', '/api/payments/checkout/reconcile',
