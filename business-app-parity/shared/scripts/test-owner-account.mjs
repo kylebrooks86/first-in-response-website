@@ -50,8 +50,17 @@ for(const environment of ['QA','DOOMSDAY','STAGING']){
  assert.ok(html.includes(environment+' · FIRE Business App'));
  assert.ok(html.includes(environment==='QA'||environment==='DOOMSDAY'?'signed-cookie authentication':'ChatGPT sign-in'));
  assert.ok(html.includes('Records and payment settings stay separate.'),'Separate environments remain explicitly warned');
+ const canSignOut=environment==='QA'||environment==='DOOMSDAY';
+ assert.equal(html.includes('class="owner-account-signout"'),canSignOut,`${environment}: logout only for independent sessions`);
+ if(canSignOut){
+  assert.ok(html.includes('href="/api/auth/logout?return_to=%2F"'),'Use same-origin established logout route');
+  assert.ok(html.includes(`Sign out of ${environment}`),'Logout names the current environment');
+  assert.ok(html.includes('Saved records are not deleted.'),'Clarify signout does not delete records');
+ }else assert.ok(!html.includes('/api/auth/logout'),'ChatGPT-auth targets must not expose independent-session logout');
 }
 const css=readFileSync('app/globals.css','utf8');
+assert.match(css,/\.owner-account-view a\.owner-account-signout\{[^}]*min-height:48px[^}]*max-width:100%/,'Signout control has safe iPhone touch target');
+assert.match(css,/\[data-theme="dark"\] \.owner-account-view a\.owner-account-signout\{/,'Signout dark mode contrast is specified');
 assert.match(css,/\.owner-account-view \.brand-button\{[^}]*min-height:44px[^}]*max-width:100%[^}]*white-space:normal/,'Theme action has minimum 44px touch height and can wrap on narrow screens');
 for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
 // Public documents must never render owner-only floating navigation.
@@ -65,4 +74,4 @@ for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx
 // never silently omit the auth no-change guard or weaken the runtime auth implementation.
 assert.equal(execFileSync('git',['hash-object','app/chatgpt-auth.ts'],{encoding:'utf8'}).trim(),
  'eef37346915e9aafb60037c59eaea8e67507ea5a','Owner-auth module must match its reviewed unchanged Git object');
-console.log('PASS: owner entry actions, mobile menu close, light/dark rendering, theme persistence, Templates separation, dashboard navigation, public documents omit owner controls, owner auth unchanged.');
+console.log('PASS: owner account navigation, light/dark rendering, QA/DR scoped sign out, preserved LIVE auth, safe touch targets, and public document isolation.');
