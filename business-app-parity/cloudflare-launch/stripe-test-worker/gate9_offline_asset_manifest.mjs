@@ -35,7 +35,7 @@ export function createLocalAssetManifest(root) {
   let count=0, bytes=0;
   function walk(folder,parents=[]) {
     insist(parents.length<20,'NESTING');
-    for(const entry of readdirSync(folder,{withFileTypes:true})) {
+    for(const entry of readdirSync(folder,{withFileTypes:true}).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0)) {
       const name=entry.name;
       // Vite emits two private build-control entries at dist/client root.
       // They are NOT public site assets and must never be uploaded.
