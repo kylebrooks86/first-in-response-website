@@ -48,6 +48,9 @@ jobs:
           names=[str(p.relative_to(root)) for p in root.rglob("*") if p.name.startswith(".")]
           assert len(names)<30, "Unexpected many hidden build artifacts"
           print("SYNTHETIC_COMPILED_DOT_ENTRY_NAMES="+repr(sorted(names)))
+          from collections import Counter
+          ext=Counter(p.suffix.lower() for p in root.rglob("*") if p.is_file())
+          print("SYNTHETIC_ASSET_EXTENSION_COUNTS="+repr(sorted(ext.items())))
           PY
       - name: Offline inspect actual compiled TEST static assets
         shell: bash
