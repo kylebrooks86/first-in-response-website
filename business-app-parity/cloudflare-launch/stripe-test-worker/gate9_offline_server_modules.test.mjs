@@ -52,3 +52,15 @@ test('never accepts source roots or production/source config locations',()=>{
   try {assert.throws(()=>inventoryCompiledModules(x.temp,'index.js'));}
   finally{rmSync(x.temp,{recursive:true,force:true})}
 });
+
+test('retains compiled CSS and exact root Cloudflare text-control modules, rejects other extensionless files',()=>{
+  const x=fresh();
+  try{
+    writeFileSync(join(x.root,'chunks','rsc.css'),'body{display:block}');
+    writeFileSync(join(x.root,'_headers'),'/*\n  X-FIRE-Test: synthetic-only\n');
+    const proof=inventoryCompiledModules(x.root,'index.js');
+    assert.equal(proof.moduleCount,4);
+    writeFileSync(join(x.root,'run'), 'not a valid named Worker module');
+    assert.throws(()=>inventoryCompiledModules(x.root,'index.js'));
+  }finally{rmSync(x.temp,{recursive:true,force:true})}
+});
