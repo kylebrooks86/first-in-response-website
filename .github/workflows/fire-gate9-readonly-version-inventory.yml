@@ -11,6 +11,8 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.test.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.test.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.test.mjs'
       - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
 permissions:
@@ -33,3 +35,4 @@ jobs:
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.test.mjs
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.test.mjs
