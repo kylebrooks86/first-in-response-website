@@ -1,4 +1,4 @@
-# Gate 9 inactive full-app upload: prepared protocol, execution blocked
+# Gate 9 inactive full-app upload: guarded private HTTP code implemented; live execution still unauthorized
 
 Reviewed starting source: 9a2f275c16049dc15865d8e16ba74ceab1f40936.
 This document and the protocol coordinator do not authorize any remote write.
@@ -12,7 +12,7 @@ Physical TEST D1: dba421ba-fc66-4cf8-9c31-51616f8249ba.
 Keep Stripe disabled, the nine immutable inherited bindings, no R2, existing Access policies.
 No existing inactive version is a suitable full-app substitute.
 
-The browser preflight in this session reached Cloudflare's sign-in page. Neither a fresh serving-version nor database-binding read was possible. Owner-supplied historical mapping is retained, not relabeled as fresh API evidence.
+Owner later independently re-confirmed the exact serving version at 100% using the Deployments screenshot and supplied its full version ID. The TEST D1 UUID had already been verified. Those facts are retained without another screenshot request. An authenticated **Cloudflare REST API** GET against the private adapter is still not completed; browser authentication is not an API token.
 
 ## Newly prepared coordination
 
@@ -28,7 +28,21 @@ Reject failed provider responses, expired local session budget, missing completi
 
 The coordinator returns only redacted identity evidence. It deliberately does not claim asset delivery or Gate 9 acceptance.
 
-## Missing authenticated adapter: do not mistake this for an executable uploader
+## Private HTTP adapter now exists — NOT authenticated or executed on Cloudflare
+
+The previously missing application adapter is now implemented as isolated, non-CLI source:
+- `gate9_cloudflare_readonly_adapter.mjs`: real Cloudflare **GET-only** endpoint paths, normalized physical TEST D1 via `database_id` or old `id`, exact 100% serving deployment verification, sanitized secret-name metadata and independent `GET .../versions/:id?include=modules` module-byte digest. Never emits credentials/raw response or supplies an HTTP client itself.
+- `gate9_cloudflare_guarded_transport.mjs`: strict private transport limited to TEST asset-manifest registration, hash-named base64 multipart asset uploads with JWT auth, and one beta Worker version POST `?deploy=false`. No deployment POST or LIVE/Stripe/DB/Access write paths. Permission gate callback required before every individual POST, plus explicit immutable-inheritance checks; rejects unexpected hashes and changed files.
+- `gate9_pinned_private_target.mjs`: exact known account ID `bfc00939cfb2f8dfd8581a7a7f5f1307`, Worker UUID `72f9cab371974bc8811da05f44976fa9`, Access app ID `09dbb414-997f-494f-85a5-a3a65a5a92ef`, dedicated TEST Worker name, predecessor and D1 identifiers, recovered from the retained Nov 2 FIRE Access workflow; prevents manual wrong-target substitutions before private transport construction.
+- `gate9_compiled_candidate.mjs`: bridges the *actual compiled* TEST Worker modules+assets to the coordinator's `{sourceSha,manifest,versionBody}` approval structure; rejects unpinned source and removes only the fake JWT. It outputs **only source SHA, candidate digest, module/asset counts** to CI, never raw module code or a deployable JSON file.
+
+**CI proof is synthetic/local only**, including a full fake Cloudflare server that verifies actual hash-named multipart bytes, per-POST private permission checks, exact active version, true module-byte GET comparison and no traffic change. This does NOT mean the provider accepted the API call.
+
+**Execution remaining:** A privately authenticated Cloudflare connection with least-privileged Worker access and a separate, explicit owner approval for manifest registration, exact requested asset uploads and *one* inactive version creation. No such private credential or owner write consent has been supplied in this conversation. Do not load a token from GitHub Actions, reproduce a browser session cookie, or request/display secret values. Production/LIVE remains NO-GO.
+
+The adapter implementation must enforce api.cloudflare.com origin, allowlisted exact account/Worker paths and methods, no redirects, bounded timeouts, private auth and redacted exceptions. It must retain all bytes privately and rehash exact compiled modules/client files against the approved candidate immediately before transmission. Hash-based upload descriptors are not file bytes and cannot be submitted as multipart themselves.
+
+## Private operator prerequisites and fail-closed readback
 
 Adapter request implementation must enforce api.cloudflare.com origin, allowlisted exact account/Worker paths and methods, no redirects, bounded timeouts, private auth and redacted exceptions. It must retain all bytes privately and rehash exact compiled modules/client files against the approved candidate immediately before transmission. Hash-based upload descriptors are not file bytes and cannot be submitted as multipart themselves.
 
