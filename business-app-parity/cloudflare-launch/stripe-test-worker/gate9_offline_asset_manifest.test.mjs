@@ -4,7 +4,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,symlinkSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
-import {createLocalAssetManifest,safeLocalManifestSummary}
+import {createLocalAssetManifest,safeLocalManifestSummary,inspectSpecialWorkerModules}
   from './gate9_offline_asset_manifest.mjs';
 
 function fresh() {
@@ -64,4 +64,25 @@ test('skips Vite private build metadata but rejects other hidden files',()=>{
   writeFileSync(join(x.folder,'.env'),'DO_NOT_UPLOAD');
   assert.throws(()=>createLocalAssetManifest(x.folder));
  }finally{rmSync(x.temporary,{recursive:true,force:true})}
+});
+
+test('tracks root _headers/_redirects as distinct text modules, not asset upload bytes',()=>{
+ const x=fresh();
+ try {
+  writeFileSync(join(x.folder,'_headers'),'/_next/static/*\n  Cache-Control: public, max-age=3600\n');
+  writeFileSync(join(x.folder,'_redirects'),' /old /new 301\n');
+  const manifest=createLocalAssetManifest(x.folder);
+  assert.equal(Object.keys(manifest).length,2);
+  assert.deepEqual(inspectSpecialWorkerModules(x.folder).map(x=>[x.name,x.contentType]),[
+    ['_headers','text/plain'],['_redirects','text/plain']
+  ]);
+  assert.equal(inspectSpecialWorkerModules(x.folder)[0].sha256.length,64);
+ }finally {rmSync(x.temporary,{recursive:true,force:true})}
+});
+test('refuses secret values in special Worker text modules',()=>{
+ const x=fresh();
+ try {
+  writeFileSync(join(x.folder,'_headers'),'Authorization: whsec_example');
+  assert.throws(()=>inspectSpecialWorkerModules(x.folder));
+ }finally {rmSync(x.temporary,{recursive:true,force:true})}
 });
