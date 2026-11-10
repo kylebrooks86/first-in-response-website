@@ -66,6 +66,17 @@ test('cached assets reuse registration completion and perform no bucket writes',
 for(const [label,mutate] of [
   ['failed upload',(r,q)=>{if(q.auth==='asset-session')r.status=500;}],
   ['missing completion',(r,q)=>{if(q.auth==='asset-session')r.status=200;}],
+  ['premature completion on first bucket',(r,q,n)=>{
+    if(q.auth==='asset-session'&&n===2){
+      r.status=201;r.body.result={jwt:'fake.premature'};
+    }
+  }],
+  ['premature token with 200 on first bucket',(r,q,n)=>{
+    if(q.auth==='asset-session'&&n===2)r.body.result={jwt:'fake.premature'};
+  }],
+  ['final 201 missing completion token',(r,q,n)=>{
+    if(q.auth==='asset-session'&&n===3)r.body.result={};
+  }],
   ['unknown hash',(r,q)=>{if(q.path.endsWith('assets-upload-session'))r.body.result.buckets=[["c".repeat(32)]];}],
   ['duplicate hash',(r,q)=>{if(q.path.endsWith('assets-upload-session'))r.body.result.buckets=[[hashA],[hashA]];}],
   ['expired upload session',(r,q,n,expire)=>{if(q.path.endsWith('assets-upload-session'))expire();}],
