@@ -142,10 +142,20 @@ webhook_path = destination / "app/api/payments/webhook/route.ts"
 webhook_source = webhook_path.read_text(encoding="utf-8")
 webhook_anchor = "  let event:StripeEvent;"
 required_signature = "verifyStripeSignature(rawBody, signature, runtime.STRIPE_WEBHOOK_SECRET)"
+# Current shared webhook already has its own HMAC-first staging kill switch.
+# Keep it. The generated TEST candidate adds its own immediately-before-parse
+# guard too, so even future source changes cannot process signed events while
+# TEST Stripe is disabled. Never reject the mere presence of FIRE_STRIPE_MODE:
+# that would fail closed on an already safer shared source and block the build.
+existing_webhook_mode_guard = 'if(sandboxTarget && runtime.FIRE_STRIPE_MODE !== "test")'
 if (webhook_source.count(webhook_anchor) != 1 or
         webhook_source.count(required_signature) != 1 or
-        "FIRE_STRIPE_MODE" in webhook_source or
-        webhook_source.index(required_signature) > webhook_source.index(webhook_anchor)):
+        webhook_source.index(required_signature) > webhook_source.index(webhook_anchor) or
+        webhook_guard in webhook_source or
+        (existing_webhook_mode_guard in webhook_source and
+         not (webhook_source.index(required_signature) <
+              webhook_source.index(existing_webhook_mode_guard) <
+              webhook_source.index(webhook_anchor)))):
     raise SystemExit("STOP: exact TEST webhook signature-before-mode injection changed")
 webhook_guard = (
     '  // TEST-only: validate Stripe HMAC before refusing disabled-mode delivery.\n'
