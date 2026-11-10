@@ -124,6 +124,8 @@ export function createGuardedGate9Transport({
        descriptor.auth==='account'&&
         Object.keys(descriptor).sort().join(',')==='auth,json,method,path'),
       'FORBIDDEN_POST_DESCRIPTOR');
+    const stage=descriptor.path===reg?'REGISTRATION':
+      descriptor.path===asset?'ASSET_BUCKET':'INACTIVE_VERSION';
     let body,auth;
     if(descriptor.path===asset){
       must(tokenOk(descriptor.jwt),'ASSET_SESSION_JWT');
@@ -162,14 +164,20 @@ export function createGuardedGate9Transport({
           ...(descriptor.path===asset?{}:{'Content-Type':'application/json'})},
         body,signal:AbortSignal.timeout(timeoutMs)
       });
-    }catch{stop('UNCERTAIN_WRITE_NO_RETRY');}
-    must(response&&Number.isInteger(response.status)&&
-      response.status>=200&&response.status<300,'PROVIDER_POST_STATUS');
+    }catch{stop(stage+'_NETWORK_UNCERTAIN');}
+    // Only a bounded HTTP status and known stage are exposed; NEVER forward
+    // response bodies, provider messages, auth or asset upload JWTs.
+    if(!response||!Number.isInteger(response.status))
+      stop(stage+'_MALFORMED_RESPONSE');
+    if(response.status<200||response.status>=300)
+      stop(stage+'_HTTP_'+(
+        response.status>=100&&response.status<=599?response.status:599
+      ));
     let data;
-    try{data=await response.json();}catch{stop('PROVIDER_POST_JSON');}
-    must(data&&typeof data==='object'&&data.success===true&&
-      (data.errors==null||Array.isArray(data.errors)&&data.errors.length===0),
-      'PROVIDER_POST_RESULT');
+    try{data=await response.json();}catch{stop(stage+'_RESPONSE_NOT_JSON');}
+    if(!(data&&typeof data==='object'&&data.success===true&&
+      (data.errors==null||Array.isArray(data.errors)&&data.errors.length===0)))
+      stop(stage+'_PROVIDER_REJECTED');
     // Do not print, store, or expose to a user the token-bearing body.
     // The approved coordinator consumes this private result in memory.
     return {status:response.status,body:data};
