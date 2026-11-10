@@ -87,8 +87,32 @@ export function predecessorFromApi(payload){
   const v=unwrap(payload);
   check(v.id===PREDECESSOR,'PREDECESSOR_ID');
   const safe={id:v.id,resources:{bindings:normalizedBindings(v)}};
-  const assets=v?.assets??v?.resources?.assets;
-  if(assets!==undefined)safe.resources.assets={}; // presence fails baseline check
+  // Cloudflare's version GET can include default assets routing metadata
+  // even for the owner's existing code-only TEST predecessor. Mere presence
+  // of {assets:{config:{...}}} is not proof of an uploaded asset collection.
+  // Refuse anything beyond the documented config-only response; an actual
+  // ASSETS binding, JWT, provider resource or unexpected field must fail.
+  if(v?.resources?.assets!==undefined||v?.resources?.static_assets!==undefined)
+    fail('PREDECESSOR_ASSET_RESOURCE');
+  if(v?.assets!==undefined){
+    const a=v.assets;
+    check(a&&typeof a==='object'&&!Array.isArray(a)&&
+      Object.keys(a).length===1&&Object.hasOwn(a,'config')&&
+      a.config&&typeof a.config==='object'&&!Array.isArray(a.config),
+      'PREDECESSOR_ASSET_SHAPE');
+    const allowed=new Set(['html_handling','not_found_handling','run_worker_first','base_path']);
+    check(Object.keys(a.config).every(k=>allowed.has(k))&&
+      a.config.run_worker_first===false&&
+      (a.config.base_path===undefined||a.config.base_path===null||
+       typeof a.config.base_path==='string')&&
+      (a.config.html_handling===undefined||
+       ['auto-trailing-slash','force-trailing-slash','drop-trailing-slash','none']
+         .includes(a.config.html_handling))&&
+      (a.config.not_found_handling===undefined||
+       ['none','404-page','single-page-application']
+         .includes(a.config.not_found_handling)),
+      'PREDECESSOR_ASSET_CONFIG');
+  }
   verifyPredecessor(safe);
   return safe;
 }
