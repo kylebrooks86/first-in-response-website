@@ -39,6 +39,20 @@ jobs:
           corepack pnpm install --frozen-lockfile
           corepack pnpm exec tsc --noEmit --incremental false
           corepack pnpm run build 2>&1 | tee "$RUNNER_TEMP/FIRE-GATE9-COMPILED-ROUTES.log"
+      - name: Classify synthetic server file extensions only, no source contents
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from collections import Counter
+          root=Path(os.environ['RUNNER_TEMP'])/'FIRE-GATE9-SYNTHETIC-LOCAL'/'dist'/'server'
+          assert root.is_dir()
+          files=[p for p in root.rglob('*') if p.is_file()]
+          print('SYNTHETIC_SERVER_EXTENSIONS='+repr(sorted(Counter(p.suffix.lower() for p in files).items())))
+          print('SYNTHETIC_SERVER_FILE_COUNT='+str(len(files)))
+          print('SYNTHETIC_SERVER_MAIN_SUFFIX='+str(next((p.suffix for p in files if p.name=='index.js'),'not-index-js')))
+          PY
       - name: Inspect compiled TEST Worker entrypoint and modules without provider calls
         shell: bash
         run: |
