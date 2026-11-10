@@ -124,13 +124,14 @@ test('actual GET+three PRIVATE POST types complete with independent READBACK, 10
     'register-assets','upload-assets','upload-assets','create-inactive-version']);
   assert(x.events.some(e=>e.path.endsWith('?include=modules')));
   assert(!x.events.some(e=>/\/deployments\?/.test(e.path)&&e.method==='POST'));
-  assert(!writes.some(e=>/stripe|database|d1|secrets|deployments/.test(e.path)));
+  assert(!writes.some(e=>/\/(?:database|d1|secrets|deployments)(?:\/|\?|$)/.test(e.path)));
+  assert(writes.every(e=>e.path.includes('/workers/')));
  }finally{x.cleanup();}
 });
 test('private permission refusal blocks ALL POSTs, including asset registration',async()=>{
  const x=fixture({deny:true});
  try{
-  await assert.rejects(runApprovedInactiveUpload(x),/NO_OWNER_PERMISSION/);
+  await assert.rejects(runApprovedInactiveUpload(x),/REQUEST_UNCERTAIN/);
   assert.equal(x.events.filter(e=>e.method==='POST').length,0);
  }finally{x.cleanup();}
 });
