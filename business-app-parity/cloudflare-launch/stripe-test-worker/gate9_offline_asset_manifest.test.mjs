@@ -86,3 +86,14 @@ test('refuses secret values in special Worker text modules',()=>{
   assert.throws(()=>inspectSpecialWorkerModules(x.folder));
  }finally {rmSync(x.temporary,{recursive:true,force:true})}
 });
+
+test('permits ordinary private-labelled chunk but rejects actual token-shaped bytes',()=>{
+ const x=fresh();
+ try{
+  writeFileSync(join(x.folder,'_next','static','chunks','private-app.js'),'console.log("no credentials")');
+  assert.equal(Object.keys(createLocalAssetManifest(x.folder)).length,3);
+  writeFileSync(join(x.folder,'_next','static','chunks','private-app.js'),
+    'const unsafe = "whsec_'+'A'.repeat(28)+'";');
+  assert.throws(()=>createLocalAssetManifest(x.folder));
+ }finally{rmSync(x.temporary,{recursive:true,force:true})}
+});
