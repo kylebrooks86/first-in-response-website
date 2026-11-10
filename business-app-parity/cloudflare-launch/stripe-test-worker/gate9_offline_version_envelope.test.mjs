@@ -84,3 +84,11 @@ test('accepts compiled server CSS as text module and JSON as json module',()=>{
   });
   assert.equal(validateOfflineVersionEnvelope(v).moduleCount,5);
 });
+
+test('accepts real Vite framework~ chunk naming but not path traversal',()=>{
+ const p=fake();
+ p.body.modules[1].name='_next/static/framework~index~app-page-cache-A1b2.js';
+ assert.equal(validateOfflineVersionEnvelope(p).validated,true);
+ p.body.modules[1].name='_next/static/../secrets.js';
+ assert.throws(()=>validateOfflineVersionEnvelope(p));
+});
