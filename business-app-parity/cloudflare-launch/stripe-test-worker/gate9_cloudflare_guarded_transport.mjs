@@ -169,10 +169,23 @@ export function createGuardedGate9Transport({
     // response bodies, provider messages, auth or asset upload JWTs.
     if(!response||!Number.isInteger(response.status))
       stop(stage+'_MALFORMED_RESPONSE');
-    if(response.status<200||response.status>=300)
-      stop(stage+'_HTTP_'+(
-        response.status>=100&&response.status<=599?response.status:599
-      ));
+    if(response.status<200||response.status>=300){
+      // Retain ONLY Cloudflare's bounded numeric error code. Never expose the
+      // provider message, source pointer, request body, bearer or response JSON.
+      // An HTTP refusal is a completed request: NEVER retry it automatically.
+      let numericCode=null;
+      try{
+        const refused=await response.json();
+        const errors=Array.isArray(refused?.errors)?refused.errors:[];
+        const match=errors.find(e=>e&&typeof e==='object'&&
+          Number.isInteger(e.code)&&e.code>=1000&&e.code<=999999);
+        if(match)numericCode=match.code;
+      }catch{
+        // Invalid/missing error JSON yields HTTP-only STOP, not a weaker guard.
+      }
+      const status=response.status>=100&&response.status<=599?response.status:599;
+      stop(stage+'_HTTP_'+status+(numericCode===null?'':'_CODE_'+numericCode));
+    }
     let data;
     try{data=await response.json();}catch{stop(stage+'_RESPONSE_NOT_JSON');}
     if(!(data&&typeof data==='object'&&data.success===true&&
