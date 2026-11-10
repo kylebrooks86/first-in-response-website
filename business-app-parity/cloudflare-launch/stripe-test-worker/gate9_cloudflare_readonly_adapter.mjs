@@ -148,7 +148,7 @@ export function createdVersionFromApi(payload,expectedId){
     check(bytes<200_000_000,'MODULE_BUDGET');
     modules.push({name:m.name,content_type:m.content_type,content_base64:m.content_base64});
   }
-  modules.sort((a,b)=>a.name.localeCompare(b.name));
+  modules.sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
   const bindings=normalizedBindings(v);
   check(bindings.length===10,'NEW_VERSION_BINDINGS');
   return {
