@@ -33,6 +33,25 @@ A future candidate must be **the full app** (not the route-only experiment) and 
 - https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/create/
 - https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/subresources/versions/methods/create/
 
+## November 9: provider-documented complete-assets version contract — OFFLINE implementation
+
+Official Cloudflare **Direct Uploads** guide (last updated Aug 10, 2026) documents three distinct steps: **POST asset manifest registration** to `/accounts/{account_id}/workers/scripts/{script_name}/assets-upload-session`; **POST base64-encoded asset files** to `/accounts/{account_id}/workers/assets/upload?base64=true`; then create the Worker version using the **completion JWT**. The completion JWT expires after 1 hour; it is a credential. NEVER paste it into source, logs, this chat, GitHub or screenshots. **The manifest registration and file upload are real remote writes** even though the final *version* is inactive. Consent must cover each explicitly; the prior failed-upload approval does not.
+
+The **beta Workers Version Create** API `POST /accounts/{account_id}/workers/workers/{worker_id}/versions` documents a `deploy` parameter; do not set it true. It accepts per-binding `type: "inherit"`, `version_id: "<immutable-version-id>"` to pin the *current serving* TEST version, unlike the script-version upload route that only accepts `latest`. It documents an `assets.jwt` completion token and new `ASSETS` binding; a version may include modules. This is provider **documentation of a possible shape**, not proof that all static asset steps are available with existing account authentication or that the current Vinext multibundle maps correctly. We have not sent any request.
+
+The source-only pure module `cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs` and offline fixtures now guard:
+- exact **serving predecessor** `96e32262-fa33-4f04-a161-bee11f0353e2`, separate TEST D1 UUID, four plain-text settings (including Stripe disabled), four encrypted-secret *names* and absence of R2/assets in old version;
+- metadata-only compiled JS/CSS asset manifest with valid paths/length/hash shapes, not asset contents or any receipt JWT;
+- `deploy: false`, beta **worker-version** endpoint only, exact predecessor-pinned inheritance of nine known bindings and a single new `ASSETS` binding; reject `latest`, split/mixed binding sources, extra keys, R2, modified mode or secret values.
+
+**Important limitations:** these checks validate **local contract shapes, not provider-signed identity**, not actual manifest hashing or uploaded assets, not generated full-app routes, not remote Access policy, not deployment behavior, and not a real provider upload. The module deliberately contains **no network/API client and no credential handling**. Even when every offline test passes, the next status is **research/source-review ready**, not deployable, Gate9 accepted or approval to upload.
+
+Before a real candidate can be proposed, independently prove: authentic compiled full-app module manifest, assets and complete route parity; actual owner Access/JWKS live flow; exact API capability of this TEST Worker; actual asset manifest hashing/content type and secure in-memory credential custody; immutable inheritance per binding; unchanged serving 100% even after authorized inactive creation; separate TEST provider signed-event and D1 ledger tests. **No remote call now.**
+
+Provider docs:
+- https://developers.cloudflare.com/workers/static-assets/direct-upload/
+- https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/subresources/versions/methods/create/
+
 ## Release position
 
 Gate 9 **OPEN**. This is an inactive-version reuse no-go, not a claim that a safe new upload method has already been engineered. 4/10 formal production gates accepted (Gates 1–3 and QA-only Gate 8); all LIVE/Stripe/financial changes remain **NO-GO**. No additional owner Acer command is needed merely to reconfirm the nine unusable versions.
