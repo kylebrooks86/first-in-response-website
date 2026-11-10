@@ -20,6 +20,8 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_cloudflare_readonly_adapter.test.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_cloudflare_guarded_transport.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_cloudflare_guarded_transport.test.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.test.mjs'
       - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
 permissions:
   contents: read
@@ -45,3 +47,4 @@ jobs:
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_upload_flow.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_cloudflare_readonly_adapter.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_cloudflare_guarded_transport.test.mjs
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.test.mjs
