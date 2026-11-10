@@ -155,3 +155,28 @@ jobs:
           set -euo pipefail
           node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client"
           echo 'SOURCE_BUILD_ONLY=PASS; NO CLOUD PROVIDER OR STRIPE WRITES; NOT APPROVED TO UPLOAD.'
+      - name: Preserve exact CI-built TEST candidate without Cloudflare or Stripe access
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-GATE9-CANDIDATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/FIRE-GATE9-SYNTHETIC-LOCAL/dist
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+      - name: Download same immutable CI candidate and independently revalidate
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-GATE9-CANDIDATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/FIRE-GATE9-REHYDRATED/dist
+      - name: Require uploaded ZIP delivery to reproduce exact source/digest, no network to providers
+        shell: bash
+        env:
+          VERIFIED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VERIFIED_SOURCE_SHA"
+          CANDIDATE_DIGEST="$(grep '^CANDIDATE_SHA256=' "$RUNNER_TEMP/FIRE-GATE9-DIGEST-ONLY.txt" | cut -d= -f2)"
+          test "${#CANDIDATE_DIGEST}" -eq 64
+          node business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.mjs --preflight --source "$VERIFIED_SOURCE_SHA" --digest "$CANDIDATE_DIGEST" --build "$RUNNER_TEMP/FIRE-GATE9-REHYDRATED"
+          echo 'PASS: Published CI artifact downloaded and reverified locally; token-free, NO Cloudflare, NO Stripe, NO D1 calls or uploads.'
+
