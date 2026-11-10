@@ -96,8 +96,16 @@ export async function runApprovedInactiveUpload({candidate,approval,accountId,tr
     const res=await request({method:'POST',path:prefix+'/workers/assets/upload?base64=true',
       auth:'asset-session',jwt:uploadJwt,hashes:buckets[i]});
     check(successful(res),'ASSET_UPLOAD');
-    if(res.status===201){
-      check(token(res.body.result?.jwt),'COMPLETION_TOKEN');
+    // Cloudflare's assets protocol returns 201 + a completion JWT only when
+    // every missing file has been uploaded. A token before the final bucket,
+    // or a final 200 without a completion token, cannot authorize version
+    // creation: it may reflect incomplete content or provider inconsistency.
+    if(i!==buckets.length-1){
+      check(res.status!==201&&!Object.hasOwn(res.body?.result||{},'jwt'),
+        'PREMATURE_COMPLETION');
+    } else {
+      check(res.status===201&&token(res.body?.result?.jwt),
+        'FINAL_COMPLETION_REQUIRED');
       completion=res.body.result.jwt;
     }
   }
