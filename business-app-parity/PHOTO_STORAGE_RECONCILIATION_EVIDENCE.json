@@ -1,0 +1,236 @@
+{
+  "baseCommit": "73e943fd833cf1461802f296694d8e7959ae5970",
+  "nativePhotoChecks": {
+    "live": {
+      "passed": 23,
+      "total": 23,
+      "checks": [
+        "native referenced photo metadata and R2 match",
+        "healthy scan does not claim recovery or atomicity",
+        "uncertain-save orphan retained and reported",
+        "missing referenced bytes block matching result",
+        "size and MIME conflicts are surfaced",
+        "wrong customer relationship fails closed",
+        "unsafe object path rejected without reading arbitrary bytes",
+        "duplicate object references rejected",
+        "record drift invalidates apparently complete scan",
+        "referenced R2 object drift invalidates scan",
+        "incomplete inventory cannot produce a report",
+        "repeated pagination cursor fails closed",
+        "storage read failure cannot imply complete coverage",
+        "scan rejects excessive metadata",
+        "actual owner route returns no-store read-only report",
+        "actual route rejects unauthenticated access",
+        "actual route rejects different owner",
+        "actual route preserves records when storage unavailable",
+        "actual route reports uncertain inspection without retry or writes",
+        "read-only inspection leaves native metadata and bytes unchanged",
+        "actual archive export retains byte-identical referenced photo",
+        "actual archive marks missing referenced bytes without inventing files",
+        "actual archive aborts interrupted byte reads and preserves source"
+      ],
+      "target": "live",
+      "nativeLocalD1R2": true,
+      "hostedRecoveryVerified": false,
+      "productionChanges": 0
+    },
+    "doomsday": {
+      "passed": 23,
+      "total": 23,
+      "checks": [
+        "native referenced photo metadata and R2 match",
+        "healthy scan does not claim recovery or atomicity",
+        "uncertain-save orphan retained and reported",
+        "missing referenced bytes block matching result",
+        "size and MIME conflicts are surfaced",
+        "wrong customer relationship fails closed",
+        "unsafe object path rejected without reading arbitrary bytes",
+        "duplicate object references rejected",
+        "record drift invalidates apparently complete scan",
+        "referenced R2 object drift invalidates scan",
+        "incomplete inventory cannot produce a report",
+        "repeated pagination cursor fails closed",
+        "storage read failure cannot imply complete coverage",
+        "scan rejects excessive metadata",
+        "actual owner route returns no-store read-only report",
+        "actual route rejects unauthenticated access",
+        "actual route rejects different owner",
+        "actual route preserves records when storage unavailable",
+        "actual route reports uncertain inspection without retry or writes",
+        "read-only inspection leaves native metadata and bytes unchanged",
+        "actual archive export retains byte-identical referenced photo",
+        "actual archive marks missing referenced bytes without inventing files",
+        "actual archive aborts interrupted byte reads and preserves source"
+      ],
+      "target": "doomsday",
+      "nativeLocalD1R2": true,
+      "hostedRecoveryVerified": false,
+      "productionChanges": 0
+    },
+    "staging": {
+      "passed": 23,
+      "total": 23,
+      "checks": [
+        "native referenced photo metadata and R2 match",
+        "healthy scan does not claim recovery or atomicity",
+        "uncertain-save orphan retained and reported",
+        "missing referenced bytes block matching result",
+        "size and MIME conflicts are surfaced",
+        "wrong customer relationship fails closed",
+        "unsafe object path rejected without reading arbitrary bytes",
+        "duplicate object references rejected",
+        "record drift invalidates apparently complete scan",
+        "referenced R2 object drift invalidates scan",
+        "incomplete inventory cannot produce a report",
+        "repeated pagination cursor fails closed",
+        "storage read failure cannot imply complete coverage",
+        "scan rejects excessive metadata",
+        "actual owner route returns no-store read-only report",
+        "actual route rejects unauthenticated access",
+        "actual route rejects different owner",
+        "actual route preserves records when storage unavailable",
+        "actual route reports uncertain inspection without retry or writes",
+        "read-only inspection leaves native metadata and bytes unchanged",
+        "actual archive export retains byte-identical referenced photo",
+        "actual archive marks missing referenced bytes without inventing files",
+        "actual archive aborts interrupted byte reads and preserves source"
+      ],
+      "target": "staging",
+      "nativeLocalD1R2": true,
+      "hostedRecoveryVerified": false,
+      "productionChanges": 0
+    }
+  },
+  "frameworkBrowser": {
+    "live": {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "native photo upload and delete retain bytes on D1 errors and UI refreshes ambiguous outcomes without retries",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "live",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false
+    },
+    "doomsday": {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual independent auth rejects invalid signed-cookie fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "native photo upload and delete retain bytes on D1 errors and UI refreshes ambiguous outcomes without retries",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "doomsday",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false
+    },
+    "staging": {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "native photo upload and delete retain bytes on D1 errors and UI refreshes ambiguous outcomes without retries",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "staging",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false
+    }
+  },
+  "restoreCompatibility": {
+    "passed": 57,
+    "total": 57,
+    "scope": "19 synthetic ZIP/fake local Wrangler checks per candidate; not native hosted restore"
+  },
+  "financialRegression": {
+    "passed": 207,
+    "total": 207
+  },
+  "typeScriptPassed": 3,
+  "candidateBuildsPassed": 3,
+  "fixtureRoutesAbsentFromBuilds": true,
+  "sourceParity": {
+    "sharedFiles": 149,
+    "differences": 0,
+    "independentPhotoLibraryMatches": true,
+    "independentRouteMatchesWithPreservedAuthAdapter": true
+  },
+  "ownerScreenshot": {
+    "filename": "IMG_1889(1).png",
+    "libraryFileId": "libfile_c55421733aac8191b1f81b73a11c88d8",
+    "reviewMethod": "Visually reviewed rendered attachment in conversation; no local file hash claimed",
+    "ownerIdentifiedWorker": "fire-app-independent-staging",
+    "visibleWorkerTitle": "fire-app-independent-sta...",
+    "environment": "Production",
+    "d1Binding": "DB",
+    "visibleDatabaseName": "fire-app-staging-db",
+    "r2BindingVisible": false,
+    "immutableDatabaseUUIDProvided": false,
+    "artifactSourceSealProvided": false,
+    "secretValuesVisibleOrSaved": false,
+    "gate7Decision": "Blocked: screenshot corroborates absence of an R2 photo-storage binding in the visible Production bindings table; hosted round-trip and complete recovery still unverified"
+  },
+  "multiplePropertyMilestones": {
+    "passed": 5,
+    "total": 5,
+    "percent": 100,
+    "scope": "isolated candidate implementation"
+  },
+  "officialReleaseReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "newGatesAccepted": 0
+  },
+  "limits": {
+    "atomicD1R2SnapshotProven": false,
+    "allOrphanBytesArchived": false,
+    "hostedRecoveryVerified": false,
+    "productionRestoreCLIApproved": false,
+    "resourceChanges": 0,
+    "productionDatabaseChanges": 0,
+    "deployments": 0,
+    "stripeActions": 0,
+    "spendingUSD": 0
+  },
+  "logSha256": {
+    "photo-reconciliation-browser-doomsday.log": "d28708f4ecff566599e92ae3a786764f62cfc40e8cac34090af2d9bddf1775a6",
+    "photo-reconciliation-build-doomsday.log": "d343ce389555023677f45622b557c1ac1b8197dac5824419118206a1043040cb",
+    "photo-reconciliation-browser-staging.log": "0bb5b8c8ec206bb632599323cb56a51944783d6f39c0378f43dbc83b4bdacf83",
+    "photo-reconciliation-browser-live.log": "657dd012506afcb8c18dd2868de500ab6fffaaef3a17e94564743caf7a9341df",
+    "photo-reconciliation-build-live.log": "6fb2bbc25fc68ae259cda89afe86e8ad7618916db75ccd20d17e922f997e674d",
+    "photo-reconciliation-financial-live.log": "1b515e7c81375f058de3cb786f00821b88e5a806b64227810e01317939b482e8",
+    "photo-reconciliation-financial-doomsday.log": "1b515e7c81375f058de3cb786f00821b88e5a806b64227810e01317939b482e8",
+    "photo-reconciliation-financial-staging.log": "1b515e7c81375f058de3cb786f00821b88e5a806b64227810e01317939b482e8",
+    "photo-reconciliation-build-staging.log": "65b85d4d7f5278d30c1ca0d08dd4273055d6a23bc1dc08af630aa8545f20e394"
+  }
+}

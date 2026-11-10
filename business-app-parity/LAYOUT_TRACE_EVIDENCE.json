@@ -1,0 +1,3646 @@
+{
+  "baseCheckpoint": "0aafe3250d379720c26d95394e00bea13593afe1",
+  "scope": "Isolated candidates, synthetic sessions and disposable local D1 only",
+  "browserChecks": {
+    "passed": 105,
+    "total": 105
+  },
+  "captureLifecycleChecks": {
+    "passed": 18,
+    "total": 18
+  },
+  "diagnosticControlViewportChecks": {
+    "passed": 18,
+    "total": 18
+  },
+  "bottomScrollCases": {
+    "passed": 54,
+    "total": 54
+  },
+  "fullBuilds": {
+    "passed": 3,
+    "total": 3
+  },
+  "fullTypechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "financialRegression": {
+    "passed": 207,
+    "total": 207
+  },
+  "sourceParity": {
+    "files": 131,
+    "differences": 0,
+    "candidateCount": 3
+  },
+  "fileHashes": {
+    "app/dashboard.tsx": "14a5753f58a1474dab0be07ca6746ba6373b92f94d50eccc1a667795b057d55b",
+    "app/globals.css": "43f891ffd665c304626579eb03d2c26dc5da773ca9c0e717a8ad0462080b3d9a",
+    "components/candidate-layout-trace.tsx": "ae17e7bb04eb86663a130a365b24f4eb7bd858403baacc987572618665220ffc",
+    "lib/layout-trace.ts": "bc70371186271539afb379c19402224e6d2c3efc082670323ff8818a86f608aa",
+    "scripts/test-layout-trace-framework.mjs": "92940f9af76ea16070cb937b166d8fe1de69d193b0efae09df17414a53bb5ac4"
+  },
+  "captureLimits": {
+    "durationSeconds": 20,
+    "maxFrames": 201,
+    "sampleIntervalMs": 100,
+    "maxEvents": 600
+  },
+  "productionActivated": false,
+  "physicalSafariTested": false,
+  "hiddenPageTest": "Synthetic document.hidden value and visibilitychange event; not physical backgrounding",
+  "wholeScreenShaking": "UNRESOLVED",
+  "candidates": {
+    "live": {
+      "passed": 35,
+      "total": 35,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual Customers route loads 48 synthetic local-D1 records",
+        "manual capture records geometry only and reports stop",
+        "discard removes in-memory layout report",
+        "capture auto-stops at 20 seconds with bounded samples",
+        "navigation cancels capture without leaking a report",
+        "hidden page ends capture and preserves records",
+        "capture remains available for a new session",
+        "320px light diagnostic controls fit the viewport",
+        "320px light stationary-bottom measurement",
+        "320px light wheel-at-bottom measurement",
+        "320px light viewport-height-change measurement",
+        "320px dark diagnostic controls fit the viewport",
+        "320px dark stationary-bottom measurement",
+        "320px dark wheel-at-bottom measurement",
+        "320px dark viewport-height-change measurement",
+        "390px light diagnostic controls fit the viewport",
+        "390px light stationary-bottom measurement",
+        "390px light wheel-at-bottom measurement",
+        "390px light viewport-height-change measurement",
+        "390px dark diagnostic controls fit the viewport",
+        "390px dark stationary-bottom measurement",
+        "390px dark wheel-at-bottom measurement",
+        "390px dark viewport-height-change measurement",
+        "768px light diagnostic controls fit the viewport",
+        "768px light stationary-bottom measurement",
+        "768px light wheel-at-bottom measurement",
+        "768px light viewport-height-change measurement",
+        "768px dark diagnostic controls fit the viewport",
+        "768px dark stationary-bottom measurement",
+        "768px dark wheel-at-bottom measurement",
+        "768px dark viewport-height-change measurement",
+        "measurements leave all synthetic records intact",
+        "no outside browser requests or runtime errors"
+      ],
+      "deployment": "live",
+      "observations": [
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "short": {
+              "scrollY": 7435,
+              "docHeight": 8159,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 509
+            }
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "short": {
+              "scrollY": 7435,
+              "docHeight": 8159,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 509
+            }
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5425,
+              "docHeight": 6149,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5425,
+              "docHeight": 6149,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5335,
+              "docHeight": 6059,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5335,
+              "docHeight": 6059,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        }
+      ],
+      "measurementCases": 18,
+      "syntheticCustomerCount": 48,
+      "actualFrameworkRuntime": true,
+      "viewportWidths": [
+        320,
+        390,
+        768
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "fixedViewportFramesPerSample": 90,
+      "physicalSafariTested": false,
+      "shakingReproduced": false,
+      "productionActivated": false,
+      "layoutCaptureChecks": 6
+    },
+    "doomsday": {
+      "passed": 35,
+      "total": 35,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual independent auth rejects invalid signed-cookie fixture",
+        "actual Customers route loads 48 synthetic local-D1 records",
+        "manual capture records geometry only and reports stop",
+        "discard removes in-memory layout report",
+        "capture auto-stops at 20 seconds with bounded samples",
+        "navigation cancels capture without leaking a report",
+        "hidden page ends capture and preserves records",
+        "capture remains available for a new session",
+        "320px light diagnostic controls fit the viewport",
+        "320px light stationary-bottom measurement",
+        "320px light wheel-at-bottom measurement",
+        "320px light viewport-height-change measurement",
+        "320px dark diagnostic controls fit the viewport",
+        "320px dark stationary-bottom measurement",
+        "320px dark wheel-at-bottom measurement",
+        "320px dark viewport-height-change measurement",
+        "390px light diagnostic controls fit the viewport",
+        "390px light stationary-bottom measurement",
+        "390px light wheel-at-bottom measurement",
+        "390px light viewport-height-change measurement",
+        "390px dark diagnostic controls fit the viewport",
+        "390px dark stationary-bottom measurement",
+        "390px dark wheel-at-bottom measurement",
+        "390px dark viewport-height-change measurement",
+        "768px light diagnostic controls fit the viewport",
+        "768px light stationary-bottom measurement",
+        "768px light wheel-at-bottom measurement",
+        "768px light viewport-height-change measurement",
+        "768px dark diagnostic controls fit the viewport",
+        "768px dark stationary-bottom measurement",
+        "768px dark wheel-at-bottom measurement",
+        "768px dark viewport-height-change measurement",
+        "measurements leave all synthetic records intact",
+        "no outside browser requests or runtime errors"
+      ],
+      "deployment": "doomsday",
+      "observations": [
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "short": {
+              "scrollY": 7435,
+              "docHeight": 8159,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 509
+            }
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "short": {
+              "scrollY": 7435,
+              "docHeight": 8159,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 509
+            }
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5425,
+              "docHeight": 6149,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5425,
+              "docHeight": 6149,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5335,
+              "docHeight": 6059,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5335,
+              "docHeight": 6059,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        }
+      ],
+      "measurementCases": 18,
+      "syntheticCustomerCount": 48,
+      "actualFrameworkRuntime": true,
+      "viewportWidths": [
+        320,
+        390,
+        768
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "fixedViewportFramesPerSample": 90,
+      "physicalSafariTested": false,
+      "shakingReproduced": false,
+      "productionActivated": false,
+      "layoutCaptureChecks": 6
+    },
+    "staging": {
+      "passed": 35,
+      "total": 35,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual Customers route loads 48 synthetic local-D1 records",
+        "manual capture records geometry only and reports stop",
+        "discard removes in-memory layout report",
+        "capture auto-stops at 20 seconds with bounded samples",
+        "navigation cancels capture without leaking a report",
+        "hidden page ends capture and preserves records",
+        "capture remains available for a new session",
+        "320px light diagnostic controls fit the viewport",
+        "320px light stationary-bottom measurement",
+        "320px light wheel-at-bottom measurement",
+        "320px light viewport-height-change measurement",
+        "320px dark diagnostic controls fit the viewport",
+        "320px dark stationary-bottom measurement",
+        "320px dark wheel-at-bottom measurement",
+        "320px dark viewport-height-change measurement",
+        "390px light diagnostic controls fit the viewport",
+        "390px light stationary-bottom measurement",
+        "390px light wheel-at-bottom measurement",
+        "390px light viewport-height-change measurement",
+        "390px dark diagnostic controls fit the viewport",
+        "390px dark stationary-bottom measurement",
+        "390px dark wheel-at-bottom measurement",
+        "390px dark viewport-height-change measurement",
+        "768px light diagnostic controls fit the viewport",
+        "768px light stationary-bottom measurement",
+        "768px light wheel-at-bottom measurement",
+        "768px light viewport-height-change measurement",
+        "768px dark diagnostic controls fit the viewport",
+        "768px dark stationary-bottom measurement",
+        "768px dark wheel-at-bottom measurement",
+        "768px dark viewport-height-change measurement",
+        "measurements leave all synthetic records intact",
+        "no outside browser requests or runtime errors"
+      ],
+      "deployment": "staging",
+      "observations": [
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "short": {
+              "scrollY": 7435,
+              "docHeight": 8159,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 509
+            }
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 320,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 7315,
+                "max": 7315,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 8159,
+                "max": 8159,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 629,
+                "max": 629,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "last": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 7315,
+              "docHeight": 8159,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 629
+            },
+            "short": {
+              "scrollY": 7435,
+              "docHeight": 8159,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 509
+            }
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5425,
+              "docHeight": 6149,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5305,
+                "max": 5305,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6149,
+                "max": 6149,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5305,
+              "docHeight": 6149,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5425,
+              "docHeight": 6149,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5335,
+              "docHeight": 6059,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "stationary-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "wheel-at-bottom",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          }
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "scenario": "viewport-height-change",
+          "result": {
+            "frameCount": 90,
+            "ranges": {
+              "scrollY": {
+                "min": 5215,
+                "max": 5215,
+                "delta": 0
+              },
+              "docHeight": {
+                "min": 6059,
+                "max": 6059,
+                "delta": 0
+              },
+              "viewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "visualViewport": {
+                "min": 844,
+                "max": 844,
+                "delta": 0
+              },
+              "headerTop": {
+                "min": 0,
+                "max": 0,
+                "delta": 0
+              },
+              "lastCardTop": {
+                "min": 650,
+                "max": 650,
+                "delta": 0
+              }
+            },
+            "first": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "last": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "horizontalOverflow": false
+          },
+          "transition": {
+            "before": {
+              "scrollY": 5215,
+              "docHeight": 6059,
+              "viewport": 844,
+              "visualViewport": 844,
+              "headerTop": 0,
+              "lastCardTop": 650
+            },
+            "short": {
+              "scrollY": 5335,
+              "docHeight": 6059,
+              "viewport": 724,
+              "visualViewport": 724,
+              "headerTop": 0,
+              "lastCardTop": 530
+            }
+          }
+        }
+      ],
+      "measurementCases": 18,
+      "syntheticCustomerCount": 48,
+      "actualFrameworkRuntime": true,
+      "viewportWidths": [
+        320,
+        390,
+        768
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "fixedViewportFramesPerSample": 90,
+      "physicalSafariTested": false,
+      "shakingReproduced": false,
+      "productionActivated": false,
+      "layoutCaptureChecks": 6
+    }
+  },
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}

@@ -1,0 +1,182 @@
+name: FIRE Gate 9 full-app LOCAL build, never deploy
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/materialize-stripe-test.py'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.mjs'
+      - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
+permissions:
+  contents: read
+jobs:
+  fullapp-local-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Checkout source only without retained credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate isolated TEST full-app source outside repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL"
+          python3 business-app-parity/cloudflare-launch/materialize-stripe-test.py "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL"
+      - name: Typecheck and build with Stripe-disabled TEST code, no secrets
+        working-directory: ${{ runner.temp }}/FIRE-GATE9-SYNTHETIC-LOCAL
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm exec tsc --noEmit --incremental false
+          corepack pnpm run build 2>&1 | tee "$RUNNER_TEMP/FIRE-GATE9-COMPILED-ROUTES.log"
+      - name: Classify synthetic server file extensions only, no source contents
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from collections import Counter
+          root=Path(os.environ['RUNNER_TEMP'])/'FIRE-GATE9-SYNTHETIC-LOCAL'/'dist'/'server'
+          assert root.is_dir()
+          files=[p for p in root.rglob('*') if p.is_file()]
+          print('SYNTHETIC_SERVER_EXTENSIONS='+repr(sorted(Counter(p.suffix.lower() for p in files).items())))
+          print('SYNTHETIC_SERVER_FILE_COUNT='+str(len(files)))
+          print('SYNTHETIC_SERVER_MAIN_SUFFIX='+str(next((p.suffix for p in files if p.name=='index.js'),'not-index-js')))
+          review=sorted(str(p.relative_to(root)) for p in files if p.suffix.lower() in ('','.css'))
+          assert len(review)<=20 and all(len(s)<220 for s in review),'Unexpected server files need separate review'
+          print('SYNTHETIC_SERVER_SPECIAL_FILE_NAMES='+repr(review))
+          PY
+      - name: Inspect compiled TEST Worker entrypoint and modules without provider calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server"
+      - name: Identify only unusual compiled server filenames, never file contents
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'FIRE-GATE9-SYNTHETIC-LOCAL'/'dist'/'server'
+          bad=sorted(str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()
+                     and p.suffix!='.map'
+                     and p.name not in ('wrangler.json','BUILD_ID','wrangler.FIRE_TEST_REVIEW_ONLY.json')
+                     and not re.fullmatch(r'[A-Za-z0-9_./-]+',str(p.relative_to(root))))
+          assert len(bad)<=30 and all(len(x)<160 for x in bad)
+          print('SYNTHETIC_SERVER_UNUSUAL_MODULE_NAMES='+repr(bad))
+          PY
+      - name: Run all three Cloudflare static-asset upload phases as a simulated local protocol
+        shell: bash
+        run: |
+          set -euo pipefail
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client"
+      - name: Assemble exact beta Worker Version request in memory with fake completion JWT only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server" "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client"
+      - name: Derive exact-head approval candidate digest without credentials or uploads
+        shell: bash
+        env:
+          VERIFIED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server" "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client" "$VERIFIED_SOURCE_SHA" | tee "$RUNNER_TEMP/FIRE-GATE9-DIGEST-ONLY.txt"
+          CANDIDATE_DIGEST="$(grep '^CANDIDATE_SHA256=' "$RUNNER_TEMP/FIRE-GATE9-DIGEST-ONLY.txt" | cut -d= -f2)"
+          test "${#CANDIDATE_DIGEST}" -eq 64
+          node business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.mjs --preflight --source "$VERIFIED_SOURCE_SHA" --digest "$CANDIDATE_DIGEST" --build "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL"
+      - name: Require full compiled route matrix, no runtime or provider calls
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          text=Path(os.environ['RUNNER_TEMP'],'FIRE-GATE9-COMPILED-ROUTES.log').read_text()
+          text=re.sub(r'\x1b\[[0-9;]*m','',text)
+          routes=set(re.findall(r'[^\n]*?[┌├└]\s*[λƒ]\s+(/[^\s]*)',text))
+          required={
+            '/', '/api/customers', '/api/estimates', '/api/invoices',
+            '/api/payments/checkout', '/api/payments/checkout/reconcile',
+            '/api/payments/connection', '/api/payments/refund',
+            '/api/payments/webhook', '/api/public/estimates/:token/revised-accept',
+            '/api/notifications', '/api/followups', '/api/backup',
+            '/estimate/:token', '/invoice/:token', '/pay/:id'
+          }
+          missing=sorted(required-routes)
+          print('PARSED_COMPILED_ROUTE_COUNT='+str(len(routes)))
+          print('MISSING_REQUIRED_COMPILED_ROUTES='+repr(missing))
+          assert not missing and len(routes)>=65, 'STOP: compiled TEST route matrix missing expected full-app routes'
+          print('PASS: Full TEST compiled route matrix; required UI/Checkout/refund/webhook routes found; no provider calls')
+          print('COMPILED_ROUTE_COUNT='+str(len(routes)))
+          PY
+      - name: Show only names of hidden SYNTHETIC build artifacts, never file contents
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"FIRE-GATE9-SYNTHETIC-LOCAL"/"dist"/"client"
+          names=[str(p.relative_to(root)) for p in root.rglob("*") if p.name.startswith(".")]
+          assert len(names)<30, "Unexpected many hidden build artifacts"
+          print("SYNTHETIC_COMPILED_DOT_ENTRY_NAMES="+repr(sorted(names)))
+          from collections import Counter
+          ext=Counter(p.suffix.lower() for p in root.rglob("*") if p.is_file())
+          print("SYNTHETIC_ASSET_EXTENSION_COUNTS="+repr(sorted(ext.items())))
+          noext=sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and not p.suffix and not p.name.startswith("."))
+          assert len(noext)<10, "Too many unexpected extensionless assets"
+          print("SYNTHETIC_EXTENSIONLESS_FILE_NAMES="+repr(noext))
+          import re
+          flagged=sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and re.search(r"password|secret|token|private|backup",p.name,re.I))
+          assert len(flagged)<20 and all(len(n)<256 for n in flagged), "Too many flagged asset names"
+          print("SYNTHETIC_SENSITIVE_WORD_PUBLIC_ASSET_NAMES="+repr(flagged))
+          extensionless=[str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and not p.suffix]
+          assert len(extensionless)<10, "Unexpected extensionless compiled files"
+          print("SYNTHETIC_EXTENSIONLESS_FILES="+repr(sorted(extensionless)))
+          PY
+      - name: Offline inspect actual compiled TEST static assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client"
+          echo 'SOURCE_BUILD_ONLY=PASS; NO CLOUD PROVIDER OR STRIPE WRITES; NOT APPROVED TO UPLOAD.'
+      - name: Preserve exact CI-built TEST candidate without Cloudflare or Stripe access
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-GATE9-CANDIDATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/FIRE-GATE9-SYNTHETIC-LOCAL/dist
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+      - name: Download same immutable CI candidate and independently revalidate
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-GATE9-CANDIDATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/FIRE-GATE9-REHYDRATED/dist
+      - name: Require uploaded ZIP delivery to reproduce exact source/digest, no network to providers
+        shell: bash
+        env:
+          VERIFIED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VERIFIED_SOURCE_SHA"
+          CANDIDATE_DIGEST="$(grep '^CANDIDATE_SHA256=' "$RUNNER_TEMP/FIRE-GATE9-DIGEST-ONLY.txt" | cut -d= -f2)"
+          test "${#CANDIDATE_DIGEST}" -eq 64
+          node business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.mjs --preflight --source "$VERIFIED_SOURCE_SHA" --digest "$CANDIDATE_DIGEST" --build "$RUNNER_TEMP/FIRE-GATE9-REHYDRATED"
+          echo 'PASS: Published CI artifact downloaded and reverified locally; token-free, NO Cloudflare, NO Stripe, NO D1 calls or uploads.'
+
