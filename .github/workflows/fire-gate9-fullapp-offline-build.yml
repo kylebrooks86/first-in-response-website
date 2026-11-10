@@ -52,6 +52,9 @@ jobs:
           print('SYNTHETIC_SERVER_EXTENSIONS='+repr(sorted(Counter(p.suffix.lower() for p in files).items())))
           print('SYNTHETIC_SERVER_FILE_COUNT='+str(len(files)))
           print('SYNTHETIC_SERVER_MAIN_SUFFIX='+str(next((p.suffix for p in files if p.name=='index.js'),'not-index-js')))
+          review=sorted(str(p.relative_to(root)) for p in files if p.suffix.lower() in ('','.css'))
+          assert len(review)<=20 and all(len(s)<220 for s in review),'Unexpected server files need separate review'
+          print('SYNTHETIC_SERVER_SPECIAL_FILE_NAMES='+repr(review))
           PY
       - name: Inspect compiled TEST Worker entrypoint and modules without provider calls
         shell: bash
