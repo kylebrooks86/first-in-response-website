@@ -1,0 +1,409 @@
+/** Inactive encrypted snapshot foundation; no UI, plaintext migration or automatic sync. */
+import { localCustomerDatabaseName, validateLocalCustomerExport, type LocalCustomerExport, type LocalCustomerInput, type LocalCustomer } from './local-customer-store';
+import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive, protectLocalCustomerPortableBundle, verifyLocalCustomerPortableBundle, type LocalCustomerPortableBundle, verifyLocalCustomerRecoveryArchive, type LocalCustomerRecoveryFormat } from './local-customer-backup';
+
+export class LocalCustomerDestinationOccupiedError extends Error {
+  readonly code = 'DESTINATION_OCCUPIED';
+  constructor() { super('Destination contains stored data; recovery refused.'); this.name = 'LocalCustomerDestinationOccupiedError'; }
+}
+
+export async function openLocalCustomerVault(account: string, target: string,
+  factory: IDBFactory | undefined = globalThis.indexedDB, provider: Crypto | undefined = globalThis.crypto,
+  coordinationStorage: Storage | undefined = globalThis.localStorage) {
+  const customerNamespace = localCustomerDatabaseName(account, target);
+  const namespace = customerNamespace.replace('fire-local-customers:v1:', 'fire-local-customer-vault:v1:');
+  if (!factory) throw new Error('Encrypted local storage unavailable.');
+  // This contains only an opaque revocation token, never customer data or keys.
+  // Synchronous token checks close the gap before queued cross-tab events arrive.
+  const lockKey = `${namespace}:lock`;
+  if (!coordinationStorage) throw new Error('Cross-tab lock storage unavailable.');
+  const probeKey = `${lockKey}:probe:${globalThis.crypto.randomUUID()}`;
+  try { coordinationStorage.setItem(probeKey, '1'); coordinationStorage.removeItem(probeKey); }
+  catch { throw new Error('Cross-tab lock storage unavailable; preserve data.'); }
+  let observedLock = coordinationStorage.getItem(lockKey);
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    let abandoned = false;
+    const request = factory.open(namespace, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('sealed', { keyPath: 'id' });
+    request.onblocked = () => { abandoned = true; reject(new Error('Encrypted storage blocked; close other windows.')); };
+    request.onerror = () => reject(request.error ?? new Error('Encrypted storage could not open.'));
+    request.onsuccess = () => {
+      const connection = request.result;
+      if (abandoned) { connection.close(); return; }
+      if (connection.objectStoreNames.length !== 1 || !connection.objectStoreNames.contains('sealed')
+        || connection.transaction('sealed').objectStore('sealed').keyPath !== 'id') {
+        connection.close(); reject(new Error('Encrypted storage schema mismatch; preserve data.')); return;
+      }
+      resolve(connection);
+    };
+  });
+  let generation = 0, closed = false, coordinationFailed = false;
+  const sessions = new Set<() => void>();
+  const lockListeners = new Set<() => void>();
+  const initializations = new Set<IDBTransaction>();
+  let lifecycleCheck = () => {};
+  let lifecycleStart = () => {};
+  let lifecycleDispose: (() => void) | undefined;
+  function revokeLocal() {
+    generation++;
+    for (const revoke of sessions) revoke();
+    sessions.clear();
+    for (const tx of initializations) { try { tx.abort(); } catch { /* Already complete; never erase committed data. */ } }
+    for (const listener of lockListeners) { try { listener(); } catch { /* A UI callback cannot prevent revocation. */ } }
+  }
+  function synchronizeLock() {
+    try {
+      const token = coordinationStorage!.getItem(lockKey);
+      if (token !== observedLock) { observedLock = token; revokeLocal(); }
+    } catch { coordinationFailed = true; revokeLocal(); }
+  }
+  const storageListener = (event: StorageEvent) => {
+    if (event.key === lockKey || event.key === null) synchronizeLock();
+  };
+  globalThis.addEventListener?.('storage', storageListener);
+  let channel: BroadcastChannel | undefined;
+  try {
+    channel = new BroadcastChannel(lockKey);
+    channel.onmessage = synchronizeLock;
+  } catch { /* Storage events and synchronous checks remain authoritative. */ }
+  function lock() {
+    revokeLocal();
+    try {
+      observedLock = globalThis.crypto.randomUUID();
+      coordinationStorage!.setItem(lockKey, observedLock);
+    } catch {
+      coordinationFailed = true;
+      throw new Error('Cross-tab lock failed; close other app windows before continuing.');
+    }
+    channel?.postMessage('locked');
+  }
+  function close() {
+    revokeLocal(); closed = true; db.close(); channel?.close();
+    lifecycleDispose?.();
+    lockListeners.clear();
+    globalThis.removeEventListener?.('storage', storageListener);
+  }
+  function check(epoch: number) {
+    lifecycleCheck();
+    synchronizeLock();
+    if (closed || coordinationFailed || epoch !== generation) throw new Error('Vault locked or closed; unlock again.');
+  }
+  db.onversionchange = close;
+  return {
+    namespace,
+    lock,
+    close,
+    onLock(listener: () => void) {
+      if (closed || typeof listener !== 'function') throw new Error('Invalid lock listener or closed vault.');
+      lockListeners.add(listener);
+      return () => { lockListeners.delete(listener); };
+    },
+    // Opt-in foundation only: no deployed UI currently opens this vault.
+    enableAutoLock(idleMs = 300_000) {
+      if (closed || lifecycleDispose || !globalThis.document
+        || !Number.isSafeInteger(idleMs) || idleMs < 50 || idleMs > 86_400_000) throw new Error('Invalid or already enabled vault lifecycle policy.');
+      let expired = false, away = false;
+      let deadline = performance.now() + idleMs;
+      let timer: ReturnType<typeof setTimeout>;
+      function enforce() {
+        if (!expired && (document.hidden || away || performance.now() >= deadline)) {
+          expired = true; clearTimeout(timer); lock();
+        }
+      }
+      function schedule() {
+        clearTimeout(timer);
+        timer = setTimeout(() => { try { enforce(); if (!expired) schedule(); } catch { /* Lock failure already makes this handle fail closed. */ } }, Math.max(0, deadline - performance.now()));
+      }
+      lifecycleCheck = enforce;
+      lifecycleStart = () => {
+        enforce();
+        if (document.hidden || away) throw new Error('Vault cannot unlock in the background.');
+        if (expired) { expired = false; deadline = performance.now() + idleMs; schedule(); }
+      };
+      const visibility = () => { try { enforce(); } catch { /* Fail closed. */ } };
+      const hide = () => { away = true; visibility(); };
+      const show = () => { away = false; visibility(); }; // Never automatically unlock on return.
+      const activity = (event: Event) => {
+        visibility();
+        if (!event.isTrusted || expired || document.hidden || away) return;
+        deadline = performance.now() + idleMs; schedule();
+      };
+      document.addEventListener('visibilitychange', visibility);
+      globalThis.addEventListener('pagehide', hide);
+      globalThis.addEventListener('pageshow', show);
+      for (const event of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(event, activity, { passive: true });
+      lifecycleDispose = () => {
+        clearTimeout(timer);
+        document.removeEventListener('visibilitychange', visibility);
+        globalThis.removeEventListener('pagehide', hide);
+        globalThis.removeEventListener('pageshow', show);
+        for (const event of ['pointerdown', 'keydown', 'touchstart']) document.removeEventListener(event, activity);
+        lifecycleCheck = () => {}; lifecycleStart = () => {};
+      };
+      schedule(); visibility();
+    },
+    // Reads only key presence: no decryption, unlock, seed, update or deletion.
+    // A preflight result is advisory; initialize's atomic add is still authoritative.
+    async hasStoredSnapshot(): Promise<boolean> {
+      synchronizeLock();
+      const epoch = generation; check(epoch);
+      return await new Promise<boolean>((resolve, reject) => {
+        const tx = db.transaction('sealed', 'readonly');
+        const request = tx.objectStore('sealed').getKey('snapshot');
+        tx.oncomplete = () => {
+          try { check(epoch); resolve(request.result !== undefined); }
+          catch (error) { reject(error); }
+        };
+        tx.onabort = () => reject(tx.error ?? new Error('Vault status unavailable; preserve data.'));
+      });
+    },
+    /** Advisory read-only preflight. Atomic recovery must check occupancy again. */
+    async inspectPortableBundleDestination(envelope: unknown, phrase: string, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
+      synchronizeLock(); const epoch = generation; check(epoch);
+      const { bundle } = await verifyLocalCustomerRecoveryArchive(envelope, customerNamespace, phrase, format, provider); check(epoch);
+      const occupied = await new Promise<boolean>((resolve, reject) => {
+        const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').count();
+        tx.oncomplete = () => resolve(request.result !== 0); tx.onabort = () => reject(tx.error ?? new Error('Destination inspection failed.'));
+      });
+      check(epoch);
+      if (occupied) throw new LocalCustomerDestinationOccupiedError();
+      return { format, destinationEmpty: true, customerCount: bundle.snapshot.customers.length,
+        resolutionArchiveCount: bundle.resolutions.length, recoveryPerformed: false as const };
+    },
+    /** Explicit foundation only. Authenticate everything before an atomic add-only transaction. */
+    async recoverPortableBundleIntoEmptyVault(envelope: unknown, phrase: string, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
+      synchronizeLock(); const epoch = generation; check(epoch);
+      const { bundle } = await verifyLocalCustomerRecoveryArchive(envelope, customerNamespace, phrase, format, provider); check(epoch);
+      const rows = [{ id: 'snapshot', version: 1, envelope: await protectLocalCustomerBackup(bundle.snapshot, customerNamespace, phrase, provider) }];
+      check(epoch);
+      for (const resolution of bundle.resolutions) {
+        rows.push({ id: `resolution-${resolution.operationId}`, version: 1,
+          envelope: await protectLocalCustomerResolutionArchive(resolution, customerNamespace, phrase, provider) });
+        check(epoch);
+      }
+      await new Promise<void>((resolve, reject) => {
+        let failure: unknown; const tx = db.transaction('sealed', 'readwrite'); initializations.add(tx);
+        const abort = (error: unknown) => { failure = error; try { tx.abort(); } catch { /* Already settled. */ } };
+        tx.onabort = () => { initializations.delete(tx); reject(failure ?? tx.error ?? new Error('Atomic bundle recovery aborted.')); };
+        tx.oncomplete = () => { initializations.delete(tx); try { check(epoch); resolve(); } catch (error) { reject(error); } };
+        const store = tx.objectStore('sealed'), request = store.openCursor();
+        request.onerror = () => abort(request.error ?? new Error('Destination inspection failed.'));
+        request.onsuccess = () => { try {
+          check(epoch);
+          // Any row, including unknown or archive-only data, makes this destination occupied.
+          if (request.result) throw new LocalCustomerDestinationOccupiedError();
+          for (const row of rows) store.add(row); // No put, deletion, merge or retry; all additions commit together.
+        } catch (error) { abort(error); } };
+      });
+      return { format, customerCount: bundle.snapshot.customers.length, resolutionArchiveCount: bundle.resolutions.length,
+        recoveryPerformed: true as const, automaticallyUnlocked: false as const };
+    },
+    async initialize(value: unknown, phrase: string): Promise<void> {
+      synchronizeLock();
+      const epoch = generation; check(epoch);
+      // Encryption/validation completes before any write transaction is opened.
+      const envelope = await protectLocalCustomerBackup(value, customerNamespace, phrase, provider);
+      check(epoch);
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('sealed', 'readwrite'); initializations.add(tx);
+        tx.oncomplete = () => { initializations.delete(tx); resolve(); };
+        tx.onabort = () => { initializations.delete(tx); reject(tx.error ?? new Error('Vault initialization aborted; no snapshot committed.')); };
+        // add, never put: existing snapshots cannot be overwritten, even across tabs.
+        try { tx.objectStore('sealed').add({ id: 'snapshot', version: 1, envelope }); }
+        catch (error) { tx.abort(); reject(error); }
+      });
+    },
+    async unlock(phrase: string) {
+      lifecycleStart();
+      synchronizeLock();
+      const epoch = generation; check(epoch);
+      const sealed = await new Promise<unknown>((resolve, reject) => {
+        const tx = db.transaction('sealed', 'readonly');
+        const request = tx.objectStore('sealed').get('snapshot');
+        tx.oncomplete = () => resolve(request.result);
+        tx.onabort = () => reject(tx.error ?? new Error('Vault read aborted.'));
+      });
+      check(epoch);
+      if (!sealed || typeof sealed !== 'object' || Array.isArray(sealed)) throw new Error('Vault not initialized; recover from an owner-held backup.');
+      const row = sealed as Record<string, unknown>;
+      if (Object.keys(row).length !== 3 || row.id !== 'snapshot' || row.version !== 1 || !Object.hasOwn(row, 'envelope')) throw new Error('Invalid vault snapshot; preserve data.');
+      let snapshot: LocalCustomerExport | undefined = await recoverLocalCustomerBackup(row.envelope, customerNamespace, phrase, provider);
+      check(epoch); // Lock/close during derivation must not publish an unlocked session.
+      let sealedIdentity = JSON.stringify(sealed);
+      const pendingWrites = new Set<IDBTransaction>();
+      const revoke = () => {
+        snapshot = undefined; sessions.delete(revoke);
+        for (const tx of pendingWrites) { try { tx.abort(); } catch { /* May already be committed. */ } }
+      };
+      sessions.add(revoke);
+      function current() {
+        check(epoch);
+        if (!snapshot) throw new Error('Customer session locked.');
+        return snapshot;
+      }
+      return {
+        lock,
+        async saveCustomer(input: LocalCustomerInput, operationId: string, expectedRevision: number, recoveryPhrase: string): Promise<LocalCustomer> {
+          const archive = structuredClone(current());
+          const expectedIdentity = sealedIdentity;
+          const fields = ['id', 'name', 'email', 'phone', 'address', 'leadSource'] as const;
+          if (!input || typeof input !== 'object' || Object.keys(input).length !== fields.length
+            || fields.some(field => !Object.hasOwn(input, field))) throw new Error('Invalid customer input.');
+          const customer = Object.fromEntries(fields.map(field => [field, input[field]])) as LocalCustomerInput;
+          if (typeof operationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(operationId)
+            || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || expectedRevision === Number.MAX_SAFE_INTEGER) throw new Error('Invalid operation/revision.');
+          const previous = archive.pendingOperations.find(op => op.id === operationId);
+          let result: LocalCustomer;
+          if (previous) {
+            if (previous.expectedRevision !== expectedRevision || JSON.stringify(previous.input) !== JSON.stringify(customer)) throw new Error('Operation ID already used for a different change.');
+            result = previous.customer;
+          } else {
+            const old = archive.customers.find(row => row.id === customer.id);
+            if ((old?.revision ?? 0) !== expectedRevision) throw new Error('Customer revision changed; review the latest record.');
+            result = { ...customer, revision: expectedRevision + 1, updatedAt: new Date().toISOString() };
+            archive.customers = archive.customers.filter(row => row.id !== customer.id).concat(result);
+            archive.pendingOperations.push({ id: operationId, kind: 'customer-upsert', expectedRevision, customer: result, input: customer });
+          }
+          validateLocalCustomerExport(archive, customerNamespace);
+          // Require the recovery phrase for each write; never retain it on a session.
+          // This also prevents silently replacing ciphertext encrypted under another phrase.
+          await recoverLocalCustomerBackup(JSON.parse(expectedIdentity).envelope, customerNamespace, recoveryPhrase, provider);
+          current();
+          const replacement = previous ? undefined : { id: 'snapshot', version: 1,
+            envelope: await protectLocalCustomerBackup(archive, customerNamespace, recoveryPhrase, provider) };
+          current();
+          return new Promise<LocalCustomer>((resolve, reject) => {
+            let failure: unknown;
+            const tx = db.transaction('sealed', 'readwrite');
+            initializations.add(tx); pendingWrites.add(tx);
+            const finish = () => { initializations.delete(tx); pendingWrites.delete(tx); };
+            tx.onabort = () => { finish(); reject(failure ?? tx.error ?? new Error('Encrypted customer save aborted; re-unlock and inspect before retry.')); };
+            tx.oncomplete = () => {
+              finish();
+              try {
+                current();
+                if (replacement) { snapshot = archive; sealedIdentity = JSON.stringify(replacement); }
+                resolve(structuredClone(result));
+              } catch (error) { reject(error); }
+            };
+            const store = tx.objectStore('sealed'), request = store.get('snapshot');
+            request.onsuccess = () => {
+              try {
+                current();
+                if (JSON.stringify(request.result) !== expectedIdentity) throw new Error('Encrypted snapshot changed; unlock again before saving.');
+                if (replacement) store.put(replacement);
+              } catch (error) { failure = error; tx.abort(); }
+            };
+          });
+        },
+        async saveReviewedResolution(value: LocalCustomerResolutionArchive, phrase: string): Promise<LocalCustomer> {
+          current();
+          const resolution = validateLocalCustomerResolutionArchive(value, customerNamespace);
+          const sealed = await new Promise<unknown>((resolve, reject) => {
+            const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').get('snapshot');
+            tx.oncomplete = () => resolve(request.result); tx.onabort = () => reject(tx.error ?? new Error('Resolution read aborted.'));
+          });
+          current();
+          if (!sealed || typeof sealed !== 'object' || Array.isArray(sealed)) throw new Error('Stored snapshot unavailable.');
+          const row = sealed as Record<string, unknown>;
+          if (Object.keys(row).length !== 3 || row.id !== 'snapshot' || row.version !== 1 || !Object.hasOwn(row, 'envelope')) throw new Error('Invalid stored snapshot.');
+          const expectedIdentity = JSON.stringify(sealed);
+          const archive = await recoverLocalCustomerBackup(row.envelope, customerNamespace, phrase, provider); current();
+          if (JSON.stringify(archive) !== JSON.stringify(resolution.reviewedSnapshot)) throw new Error('Stored snapshot changed after review.');
+          if (archive.pendingOperations.some(op => op.id === resolution.operationId)) throw new Error('Resolution operation already exists; inspect before retry.');
+          const previous = archive.customers.find(customer => customer.id === resolution.proposed.id), revision = previous?.revision ?? 0;
+          if (revision === Number.MAX_SAFE_INTEGER) throw new Error('Revision limit reached.');
+          const result = { ...resolution.proposed, revision: revision + 1, updatedAt: new Date().toISOString() };
+          archive.customers = archive.customers.filter(customer => customer.id !== result.id).concat(result);
+          archive.pendingOperations.push({ id: resolution.operationId, kind: 'customer-upsert', expectedRevision: revision, customer: result, input: resolution.proposed });
+          validateLocalCustomerExport(archive, customerNamespace);
+          const replacement = { id: 'snapshot', version: 1, envelope: await protectLocalCustomerBackup(archive, customerNamespace, phrase, provider) };
+          const retained = { id: `resolution-${resolution.operationId}`, version: 1,
+            envelope: await protectLocalCustomerResolutionArchive(resolution, customerNamespace, phrase, provider) };
+          current();
+          return new Promise<LocalCustomer>((resolve, reject) => {
+            let failure: unknown; const tx = db.transaction('sealed', 'readwrite');
+            initializations.add(tx); pendingWrites.add(tx);
+            const finish = () => { initializations.delete(tx); pendingWrites.delete(tx); };
+            tx.onabort = () => { finish(); reject(failure ?? tx.error ?? new Error('Resolution transaction aborted.')); };
+            tx.oncomplete = () => { finish(); try { current(); snapshot = archive; sealedIdentity = JSON.stringify(replacement); resolve(structuredClone(result)); } catch (error) { reject(error); } };
+            const store = tx.objectStore('sealed'), request = store.get('snapshot');
+            request.onsuccess = () => { try { current(); if (JSON.stringify(request.result) !== expectedIdentity) throw new Error('Encrypted snapshot changed before commit.');
+              store.add(retained); store.put(replacement);
+            } catch (error) { failure = error; tx.abort(); } };
+          });
+        },
+        async exportPortableBundle(phrase: string) {
+          current();
+          const rows = await new Promise<Record<string, unknown>[]>((resolve, reject) => {
+            let failure: unknown, encodedBytes = 0; const values: Record<string, unknown>[] = [];
+            const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').openCursor();
+            tx.oncomplete = () => resolve(values); tx.onabort = () => reject(failure ?? tx.error ?? new Error('Bundle read aborted.'));
+            request.onsuccess = () => { try {
+              current(); const cursor = request.result; if (!cursor) return;
+              const row = cursor.value as Record<string, unknown>;
+              if (!row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).length !== 3
+                || !Object.hasOwn(row, 'envelope') || row.version !== 1 || typeof row.id !== 'string'
+                || (row.id !== 'snapshot' && !/^resolution-([A-Za-z0-9_-]{1,128})$/.test(row.id))) throw new Error('Unrecognized stored row; preserve data.');
+              const envelope = row.envelope as Record<string, unknown>;
+              if (!envelope || typeof envelope.ciphertext !== 'string') throw new Error('Invalid stored envelope.');
+              encodedBytes += envelope.ciphertext.length;
+              if (values.length >= 1001 || encodedBytes > 32 * 1024 * 1024) throw new Error('Portable bundle exceeds supported limits; preserve storage.');
+              values.push(row); cursor.continue();
+            } catch (error) { failure = error; tx.abort(); } };
+          });
+          current();
+          const snapshotRow = rows.find(row => row.id === 'snapshot'); if (!snapshotRow) throw new Error('Stored snapshot unavailable.');
+          const saved = await recoverLocalCustomerBackup(snapshotRow.envelope, customerNamespace, phrase, provider); current();
+          const resolutions: LocalCustomerResolutionArchive[] = [];
+          for (const row of rows.filter(row => row.id !== 'snapshot')) {
+            const resolution = await recoverLocalCustomerResolutionArchive(row.envelope, customerNamespace, phrase, provider); current();
+            if (row.id !== `resolution-${resolution.operationId}`) throw new Error('Stored resolution identity mismatch.');
+            resolutions.push(resolution);
+          }
+          const bundle: LocalCustomerPortableBundle = { format: 'fire-local-customer-bundle', version: 1, namespace: customerNamespace,
+            snapshot: saved, resolutions, resolutionOperationIds: resolutions.map(resolution => resolution.operationId) };
+          const envelope = await protectLocalCustomerPortableBundle(bundle, customerNamespace, phrase, provider); current();
+          return envelope; // One consistent read transaction; no session snapshot replacement or writes.
+        },
+        async inspectResolutionArchive(operationId: string, phrase: string): Promise<LocalCustomerResolutionArchive> {
+          current(); if (typeof operationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(operationId)) throw new Error('Invalid resolution ID.');
+          const row = await new Promise<unknown>((resolve, reject) => {
+            const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').get(`resolution-${operationId}`);
+            tx.oncomplete = () => resolve(request.result); tx.onabort = () => reject(tx.error ?? new Error('Resolution archive read aborted.'));
+          });
+          current();
+          if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error('Resolution archive unavailable.');
+          const sealed = row as Record<string, unknown>;
+          if (Object.keys(sealed).length !== 3 || sealed.id !== `resolution-${operationId}` || sealed.version !== 1 || !Object.hasOwn(sealed, 'envelope')) throw new Error('Invalid resolution archive row.');
+          const result = await recoverLocalCustomerResolutionArchive(sealed.envelope, customerNamespace, phrase, provider); current();
+          if (result.operationId !== operationId) throw new Error('Resolution archive identity mismatch.');
+          return structuredClone(result);
+        },
+        async inspectStoredSnapshot(phrase: string): Promise<LocalCustomerExport> {
+          current(); // Never inspect a locked or revoked session.
+          const sealed = await new Promise<unknown>((resolve, reject) => {
+            const tx = db.transaction('sealed', 'readonly');
+            const request = tx.objectStore('sealed').get('snapshot');
+            tx.oncomplete = () => resolve(request.result);
+            tx.onabort = () => reject(tx.error ?? new Error('Stored inspection aborted.'));
+          });
+          current();
+          if (!sealed || typeof sealed !== 'object' || Array.isArray(sealed)) throw new Error('Stored snapshot unavailable.');
+          const row = sealed as Record<string, unknown>;
+          if (Object.keys(row).length !== 3 || row.id !== 'snapshot' || row.version !== 1 || !Object.hasOwn(row, 'envelope')) throw new Error('Invalid stored snapshot.');
+          const inspected = await recoverLocalCustomerBackup(row.envelope, customerNamespace, phrase, provider);
+          current(); // Locks during derivation cannot publish decrypted contacts.
+          // Point-in-time read only: do not replace the session snapshot or write identity.
+          return structuredClone(inspected);
+        },
+        getCustomer(id: string) {
+          if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('Invalid customer ID.');
+          return structuredClone(current().customers.find(row => row.id === id) ?? null);
+        },
+        listCustomers: () => structuredClone(current().customers),
+        exportSnapshot: () => structuredClone(current()),
+      };
+    },
+  };
+}
