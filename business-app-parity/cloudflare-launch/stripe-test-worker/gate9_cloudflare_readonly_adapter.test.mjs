@@ -39,6 +39,40 @@ test('real documented API D1 database_id is normalized into trusted source verif
   assert.equal(v.resources.bindings.length,9);
   assert.equal(deployedVersionFromApi(deployment())[0].version_id,PREDECESSOR);
 });
+test('Cloudflare GET config-only asset defaults preserve verified nine-binding predecessor',()=>{
+ const v=version();
+ v.assets={config:{
+   html_handling:'auto-trailing-slash',
+   not_found_handling:'none',
+   run_worker_first:false,
+   base_path:'/'
+ }};
+ const x=predecessorFromApi(wrap(v));
+ assert.equal(x.id,PREDECESSOR);
+ assert.equal(x.resources.bindings.length,9);
+ assert.equal(Object.hasOwn(x.resources,'assets'),false);
+});
+test('fail closed on real asset resources, ASSETS binding or unknown routing metadata',()=>{
+ const base=()=>{
+   const v=version();
+   v.assets={config:{html_handling:'auto-trailing-slash',
+     not_found_handling:'none',run_worker_first:false,base_path:'/'}};
+   return v;
+ };
+ const variants=[
+   v=>{v.assets.jwt='SYNTHETIC_NOT_ALLOWED';},
+   v=>{v.assets.config.run_worker_first=true;},
+   v=>{v.assets.config.not_found_handling='unknown';},
+   v=>{v.assets.config.extra='unexpected';},
+   v=>{v.resources={assets:{}};},
+   v=>{v.bindings.push({name:'ASSETS',type:'assets'});},
+   v=>{v.assets={manifest:{files:1}};}
+ ];
+ for(const mutate of variants){
+   const v=base();mutate(v);
+   assert.throws(()=>predecessorFromApi(wrap(v)));
+ }
+});
 test('success envelope accepts errors:null and rejects nonempty or malformed errors',()=>{
  const p=deployment();p.errors=null;
  assert.equal(deployedVersionFromApi(p)[0].version_id,PREDECESSOR);
