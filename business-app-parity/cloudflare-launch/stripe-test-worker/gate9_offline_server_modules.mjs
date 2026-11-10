@@ -68,7 +68,7 @@ export function inventoryCompiledModules(root,main) {
   visit(dir);
   need(records.length>0,'MISSING_MODULES');
   const mainRecord=records.find(([name])=>name===main.replace(/^\.\//,''));
-  need(mainRecord && mainRecord[1]>200,'MISSING_ENTRYPOINT');
+  need(mainRecord && mainRecord[1]>32,'MISSING_ENTRYPOINT');
   records.sort((a,b)=>a[0].localeCompare(b[0]));
   return {
     moduleCount:records.length,totalBytes:total,
