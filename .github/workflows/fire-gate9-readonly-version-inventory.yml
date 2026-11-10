@@ -1,9 +1,11 @@
-name: FIRE Gate 9 read-only inactive version inventory tests
+name: FIRE Gate 9 offline provider-contract tests
 on:
   pull_request:
     paths:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.test.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.test.mjs'
       - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
 permissions:
   contents: read
@@ -18,5 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run pure offline version-classifier tests
-        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.test.mjs
+      - name: Verify provider contract without network or secrets
+        run: |
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.test.mjs
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.test.mjs
