@@ -36,7 +36,7 @@ export function inventoryCompiledModules(root,main) {
   need(rel!=='' && rel!=='..' && !rel.startsWith('..'+sep) &&
     !rel.startsWith(sep), 'ENTRY_ESCAPE');
   const records=[];
-  let count=0,total=0;
+  let count=0,total=0,buildIdSha=null;
   const visit=(folder,depth=0)=>{
     need(depth<20,'TREE_DEPTH');
     for(const file of readdirSync(folder,{withFileTypes:true})){
@@ -52,6 +52,13 @@ export function inventoryCompiledModules(root,main) {
       need(stat.isFile() && stat.size>0 && stat.size<80_000_000,'MODULE_FILE');
       const name=relative(dir,full).replaceAll('\\','/');
       if(name==='wrangler.json')continue; // reviewed separately as local-only config
+      if(name==='BUILD_ID'){
+        need(depth===0 && stat.size<128,'BUILD_ID_SHAPE');
+        const id=readFileSync(full,'utf8').trim();
+        need(/^[A-Za-z0-9._-]{1,120}$/.test(id),'BUILD_ID_CONTENT');
+        buildIdSha=createHash('sha256').update(id).digest('hex');
+        continue; // separately proven build metadata, NOT an executable module
+      }
       if(name==='wrangler.FIRE_TEST_REVIEW_ONLY.json')continue;
       const ext=extname(name).toLowerCase();
       if(ext==='.map')continue; // debug source maps not runtime executable modules
@@ -71,6 +78,7 @@ export function inventoryCompiledModules(root,main) {
   };
   visit(dir);
   need(records.length>0,'MISSING_MODULES');
+  need(typeof buildIdSha==='string','MISSING_BUILD_ID');
   const mainRecord=records.find(([name])=>name===main.replace(/^\.\//,''));
   need(mainRecord && mainRecord[1]>32,'MISSING_ENTRYPOINT');
   records.sort((a,b)=>a[0].localeCompare(b[0]));
@@ -78,6 +86,7 @@ export function inventoryCompiledModules(root,main) {
     moduleCount:records.length,totalBytes:total,
     mainModule:mainRecord[0],mainSha256:mainRecord[2],
     modulesDigest:createHash('sha256').update(JSON.stringify(records)).digest('hex'),
+    buildIdSha256:buildIdSha,
     unreviewedCloudflareUploadContract:true,
     uploaded:false, deployed:false, gate9Accepted:false
   };
@@ -105,6 +114,7 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
     console.log('SERVER_MODULE_TOTAL_BYTES='+out.totalBytes);
     console.log('SERVER_MAIN_SHA256='+out.mainSha256);
     console.log('SERVER_MODULE_MANIFEST_SHA256='+out.modulesDigest);
+    console.log('SERVER_BUILD_ID_SHA256='+out.buildIdSha256);
     console.log('GENERATED_SOURCE_D1=FAKE_PLACEHOLDER_ONLY; TEST_REVIEW_STRIPE_DISABLED=TRUE; R2=NONE');
     console.log('NO MODULE_UPLOAD, VERSION_CREATION, DEPLOYMENT OR PROVIDER CALL.');
   }catch(err){
