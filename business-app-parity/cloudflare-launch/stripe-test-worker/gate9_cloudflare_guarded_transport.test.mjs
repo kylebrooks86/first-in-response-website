@@ -16,7 +16,7 @@ const vars={FIRE_ACCESS_REQUIRED:'enabled',FIRE_ENV:'cloudflare-staging',
 const oldBindings=INHERITED.map(name=>name==='DB'?
   {name,type:'d1',database_id:DB_UUID}:Object.hasOwn(vars,name)?
   {name,type:'plain_text',text:vars[name]}:{name,type:'secret_text'});
-function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=false,providerError=false}={}){
+function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=false,providerError=false,registrationStatus=null,assetStatus=null,versionStatus=null}={}){
  const temp=mkdtempSync(join(tmpdir(),'FIRE-GATE9-NO-NET-TRANSPORT-'));
  const clientDir=join(temp,'dist','client');
  mkdirSync(clientDir,{recursive:true});
@@ -71,6 +71,7 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=fal
      assert.equal(events.at(-1).authType,'account');
      const manifestSent=JSON.parse(opts.body).manifest;
      assert.deepEqual(manifestSent,manifest);
+     if(registrationStatus)return response({blocked:'FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK'},registrationStatus);
      return response({jwt:'SYNTHETIC_ASSET_UPLOAD_JWT_FOR_TESTS_ONLY',
        buckets:Object.values(manifest).map(x=>[x.hash])});
    }
@@ -86,6 +87,7 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=fal
      const expectedHash=Object.values(manifest).find(x=>x.hash===hash);
      assert(expectedHash);
      assert(Buffer.from(file,'base64').length>0);
+     if(assetStatus)return response({blocked:'FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK'},assetStatus);
      if(uploadCount===2)return response({jwt:'SYNTHETIC_COMPLETION_JWT_FOR_TESTS_ONLY'},201);
      return response({},200);
    }
@@ -97,6 +99,7 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=fal
      assert.equal(body.bindings.length,10);
      assert.equal(body.deploy,undefined);
      if(forbiddenLive)assert.fail('forbidden test');
+     if(versionStatus)return response({blocked:'FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK'},versionStatus);
      return response({id:newId},201);
    }
    assert.fail('Unapproved provider endpoint');
@@ -157,3 +160,20 @@ test('fake adapter construction has no side effects, and missing approval makes 
  }finally{x.cleanup();}
 });
 
+
+test('HTTP refusal at each of 3 provider write phases reports only safe stage/code, no retry',async()=>{
+ for(const [opts,code,expectedPostCount] of [
+  [{registrationStatus:403},'POST_REGISTRATION_HTTP_403',1],
+  [{assetStatus:429},'POST_ASSET_BUCKET_HTTP_429',2],
+  [{versionStatus:409},'POST_INACTIVE_VERSION_HTTP_409',4]
+ ]){
+  const x=fixture(opts);
+  try {
+   await assert.rejects(runApprovedInactiveUpload(x),error=>
+     error.message.includes(code)&&
+     !error.message.includes('FAKE_PRIVATE_PROVIDER_ERROR_MUST_NOT_LEAK')&&
+     !error.message.includes('SYNTHETIC_ASSET_UPLOAD_JWT'));
+   assert.equal(x.events.filter(e=>e.method==='POST').length,expectedPostCount);
+  }finally{x.cleanup();}
+ }
+});
