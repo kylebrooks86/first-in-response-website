@@ -21,7 +21,7 @@ import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';
 import {resolve,join,extname,sep,basename} from 'node:path';
 import {createLocalAssetManifest} from './gate9_offline_asset_manifest.mjs';
-import {verifyAssetManifest,WORKER} from './gate9_inactive_fullapp_contract.mjs';
+import {verifyAssetManifest,WORKER,verifyInactiveProposal,proposedInactivePlan} from './gate9_inactive_fullapp_contract.mjs';
 import {createGate9ReadOnlyApi} from './gate9_cloudflare_readonly_adapter.mjs';
 
 const API_ORIGIN='https://api.cloudflare.com/client/v4';
@@ -137,8 +137,17 @@ export function createGuardedGate9Transport({
         must(!Object.hasOwn(descriptor.json,'deploy')&&
           descriptor.json.assets?.config?.run_worker_first===true&&
           tokenOk(descriptor.json.assets?.jwt)&&
+          Array.isArray(descriptor.json.modules)&&descriptor.json.modules.length>1&&
+          descriptor.json.modules.some(m=>m.name==='_headers'&&m.content_type==='text/plain')&&
+          descriptor.json.modules.some(m=>m.name===descriptor.json.main_module)&&
           descriptor.json.bindings?.every(b=>b.type==='assets'||b.type==='inherit'),
           'VERSION_BODY_SAFETY');
+        // Each of the 9 inherited bindings must explicitly pin the serving
+        // immutable Worker VERSION. Never inherit from untrusted latest upload.
+        try{
+          verifyInactiveProposal({...proposedInactivePlan(),
+            bindings:descriptor.json.bindings});
+        }catch{stop('VERSION_BINDING_INHERITANCE');}
       }
       auth=await accountToken();
     }
