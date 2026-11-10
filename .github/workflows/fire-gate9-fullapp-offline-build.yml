@@ -7,6 +7,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.mjs'
@@ -95,7 +96,10 @@ jobs:
           VERIFIED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server" "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client" "$VERIFIED_SOURCE_SHA"
+          node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/server" "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client" "$VERIFIED_SOURCE_SHA" | tee "$RUNNER_TEMP/FIRE-GATE9-DIGEST-ONLY.txt"
+          CANDIDATE_DIGEST="$(grep '^CANDIDATE_SHA256=' "$RUNNER_TEMP/FIRE-GATE9-DIGEST-ONLY.txt" | cut -d= -f2)"
+          test "${#CANDIDATE_DIGEST}" -eq 64
+          node business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.mjs --preflight --source "$VERIFIED_SOURCE_SHA" --digest "$CANDIDATE_DIGEST" --build "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL"
       - name: Require full compiled route matrix, no runtime or provider calls
         shell: bash
         run: |
