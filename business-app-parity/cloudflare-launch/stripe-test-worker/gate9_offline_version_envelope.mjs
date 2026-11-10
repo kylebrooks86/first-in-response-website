@@ -52,7 +52,7 @@ function modulesFromCompiledServer(folder){
   const parts=[];
   const walk=(dir,depth=0)=>{
     check(depth<20,'NESTING');
-    for(const ent of readdirSync(dir,{withFileTypes:true})){
+    for(const ent of readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0)){
       const full=join(dir,ent.name);
       const st=lstatSync(full);
       check(!st.isSymbolicLink(),'SYMLINK');
@@ -84,7 +84,7 @@ function modulesFromCompiledServer(folder){
     }
   };
   walk(root);
-  parts.sort((a,b)=>a.name.localeCompare(b.name));
+  parts.sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
   return parts;
 }
 
@@ -120,7 +120,7 @@ export function createOfflineVersionEnvelope(serverDir,clientDir) {
       name:item.name,content_type:'text/plain',content_base64:bytes.toString('base64')
     });
   }
-  modules.sort((a,b)=>a.name.localeCompare(b.name));
+  modules.sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
   // NB: deploy is a QUERY STRING parameter per beta Workers Version API.
   // This body intentionally does not contain a "deploy" property.
   const request={
