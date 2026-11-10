@@ -16,7 +16,7 @@ const vars={FIRE_ACCESS_REQUIRED:'enabled',FIRE_ENV:'cloudflare-staging',
 const oldBindings=INHERITED.map(name=>name==='DB'?
   {name,type:'d1',database_id:DB_UUID}:Object.hasOwn(vars,name)?
   {name,type:'plain_text',text:vars[name]}:{name,type:'secret_text'});
-function fixture({deny=false,alterBytes=false,forbiddenLive=false}={}){
+function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=false,providerError=false}={}){
  const temp=mkdtempSync(join(tmpdir(),'FIRE-GATE9-NO-NET-TRANSPORT-'));
  const clientDir=join(temp,'dist','client');
  mkdirSync(clientDir,{recursive:true});
@@ -44,7 +44,7 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false}={}){
  const events=[],perm=[];
  let uploadCount=0;
  function response(result,status=200){
-   return new Response(JSON.stringify({success:true,errors:[],result}),{status});
+   return new Response(JSON.stringify({success:true,errors:providerError?[{code:1}]:nullErrors?null:[],result}),{status});
  }
  const tokenProvider=async()=> 'SYNTHETIC_PRIVATE_AUTH_TOKEN_FOR_TESTS_ONLY';
  const fetchImpl=async(url,opts)=>{
@@ -135,6 +135,19 @@ test('private permission refusal blocks ALL POSTs, including asset registration'
   assert.equal(x.events.filter(e=>e.method==='POST').length,0);
  }finally{x.cleanup();}
 });
+test('documented errors:null success responses complete all phases without weakening error rejection',async()=>{
+ const x=fixture({nullErrors:true});
+ try{
+  const result=await runApprovedInactiveUpload(x);
+  assert.equal(result.versionId,newId);
+  assert.equal(x.events.filter(e=>e.method==='POST').length,4);
+ }finally{x.cleanup();}
+ const bad=fixture({providerError:true});
+ try{
+  await assert.rejects(runApprovedInactiveUpload(bad),/STATE_READ_UNVERIFIED/);
+  assert.equal(bad.events.filter(e=>e.method==='POST').length,0);
+ }finally{bad.cleanup();}
+});
 test('fake adapter construction has no side effects, and missing approval makes no provider calls',async()=>{
  const x=fixture();
  try{
@@ -143,3 +156,4 @@ test('fake adapter construction has no side effects, and missing approval makes 
   assert.equal(x.events.length,0);
  }finally{x.cleanup();}
 });
+

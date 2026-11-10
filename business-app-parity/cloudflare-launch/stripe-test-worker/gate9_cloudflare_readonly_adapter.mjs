@@ -60,7 +60,7 @@ function normalizedBindings(version){
 }
 function unwrap(response){
   check(response&&response.success===true &&
-    (response.errors===undefined||Array.isArray(response.errors)&&response.errors.length===0)&&
+    (response.errors==null||Array.isArray(response.errors)&&response.errors.length===0)&&
     response.result&&typeof response.result==='object',
     'PROVIDER_REPLY');
   return response.result;
@@ -189,3 +189,4 @@ export function createGate9ReadOnlyApi({
     }
   });
 }
+

@@ -1,3 +1,23 @@
+## November 9 local / November 10 UTC: private owner read-only execution bridge
+
+The Work browser still redirects to Cloudflare Sign in. Do not repeat the rejected login or ask the owner for the already supplied active version / D1 / secret names again.
+
+New owner_gate9_private_readonly.mjs uses only the pinned READ-ONLY API factory. It checks the reviewed Git source and refuses tracked helper changes; privately captures existing Wrangler auth using the documented fixed auth token --json command; only supports existing OAuth/API bearer authentication; never prints its stdout/stderr, stores a token file, asks for a token in chat, logs in, or grants permissions. It performs exactly the two provider GETs required by readState and prints only source/Worker/version/D1/mode/Access/secret-name verification. It does not read D1 rows/schema, invoke an upload transport, enable Stripe or create a version. Wrangler may refresh its existing OAuth credential according to its normal authentication behavior. This is not a new authentication grant.
+
+Run ONLY from the reviewed source in the EXISTING C:\\Users\\Kyleb\\FIREQA-PR172 worktree, after a safe fetch/clean-tracked-files check/detached update. The command shape is:
+node business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.mjs --reviewed-source EXACT_REVIEWED_COMMIT_SHA
+Replace the placeholder with the exact newly committed and CI-verified SHA; no resets, git clean, forced checkouts or duplicate worktrees. Do not run wrangler auth token directly on-screen and do not paste its output. The helper's redacted receipt alone is safe to share. If auth or API access fails, preserve the redacted STOP code and do not automatically retry.
+
+Confirmed provider-format defect corrected: both actual adapters incorrectly rejected success:true with errors:null, which Cloudflare's direct-upload documentation uses in its valid registration example. They now accept omitted/null/empty-array errors only, while still rejecting nonempty or malformed errors and unsuccessful/status failures. New local affected coverage: 19/19 PASS (9 read-only adapter + 4 guarded-transport + 6 owner bridge tests). No real credentials, Cloudflare requests or Stripe writes in these tests. Windows command dispatch is simulated in this coverage; actual owner Acer execution remains unverified.
+
+Source and candidateDigest necessarily change for this safety correction; previous source72 approval digest f2681d9535cd6a1d877eb3577f2d68ea657ee346aa5f85f405f69f0852af79e0 is historical, not the new upload approval digest. Obtain the new exact-head compiled digest from CI; no old digest reuse and no remote upload approval yet.
+
+No further basic identity screenshot collection is needed. Essential next interaction is a private authenticated execution channel using the owner Acer's existing session or a genuinely authenticated Work browser. Subsequent asset registration/upload/one inactive version creation still need exact explicit approval, with predecessor96e32262-fa33-4f04-a161-bee11f0353e2 kept100%, Stripe disabled and TEST D1 unchanged. Gate9 remains OPEN; formal4/10 (40%), production NO-GO.
+
+References:
+https://developers.cloudflare.com/workers/wrangler/commands/general/#auth-token
+https://developers.cloudflare.com/workers/static-assets/direct-upload/
+
 # Gate 9 inactive full-app upload: guarded private HTTP code implemented; live execution still unauthorized
 
 Reviewed starting source: 9a2f275c16049dc15865d8e16ba74ceab1f40936.

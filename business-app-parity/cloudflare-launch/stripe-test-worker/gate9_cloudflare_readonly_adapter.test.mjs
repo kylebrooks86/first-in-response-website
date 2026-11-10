@@ -39,6 +39,15 @@ test('real documented API D1 database_id is normalized into trusted source verif
   assert.equal(v.resources.bindings.length,9);
   assert.equal(deployedVersionFromApi(deployment())[0].version_id,PREDECESSOR);
 });
+test('success envelope accepts errors:null and rejects nonempty or malformed errors',()=>{
+ const p=deployment();p.errors=null;
+ assert.equal(deployedVersionFromApi(p)[0].version_id,PREDECESSOR);
+ const v=wrap(version());v.errors=null;
+ assert.equal(predecessorFromApi(v).id,PREDECESSOR);
+ for(const errors of [[{code:1}],{},'null',false]){
+  assert.throws(()=>deployedVersionFromApi({...p,errors}),/PROVIDER_REPLY/);
+ }
+});
 test('GET-only adapter makes exactly 2 pinned REST GETs for serving state',async()=>{
   const calls=[],currentVersion=version();
   const transport=createGate9ReadOnlyApi({
@@ -125,3 +134,4 @@ test('read-only adapter cannot be constructed for placeholder or invalid account
     }));
   }
 });
+

@@ -168,7 +168,7 @@ export function createGuardedGate9Transport({
     let data;
     try{data=await response.json();}catch{stop('PROVIDER_POST_JSON');}
     must(data&&typeof data==='object'&&data.success===true&&
-      (data.errors===undefined||Array.isArray(data.errors)&&data.errors.length===0),
+      (data.errors==null||Array.isArray(data.errors)&&data.errors.length===0),
       'PROVIDER_POST_RESULT');
     // Do not print, store, or expose to a user the token-bearing body.
     // The approved coordinator consumes this private result in memory.
@@ -176,3 +176,4 @@ export function createGuardedGate9Transport({
   }
   return Object.freeze({readState:read.readState,readVersion:read.readVersion,request});
 }
+
