@@ -54,6 +54,10 @@ jobs:
           noext=sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and not p.suffix and not p.name.startswith("."))
           assert len(noext)<10, "Too many unexpected extensionless assets"
           print("SYNTHETIC_EXTENSIONLESS_FILE_NAMES="+repr(noext))
+          import re
+          flagged=sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and re.search(r"password|secret|token|private|backup",p.name,re.I))
+          assert len(flagged)<20 and all(len(n)<256 for n in flagged), "Too many flagged asset names"
+          print("SYNTHETIC_SENSITIVE_WORD_PUBLIC_ASSET_NAMES="+repr(flagged))
           extensionless=[str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and not p.suffix]
           assert len(extensionless)<10, "Unexpected extensionless compiled files"
           print("SYNTHETIC_EXTENSIONLESS_FILES="+repr(sorted(extensionless)))
