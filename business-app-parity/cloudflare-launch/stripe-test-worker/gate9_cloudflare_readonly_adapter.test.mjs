@@ -16,7 +16,7 @@ const bindings=INHERITED.map(name=>name==='DB'?
   {name,type:'secret_text'});
 const version=(newVersion=false)=>({
  id:newVersion?id:PREDECESSOR,
- bindings:newVersion?[...bindings,{name:'ASSETS',type:'assets'}]:bindings,
+ bindings:newVersion?[...structuredClone(bindings),{name:'ASSETS',type:'assets'}]:structuredClone(bindings),
  ...(newVersion?{
  main_module:'index.js',compatibility_date:'2026-10-16',
  compatibility_flags:['nodejs_compat'],
