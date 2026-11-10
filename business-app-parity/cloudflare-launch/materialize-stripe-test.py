@@ -151,7 +151,7 @@ existing_webhook_mode_guard = 'if(sandboxTarget && runtime.FIRE_STRIPE_MODE !== 
 if (webhook_source.count(webhook_anchor) != 1 or
         webhook_source.count(required_signature) != 1 or
         webhook_source.index(required_signature) > webhook_source.index(webhook_anchor) or
-        webhook_guard in webhook_source or
+        "  // TEST-only: validate Stripe HMAC before refusing disabled-mode delivery." in webhook_source or
         (existing_webhook_mode_guard in webhook_source and
          not (webhook_source.index(required_signature) <
               webhook_source.index(existing_webhook_mode_guard) <
