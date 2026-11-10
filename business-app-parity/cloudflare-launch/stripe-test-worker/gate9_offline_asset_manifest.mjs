@@ -47,7 +47,6 @@ export function createLocalAssetManifest(root) {
       if (parents.length === 0 && ['_headers','_redirects'].includes(name) && entry.isFile()) continue;
       insist(!name.startsWith('.'),'DOT_ENTRY');
       insist(/^[A-Za-z0-9._-]+$/.test(name),'FILENAME_CHARSET');
-      insist(!/password|secret|token|private|backup/i.test(name),'SENSITIVE_NAME');
       const absolute=join(folder,name);
       const st=lstatSync(absolute);
       insist(!st.isSymbolicLink(),'SYMLINK');
@@ -59,6 +58,12 @@ export function createLocalAssetManifest(root) {
         const path='/'+[...parents,name].join('/');
         const buf=readFileSync(absolute);
         insist(buf.length===st.size,'FILE_CHANGED');
+        // Do not reject ordinary bundle names containing words like private.
+        // Instead refuse any actual long, credential-shaped value in the
+        // bytes. Source-code regexes mentioning a key PREFIX alone are fine.
+        const text=buf.toString('utf8');
+        insist(!/(?:sk|rk|rkcs)_(?:live|test)_[A-Za-z0-9]{16,}|whsec_[A-Za-z0-9]{16,}/.test(text),
+          'EMBEDDED_CREDENTIAL_SHAPE');
         const hash=createHash('sha256')
           .update(buf.toString('base64')+ext.slice(1))
           .digest('hex').slice(0,32);
