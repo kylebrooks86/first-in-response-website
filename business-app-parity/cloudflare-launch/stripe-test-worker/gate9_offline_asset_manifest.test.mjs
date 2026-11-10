@@ -59,6 +59,7 @@ test('skips Vite private build metadata but rejects other hidden files',()=>{
  try {
   mkdirSync(join(x.folder,'.vite'));
   writeFileSync(join(x.folder,'.vite','manifest.json'),'{"private":true}');
+  writeFileSync(join(x.folder,'.assetsignore'),'/_next/static/chunks/private-build-control');
   assert.equal(Object.keys(createLocalAssetManifest(x.folder)).length,2);
   writeFileSync(join(x.folder,'.env'),'DO_NOT_UPLOAD');
   assert.throws(()=>createLocalAssetManifest(x.folder));
