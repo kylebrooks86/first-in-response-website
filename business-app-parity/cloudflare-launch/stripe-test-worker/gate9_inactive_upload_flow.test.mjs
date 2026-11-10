@@ -94,6 +94,27 @@ test('uncertain remote write never retries or leaks raw exception',async()=>{
     /REQUEST_UNCERTAIN/.test(e.message)&&!e.message.includes('sensitive'));
   assert.equal(f.calls.length,1);
 });
+test('only fixed provider stage/HTTP code survives, never provider message or token',async()=>{
+  const f=fixture();
+  f.transport.request=async q=>{
+    f.calls.push(q);
+    throw Error('STOP: Gate9 guarded TEST Cloudflare transport [REGISTRATION_HTTP_403]; reconcile before retry.');
+  };
+  await assert.rejects(runApprovedInactiveUpload(f),e=>
+    e.message.includes('POST_REGISTRATION_HTTP_403')&&
+    !e.message.includes('Bearer')&&!e.message.includes('provider'));
+  assert.equal(f.calls.length,1);
+});
+test('forged free-text provider message never leaves the safe error boundary',async()=>{
+  const f=fixture();
+  f.transport.request=async q=>{
+    f.calls.push(q);
+    throw Error('STOP: Gate9 guarded TEST Cloudflare transport [REGISTRATION_HTTP_403] SECRET=whsec_fake');
+  };
+  await assert.rejects(runApprovedInactiveUpload(f),e=>
+    e.message.includes('REQUEST_UNCERTAIN')&&!e.message.includes('SECRET'));
+  assert.equal(f.calls.length,1);
+});
 test('mutated candidate no longer matches approval',async()=>{
   const f=fixture();f.candidate.versionBody.modules[0].content_base64='eQ==';
   await assert.rejects(runApprovedInactiveUpload(f),/APPROVAL/);assert.equal(f.calls.length,0);
