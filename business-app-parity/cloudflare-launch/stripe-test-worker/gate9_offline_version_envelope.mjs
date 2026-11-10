@@ -72,7 +72,7 @@ function modulesFromCompiledServer(folder){
       const buf=readFileSync(full);
       check(buf.length===st.size && buf.length>0 && buf.length<80_000_000,'FILE_BYTES');
       const name=rel.replace(/^\.\//,'');
-      check(/^[A-Za-z0-9_.\/-]+$/.test(name) && !name.includes('..') &&
+      check(/^[A-Za-z0-9_.~\/-]+$/.test(name) && !name.includes('..') &&
         !name.startsWith('/') && !name.includes('//'),'NAME');
       check(!/(?:sk|rk|rkcs)_(?:live|test)_[A-Za-z0-9]{16,}|whsec_[A-Za-z0-9]{16,}/
         .test(buf.toString('utf8')),'SECRET_LITERAL');
@@ -175,7 +175,7 @@ export function validateOfflineVersionEnvelope(request) {
     check(m&&typeof m==='object' &&
       Object.keys(m).sort().join(',')==='content_base64,content_type,name',
       'MODULE_FIELDS');
-    check(/^[A-Za-z0-9_.\/-]+$/.test(m.name)&&
+    check(/^[A-Za-z0-9_.~\/-]+$/.test(m.name)&&
       !m.name.startsWith('/')&&!m.name.includes('//')&&!m.name.includes('..')&&
       !seen.has(m.name),'MODULE_NAME');
     seen.add(m.name);
