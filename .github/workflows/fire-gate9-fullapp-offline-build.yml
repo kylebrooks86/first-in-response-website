@@ -37,7 +37,29 @@ jobs:
           set -euo pipefail
           corepack pnpm install --frozen-lockfile
           corepack pnpm exec tsc --noEmit --incremental false
-          corepack pnpm run build
+          corepack pnpm run build | tee "$RUNNER_TEMP/FIRE-GATE9-COMPILED-ROUTES.log"
+      - name: Require full compiled route matrix, no runtime or provider calls
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          text=Path(os.environ['RUNNER_TEMP'],'FIRE-GATE9-COMPILED-ROUTES.log').read_text()
+          text=re.sub(r'\x1b\[[0-9;]*m','',text)
+          routes=set(re.findall(r'[^\n]*?[┌├└]\s*[λƒ]\s+(/[^\s]+)',text))
+          required={
+            '/', '/api/customers', '/api/estimates', '/api/invoices',
+            '/api/payments/checkout', '/api/payments/checkout/reconcile',
+            '/api/payments/connection', '/api/payments/refund',
+            '/api/payments/webhook', '/api/public/estimates/:token/revised-accept',
+            '/api/notifications', '/api/followups', '/api/backup',
+            '/estimate/:token', '/invoice/:token', '/pay/:id'
+          }
+          missing=sorted(required-routes)
+          assert not missing and len(routes)>=65, 'STOP: compiled TEST route matrix missing expected full-app routes'
+          print('PASS: Full TEST compiled route matrix; required UI/Checkout/refund/webhook routes found; no provider calls')
+          print('COMPILED_ROUTE_COUNT='+str(len(routes)))
+          PY
       - name: Show only names of hidden SYNTHETIC build artifacts, never file contents
         shell: bash
         run: |
