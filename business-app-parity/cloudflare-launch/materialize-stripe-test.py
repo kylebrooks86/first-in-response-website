@@ -121,9 +121,17 @@ stop_line = (
 for relative, signature in stripe_routes.items():
     p = destination / relative
     original = p.read_text(encoding="utf-8")
-    if original.count(signature) != 1 or "FIRE_STRIPE_MODE" in original:
+    # Current shared routes already contain their OWN Stripe-mode checks.
+    # Their presence is not a reason to abort: this TEST-only materializer
+    # additionally requires an EARLY blanket 503 guard before auth, SQL,
+    # network calls, or any manual/Stripe refund side effect.
+    if original.count(signature) != 1 or stop_line in original:
         raise SystemExit("STOP: Stripe TEST mode kill-switch injection changed: " + relative)
-    p.write_text(original.replace(signature, signature + stop_line), encoding="utf-8")
+    updated = original.replace(signature, signature + stop_line)
+    if (updated.count(stop_line) != 1 or
+            updated.index(stop_line) != updated.index(signature) + len(signature)):
+        raise SystemExit("STOP: Stripe TEST early guard placement changed: " + relative)
+    p.write_text(updated, encoding="utf-8")
 # The webhook is the ONLY exception to the *early* TEST kill-switch: it must
 # reject missing/invalid signatures with HTTP 400 before checking Stripe mode.
 # While mode is disabled, even correctly signed events still receive retryable
