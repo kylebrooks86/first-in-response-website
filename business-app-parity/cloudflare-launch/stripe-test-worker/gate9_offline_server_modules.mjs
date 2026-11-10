@@ -39,7 +39,7 @@ export function inventoryCompiledModules(root,main) {
   let count=0,total=0,buildIdSha=null;
   const visit=(folder,depth=0)=>{
     need(depth<20,'TREE_DEPTH');
-    for(const file of readdirSync(folder,{withFileTypes:true})){
+    for(const file of readdirSync(folder,{withFileTypes:true}).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0)){
       const full=join(folder,file.name);
       const stat=lstatSync(full);
       need(!stat.isSymbolicLink(),'SYMLINK');
@@ -81,7 +81,7 @@ export function inventoryCompiledModules(root,main) {
   need(typeof buildIdSha==='string','MISSING_BUILD_ID');
   const mainRecord=records.find(([name])=>name===main.replace(/^\.\//,''));
   need(mainRecord && mainRecord[1]>32,'MISSING_ENTRYPOINT');
-  records.sort((a,b)=>a[0].localeCompare(b[0]));
+  records.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
   return {
     moduleCount:records.length,totalBytes:total,
     mainModule:mainRecord[0],mainSha256:mainRecord[2],
