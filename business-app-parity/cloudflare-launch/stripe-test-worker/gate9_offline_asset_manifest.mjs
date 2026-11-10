@@ -18,15 +18,15 @@ const EXT = new Set([
   '.png','.jpg','.jpeg','.webp','.gif','.svg','.ico',
   '.woff','.woff2','.ttf','.avif','.mp4','.webm'
 ]);
-function insist(b) {
-  if (!b) throw Error('STOP: Unsafe or incomplete local asset tree. NO upload.');
+function insist(b, code='CONTRACT') {
+  if (!b) throw Error('STOP: Local TEST asset inventory ['+code+']. NO upload.');
 }
 function compiledRoot(root) {
   const path=resolve(root);
   insist(basename(path)==='client' &&
-    basename(resolve(path,'..'))==='dist');
+    basename(resolve(path,'..'))==='dist','ROOT_NOT_DIST_CLIENT');
   const actual=realpathSync(path);
-  insist(actual===path); // no symlink for compiled root
+  insist(actual===path,'ROOT_SYMLINK'); // no symlink for compiled root
   return path;
 }
 export function createLocalAssetManifest(root) {
@@ -34,34 +34,35 @@ export function createLocalAssetManifest(root) {
   const manifest={};
   let count=0, bytes=0;
   function walk(folder,parents=[]) {
-    insist(parents.length<20);
+    insist(parents.length<20,'NESTING');
     for(const entry of readdirSync(folder,{withFileTypes:true})) {
       const name=entry.name;
       insist(/^[A-Za-z0-9._-]+$/.test(name) && name!=='.' && name!=='..' &&
-        !name.startsWith('.') && !/password|secret|token|private|backup/i.test(name));
+        !name.startsWith('.') && !/password|secret|token|private|backup/i.test(name),'FILE_NAME');
       const absolute=join(folder,name);
       const st=lstatSync(absolute);
-      insist(!st.isSymbolicLink());
+      insist(!st.isSymbolicLink(),'SYMLINK');
       if(st.isDirectory())walk(absolute,[...parents,name]);
       else {
-        insist(st.isFile() && st.size>0 && st.size<25_000_000);
+        insist(st.isFile() && st.size>0 && st.size<25_000_000,'FILE_TYPE_OR_SIZE');
         const ext=extname(name).toLowerCase();
-        insist(EXT.has(ext)); // no .map, .env, database or private keys
+        insist(EXT.has(ext),'EXTENSION'); // no .map, .env, database or private keys
         const path='/'+[...parents,name].join('/');
         const buf=readFileSync(absolute);
-        insist(buf.length===st.size);
+        insist(buf.length===st.size,'FILE_CHANGED');
         const hash=createHash('sha256')
           .update(buf.toString('base64')+ext.slice(1))
           .digest('hex').slice(0,32);
-        insist(!Object.hasOwn(manifest,path));
+        insist(!Object.hasOwn(manifest,path),'DUPLICATE');
         manifest[path]={hash,size:buf.length};
         count++;bytes+=buf.length;
-        insist(count<=5000 && bytes<200_000_000);
+        insist(count<=5000 && bytes<200_000_000,'ASSET_BUDGET');
       }
     }
   }
   walk(base);
-  verifyAssetManifest(manifest);
+  try { verifyAssetManifest(manifest); }
+  catch { throw Error('STOP: Local TEST asset inventory [MANIFEST_SHAPE]. NO upload.'); }
   return manifest;
 }
 export function safeLocalManifestSummary(manifest) {
@@ -82,8 +83,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
     console.log('TOTAL_BYTES='+s.assetBytes);
     console.log('METADATA_SHA256='+s.metadataSha256);
     console.log('LOCAL_ONLY=TRUE; NO UPLOAD, NO TOKEN, NO VERSION, NO DEPLOY.');
-  }catch{
-    console.error('STOP: Local TEST asset inventory failed. No remote changes.');
+  }catch(error){
+    console.error(error instanceof Error && /^STOP: Local TEST asset inventory \[[A-Z_]+\]/.test(error.message) ? error.message : 'STOP: Local TEST asset inventory [UNKNOWN]. No remote changes.');
     process.exitCode=1;
   }
 }
