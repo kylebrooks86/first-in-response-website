@@ -13,7 +13,10 @@ export function readExistingWranglerToken({spawn=spawnSync,platform=process.plat
   try{
     const options={encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:30000,
       maxBuffer:1024*1024,windowsHide:true,
-      env:{...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error'}};
+      // Wrangler 4.151 prints --json via logger.log; error-only suppresses stdout.
+      // Keep log output captured in pipes, and explicitly prohibit disk logging.
+      env:{...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'log',
+        WRANGLER_WRITE_LOGS:'false'}};
     // Fixed command only. No user input, paths, tokens or shell interpolation.
     r=platform==='win32'?spawn('cmd.exe',['/d','/s','/c','wrangler.cmd auth token --json'],options):
       spawn('wrangler',['auth','token','--json'],options);

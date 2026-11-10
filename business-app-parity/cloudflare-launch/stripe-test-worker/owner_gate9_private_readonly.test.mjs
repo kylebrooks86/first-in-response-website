@@ -3,6 +3,20 @@ import assert from 'node:assert/strict';
 import {readExistingWranglerToken,runOwnerPrivateReadOnly} from './owner_gate9_private_readonly.mjs';
 import {PREDECESSOR,DB_UUID,ORIGIN,INHERITED} from './gate9_inactive_fullapp_contract.mjs';
 const fake='SYNTHETIC_AUTH_PRIVATE_TEST_ONLY';
+test('Wrangler 4.151 logger.log JSON remains privately capturable and disk logging is disabled',()=>{
+ let captured;
+ const got=readExistingWranglerToken({platform:'win32',spawn:(cmd,args,opts)=>{
+  // Pinned Wrangler 4.151.0 authTokenCommand uses logger.log(JSON.stringify(...)).
+  // error/none levels suppress its valid JSON despite process exit status zero.
+  const stdout=opts.env.WRANGLER_LOG==='log'?
+    JSON.stringify({type:'oauth',token:fake}):'';
+  captured=opts;
+  return {status:0,stdout};
+ }});
+ assert.equal(captured.env.WRANGLER_WRITE_LOGS,'false');
+ assert.deepEqual(captured.stdio,['ignore','pipe','pipe']);
+ assert.equal(got,fake);
+});
 test('captures existing Wrangler auth privately; never invokes login or shell interpolation',()=>{
  const calls=[];
  const got=readExistingWranglerToken({platform:'win32',spawn:(cmd,args,opts)=>{

@@ -9,6 +9,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_session.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.mjs'
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
 permissions:
   contents: read
