@@ -19,6 +19,7 @@ export function OwnerAccountView({theme,onToggleTheme,environment="LIVE"}:{envir
       <p><strong>{environment} · FIRE Business App</strong></p>
       <p>Check the environment before entering customer or payment information. Records and payment settings stay separate.</p>
       <p>{(environment==="DOOMSDAY" || environment==="QA")?"Owner access uses this deployment’s signed-cookie authentication.":"Owner access remains protected by ChatGPT sign-in and owner-only checks."}</p>
+      {(environment==="QA" || environment==="DOOMSDAY") && <div className="owner-account-session-actions"><a className="owner-account-signout" href="/api/auth/logout?return_to=%2F">Sign out of {environment}</a><p>Signs out of this environment only. Saved records are not deleted.</p></div>}
     </section>
   </div>;
 }
