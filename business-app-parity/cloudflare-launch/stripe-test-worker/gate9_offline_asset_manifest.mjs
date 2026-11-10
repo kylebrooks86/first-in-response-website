@@ -37,9 +37,11 @@ export function createLocalAssetManifest(root) {
     insist(parents.length<20,'NESTING');
     for(const entry of readdirSync(folder,{withFileTypes:true})) {
       const name=entry.name;
-      // Vite stores private build metadata under .vite; it is NOT a public
-      // asset and must not be registered with Cloudflare.
-      if (name === '.vite' && entry.isDirectory()) continue;
+      // Vite emits two private build-control entries at dist/client root.
+      // They are NOT public site assets and must never be uploaded.
+      // Reject all other hidden entries, symlinks or unexpected shapes.
+      if (parents.length === 0 && name === '.vite' && entry.isDirectory()) continue;
+      if (parents.length === 0 && name === '.assetsignore' && entry.isFile()) continue;
       insist(!name.startsWith('.'),'DOT_ENTRY');
       insist(/^[A-Za-z0-9._-]+$/.test(name),'FILENAME_CHARSET');
       insist(!/password|secret|token|private|backup/i.test(name),'SENSITIVE_NAME');
