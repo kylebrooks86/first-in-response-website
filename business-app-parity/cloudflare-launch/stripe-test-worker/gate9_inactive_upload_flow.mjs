@@ -76,7 +76,7 @@ export async function runApprovedInactiveUpload({candidate,approval,accountId,tr
       // Preserve ONLY our own fixed safe stage/status codes; never expose raw
       // Cloudflare response, provider message, bearer or uploaded JWT.
       const safe=error instanceof Error&&error.message.match(
-        /^STOP: Gate9 guarded TEST Cloudflare transport \[(REGISTRATION|ASSET_BUCKET|INACTIVE_VERSION)_(NETWORK_UNCERTAIN|MALFORMED_RESPONSE|HTTP_[1-5][0-9]{2}|RESPONSE_NOT_JSON|PROVIDER_REJECTED)\]; reconcile before retry\.$/
+        /^STOP: Gate9 guarded TEST Cloudflare transport \[(REGISTRATION|ASSET_BUCKET|INACTIVE_VERSION)_(NETWORK_UNCERTAIN|MALFORMED_RESPONSE|HTTP_[1-5][0-9]{2}(?:_CODE_[1-9][0-9]{3,5})?|RESPONSE_NOT_JSON|PROVIDER_REJECTED)\]; reconcile before retry\.$/
       );
       if(safe)fail('POST_'+safe[1]+'_'+safe[2]);
       fail('REQUEST_UNCERTAIN'); // always STOP: no automatic replay or rollback

@@ -132,3 +132,29 @@ test('extra deploy body field is rejected before remote work',async()=>{
   f.approval.candidateDigest=uploadApprovalDigest(f.candidate);
   await assert.rejects(runApprovedInactiveUpload(f),/VERSION_FIELDS/);assert.equal(f.calls.length,0);
 });
+
+test('safe numeric Cloudflare validation code passes stage boundary without raw error',async()=>{
+  const f=fixture();
+  const request=f.transport.request;
+  f.transport.request=async q=>{
+    if(q.path.endsWith('/versions?deploy=false')){
+      f.calls.push(q);
+      throw Error('STOP: Gate9 guarded TEST Cloudflare transport [INACTIVE_VERSION_HTTP_400_CODE_10057]; reconcile before retry.');
+    }
+    return request(q);
+  };
+  await assert.rejects(runApprovedInactiveUpload(f),e=>
+    e.message.includes('POST_INACTIVE_VERSION_HTTP_400_CODE_10057')&&
+    !e.message.includes('Bearer')&&!e.message.includes('fake.complete'));
+  assert.equal(f.calls.filter(q=>q.path.endsWith('/versions?deploy=false')).length,1);
+});
+test('forged provider text alongside numeric code is still redacted',async()=>{
+  const f=fixture();
+  f.transport.request=async q=>{
+    f.calls.push(q);
+    throw Error('STOP: Gate9 guarded TEST Cloudflare transport [INACTIVE_VERSION_HTTP_400_CODE_10057] PRIVATE=secret');
+  };
+  await assert.rejects(runApprovedInactiveUpload(f),e=>
+    e.message.includes('REQUEST_UNCERTAIN')&&!e.message.includes('PRIVATE'));
+  assert.equal(f.calls.length,1);
+});
