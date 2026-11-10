@@ -18,7 +18,7 @@ function need(condition,reason='SHAPE'){
   if(!condition)throw Error('STOP: FIRE TEST compiled server ['+reason+']; NO upload.');
 }
 const HEX=/^[0-9a-f]{64}$/;
-const ALLOWED=new Set(['.js','.mjs','.cjs','.wasm','.json']);
+const ALLOWED=new Set(['.js','.mjs','.cjs','.wasm','.json','.css']);
 function distServer(root){
   const dir=resolve(root);
   need(basename(dir)==='server' &&
@@ -55,7 +55,11 @@ export function inventoryCompiledModules(root,main) {
       if(name==='wrangler.FIRE_TEST_REVIEW_ONLY.json')continue;
       const ext=extname(name).toLowerCase();
       if(ext==='.map')continue; // debug source maps not runtime executable modules
-      need(ALLOWED.has(ext),'MODULE_EXTENSION');
+      // Preserve compiled server stylesheets; never discard these bytes.
+      // A root _headers/_redirects module has special text/plain semantics.
+      // No other extensionless executable/config file is permitted.
+      need(ALLOWED.has(ext) || (ext==='' &&
+        (name==='_headers'||name==='_redirects')),'MODULE_EXTENSION');
       const bytes=readFileSync(full);
       need(bytes.length===stat.size,'MODULE_CHANGED');
       const hash=createHash('sha256').update(bytes).digest('hex');
