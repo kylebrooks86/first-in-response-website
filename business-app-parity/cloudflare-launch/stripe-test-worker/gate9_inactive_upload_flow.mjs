@@ -71,7 +71,16 @@ export async function runApprovedInactiveUpload({candidate,approval,accountId,tr
   const request=async descriptor=>{
     authorized();
     try{return await transport.request(descriptor);}
-    catch{fail('REQUEST_UNCERTAIN');} // no automatic replay after ambiguous remote result
+    catch(error){
+      // The earlier Acer attempt collapsed ALL failures into REQUEST_UNCERTAIN.
+      // Preserve ONLY our own fixed safe stage/status codes; never expose raw
+      // Cloudflare response, provider message, bearer or uploaded JWT.
+      const safe=error instanceof Error&&error.message.match(
+        /^STOP: Gate9 guarded TEST Cloudflare transport \[(REGISTRATION|ASSET_BUCKET|INACTIVE_VERSION)_(NETWORK_UNCERTAIN|MALFORMED_RESPONSE|HTTP_[1-5][0-9]{2}|RESPONSE_NOT_JSON|PROVIDER_REJECTED)\]; reconcile before retry\.$/
+      );
+      if(safe)fail('POST_'+safe[1]+'_'+safe[2]);
+      fail('REQUEST_UNCERTAIN'); // always STOP: no automatic replay or rollback
+    }
   };
   const prefix='/accounts/'+accountId;
   await state();
