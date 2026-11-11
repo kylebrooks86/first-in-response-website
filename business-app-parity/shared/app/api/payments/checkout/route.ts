@@ -86,7 +86,8 @@ async function boundedCheckoutBody(request:Request):Promise<CheckoutRead>{
  * session ID or a non-Stripe redirect. Keep its reservation blocked on an
  * ambiguous provider result; owner reconciliation is the only recovery.
  */
-function trustedCheckoutResponse(id:unknown,url:unknown,sandbox:boolean):boolean{
+function trustedCheckoutResponse(data:{id?:string;url?:string},sandbox:boolean):data is {id:string;url:string}{
+  const {id,url}=data;
   if(typeof id!=='string'||!/^cs_(test|live)_[a-zA-Z0-9_-]+$/.test(id)||
      (sandbox&&!id.startsWith('cs_test_'))||(!sandbox&&!id.startsWith('cs_live_'))||
      typeof url!=='string'||url.length>4096)return false;
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
     if(typeof shareToken!=="string"||shareToken.length<1||shareToken.length>128||
       !/^[a-zA-Z0-9_-]+$/.test(shareToken))return Response.json(
       {error:"A valid estimate link is required."},{status:400,headers:{"cache-control":"no-store"}});
-    if (!["deposit","balance"].includes(paymentType)) return Response.json({ error: "Invalid payment type." }, { status: 400 });
+    if(paymentType!=="deposit"&&paymentType!=="balance") return Response.json({error:"Invalid payment type."},{status:400});
     const tipCents = requestedTipCents;
     if (typeof tipCents !== "number" || !Number.isSafeInteger(tipCents) || tipCents < 0) return Response.json({ error: "Invalid tip amount." }, { status: 400 });
     if (paymentType !== "balance" && tipCents > 0) return Response.json({ error: "Tips are available only with the final balance payment." }, { status: 400 });
@@ -231,7 +232,7 @@ export async function POST(request: Request) {
       }
       return Response.json({error:"Stripe payment setup has an uncertain outcome. Do not start another checkout; ask FIRE to review this payment.",checkoutUncertain:true},{status:503});
     }
-    if(!trustedCheckoutResponse(data.id,data.url,sandboxTarget))return Response.json({
+    if(!trustedCheckoutResponse(data,sandboxTarget))return Response.json({
       error:"Stripe checkout acknowledgment could not be verified for this payment environment. Payment setup remains blocked for owner reconciliation.",
       checkoutUncertain:true
     },{status:503,headers:{"cache-control":"no-store"}});
