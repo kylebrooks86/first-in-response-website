@@ -40,7 +40,9 @@ export async function runApprovedInactiveUpload({candidate,approval,accountId,tr
   check(/^\d{4}-\d{2}-\d{2}$/.test(copy.versionBody.compatibility_date)&&
     Array.isArray(copy.versionBody.compatibility_flags)&&
     copy.versionBody.compatibility_flags.includes('nodejs_compat'),'COMPATIBILITY');
-  check(copy.versionBody?.assets?.config?.run_worker_first===true,'WORKER_FIRST');
+  check(Array.isArray(copy.versionBody?.assets?.config?.run_worker_first)&&
+    copy.versionBody.assets.config.run_worker_first.length===1&&
+    copy.versionBody.assets.config.run_worker_first[0]==='/api/*','WORKER_API_FIRST');
   check(!Object.hasOwn(copy.versionBody.assets,'jwt'),'NO_TOKEN_IN_CANDIDATE');
   verifyInactiveProposal({...proposedInactivePlan(),bindings:copy.versionBody.bindings});
   check(Array.isArray(copy.versionBody.modules)&&copy.versionBody.modules.length>0,'MODULES');
@@ -139,7 +141,9 @@ export async function runApprovedInactiveUpload({candidate,approval,accountId,tr
   check(actual?.id===id&&actual.main_module===body.main_module&&
     actual.compatibility_date===body.compatibility_date&&
     digest(actual.compatibility_flags)===digest(body.compatibility_flags),'VERSION_IDENTITY');
-  check(actual.assets?.config?.run_worker_first===true&&
+  check(Array.isArray(actual.assets?.config?.run_worker_first)&&
+    actual.assets.config.run_worker_first.length===1&&
+    actual.assets.config.run_worker_first[0]==='/api/*'&&
     actual.moduleDigest===digest(body.modules),'VERSION_BYTES');
   // Adapter must normalize expanded immutable-version bindings, never requested inherit entries.
   const expanded=actual.bindings;
