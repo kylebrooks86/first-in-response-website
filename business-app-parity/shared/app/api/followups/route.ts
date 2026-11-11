@@ -28,9 +28,10 @@ export async function GET(request:Request){
                COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
                COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,c.name AS customer,c.email,c.phone,${serviceAddressColumns(serviceLocationsEnabled(env))},
                COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
-               (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
-               (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
-               (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+               (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
+               (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceId,
+               (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceShareToken,
+               (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceTotalCents,
                (SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS pendingChangeCount,
                (SELECT message FROM estimate_change_requests cr WHERE cr.estimate_id=e.id ORDER BY cr.created_at DESC LIMIT 1) AS latestChangeRequest,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='estimate' AND cm.channel IN ('text_confirmed','email_confirmed')) AS lastEstimateSentAt,
@@ -55,7 +56,13 @@ export async function GET(request:Request){
         FROM estimates e JOIN customers c ON c.id = e.customer_id
         WHERE ${focusedId!==null?"e.id = ?":"(? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))"}
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
-      `).bind(...(focusedId!==null?[focusedId,2]:[cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1])).all<{id:string;createdAt:string}>();
+      `).bind(...(focusedId!==null?[focusedId,2]:[cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1])).all<{id:string;createdAt:string;invoiceOwnershipMismatch:number}>();
+  // A follow-up must never reveal another homeowner's invoice token or
+  // payable amount. Refuse the page rather than silently attaching the
+  // wrong bill to a valid quote or prepared customer message.
+  if(result.results.some(row=>Number(row.invoiceOwnershipMismatch)!==0))
+    return Response.json({error:"An invoice is linked to a different customer. Reconcile the invoice before preparing a follow-up."},
+      {status:409,headers:{"Cache-Control":"no-store, private"}});
   const base=result.results.slice(0,size),last=base.at(-1);
   // Follow-ups opens the same editable estimate detail as Estimates and
   // Customers. Its summary-only rows previously omitted the actual service
@@ -73,14 +80,14 @@ export async function GET(request:Request){
     }
   }
   const prefRow=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>();
-  let estimates:unknown[]=base.map(e=>({...e,items:grouped.get(e.id)??[]}));
+  let estimates:unknown[]=base.map(({invoiceOwnershipMismatch:_verified,...e})=>({...e,items:grouped.get(e.id)??[]}));
   if(prefRow&&base.length){
     const prefs=decodeBusinessPreferences(prefRow);
     const rateRows=await env.DB.prepare('SELECT key,body FROM message_templates WHERE key LIKE ?').bind(SERVICE_RATE_PREFIX+'%').all<{key:string;body:string}>();
     const rateMap=new Map(rateRows.results.map(r=>[r.key.slice(SERVICE_RATE_PREFIX.length),r]));
     const ids=[...FIRE_SERVICES.map(s=>s.id),...Array.from(rateMap.keys()).filter(customServiceId)];
     const identities=catalogServices(ids.map(id=>decodeServiceRate(id,rateMap.get(id)??null)),true);
-    estimates=base.map(e=>({...e,items:grouped.get(e.id)??[],repeatMonths:repeatIntervalFor((grouped.get(e.id)??[]).map(i=>i.name),prefs.repeatMonths,identities)}));
+    estimates=base.map(({invoiceOwnershipMismatch:_verified,...e})=>({...e,items:grouped.get(e.id)??[],repeatMonths:repeatIntervalFor((grouped.get(e.id)??[]).map(i=>i.name),prefs.repeatMonths,identities)}));
   }
   const nextCursor=result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
   return Response.json({estimates,nextCursor,pageSize:size,...(focusedId!==null?{estimateId:focusedId}:{})});
