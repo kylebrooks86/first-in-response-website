@@ -117,5 +117,48 @@ try{
  eq((await post('tipRace',justTip)).status,201);
  eq(paymentsFor('tipRace'),1);
 
+
+ // Read-only confirmation is part of the actual money workflow, not a source
+ // of authorization to collect again. Even a valid saved payment cannot
+ // certify an invoice that is now linked to a different customer.
+ db.prepare("UPDATE invoices SET customer_id='c-a' WHERE id='invoice-foreign'").run();
+ const ownerReadWrites=writes;
+ let review=await get('foreign',foreign.requestId);
+ eq(review.status,409,'Read-only manual confirmation refuses a foreign-customer invoice');
+ eq(review.headers.get('cache-control'),'no-store, private');
+ eq(paymentsFor('foreign'),1,'The original paid ledger remains untouched');
+ eq(writes,ownerReadWrites,'Wrong-customer confirmation never writes or auto-repairs billing');
+ db.prepare("UPDATE invoices SET customer_id='c-foreign' WHERE id='invoice-foreign'").run();
+ review=await get('foreign',foreign.requestId);
+ eq(review.status,200,'Same original payment can be confirmed after correct invoice association');
+ eq(confirmedManualPayment(await review.json(),'foreign',foreign),1000,'Repaired readback verifies original saved financial request');
+
+ // Source-of-truth receipt rows must be PAID, positive exact integer cents,
+ // and represent the expected manual principal/tip types. Previously a
+ // pending/corrupt single matching row could set confirmed=true on the API.
+ seed('uncertain-receipt','completed');
+ const suspiciousId=randomUUID(),principalId='manual-'+suspiciousId,readWrites=writes;
+ db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',1000,'pending',?)")
+   .run(principalId,'uncertain-receipt','2026-11-11');
+ review=await get('uncertain-receipt',suspiciousId);
+ eq(review.status,409,'Pending payment receipt cannot claim confirmed success');
+ eq(writes,readWrites,'Pending read-only receipt does not write');
+ db.prepare("UPDATE payments SET status='paid' WHERE id=?").run(principalId);
+ review=await get('uncertain-receipt',suspiciousId);
+ eq(review.status,200,'Proper paid source row can be read');
+ eq((await review.json()).confirmed,true,'Paid principal receipt eligible for client exact-details verification');
+ db.prepare("UPDATE payments SET type='Refund' WHERE id=?").run(principalId);
+ eq((await get('uncertain-receipt',suspiciousId)).status,409,'Refund ledger cannot masquerade as a principal receipt');
+ db.prepare("UPDATE payments SET type='Cash', amount_cents=0 WHERE id=?").run(principalId);
+ eq((await get('uncertain-receipt',suspiciousId)).status,409,'Zero-value record cannot masquerade as a paid principal');
+ db.prepare("UPDATE payments SET amount_cents=1000 WHERE id=?").run(principalId);
+ eq((await get('uncertain-receipt',suspiciousId)).status,200,'Restored positive principal can be read without creating a new payment');
+ db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',250,'paid',?)")
+   .run(principalId+'-tip','uncertain-receipt','2026-11-11');
+ eq((await get('uncertain-receipt',suspiciousId)).status,409,'Tip ID containing wrong type must not be confirmed');
+ db.prepare("UPDATE payments SET type='Tip' WHERE id=?").run(principalId+'-tip');
+ eq((await get('uncertain-receipt',suspiciousId)).status,200,'Valid separated tip receipt remains readable');
+ eq(writes,readWrites,'Every confirmation scenario performed zero hosted or local API writes');
+
  console.log(`PASS ${checks}/${checks}: scoped owner-only read confirmation, lost commit acknowledgement, exact principal/tip/fee receipts, malformed and conflicting receipt refusal, no extra financial writes and same-ID replay.`);
 }finally{db.close()}
