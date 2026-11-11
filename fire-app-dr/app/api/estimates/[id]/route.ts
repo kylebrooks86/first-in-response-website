@@ -25,6 +25,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!existing) return Response.json({ error: "Estimate not found." }, { status: 404 });
 
     const statements=[];
+    let guardedStatusIndex=-1;
     let responseFields:Record<string,unknown>={id};
     if(Array.isArray(body.items)){
       if(existing.signedAt||existing.acceptedAt||["approved","scheduled","completed","superseded"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
@@ -71,6 +72,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const changingStatus=Boolean(status)||Object.prototype.hasOwnProperty.call(body,"scheduledAt");
+    if(changingStatus&&existing.status==="superseded")
+      return Response.json({error:"This historical quote cannot be rescheduled. Open its replacement."},{status:409});
     if(changingStatus){
       const nextStatus = scheduledAt ? "scheduled" : (status || existing.status);
       const nextSchedule = Object.prototype.hasOwnProperty.call(body, "scheduledAt") ? (scheduledAt || null) : existing.scheduledAt;
@@ -88,13 +91,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       if(nextStatus==="completed"&&existing.status!=="completed"){
         if(existing.status!=="scheduled") return Response.json({error:"Schedule the job before marking it complete."},{status:409});
-        const report=await env.DB.prepare("SELECT status FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 1").bind(id).first<{status:string}>();
-        if(report?.status!=="completed")return Response.json({error:"Complete and save the service completion report before marking this job complete."},{status:409});
+        const report=await env.DB.prepare("SELECT status,(SELECT COUNT(*) FROM job_reports WHERE estimate_id=?) AS reportCount FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 1")
+          .bind(id,id).first<{status:string;reportCount:number}>();
+        if(report?.status!=="completed"||report.reportCount!==1)
+          return Response.json({error:"A job requires one saved completed service report. Duplicate or incomplete reports must be reconciled first."},{status:409});
       }
-      statements.push(env.DB.prepare("UPDATE estimates SET status=?, scheduled_at=? WHERE id=?").bind(nextStatus,nextSchedule,id));
+      // Every workflow write must be optimistic/atomic. A second device,
+      // customer approval or new payment may change eligibility after the
+      // earlier owner-facing checks but before D1 executes this UPDATE.
+      const transitionGuard=nextStatus==="scheduled"
+        ?" AND status IN ('approved','scheduled') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL"
+        :nextStatus==="completed"
+        ?" AND (status='scheduled' OR status='completed') AND (SELECT COUNT(*) FROM job_reports jr WHERE jr.estimate_id=estimates.id)=1 AND EXISTS(SELECT 1 FROM job_reports jr WHERE jr.estimate_id=estimates.id AND jr.status='completed')"
+        :nextStatus==="declined"
+        ?" AND accepted_at IS NULL AND NOT EXISTS(SELECT 1 FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid') AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id)"
+        :"";
+      guardedStatusIndex=statements.length;
+      statements.push(env.DB.prepare(`UPDATE estimates SET status=?,scheduled_at=? WHERE id=? AND status=? AND accepted_at IS ? AND signed_at IS ?
+        AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)=?
+        AND (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=estimates.id)=?${transitionGuard}`)
+        .bind(nextStatus,nextSchedule,id,existing.status,existing.acceptedAt,existing.signedAt,existing.paidCents,existing.invoiceCount));
       responseFields={...responseFields,status:nextStatus,scheduledAt:nextSchedule};
     }
-    if (body.resolveChangeRequests === true) statements.push(env.DB.prepare("UPDATE estimate_change_requests SET status='resolved' WHERE estimate_id=? AND status='open'").bind(id));
+    // A blanket update previously silently closed every pending customer
+    // revision request; each request needs an explicit owner review instead.
+    if(body.resolveChangeRequests===true)
+      return Response.json({error:"Resolve a specific customer change request from its history. No requests were changed."},{status:409,headers:{"cache-control":"private, no-store"}});
     if(changingStatus){
       const latestWorkflow=await env.DB.prepare(`SELECT status,accepted_at AS acceptedAt,signed_at AS signedAt,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;acceptedAt:string|null;signedAt:string|null;paidCents:number}>();
       if(!latestWorkflow)return Response.json({error:"Estimate not found."},{status:404});
@@ -107,7 +129,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(!latest||["approved","scheduled","completed","superseded"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
       if(!Number.isSafeInteger(Number(latest.paidCents))||Number(latest.paidCents)<0)return Response.json({error:"This estimate's payment state is outside FIRE's safe accounting range. Stop and review the job before editing the estimate."},{status:409});
     }
-    if(statements.length)await env.DB.batch(statements);
+    const writeResults=statements.length?await env.DB.batch(statements):[];
+    if(changingStatus){
+      const applied=writeResults[guardedStatusIndex];
+      if(!applied||applied.success!==true||applied.meta?.changes!==1)
+        return Response.json({error:"The job changed while updating its status. Refresh the job before trying again.",saveUncertain:true},
+          {status:409,headers:{"cache-control":"private, no-store"}});
+      const readback=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt,accepted_at AS acceptedAt,signed_at AS signedAt FROM estimates WHERE id=?")
+        .bind(id).first<{status:string;scheduledAt:string|null;acceptedAt:string|null;signedAt:string|null}>();
+      if(!readback||readback.status!==responseFields.status||readback.scheduledAt!==responseFields.scheduledAt||
+         readback.acceptedAt!==existing.acceptedAt||readback.signedAt!==existing.signedAt)
+        return Response.json({error:"The saved job status could not be verified. Reopen the job before updating again.",saveUncertain:true},
+          {status:503,headers:{"cache-control":"private, no-store"}});
+    }
     if(Array.isArray(body.items)){
       const saved=await env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,deposit_cents AS depositCents,accepted_at AS acceptedAt,signed_at AS signedAt FROM estimates WHERE id=?").bind(id)
         .first<{id:string;subtotalCents:number;discountCents:number;totalCents:number;depositCents:number;acceptedAt:string|null;signedAt:string|null}>();
