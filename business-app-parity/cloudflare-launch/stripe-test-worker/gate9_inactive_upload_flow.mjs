@@ -49,9 +49,17 @@ export async function runApprovedInactiveUpload({candidate,approval,accountId,tr
     check(Object.keys(m).sort().join(',')==='content_base64,content_type,name'&&
       /^[A-Za-z0-9_.~\/-]+$/.test(m.name)&&!m.name.includes('..')&&
       !m.name.startsWith('/')&&!names.has(m.name),'MODULE_NAME');
-    check(['application/javascript+module','application/json','text/plain','application/wasm']
+    // Cloudflare 10162: application/json is not a supported Worker module
+    // Content-Type on this API; all three exact Vinext JSON metadata files
+    // are carried as text/plain, preserving their original bytes.
+    check(['application/javascript+module','text/plain','application/wasm']
       .includes(m.content_type)&&typeof m.content_base64==='string'&&m.content_base64.length>0&&
       Buffer.from(m.content_base64,'base64').toString('base64')===m.content_base64,'MODULE_BYTES');
+    if(m.name.endsWith('.json')){
+      check(['vinext-server.json','vinext-externals.json',
+        'ssr/vinext-server.json'].includes(m.name)&&
+        m.content_type==='text/plain','UNREVIEWED_JSON_MODULE');
+    }
     names.add(m.name);
   }
   check(names.has('_headers')&&names.has(copy.versionBody.main_module),'ENTRYPOINT');
