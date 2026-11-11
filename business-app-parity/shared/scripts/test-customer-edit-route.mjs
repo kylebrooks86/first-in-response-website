@@ -72,6 +72,14 @@ result=await patch({email:'other@example.invalid'});eq(result.status,409,'Duplic
 eq((await result.json()).error.includes('email'),true,'Duplicate conflict names email');
 result=await patch({phone:'(918) 555-0101'});eq(result.status,409,'Duplicate phone blocks update');
 eq((await result.json()).error.includes('phone number'),true,'Duplicate conflict names phone');
+result=await patch({phone:'+1 (918) 555-0101'});
+eq(result.status,409,'11-digit +1 format may not duplicate another customer 10-digit phone');
+const secondOriginal=rows.get('second');
+rows.set('second',{...secondOriginal,phone:'+1 918 555 0101'});
+result=await patch({phone:'9185550101'});
+eq(result.status,409,'10-digit edit must not duplicate already saved +1-format number');
+rows.set('second',secondOriginal);
+
 eq(writes,before,'Rejected contacts have no writes');
 result=await patch({phone:'9185550134'});eq(result.status,200,'Unique contact can be saved');
 eq((await result.json()).customer.phone,'9185550134','Response returns saved exact contact');
