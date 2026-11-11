@@ -17,7 +17,7 @@ const files=walk(root).sort();
 // The new default-disabled owner-only LIVE legacy records review is deliberately
 // ABSENT from the isolated Stripe TEST Worker. Both reviewed inventories are
 // valid, but any OTHER added/removed route still fails closed.
-const legacyReviewPresent=files.some(file=>relative(root,file).replaceAll('\\\\','/')==='backup/legacy-review/route.ts');
+const legacyReviewPresent=files.some(file=>relative(root,file)===join('backup','legacy-review','route.ts'));
 assert.equal(files.length,legacyReviewPresent?70:69,
  'The reviewed FIRE route inventory changed. Re-audit any added/removed API surface before release.');
 const publicMethods=new Map([
