@@ -21,6 +21,25 @@ subprocess.run(
     [sys.executable, str(launch / "materialize-cloudflare.py"), "staging", str(destination)],
     check=True,
 )
+# Gate 7 legacy Sites review is intentionally LIVE-adapter-only. The
+# source-only owner export remains in shared/LIVE for a future independently
+# approved release, but cannot become an extra route in the pinned Stripe TEST
+# build. Remove precisely the known generated copy, not the actual source.
+# Keep the strict compiled 188-module/route contracts; do not raise limits
+# merely because the shared source grows a LIVE-only recovery endpoint.
+legacy_source = root / "shared" / "app" / "api" / "backup" / "legacy-review" / "route.ts"
+test_legacy_route = destination / "app" / "api" / "backup" / "legacy-review" / "route.ts"
+if not legacy_source.is_file() or not test_legacy_route.is_file():
+    raise SystemExit("STOP: exact Gate7 legacy-review source/copy missing")
+if (legacy_source.read_bytes() != test_legacy_route.read_bytes()
+        or b"FIRE_LEGACY_SITES_REVIEW_EXPORT" not in legacy_source.read_bytes()
+        or b"captureLegacySitesReviewReadOnly" not in legacy_source.read_bytes()):
+    raise SystemExit("STOP: generated Gate7 LIVE-only route differed from source")
+test_legacy_route.unlink()
+if test_legacy_route.exists():
+    raise SystemExit("STOP: generated TEST candidate still carries legacy LIVE-only route")
+print("PASS: Gate7 legacy owner records-review HTTP route excluded ONLY from generated Stripe TEST worker; shared/LIVE source preserved.")
+
 # Stripe TEST must never inherit LIVE's fixed deployment identity, even though
 # FIRE_ENV='cloudflare-staging' also enforces the test-mode Stripe envelope.
 shutil.copy2(
