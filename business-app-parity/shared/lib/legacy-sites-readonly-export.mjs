@@ -13,7 +13,7 @@
 export const LEGACY_REVIEW_FORMAT='fire-sites-legacy-records-review';
 export const LEGACY_REVIEW_VERSION=1;
 const META_SQL="SELECT type,name,tbl_name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name";
-const MAX_TABLES=23; // D1 Free 50 query/request ceiling: 2*23+3=49
+const MAX_TABLES=20; // conservative legacy bound: 2*20+3=43 SELECTs; leave headroom
 const MAX_ROWS=30000;
 const MAX_BYTES=8_000_000;
 const blocked=()=>{throw new Error('FIRE LEGACY READ-ONLY RECORD REVIEW BLOCKED');};
@@ -85,7 +85,7 @@ export async function captureLegacySitesReviewReadOnly(db){
     "SELECT '"+name+"' AS table_name,COUNT(*) AS count FROM "+quoted(name)
   ).join(' UNION ALL ');
   // Exactly 2 metadata reads, 1 count query and TWO complete table reads:
-  // total 3+2*table_count <=49. Compare every row's canonical contents, not
+  // total 3+2*table_count <=43. Compare every row's canonical contents, not
   // only row counts, to detect changes during the read window.
   const dataSQL=tables.map(name=>'SELECT * FROM '+quoted(name));
   const firstBatch=await db.batch([db.prepare(countsSQL),...dataSQL.map(sql=>db.prepare(sql))]);
