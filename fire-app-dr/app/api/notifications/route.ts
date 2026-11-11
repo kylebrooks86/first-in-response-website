@@ -56,11 +56,30 @@ export async function PATCH(request:Request){
           AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
             > COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
           AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
+          AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
         )`).bind(now,now,value.estimateId,value.estimateId).run();
-      if(!kept.meta.changes)return Response.json({error:"The overpayment state changed while resolving this exception. Refresh the job and verify the billing totals."},{status:409});
-      const paidCents=paidBefore;
-      const remaining=await env.DB.prepare("SELECT COUNT(*) AS count FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind(value.estimateId).first<{count:number}>();
-      return Response.json({ok:true,readAt:now,resolvedAt:now,resolutionMode:value.resolutionMode,paidCents,remainingOverpaymentCount:Number(remaining?.count??0)});
+      if((kept as {success?:boolean}).success===false||!Number.isSafeInteger(kept.meta?.changes)||kept.meta.changes<0)
+        return Response.json({error:"Overpayment decision was not confirmed. Reopen the job before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+      if(!kept.meta.changes)return Response.json({error:"A refund or billing status changed during reconciliation. Refresh the job before another attempt."},{status:409});
+      // A 200 transport ACK or changes count is not final evidence of a
+      // durable financial alert resolution. Recheck the chosen exact alert,
+      // ownership and pending refunds independently before success.
+      const [savedAlert,remaining,ownershipAfter,pendingAfter]=await env.DB.batch([
+        env.DB.prepare("SELECT read_at AS readAt,resolved_at AS resolvedAt,resolution_note AS resolutionNote FROM notifications WHERE id=? AND estimate_id=? AND type='payment_overage'").bind(alert.id,value.estimateId),
+        env.DB.prepare("SELECT COUNT(*) AS count FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind(value.estimateId),
+        env.DB.prepare("SELECT COUNT(*) AS count FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id").bind(value.estimateId),
+        env.DB.prepare("SELECT COUNT(*) AS count FROM payment_refunds WHERE estimate_id=? AND status='pending'").bind(value.estimateId),
+      ]);
+      const saved=savedAlert.results[0] as {readAt:string|null;resolvedAt:string|null;resolutionNote:string|null}|undefined;
+      const stillOpen=Number((remaining.results[0] as {count:number}|undefined)?.count);
+      const wrongOwner=Number((ownershipAfter.results[0] as {count:number}|undefined)?.count);
+      const refundPending=Number((pendingAfter.results[0] as {count:number}|undefined)?.count);
+      if(!saved?.readAt||!saved.resolvedAt||saved.resolutionNote!=='kept_overpayment'||
+         !Number.isSafeInteger(stillOpen)||stillOpen<0||
+         !Number.isSafeInteger(wrongOwner)||wrongOwner!==0||
+         !Number.isSafeInteger(refundPending)||refundPending!==0)
+        return Response.json({error:"The saved overpayment decision could not be confirmed. Reopen the job and review the refund ledger.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({ok:true,readAt:saved.readAt,resolvedAt:saved.resolvedAt,resolutionMode:value.resolutionMode,paidCents:paidBefore,remainingOverpaymentCount:stillOpen},{headers:{"Cache-Control":"no-store, private"}});
     }
     else if(value.id&&value.resolve){
       const target=await env.DB.prepare("SELECT type FROM notifications WHERE id=?").bind(value.id).first<{type:string}>();
