@@ -1,4 +1,20 @@
 export type CustomerIdentity={name:string;email:string;phone:string;address:string};
+/** Exact semantic counterpart of usableCustomerEmail/Phone in
+ * customer-contact-links.ts, kept in this already-imported estimate identity
+ * module to preserve the pinned TEST Worker module graph.
+ * Add Customer, New Estimate and customer edit must agree. */
+export function validInlineCustomerEmail(value:string):boolean{
+  const raw=value.trim();
+  return !raw||/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$/i.test(raw);
+}
+export function validInlineCustomerPhone(value:string):boolean{
+  const raw=value.trim();
+  if(!raw)return true;
+  if(!/^[+0-9().\\s-]+$/.test(raw))return false;
+  const digits=raw.replace(/\\D/g,'');
+  return digits.length===10||digits.length===11&&digits.startsWith('1');
+}
+
 const digits="replace(replace(replace(replace(replace(replace(COALESCE(phone,''),' ',''),'-',''),'(',''),')',''),'+',''),'.','')";
 export const CUSTOMER_PHONE_SQL=`(CASE WHEN length(${digits})=11 AND substr(${digits},1,1)='1' THEN substr(${digits},2) ELSE ${digits} END)`;
 export function customerIdentityPredicate(input:CustomerIdentity){
