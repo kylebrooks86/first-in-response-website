@@ -35,7 +35,11 @@ const MIME=Object.freeze({
   '.js':'application/javascript+module',
   '.mjs':'application/javascript+module',
   '.cjs':'application/javascript+module',
-  '.json':'application/json',
+  // Cloudflare Worker module error 10162 rejects application/json as a
+  // module Content-Type; these three Vinext files are BUILD metadata, not
+  // JSON-import modules. Upload their unchanged bytes as text modules.
+  // Do not add arbitrary JSON files or alter the JS/CSS module bytes.
+  '.json':'text/plain',
   '.css':'text/plain',
   '.wasm':'application/wasm'
 });
@@ -71,6 +75,15 @@ function modulesFromCompiledServer(folder){
       check(Object.hasOwn(MIME,ext)||(['_headers','_redirects'].includes(rel) && ext===''),'MIME');
       const buf=readFileSync(full);
       check(buf.length===st.size && buf.length>0 && buf.length<80_000_000,'FILE_BYTES');
+      if(ext==='.json'){
+        // Only allow the known generated Vinext metadata. These names have
+        // no static JS import in the exact compiled full-app candidate;
+        // future runtime JSON module imports need a separate reviewed path.
+        check(['vinext-server.json','vinext-externals.json',
+          'ssr/vinext-server.json'].includes(rel),'UNREVIEWED_JSON_MODULE');
+        try{JSON.parse(buf.toString('utf8'));}
+        catch{check(false,'INVALID_JSON_METADATA');}
+      }
       const name=rel.replace(/^\.\//,'');
       check(/^[A-Za-z0-9_.~\/-]+$/.test(name) && !name.includes('..') &&
         !name.startsWith('/') && !name.includes('//'),'NAME');
@@ -192,6 +205,15 @@ export function validateOfflineVersionEnvelope(request) {
   check(bytes<200_000_000,'MODULE_TOTAL_BYTES');
   check(/^\d{4}-\d{2}-\d{2}$/.test(b.compatibility_date) &&
     b.compatibility_flags.includes('nodejs_compat'),'COMPAT');
+  for(const module of b.modules){
+    if(extname(module.name).toLowerCase()==='.json'){
+      check(['vinext-server.json','vinext-externals.json',
+        'ssr/vinext-server.json'].includes(module.name),
+        'UNREVIEWED_JSON_MODULE');
+      try{JSON.parse(Buffer.from(module.content_base64,'base64').toString('utf8'));}
+      catch{check(false,'INVALID_JSON_METADATA');}
+    }
+  }
   check(seen.has('_headers'),'SPECIAL_HEADERS_REQUIRED');
   return {validated:true,deploy:false,uploaded:false,versionCreated:false,
     moduleCount:b.modules.length,moduleBytes:bytes,gate9Accepted:false};
