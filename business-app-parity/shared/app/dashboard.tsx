@@ -18,7 +18,7 @@ import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateR
 import {completeEstimatePages} from "@/lib/estimate-pagination";
 import {estimatePaymentMilestone} from "../lib/estimate-payment-milestones.mjs";
 import {estimateAttentionMilestones} from "../lib/estimate-attention-milestones.mjs";
-import {jobNumberLabel} from "../lib/job-numbering.mjs";
+import {jobNumberLabel,matchesJobNumberQuery} from "../lib/job-numbering.mjs";
 import {customerNumberLabel,completedCustomerJobHistory,matchesCustomerNumberQuery} from "../lib/customer-numbering.mjs";
 import {hasCollectibleJobValue,summarizeCustomerBalances} from "@/lib/customer-balance-summary";
 
@@ -4027,7 +4027,8 @@ function ScheduleView({ searchQuery,onNavigate,onOpenCustomer }:{searchQuery:str
     finally{if(request===loadRequest.current)setLoading(false);}
   };
   useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
-  const matches=(row:EstimateRow)=>[row.customer,row.service,row.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase());
+  const matches=(row:EstimateRow)=>matchesJobNumberQuery(row.jobNumber,searchQuery)||
+    [row.customer,row.service,row.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase());
   const now=useCurrentTime();
   // Advisory only: a shared start minute is worth reviewing, but without
   // duration/crew data it does not prove the two jobs actually overlap.
@@ -4233,7 +4234,8 @@ function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:s
   },[focusInvoiceId,loading,error,rows,invoiceSearch,attentionOnly,invoiceLimit]);
   const visible=rows.filter(row=>
     (!attentionOnly||needsInvoiceAttention(row))&&
-    [searchQuery,invoiceSearch].every(term=>[row.customer,row.service,row.status].join(" ").toLowerCase().includes(term.trim().toLowerCase()))
+    [searchQuery,invoiceSearch].every(term=>matchesJobNumberQuery(row.jobNumber,term)||
+      [row.customer,row.service,row.status].join(" ").toLowerCase().includes(term.trim().toLowerCase()))
   );
   return <div className="workspace-view invoices-view"><section className="workspace-head"><div><h1>Invoices</h1></div></section>
     {!loading&&!error&&rows.length>0&&<div className="invoice-directory-tools">
@@ -4278,7 +4280,8 @@ function ContractsView({searchQuery,embedded=false}:{searchQuery:string;embedded
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Agreements could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
-  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);const agreementRows=rows.filter(row=>Boolean(row.signedAt||row.acceptedAt||Number(row.pendingChangeCount)>0||["sent","viewed","approved","scheduled","completed"].includes(row.status)));const visible=agreementRows.filter((row)=>[row.customer,row.service,row.signedName].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));const signed=agreementRows.filter((row)=>row.signedAt).length;
+  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);const agreementRows=rows.filter(row=>Boolean(row.signedAt||row.acceptedAt||Number(row.pendingChangeCount)>0||["sent","viewed","approved","scheduled","completed"].includes(row.status)));const visible=agreementRows.filter((row)=>matchesJobNumberQuery(row.jobNumber,searchQuery)||
+    [row.customer,row.service,row.signedName].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));const signed=agreementRows.filter((row)=>row.signedAt).length;
   return <div className={embedded?"agreements-embedded":"workspace-view"}><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={()=>{setSelected(null);void load();}}/>{!embedded&&<section className="workspace-head"><div><h1>Agreements</h1></div></section>}{!loading&&!error&&<details className="agreement-status-details"><summary>{signed} signed · {agreementRows.filter(row=>!row.signedAt).length} unsigned · Show details</summary><section className="business-metrics"><article><small>Signed agreements</small><strong>{signed}</strong></article><article><small>Unsigned records</small><strong>{agreementRows.filter(row=>!row.signedAt).length}</strong></article><article><small>Change requests</small><strong>{agreementRows.reduce((sum,row)=>sum+Number(row.pendingChangeCount??0),0)}</strong></article></section></details>}{loading?<div className="customers-state">Loading agreements…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<section className="contract-list">{visible.map((estimate)=><button key={estimate.id} onClick={()=>setSelected(estimate)}><span className={`contract-state ${estimate.signedAt?"signed":Number(estimate.pendingChangeCount)>0?"change":"pending"}`}>{estimate.signedAt?<PenLine/>:Number(estimate.pendingChangeCount)>0?<MessageSquareText/>:<Clock3/>}</span><span><strong>{estimate.customer}</strong>{customerNumberLabel(estimate.customerNumber)&&<small>{customerNumberLabel(estimate.customerNumber)}</small>}<small>{estimate.service} · {money(estimate.totalCents)}</small></span><AgreementStatusIndicators estimate={estimate}/><ChevronRight/></button>)}</section>:<div className="customers-state"><PenLine/><strong>{agreementRows.length?"No matching agreements":"No agreements yet"}</strong><p>{agreementRows.length?"Try another customer, service, or signer.":"Send an estimate for approval. Signed and pending agreements appear here."}</p></div>}</div>;
 }
 
@@ -4824,7 +4827,8 @@ function PaymentsView({searchQuery,onOpenCustomerReview,onOpenEstimate}:{searchQ
   const preparedReviewVisible=matchingReviewCloseouts.filter(item=>item.state==="prepared").length;
   const unpreparedReviewVisible=matchingReviewCloseouts.length-preparedReviewVisible;
   const open=estimates.filter((item)=>hasCollectibleJobValue(item)&&remainingBalance(item)>0&&[item.customer,item.service,item.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
-  const matchingOpen=open.filter(item=>[item.customer,item.service,item.status,item.address].join(" ").toLowerCase().includes(balanceSearch.trim().toLowerCase()));
+  const matchingOpen=open.filter(item=>matchesJobNumberQuery(item.jobNumber,balanceSearch)||
+    [item.customer,item.service,item.status,item.address].join(" ").toLowerCase().includes(balanceSearch.trim().toLowerCase()));
   const visibleOpen=matchingOpen.slice(0,balanceLimit);
   const receivedPayments=payments.filter((item)=>item.status==="paid");
   const balanceSummary=summarizeCustomerBalances(estimates);const collected=receivedPayments.filter(item=>!["Tip","Tip Refund"].includes(item.type)).reduce((sum,item)=>sum+item.amountCents,0);const netTips=receivedPayments.filter((item)=>item.type==="Tip"||item.type==="Tip Refund").reduce((sum,item)=>sum+item.amountCents,0);const outstanding=balanceSummary.collectibleCents;
