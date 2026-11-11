@@ -255,7 +255,6 @@
     } else {
       Write-Host 'No Access PUT was attempted, or a verified post-update success was already shown.'
     }
-  }
   } finally {
     if ($null -ne $plain) {[Array]::Clear($plain,0,$plain.Length)}
     if ($null -ne $beforeBytes) {[Array]::Clear($beforeBytes,0,$beforeBytes.Length)}
