@@ -48,6 +48,26 @@ export function jobNumberLabel(value) {
     ? 'Job #' + String(number).padStart(4,'0') : null;
 }
 
+/** Owner-side lookup contract. Require an explicit Job prefix or at least
+ * four digits, so searching for a street number "7" does NOT silently match
+ * Job #0007. Never use this parser to authorize a customer-visible lookup.
+ * Feature-off callers must not search experimental tables.
+ */
+export function parseJobNumberQuery(input) {
+  if(typeof input!=='string')return null;
+  const text=input.trim().toLowerCase();
+  if(!text||text.length>128)return null;
+  const explicit=/^(?:job\\s*#?\\s*|#)0*([1-9]\\d{0,14})$/.exec(text);
+  const padded=/^0+[1-9]\\d{0,14}$/.test(text)?/^0*([1-9]\\d{0,14})$/.exec(text):null;
+  const raw=explicit?.[1]??(text.length>=4?padded?.[1]:null);
+  if(!raw)return null;
+  const number=Number(raw);
+  return Number.isSafeInteger(number)&&number>0?number:null;
+}
+export function matchesJobNumberQuery(value,query) {
+  return Boolean(jobNumberLabel(value))&&parseJobNumberQuery(query)===Number(value);
+}
+
 /** Call ONLY in the same atomic batch that persists a first estimate. */
 export function newJobStatements(db, estimateId, createdAt) {
   if (typeof estimateId !== 'string' || !/^[0-9a-f-]{36}$/i.test(estimateId) ||
