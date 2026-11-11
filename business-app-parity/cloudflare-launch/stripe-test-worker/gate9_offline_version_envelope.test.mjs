@@ -14,7 +14,7 @@ const fake=()=>({
     compatibility_date:'2026-11-09',
     compatibility_flags:['nodejs_compat','global_fetch_strictly_public'],
     bindings:proposedInactivePlan().bindings,
-    assets:{jwt:SYNTHETIC_ASSET_JWT,config:{run_worker_first:true}},
+    assets:{jwt:SYNTHETIC_ASSET_JWT,config:{run_worker_first:['/api/*']}},
     modules:[
       {name:'index.js',content_type:'application/javascript+module',
        content_base64:Buffer.from('export default {fetch() {return new Response("synthetic")}}').toString('base64')},
@@ -58,6 +58,9 @@ test('rejects any real-looking token, JWT substitution, bypass-worker-first, rem
     v=>{v.body.assets.jwt='eyJfake.jwt';},
     v=>{v.body.assets.jwt='sensitive-token';},
     v=>{v.body.assets.config.run_worker_first=false;},
+    v=>{v.body.assets.config.run_worker_first=true;},
+    v=>{v.body.assets.config.run_worker_first=['/*'];},
+    v=>{v.body.assets.config.run_worker_first=['/api/*','/_next/*'];},
     v=>{delete v.body.assets;},
     v=>{v.body.assets.config.not_found_handling='single-page-application';}
   ])assert.throws(()=>validateOfflineVersionEnvelope(flip(change)));
