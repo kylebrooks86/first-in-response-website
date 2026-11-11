@@ -73,6 +73,7 @@ export async function GET(request?:Request) {
       `),
       env.DB.prepare(`SELECT id,customer_id AS customerId,body,created_at AS createdAt FROM customer_notes ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
+        NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch,
         COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=invoices.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
         (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=invoices.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
         (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=invoices.estimate_id AND r.status='pending') AS pendingRefundCount${customerPropertiesEnabled(env)?",(SELECT pl.property_id FROM estimate_property_links pl WHERE pl.estimate_id=invoices.estimate_id AND pl.customer_id=invoices.customer_id) AS propertyId":""} FROM invoices ORDER BY created_at DESC`),
@@ -82,6 +83,11 @@ export async function GET(request?:Request) {
       CASE WHEN p.amount_cents>0 THEN MAX(0,p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)) ELSE 0 END AS refundableCents, CASE WHEN p.type IN ('deposit','balance','Tip') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment FROM payments p JOIN estimates e ON e.id=p.estimate_id WHERE p.status='paid' ORDER BY p.created_at DESC`),
       env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items ORDER BY rowid ASC`),
     ]);
+    // Customer profiles must not silently place another homeowner's invoice
+    // into a record. Owner review is safer than an apparently payable balance.
+    if(invoices.results.some(row=>Number((row as Record<string,unknown>).invoiceOwnershipMismatch)!==0))
+      return Response.json({error:"An invoice is linked to a different customer than its estimate. Reconcile invoice ownership before using customer billing."},
+        {status:409,headers:{"Cache-Control":"no-store, private"}});
     const grouped=new Map<string,Record<string,unknown>[]>();
     for(const raw of estimateItems.results as Record<string,unknown>[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const key=String(raw.estimateId);grouped.set(key,[...(grouped.get(key)??[]),row]);}
     const customerNumbers=new Map((customers.results as Record<string,unknown>[]).map(row=>[String(row.id),row.customerNumber??null]));
@@ -91,7 +97,7 @@ export async function GET(request?:Request) {
     const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
     const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimates.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
     const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.id))??null,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
-    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: (invoices.results as Record<string,unknown>[]).map(row=>({...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null})), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
+    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: (invoices.results as Record<string,unknown>[]).map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return {...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null};}), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503 });
   }
