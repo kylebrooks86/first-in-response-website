@@ -5,6 +5,13 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
 assert.equal(readFileSync(new URL('../app/api/customer-photos/[id]/route.ts',import.meta.url),'utf8'),readFileSync(new URL('./fixtures/photo-integrity/business-app-parity/shared/app/api/customer-photos/[id]/route.ts.txt',import.meta.url),'utf8'),'Current shared route must match the tested patched source');
+// DR and shared routes differ only in owner-auth import/function. Both
+// must match the exact regression-tested source in the GitHub checkout.
+if(process.env.GITHUB_WORKSPACE){
+ const dr=readFileSync(process.env.GITHUB_WORKSPACE+'/fire-app-dr/app/api/customer-photos/[id]/route.ts','utf8');
+ assert.equal(dr,readFileSync(new URL('./fixtures/photo-integrity/fire-app-dr/app/api/customer-photos/[id]/route.ts.txt',import.meta.url),'utf8'),
+   'DR route must match the tested patched source');
+}
 let total=0;
 function pass(name,predicate){assert.equal(Boolean(predicate),true,name);total++;console.log('PASS',name);}
 const root=new URL('./fixtures/photo-integrity/',import.meta.url);
@@ -63,7 +70,7 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
 for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]','fire-app-dr/app/api/customer-photos/[id]']){
  for (const patched of [false,true]){
   const file=`${prefix}/route.${patched?'ts':'original.ts'}`;
-  if(patched&&prefix.startsWith('business-app-parity/shared/')){
+  if(patched){
     const getCase=harness(file);
     const photo=await getCase.GET();
     pass('current shared GET serves original synthetic bytes without changing records',photo.status===200&&(await photo.text())==='original-png-bytes'&&getCase.rows.size===1&&getCase.objects.size===1&&getCase.events.join(',')==='db-select,bucket-get');
@@ -90,9 +97,8 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
   pass(`${file} postcommit failure does not claim success`,patched?res.status===503:threw);
   pass(`${file} postcommit failure ${patched?'preserves backup bytes':'deletes original bytes'}`,t.objects.size===(patched?1:0));
   t=harness(file);res=await t.DELETE();
-  const sharedPatched=patched&&prefix.startsWith('business-app-parity/shared/');
-  const expectedOrder=sharedPatched?'db-select,db-delete,db-readback,bucket-delete,bucket-head':
-    patched?'db-select,db-delete,bucket-delete':'db-select,bucket-delete,db-delete';
+  const expectedOrder=patched?'db-select,db-delete,db-readback,bucket-delete,bucket-head':
+    'db-select,bucket-delete,db-delete';
   pass(`${file} operation order preserves metadata-first, independently verified cleanup`,
     t.events.join(',')===expectedOrder);
   t=harness(file,'success',false);res=await t.DELETE();pass(`${file} unauthorized leaves records and bytes`,res.status===401&&t.rows.size===1&&t.objects.size===1&&t.events.length===0);
@@ -106,7 +112,7 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
        res.status===503&&payload.deleteUncertain===true&&t.objects.size===1&&t.rows.size===1&&t.events.join(',')==='db-select,db-delete');
    }
    t=harness(file,'bucket-error');res=await t.DELETE();const body=await res.json();pass(`${file} R2 cleanup error explicitly reported`,res.status===503&&body.cleanupUncertain===true&&t.objects.size===1&&t.rows.size===0);
-   if(sharedPatched){
+   if(patched){
      // Metadata and object bytes are independent stores; an ACK cannot
      // authorize R2 deletion until a fresh read proves no references remain.
      for(const mode of ['db-false-ack','readback-error','shared-key']){
