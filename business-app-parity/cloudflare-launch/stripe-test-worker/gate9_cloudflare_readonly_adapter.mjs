@@ -121,13 +121,29 @@ export function predecessorFromApi(payload){
  * requested body. Sort by name (order is not semantically significant), then
  * compute a local digest for an independent source-provenance comparison.
  */
+// Cloudflare's beta Worker Version GET may encode the compatibility date as
+// UTC midnight RFC3339 (as in the public API examples), while a Wrangler
+// build specifies the same date as YYYY-MM-DD. Normalize ONLY equivalent
+// date-only or exact UTC-midnight values; reject times/zones/date overflow.
+// The coordinator still compares the result to the exact approved date.
+export function normalizeWorkerCompatibilityDate(value){
+  check(typeof value==='string','COMPATIBILITY_DATE');
+  const match=/^(\d{4}-\d{2}-\d{2})(?:T00:00:00(?:\.000)?Z)?$/.exec(value);
+  check(Boolean(match),'COMPATIBILITY_DATE');
+  const date=match[1];
+  const timestamp=new Date(date+'T00:00:00Z');
+  check(!Number.isNaN(timestamp.getTime())&&
+    timestamp.toISOString().slice(0,10)===date,'COMPATIBILITY_DATE');
+  return date;
+}
+
 export function createdVersionFromApi(payload,expectedId){
   check(UUID.test(expectedId)&&expectedId!==PREDECESSOR,'VERSION_ID_ARG');
   const v=unwrap(payload);
   check(v.id===expectedId,'NEW_VERSION_ID');
   check(typeof v.main_module==='string'&&v.main_module.length>0&&
-    /^\d{4}-\d{2}-\d{2}$/.test(v.compatibility_date)&&
     Array.isArray(v.compatibility_flags),'VERSION_FIELDS');
+  const compatibilityDate=normalizeWorkerCompatibilityDate(v.compatibility_date);
   check(v.assets&&typeof v.assets==='object'&&
     v.assets.config?.run_worker_first===true,'ASSET_CONFIGURATION');
   check(Array.isArray(v.modules)&&v.modules.length>0&&v.modules.length<5000,
@@ -154,7 +170,7 @@ export function createdVersionFromApi(payload,expectedId){
   return {
     id:v.id,
     main_module:v.main_module,
-    compatibility_date:v.compatibility_date,
+    compatibility_date:compatibilityDate,
     compatibility_flags:[...v.compatibility_flags],
     bindings,
     assets:{config:{run_worker_first:true}},
