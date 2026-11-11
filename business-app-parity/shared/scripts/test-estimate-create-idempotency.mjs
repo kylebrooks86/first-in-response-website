@@ -2,6 +2,7 @@
  * Every request ID binds permanently to one quote and its precise financial receipt.
  */
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 
 let checks=0;
@@ -16,6 +17,19 @@ const quote={requestId:uuid(1),customer:'Synthetic safe replay',email:'safe-repl
 const count=table=>Number(db.prepare('SELECT COUNT(*) AS count FROM '+table).get().count);
 const financialSnapshot=()=>JSON.stringify(['customers','estimates','estimate_items','message_templates','invoices','payments'].map(name=>db.prepare('SELECT * FROM '+name+' ORDER BY rowid').all()));
 try{
+ // The real New Estimate modal must refuse invalid NEW contact details
+ // before reserving its single idempotency key; legacy selected contacts
+ // are not silently overwritten or screened out.
+ const dashboard=readFileSync('app/dashboard.tsx','utf8');
+ const start=dashboard.indexOf('const saveEstimate = async () => {');
+ const end=dashboard.indexOf('const requestId=createRequestRef.current??crypto.randomUUID();',start);
+ const preflight=dashboard.slice(start,end);
+ eq(start>=0&&end>start,true,'New Estimate save handler and ID reservation found');
+ eq(preflight.includes("if(customerMode==='new'&&!selectedCustomer)"),true,'Client validates only inline new customers');
+ eq(preflight.includes("email.trim()&&!usableCustomerEmail(email)"),true,'Inline customer email is checked before save ID');
+ eq(preflight.includes("phone.trim()&&!usableCustomerPhone(phone)"),true,'Inline customer phone is checked before save ID');
+ eq(preflight.includes('setStep(1);setError("Enter a valid customer email address'),true,'Bad email stays on contact step');
+ eq(preflight.includes('setStep(1);setError("Enter a valid 10-digit U.S. customer phone'),true,'Bad phone stays on contact step');
  const first=await post(quote);
  eq(first.status,201,'First UUID quote creates one estimate');
  eq(first.body.id,quote.requestId,'Persisted ID matches reusable owner operation UUID');
