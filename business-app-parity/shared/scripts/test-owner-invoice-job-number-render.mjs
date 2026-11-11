@@ -100,4 +100,20 @@ for(const [functionName,heading] of [
   check(!negative.includes('Job #0042'),functionName+' negative control proves missing label is caught');
 }
 
+// Owner payment history must reuse the SAME saved estimate Job #, rather
+// than derive a second identity from a payment receipt/Stripe session ID.
+const paymentsView=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='PaymentsView');
+check(Boolean(paymentsView),'Owner Payment History view exists');
+const paymentText=paymentsView.getText(ast);
+check(paymentText.includes('const paymentJobNumbers=new Map(estimates.map(job=>[job.id,job.jobNumber] as const))'),
+ 'Payment history indexes already verified estimate links and does not allocate a number');
+check(paymentText.includes('jobNumberLabel(paymentJobNumbers.get(payment.estimateId))'),
+ 'Payment entries visibly reference the same immutable saved job identity');
+check(!paymentText.includes('INSERT INTO fire_job_numbers')&&!paymentText.includes('newJobStatements('),
+ 'Reading payment history never creates or resets any numbered job');
+check(jobNumberLabel(new Map([['synthetic-job',42]]).get('synthetic-job'))==='Job #0042',
+ 'Payment history renders the standard permanent Job # format');
+check(jobNumberLabel(new Map().get('missing-job'))===null,
+ 'Missing or feature-disabled job numbering does not fabricate a payment number');
+
 console.log('PASS '+checks+' actual owner invoice JSX rendering checks; synthetic only, numbering remains disabled.');
