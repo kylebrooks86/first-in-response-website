@@ -77,11 +77,19 @@ export async function POST(request: Request) {
       return Response.json({ error: "Choose a job and enter a valid payment or tip amount." }, { status: 400 });
     }
     const estimate = await env.DB.prepare(`
-      SELECT e.id,e.total_cents AS estimateTotalCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.status,
+      SELECT e.id,e.total_cents AS estimateTotalCents,
+        COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
+        (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
+        e.deposit_cents AS depositCents,e.status,
         COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e WHERE e.id=?
-    `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;depositCents:number;status:string;paidCents:number}>();
+    `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;invoiceOwnershipMismatch:number;depositCents:number;status:string;paidCents:number}>();
     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
+    // Never let another customer's invoice authorize charges or be marked paid.
+    // Apply before same-request replay, not only on fresh payments.
+    if(Number(estimate.invoiceOwnershipMismatch)!==0)return Response.json({
+      error:"Invoice ownership differs from this customer. Reconcile before recording or replaying this payment."
+    },{status:409,headers:{"cache-control":"no-store, private"}});
     if (principalId && tipId) {
       const existing = await env.DB.prepare(`SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,
         provider_id AS reference,processing_fee_cents AS processingFeeCents,gross_received_cents AS grossReceivedCents,
@@ -125,8 +133,8 @@ export async function POST(request: Request) {
             WHEN ?>=total_cents THEN 'paid'
             WHEN ?>0 THEN 'partial'
             WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
-            ELSE 'draft' END WHERE estimate_id=?`)
-            .bind(alreadyPaid,alreadyPaid,estimateId).run();
+            ELSE 'draft' END WHERE estimate_id=? AND customer_id=(SELECT customer_id FROM estimates WHERE id=?)`)
+            .bind(alreadyPaid,alreadyPaid,estimateId,estimateId).run();
         }
         return Response.json({duplicate:true,payment:principal??null,tip:recordedTip??null,
           paidCents:alreadyPaid,balanceCents:Math.max(0,limit-alreadyPaid)},{status:200});
@@ -170,7 +178,7 @@ export async function POST(request: Request) {
         WHERE ? <= (
           SELECT MAX(0,
             CASE
-              WHEN e.status='completed' THEN COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
+              WHEN e.status='completed' THEN COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
               WHEN e.status IN ('approved','scheduled') THEN e.deposit_cents
               ELSE 0
             END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
@@ -179,7 +187,9 @@ export async function POST(request: Request) {
         )
         AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
         AND NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')
-      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents, estimateId);
+        AND NOT EXISTS (SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+          WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)
+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents, estimateId, estimateId);
 
       if(tipCents>0){
         const recordedTipId=tipId??crypto.randomUUID();
@@ -210,8 +220,11 @@ export async function POST(request: Request) {
       const results=await env.DB.batch([
         env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method)
           SELECT ?,?,'Tip',?,'paid',?,?,?,?,?,?
-          WHERE NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')`)
-          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method,estimateId),
+          WHERE NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')
+          AND EXISTS (SELECT 1 FROM estimates e WHERE e.id=? AND e.status='completed')
+          AND NOT EXISTS (SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+            WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)`)
+          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method,estimateId,estimateId,estimateId),
         env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
           SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?
           AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND type='Tip' AND status='paid')`)
@@ -222,11 +235,16 @@ export async function POST(request: Request) {
 
     const refreshed = await env.DB.prepare(`
       SELECT e.status,
-        COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
+        COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
+        (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
         e.deposit_cents AS depositCents,
         COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e WHERE e.id=?
-    `).bind(estimateId).first<{status:string;totalCents:number;depositCents:number;paidCents:number}>();
+    `).bind(estimateId).first<{status:string;totalCents:number;invoiceOwnershipMismatch:number;depositCents:number;paidCents:number}>();
+    if(!refreshed||Number(refreshed.invoiceOwnershipMismatch)!==0)return Response.json({
+      error:"Payment may have been recorded, but invoice ownership changed during confirmation. Review Payment History before retrying.",
+      saveUncertain:true
+    },{status:409,headers:{"cache-control":"no-store, private"}});
     const nextPaid = Number(refreshed?.paidCents ?? (paidCents + amountCents));
     const refreshedDueLimit = refreshed?.status === "completed"
       ? Number(refreshed.totalCents)
@@ -239,8 +257,8 @@ export async function POST(request: Request) {
         WHEN ?>=total_cents THEN 'paid'
         WHEN ?>0 THEN 'partial'
         WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
-        ELSE 'draft' END WHERE estimate_id=?`)
-        .bind(nextPaid,nextPaid,estimateId).run();
+        ELSE 'draft' END WHERE estimate_id=? AND customer_id=(SELECT customer_id FROM estimates WHERE id=?)`)
+        .bind(nextPaid,nextPaid,estimateId,estimateId).run();
     }
     return Response.json({ payment, tip, accounting, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
   } catch {
