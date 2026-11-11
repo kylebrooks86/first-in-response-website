@@ -39,8 +39,8 @@ results=[{id:'older-uuid',customerId:'customer-a',createdAt:'2025-02-01',invoice
 r=await call('?estimateId=older-uuid');
 eq(r.status,409,'Mismatched customer invoice cannot enter a follow-up quote');
 eq(r.data.error.includes('invoice'),true,'Owner is directed to reconcile the incorrect invoice');
-eq(queries.filter(q=>q.sql.includes('FROM estimate_items')).length,1,
- 'Bad invoice fails before loading additional service data');
+eq(queries.filter(q=>q.sql.trim().startsWith('SELECT id,estimate_id AS estimateId,name,description')).length,1,
+ 'Bad invoice fails before an additional service-line load');
 results=[];r=await call('?estimateId=gone-uuid');
 eq(r.status,200,'Missing record is not a server error');eq(r.data.estimates.length,0,'Missing record never fabricates a customer');
 results=[{id:'recent',createdAt:'2026-10-21',customerId:'customer-b',invoiceOwnershipMismatch:0}];r=await call();
