@@ -180,7 +180,7 @@ test('disposable memory restore refuses identity high-water and schema truncatio
 });
 
 test('historical original LIVE 0000–0018 migrations are genuinely capturable without invented refund journal',async()=>{
- const files=readdirSync('../adapters/live/drizzle').filter(n=>/^\\d{4}_[\\w-]+\\.sql$/.test(n))
+ const files=readdirSync('../adapters/live/drizzle').filter(n=>/^\d{4}_[\w-]+\.sql$/.test(n))
   .filter(n=>Number(n.slice(0,4))<=18).sort();
  assert.equal(files.length,19,'Pinned original LIVE migration range must remain recognizable');
  const db=new DatabaseSync(':memory:');
