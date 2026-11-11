@@ -195,6 +195,11 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-checkout-atomic-reservation.mjs
+      - name: Gate 7 bounded customer photo upload and recovery integrity (raster MIME, no remote storage)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-photo-upload-integrity.mjs
+          node --experimental-sqlite scripts/test-photo-upload-sqlite-commit.mjs
       - name: Gate 5 actual notification overpayment refund/keep, cross-customer alert and SQL-time ownership races (synthetic SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
