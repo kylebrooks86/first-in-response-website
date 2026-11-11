@@ -4,6 +4,7 @@
  * No hosted database, real account, messages, financial writes or provider.
  */
 import assert from 'node:assert/strict';
+import {resolve} from 'node:path';
 import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 
 const rt=stackedRuntime();
@@ -107,7 +108,7 @@ try{
 
  // Exercise the ACTUAL disaster-recovery route against the same disposable
  // SQLite store, not an approximation of its SQL. No hosted DR touched.
- const dr=rt.load('../../fire-app-dr/app/api/notifications/route.ts');
+ const dr=rt.load(resolve(process.env.GITHUB_WORKSPACE??resolve(process.cwd(),'../..'),'fire-app-dr/app/api/notifications/route.ts'));
  const drRead=async()=>{const r=await dr.GET();return {status:r.status,data:await r.json(),headers:r.headers};};
  const drPatch=async body=>{const r=await dr.PATCH(new Request('https://synthetic.invalid/api/notifications',{
    method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
