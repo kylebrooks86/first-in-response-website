@@ -101,8 +101,9 @@ try{
    'Failed storage update never returns false success or clears unread');
  rt.env.DB.prepare=originalPrepare;
  const recovered=await read();
- check(recovered.status===200&&recovered.data.unread===2,
-   'After an interrupted update, the real GET still reports remaining pending notifications');
+ const remainingUnread=rows().filter(row=>row.read_at===null).length;
+ check(recovered.status===200&&remainingUnread===3&&recovered.data.unread===remainingUnread,
+   'After an interrupted update, the real GET still reports every pending notification');
 
  // Exercise the ACTUAL disaster-recovery route against the same disposable
  // SQLite store, not an approximation of its SQL. No hosted DR touched.
