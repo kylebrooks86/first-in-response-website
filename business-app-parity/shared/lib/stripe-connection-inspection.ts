@@ -34,6 +34,19 @@ export async function inspectStripeConnection(config:StripeInspectionConfig,read
   // Duplicated destinations are ambiguous, even if one is healthy. Do not
   // silently choose a destination or send a verification/replay event.
   if(matches.length!==1)return {...blocked(matches.length?'webhook_destination_ambiguous':'webhook_destination_missing'),accountVerified:true};
+  // Stripe can deliver each subscribed event to EVERY enabled sandbox endpoint.
+  // A second destination for these FIRE money events could POST to a legacy
+  // LIVE-hosted app even when this isolated TEST destination is healthy.
+  // Refuse to claim connectionReady until the duplicate delivery path is
+  // explicitly isolated. Read-only check: no endpoint is changed or contacted.
+  if(config.sandbox){
+    const otherDelivery=FIRE_STRIPE_REQUIRED_EVENTS;
+    const overlap=endpoints.data.some(other=>other&&other.url!==expectedWebhook&&
+      other.status==='enabled'&&other.livemode===false&&
+      Array.isArray(other.enabled_events)&&
+      other.enabled_events.some(event=>event==='*'||otherDelivery.some(required=>required===event)));
+    if(overlap)return {...blocked('overlapping_test_webhook_destination'),accountVerified:true};
+  }
   const endpoint=matches[0];
   if(endpoint.livemode!==!config.sandbox||endpoint.status!=='enabled')return {...blocked('webhook_mode_or_status_mismatch'),accountVerified:true};
   const events=endpoint.enabled_events;

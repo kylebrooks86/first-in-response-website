@@ -11,7 +11,7 @@ const adapterSource=readFileSync(root+'/app/local-customer-deployment.ts','utf8'
 const adapterMatch=adapterSource.match(/\bexport\s+const\s+LOCAL_CUSTOMER_DEPLOYMENT\s*=\s*(['"])(live|staging|doomsday|qa)\1/);
 assert.ok(adapterMatch,'Expected explicit fixed FIRE deployment adapter for this offline route test');
 const deploymentMode=adapterMatch[2];
-const state={env:{FIRE_ENV:'staging',FIRE_STRIPE_MODE:'test',STRIPE_WEBHOOK_SECRET:'synthetic-boundary-secret',DB:{}},checkoutCalls:0,refundCalls:0,failureCalls:0};
+const state={env:{FIRE_ENV:'staging',SITE_ORIGIN:'https://synthetic.invalid',FIRE_STRIPE_MODE:'test',STRIPE_WEBHOOK_SECRET:'synthetic-boundary-secret',DB:{}},checkoutCalls:0,refundCalls:0,failureCalls:0};
 globalThis.__boundary=state;
 let source=readFileSync(root+'/app/api/payments/webhook/route.ts','utf8').replace(/^import .*?;\n/gm,'');
 source='const LOCAL_CUSTOMER_DEPLOYMENT='+JSON.stringify(deploymentMode)+'; const env=globalThis.__boundary.env; const reconcileStripeCheckout=async()=>{globalThis.__boundary.checkoutCalls++;return {ok:true};}; const recordRefundUpdate=async()=>{globalThis.__boundary.refundCalls++;return {ok:true};}; const recordStripeCheckoutFailure=async()=>{globalThis.__boundary.failureCalls++;return {recorded:true};};\n'+source;
@@ -26,6 +26,25 @@ assert.equal((await request(body,header(body,now+600))).status,400);
 assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,400);
 assert.equal((await request(body+' ',header(body))).status,400);
 assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
+const goodSigned=header(body);
+const unexpectedHost=await route.POST(new Request('https://other-host.invalid/api/payments/webhook',
+ {method:'POST',headers:{'stripe-signature':goodSigned},body}));
+assert.equal(unexpectedHost.status,404,'HMAC-valid TEST event on wrong host must fail closed');
+assert.equal(unexpectedHost.headers.get('cache-control'),'no-store');
+assert.equal((await route.POST(new Request('https://synthetic.invalid/api/payments/webhook?debug=1',
+ {method:'POST',headers:{'stripe-signature':goodSigned},body}))).status,404,
+ 'TEST endpoint forbids additional query parameters');
+assert.equal((await route.POST(new Request('http://synthetic.invalid/api/payments/webhook',
+ {method:'POST',headers:{'stripe-signature':goodSigned},body}))).status,404,
+ 'TEST webhook requires HTTPS');
+assert.equal((await route.POST(new Request('https://synthetic.invalid/api/payments/checkout',
+ {method:'POST',headers:{'stripe-signature':goodSigned},body}))).status,404,
+ 'TEST webhook rejects a non-webhook API path even when signed');
+state.env.SITE_ORIGIN=undefined;
+assert.equal((await request(body)).status,404,'Missing pinned TEST origin rejects before ledgers');
+state.env.SITE_ORIGIN='https://synthetic.invalid';
+assert.equal(state.checkoutCalls+state.refundCalls+state.failureCalls,0,
+ 'Invalid origins cause no payment or refund reconciliation');
 // Existing isolated TEST Worker is disabled; no signed payload may be
 // acknowledged or reconciled without explicit test-mode activation.
 state.env.FIRE_STRIPE_MODE='disabled';
