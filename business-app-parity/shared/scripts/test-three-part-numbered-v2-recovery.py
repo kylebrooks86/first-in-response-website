@@ -86,6 +86,10 @@ class ThreePartRecovery(unittest.TestCase):
         self.assertEqual(report["cloudRetainedUnreferencedObjectCount"], 1)
         self.assertEqual(report["declaredDevicePhotos"], 1)
         self.assertEqual(report["devicePhotoBytesValidated"], len(DEVICE_PAYLOAD))
+        self.assertEqual(report["disposableDevicePhotosRestored"], 1)
+        self.assertEqual(report["disposableDevicePhotoBytesRestored"], len(DEVICE_PAYLOAD))
+        self.assertFalse(report["persistentDevicePhotoStoreTouched"])
+        self.assertFalse(report["restoredDevicePhotosIntoIndexedDb"])
         self.assertFalse(report["onDeviceCurrentInventoryVerified"])
         self.assertFalse(report["ownerHeldOriginalCustodyVerified"])
         self.assertFalse(report["allThreeCapturedAtSameInstantVerified"])
@@ -103,6 +107,44 @@ class ThreePartRecovery(unittest.TestCase):
             report["threePartFingerprintSha256"], hashlib.sha256(canonical).hexdigest()
         )
         self.assertFalse(report["threePartFingerprintCryptographicallySigned"])
+
+    def test_disposable_device_store_contains_exact_verified_payload_and_association(self):
+        write_device_zip(self.device)
+        before = self.device.read_bytes()
+        store = {}
+        receipt = triple.stage_validated_device_photos_in_disposable_memory(
+            self.device, {legacy.CID}, store)
+        self.assertEqual(set(store), {DEVICE_ID})
+        self.assertEqual(store[DEVICE_ID]["body"], DEVICE_PAYLOAD)
+        self.assertEqual(store[DEVICE_ID]["customerId"], legacy.CID)
+        self.assertEqual(store[DEVICE_ID]["contentType"], "image/png")
+        self.assertEqual(store[DEVICE_ID]["category"], "after")
+        self.assertEqual(receipt["disposableDevicePhotosRestored"], 1)
+        self.assertFalse(receipt["restoredDevicePhotosIntoIndexedDb"])
+        self.assertEqual(self.device.read_bytes(), before)
+
+    def test_disposable_restore_fails_closed_on_nonempty_or_non_plain_target(self):
+        write_device_zip(self.device)
+        for target in ({"existing": {"body": b"unchanged"}}, [], None):
+            original = copy.deepcopy(target)
+            with self.assertRaises(Exception):
+                triple.stage_validated_device_photos_in_disposable_memory(
+                    self.device, {legacy.CID}, target)
+            self.assertEqual(target, original)
+
+    def test_corrupt_second_device_photo_never_partially_populates_target(self):
+        good = dict(id=DEVICE_ID, customerId=legacy.CID, category="before",
+                    caption="Synthetic", filename="good.png", contentType="image/png",
+                    sizeBytes=len(DEVICE_PAYLOAD), createdAt="2026-11-04T16:00:00Z",
+                    sha256=hashlib.sha256(DEVICE_PAYLOAD).hexdigest())
+        bad = dict(good, id="local-device-photo-002",
+                   sha256="0" * 64)
+        write_device_zip(self.device, photos=[good,bad])
+        store = {}
+        with self.assertRaises(Exception):
+            triple.stage_validated_device_photos_in_disposable_memory(
+                self.device, {legacy.CID}, store)
+        self.assertEqual(store, {}, "all-or-nothing disposable recovery")
 
     def test_changed_device_bytes_change_exact_three_part_fingerprint(self):
         write_device_zip(self.device)
