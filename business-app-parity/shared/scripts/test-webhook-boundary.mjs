@@ -27,6 +27,31 @@ assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,40
 assert.equal((await request(body+' ',header(body))).status,400);
 assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
 const goodSigned=header(body);
+const validLengthResponse=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{
+   'stripe-signature':header(body),
+   'content-length':String(Buffer.byteLength(body,'utf8'))
+ },body
+}));
+assert.equal(validLengthResponse.status,200,
+ 'Legitimate Stripe webhook with numeric Content-Length must be accepted');
+assert.equal((await validLengthResponse.json()).received,true,
+ 'Valid signed callback with Content-Length must be acknowledged');
+assert.equal(state.checkoutCalls+state.refundCalls+state.failureCalls,0,
+ 'Unrecognized signed event must not touch financial records');
+const paddedLengthResponse=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{
+   'stripe-signature':header(body),
+   'content-length':'000'+String(Buffer.byteLength(body,'utf8'))
+ },body
+}));
+assert.equal(paddedLengthResponse.status,200,
+ 'Syntactically valid numeric Content-Length with leading zeros is allowed');
+const badLengthResponse=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{'stripe-signature':header(body),'content-length':'12abc'},body
+}));
+assert.equal(badLengthResponse.status,413,
+ 'Non-numeric Content-Length must remain denied before financial logic');
 // A future narrow public Cloudflare Access webhook exception must not allow
 // oversized unauthenticated traffic to consume unlimited Worker memory, or
 // malformed UTF-8 to reach payment reconciliation.
