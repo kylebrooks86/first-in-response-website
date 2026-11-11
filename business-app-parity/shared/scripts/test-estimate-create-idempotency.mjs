@@ -80,6 +80,28 @@ try{
  for(const requestId of invalid){eq((await post({...quote,requestId})).status,400,'Invalid operation UUID is rejected before writes');eq(financialSnapshot(),before,'Invalid operation leaves persisted financial state intact');}
  eq((await post({...quote,requestId:uuid(2),customer:'New customer',email:'other@example.invalid',items:[]})).status,400,'Missing service list safely rejected');
  eq(count('estimates'),1,'Malformed new attempt never adds an estimate');
+ // New Estimate has its own inline-customer INSERT path and must not bypass
+ // the Add Customer contact rules. Reject before ANY customer or quote write;
+ // an older saved customer with an imperfect contact remains selectable.
+ const contactBefore=financialSnapshot(),contactWrites=runtime.counters().writes;
+ for(const [index,fields] of [
+  {email:'missing-at-sign.example.invalid',phone:'9185550222'},
+  {email:'invalid@example',phone:'9185550222'},
+  {email:'new-good@example.invalid',phone:'(918) 123'},
+  {email:'',phone:'text-me-later'},
+  {email:'new-good@example.invalid',phone:'+44 20 7946 0958'}
+ ].entries()){
+   const rejected=await post({...quote,
+     requestId:uuid(300+index),customer:'Invalid Inline '+index,
+     email:fields.email,phone:fields.phone,address:'New Synthetic Property '+index
+   });
+   eq(rejected.status,400,'New Estimate inline new customer rejects invalid phone/email');
+   eq(rejected.body.error.includes('No customer or estimate created.'),true,
+     'Inline contact error explains no record created');
+   eq(financialSnapshot(),contactBefore,'Inline contact rejection leaves every customer and financial row unchanged');
+   eq(runtime.counters().writes,contactWrites,'Inline validation rejects before any D1 write');
+ }
+
  // Current catalog eligibility can change after a successful quote: replay is NOT a new quote.
  db.prepare("DELETE FROM message_templates WHERE key='fire:saved-promotions:v1'").run();
  replay=await post(quote);
