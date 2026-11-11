@@ -58,7 +58,7 @@ export async function GET(request:Request){
           AND (?='' OR c.name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\' OR ${serviceAddressSql(serviceLocationsEnabled(env))} LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=e.id AND ei.name LIKE ? ESCAPE '\\')${jobSearch})
           AND (? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
-      `).bind(focus,focus,status,status,search,pattern,pattern,pattern,pattern,pattern,...(requestedNumber!==null?[requestedNumber]:[]),cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1).all<{id:string;createdAt:string}>();
+      `).bind(focus,focus,status,status,search,pattern,pattern,pattern,pattern,pattern,...(requestedNumber!==null?[requestedNumber]:[]),cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1).all<{id:string;createdAt:string;invoiceOwnershipMismatch:number}>();
   // A foreign invoice must never be represented as the selected customer's
   // payable bill, even in owner-only search/history and deep-link results.
   if(result.results.some(row=>Number((row as Record<string,unknown>).invoiceOwnershipMismatch)!==0))
