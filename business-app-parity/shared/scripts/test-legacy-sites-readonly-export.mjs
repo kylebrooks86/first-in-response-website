@@ -59,6 +59,8 @@ test('legacy 18-table physical SQLite source exports all present rows, missing r
   assert.equal(snapshot.sourceD1UuidVerified,false);
   assert.equal(snapshot.repeatReadRowsMatch,true);
   assert.equal(snapshot.schemaObjects.some(item=>item.name==='first_customer_owner_idx'),true);
+  assert.match(snapshot.recordsSelfCheckSHA256,/^[0-9a-f]{64}$/);
+  assert.equal(snapshot.recordsSelfCheckIsProviderAttestation,false);
   assert.equal(snapshot.sourceTables.length,18);
   assert.equal(snapshot.rowCounts.customers,1);
   assert.equal(snapshot.tables.payments[0].cents,2000);
@@ -164,9 +166,9 @@ test('disposable memory restore refuses identity high-water and schema truncatio
  try{
   const source=await captureLegacySitesReviewReadOnly(adapt(db));
   const lostIndex={...source,schemaObjects:source.schemaObjects.filter(x=>x.type!=='index')};
-  // No claim that full source indexing was restored unless schema inventory
-  // is authenticated; this legacy review is not a digitally signed backup.
-  assert.equal(rehearseLegacySitesReviewToDisposableMemory(lostIndex).recreatedTables,18);
+  // Missing a declared SQL index must be caught by the local self-check.
+  // This checksum catches accidental changes; it is NOT a provider signature.
+  assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(lostIndex),/BLOCKED/);
   const changed={...source,sourceTables:source.sourceTables.slice(1)};
   assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(changed),/BLOCKED/);
   const autoincrement={...source,schemaObjects:source.schemaObjects.map(x=>
