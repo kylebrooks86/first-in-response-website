@@ -145,7 +145,9 @@ export function createdVersionFromApi(payload,expectedId){
     Array.isArray(v.compatibility_flags),'VERSION_FIELDS');
   const compatibilityDate=normalizeWorkerCompatibilityDate(v.compatibility_date);
   check(v.assets&&typeof v.assets==='object'&&
-    v.assets.config?.run_worker_first===true,'ASSET_CONFIGURATION');
+    Array.isArray(v.assets.config?.run_worker_first)&&
+    v.assets.config.run_worker_first.length===1&&
+    v.assets.config.run_worker_first[0]==='/api/*','ASSET_CONFIGURATION');
   check(Array.isArray(v.modules)&&v.modules.length>0&&v.modules.length<5000,
     'INDEPENDENT_MODULE_READBACK_REQUIRED');
   const seen=new Set(),modules=[];
@@ -173,7 +175,7 @@ export function createdVersionFromApi(payload,expectedId){
     compatibility_date:compatibilityDate,
     compatibility_flags:[...v.compatibility_flags],
     bindings,
-    assets:{config:{run_worker_first:true}},
+    assets:{config:{run_worker_first:['/api/*']}},
     moduleDigest:sha(modules)
   };
 }
