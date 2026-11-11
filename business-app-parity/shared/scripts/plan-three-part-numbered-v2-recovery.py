@@ -173,6 +173,58 @@ def validate_device_photo_zip(filename, known_customers):
         }
 
 
+def stage_validated_device_photos_in_disposable_memory(filename, known_customers, target):
+    """Read back ALL validated device-only bytes into an empty ephemeral dict.
+
+    A rehearsal only: no IndexedDB, filesystem extraction, D1/R2, backups,
+    remote API, provider data, or persistent destination is ever mutated.
+    The archive's exact SHA is fixed across the validation/staging sequence;
+    fail before touching the caller's dictionary on any missing/corrupt photo.
+    """
+    ensure(type(target) is dict and not target, "empty plain in-memory photo store required")
+    filename = Path(filename)
+    def source_hash():
+        with filename.open("rb") as source:
+            return hashlib.file_digest(source, "sha256").hexdigest()
+
+    before = source_hash()
+    validated = validate_device_photo_zip(filename, known_customers)
+    staged = {}
+    total_bytes = 0
+    with zipfile.ZipFile(filename, "r") as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        for photo in manifest["photos"]:
+            photo_id = photo["id"]
+            ensure(photo_id not in staged, "duplicate local photo in disposable restore")
+            payload = archive.read("photos/" + photo_id)
+            ensure(len(payload) == photo["sizeBytes"] and
+                   hashlib.sha256(payload).hexdigest() == photo["sha256"],
+                   "changed device photo byte stream after validation")
+            total_bytes += len(payload)
+            ensure(total_bytes <= 160 * 1024 * 1024,
+                   "disposable device photo restore memory bound exceeded")
+            staged[photo_id] = {
+                "body": bytes(payload),
+                "customerId": photo["customerId"],
+                "contentType": photo["contentType"],
+                "category": photo["category"],
+            }
+    ensure(len(staged) == validated["declaredDevicePhotos"] and
+           total_bytes == validated["devicePhotoBytesValidated"],
+           "disposable device photo restore differs from validated manifest")
+    ensure(source_hash() == before, "device photo archive changed during validation")
+    ensure(not target, "disposable destination became occupied")
+    target.update(staged)
+    return {
+        **validated,
+        "disposableDevicePhotosRestored": len(staged),
+        "disposableDevicePhotoBytesRestored": total_bytes,
+        "disposableDeviceStoreInitiallyEmpty": True,
+        "restoredDevicePhotosIntoIndexedDb": False,
+        "persistentDevicePhotoStoreTouched": False,
+    }
+
+
 def plan_three_part(records_path, cloud_photo_path, device_photo_path):
     """Validate exact private snapshots before returning only sanitized counts."""
     with tempfile.TemporaryDirectory(prefix="fire-private-three-part-") as folder:
@@ -200,7 +252,11 @@ def plan_three_part(records_path, cloud_photo_path, device_photo_path):
         customers = tables["customers"]
         known = {row["id"] for row in customers}
         ensure(len(known) == len(customers), "duplicate numbered customer identity")
-        local = validate_device_photo_zip(private / "device.zip", known)
+        disposable_device_store = {}
+        local = stage_validated_device_photos_in_disposable_memory(
+            private / "device.zip", known, disposable_device_store)
+        ensure(len(disposable_device_store) == local["declaredDevicePhotos"],
+               "disposable device photo byte coverage mismatch")
         for key, _, dst, _ in sources:
             current = dst.read_bytes()
             ensure(
@@ -236,7 +292,7 @@ def plan_three_part(records_path, cloud_photo_path, device_photo_path):
             "actualD1AndR2RestoreTested": False,
             "restoredDevicePhotosIntoIndexedDb": False,
             "gate7Accepted": False,
-            "releaseGatesAccepted": 3,
+            "releaseGatesAccepted": 4,
             "hostedWritesPerformed": False,
             "remoteProviderAccessed": False,
         }
