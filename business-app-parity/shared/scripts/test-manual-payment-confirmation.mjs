@@ -6,9 +6,15 @@ import {randomUUID} from 'node:crypto';
 import {confirmedManualPayment} from '../lib/manual-payment-retry-state.ts';
 import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
-let writes=0,failRead=false,failAfterCommit=false,owner={email:'kylebrooks8605@gmail.com'};
-function statement(sql){return {sql,values:[],bind(...values){return {...this,values}},async first(){return db.prepare(sql).get(...this.values)??null},async all(){return {results:db.prepare(sql).all(...this.values)}},async run(){writes++;const changes=Number(db.prepare(sql).run(...this.values).changes);if(failAfterCommit&&sql.trim().startsWith('INSERT INTO payments')){failAfterCommit=false;throw Error('Synthetic lost acknowledgement after insert')}return {meta:{changes}}}};}
-const env={DB:{prepare:statement,async batch(rows){if(failRead&&rows.every(r=>/^SELECT/.test(r.sql)))throw Error('Synthetic offline confirmation');db.exec('BEGIN');try{const result=rows.map(r=>/^SELECT/.test(r.sql)?{results:db.prepare(r.sql).all(...r.values)}:(writes++,{meta:{changes:Number(db.prepare(r.sql).run(...r.values).changes)}}));db.exec('COMMIT');if(failAfterCommit){failAfterCommit=false;throw Error('Synthetic lost acknowledgement after commit')}return result}catch(error){if(db.isTransaction)db.exec('ROLLBACK');throw error}}}};
+let writes=0,failRead=false,failAfterCommit=false,beforePaymentInsert=null,owner={email:'kylebrooks8605@gmail.com'};
+function statement(sql){return {sql,values:[],bind(...values){return {...this,values}},async first(){return db.prepare(sql).get(...this.values)??null},async all(){return {results:db.prepare(sql).all(...this.values)}},async run(){writes++;if(sql.trim().startsWith('INSERT INTO payments')&&beforePaymentInsert){
+ const mutation=beforePaymentInsert;beforePaymentInsert=null;mutation();
+}const changes=Number(db.prepare(sql).run(...this.values).changes);if(failAfterCommit&&sql.trim().startsWith('INSERT INTO payments')){failAfterCommit=false;throw Error('Synthetic lost acknowledgement after insert')}return {meta:{changes}}}};}
+const env={DB:{prepare:statement,async batch(rows){if(failRead&&rows.every(r=>/^SELECT/.test(r.sql)))throw Error('Synthetic offline confirmation');
+if(beforePaymentInsert&&rows.some(r=>r.sql.trim().startsWith('INSERT INTO payments'))){
+ const mutation=beforePaymentInsert;beforePaymentInsert=null;mutation();
+}
+db.exec('BEGIN');try{const result=rows.map(r=>/^SELECT/.test(r.sql)?{results:db.prepare(r.sql).all(...r.values)}:(writes++,{meta:{changes:Number(db.prepare(r.sql).run(...r.values).changes)}}));db.exec('COMMIT');if(failAfterCommit){failAfterCommit=false;throw Error('Synthetic lost acknowledgement after commit')}return result}catch(error){if(db.isTransaction)db.exec('ROLLBACK');throw error}}}};
 const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),pay=load('app/api/payments/route.ts'),confirm=load('app/api/payments/confirmation/route.ts');
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
 const get=(id,requestId)=>confirm.GET(new Request('https://synthetic.invalid/api/payments/confirmation?'+new URLSearchParams({estimateId:id,requestId})));
@@ -54,6 +60,62 @@ try{
  const optionalTip={...attempt,requestId:randomUUID(),amountCents:1000};delete optionalTip.tipCents;
  eq((await post('b',optionalTip)).status,201);
  eq(db.prepare("SELECT amount_cents AS amount FROM payments WHERE id=?").get('manual-'+optionalTip.requestId).amount,1000);
+
+ // Checkout already isolates customer/invoice ownership. The manual Cash,
+ // Venmo and tip paths must refuse the SAME cross-customer invoice corruption.
+ const invoice=(id,customerId,total=20000)=>db.prepare(
+   "INSERT INTO invoices(id,estimate_id,customer_id,total_cents,status,created_at) VALUES (?,?,?,?,'sent',?)"
+ ).run('invoice-'+id,id,customerId,total,'2026-10-18');
+ const paymentsFor=id=>Number(db.prepare('SELECT COUNT(*) AS n FROM payments WHERE estimate_id=?').get(id).n);
+ seed('foreign','completed');invoice('foreign','c-a',90000);
+ const foreign={...attempt,requestId:randomUUID(),amountCents:1000};
+ const beforeWrongWrites=writes;
+ let denied=await post('foreign',foreign);
+ eq(denied.status,409);
+ eq((await denied.json()).error.includes('Invoice ownership'),true);
+ eq(paymentsFor('foreign'),0);
+ eq(db.prepare("SELECT status FROM invoices WHERE id='invoice-foreign'").get().status,'sent');
+ eq(writes,beforeWrongWrites);
+ // Owner fixes the wrong association; the legitimate invoice amount and job
+ // owner can then be used. Never modify/approve the other homeowner's invoice.
+ db.prepare("UPDATE invoices SET customer_id='c-foreign',total_cents=20000 WHERE id='invoice-foreign'").run();
+ eq((await post('foreign',foreign)).status,201);
+ eq(paymentsFor('foreign'),1);
+ eq(db.prepare("SELECT status FROM invoices WHERE id='invoice-foreign'").get().status,'partial');
+ db.prepare("UPDATE invoices SET customer_id='c-a' WHERE id='invoice-foreign'").run();
+ const earlier=writes;
+ eq((await post('foreign',foreign)).status,409); // same requestId must NOT repair foreign invoice
+ eq(paymentsFor('foreign'),1);
+ eq(writes,earlier);
+ db.prepare("UPDATE invoices SET customer_id='c-foreign' WHERE id='invoice-foreign'").run();
+ eq((await post('foreign',foreign)).status,200);
+ eq(paymentsFor('foreign'),1);
+
+ // Simulate a different connection modifying invoice ownership *after* the
+ // route has read and validated the job, but BEFORE its atomic INSERT.
+ seed('race','completed');invoice('race','c-race');
+ beforePaymentInsert=()=>db.prepare("UPDATE invoices SET customer_id='c-a' WHERE id='invoice-race'").run();
+ const race={...attempt,requestId:randomUUID(),amountCents:1500};
+ eq((await post('race',race)).status,409);
+ eq(paymentsFor('race'),0);
+ db.prepare("UPDATE invoices SET customer_id='c-race' WHERE id='invoice-race'").run();
+ eq((await post('race',race)).status,201);
+ eq(paymentsFor('race'),1);
+
+ // Same SQL-time guard covers tip-only records, and a job that becomes
+ // unfinished between the first read and its tip INSERT.
+ seed('tipRace','completed');invoice('tipRace','c-tipRace');
+ const justTip={...attempt,requestId:randomUUID(),amountCents:0,tipCents:500,method:'Venmo'};
+ beforePaymentInsert=()=>db.prepare("UPDATE invoices SET customer_id='c-a' WHERE id='invoice-tipRace'").run();
+ eq((await post('tipRace',justTip)).status,409);
+ eq(paymentsFor('tipRace'),0);
+ db.prepare("UPDATE invoices SET customer_id='c-tipRace' WHERE id='invoice-tipRace'").run();
+ beforePaymentInsert=()=>db.prepare("UPDATE estimates SET status='approved' WHERE id='tipRace'").run();
+ eq((await post('tipRace',justTip)).status,409);
+ eq(paymentsFor('tipRace'),0);
+ db.prepare("UPDATE estimates SET status='completed' WHERE id='tipRace'").run();
+ eq((await post('tipRace',justTip)).status,201);
+ eq(paymentsFor('tipRace'),1);
 
  console.log(`PASS ${checks}/${checks}: scoped owner-only read confirmation, lost commit acknowledgement, exact principal/tip/fee receipts, malformed and conflicting receipt refusal, no extra financial writes and same-ID replay.`);
 }finally{db.close()}
