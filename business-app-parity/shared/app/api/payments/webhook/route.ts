@@ -24,7 +24,7 @@ const MAX_STRIPE_SIGNATURE_LENGTH=1_024;
 
 async function readStripeWebhookBodyBounded(request:Request):Promise<string|null>{
   const claimed=request.headers.get('content-length');
-  if(claimed!==null&&(!/^\\d{1,9}$/.test(claimed)||
+  if(claimed!==null&&(!/^\d{1,9}$/.test(claimed)||
      Number(claimed)>MAX_STRIPE_WEBHOOK_BYTES))return null;
   if(!request.body)return '';
   const reader=request.body.getReader();
