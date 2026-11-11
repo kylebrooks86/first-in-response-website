@@ -10,7 +10,7 @@ function load(route,deployment,fireEnv,key){
  const file=new URL('../app/api/payments/'+route+'/route.ts',import.meta.url);
  const source=readFileSync(file,'utf8').replace(/^import .*?;\n/gm,'');
  const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const calls={db:0,network:0,reconciled:0,refunds:0,failures:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',FIRE_STRIPE_MODE:'test',
+ const calls={db:0,network:0,reconciled:0,refunds:0,failures:0},env={FIRE_ENV:fireEnv,SITE_ORIGIN:'https://synthetic.invalid',STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',FIRE_STRIPE_MODE:'test',
   DB:{prepare(){calls.db++;return {bind(){return {async first(){return {id:'synthetic-payment',estimateId:'job-1',type:'deposit',status:'paid',amountCents:5000,providerId:'cs_fake',customerId:'customer-1'};}}}};}}};
  const exports={};
  const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordStripeCheckoutFailure','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady',code);
@@ -87,6 +87,20 @@ stagingSigned.env.FIRE_STRIPE_MODE='disabled';
 eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,data:{object:{id:'cs_test_synthetic',payment_status:'paid'}}})).status,503,
  'Disabled staging webhook rejects correctly signed TEST checkout');
 eq(stagingSigned.calls.reconciled,0,'Disabled staging webhook must not reconcile');
+stagingSigned.env.FIRE_STRIPE_MODE='test';
+// Signed sandbox requests on an unexpected Host / version preview cannot
+// dispatch to the D1 ledger even after TEST mode is deliberately enabled.
+const wrongHostEvent={type:'checkout.session.completed',livemode:false,
+ data:{object:{id:'cs_test_wronghost123',livemode:false,payment_status:'paid'}}};
+const wrongHostBody=JSON.stringify(wrongHostEvent),wrongHostTimestamp=Math.floor(Date.now()/1000);
+const wrongHostSignature=createHmac('sha256','whsec_synthetic-only').update(
+  wrongHostTimestamp+'.'+wrongHostBody).digest('hex');
+const wrongHostResponse=await stagingSigned.POST(new Request(
+ 'https://version123-fire-stripe-test-20261101.kyle-bfc.workers.dev/api/payments/webhook',
+ {method:'POST',headers:{'stripe-signature':`t=${wrongHostTimestamp},v1=${wrongHostSignature}`},
+ body:wrongHostBody}));
+eq(wrongHostResponse.status,404,'Signed TEST webhook on unpinned version host fails closed');
+eq(stagingSigned.calls.reconciled,0,'Wrong TEST hostname cannot reconcile into bound D1');
 stagingSigned.env.FIRE_STRIPE_MODE='test';
 eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,
   data:{object:{id:'cs_test_correct123',livemode:false,payment_status:'paid'}}})).status,200,
