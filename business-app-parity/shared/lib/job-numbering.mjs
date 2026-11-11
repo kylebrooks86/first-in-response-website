@@ -57,8 +57,8 @@ export function parseJobNumberQuery(input) {
   if(typeof input!=='string')return null;
   const text=input.trim().toLowerCase();
   if(!text||text.length>128)return null;
-  const explicit=/^(?:job\\s*#?\\s*|#)0*([1-9]\\d{0,14})$/.exec(text);
-  const padded=/^0+[1-9]\\d{0,14}$/.test(text)?/^0*([1-9]\\d{0,14})$/.exec(text):null;
+  const explicit=/^(?:job\s*#?\s*|#)0*([1-9]\d{0,14})$/.exec(text);
+  const padded=/^0+[1-9]\d{0,14}$/.test(text)?/^0*([1-9]\d{0,14})$/.exec(text):null;
   const raw=explicit?.[1]??(text.length>=4?padded?.[1]:null);
   if(!raw)return null;
   const number=Number(raw);
