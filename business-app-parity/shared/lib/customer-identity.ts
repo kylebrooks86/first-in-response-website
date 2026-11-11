@@ -5,13 +5,13 @@ export type CustomerIdentity={name:string;email:string;phone:string;address:stri
  * Add Customer, New Estimate and customer edit must agree. */
 export function validInlineCustomerEmail(value:string):boolean{
   const raw=value.trim();
-  return !raw||/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$/i.test(raw);
+  return !raw||/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(raw);
 }
 export function validInlineCustomerPhone(value:string):boolean{
   const raw=value.trim();
   if(!raw)return true;
-  if(!/^[+0-9().\\s-]+$/.test(raw))return false;
-  const digits=raw.replace(/\\D/g,'');
+  if(!/^[+0-9().\s-]+$/.test(raw))return false;
+  const digits=raw.replace(/\D/g,'');
   return digits.length===10||digits.length===11&&digits.startsWith('1');
 }
 
