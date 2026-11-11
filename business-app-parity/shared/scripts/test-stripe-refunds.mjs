@@ -126,6 +126,25 @@ for(const index of providerIndexes)sql.exec(index.sql);
 const linked=fixture(5000,0);sql.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,provider_refund_id,created_at) VALUES ('wrong-job',?,?,1000,'stripe','succeeded','re_wrong_job','now')").run('p-'+linked,id);
 assert.equal((await refunds.finalizeRefund(DB,'wrong-job','re_wrong_job')).ok,false);
 sql.prepare("DELETE FROM payment_refunds WHERE id='wrong-job'").run();
+// New Stripe refund attempts require the job's original customer invoice
+// association to be correct. A wrong-homeowner invoice must not send even a
+// sandbox refund or create a pending reservation, while an owner-correct
+// repair can subsequently use the SAME original request ID safely.
+const preflightRefund=fixture(6000,0),unrelatedOwner=fixture(4000,0);
+sql.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(unrelatedOwner,preflightRefund);
+const stripePostsBeforeWrongOwner=posts;
+const stoppedNewRefund=await refund('p-'+preflightRefund,'new-owner-drift',1000);
+assert.equal(stoppedNewRefund.status,409,
+  'Foreign-customer invoice must stop a fresh Stripe refund before provider POST');
+assert.equal(posts,stripePostsBeforeWrongOwner,'No external Stripe POST on wrong-customer invoice');
+assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM payment_refunds WHERE id='new-owner-drift'").get().n,0,
+  'No new pending refund reservation on mismatched invoice');
+assert.equal(principal(preflightRefund),6000,'Wrong-owner new refund cannot alter paid principal');
+sql.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(preflightRefund,preflightRefund);
+assert.equal((await refund('p-'+preflightRefund,'new-owner-drift',1000)).status,200,
+  'Repaired original invoice can initiate the same refund request ID safely');
+assert.equal(principal(preflightRefund),5000,'Valid owner-correct new refund is recorded exactly once');
+
 // A Stripe refund can SUCCEED before the app notices that its invoice
 // moved to another homeowner. Preserve the real refund's payment ledger,
 // never adjust that foreign invoice, and do not close an overage warning
