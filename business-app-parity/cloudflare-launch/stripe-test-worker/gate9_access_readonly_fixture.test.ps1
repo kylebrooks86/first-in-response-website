@@ -8,6 +8,12 @@ foreach($file in @($preflight,$mutator)) {
     $file,[ref]$tokens,[ref]$parseErrors
   ) | Out-Null
   if (@($parseErrors).Count -ne 0) {
+    foreach($issue in @($parseErrors)) {
+      Write-Output ("PARSE STOP "+([IO.Path]::GetFileName($file))+
+        " line "+$issue.Extent.StartLineNumber+
+        " column "+$issue.Extent.StartColumnNumber+
+        " reason "+$issue.Message)
+    }
     throw "STOP: PowerShell parser rejected one of the Gate9 Access scripts"
   }
 }
