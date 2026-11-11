@@ -3,7 +3,7 @@ import { recordRefundUpdate, type StripeRefund } from "../../../../lib/stripe-re
 import { reconcileStripeCheckout, recordStripeCheckoutFailure, type StripeCheckoutSession } from "../../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
 
-type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_RESTRICTED_KEY?:string; STRIPE_SECRET_KEY?:string; FIRE_ENV?:string; FIRE_STRIPE_MODE?:string };
+type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_RESTRICTED_KEY?:string; STRIPE_SECRET_KEY?:string; FIRE_ENV?:string; FIRE_STRIPE_MODE?:string; SITE_ORIGIN?:string };
 
 type StripeEvent = {
   livemode?:boolean;
@@ -61,6 +61,24 @@ export async function POST(request:Request) {
   // until owner-approved TEST-only activation explicitly sets "test".
   // Never impose this staging control on the actual LIVE deployment.
   const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  // Access can exempt the precise Stripe webhook path, but must never bypass
+  // owner login for the rest of this Worker. An HMAC-valid TEST event delivered
+  // through another hostname (including a version URL) is not an approved
+  // payment destination. Runtime SITE_ORIGIN must match the canonical HTTPS
+  // Stripe endpoint. Fail before parsing, D1 reads or reconciliation.
+  if(sandboxTarget){
+    let canonical:URL|undefined,received:URL|undefined;
+    try{canonical=new URL(runtime.SITE_ORIGIN||'');received=new URL(request.url);}
+    catch{}
+    if(!canonical||!received||canonical.protocol!=='https:'||
+       canonical.username!==''||canonical.password!==''||
+       canonical.pathname!=='/'||canonical.search!==''||canonical.hash!==''||
+       received.protocol!=='https:'||received.origin!==canonical.origin||
+       received.pathname!=='/api/payments/webhook'||
+       received.search!==''||received.hash!=='')
+      return Response.json({error:'Isolated TEST webhook origin mismatch.'},
+        {status:404,headers:{'cache-control':'no-store'}});
+  }
   if(sandboxTarget && runtime.FIRE_STRIPE_MODE !== "test")
     return Response.json({error:"Isolated Stripe TEST processing is disabled."},{status:503,headers:{"cache-control":"no-store"}});
 
