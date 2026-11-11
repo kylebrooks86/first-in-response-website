@@ -3,7 +3,7 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {CUSTOMER_PHONE_SQL} from '../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
-import {attachedJobNumbers,jobNumberLabel} from '../../../lib/job-numbering.mjs';
+import {attachedJobNumbers,jobNumberLabel,jobNumberingReady,parseJobNumberQuery} from '../../../lib/job-numbering.mjs';
 const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
 const scopes=['all','customers','estimates','invoices','jobs','payments','notes','properties'];
 export async function GET(request:Request){
@@ -73,11 +73,12 @@ export async function GET(request:Request){
       ORDER BY rank,p.active DESC,p.address COLLATE NOCASE,p.id LIMIT 9`,[q,q,...values,q,q,q]);
     // Only read migrated Job # links on explicitly enabled environments.
     if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'){
-      const links=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fire_job_estimate_links'").first();
-      if(links){
-        const match=/^(?:job\s*#?\s*|#)0*([1-9]\d{0,14})$/i.exec(q);
-        const jobNumber=match?Number(match[1]):null;
-        if(jobNumber&&Number.isSafeInteger(jobNumber)){
+      // A partially applied historical backfill must not assign a homeowner
+      // someone else's number in global search or any invoice result.
+      await jobNumberingReady(env.DB,env);
+      {
+        const jobNumber=parseJobNumberQuery(q);
+        if(jobNumber!==null){
           if(scope==='all'||scope==='jobs')await collect('job',`SELECT e.id,c.name AS title,c.id AS customerId,e.status,e.scheduled_at AS scheduledAt,${address} AS address,
             COALESCE((SELECT GROUP_CONCAT(name,', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,0 AS rank
             FROM fire_job_estimate_links links JOIN estimates e ON e.id=links.estimate_id JOIN customers c ON c.id=e.customer_id
