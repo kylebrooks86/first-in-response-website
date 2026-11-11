@@ -412,6 +412,11 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          # Actual POST/PATCH route + disposable SQLite customer regression:
+          # creation rejects unusable contacts; edit rejects +1/10-digit duplicates.
+          # No D1 provider, cloud customer records, SMS or customer messages.
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node --experimental-sqlite scripts/test-customer-edit-route.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
