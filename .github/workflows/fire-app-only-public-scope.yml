@@ -16,6 +16,7 @@ on:
       - '.github/workflows/fire-qa-v25-private-backup-offline.yml'
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
       - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
+      - '.github/workflows/fire-gate7-legacy-sites-offline-export.yml'
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
       - 'ci/test-site-verifier-scope.mjs'
@@ -65,13 +66,14 @@ jobs:
               exit 1
             fi
           done
-          # Four exact PR173 verifier blobs and two reviewed Gate9 CI workflow blobs are pinned exceptions.
+          # Four exact PR173 verifier blobs and THREE reviewed Gate7/Gate9 CI workflow blobs are pinned exceptions.
           # Real public pages, assets, calculator and unrelated paths remain protected.
           reviewed_paths=(
             verify-site.mjs verify-site-ci.mjs ci/test-site-verifier-scope.mjs
             .github/workflows/verify-site.yml
             .github/workflows/fire-gate9-fullapp-offline-build.yml
             .github/workflows/fire-gate9-readonly-version-inventory.yml
+            .github/workflows/fire-gate7-legacy-sites-offline-export.yml
           )
           reviewed_blobs=(
             4042570221cf4f31d2749534775bfd7d349ccfe1
@@ -79,13 +81,14 @@ jobs:
             5c4c28a43de2d6be5c1e6de0ba0cfd2b4c6e784e
             6c9aab68423963fa85a5b295ce4c1a16f676a7da
             0be8fac63f391d5526f54823f0e641951b134116
-            139c9ad4b13ed75a4914c85f1edd4f860bdc5310
+            0e9f192d377226d65639324c09b037b5080cbea6
+            5a0d5b3fedfefb06d3ac158b4aad502fa8be65c8
           )
           for i in "${!reviewed_paths[@]}"; do
             file="${reviewed_paths[$i]}"
             actual="$(git rev-parse "HEAD:${file}" 2>/dev/null || true)"
             if [[ "$actual" != "${reviewed_blobs[$i]}" ]]; then
-              echo "BLOCKED: reviewed verifier or Gate9 CI workflow does not match pinned blob: $file"
+              echo "BLOCKED: reviewed verifier or Gate7/Gate9 CI workflow does not match pinned blob: $file"
               exit 1
             fi
           done
@@ -96,7 +99,7 @@ jobs:
           fi
           for file in "${changed[@]}"; do
             case "$file" in
-              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml)
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml)
                 ;;
               *)
                 echo "BLOCKED: unreviewed non-app change: $file"
@@ -104,6 +107,6 @@ jobs:
                 ;;
             esac
           done
-          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and two reviewed Gate9 CI workflow blobs are pinned."
+          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and three reviewed Gate7/Gate9 CI workflow blobs are pinned."
           echo "PASS: changed paths limited to app source, approved workflows and four pinned verifier files."
           echo "NO merge, publish, provider authentication or deployment was attempted."
