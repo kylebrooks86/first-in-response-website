@@ -18,7 +18,17 @@ function need(condition,reason='SHAPE'){
   if(!condition)throw Error('STOP: FIRE TEST compiled server ['+reason+']; NO upload.');
 }
 const HEX=/^[0-9a-f]{64}$/;
-const ALLOWED=new Set(['.js','.mjs','.cjs','.wasm','.json','.css']);
+// These three files are generated Vinext *build metadata*, never runtime
+// Worker modules. Cloudflare module uploads do not accept application/json:
+// see Workers error 10162 (unsupported module Content-Type). Refuse other
+// JSON files rather than silently skipping a future runtime dependency.
+const BUILD_METADATA_ONLY=new Set([
+  'vinext-server.json','vinext-externals.json','ssr/vinext-server.json'
+]);
+export function isGeneratedWorkerBuildMetadata(name){
+  return BUILD_METADATA_ONLY.has(name);
+}
+const ALLOWED=new Set(['.js','.mjs','.cjs','.wasm','.css']);
 function distServer(root){
   const dir=resolve(root);
   need(basename(dir)==='server' &&
@@ -60,6 +70,12 @@ export function inventoryCompiledModules(root,main) {
         continue; // separately proven build metadata, NOT an executable module
       }
       if(name==='wrangler.FIRE_TEST_REVIEW_ONLY.json')continue;
+      if(isGeneratedWorkerBuildMetadata(name)){
+        need(stat.size<16384,'BUILD_METADATA_SIZE');
+        try{JSON.parse(readFileSync(full,'utf8'));}
+        catch{need(false,'BUILD_METADATA_INVALID');}
+        continue; // preserve local file; exclude only from remote module array
+      }
       const ext=extname(name).toLowerCase();
       if(ext==='.map')continue; // debug source maps not runtime executable modules
       // Preserve compiled server stylesheets; never discard these bytes.
