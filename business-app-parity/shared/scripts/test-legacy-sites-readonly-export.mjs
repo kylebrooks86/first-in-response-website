@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 import {captureLegacySitesReviewReadOnly} from '../lib/legacy-sites-readonly-export.mjs';
 import {rehearseLegacySitesReviewToDisposableMemory} from './rehearse-legacy-sites-review-in-memory.mjs';
@@ -176,5 +176,26 @@ test('disposable memory restore refuses identity high-water and schema truncatio
   assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(autoincrement),/BLOCKED/);
   const changedRows={...source,tables:{...source.tables,payments:[{id:'synthetic-payment'}]}};
   assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(changedRows),/BLOCKED/);
+ }finally{db.close();}
+});
+
+test('historical original LIVE 0000–0018 migrations are genuinely capturable without invented refund journal',async()=>{
+ const files=readdirSync('../adapters/live/drizzle').filter(n=>/^\\d{4}_[\\w-]+\\.sql$/.test(n))
+  .filter(n=>Number(n.slice(0,4))<=18).sort();
+ assert.equal(files.length,19,'Pinned original LIVE migration range must remain recognizable');
+ const db=new DatabaseSync(':memory:');
+ try{
+  for(const name of files)db.exec(readFileSync('../adapters/live/drizzle/'+name,'utf8'));
+  const raw=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
+  assert.ok(raw.length>0,'Full historical LIVE migration graph creates durable business tables');
+  assert.equal(raw.some(x=>x.name==='payment_refunds'),false,'Historical LIVE schema lacks refund table');
+  const sample=await captureLegacySitesReviewReadOnly(adapt(db));
+  assert.deepEqual(sample.sourceTables,raw.map(x=>x.name));
+  assert.equal(sample.missingRefundLedger,true);
+  assert.equal(sample.completeBackup,false);
+  const recovery=rehearseLegacySitesReviewToDisposableMemory(sample);
+  assert.equal(recovery.disposableInMemoryRoundTripVerified,true);
+  assert.equal(recovery.recreatedTables,raw.length);
+  assert.equal(recovery.actualRemoteRestorePerformed,false);
  }finally{db.close();}
 });
