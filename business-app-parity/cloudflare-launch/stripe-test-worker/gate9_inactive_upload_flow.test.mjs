@@ -18,7 +18,7 @@ function fixture({cached=false,mutateResponse,mutateState,throwRequest=false}={}
   const candidate={sourceSha,manifest:{'/a.js':{hash:hashA,size:1},'/b.css':{hash:hashB,size:1}},
     versionBody:{main_module:'index.js',compatibility_date:'2026-10-16',
       compatibility_flags:['nodejs_compat'],bindings:proposedInactivePlan().bindings,
-      assets:{config:{run_worker_first:true}},modules:[
+      assets:{config:{run_worker_first:['/api/*']}},modules:[
         {name:'index.js',content_type:'application/javascript+module',content_base64:'eA=='},
         {name:'_headers',content_type:'text/plain',content_base64:'eA=='}]}};
   const approval={worker:WORKER,predecessor:PREDECESSOR,dbUuid:DB_UUID,accountId,
@@ -41,7 +41,7 @@ function fixture({cached=false,mutateResponse,mutateState,throwRequest=false}={}
       mutateResponse?.(r,req,calls.length,()=>{clock+=3600000;});return r;
     },
     async readVersion(id){return {id,main_module:'index.js',compatibility_date:'2026-10-16',
-      compatibility_flags:['nodejs_compat'],assets:{config:{run_worker_first:true}},
+      compatibility_flags:['nodejs_compat'],assets:{config:{run_worker_first:['/api/*']}},
       moduleDigest:d(candidate.versionBody.modules),bindings:[...bindings,{name:'ASSETS',type:'assets'}]};}
   };
   return {candidate,approval,accountId,transport,now:()=>clock,calls};
@@ -150,6 +150,14 @@ test('unexpected version readback fails; does not attempt rollback or another wr
 test('late unexpected traffic change is not reported as zero traffic success',async()=>{
   const f=fixture({mutateState:(s,n)=>{if(n===5)s.versions=[{version_id:newId,percentage:100}];}});
   await assert.rejects(runApprovedInactiveUpload(f),/TRAFFIC/);assert.equal(f.calls.length,4);
+});
+test('rejects Worker-first static asset routing before any provider call',async()=>{
+  for(const rule of [true,false,['/*'],['/api/*','/_next/*']]){
+    const f=fixture();f.candidate.versionBody.assets.config.run_worker_first=rule;
+    f.approval.candidateDigest=uploadApprovalDigest(f.candidate);
+    await assert.rejects(runApprovedInactiveUpload(f),/WORKER_API_FIRST/);
+    assert.equal(f.calls.length,0);
+  }
 });
 test('extra deploy body field is rejected before remote work',async()=>{
   const f=fixture();f.candidate.versionBody.deploy=true;
