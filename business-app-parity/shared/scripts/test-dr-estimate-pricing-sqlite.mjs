@@ -49,6 +49,8 @@ const DB={
   events.push('batch:'+batchMode);
   if(batchMode==='drop-ack')return [];
   if(batchMode==='accepted-before-write')db.prepare("UPDATE estimates SET accepted_at='2026-11-11T00:00:00Z' WHERE id=?").run(currentId);
+  if(batchMode==='schedule-before-write')db.prepare("UPDATE estimates SET scheduled_at='2026-11-15T08:00:00.000Z' WHERE id=?").run(currentId);
+  if(batchMode==='payment-before-write')db.prepare("INSERT INTO payments VALUES(?,'paid','deposit',2500)").run(currentId);
   db.exec('BEGIN');
   try{let output=[];for(const stmt of statements)output.push(await stmt.run());db.exec('COMMIT');return output;}
   catch(e){db.exec('ROLLBACK');throw e;}
@@ -142,5 +144,57 @@ setup();
  check(bad.status===503&&bad.data.saveUncertain===true&&db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n===0,
   'DR cannot report created customer quote when batch success is fabricated');
 }
+// Gate 6/8 recovery workflow: a full job must never be advanced based on
+// an older UI snapshot, conflicting completion reports, or forged bulk resolve.
+setup();
+{
+ const c=await posted(base(2500));currentId=c.data.id;
+ db.prepare("UPDATE estimates SET status='approved',accepted_at='2026-11-11T12:00:00Z',signed_at='2026-11-11T12:00:00Z' WHERE id=?").run(currentId);
+ const scheduled=await patched(currentId,{status:'scheduled',scheduledAt:'2026-11-12T10:00:00.000Z'});
+ check(scheduled.status===200&&one().status==='scheduled'&&
+       one().scheduled_at==='2026-11-12T10:00:00.000Z',
+       'DR schedules a genuinely signed/approved job with a verified saved timestamp');
+ const missingReport=await patched(currentId,{status:'completed'});
+ check(missingReport.status===409&&one().status==='scheduled',
+       'DR does not close a scheduled job without a saved completion report');
+ db.prepare("INSERT INTO job_reports VALUES(?,'2026-11-11T13:00:00Z','completed')").run(currentId);
+ db.prepare("INSERT INTO job_reports VALUES(?,'2026-11-11T13:01:00Z','completed')").run(currentId);
+ const duplicate=await patched(currentId,{status:'completed'});
+ check(duplicate.status===409&&one().status==='scheduled',
+       'DR does not close a job with conflicting duplicate completion reports');
+ db.prepare("DELETE FROM job_reports WHERE created_at='2026-11-11T13:01:00Z'").run();
+ const closed=await patched(currentId,{status:'completed'});
+ check(closed.status===200&&one().status==='completed',
+       'DR closes a job only after exactly one completed service report');
+ const bulk=await patched(currentId,{resolveChangeRequests:true});
+ check(bulk.status===409&&bulk.data.error.includes('specific'),
+       'DR refuses silent mass resolution of customer change requests');
+}
+setup();
+{
+ const c=await posted(base(2500));currentId=c.data.id;
+ db.prepare("UPDATE estimates SET status='approved',accepted_at='2026-11-11T12:00:00Z',signed_at='2026-11-11T12:00:00Z' WHERE id=?").run(currentId);
+ batchMode='schedule-before-write';
+ const raced=await patched(currentId,{status:'scheduled',scheduledAt:'2026-11-12T10:00:00.000Z'});
+ check(raced.status===409&&raced.data.saveUncertain===true&&one().status==='approved'&&
+       one().scheduled_at==='2026-11-15T08:00:00.000Z',
+       'DR cannot overwrite a newer schedule changed between owner read and D1 write');
+}
+setup();
+{
+ const c=await posted(base(2500));currentId=c.data.id;
+ db.prepare("UPDATE estimates SET status='approved',accepted_at='2026-11-11T12:00:00Z',signed_at='2026-11-11T12:00:00Z' WHERE id=?").run(currentId);
+ batchMode='payment-before-write';
+ const raced=await patched(currentId,{status:'scheduled',scheduledAt:'2026-11-12T10:00:00.000Z'});
+ check(raced.status===409&&one().status==='approved',
+       'DR blocks a scheduling change when new payment activity appears during save');
+}
+setup();
+{
+ const c=await posted(base(2500));currentId=c.data.id;
+ const attempted=await patched(currentId,{status:'approved'});
+ check(attempted.status===409&&one().status==='draft',
+       'Owner cannot fabricate a signed customer approval from status controls');
+}
 db.close();
-console.log('PASS '+checks+'/'+checks+' actual DR estimate POST/PATCH exact-cents and recovery invariants (disposable SQLite, no hosted provider calls).');
+console.log('PASS '+checks+'/'+checks+' actual DR quote pricing AND atomic job lifecycle tests (disposable native SQLite, no hosted provider calls).');
