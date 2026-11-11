@@ -14,7 +14,12 @@ function walk(dir){
  });
 }
 const files=walk(root).sort();
-assert.equal(files.length,69,'The reviewed FIRE route inventory changed. Re-audit any added/removed API surface before release.');
+// The new default-disabled owner-only LIVE legacy records review is deliberately
+// ABSENT from the isolated Stripe TEST Worker. Both reviewed inventories are
+// valid, but any OTHER added/removed route still fails closed.
+const legacyReviewPresent=files.some(file=>relative(root,file).replaceAll('\\\\','/')==='backup/legacy-review/route.ts');
+assert.equal(files.length,legacyReviewPresent?70:69,
+ 'The reviewed FIRE route inventory changed. Re-audit any added/removed API surface before release.');
 const publicMethods=new Map([
  ['app-version/route.ts','GET'],
  ['payments/checkout/route.ts','POST'],
@@ -56,13 +61,23 @@ for(const file of files){
   continue;
  }
  owner++;
+ if(rel==='backup/legacy-review/route.ts'){
+  assert.deepEqual(declared,['GET'],'Legacy records review must never expose write methods');
+  assert.match(content,/getChatGPTUser/);
+  assert.match(content,/LOCAL_CUSTOMER_DEPLOYMENT/);
+  assert.match(content,/FIRE_LEGACY_SITES_REVIEW_EXPORT/);
+  assert.match(content,/owner-review-only/);
+  assert.match(content,/captureLegacySitesReviewReadOnly/);
+  assert.match(content,/completeBackup:false/,'Legacy route must not claim full recoverable backup');
+  assert.match(content,/status,headers:PRIVATE_HEADERS/,'Denied owner export must be private/no-store');
+ }
  assert.ok(!rel.startsWith('public/'),rel+': unexpected public route');
  assert.match(content,/\bgetChatGPTUser\b/,rel+': missing explicit owner identity dependency');
  assert.ok(/Unauthorized|Owner access required|authorization|OWNER|ownerEmail|owner email|ownerAccess|ownerCheck/i.test(content),
   rel+': no visible owner denial or owner identity rule');
 }
 assert.equal(publicCount,6);
-assert.equal(owner,63);
+assert.equal(owner,legacyReviewPresent?64:63);
 const publicEstimate=readFileSync('app/estimate/[token]/page.tsx','utf8');
 const publicPay=readFileSync('app/pay/[id]/page.tsx','utf8');
 assert.match(publicEstimate,/row\.status==="declined"/,'Withdrawn customer estimate may not expose stale approval/price');
