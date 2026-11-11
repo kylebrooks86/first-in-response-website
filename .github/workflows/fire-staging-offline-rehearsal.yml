@@ -195,6 +195,11 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-checkout-atomic-reservation.mjs
+      - name: Gate 5 actual notification overpayment refund/keep, cross-customer alert and SQL-time ownership races (synthetic SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-overpayment-reconciliation-sqlite.mjs
+          node --experimental-sqlite scripts/test-notification-mark-all-sqlite.mjs
       - name: Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
