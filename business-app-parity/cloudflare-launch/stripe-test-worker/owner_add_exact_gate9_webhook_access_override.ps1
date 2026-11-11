@@ -1,7 +1,8 @@
 # FIRE GATE 9: add EXACT /api/payments/webhook Access exception, TEST ONLY.
-# OWNER APPROVED scope: this one existing Cloudflare Stripe TEST Worker Access
-# public path; no other Access rules, customer actions, Stripe/webhook changes,
-# secrets, D1, R2, QA, LIVE, DR, or deploys. Stripe remains disabled.
+# PREPARED ONLY — NOT APPROVED TO RUN. Obtain NEW explicit owner authorization
+# for the one TEST Worker Access policy PUT, including any later rollback.
+# No other Access rules, customer actions, Stripe/webhook changes, secrets,
+# D1, R2, QA, LIVE, DR or deployments are approved. Stripe remains disabled.
 # ADAPTED from previously successfully used guarded Gate 6 OPEN/CLOSE script.
 # Use a NEW short-lived account-scoped Access: Apps and Policies EDIT token.
 # NEVER paste token into chat, GitHub, screenshots or PowerShell command line.
@@ -14,7 +15,6 @@
   $stage='local startup'
   $attempted=$false
   $verified=$false
-  $rollbackOk=$false
   $ptr=[IntPtr]::Zero
   $secret=$null; $secure=$null; $plain=$null; $beforeBytes=$null
   $headers=$null; $saved=$null; $current=$null; $fresh=$null; $reply=$null
@@ -154,7 +154,6 @@
     $stage='exact original SEVEN Access paths and original owner policy guard'
     Assert-ExactPaths $current $beforePaths
     $finger=Get-FireFingerprint $current
-    $bodyBefore=New-FirePayload $current $beforePaths
     $bodyAfter=New-FirePayload $current $afterPaths
     Write-Host 'PASS: Exact isolated FIRE TEST Worker and owner policy verified'
     Write-Host "PASS: Current allowed public paths = $($beforePaths.Count)"
@@ -221,40 +220,42 @@
     Write-Host 'NEXT: Revoke temporary Cloudflare Access edit token.'
     Write-Host 'NEXT: Separate Stripe TEST webhook endpoint and signing secret need NEW approval; payments still disabled.'
   } catch {
-    Write-Host "STOP at $stage. No confirmed successful Gate 9 TEST Access operation."
+    Write-Host "STOP at $stage. Gate 9 TEST Access operation is NOT accepted."
     if ($attempted -and -not $verified) {
-      Write-Host 'PUT attempted; checking for original before-state or restoring it.'
+      # A timeout or unexpected response after a PUT is an UNKNOWN outcome.
+      # A compensating PUT would be a SECOND provider mutation and could
+      # clobber a concurrent owner change. Never automatically roll back.
+      Write-Host 'ONE TEST Access PUT may have reached Cloudflare; NO automatic retry or rollback.'
+      $observed='UNKNOWN'
       try {
         $probe=Invoke-RestMethod -Method Get -Uri $uri -Headers $headers -TimeoutSec 15 -ErrorAction Stop
-        if ($probe.success) {
-          Assert-ExactPaths $probe.result $beforePaths
-          if ((Get-FireFingerprint $probe.result) -cne $finger) {
-            throw 'not exact original configuration'
-          }
-          $rollbackOk=$true
-          Write-Host 'PASS: Original TEST Access state still in place; no rollback needed.'
-        } else {throw 'remote state unavailable'}
-      } catch {
-        try {
-          $rb=Invoke-RestMethod -Method Put -Uri $uri -Headers $headers `
-            -ContentType 'application/json; charset=utf-8' `
-            -Body ([Text.Encoding]::UTF8.GetBytes($bodyBefore)) `
-            -TimeoutSec 25 -ErrorAction Stop
-          if (-not $rb.success) {throw 'rollback PUT not confirmed'}
-          $probe=Invoke-RestMethod -Method Get -Uri $uri -Headers $headers -TimeoutSec 20 -ErrorAction Stop
-          if (-not $probe.success) {throw 'rollback GET unavailable'}
-          Assert-ExactPaths $probe.result $beforePaths
-          if ((Get-FireFingerprint $probe.result) -cne $finger) {throw 'rollback differs'}
-          $rollbackOk=$true
-          Write-Host 'PASS: Restored exact pre-operation TEST Access state.'
-        } catch {
-          Write-Host 'CRITICAL: Automatic TEST rollback NOT VERIFIED. Do not retry.'
-          Write-Host 'Encrypted before-state backup is in FIRE-Backups on your Acer.'
+        if (-not $probe.success) {throw 'readback unsuccessful'}
+        if ((Get-FireFingerprint $probe.result) -cne $finger) {
+          throw 'non-destination policy changed'
         }
+        try {
+          Assert-ExactPaths $probe.result $beforePaths
+          $observed='ORIGINAL_SEVEN'
+        } catch {
+          Assert-ExactPaths $probe.result $afterPaths
+          $observed='PROPOSED_EIGHT'
+        }
+      } catch {
+        $observed='UNKNOWN'
       }
+      if ($observed -ceq 'ORIGINAL_SEVEN') {
+        Write-Host 'READBACK: Original seven public paths still present; do not replay the PUT.'
+      } elseif ($observed -ceq 'PROPOSED_EIGHT') {
+        Write-Host 'READBACK: Eight exact intended public paths present, but operation remains STOP pending independent owner verification.'
+      } else {
+        Write-Host 'READBACK UNKNOWN / DRIFT: Inspect Cloudflare Access independently before ANY further mutation.'
+      }
+      Write-Host 'A rollback requires a NEW separately reviewed and approved action using the encrypted before-state snapshot.'
+      Write-Host 'Do NOT run this ADD helper again, even if the observed state is original.'
     } else {
       Write-Host 'No Access PUT was attempted, or a verified post-update success was already shown.'
     }
+  }
   } finally {
     if ($null -ne $plain) {[Array]::Clear($plain,0,$plain.Length)}
     if ($null -ne $beforeBytes) {[Array]::Clear($beforeBytes,0,$beforeBytes.Length)}
