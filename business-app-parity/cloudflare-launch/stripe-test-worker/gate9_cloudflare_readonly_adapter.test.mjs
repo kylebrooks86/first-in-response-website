@@ -20,7 +20,7 @@ const version=(newVersion=false)=>({
  ...(newVersion?{
  main_module:'index.js',compatibility_date:'2026-10-16',
  compatibility_flags:['nodejs_compat'],
- assets:{config:{run_worker_first:true}},
+ assets:{config:{run_worker_first:['/api/*']}},
  modules:[
    {name:'index.js',content_type:'application/javascript+module',
      content_base64:Buffer.from('export default {fetch(){return new Response("TEST")}}').toString('base64')},
