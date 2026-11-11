@@ -34,7 +34,9 @@ export function compileGate9ApprovalCandidate({serverDir,clientDir,sourceSha}){
   // The ONLY allowed transformation: strip the nonprovider fake JWT.
   delete body.assets.jwt;
   ok(Object.keys(body.assets).join(',')==='config' &&
-    body.assets.config.run_worker_first===true,'ASSET_CONFIG');
+    Array.isArray(body.assets.config.run_worker_first)&&
+    body.assets.config.run_worker_first.length===1&&
+    body.assets.config.run_worker_first[0]==='/api/*','ASSET_CONFIG');
   verifyInactiveProposal({...proposedInactivePlan(),bindings:body.bindings});
   ok(body.modules.length===proof.moduleCount+specialCount &&
     body.modules.some(m=>m.name===body.main_module)&&
