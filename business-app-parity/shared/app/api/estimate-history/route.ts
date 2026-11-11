@@ -34,9 +34,10 @@ export async function GET(request:Request){
                COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
                COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,c.name AS customer,c.email,c.phone,${customerNumberColumn},${serviceAddressColumns(serviceLocationsEnabled(env))+propertyAssociationColumns(customerPropertiesEnabled(env))},
                COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
-               (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
-               (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
-               (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+               EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
+               (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceId,
+               (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceShareToken,
+               (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceTotalCents,
                (SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS pendingChangeCount,
                (SELECT message FROM estimate_change_requests cr WHERE cr.estimate_id=e.id ORDER BY cr.created_at DESC LIMIT 1) AS latestChangeRequest,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='estimate' AND cm.channel IN ('text_confirmed','email_confirmed')) AS lastEstimateSentAt,
@@ -58,6 +59,11 @@ export async function GET(request:Request){
           AND (? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
       `).bind(focus,focus,status,status,search,pattern,pattern,pattern,pattern,pattern,...(requestedNumber!==null?[requestedNumber]:[]),cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1).all<{id:string;createdAt:string}>();
+  // A foreign invoice must never be represented as the selected customer's
+  // payable bill, even in owner-only search/history and deep-link results.
+  if(result.results.some(row=>Number((row as Record<string,unknown>).invoiceOwnershipMismatch)!==0))
+    return Response.json({error:"An invoice is linked to another customer. Reconcile invoice ownership before using this estimate for billing."},
+      {status:409,headers:{"Cache-Control":"no-store, private"}});
   const page=result.results.slice(0,size),last=page.at(-1);
   const grouped=new Map<string,Record<string,unknown>[]>();
   if(page.length){const placeholders=page.map(()=>"?").join(",");const items=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id IN (${placeholders}) ORDER BY rowid ASC`).bind(...page.map(row=>row.id)).all<Record<string,unknown>>();
@@ -67,7 +73,7 @@ export async function GET(request:Request){
   // route. Attach permanent Job # references without touching records or UUIDs.
   // Unmigrated/disabled environments continue returning their legacy shape.
   const numbers=showJobs?await attachedJobNumbers(env.DB,page.map(row=>row.id)):new Map();
-  const estimates=page.map(row=>({...row,...(showJobs?{jobNumber:numbers.get(row.id)??null}:{}),items:grouped.get(row.id)??[]}));
+  const estimates=page.map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return {...row,...(showJobs?{jobNumber:numbers.get(row.id)??null}:{}),items:grouped.get(row.id)??[]};});
   const nextCursor=!focus&&result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
   return Response.json({estimates,nextCursor,pageSize:size},{headers:{"Cache-Control":"no-store"}});
  }catch{return Response.json({error:"Estimate history could not be read."},{status:503});}
