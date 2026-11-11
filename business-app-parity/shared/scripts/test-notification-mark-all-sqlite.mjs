@@ -61,6 +61,38 @@ try{
  const missing=await patch({id:id(99)});
  check(missing.status===404&&JSON.stringify(rows())===previous,
    'Missing notification cannot claim successful mark or alter other records');
+ // A regular notification's resolve action must produce a verified saved
+ // resolution (not just an uninspected SQLite write ACK).
+ put(6);
+ const resolved=await patch({id:id(6),resolve:true});
+ const savedResolution=rows().find(x=>x.id===id(6));
+ check(resolved.status===200&&resolved.data.ok===true&&
+       resolved.data.resolvedAt===savedResolution.resolved_at&&
+       resolved.data.readAt===savedResolution.read_at&&Boolean(savedResolution.resolved_at),
+   'Normal notification resolution returns persisted SQLite read and resolve timestamps');
+ const resolvedReplay=await patch({id:id(6),resolve:true});
+ check(resolvedReplay.status===200&&resolvedReplay.data.resolvedAt===savedResolution.resolved_at&&
+       rows().find(x=>x.id===id(6)).resolved_at===savedResolution.resolved_at,
+   'Repeated resolution preserves the original resolved timestamp');
+ const missingResolution=await patch({id:id(99),resolve:true});
+ check(missingResolution.status===404,'Missing notification cannot claim a successful resolution');
+ put(7);
+ rt.db.prepare("UPDATE notifications SET type='payment_overage' WHERE id=?").run(id(7));
+ const guardedResolution=await patch({id:id(7),resolve:true});
+ check(guardedResolution.status===409&&rows().find(x=>x.id===id(7)).resolved_at===null,
+   'Ordinary resolve cannot bypass the payment-overage reconciliation requirement');
+ const failedResolutionPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+   if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?)"))
+     return {bind:()=>({first:async()=>null})};
+   return failedResolutionPrepare(sql);
+ };
+ put(8);
+ const unresolved=await patch({id:id(8),resolve:true});
+ check(unresolved.status===503&&unresolved.data.saveUncertain===true&&
+       rows().find(x=>x.id===id(8)).resolved_at===null,
+   'A nonthrowing but unconfirmed resolution refuses false success');
+ rt.env.DB.prepare=failedResolutionPrepare;
  const originalPrepare=rt.env.DB.prepare;
  rt.env.DB.prepare=function(sql){if(sql.includes('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))throw Error('Synthetic SQLite unavailable');return originalPrepare(sql);};
  put(5);
