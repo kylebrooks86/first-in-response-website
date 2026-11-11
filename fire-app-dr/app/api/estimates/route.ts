@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
-import {submittedDiscountCents,quoteDiscounts,discountSnapshot,DISCOUNT_SNAPSHOT_PREFIX} from "../../lib/discount-input";
+import {submittedDiscountCents,quoteDiscounts,discountSnapshot,DISCOUNT_SNAPSHOT_PREFIX} from "../../../lib/discount-input";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getOwnerUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
