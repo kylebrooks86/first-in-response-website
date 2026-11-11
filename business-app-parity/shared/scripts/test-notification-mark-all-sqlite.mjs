@@ -101,7 +101,62 @@ try{
    'Failed storage update never returns false success or clears unread');
  rt.env.DB.prepare=originalPrepare;
  const recovered=await read();
- check(recovered.status===200&&recovered.data.unread===1,
-   'After an interrupted update, the real GET still reports the pending notification');
+ check(recovered.status===200&&recovered.data.unread===2,
+   'After an interrupted update, the real GET still reports remaining pending notifications');
+
+ // Exercise the ACTUAL disaster-recovery route against the same disposable
+ // SQLite store, not an approximation of its SQL. No hosted DR touched.
+ const dr=rt.load('../../fire-app-dr/app/api/notifications/route.ts');
+ const drRead=async()=>{const r=await dr.GET();return {status:r.status,data:await r.json(),headers:r.headers};};
+ const drPatch=async body=>{const r=await dr.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+   method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+ }));return {status:r.status,data:await r.json()};};
+ for(let n=100;n<151;n++)put(n);
+ const expectedUnread=rows().filter(row=>row.read_at===null).length;
+ const drStart=await drRead();
+ check(drStart.status===200&&drStart.data.notifications.length===40&&
+       drStart.data.unread===expectedUnread&&expectedUnread>40&&
+       drStart.headers.get('cache-control')==='no-store, private',
+   'Real DR GET counts every unread notification, even when the visible list stops at 40');
+ const drMixed=await drPatch({all:true,id:id(100)});
+ check(drMixed.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
+   'DR refuses conflicting mark-all and single-notification actions without writes');
+ const drInvalid=await drPatch({all:1});
+ check(drInvalid.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
+   'DR rejects nonboolean mark-all requests before changing records');
+ const drAll=await drPatch({all:true});
+ check(drAll.status===200&&drAll.data.unread===0&&rows().every(row=>row.read_at!==null)&&
+       rows().find(row=>row.id===id(7)).resolved_at===null,
+   'DR Mark All confirms all read rows without clearing unresolved payment alerts');
+ put(201);
+ const drSingle=await drPatch({id:id(201)});
+ check(drSingle.status===200&&drSingle.data.readAt===rows().find(row=>row.id===id(201)).read_at,
+   'DR individual read reports the persisted timestamp');
+ const drMissing=await drPatch({id:id(999)});
+ check(drMissing.status===404,'DR refuses false success for a missing notification');
+ put(202);
+ const drResolve=await drPatch({id:id(202),resolve:true});
+ const drSaved=rows().find(row=>row.id===id(202));
+ check(drResolve.status===200&&drResolve.data.resolvedAt===drSaved.resolved_at&&
+       drResolve.data.readAt===drSaved.read_at&&Boolean(drSaved.resolved_at),
+   'DR resolution returns an independently persisted read and resolve receipt');
+ const drReplay=await drPatch({id:id(202),resolve:true});
+ check(drReplay.status===200&&drReplay.data.resolvedAt===drSaved.resolved_at,
+   'DR repeated resolution preserves the original timestamp');
+ const drGuarded=await drPatch({id:id(7),resolve:true});
+ check(drGuarded.status===409&&rows().find(row=>row.id===id(7)).resolved_at===null,
+   'DR normal notification action cannot dismiss payment-overage exceptions');
+ const drOriginalPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+   if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?)"))
+     return {bind:()=>({first:async()=>null})};
+   return drOriginalPrepare(sql);
+ };
+ put(203);
+ const drFailed=await drPatch({id:id(203),resolve:true});
+ check(drFailed.status===503&&drFailed.data.saveUncertain===true&&
+       rows().find(row=>row.id===id(203)).resolved_at===null,
+   'DR unconfirmed SQLite response does not claim resolution success');
+ rt.env.DB.prepare=drOriginalPrepare;
 }finally{rt.db.close();}
 console.log('PASS '+checks+' actual notifications route/SQLite persistence, isolation and recovery assertions. NO HOSTED OPERATIONS.');
