@@ -167,10 +167,13 @@ export async function PATCH(request: Request) {
     if (!existing) return Response.json({ error: "That customer record could not be found." }, { status: 404 });
 
     const normalizedEmail = email.toLowerCase();
-    const normalizedPhone = phone.replace(/\D/g, "");
+    // Compare equivalent U.S. numbers in the SAME canonical +1 form used by
+    // Call/Text handoff and customer creation. Raw digit strings would treat
+    // 9185550101 and +1 9185550101 as two unrelated customers.
+    const normalizedPhone = phone?usableCustomerPhone(phone):null;
     const others = await env.DB.prepare("SELECT id,email,phone FROM customers WHERE id<>?").bind(id).all<{id:string;email:string|null;phone:string|null}>();
     const duplicateEmail=Boolean(normalizedEmail)&&others.results.some(customer=>String(customer.email??"").trim().toLowerCase()===normalizedEmail);
-    const duplicatePhone=Boolean(normalizedPhone)&&others.results.some(customer=>String(customer.phone??"").replace(/\D/g,"")===normalizedPhone);
+    const duplicatePhone=Boolean(normalizedPhone)&&others.results.some(customer=>usableCustomerPhone(String(customer.phone??""))===normalizedPhone);
     if(duplicateEmail||duplicatePhone)return Response.json({error:duplicateEmail&&duplicatePhone?
       "Another customer already has this email and phone number. Nothing was changed.":
       duplicateEmail?"This email is already on another customer. Nothing was changed.":
