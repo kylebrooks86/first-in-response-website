@@ -42,6 +42,29 @@ try{
  eq(row.items.map(i=>i.id),saved.map(i=>i.id),'Repeat-cadence path preserves saved line IDs');
  eq(row.items.map(i=>i.totalCents),saved.map(i=>i.totalCents),'Repeat-cadence path preserves exact cents');
  eq(Number.isSafeInteger(row.repeatMonths)&&row.repeatMonths>0,true,'Repeat schedule still uses service identities');
+ // The Follow-ups list can start outbound text/email handoffs, so it
+ // must not load another customer's invoice link or amount onto this job.
+ const other='synthetic-unrelated-homeowner';
+ r.db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)')
+  .run(other,'Unrelated Synthetic Owner','2026-10-20');
+ r.db.prepare(`INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,share_token,created_at)
+   VALUES(?,?,?,'sent',999999,?,'2026-10-20')`)
+  .run('synthetic-cross-invoice',made.id,other,'other-homeowner-share-token');
+ result=await get('?estimateId='+made.id);
+ eq(result.status,409,'Exact Follow-ups lookup refuses an invoice linked to another homeowner');
+ eq(result.body.error.includes('invoice'),true,'Owner receives invoice reconciliation guidance');
+ eq(JSON.stringify(result.body).includes('other-homeowner-share-token'),false,
+   'Mismatched invoice share token never appears in follow-up response');
+ result=await get('?limit=5');
+ eq(result.status,409,'Paged Follow-ups cannot include a foreign-customer invoice');
+ r.db.prepare("UPDATE invoices SET customer_id=? WHERE id='synthetic-cross-invoice'").run(made.customerId);
+ result=await get('?estimateId='+made.id);
+ eq(result.status,200,'After correcting invoice ownership the saved follow-up is usable');
+ eq(result.body.estimates[0].invoiceId,'synthetic-cross-invoice','Valid same-owner invoice is linked');
+ eq(result.body.estimates[0].invoiceTotalCents,999999,'Owner sees only the actual saved same-owner invoice amount');
+ eq(result.body.estimates[0].items.map(i=>i.id),saved.map(i=>i.id),
+   'Repaired invoice leaves original estimate line IDs and pricing untouched');
+
  r.setOwner({email:'not-owner@example.invalid'});
  result=await get('?estimateId='+made.id);eq(result.status,401,'Non-owner cannot read quote scope');
  r.setOwner({email:'kylebrooks8605@gmail.com'});
