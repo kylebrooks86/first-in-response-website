@@ -7,6 +7,7 @@
  * high-water metadata) is not included in the legacy review envelope.
  */
 import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
 import {LEGACY_REVIEW_FORMAT,LEGACY_REVIEW_VERSION} from '../lib/legacy-sites-readonly-export.mjs';
 
 const blocked=()=>{throw Error('FIRE LEGACY DISPOSABLE RESTORE BLOCKED');};
@@ -29,13 +30,20 @@ const validateReview=data=>{
     data.repeatReadRowsMatch!==true||data.independentRowCountsMatch!==true||
     data.schemaCatalogStableAcrossReads!==true||
     data.sourceD1UuidVerified!==false||data.sameInstantProviderSnapshotVerified!==false||
-    data.photoObjectBytesIncluded!==false||!Array.isArray(data.sourceTables)||
+    data.photoObjectBytesIncluded!==false||data.recordsSelfCheckIsProviderAttestation!==false||
+    typeof data.recordsSelfCheckSHA256!=='string'||!/^[0-9a-f]{64}$/.test(data.recordsSelfCheckSHA256)||
+    !Array.isArray(data.sourceTables)||
     !Array.isArray(data.schemaObjects)||!isRecord(data.rowCounts)||!isRecord(data.tables))blocked();
  const tables=data.sourceTables;
  if(tables.length<1||tables.length>23||new Set(tables).size!==tables.length||
     tables.some(t=>!safeName(t))||
     Object.keys(data.tables).length!==tables.length||
     Object.keys(data.rowCounts).length!==tables.length)blocked();
+ const integrityMaterial=canon({
+   sourceTables:tables,rowCounts:data.rowCounts,schemaObjects:data.schemaObjects,tables:data.tables
+ });
+ const localHash=createHash('sha256').update(integrityMaterial,'utf8').digest('hex');
+ if(localHash!==data.recordsSelfCheckSHA256)blocked();
  for(const name of tables){
    if(!Object.hasOwn(data.tables,name)||!Object.hasOwn(data.rowCounts,name)||
       !Number.isSafeInteger(data.rowCounts[name])||data.rowCounts[name]<0||
