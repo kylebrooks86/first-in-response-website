@@ -411,6 +411,10 @@ jobs:
           node scripts/test-owner-preview-exit-states.mjs
           node scripts/test-owner-invoice-job-number-render.mjs
           node scripts/test-customer-job-number-views.mjs
+          # Verify real owner search history/global search with full immutable
+          # Job # mapping, exact/padded serials and unmigrated-feature denial.
+          node scripts/test-job-numbering.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
       - name: Gate 8 saved estimate history, private preview and closed-quote regression (offline)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
