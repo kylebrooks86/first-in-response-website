@@ -7,9 +7,13 @@ async function authorized(){const user=await getOwnerUser();return Boolean(user&
 export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
-    const result=await env.DB.prepare("SELECT id,type,title,body,customer_id AS customerId,estimate_id AS estimateId,read_at AS readAt,resolved_at AS resolvedAt,resolution_note AS resolutionNote,created_at AS createdAt FROM notifications ORDER BY created_at DESC LIMIT 40").all();
-    const unread=result.results.filter((item)=>!item.readAt).length;
-    return Response.json({notifications:result.results,unread});
+    // Count ALL unread records before limiting the visible activity page.
+    // A busy owner must not see a false 40-item maximum on the badge.
+    const result=await env.DB.prepare("SELECT COUNT(CASE WHEN n.read_at IS NULL THEN 1 END) OVER() AS unreadTotal,n.id,n.type,n.title,n.body,n.customer_id AS customerId,n.estimate_id AS estimateId,n.read_at AS readAt,n.resolved_at AS resolvedAt,n.resolution_note AS resolutionNote,n.created_at AS createdAt FROM notifications n ORDER BY n.created_at DESC,n.id DESC LIMIT 40").all();
+    const unread=result.results.length?Number(result.results[0].unreadTotal):0;
+    if(!Number.isSafeInteger(unread)||unread<0)throw Error("Invalid unread count");
+    const notifications=result.results.map(({unreadTotal,...item})=>item);
+    return Response.json({notifications,unread},{headers:{"Cache-Control":"no-store, private"}});
   }catch{return Response.json({notifications:[],unread:0,error:"Notifications are temporarily unavailable."},{status:503});}
 }
 
@@ -18,7 +22,15 @@ export async function PATCH(request:Request){
   try{
     const value=await request.json() as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"keep"|string};
     const now=new Date().toISOString();
-    if(value.all)await env.DB.prepare("UPDATE notifications SET read_at=? WHERE read_at IS NULL").bind(now).run();
+    if(value.all!==undefined&&value.all!==true)return Response.json({error:"Invalid mark-all request."},{status:400});
+    if(value.all){
+      if(Object.keys(value).some(key=>key!=="all"))return Response.json({error:"Choose one notification action."},{status:400});
+      const write=await env.DB.prepare("UPDATE notifications SET read_at=? WHERE read_at IS NULL").bind(now).run();
+      if((write as {success?:boolean}).success===false||!Number.isSafeInteger(write.meta?.changes)||write.meta.changes<0)throw Error("Read update not confirmed");
+      const saved=await env.DB.prepare("SELECT COUNT(*) AS unread FROM notifications WHERE read_at IS NULL").first<{unread:number}>();
+      if(!saved||!Number.isSafeInteger(saved.unread)||saved.unread<0)throw Error("Read count not confirmed");
+      return Response.json({ok:true,readAt:now,resolvedAt:null,unread:saved.unread},{headers:{"Cache-Control":"no-store, private"}});
+    }
     else if(value.estimateId&&value.resolveOverpayment){
       if(value.reconciliationHandled!==true)return Response.json({error:"Confirm the retained overpayment decision has been handled before resolving this billing exception."},{status:409});
       if(value.resolutionMode!=="keep")return Response.json({error:"Refunds must be processed from Payments → Refund on the original payment. This billing-exception action can only keep an intentional overpayment."},{status:409});
@@ -49,10 +61,19 @@ export async function PATCH(request:Request){
       const target=await env.DB.prepare("SELECT type FROM notifications WHERE id=?").bind(value.id).first<{type:string}>();
       if(!target)return Response.json({error:"Notification not found."},{status:404});
       if(target.type==="payment_overage")return Response.json({error:"Overpayment exceptions must be resolved from the job billing-exception action after the refund or retained overpayment is handled."},{status:409});
-      await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=? WHERE id=?").bind(now,now,value.id).run();
+      const saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?) WHERE id=? AND type<>'payment_overage' RETURNING read_at AS readAt,resolved_at AS resolvedAt")
+        .bind(now,now,value.id).first<{readAt:string|null;resolvedAt:string|null}>();
+      if(!saved?.readAt||!saved.resolvedAt)
+        return Response.json({error:"Notification resolution was not confirmed. Refresh before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({ok:true,readAt:saved.readAt,resolvedAt:saved.resolvedAt},{headers:{"Cache-Control":"no-store, private"}});
     }
-    else if(value.id)await env.DB.prepare("UPDATE notifications SET read_at=? WHERE id=?").bind(now,value.id).run();
+    else if(value.id){
+      const saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? RETURNING read_at AS readAt")
+        .bind(now,value.id).first<{readAt:string|null}>();
+      if(!saved)return Response.json({error:"Notification not found. Refresh the list."},{status:404});
+      if(!saved.readAt)return Response.json({error:"Notification read status was not confirmed. Refresh before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({ok:true,readAt:saved.readAt,resolvedAt:null},{headers:{"Cache-Control":"no-store, private"}});
+    }
     else return Response.json({error:"Choose a notification."},{status:400});
-    return Response.json({ok:true,readAt:now,resolvedAt:value.resolve?now:null});
   }catch{return Response.json({error:"Notifications could not be updated."},{status:500});}
 }
