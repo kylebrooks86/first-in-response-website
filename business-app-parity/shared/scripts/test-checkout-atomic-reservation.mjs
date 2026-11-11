@@ -18,11 +18,11 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
    return {bind(...params){
      return {
        async first(){
-         if(sql.includes('WHERE e.share_token=? LIMIT 1'))return {id:'estimate-1',totalCents:10000,depositCents:5000,status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,customer:'Fixture',service:'House wash'};
+         if(sql.includes('WHERE e.share_token=? LIMIT 1'))return {id:'estimate-1',totalCents:10000,depositCents:5000,invoiceOwnershipMismatch:0,status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,customer:'Fixture',service:'House wash'};
          if(sql.includes('FROM payment_refunds WHERE estimate_id=?'))return null;
          if(sql.includes("FROM notifications WHERE estimate_id=? AND type='payment_overage'"))return null;
          if(sql.includes('AS amount FROM payments WHERE estimate_id=?'))return {amount:0};
-         if(sql.includes('SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
+         if(sql.includes('SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0,invoiceOwnershipMismatch:0};
          throw Error('Unexpected first SQL: '+sql);
        },
        async all(){
@@ -53,7 +53,7 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
      };
    }};
  }};
- const env={DB:db,FIRE_ENV:'synthetic',STRIPE_SECRET_KEY:'sk_test_synthetic',SITE_ORIGIN:'https://synthetic.invalid'};
+ const env={DB:db,FIRE_ENV:'synthetic',FIRE_STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_synthetic',SITE_ORIGIN:'https://synthetic.invalid'};
  async function fakeFetch(url,options){
    if(url==='https://api.stripe.com/v1/checkout/sessions'&&options.method==='POST'){
      state.creates++;
