@@ -1,6 +1,59 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 
+// A valid 15 MiB photo needs only a small multipart framing budget.
+// Bound bytes BEFORE request.formData(): a declared tiny length is not
+// authoritative and an owner session must not allocate a 100 MiB body.
+const PHOTO_MAX_BYTES = 15 * 1024 * 1024;
+const MULTIPART_OVERHEAD_BYTES = 256 * 1024;
+const PHOTO_REQUEST_MAX_BYTES = PHOTO_MAX_BYTES + MULTIPART_OVERHEAD_BYTES;
+const PHOTO_TYPES: Record<string,string> = {
+  "image/jpeg":"jpg",
+  "image/png":"png",
+  "image/webp":"webp",
+  "image/gif":"gif",
+  "image/heic":"heic",
+  "image/heif":"heif",
+  "image/avif":"avif",
+  "image/bmp":"bmp",
+  "image/tiff":"tiff",
+};
+async function boundedPhotoForm(request:Request):Promise<FormData|Response>{
+  const contentType=request.headers.get("content-type")??"";
+  if(!/^multipart\/form-data\s*;/i.test(contentType))
+    return Response.json({error:"Choose a photo upload form."},{status:415,headers:{"cache-control":"no-store"}});
+  const claimed=request.headers.get("content-length");
+  if(claimed!==null&&(!/^\d{1,9}$/.test(claimed)||Number(claimed)>PHOTO_REQUEST_MAX_BYTES))
+    return Response.json({error:"The photo request exceeds the upload limit."},{status:413,headers:{"cache-control":"no-store"}});
+  if(!request.body)return Response.json({error:"The photo upload was empty."},{status:400});
+  const reader=request.body.getReader();
+  let size=0;const chunks:Uint8Array[]=[];
+  try{
+    while(true){
+      const next=await reader.read();
+      if(next.done)break;
+      if(!ArrayBuffer.isView(next.value)||next.value.BYTES_PER_ELEMENT!==1)
+        return Response.json({error:"Invalid photo upload."},{status:400});
+      size+=next.value.byteLength;
+      if(size>PHOTO_REQUEST_MAX_BYTES)
+        return Response.json({error:"The photo request exceeds the upload limit."},{status:413,headers:{"cache-control":"no-store"}});
+      chunks.push(next.value);
+    }
+  }catch{
+    return Response.json({error:"Photo upload interrupted. Nothing was saved."},{status:400});
+  }finally{
+    try{await reader.cancel();}catch{}
+    reader.releaseLock();
+  }
+  try{
+    const bytes=new Uint8Array(size);let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    return await new Request(request.url,{method:"POST",headers:{"content-type":contentType},body:bytes}).formData();
+  }catch{
+    return Response.json({error:"Invalid photo upload form."},{status:400});
+  }
+}
+
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
 
@@ -8,20 +61,27 @@ export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable." }, { status: 503 });
-    const form = await request.formData();
+    const parsed=await boundedPhotoForm(request);
+    if(parsed instanceof Response)return parsed;
+    const form = parsed;
     const file = form.get("photo");
     const customerId = String(form.get("customerId") ?? "").trim();
     const category = String(form.get("category") ?? "property").trim().toLowerCase();
     const caption = String(form.get("caption") ?? "").trim();
     if (!customerId || !(file instanceof File)) return Response.json({ error: "Choose a customer and photo." }, { status: 400 });
-    if (!file.type.startsWith("image/")) return Response.json({ error: "Only image files can be uploaded." }, { status: 400 });
-    if (file.size > 15 * 1024 * 1024) return Response.json({ error: "That photo is larger than 15 MB. Choose a smaller image." }, { status: 413 });
+    const photoExtension=PHOTO_TYPES[file.type.toLowerCase()];
+    // Raster still photos only. SVG/XML/HTML can be executable documents,
+    // not customer photographs, even if named "before.jpg".
+    if (!photoExtension) return Response.json({ error: "Choose a JPEG, PNG, WebP, HEIC, AVIF, GIF, BMP or TIFF photo." }, { status: 415 });
+    if (file.size > PHOTO_MAX_BYTES) return Response.json({ error: "That photo is larger than 15 MB. Choose a smaller image." }, { status: 413 });
     const customer = await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
     if (!customer) return Response.json({ error: "Customer not found." }, { status: 404 });
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const safeCategory = ["before","after","property"].includes(category) ? category : "property";
-    const extension = file.name.includes(".") ? file.name.split(".").pop()!.replace(/[^a-zA-Z0-9]/g, "").slice(0,8) : "jpg";
+    // The storage object's extension follows the trusted accepted MIME,
+    // not attacker-controlled filename suffixes (e.g. photo.html or svg).
+    const extension = photoExtension;
     const objectKey = `customers/${customerId}/${id}.${extension || "jpg"}`;
     await env.BUCKET.put(objectKey, file.stream(), { httpMetadata: { contentType: file.type } });
     const filename = file.name || `photo.${extension || "jpg"}`;
