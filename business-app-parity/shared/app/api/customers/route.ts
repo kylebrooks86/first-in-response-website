@@ -120,6 +120,17 @@ export async function POST(request: Request) {
       return Response.json({requestId:id,duplicate:true,customer:{...customer,customerNumber}},{headers:{'Cache-Control':'no-store, private'}});
     };
     if(requestId){const receipt=await replay();if(receipt)return receipt;}
+    // Creation and editing must apply the SAME contact validity contract.
+    // Otherwise a new customer can be saved with an unusable phone/email,
+    // only to have Google Voice or a later edit reject that contact.
+    // Check an existing request ID first so conflicting idempotent retries
+    // still return the original 409 without modifying saved customer details.
+    if(email&&!usableCustomerEmail(email))
+      return Response.json({error:"Enter a valid email address or leave it blank."},
+        {status:400,headers:{"Cache-Control":"no-store, private"}});
+    if(phone&&!usableCustomerPhone(phone))
+      return Response.json({error:"Enter a valid 10-digit U.S. phone number or leave it blank."},
+        {status:400,headers:{"Cache-Control":"no-store, private"}});
     const createdAt = new Date().toISOString();
     const match=customerIdentityPredicate({name,email,phone,address});
     const insertStatement=env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE id=? OR ${match.sql}) RETURNING id`)
