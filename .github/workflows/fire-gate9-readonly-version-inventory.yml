@@ -31,6 +31,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_access_readonly_preflight.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_add_exact_gate9_webhook_access_override.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_access_readonly_safety.test.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_access_readonly_fixture.test.ps1'
       - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
 permissions:
   contents: read
@@ -62,3 +63,15 @@ jobs:
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_inactive_upload.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_access_readonly_safety.test.mjs
+  windows-access-parse-and-fixtures:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Parse actual Access PowerShell and run synthetic seven/eight/unsafe policy GET fixtures
+        shell: pwsh
+        run: |
+          ./business-app-parity/cloudflare-launch/stripe-test-worker/gate9_access_readonly_fixture.test.ps1
