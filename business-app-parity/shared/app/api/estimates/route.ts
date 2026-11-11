@@ -9,6 +9,7 @@ import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_F
 import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
+import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -115,6 +116,20 @@ export async function POST(request: Request) {
     const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
     const items=rawItems.map((item)=>({name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:typeof item.totalCents==='number'?item.totalCents:NaN}));
     if(!customer||!items.length) return Response.json({error:"Customer and at least one service are required."},{status:400});
+    // New Estimate can also create a NEW customer. It must obey the same
+    // contact safety rules as Add Customer; otherwise a bad destination is
+    // saved here and only fails later when sending a quote or editing the
+    // contact. This applies only to NEW customers: legacy existing customer
+    // records must remain selectable without silently rewriting history.
+    // Immutable requestId replay was already checked above.
+    if(!existingCustomerId){
+      if(email&&!usableCustomerEmail(email))return Response.json({
+        error:"Enter a valid customer email address or leave it blank. No customer or estimate created."
+      },{status:400,headers:{"cache-control":"private, no-store"}});
+      if(phone&&!usableCustomerPhone(phone))return Response.json({
+        error:"Enter a valid 10-digit U.S. customer phone number or leave it blank. No customer or estimate created."
+      },{status:400,headers:{"cache-control":"private, no-store"}});
+    }
     if(items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0)) return Response.json({error:"Every service needs a name, quantity, and valid price."},{status:400});
     const subtotal=items.reduce((sum,item)=>sum+item.totalCents,0);
     if(!Number.isSafeInteger(subtotal))return Response.json({error:"The estimate total is too large to store safely."},{status:400});
