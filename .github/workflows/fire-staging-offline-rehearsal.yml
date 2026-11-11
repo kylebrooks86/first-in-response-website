@@ -59,6 +59,12 @@ on:
       - 'business-app-parity/test_independent_staging_runtime_config.mjs'
       - '.github/workflows/fire-staging-offline-rehearsal.yml'
 
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -76,6 +82,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Fast fail on regression test JavaScript syntax (source only)
+        run: |
+          set -euo pipefail
+          # No remote credentials, app build or database required to parse.
+          for script in \
+            business-app-parity/shared/scripts/test-stripe-refunds.mjs \
+            business-app-parity/shared/scripts/test-overpayment-reconciliation-sqlite.mjs \
+            business-app-parity/shared/scripts/test-manual-payment-confirmation.mjs \
+            business-app-parity/shared/scripts/test-invoice-current-state.mjs \
+            business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs \
+            business-app-parity/shared/scripts/test-followup-exact-lookup.mjs \
+            business-app-parity/shared/scripts/test-followup-saved-service-lines-sqlite.mjs \
+            business-app-parity/shared/scripts/test-photo-upload-integrity.mjs \
+            business-app-parity/shared/scripts/test-photo-upload-sqlite-commit.mjs; do
+            node --check "$script"
+          done
       - name: Fail closed on callback and subscription mismatches
         run: |
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs

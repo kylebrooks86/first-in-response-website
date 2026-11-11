@@ -12,6 +12,12 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.mjs'
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

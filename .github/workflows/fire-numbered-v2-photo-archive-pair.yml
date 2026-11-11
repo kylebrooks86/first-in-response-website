@@ -31,6 +31,12 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
       - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

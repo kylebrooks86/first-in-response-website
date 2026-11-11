@@ -37,6 +37,12 @@ on:
       - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
       - 'business-app-parity/shared/lib/records-backup-integrity.mjs'
       - '.github/workflows/fire-numbered-core-recovery-v2-preflight.yml'
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

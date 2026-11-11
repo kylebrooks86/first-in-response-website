@@ -6,6 +6,12 @@ on:
       - 'business-app-parity/shared/app/api/backup/legacy-review/route.ts'
       - 'business-app-parity/shared/scripts/test-legacy-sites-readonly-export.mjs'
       - '.github/workflows/fire-gate7-legacy-sites-offline-export.yml'
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:
