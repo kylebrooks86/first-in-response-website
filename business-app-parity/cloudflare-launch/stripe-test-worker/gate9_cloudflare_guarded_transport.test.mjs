@@ -33,7 +33,7 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=fal
    main_module:'index.js',compatibility_date:'2026-10-16',
    compatibility_flags:['nodejs_compat'],
    bindings:proposedInactivePlan().bindings,
-   assets:{config:{run_worker_first:true}},modules
+   assets:{config:{run_worker_first:['/api/*']}},modules
  }};
  const approval={
    worker:WORKER,predecessor:PREDECESSOR,dbUuid:DB_UUID,accountId,sourceSha,
@@ -62,7 +62,7 @@ function fixture({deny=false,alterBytes=false,forbiddenLive=false,nullErrors=fal
        return response({id:newId,bindings:[...oldBindings,{name:'ASSETS',type:'assets'}],
          main_module:'index.js',compatibility_date:'2026-10-16',
          compatibility_flags:['nodejs_compat'],
-         assets:{config:{run_worker_first:true}},modules});
+         assets:{config:{run_worker_first:['/api/*']}},modules});
      }
      assert.fail('Unexpected GET endpoint');
    }
