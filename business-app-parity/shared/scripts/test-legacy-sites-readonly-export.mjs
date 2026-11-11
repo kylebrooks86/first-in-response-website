@@ -8,6 +8,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {captureLegacySitesReviewReadOnly} from '../lib/legacy-sites-readonly-export.mjs';
+import {rehearseLegacySitesReviewToDisposableMemory} from './rehearse-legacy-sites-review-in-memory.mjs';
 
 const legacyTables=[
  'customers','estimates','customer_notes','invoices','invoice_items','invoice_revisions',
@@ -142,4 +143,36 @@ test('sensitive source error is never forwarded by owner-only route',async()=>{
  assert.equal(response.status,503);
  assert.equal(response.headers.get('cache-control'),'private, no-store');
  assert.equal((await response.text()).includes('PRIVATE SQL CUSTOMER RECORDS'),false);
+});
+
+test('complete legacy record rows and SQL index definitions restore losslessly into new disposable memory',async()=>{
+ const db=initialize();
+ try{
+  const source=await captureLegacySitesReviewReadOnly(adapt(db));
+  const outcome=rehearseLegacySitesReviewToDisposableMemory(source);
+  assert.equal(outcome.disposableInMemoryRoundTripVerified,true);
+  assert.equal(outcome.recreatedTables,18);
+  assert.ok(outcome.recreatedSchemaObjects>18);
+  assert.equal(outcome.recoveredRecordCount,3);
+  assert.equal(outcome.actualRemoteRestorePerformed,false);
+  assert.equal(outcome.photoBytesRestored,false);
+  assert.equal(outcome.releaseGate7Accepted,false);
+ }finally{db.close();}
+});
+test('disposable memory restore refuses identity high-water and schema truncation',async()=>{
+ const db=initialize();
+ try{
+  const source=await captureLegacySitesReviewReadOnly(adapt(db));
+  const lostIndex={...source,schemaObjects:source.schemaObjects.filter(x=>x.type!=='index')};
+  // No claim that full source indexing was restored unless schema inventory
+  // is authenticated; this legacy review is not a digitally signed backup.
+  assert.equal(rehearseLegacySitesReviewToDisposableMemory(lostIndex).recreatedTables,18);
+  const changed={...source,sourceTables:source.sourceTables.slice(1)};
+  assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(changed),/BLOCKED/);
+  const autoincrement={...source,schemaObjects:source.schemaObjects.map(x=>
+    x.type==='table'&&x.name==='customers'?{...x,sql:'CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT)'}:x)};
+  assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(autoincrement),/BLOCKED/);
+  const changedRows={...source,tables:{...source.tables,payments:[{id:'synthetic-payment'}]}};
+  assert.throws(()=>rehearseLegacySitesReviewToDisposableMemory(changedRows),/BLOCKED/);
+ }finally{db.close();}
 });
