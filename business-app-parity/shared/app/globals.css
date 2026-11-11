@@ -4991,3 +4991,45 @@ html[data-theme="dark"] .fire-categorized-dropdown [data-tone="manual"]{--fire-c
 .app-shell .followups-view .followup-filter-panel > button{
   min-width:100px;
 }
+
+
+/* Home > Recent estimates: approval, link-view and signature are three
+   independent saved milestones, not separate clickable buttons.  Give each
+   visible chip consistent geometry while preserving its own tone, icon and
+   accessible text.  Longer future status names may naturally grow; on narrow
+   screens adjacent chips wrap rather than clip.  Do not change chips in the
+   estimate editor, customer list, pipeline or billing surfaces. */
+.recent-estimate-row .job-main > :is(
+  .recent-estimate-status,
+  .estimate-viewed-indicator,
+  .estimate-signed-indicator
+){
+  display:inline-flex;
+  box-sizing:border-box;
+  align-items:center;
+  justify-content:center;
+  min-width:min(104px,100%);
+  min-height:28px;
+  width:max-content;
+  max-width:100%;
+  margin:6px 6px 0 0;
+  padding:4px 8px;
+  gap:5px;
+  border-radius:6px;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.25;
+  text-align:center;
+  vertical-align:middle;
+  white-space:normal;
+  overflow-wrap:normal;
+}
+.recent-estimate-row .job-main > :is(
+  .recent-estimate-status,
+  .estimate-viewed-indicator,
+  .estimate-signed-indicator
+) svg{
+  width:13px;
+  height:13px;
+  flex:0 0 13px;
+}
