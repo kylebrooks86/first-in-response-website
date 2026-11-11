@@ -126,6 +126,40 @@ for(const index of providerIndexes)sql.exec(index.sql);
 const linked=fixture(5000,0);sql.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,provider_refund_id,created_at) VALUES ('wrong-job',?,?,1000,'stripe','succeeded','re_wrong_job','now')").run('p-'+linked,id);
 assert.equal((await refunds.finalizeRefund(DB,'wrong-job','re_wrong_job')).ok,false);
 sql.prepare("DELETE FROM payment_refunds WHERE id='wrong-job'").run();
+// A Stripe refund can SUCCEED before the app notices that its invoice
+// moved to another homeowner. Preserve the real refund's payment ledger,
+// never adjust that foreign invoice, and do not close an overage warning
+// against another customer's bill. Once the owner fixes the association,
+// a same-provider replay can safely reconcile the correct invoice.
+const refundOwnerJob=fixture(9000,0),otherInvoiceOwner=fixture(7000,0);
+pending=true;
+assert.equal((await refund('p-'+refundOwnerJob,'owner-link-drift',1000)).status,202);
+pending=false;
+const moneyAlreadyRefunded=remote.get('fire-refund-owner-link-drift');
+moneyAlreadyRefunded.status='succeeded';
+sql.prepare("UPDATE invoices SET customer_id=?,status='paid' WHERE id=?").run(otherInvoiceOwner,refundOwnerJob);
+sql.prepare("INSERT INTO notifications(id,type,title,body,estimate_id,created_at) VALUES(?, 'payment_overage','Owner review','Synthetic only',?,'2026-11-11')")
+  .run('owner-link-drift-overage',refundOwnerJob);
+assert.equal((await event(moneyAlreadyRefunded)).status,200,
+ 'Signed already-succeeded provider refund must still be recorded even when invoice ownership drifted');
+assert.equal(principal(refundOwnerJob),8000,'Original payment is reduced by the real signed Stripe refund');
+assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(refundOwnerJob).status,'paid',
+ 'A foreign customer invoice cannot be rewritten as partial by refund reconciliation');
+assert.equal(sql.prepare("SELECT resolved_at AS at FROM notifications WHERE id='owner-link-drift-overage'").get().at,null,
+ 'Cross-customer invoice cannot cause a payment overage review to close');
+assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM payments WHERE provider_id=?").get('refund:p-'+refundOwnerJob+':owner-link-drift').n,1,
+ 'Provider refund is represented by exactly one original-job ledger entry');
+assert.equal((await event(moneyAlreadyRefunded)).status,200,'Signed refund replay cannot create a duplicate');
+assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM payments WHERE provider_id=?").get('refund:p-'+refundOwnerJob+':owner-link-drift').n,1);
+sql.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(refundOwnerJob,refundOwnerJob);
+const repairedOwnerRefund=await refunds.finalizeRefund(DB,'owner-link-drift',moneyAlreadyRefunded.id);
+assert.equal(repairedOwnerRefund.ok,true,'Original refund's idempotent D1 reconciliation remains available after invoice repair');
+assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(refundOwnerJob).status,'partial',
+ 'Only the repaired homeowner invoice is updated using existing paid principal');
+assert.ok(sql.prepare("SELECT resolved_at AS at FROM notifications WHERE id='owner-link-drift-overage'").get().at,
+ 'Payment overage review can be resolved after invoice/customer association is restored');
+assert.equal(principal(refundOwnerJob),8000,'Repair does not move Stripe money or create a new refund');
+
 const exported=await (await backup.GET()).json();assert.ok(exported.tables.payment_refunds.length>0);const ledgerSnapshot=JSON.stringify(sql.prepare('SELECT * FROM payments ORDER BY id').all());const requestsSnapshot=JSON.stringify(sql.prepare('SELECT * FROM payment_refunds ORDER BY id').all());
 sql.exec('DELETE FROM payment_refunds;DELETE FROM payments;');const restored=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(exported)}));assert.equal(restored.status,200,await restored.text());assert.equal(JSON.stringify(sql.prepare('SELECT * FROM payments ORDER BY id').all()),ledgerSnapshot);assert.equal(JSON.stringify(sql.prepare('SELECT * FROM payment_refunds ORDER BY id').all()),requestsSnapshot);
 delete exported.tables.payment_refunds;const incompleteRefundExport=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(exported)}));assert.equal(incompleteRefundExport.status,400);assert.match((await incompleteRefundExport.json()).error,/declares refund history but omits payment_refunds/);assert.equal(JSON.stringify(sql.prepare('SELECT * FROM payment_refunds ORDER BY id').all()),requestsSnapshot,'rejected incomplete backup never overwrites refund requests');
