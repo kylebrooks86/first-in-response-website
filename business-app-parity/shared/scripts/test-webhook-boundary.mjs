@@ -27,6 +27,30 @@ assert.equal((await request(body,header(body,now,'incorrect-secret'))).status,40
 assert.equal((await request(body+' ',header(body))).status,400);
 assert.equal((await request(body,'t=invalid,v1=bad')).status,400);
 const goodSigned=header(body);
+// A future narrow public Cloudflare Access webhook exception must not allow
+// oversized unauthenticated traffic to consume unlimited Worker memory, or
+// malformed UTF-8 to reach payment reconciliation.
+const oversize='x'.repeat(1_048_577);
+const huge=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{'stripe-signature':header(body)},body:oversize
+}));
+assert.equal(huge.status,413,'Over-limit body fails before Stripe HMAC and D1');
+assert.equal(huge.headers.get('cache-control'),'no-store');
+const forgedLength=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{'stripe-signature':header(body),'content-length':'1048577'},body
+}));
+assert.equal(forgedLength.status,413,'Large declared length stops without reading body');
+const hugeSignature=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{'stripe-signature':'t=123,v1='+('a'.repeat(1200))},body
+}));
+assert.equal(hugeSignature.status,400,'Excessive signature header rejected before HMAC');
+const malformedUtf8=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+ method:'POST',headers:{'stripe-signature':header(body)},
+ body:new Uint8Array([0xc3,0x28])
+}));
+assert.equal(malformedUtf8.status,413,'Malformed UTF-8 body refused without D1');
+assert.equal(state.checkoutCalls+state.refundCalls+state.failureCalls,0,
+ 'Oversize/malformed webhook requests cause zero financial side effects');
 const unexpectedHost=await route.POST(new Request('https://other-host.invalid/api/payments/webhook',
  {method:'POST',headers:{'stripe-signature':goodSigned},body}));
 assert.equal(unexpectedHost.status,404,'HMAC-valid TEST event on wrong host must fail closed');
