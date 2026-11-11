@@ -16,21 +16,29 @@
 - The Worker webhook handler verifies raw Stripe timestamp/HMAC before any TEST-mode gate, verifies livemode/object/session identity and routes to D1 only after valid signatures. A separate draft PR222 adds (1) refusing a second overlapping enabled sandbox Stripe destination and (2) refusing even HMAC-valid TEST events on an unpinned hostname/path.
 
 ## Exact narrow Cloudflare Access configuration (DESIGN, NOT YET APPLIED)
-A normal Stripe server-to-server webhook CANNOT sign in as the owner via an interactive Cloudflare Access browser page. Its own `Stripe-Signature` verification is the intended authentication on this receiver. Do **not** disable Access for this Worker or all traffic.
 
-Cloudflare documents that hostname/path Access applications take precedence over Worker-level Access and supports a path-scoped `Bypass` policy (but warns that Bypass disables Access logging for matching traffic). If and only if the actual UI permits a self-hosted application for this **literal** HTTPS worker hostname and **exact** `/api/payments/webhook` path:
-1. Preserve the existing `FIRE Stripe TEST - Owner Only` Worker-level **All traffic** Allow policy unchanged.
-2. Review a *separate* self-hosted Access application matching ONLY `fire-stripe-test-20261101.kyle-bfc.workers.dev/api/payments/webhook` (NOT `*.workers.dev`, NOT `/*`, NOT `/api/*`, NOT `/api/payments/*`, NOT a Version URL).
-3. Only after **new exact-target owner approval**, apply `Bypass / Include Everyone` to this one literal receiver path and prove Cloudflare's effective policy precedence through a non-credential read-only request. This intentionally removes **Cloudflare Access login** for only that path, NOT the Stripe HMAC check performed in application code; do not claim Bypass is a security control.
-4. Independently show unauthenticated `GET /api/customers` still gets the Cloudflare Access login (not raw customer JSON), and the same holds for `/api/payments/checkout`, `/api/payments/refund` and arbitrary private UI paths.
-5. Unauthenticated `POST /api/payments/webhook` **without** `Stripe-Signature` must reach the handler and be rejected HTTP **400**; malformed HMAC must also be 400. Never send a valid signature or real Stripe event as this ingress check. No body/secret/header/cookie shown in chat or GitHub. The regular URL is still the original Stripe-disabled predecessor during this check.
-6. If Cloudflare's UI refuses the literal `workers.dev` path, shows broader coverage, or any non-webhook route loses owner login: **STOP and DO NOT APPLY**. Do not switch to a Worker-wide bypass or new public hostname without a separate design review.
+**Use the EXISTING Worker-level Access application and its destination's narrow public-path override, not a second overlapping Access app.** The repository already has a guarded, rollback-aware owner-run helper at:
+`business-app-parity/cloudflare-launch/stripe-test-worker/owner_add_exact_gate9_webhook_access_override.ps1`.
+It is **NOT authorized to run now**; its comments about an earlier owner-approved scope are historical, not fresh consent to a new provider write.
 
-Cloudflare official references:
-- https://developers.cloudflare.com/workers/configuration/cloudflare-access/
-- https://developers.cloudflare.com/cloudflare-one/access-controls/policies/common-policies/
-- https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/
-- https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/
+Cloudflare's official Access API supports `destinations:[{type:"worker",worker_id:"…",overrides:[{behavior:"public",path_pattern:"…"}]}]`, including literal-path public exceptions while retaining a separate owner-only policy for the remaining paths. Source: https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/ and https://developers.cloudflare.com/workers/configuration/cloudflare-access/.
+
+The owner-run helper is specifically pinned to:
+- Cloudflare TEST Worker `fire-stripe-test-20261101` and its immutable Worker Access application ID, never another Worker or LIVE Sites app.
+- Exactly **SEVEN** previously defined public path overrides (customer-facing signed estimate/invoice/pay links, matched static assets and branding). Their *actual remote presence remains to be read back*, rather than inferred from source code or an "All traffic" dashboard badge.
+- ONE proposed extra override: literal `/api/payments/webhook` with `behavior:"public"`, **no wildcard**. Expected count after approval is eight.
+- The existing reusable owner-identity **Allow** policy, unchanged.
+- A private owner-machine DPAPI-encrypted before-state snapshot, source-policy fingerprint, last-second GET drift check, only one owner-confirmed policy PUT and independent post-write GET. The existing helper also contains a possible **rollback PUT** on uncertain outcomes; that contingency is a separate real Access policy mutation to include in an exact reviewed approval.
+
+### Access review and acceptance sequence
+1. **Read-only FIRST:** Inspect the actual current Cloudflare Access Worker application ID and `destinations[0].overrides` by authenticated GET; verify only the expected seven old paths, type `worker`, correct Worker ID, owner-only reusable Allow policy and no unreviewed fields. No token or owner email in logs or chat. If the count/policy differs: **STOP**, do not apply the helper.
+2. Review the exact existing helper source and its rollback contingency with owner; **obtain new explicit approval** scoped to this one TEST Access application, one added `/api/payments/webhook` public override, and documented contingent same-app restoration only, with no broad policy changes. The owner supplies temporary Access: Apps and Policies Edit credentials privately to PowerShell and revokes them after, never to the conversation.
+3. Only then execute the guarded script once. On a STOP or uncertain result, DO NOT retry automatically; independently GET actual Access state and reconcile.
+4. **Verify physical access boundaries:** On the canonical TEST hostname, without owner browser cookies, `POST /api/payments/webhook` with NO `Stripe-Signature` must receive application HTTP **400**, not Cloudflare's login page. An invalid HMAC is 400. No valid HMAC or real Stripe event is sent at this ingress stage. A `GET` is not evidence of event handling.
+5. Other private paths (`/api/customers`, `/api/payments/checkout`, `/api/payments/refund`) must still be protected by owner login. Customer-facing signed links retain their previously approved public access and token checks. No Worker-wide public/bypass switch. The normal stable origin serves the still-Stripe-disabled predecessor until a separate deployment approval.
+6. If policy readback, immutable target identity, or non-webhook protections cannot be verified: **STOP and restore the exact original policy only under an explicitly approved rollback plan**.
+
+**Reminder:** A public Access override only removes Cloudflare's interactive login on the exact receiver; the Worker MUST continue to check fresh Stripe HMAC timestamp/signature, environment mode, canonical origin, event and session IDs, and exact cents before financial ledger mutation. Cloudflare Access logs are not available for the public override, so provider-signed delivery receipts and application-level audit are essential. No non-webhook route becomes public.
 
 ## Stripe TEST activation and ledger — ordered independent gates
 A) Before any money-event write, use real owner-authenticated **read-only** Cloudflare D1 provider view for exact TEST D1 UUID, ordered migration history, `payment_refunds` table/indexes, invoice/payments/estimate uniqueness, no LIVE DB UUID reuse, and a recoverable target-bound private backup. Do not run migration/SQL writes or share customer rows.
