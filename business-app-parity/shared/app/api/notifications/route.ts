@@ -34,6 +34,10 @@ export async function PATCH(request:Request){
       if(value.resolutionMode!=="refund"&&value.resolutionMode!=="keep")return Response.json({error:"Choose whether the overpayment was refunded or intentionally kept as an overpayment."},{status:400});
       const alert=await env.DB.prepare("SELECT id FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL ORDER BY created_at ASC LIMIT 1").bind(value.estimateId).first<{id:string}>();
       if(!alert)return Response.json({error:"No open overpayment alert was found."},{status:404});
+      // A pending Stripe refund may change the ledger on webhook receipt.
+      // Neither an owner Record refund nor Keep decision may race it.
+      const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(value.estimateId).first<{id:string}>();
+      if(pendingRefund)return Response.json({error:"A refund is still processing for this job. Wait for its final ledger status before resolving the overpayment."},{status:409,headers:{"Cache-Control":"no-store, private"}});
       const billing=await env.DB.prepare(`SELECT
         COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
         COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
@@ -64,14 +68,14 @@ export async function PATCH(request:Request){
         const adjustmentId=crypto.randomUUID();
         const providerId=`refund-adjustment:${alert.id}`;
         await env.DB.batch([
-          env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) SELECT ?,?,'Refund adjustment',?,'paid',?,? WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?) AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)").bind(adjustmentId,value.estimateId,-refundAmountCents,providerId,now,providerId,value.estimateId),
+          env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) SELECT ?,?,'Refund adjustment',?,'paid',?,? WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?) AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE estimate_id=? AND status='pending')").bind(adjustmentId,value.estimateId,-refundAmountCents,providerId,now,providerId,value.estimateId,value.estimateId),
           env.DB.prepare(`UPDATE invoices SET status=CASE
             WHEN ?>=total_cents THEN 'paid'
             WHEN ?>0 THEN 'partial'
             WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
-            ELSE 'draft' END WHERE estimate_id=? AND customer_id=(SELECT e.customer_id FROM estimates e WHERE e.id=?)`).bind(paidCents,paidCents,value.estimateId,value.estimateId),
+            ELSE 'draft' END WHERE estimate_id=? AND customer_id=(SELECT e.customer_id FROM estimates e WHERE e.id=?) AND EXISTS(SELECT 1 FROM payments WHERE provider_id=?) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE estimate_id=? AND status='pending')`).bind(paidCents,paidCents,value.estimateId,value.estimateId,providerId,value.estimateId),
           env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note=? WHERE id=? AND estimate_id=? AND type='payment_overage' AND resolved_at IS NULL AND EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND amount_cents=?)
-            AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)`).bind(now,now,`refund:${refundAmountCents}`,alert.id,value.estimateId,providerId,-refundAmountCents,value.estimateId),
+            AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE estimate_id=? AND status='pending')`).bind(now,now,`refund:${refundAmountCents}`,alert.id,value.estimateId,providerId,-refundAmountCents,value.estimateId,value.estimateId),
         ]);
         const persistedRefund=await env.DB.prepare("SELECT amount_cents AS amountCents FROM payments WHERE provider_id=? LIMIT 1").bind(providerId).first<{amountCents:number}>();
         const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(value.estimateId).first<{paidCents:number}>();
@@ -94,6 +98,7 @@ export async function PATCH(request:Request){
             AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
               > COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
             AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
+            AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
           )`).bind(now,now,value.estimateId,value.estimateId).run();
         if(!kept.meta.changes)return Response.json({error:"The overpayment state changed while resolving this exception. Refresh the job and verify the billing totals."},{status:409});
       }
