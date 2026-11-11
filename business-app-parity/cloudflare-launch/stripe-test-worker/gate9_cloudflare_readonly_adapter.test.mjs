@@ -136,6 +136,32 @@ test('refuses secret values in READ responses and fail-closes unknown binding ty
   extra.bindings[0]={name:'BUCKET',type:'r2_bucket'};
   assert.throws(()=>predecessorFromApi(wrap(extra)));
 });
+test('Cloudflare UTC-midnight compatibility_date readback matches pinned YYYY-MM-DD',()=>{
+  for(const accepted of [
+    '2026-10-16',
+    '2026-10-16T00:00:00Z',
+    '2026-10-16T00:00:00.000Z'
+  ]){
+    const v=version(true);
+    v.compatibility_date=accepted;
+    const actual=createdVersionFromApi(wrap(v),id);
+    assert.equal(actual.compatibility_date,'2026-10-16');
+  }
+  // No timezone conversion, shifted date, non-midnight time or silent rollover.
+  for(const invalid of [
+    '2026-10-16T01:00:00Z',
+    '2026-10-16T00:00:00+00:00',
+    '2026-10-16T00:00:01Z',
+    '2026-02-30T00:00:00Z',
+    '2026-13-16',
+    null
+  ]){
+    const v=version(true);v.compatibility_date=invalid;
+    assert.throws(()=>createdVersionFromApi(wrap(v),id),
+      /COMPATIBILITY_DATE/);
+  }
+});
+
 test('rejects GET response lacking independent modules, wrong ID, or poisoned metadata',()=>{
   const v=version(true);
   v.modules=undefined;
