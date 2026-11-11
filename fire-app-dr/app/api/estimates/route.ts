@@ -15,9 +15,10 @@ export async function GET() {
         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.total_cents AS totalCents,e.deposit_cents AS depositCents,
                e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
                COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
-               (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
-               (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
-               (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+               (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
+               (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceId,
+               (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceShareToken,
+               (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceTotalCents,
                (SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS pendingChangeCount,
                (SELECT message FROM estimate_change_requests cr WHERE cr.estimate_id=e.id ORDER BY cr.created_at DESC LIMIT 1) AS latestChangeRequest,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='review' AND cm.channel IN ('text','email')) AS lastReviewRequestAt,
@@ -27,12 +28,22 @@ export async function GET() {
         FROM estimates e JOIN customers c ON c.id = e.customer_id
         ORDER BY e.created_at DESC LIMIT 100
       `),
-      env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id ORDER BY e.created_at DESC,i.rowid ASC`),
+      env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id WHERE e.id IN (SELECT id FROM estimates ORDER BY created_at DESC LIMIT 100) ORDER BY e.created_at DESC,i.rowid ASC`),
     ]);
+    // A stale invoice association must never render another homeowner's
+    // payment total or share-token from the recovered application.
+    // Refuse the entire page until the owner reconciles the relationship.
+    if((estimateResult.results as Record<string,unknown>[]).some(row=>Number(row.invoiceOwnershipMismatch)!==0))
+      return Response.json({error:"Estimate billing has a customer ownership mismatch. Review invoice associations before continuing."},
+        {status:409,headers:{"cache-control":"private, no-store"}});
     const grouped=new Map<string,ItemRow[]>();
     for(const raw of itemResult.results as unknown as ItemRow[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};grouped.set(row.estimateId,[...(grouped.get(row.estimateId)??[]),row]);}
-    const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};});
-    return Response.json({ estimates });
+    const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{
+      const {invoiceOwnershipMismatch,...safe}=row;
+      const items=grouped.get(String(row.id))??[];
+      return {...safe,items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};
+    });
+    return Response.json({ estimates },{headers:{"cache-control":"private, no-store"}});
   } catch {
     return Response.json({ estimates: [], message: "Estimates are temporarily unavailable." }, { status: 503 });
   }
