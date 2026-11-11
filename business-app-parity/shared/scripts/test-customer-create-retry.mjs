@@ -18,6 +18,21 @@ try{
  owner=null;eq((await get(original.requestId)).status,401);eq((await post(original)).status,401);owner={email:'other@example.invalid'};eq((await get(original.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
  for(const requestId of ['bad',null,42,'A'.repeat(36)])eq((await post({...original,requestId})).status,400);
  eq((await get('bad')).status,400);let response=await get(original.requestId);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
+ // Creating a customer must not save contact details that the same app's
+ // later edit or Voice/email handoff would refuse. All failures are pre-write.
+ for(const input of [
+  {email:'not-an-email',phone:''},
+  {email:'',phone:'not-a-phone'},
+  {email:'',phone:'918-123'},
+  {email:'bad@example',phone:'9185550100'}
+ ]){
+  const beforeWrites=writes;
+  const denied=await post({...original,requestId:randomUUID(),...input});
+  eq(denied.status,400);
+  eq(denied.headers.get('cache-control'),'no-store, private');
+  eq(writes,beforeWrites);
+ }
+ 
  // Invalid JSON and non-object bodies cannot be confused with uncertain database writes.
  for(const [method,handler] of [['POST',customers.POST],['PATCH',customers.PATCH]]){
   for(const raw of ['null','[]','"synthetic"','42','{malformed','']){
