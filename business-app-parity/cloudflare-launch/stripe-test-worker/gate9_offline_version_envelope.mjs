@@ -136,6 +136,11 @@ export function createOfflineVersionEnvelope(serverDir,clientDir) {
   modules.sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
   // NB: deploy is a QUERY STRING parameter per beta Workers Version API.
   // This body intentionally does not contain a "deploy" property.
+  // Protect every dynamic API request in Worker, while Cloudflare serves
+  // matched client JS/CSS/image assets before the generated Vinext Worker.
+  // The prior run_worker_first:true caused actual /_next/static/*.js and
+  // *.css 404s on the inactive hosted TEST Version URL. All traffic is still
+  // authenticated by the existing owner-only Cloudflare Access policy.
   const request={
     method:'POST',
     path:'/accounts/'+PLACEHOLDER_ACCOUNT_ID+'/workers/workers/'+WORKER+'/versions',
@@ -147,7 +152,7 @@ export function createOfflineVersionEnvelope(serverDir,clientDir) {
       bindings:proposal.bindings,
       assets:{
         jwt:SYNTHETIC_ASSET_JWT,
-        config:{run_worker_first:true}
+        config:{run_worker_first:['/api/*']}
       },
       modules
     }
@@ -174,8 +179,11 @@ export function validateOfflineVersionEnvelope(request) {
       'assets,bindings,compatibility_date,compatibility_flags,main_module,modules',
     'BODY_FIELDS');
   check(b.assets && Object.keys(b.assets).sort().join(',')==='config,jwt' &&
-    fakeOnly(b.assets.jwt) && b.assets.config?.run_worker_first===true &&
-    Object.keys(b.assets.config).join(',')==='run_worker_first','ASSETS_REQUIRE_WORKER_FIRST');
+    fakeOnly(b.assets.jwt) &&
+    Array.isArray(b.assets.config?.run_worker_first) &&
+    b.assets.config.run_worker_first.length===1 &&
+    b.assets.config.run_worker_first[0]==='/api/*' &&
+    Object.keys(b.assets.config).join(',')==='run_worker_first','ASSETS_ROUTE_POLICY');
   const proposal={...proposedInactivePlan(),bindings:b.bindings};
   verifyInactiveProposal(proposal);
   check(Array.isArray(b.modules)&&b.modules.length>=2&&b.modules.length<=5000,
