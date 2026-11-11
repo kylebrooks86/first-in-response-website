@@ -71,6 +71,45 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
   if(patched){
     if(file==='customer-photos.patched.ts'){
     {
+      const m=loadRoute(file),bad=request({mime:'image/svg+xml',name:'invoice.svg'});
+      const res=await m.POST(bad);
+      check('Customer photo upload rejects executable SVG documents with no R2/D1 writes',
+        res.status===415&&m.counts().puts===0&&m.counts().dbWrites===0);
+    }
+    {
+      const m=loadRoute(file),bad=request({mime:'text/html',name:'photo.jpg'});
+      const res=await m.POST(bad);
+      check('HTML disguised as a JPEG cannot enter customer photo storage',
+        res.status===415&&m.counts().puts===0&&m.counts().dbWrites===0);
+    }
+    {
+      const m=loadRoute(file);
+      const fd=new FormData();
+      fd.set('customerId','customer-1');
+      fd.set('photo',new File([new Uint8Array(12)],'small.png',{type:'image/png'}));
+      const bogus=new Request('https://synthetic.invalid/api/customer-photos',{
+        method:'POST',headers:{'content-length':'15990785'},body:fd
+      });
+      const res=await m.POST(bogus);
+      check('Declared oversized multipart request is denied before parsing/R2/DB',
+        res.status===413&&m.counts().puts===0&&m.counts().dbWrites===0);
+    }
+    {
+      const m=loadRoute(file);
+      const fd=new FormData();
+      fd.set('customerId','customer-1');
+      fd.set('photo',new File([new Uint8Array(16*1024*1024)],'big.png',{type:'image/png'}));
+      const res=await m.POST(new Request('https://synthetic.invalid/api/customer-photos',{method:'POST',body:fd}));
+      check('Streaming byte cap refuses 16 MiB upload with no R2 or D1 writes',
+        res.status===413&&m.counts().puts===0&&m.counts().dbWrites===0);
+    }
+    {
+      const m=loadRoute(file);
+      const res=await m.POST(request({name:'x.svg',mime:'image/png'}));
+      check('Trusted raster MIME determines stored object extension instead of untrusted .svg',
+        res.status===201&&[...m.objects.keys()][0]?.endsWith('.png')===true);
+    }
+    {
       const m=loadRoute(file);
       const response=await m.POST(request());
       check('patched confirmed photo save rereads the exact D1 row before 201',response.status===201&&m.counts().photoSelects===1&&response.headers.get('cache-control')==='private, no-store');
@@ -84,7 +123,7 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
       else check('patched '+mode+' refuses unverified insert before readback',m.counts().photoSelects===0);
     }
     }
-    for(const [name,config,status] of [['wrong customer',{customerId:'wrong'},404],['invalid file',{mime:'text/plain'},400],['oversized image',{bytes:15*1024*1024+1},413]]){
+    for(const [name,config,status] of [['wrong customer',{customerId:'wrong'},404],['invalid file',{mime:'text/plain'},file==='customer-photos.patched.ts'?415:400],['oversized image',{bytes:15*1024*1024+1},413]]){
       const m=loadRoute(file);const res=await m.POST(request(config));check(`patched ${name} yields ${status} without object/database writes`,res.status===status&&m.counts().puts===0&&m.counts().dbWrites===0);
     }
   }
