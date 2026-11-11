@@ -73,16 +73,31 @@ test('rejects missing full worker module, missing _headers and malformed module 
     v=>{v.body.modules[1].content_base64='YQ===';}
   ])assert.throws(()=>validateOfflineVersionEnvelope(flip(change)));
 });
-test('accepts compiled server CSS as text module and JSON as json module',()=>{
+test('accepts CSS as text and known generated Vinext JSON metadata as text module',()=>{
   const v=fake();
   v.body.modules.push({
     name:'ssr/style.css',content_type:'text/plain',
     content_base64:Buffer.from('body{background:red}').toString('base64')
   },{
-    name:'ssr/manifest.json',content_type:'application/json',
+    name:'ssr/vinext-server.json',content_type:'text/plain',
     content_base64:Buffer.from('{"synthetic":true}').toString('base64')
   });
   assert.equal(validateOfflineVersionEnvelope(v).moduleCount,5);
+});
+
+test('rejects real provider 10162 unsupported JSON module MIME and unknown future JSON',()=>{
+  const buf=Buffer.from('{"synthetic":true}').toString('base64');
+  for(const [name,contentType,contents] of [
+    ['vinext-server.json','application/json',buf],
+    ['ssr/vinext-server.json','application/json',buf],
+    ['vinext-externals.json','application/json',buf],
+    ['ssr/unreviewed.json','text/plain',buf],
+    ['vinext-server.json','text/plain',Buffer.from('invalid').toString('base64')]
+  ]){
+    const v=fake();
+    v.body.modules.push({name,content_type:contentType,content_base64:contents});
+    assert.throws(()=>validateOfflineVersionEnvelope(v));
+  }
 });
 
 test('accepts real Vite framework~ chunk naming but not path traversal',()=>{
