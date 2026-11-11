@@ -25,7 +25,8 @@ const setup=()=>{
  CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT,email TEXT,phone TEXT,address TEXT,created_at TEXT);
  CREATE TABLE estimates(id TEXT PRIMARY KEY,customer_id TEXT,status TEXT,subtotal_cents INTEGER,discount_cents INTEGER,
   appreciation_discount INTEGER,additional_discount_type TEXT,additional_discount_value INTEGER,total_cents INTEGER,
-  deposit_cents INTEGER,share_token TEXT,created_at TEXT,scheduled_at TEXT,accepted_at TEXT,signed_at TEXT);
+  deposit_cents INTEGER,share_token TEXT,created_at TEXT,scheduled_at TEXT,accepted_at TEXT,signed_at TEXT,
+  first_viewed_at TEXT,signed_name TEXT,contract_initials TEXT,photo_release INTEGER);
  CREATE TABLE estimate_items(id TEXT PRIMARY KEY,estimate_id TEXT,name TEXT,description TEXT,quantity REAL,unit TEXT,total_cents INTEGER);
  CREATE TABLE message_templates(key TEXT PRIMARY KEY,subject TEXT,body TEXT,updated_at TEXT);
  CREATE TABLE payments(estimate_id TEXT,status TEXT,type TEXT,amount_cents INTEGER);
