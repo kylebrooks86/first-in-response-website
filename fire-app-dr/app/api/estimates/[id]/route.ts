@@ -107,10 +107,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         ?" AND accepted_at IS NULL AND NOT EXISTS(SELECT 1 FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid') AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id)"
         :"";
       guardedStatusIndex=statements.length;
-      statements.push(env.DB.prepare(`UPDATE estimates SET status=?,scheduled_at=? WHERE id=? AND status=? AND accepted_at IS ? AND signed_at IS ?
+      statements.push(env.DB.prepare(`UPDATE estimates SET status=?,scheduled_at=? WHERE id=? AND status=? AND scheduled_at IS ? AND accepted_at IS ? AND signed_at IS ?
         AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)=?
         AND (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=estimates.id)=?${transitionGuard}`)
-        .bind(nextStatus,nextSchedule,id,existing.status,existing.acceptedAt,existing.signedAt,existing.paidCents,existing.invoiceCount));
+        .bind(nextStatus,nextSchedule,id,existing.status,existing.scheduledAt,existing.acceptedAt,existing.signedAt,existing.paidCents,existing.invoiceCount));
       responseFields={...responseFields,status:nextStatus,scheduledAt:nextSchedule};
     }
     // A blanket update previously silently closed every pending customer
