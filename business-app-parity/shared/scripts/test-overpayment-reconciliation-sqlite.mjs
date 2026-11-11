@@ -2,6 +2,7 @@
  * No real customer, hosted Worker, D1, Stripe, external refund or messaging.
  */
 import assert from 'node:assert/strict';
+import {resolve} from 'node:path';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
@@ -103,7 +104,7 @@ try{
  }
  // Run the ACTUAL independent DR notification route against the same native
  // SQLite fixture. DR's Keep decision must not reconcile a foreign invoice.
- const drRoute=rt.load('../../fire-app-dr/app/api/notifications/route.ts');
+ const drRoute=rt.load(resolve(process.env.GITHUB_WORKSPACE??resolve(process.cwd(),'../..'),'fire-app-dr/app/api/notifications/route.ts'));
  const drKeep=async job=>{
   const response=await drRoute.PATCH(new Request('https://synthetic.invalid/api/notifications',{
    method:'PATCH',headers:{'content-type':'application/json'},
