@@ -172,7 +172,7 @@ assert.equal((await event(moneyAlreadyRefunded)).status,200,'Signed refund repla
 assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM payments WHERE provider_id=?").get('refund:p-'+refundOwnerJob+':owner-link-drift').n,1);
 sql.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(refundOwnerJob,refundOwnerJob);
 const repairedOwnerRefund=await refunds.finalizeRefund(DB,'owner-link-drift',moneyAlreadyRefunded.id);
-assert.equal(repairedOwnerRefund.ok,true,'Original refund's idempotent D1 reconciliation remains available after invoice repair');
+assert.equal(repairedOwnerRefund.ok,true,"Original refund idempotent D1 reconciliation remains available after invoice repair");
 assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(refundOwnerJob).status,'partial',
  'Only the repaired homeowner invoice is updated using existing paid principal');
 assert.ok(sql.prepare("SELECT resolved_at AS at FROM notifications WHERE id='owner-link-drift-overage'").get().at,
