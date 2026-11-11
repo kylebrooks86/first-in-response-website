@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import {submittedDiscountCents,quoteDiscounts,discountSnapshot,DISCOUNT_SNAPSHOT_PREFIX} from "../../lib/discount-input";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getOwnerUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -47,29 +48,22 @@ export async function POST(request: Request) {
     const phone = String(body.phone ?? "").trim();
     const address = String(body.address ?? "").trim();
     const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
-    const items=rawItems.map((item)=>({name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:Math.round(Number(item.totalCents))}));
+    const items=rawItems.map((item)=>({name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:typeof item.totalCents==="number"?item.totalCents:NaN}));
     if(!customer||!items.length) return Response.json({error:"Customer and at least one service are required."},{status:400});
     if(items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0)) return Response.json({error:"Every service needs a name, quantity, and valid price."},{status:400});
     const subtotal=items.reduce((sum,item)=>sum+item.totalCents,0);
     if(!Number.isSafeInteger(subtotal))return Response.json({error:"The estimate total is too large to store safely."},{status:400});
     const appreciationDiscount=body.appreciationDiscount===true?1:0;
     const additionalDiscountType=String(body.additionalDiscountType??"percent")==="dollar"?"dollar":"percent";
-    const additionalDiscountValue=Math.max(0,Math.round(Number(body.additionalDiscountValue??0)));
-    if(!Number.isSafeInteger(additionalDiscountValue))return Response.json({error:"Enter a valid discount amount."},{status:400});
-    let additionalDiscountCents=0;
-    if(additionalDiscountType==="percent"){
-      const maxBasisPoints=(appreciationDiscount?45:50)*100;
-      if(additionalDiscountValue>maxBasisPoints)return Response.json({error:`Additional percentage discount cannot exceed ${maxBasisPoints/100}%.`},{status:400});
-      additionalDiscountCents=Math.round(subtotal*(additionalDiscountValue/10000));
-    } else {
-      if(additionalDiscountValue>subtotal)return Response.json({error:"Dollar discount cannot exceed the service subtotal."},{status:400});
-      additionalDiscountCents=additionalDiscountValue;
-    }
-    const appreciationCents=appreciationDiscount?Math.round(subtotal*0.05):0;
-    const requestedDiscount=Math.min(subtotal,appreciationCents+additionalDiscountCents);
-    const total=Math.max(15000,subtotal-requestedDiscount);
-    const appliedDiscount=Math.max(0,subtotal-total);
-    const deposit=Math.round(total/2);
+    const additionalDiscountValue=submittedDiscountCents(body.additionalDiscountValue);
+    if(additionalDiscountValue===null)return Response.json({error:"Enter a valid nonnegative discount in exact cents."},{status:400});
+    const bundleDiscountCents=body.bundleDiscountCents===undefined?0:
+      typeof body.bundleDiscountCents==="number"?submittedDiscountCents(body.bundleDiscountCents):null;
+    if(bundleDiscountCents===null)return Response.json({error:"Enter a valid bundle discount in exact cents."},{status:400});
+    let pricing:ReturnType<typeof quoteDiscounts>;
+    try{pricing=quoteDiscounts(subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents);}
+    catch(error){return Response.json({error:error instanceof Error?error.message:"Invalid discounts."},{status:400});}
+    const {total,appliedDiscount,deposit}=pricing;
     const customerId=existingCustomerId||crypto.randomUUID();
     const estimateId=crypto.randomUUID();const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     const statements=[];
@@ -77,8 +71,18 @@ export async function POST(request: Request) {
     else statements.push(env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,created_at) VALUES (?,?,?,?,?,?)").bind(customerId,customer,email||null,phone||null,address||null,now));
     statements.push(env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',?,?,?,?,?,?,?,?,?)").bind(estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
+    if(bundleDiscountCents>0)statements.push(env.DB.prepare(
+      "INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)"
+    ).bind(DISCOUNT_SNAPSHOT_PREFIX+estimateId,JSON.stringify(discountSnapshot(estimateId,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),now));
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,customerId,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue},{status:201});
+    // A successful transport receipt is not proof the quote and customer
+    // service lines were saved. Never show a money total that disagrees with D1.
+    const saved=await env.DB.prepare("SELECT e.id,e.customer_id AS customerId,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,e.deposit_cents AS depositCents,(SELECT COUNT(*) FROM estimate_items i WHERE i.estimate_id=e.id) AS itemCount FROM estimates e WHERE e.id=?").bind(estimateId)
+      .first<{id:string;customerId:string;subtotalCents:number;discountCents:number;totalCents:number;depositCents:number;itemCount:number}>();
+    if(!saved||saved.customerId!==customerId||saved.subtotalCents!==subtotal||saved.discountCents!==appliedDiscount||
+       saved.totalCents!==total||saved.depositCents!==deposit||saved.itemCount!==items.length)
+      return Response.json({error:"Estimate save could not be verified. Reopen Estimates before attempting another creation.",saveUncertain:true},{status:503,headers:{"cache-control":"private, no-store"}});
+    return Response.json({id:estimateId,customerId,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents},{status:201,headers:{"cache-control":"private, no-store"}});
   } catch {
     return Response.json({ error: "We couldn't save this estimate. Please try again." }, { status: 500 });
   }
