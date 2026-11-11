@@ -40,6 +40,64 @@ async function inspectUnpaidExpiration(session: {id:string;type:string;amountCen
     remote.amount_total===session.amountCents;
 }
 
+/** Public bearer-token checkout must not allow arbitrary-sized JSON bodies
+ * to allocate unbounded Worker memory before the first authenticated D1 row.
+ * This is separate from the Cloudflare account-wide HTTP request size cap.
+ */
+const MAX_CHECKOUT_BODY_BYTES=16_384;
+type CheckoutRead={ok:true;body:Record<string,unknown>}|{ok:false;tooLarge:boolean};
+async function boundedCheckoutBody(request:Request):Promise<CheckoutRead>{
+  const claimed=request.headers.get('content-length');
+  if(claimed!==null&&(!/^\\d{1,8}$/.test(claimed)||Number(claimed)>MAX_CHECKOUT_BODY_BYTES))
+    return{ok:false,tooLarge:true};
+  if(!request.body)return{ok:false,tooLarge:false};
+  let reader:ReadableStreamDefaultReader<Uint8Array>|null=null;
+  try{
+    reader=request.body.getReader();
+    let total=0;
+    const chunks:Uint8Array[]=[];
+    while(true){
+      const part=await reader.read();
+      if(part.done)break;
+      if(!(part.value instanceof Uint8Array))return{ok:false,tooLarge:false};
+      total+=part.value.byteLength;
+      if(total>MAX_CHECKOUT_BODY_BYTES)return{ok:false,tooLarge:true};
+      chunks.push(part.value);
+    }
+    const bytes=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    const decoded=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+    const body:unknown=JSON.parse(decoded);
+    if(!body||typeof body!=='object'||Array.isArray(body))return{ok:false,tooLarge:false};
+    return{ok:true,body:body as Record<string,unknown>};
+  }catch{
+    return{ok:false,tooLarge:false};
+  }finally{
+    if(reader){
+      try{await reader.cancel();}catch{}
+      reader.releaseLock();
+    }
+  }
+}
+
+/** Stripe replies are not a customer authorization grant. A TEST-only Worker
+ * must never hand out or record a LIVE Checkout session, an unrecognized
+ * session ID or a non-Stripe redirect. Keep its reservation blocked on an
+ * ambiguous provider result; owner reconciliation is the only recovery.
+ */
+function trustedCheckoutResponse(id:unknown,url:unknown,sandbox:boolean):boolean{
+  if(typeof id!=='string'||!/^cs_(test|live)_[a-zA-Z0-9_-]+$/.test(id)||
+     (sandbox&&!id.startsWith('cs_test_'))||(!sandbox&&!id.startsWith('cs_live_'))||
+     typeof url!=='string'||url.length>4096)return false;
+  try{
+    const redirect=new URL(url);
+    return redirect.protocol==='https:'&&
+      (redirect.hostname==='checkout.stripe.com'||sandbox&&redirect.hostname==='checkout.stripe.test')&&
+      !redirect.username&&!redirect.password&&!redirect.port;
+  }catch{return false;}
+}
+
 export async function POST(request: Request) {
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const runtime = env as RuntimeEnv;
@@ -52,8 +110,15 @@ export async function POST(request: Request) {
   if(sandboxTarget&&stripeKey&&!/^(sk|rk|rkcs)_test_/.test(stripeKey))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
   if (!stripeKey) return Response.json({ error: "Payments have not been connected yet." }, { status: 503 });
   try {
-    const { shareToken, paymentType = "deposit", tipCents: requestedTipCents = 0 } = await request.json() as { shareToken?: string; paymentType?: "deposit" | "balance"; tipCents?: number };
-    if (!shareToken) return Response.json({ error: "Estimate link is required." }, { status: 400 });
+    const parsed=await boundedCheckoutBody(request);
+    if(!parsed.ok)return Response.json({error:parsed.tooLarge?
+      "Card checkout request exceeds the safe input limit.":
+      "A valid card checkout request is required."},
+      {status:parsed.tooLarge?413:400,headers:{"cache-control":"no-store"}});
+    const {shareToken,paymentType="deposit",tipCents:requestedTipCents=0}=parsed.body;
+    if(typeof shareToken!=="string"||shareToken.length<1||shareToken.length>128||
+      !/^[a-zA-Z0-9_-]+$/.test(shareToken))return Response.json(
+      {error:"A valid estimate link is required."},{status:400,headers:{"cache-control":"no-store"}});
     if (!["deposit","balance"].includes(paymentType)) return Response.json({ error: "Invalid payment type." }, { status: 400 });
     const tipCents = requestedTipCents;
     if (typeof tipCents !== "number" || !Number.isSafeInteger(tipCents) || tipCents < 0) return Response.json({ error: "Invalid tip amount." }, { status: 400 });
@@ -166,7 +231,10 @@ export async function POST(request: Request) {
       }
       return Response.json({error:"Stripe payment setup has an uncertain outcome. Do not start another checkout; ask FIRE to review this payment.",checkoutUncertain:true},{status:503});
     }
-    if(!data.id||!data.url)return Response.json({error:"Stripe checkout acknowledgment was incomplete. Payment setup needs review before starting another."},{status:503});
+    if(!trustedCheckoutResponse(data.id,data.url,sandboxTarget))return Response.json({
+      error:"Stripe checkout acknowledgment could not be verified for this payment environment. Payment setup remains blocked for owner reconciliation.",
+      checkoutUncertain:true
+    },{status:503,headers:{"cache-control":"no-store"}});
     // Recheck bearer authorization after the remote acknowledgement. If the
     // token was rotated mid-request, expire the unreturned Stripe session and
     // keep reconciliation locked when remote expiration cannot be verified.
