@@ -1,0 +1,60 @@
+{
+  "dateUtc": "2026-10-14",
+  "scope": "Read-only existing Sites provider metadata and existing runtime version endpoints; no customer/payment rows, deployment or database changes",
+  "sites": [
+    {
+      "target": "live",
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "role": "owner",
+      "savedVersion": 61,
+      "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+      "archiveHash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2",
+      "deploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+      "deploymentStatus": "succeeded",
+      "providerDeploymentId": "site---6aaf416f82c88191a292fa2e13a9ea61",
+      "environmentRevision": 9,
+      "runtimeResponse": {
+        "path": "/api/app-version",
+        "status": 200,
+        "version": "105"
+      },
+      "physicalD1Id": null
+    },
+    {
+      "target": "refund-staging",
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "role": "owner",
+      "savedVersion": 3,
+      "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+      "archiveHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+      "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+      "deploymentStatus": "succeeded",
+      "providerDeploymentId": "site---6ac7e8e358dc81918d0a47c4034c4a41",
+      "environmentRevision": 2,
+      "runtimeResponse": {
+        "path": "/api/app-version",
+        "status": 200,
+        "version": "refund-staging-ebc670f"
+      },
+      "physicalD1Id": null
+    }
+  ],
+  "initialUnauthenticatedRuntimeStatus": 403,
+  "supportedSitesServiceAccessRuntimeStatus": 200,
+  "serviceAccessSuppliesVisitorIdentity": false,
+  "credentialsPersisted": false,
+  "credentialsIncludedInEvidence": false,
+  "gate4Passed": false,
+  "remainingRequirements": [
+    "LIVE/refund-staging immutable physical DB mappings and cross-target separation",
+    "Full source/artifact/runtime linkage, including independent Doomsday"
+  ],
+  "ownerHelpNeeded": "Send the prepared read-only hosting metadata request; repeated login or screenshots are not requested",
+  "requestFile": "GATE4_PROVIDER_EVIDENCE_REQUEST.md",
+  "supportMessageSent": false,
+  "officialReleaseReadinessPercent": 30,
+  "passedGates": 3,
+  "totalGates": 10
+}
