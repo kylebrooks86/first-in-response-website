@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  jobNumberLabel,newJobStatements,replacementJobStatement,
+  jobNumberLabel,parseJobNumberQuery,matchesJobNumberQuery,newJobStatements,replacementJobStatement,
   completedJobCount,jobNumberLabelForEstimate,attachedJobNumbers,JOB_NUMBER_FOR_ESTIMATE_SQL,
   JOB_REFERENCE_BY_INVOICE_SQL,COMPLETED_JOB_COUNT_SQL,
 } from '../lib/job-numbering.mjs';
@@ -12,6 +12,17 @@ assert.equal(jobNumberLabel('25'),'Job #0025');
 for (const bad of [null,undefined,0,-1,1.5,NaN,Infinity,'', '001','abc','1;DROP TABLE', Number.MAX_SAFE_INTEGER+1]) {
   assert.equal(jobNumberLabel(bad),null,String(bad));
 }
+for(const q of ['Job #0007','job 7','#7','0007','JOB#7','  job   #  0007  ']){
+  assert.equal(parseJobNumberQuery(q),7,'Recognize explicit/padded Job #: '+q);
+  assert.equal(matchesJobNumberQuery(7,q),true,'Match saved Job # from owner search: '+q);
+}
+for(const q of ['7','007','0','0000','job 0','job #','job 7A','house 7','7th street','Job #999999999999999999999','Job #7 OR 1=1','',null,undefined,{},'a'.repeat(129)]){
+  assert.equal(parseJobNumberQuery(q),null,'Refuse ambiguous or unsafe Job #: '+String(q));
+  assert.equal(matchesJobNumberQuery(7,q),false,'No mistaken Job # lookup: '+String(q));
+}
+assert.equal(matchesJobNumberQuery(null,'Job #0007'),false);
+assert.equal(matchesJobNumberQuery(8,'Job #0007'),false);
+assert.equal(matchesJobNumberQuery(10001,'Job #10001'),true);
 assert.equal(completedJobCount({completedJobs:0}),0);
 assert.equal(completedJobCount({completedJobs:10}),10);
 assert.equal(completedJobCount({completedJobs:-1}),null);
