@@ -137,7 +137,9 @@ export function createGuardedGate9Transport({
       // Only the fixed beta Worker Version endpoint, never a deploy endpoint.
       if(descriptor.path===ver){
         must(!Object.hasOwn(descriptor.json,'deploy')&&
-          descriptor.json.assets?.config?.run_worker_first===true&&
+          Array.isArray(descriptor.json.assets?.config?.run_worker_first)&&
+          descriptor.json.assets.config.run_worker_first.length===1&&
+          descriptor.json.assets.config.run_worker_first[0]==='/api/*'&&
           tokenOk(descriptor.json.assets?.jwt)&&
           Array.isArray(descriptor.json.modules)&&descriptor.json.modules.length>1&&
           descriptor.json.modules.some(m=>m.name==='_headers'&&m.content_type==='text/plain')&&
