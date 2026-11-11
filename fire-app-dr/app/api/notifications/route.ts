@@ -38,8 +38,12 @@ export async function PATCH(request:Request){
       if(!alert)return Response.json({error:"No open overpayment alert was found."},{status:404});
       const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(value.estimateId).first<{id:string}>();
       if(pendingRefund)return Response.json({error:"A refund is currently processing for this job. Wait for it to finish before resolving the overpayment."},{status:409});
-      const billing=await env.DB.prepare(`SELECT COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents FROM estimates e WHERE e.id=?`).bind(value.estimateId).first<{paidCents:number;totalCents:number}>();
+      const billing=await env.DB.prepare(`SELECT COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+        COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
+        (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch
+        FROM estimates e WHERE e.id=?`).bind(value.estimateId).first<{paidCents:number;totalCents:number;invoiceOwnershipMismatch:number}>();
       if(!billing)return Response.json({error:"Estimate not found."},{status:404});
+      if(Number(billing.invoiceOwnershipMismatch)!==0)return Response.json({error:"This invoice belongs to another customer. Reconcile ownership before resolving this overpayment."},{status:409});
       const paidBefore=Math.max(0,Number(billing.paidCents)||0);
       const billedTotal=Math.max(0,Number(billing.totalCents)||0);
       if(!Number.isSafeInteger(paidBefore)||!Number.isSafeInteger(billedTotal))return Response.json({error:"Billing totals are outside FIRE's safe accounting range. Stop and review this job before reconciling the overpayment."},{status:409});
@@ -50,7 +54,8 @@ export async function PATCH(request:Request){
         AND EXISTS (
           SELECT 1 FROM estimates e WHERE e.id=?
           AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
-            > COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
+            > COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
+          AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
         )`).bind(now,now,value.estimateId,value.estimateId).run();
       if(!kept.meta.changes)return Response.json({error:"The overpayment state changed while resolving this exception. Refresh the job and verify the billing totals."},{status:409});
       const paidCents=paidBefore;
