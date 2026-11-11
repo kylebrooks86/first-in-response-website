@@ -64,6 +64,11 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
      if(stripeResponse==='server-error')return Response.json({error:{message:'Stripe internal error'}},{status:500});
      if(stripeResponse==='rate-limit')return Response.json({error:{message:'Stripe rate limit'}},{status:429});
      if(stripeResponse==='uncertain')throw Error('Lost Stripe acknowledgement');
+     if(stripeResponse==='wrong-mode')return Response.json({id:'cs_live_unexpected',url:'https://checkout.stripe.com/c/pay/test'});
+     if(stripeResponse==='bad-origin')return Response.json({id:'cs_test_real_synthetic',url:'https://checkout.stripe.com.evil.invalid/pay'});
+     if(stripeResponse==='plain-http')return Response.json({id:'cs_test_real_synthetic',url:'http://checkout.stripe.com/pay'});
+     if(stripeResponse==='bad-id')return Response.json({id:'not-a-stripe-session',url:'https://checkout.stripe.com/pay'});
+     if(stripeResponse==='valid-stripe-host')return Response.json({id:'cs_test_real_synthetic',url:'https://checkout.stripe.com/c/pay/synthetic'});
      return Response.json({id:'cs_test_real_synthetic',url:'https://checkout.stripe.test/synthetic'});
    }
    if(String(url).endsWith('/expire')){
@@ -83,9 +88,53 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
  const exports={};
  new Function('require','exports','env','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT',compiled)(
    id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,env,Response,Request,webcrypto,fakeFetch,'doomsday');
- const request=()=>new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',headers:{'content-type':'application/json'},body});
- return {post:()=>exports.POST(request()),state};
+ const request=(payload=body,headers={})=>new Request('https://synthetic.invalid/api/payments/checkout',{
+   method:'POST',headers:{'content-type':'application/json',...headers},body:payload
+ });
+ return {post:(payload,headers)=>exports.POST(request(payload,headers)),state};
 }
+// Public checkout receives an unauthenticated request before its estimate
+// bearer token is checked. Refuse large/malformed JSON without any D1 read,
+// checkout reservation, financial write or Stripe call.
+for(const [label,payload,headers,expected] of [
+ ['body >16KiB with no Content-Length','x'.repeat(16385),{},413],
+ ['spoofed smaller length still >16KiB','x'.repeat(16385),{'content-length':'8'},413],
+ ['declared oversize','{}',{'content-length':'16385'},413],
+ ['malformed Content-Length','{}',{'content-length':'12abc'},413],
+ ['unclosed JSON','{broken',{},400],
+ ['array is not an object','[]',{},400],
+ ['JSON null','null',{},400],
+ ['numeric shareToken',JSON.stringify({shareToken:1}),{},400],
+ ['nested shareToken',JSON.stringify({shareToken:{id:'synthetic-share-token'}}),{},400],
+ ['excessive shareToken',JSON.stringify({shareToken:'a'.repeat(129)}),{},400],
+ ['invalid bearer characters',JSON.stringify({shareToken:'https://invalid.test/x'}),{},400]
+]){
+ const h=harness();
+ const reply=await h.post(payload,headers);
+ check(reply.status===expected,label+' is rejected before payment work');
+ check(h.state.locks===0&&h.state.creates===0,label+' cannot reserve or create a card session');
+}
+{
+ const h=harness();
+ const response=await h.post(body,{'content-length':String(Buffer.byteLength(body,'utf8'))});
+ check(response.status===200,'Valid signed checkout request with numeric Content-Length is accepted');
+ check(h.state.locks===1&&h.state.creates===1,'Valid Content-Length preserves exactly one checkout');
+}
+for(const kind of ['wrong-mode','bad-origin','plain-http','bad-id']){
+ const h=harness({stripeResponse:kind});
+ const reply=await h.post();
+ check(reply.status===503,kind+' Stripe reply never returns a payment URL');
+ check((await reply.json()).checkoutUncertain===true,kind+' requires owner reconciliation, not a blind retry');
+ check(h.state.open?.id.startsWith('fire-creating:'),kind+' leaves provisional checkout lock intact');
+ check((await h.post()).status===409&&h.state.creates===1,kind+' cannot cause a duplicate session');
+}
+{
+ const h=harness({stripeResponse:'valid-stripe-host'});
+ const reply=await h.post();
+ check(reply.status===200,'Official HTTPS checkout.stripe.com destination remains valid');
+ check((await reply.json()).url==='https://checkout.stripe.com/c/pay/synthetic','Only verified Stripe checkout URL is returned');
+}
+
 {
  const h=harness({twoReaders:true});
  const results=await Promise.all([h.post(),h.post()]);
