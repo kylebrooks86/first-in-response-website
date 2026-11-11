@@ -32,7 +32,7 @@ async function boundedPhotoForm(request:Request):Promise<FormData|Response>{
     while(true){
       const next=await reader.read();
       if(next.done)break;
-      if(!(next.value instanceof Uint8Array))
+      if(!ArrayBuffer.isView(next.value)||next.value.BYTES_PER_ELEMENT!==1)
         return Response.json({error:"Invalid photo upload."},{status:400});
       size+=next.value.byteLength;
       if(size>PHOTO_REQUEST_MAX_BYTES)
