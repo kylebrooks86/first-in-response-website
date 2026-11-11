@@ -101,6 +101,35 @@ try{
     !alert(foreign).resolvedAt&&invoiceStatus(foreign)===foreignOriginalInvoice,
     'Wrong-homeowner invoice cannot resolve a payment alert or create a refund adjustment: '+mode);
  }
+ // Run the ACTUAL independent DR notification route against the same native
+ // SQLite fixture. DR's Keep decision must not reconcile a foreign invoice.
+ const drRoute=rt.load('../../fire-app-dr/app/api/notifications/route.ts');
+ const drKeep=async job=>{
+  const response=await drRoute.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+   method:'PATCH',headers:{'content-type':'application/json'},
+   body:JSON.stringify({estimateId:job.eid,resolveOverpayment:true,reconciliationHandled:true,resolutionMode:'keep'})
+  }));
+  return {status:response.status,data:await response.json()};
+ };
+ const drForeign=await drKeep(foreign);
+ check(drForeign.status===409&&paid(foreign)===foreignOriginalPaid&&!alert(foreign).resolvedAt,
+   'DR overpayment Keep refuses a mismatched customer invoice without changing money or alert');
+ const drRace=seed('dr-owner-race');
+ const originalDrPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'"))
+   db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(anotherCustomer.cid,'i-dr-owner-race');
+  return originalDrPrepare(sql);
+ };
+ const drRaced=await drKeep(drRace);
+ rt.env.DB.prepare=originalDrPrepare;
+ check(drRaced.status===409&&paid(drRace)===12000&&!alert(drRace).resolvedAt,
+   'DR SQL-time ownership guard blocks a customer reassignment after the initial billing read');
+ db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(drRace.cid,'i-dr-owner-race');
+ const drRepaired=await drKeep(drRace);
+ check(drRepaired.status===200&&drRepaired.data.ok===true&&
+       drRepaired.data.remainingOverpaymentCount===0&&!!alert(drRace).resolvedAt,
+   'Repaired DR invoice ownership permits one verified retained-overpayment resolution');
  const ownerNotifications=await api.GET();
  const ownerFeed=(await ownerNotifications.json()).notifications;
  check(ownerFeed.find(x=>x.id===foreign.nid).invoiceId===null,
