@@ -1,0 +1,50 @@
+{
+  "scope": "coordinated FIRE candidate source review manifest, not a publishable release",
+  "asOf": "2026-10-09",
+  "parent": "b4a14c9bff3f8e44dd9106c08c5008cf37458fc4",
+  "manifestFile": "CANDIDATE_RELEASE_MANIFEST.json",
+  "manifestSha256": "4442ca9b85a3cf8277a582d3b911f8d92063980e0585f8545e90dc884be91ed2",
+  "sharedApplicationFilesMatched": 118,
+  "sharedFilesHashed": 197,
+  "migrationFileCounts": {
+    "live": 21,
+    "doomsday": 23,
+    "staging": 21
+  },
+  "manifestTestsPassed": 5,
+  "manifestTestsTotal": 5,
+  "policyFilesIdentical": true,
+  "policyFilesVerified": 2,
+  "policyFilesRequired": 2,
+  "verification": [
+    "deterministic generation",
+    "exact manifest/source/input verification",
+    "shared source drift rejection",
+    "migration drift/gap rejection",
+    "unsafe absence and source symlink rejection",
+    "forged publication status rejection",
+    "inconsistent readiness percentage rejection",
+    "unapproved shared dashboard override rejection"
+  ],
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30.0,
+    "meaning": "verified release gates, not effort or time remaining"
+  },
+  "limits": [
+    "No signed release or deployed provenance established",
+    "Target hashes describe canonical materialized source; local generic build configuration remains unpublishable",
+    "Snapshot identities in CANDIDATE_COMMITS are not deployment identities",
+    "Remote identities/schemas/storage/auth/sandbox/mobile/rollback remain pending",
+    "No application runtime change or new application test/build result claimed"
+  ],
+  "runtimeApplicationChanged": false,
+  "unchangedApplicationTestsRerun": false,
+  "deployed": false,
+  "productionReady": false,
+  "toolHashes": {
+    "business-app-parity/candidate_release_manifest.py": "6ba6f70754f9cb849ed2132c9143811f438874baeb9b4ceeb1ed3dc15ab18d87",
+    "business-app-parity/test_candidate_release_manifest.py": "91258e53b3bb40a9522d79fdc3b1512984fc09fcf22ae4030a9611798b5a623c"
+  }
+}

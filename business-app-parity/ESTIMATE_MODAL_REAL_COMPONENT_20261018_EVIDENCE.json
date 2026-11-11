@@ -1,0 +1,113 @@
+{
+  "reviewedBaseCommit": "e9b91d0f260130b9948823c37b9c7c209d1b9248",
+  "baseCI": "https://github.com/kylebrooks86/first-in-response-website/actions/runs/39096535273",
+  "baseCIPassed": true,
+  "changes": [
+    "Preserve existing 454b0ba centering correction; do not revert completed editor scrolling/header/footer work",
+    "Constrain Edit Estimate transition-property to opacity,transform so viewport size/top/height changes do not animate outside reduced bounds",
+    "Add actual React editor/Radix nested portal browser tests with compiled Tailwind, optional real minified production CSS, long forms, focus/keyboard, X/Escape, save errors and synthetic successful save"
+  ],
+  "tests": {
+    "actualComponentAndCompiledCSSAssertions": 171,
+    "actualComponentAndMinifiedProductionQAStylesheetAssertions": 171,
+    "viewports": [
+      [
+        320,
+        568
+      ],
+      [
+        375,
+        667
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        430,
+        932
+      ],
+      [
+        760,
+        900
+      ],
+      [
+        768,
+        1024
+      ],
+      [
+        1024,
+        800
+      ],
+      [
+        667,
+        375
+      ]
+    ],
+    "reducedHeightResizes": [
+      420,
+      300,
+      844
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "nativeIOSKeyboardTested": false,
+    "negativeControl": "Hosted CSSOM edge-anchor + missing individual-translate reset reproduced clipped bounds: left -132, right 160, top -260 at 320x568. Prior unminified source with translate:none passed and is not labeled broken.",
+    "tscPassed": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "buildPassed": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "financialProcessingFeeRegressionsPassed": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "qaStripeIsolationAssertions": 48,
+    "qaUpdateSafetyTests": 7,
+    "qaMigrationFilesUnchangedFromFirstRelease": 23,
+    "remoteMigrationsRun": false
+  },
+  "hostedReadOnlyBeforeRelease": {
+    "url": "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev/",
+    "authenticated": true,
+    "customer": "FIRE QA Test Customer Updated",
+    "estimate": "Gutter Cleaning + Flush",
+    "estimateCount": 1,
+    "estimateTotalCents": 20000,
+    "depositCents": 10000,
+    "paidCents": 0,
+    "balanceCents": 20000,
+    "currentHostedMobileCSS": "14px left/right edge anchors with no translate reset and transform:none; confirmed through CSSOM",
+    "recordChanges": false,
+    "clickedSaveOrSend": false
+  },
+  "release": {
+    "deployed": false,
+    "authorizedScope": "Existing synthetic-only QA Worker code/assets only, preserving current D1, secrets and rollback version. User October 17 23:24 Chicago request.",
+    "worker": "fire-fullapp-qa-20261016",
+    "database": "fire-fullapp-qa-db-20261016",
+    "databaseId": "8ccfb1f8-1657-4074-b1b2-47de78f95003",
+    "publisher": "owner_windows_qa_update_publish.ps1",
+    "activeVersionExpectedPrefix": "da71b08f-5cd9-41cd-b817-",
+    "blocker": "Work environment has no Cloudflare CLI authentication. Existing authenticated Acer Wrangler must execute guarded build/review/publish. QA app login does not grant Cloudflare deployment permissions.",
+    "afterReleaseRequired": "Fresh hosted CSS/identity verification, unchanged synthetic customer and $200 estimate, real iPhone Safari/Home Screen keyboard and scroll acceptance."
+  },
+  "productionGateAcceptance": {
+    "accepted": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "noAdditionalSpending": true,
+  "liveDoomsdayRefundStagingUnchanged": true
+}
