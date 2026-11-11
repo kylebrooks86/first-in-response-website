@@ -203,6 +203,9 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          # Actual invoice POST source must refuse a customer reassignment or
+          # reopened job between initial read and its atomic header+line writes.
+          node --experimental-sqlite scripts/test-invoice-create-confirmed-sqlite.mjs
       - name: Gate 6 public estimate document/payment state ownership and refund guards (native local SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
