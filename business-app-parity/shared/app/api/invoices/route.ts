@@ -39,9 +39,11 @@ export async function GET() {
 type FinalInvoiceLine={id:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 type FinalInvoiceReceipt={id:string;estimateId:string;customerId:string;status:string;subtotalCents:number;discountCents:number;discountType:string;discountValue:number;totalCents:number;dueAt:string|null;shareToken:string|null;createdAt:string;items:FinalInvoiceLine[]};
 async function savedFinalInvoice(estimateId:string,expectedCustomerId:string):Promise<FinalInvoiceReceipt|null>{
-  const invoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,created_at AS createdAt FROM invoices WHERE estimate_id=? LIMIT 1`)
-    .bind(estimateId).first<Omit<FinalInvoiceReceipt,'items'>>();
-  if(!invoice||!invoice.id||invoice.estimateId!==estimateId||invoice.customerId!==expectedCustomerId||
+  const invoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,created_at AS createdAt,
+    NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch
+    FROM invoices WHERE estimate_id=? LIMIT 1`)
+    .bind(estimateId).first<Omit<FinalInvoiceReceipt,'items'> & {invoiceOwnershipMismatch:number}>();
+  if(!invoice||Number(invoice.invoiceOwnershipMismatch)!==0||!invoice.id||invoice.estimateId!==estimateId||invoice.customerId!==expectedCustomerId||
     typeof invoice.shareToken!=='string'||!invoice.shareToken||
     !['draft','sent','partial','paid','overdue'].includes(invoice.status)||
     !['percent','dollar'].includes(invoice.discountType)||
@@ -60,7 +62,8 @@ async function savedFinalInvoice(estimateId:string,expectedCustomerId:string):Pr
       !Number.isSafeInteger(Number(item.totalCents))||Number(item.totalCents)<0)||
     new Set(items.results.map(item=>item.id)).size!==items.results.length||
     items.results.reduce((sum,item)=>sum+Number(item.totalCents),0)!==invoice.subtotalCents)return null;
-  return {...invoice,items:items.results};
+  const {invoiceOwnershipMismatch:_ownershipCheck,...validInvoice}=invoice;void _ownershipCheck;
+  return {...validInvoice,items:items.results};
 }
 const uncertainInvoiceCreate=()=>Response.json({
   error:'Invoice creation could not be confirmed. Reopen the saved job and verify its invoice before trying again.',
@@ -105,8 +108,25 @@ export async function POST(request: Request) {
     const newItems=itemResult.results.map(item=>({
       id:crypto.randomUUID(),name:item.name,description:item.description,quantity:Number(item.quantity),unit:item.unit,totalCents:Number(item.totalCents)
     }));
-    const statements=[env.DB.prepare("INSERT INTO invoices (id,estimate_id,customer_id,status,subtotal_cents,discount_cents,discount_type,discount_value,total_cents,due_at,share_token,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, estimateId, estimate.customerId, invoiceStatus, subtotalCents, discountCents, "dollar", discountCents, estimateTotalCents, dueAt, shareToken, createdAt)];
-    for(const item of newItems)statements.push(env.DB.prepare("INSERT INTO invoice_items (id,invoice_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents));
+    // Guard ownership/status AGAIN at the actual database transaction, not
+    // only during an earlier read. If the estimate changes homeowner or is
+    // reopened between SELECT and D1.batch, no invoice header or line saves.
+    // A concurrent invoice for this job must also never be duplicated.
+    const statements=[env.DB.prepare(`INSERT INTO invoices
+      (id,estimate_id,customer_id,status,subtotal_cents,discount_cents,discount_type,discount_value,total_cents,due_at,share_token,created_at)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?
+      WHERE EXISTS(SELECT 1 FROM estimates e
+        WHERE e.id=? AND e.customer_id=? AND e.status='completed')
+        AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=?)`)
+      .bind(id,estimateId,estimate.customerId,invoiceStatus,subtotalCents,discountCents,"dollar",discountCents,estimateTotalCents,dueAt,shareToken,createdAt,estimateId,estimate.customerId,estimateId)];
+    for(const item of newItems)statements.push(env.DB.prepare(`INSERT INTO invoice_items
+      (id,invoice_id,name,description,quantity,unit,total_cents)
+      SELECT ?,?,?,?,?,?,? WHERE EXISTS(
+        SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+        WHERE inv.id=? AND inv.estimate_id=? AND inv.customer_id=?
+          AND e.customer_id=inv.customer_id AND e.status='completed')`)
+      .bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents,
+        id,estimateId,estimate.customerId));
     try{
       const receipts=await env.DB.batch(statements);
       if(!Array.isArray(receipts)||receipts.length!==statements.length||
