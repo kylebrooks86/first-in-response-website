@@ -27,7 +27,7 @@ for(const query of ['?estimateId=','?estimateId=bad%20id','?estimateId=a&cursor=
  eq((await call(query)).status,400,'Reject invalid exact lookup '+query.slice(0,32));
 }
 eq(queries.length,0,'Invalid lookup never touches DB');
-results=[{id:'older-uuid',customerId:'customer-a',createdAt:'2025-02-01',totalCents:10000}];
+results=[{id:'older-uuid',customerId:'customer-a',createdAt:'2025-02-01',totalCents:10000,invoiceOwnershipMismatch:0}];
 let r=await call('?estimateId=older-uuid');
 eq(r.status,200,'Owner reads an exact old estimate');eq(r.data.estimateId,'older-uuid','Response echoes verified requested identity');
 eq(r.data.estimates.length,1,'Exact lookup returns one saved row');eq(r.data.nextCursor,null,'Exact lookup has no next cursor');
@@ -35,9 +35,15 @@ assert.equal(queries.at(-1).sql,'SELECT body FROM message_templates WHERE key=?'
 const q=queries.filter(q=>q.sql.includes('FROM estimates e')).at(-1);assert.match(q.sql,/WHERE e\.id = \?/);checks++;
 eq(q.args[0],'older-uuid','Exact ID uses bound SQL param');eq(q.args[1],2,'Exact lookup reads at most one plus sentinel');
 assert.ok(!q.sql.includes('older-uuid'),'SQL is never interpolated with customer ID');checks++;
+results=[{id:'older-uuid',customerId:'customer-a',createdAt:'2025-02-01',invoiceOwnershipMismatch:1}];
+r=await call('?estimateId=older-uuid');
+eq(r.status,409,'Mismatched customer invoice cannot enter a follow-up quote');
+eq(r.data.error.includes('invoice'),true,'Owner is directed to reconcile the incorrect invoice');
+eq(queries.filter(q=>q.sql.includes('FROM estimate_items')).length,1,
+ 'Bad invoice fails before loading additional service data');
 results=[];r=await call('?estimateId=gone-uuid');
 eq(r.status,200,'Missing record is not a server error');eq(r.data.estimates.length,0,'Missing record never fabricates a customer');
-results=[{id:'recent',createdAt:'2026-10-21',customerId:'customer-b'}];r=await call();
+results=[{id:'recent',createdAt:'2026-10-21',customerId:'customer-b',invoiceOwnershipMismatch:0}];r=await call();
 eq(r.status,200,'Existing paginated list still works');
 assert.match(queries.filter(q=>q.sql.includes('FROM estimates e')).at(-1).sql,/e\.created_at < \?/);checks++;
 eq(queries.filter(q=>q.sql.includes('FROM estimates e')).at(-1).args.length,5,'Cursor list retains bounded parameters');
