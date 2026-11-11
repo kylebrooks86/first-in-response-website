@@ -49,6 +49,29 @@ for(const [inventory,reason] of [
  const result=await inspectStripeConnection(config,async url=>url.endsWith('/account')?Response.json({id:config.expectedAccountId,default_currency:'usd'}):Response.json(inventory));
  check(!result.connectionReady&&result.reason===reason,'Unsafe endpoint does not pass: '+reason);
 }
+// A dedicated TEST endpoint is not isolated if Stripe sends the same signed
+// Checkout event to another enabled sandbox destination, especially LIVE.
+const competingEndpoint={...endpoint,url:'https://legacy-live.example.invalid/api/payments/webhook',
+  enabled_events:['checkout.session.completed','checkout.session.async_payment_failed']};
+const inspectInventory=async rows=>inspectStripeConnection(config,async url=>url.endsWith('/account')?
+  Response.json({id:config.expectedAccountId,default_currency:'usd'}):
+  Response.json({data:rows,has_more:false}));
+const overlapping=await inspectInventory([endpoint,competingEndpoint]);
+check(!overlapping.connectionReady&&overlapping.reason==='overlapping_test_webhook_destination'&&
+  overlapping.accountVerified===true,'Enabled second sandbox checkout destination blocks readiness');
+check(!JSON.stringify(overlapping).includes(competingEndpoint.url),
+  'Overlapping endpoint error remains sanitized; no LIVE hostname echoed');
+check((await inspectInventory([endpoint,{...competingEndpoint,enabled_events:['refund.updated']}]))
+  .reason==='overlapping_test_webhook_destination','Duplicate signed refund delivery also blocks');
+check((await inspectInventory([endpoint,{...competingEndpoint,enabled_events:['*']}]))
+  .reason==='overlapping_test_webhook_destination','Wildcard subscription blocks');
+check((await inspectInventory([endpoint,{...competingEndpoint,status:'disabled'}]))
+  .connectionReady===true,'A disabled legacy sandbox endpoint is not a current delivery overlap');
+check((await inspectInventory([endpoint,{...competingEndpoint,livemode:true}]))
+  .connectionReady===true,'Other mode endpoint does not count as a sandbox delivery overlap');
+check((await inspectInventory([endpoint,{...competingEndpoint,enabled_events:['invoice.paid']}]))
+  .connectionReady===true,'Unrelated event subscription does not block the FIRE payment path');
+
 check((await inspectStripeConnection({...config,webhookSecretConfigured:false},read)).reason==='webhook_signing_secret_missing','Missing signing-secret configuration remains blocked');
 check((await inspectStripeConnection(config,async()=>Response.json({private:'not exposed'},{status:403}))).reason==='stripe_account_read_denied','Account permission denial is explicit and sanitized');
 const denied=await inspectStripeConnection(config,async url=>url.endsWith('/account')?Response.json({id:config.expectedAccountId,default_currency:'usd'}):Response.json({}, {status:403}));
