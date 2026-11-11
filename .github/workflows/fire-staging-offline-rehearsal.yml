@@ -217,6 +217,13 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-checkout-atomic-reservation.mjs
+      - name: Gate 7 disaster recovery quote pricing parity and atomic save receipts (real DR routes, SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          # Run the actual independent DR quote create/edit routes with native
+          # disposable SQLite. $25 custom services, appreciation + percentage
+          # + bundle stacking, exact cents, signed quotes and acceptance races.
+          node --experimental-sqlite scripts/test-dr-estimate-pricing-sqlite.mjs
       - name: Gate 7 bounded photo upload, safe viewing and verified deletion (no remote storage)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
