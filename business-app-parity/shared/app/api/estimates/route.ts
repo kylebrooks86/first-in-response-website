@@ -8,8 +8,7 @@ import { env } from "cloudflare:workers";
 import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel,jobNumberingReady,JOB_NUMBER_FLAG} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
-import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
+import {customerIdentityPredicate,duplicateCustomer,validInlineCustomerEmail,validInlineCustomerPhone} from '../../../lib/customer-identity';
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -123,10 +122,10 @@ export async function POST(request: Request) {
     // records must remain selectable without silently rewriting history.
     // Immutable requestId replay was already checked above.
     if(!existingCustomerId){
-      if(email&&!usableCustomerEmail(email))return Response.json({
+      if(!validInlineCustomerEmail(email))return Response.json({
         error:"Enter a valid customer email address or leave it blank. No customer or estimate created."
       },{status:400,headers:{"cache-control":"private, no-store"}});
-      if(phone&&!usableCustomerPhone(phone))return Response.json({
+      if(!validInlineCustomerPhone(phone))return Response.json({
         error:"Enter a valid 10-digit U.S. customer phone number or leave it blank. No customer or estimate created."
       },{status:400,headers:{"cache-control":"private, no-store"}});
     }
