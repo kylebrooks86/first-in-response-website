@@ -15,6 +15,44 @@ type StripeEvent = {
 const currency = (value:number) => new Intl.NumberFormat("en-US", { style:"currency", currency:"USD" }).format(value/100);
 const encoder = new TextEncoder();
 
+/** Publicly reachable Stripe ingress (after an explicitly reviewed Access
+ * exception) must never buffer an unbounded payload before HMAC validation.
+ * This limit is independent of Cloudflare's plan-wide request-size ceiling.
+ */
+const MAX_STRIPE_WEBHOOK_BYTES=1_048_576;
+const MAX_STRIPE_SIGNATURE_LENGTH=1_024;
+
+async function readStripeWebhookBodyBounded(request:Request):Promise<string|null>{
+  const claimed=request.headers.get('content-length');
+  if(claimed!==null&&(!/^\\d{1,9}$/.test(claimed)||
+     Number(claimed)>MAX_STRIPE_WEBHOOK_BYTES))return null;
+  if(!request.body)return '';
+  const reader=request.body.getReader();
+  const chunks:Uint8Array[]=[];
+  let total=0;
+  try{
+    while(true){
+      const chunk=await reader.read();
+      if(chunk.done)break;
+      const bytes=chunk.value;
+      if(!(bytes instanceof Uint8Array))return null;
+      total+=bytes.byteLength;
+      if(total>MAX_STRIPE_WEBHOOK_BYTES)return null;
+      chunks.push(bytes);
+    }
+    const body=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
+    return new TextDecoder('utf-8',{fatal:true}).decode(body);
+  }catch{
+    return null; // stream error / malformed UTF-8: never attempt HMAC or D1
+  }finally{
+    // A too-large stream is cancelled; do not keep consuming its excess bytes.
+    try{await reader.cancel();}catch{}
+    reader.releaseLock();
+  }
+}
+
 function toHex(bytes:ArrayBuffer) {
   return Array.from(new Uint8Array(bytes), (byte)=>byte.toString(16).padStart(2,"0")).join("");
 }
@@ -51,7 +89,12 @@ export async function POST(request:Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) return Response.json({ error:"Missing Stripe signature." }, { status:400 });
 
-  const rawBody = await request.text();
+  if(signature.length>MAX_STRIPE_SIGNATURE_LENGTH)
+    return Response.json({error:'Invalid Stripe signature.'},{status:400,headers:{'cache-control':'no-store'}});
+  const rawBody = await readStripeWebhookBodyBounded(request);
+  if(rawBody===null)
+    return Response.json({error:'Stripe webhook payload exceeds safe limit or is malformed.'},
+      {status:413,headers:{'cache-control':'no-store'}});
   if (!await verifyStripeSignature(rawBody, signature, runtime.STRIPE_WEBHOOK_SECRET)) {
     return Response.json({ error:"Invalid Stripe signature." }, { status:400 });
   }
