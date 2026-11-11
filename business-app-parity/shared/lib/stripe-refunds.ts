@@ -46,12 +46,20 @@ export async function finalizeRefund(db:Database,id:string,providerRefundId:stri
       WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>=total_cents THEN 'paid'
       WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>0 THEN 'partial'
       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
-      ELSE 'draft' END WHERE estimate_id=?`).bind(row.estimateId,row.estimateId,row.estimateId),
+      ELSE 'draft' END WHERE estimate_id=?
+      AND customer_id=(SELECT e.customer_id FROM estimates e WHERE e.id=?)`)
+      .bind(row.estimateId,row.estimateId,row.estimateId,row.estimateId),
     db.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?),resolved_at=?,resolution_note=?
       WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
+      -- If an invoice has drifted to another homeowner, leave the overage
+      -- warning OPEN rather than silently comparing against the wrong bill.
+      AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+        WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)
       AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
-        <= COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=? LIMIT 1),(SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
-      .bind(now,now,`refund:${amount}`,row.estimateId,row.estimateId,row.estimateId,row.estimateId),
+        <= COALESCE((SELECT inv.total_cents FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+          WHERE inv.estimate_id=? AND inv.customer_id=e.customer_id LIMIT 1),
+          (SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
+      .bind(now,now,`refund:${amount}`,row.estimateId,row.estimateId,row.estimateId,row.estimateId,row.estimateId),
     db.prepare(`INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
       VALUES (?,?,?,?,?,?,?)`).bind(`refund-note:${row.id}`,row.paymentType==="Tip"?"tip_refunded":"payment_refunded",row.paymentType==="Tip"?`Tip refund recorded for ${row.customer}`:`Refund recorded for ${row.customer}`,`${currency(amount)} ${row.paymentType==="Tip"?"tip refund":"refund"} recorded for this job.`,row.customerId,row.estimateId,now),
   ];
