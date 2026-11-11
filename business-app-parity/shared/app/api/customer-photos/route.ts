@@ -69,7 +69,8 @@ export async function POST(request: Request) {
     const category = String(form.get("category") ?? "property").trim().toLowerCase();
     const caption = String(form.get("caption") ?? "").trim();
     if (!customerId || !(file instanceof File)) return Response.json({ error: "Choose a customer and photo." }, { status: 400 });
-    const photoExtension=PHOTO_TYPES[file.type.toLowerCase()];
+    const declaredMime=file.type.toLowerCase();
+    const photoExtension=Object.hasOwn(PHOTO_TYPES,declaredMime)?PHOTO_TYPES[declaredMime]:null;
     // Raster still photos only. SVG/XML/HTML can be executable documents,
     // not customer photographs, even if named "before.jpg".
     if (!photoExtension) return Response.json({ error: "Choose a JPEG, PNG, WebP, HEIC, AVIF, GIF, BMP or TIFF photo." }, { status: 415 });
