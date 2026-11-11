@@ -48,7 +48,7 @@ const MAX_CHECKOUT_BODY_BYTES=16_384;
 type CheckoutRead={ok:true;body:Record<string,unknown>}|{ok:false;tooLarge:boolean};
 async function boundedCheckoutBody(request:Request):Promise<CheckoutRead>{
   const claimed=request.headers.get('content-length');
-  if(claimed!==null&&(!/^\\d{1,8}$/.test(claimed)||Number(claimed)>MAX_CHECKOUT_BODY_BYTES))
+  if(claimed!==null&&(!/^\d{1,8}$/.test(claimed)||Number(claimed)>MAX_CHECKOUT_BODY_BYTES))
     return{ok:false,tooLarge:true};
   if(!request.body)return{ok:false,tooLarge:false};
   let reader:ReadableStreamDefaultReader<Uint8Array>|null=null;
