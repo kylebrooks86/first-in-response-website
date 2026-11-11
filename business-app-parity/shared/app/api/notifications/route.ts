@@ -115,14 +115,23 @@ export async function PATCH(request:Request){
       const target=await env.DB.prepare("SELECT type FROM notifications WHERE id=?").bind(value.id).first<{type:string}>();
       if(!target)return Response.json({error:"Notification not found."},{status:404});
       if(target.type==="payment_overage")return Response.json({error:"Overpayment exceptions must be resolved from the job billing-exception action after the refund or retained overpayment is handled."},{status:409});
-      await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=? WHERE id=?").bind(now,now,value.id).run();
+      // A successful transport ACK is not a saved resolution. Return exactly
+      // what SQLite persisted, preserving an earlier resolution on replay.
+      // Recheck the type in the write predicate to fail closed on a race.
+      const saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?) WHERE id=? AND type<>'payment_overage' RETURNING read_at AS readAt,resolved_at AS resolvedAt")
+        .bind(now,now,value.id).first<{readAt:string|null;resolvedAt:string|null}>();
+      if(!saved?.readAt||!saved.resolvedAt)
+        return Response.json({error:"Notification resolution was not confirmed. Refresh the list before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({ok:true,readAt:saved.readAt,resolvedAt:saved.resolvedAt},{headers:{"Cache-Control":"no-store, private"}});
     }
     else if(value.id){
-      const write=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=?").bind(now,value.id).run();
-      if((write as {success?:boolean}).success===false||!Number.isSafeInteger(write.meta?.changes)||write.meta.changes<0)throw Error("Read update not confirmed");
-      if(write.meta.changes===0)return Response.json({error:"Notification not found. Refresh the list."},{status:404});
+      const saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? RETURNING read_at AS readAt")
+        .bind(now,value.id).first<{readAt:string|null}>();
+      if(!saved)return Response.json({error:"Notification not found. Refresh the list."},{status:404});
+      if(!saved.readAt)
+        return Response.json({error:"Notification read status was not confirmed. Refresh the list before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({ok:true,readAt:saved.readAt,resolvedAt:null},{headers:{"Cache-Control":"no-store, private"}});
     }
     else return Response.json({error:"Choose a notification."},{status:400});
-    return Response.json({ok:true,readAt:now,resolvedAt:value.resolve?now:null});
   }catch{return Response.json({error:"Notifications could not be updated."},{status:500});}
 }
