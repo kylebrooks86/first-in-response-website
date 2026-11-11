@@ -35,9 +35,13 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   const {id}=await params;
   const storedInvoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
+    NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=invoices.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
     (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=invoices.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
     (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=invoices.estimate_id AND r.status='pending') AS pendingRefundCount FROM invoices WHERE id=?`).bind(id).first();
+  if(storedInvoice&&Number(storedInvoice.invoiceOwnershipMismatch)!==0)
+    return Response.json({error:"This invoice belongs to a different customer than its estimate. Reconcile the association before viewing or editing billing."},
+      {status:409,headers:{"Cache-Control":"no-store, private"}});
   const invoice=storedInvoice?currentInvoice(storedInvoice):null;
   if(!invoice)return Response.json({error:"Invoice not found."},{status:404});
   const [items,revisions]=await Promise.all([
@@ -59,8 +63,11 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
   try{
     const {id}=await params;
     const body=await request.json() as Record<string,unknown>;
-    const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string}>();
+    const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt,NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string;invoiceOwnershipMismatch:number}>();
     if(!existing)return Response.json({error:"Invoice not found."},{status:404});
+    if(Number(existing.invoiceOwnershipMismatch)!==0)
+      return Response.json({error:"This invoice is linked to a different customer. Reconcile ownership before editing it."},
+        {status:409,headers:{"Cache-Control":"no-store, private"}});
     const items=(Array.isArray(body.items)?body.items:[]) as Record<string,unknown>[];
     const normalized:InvoiceItem[]=items.map((item)=>({id:String(item.id??"").trim()||undefined,name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:typeof item.totalCents==='number'?item.totalCents:NaN}));
     if(!normalized.length||normalized.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return Response.json({error:"Every invoice service needs a name, quantity, and valid price."},{status:400});
@@ -122,6 +129,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
         total_cents,due_at,status,items_json,created_at)
       SELECT ?,?,?,?,?,?,?,?,?,?,?
       WHERE EXISTS(SELECT 1 FROM invoices guard WHERE guard.id=?
+        AND EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=guard.estimate_id AND parent.customer_id=guard.customer_id)
         AND ${actualPaid}=? AND ${actualPaid}<=?)`)
       .bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),
         Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),
@@ -157,13 +165,13 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     },{status:503,headers:{"Cache-Control":"no-store, private"}});
     if(!Array.isArray(acknowledged)||acknowledged.length!==statements.length||
       acknowledged.some(result=>(result as {success?:boolean})?.success===false))return uncertain();
-    const saved=await env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,status,due_at AS dueAt FROM invoices WHERE id=?")
-      .bind(id).first<{id:string;subtotalCents:number;discountCents:number;discountType:string;discountValue:number;totalCents:number;status:string;dueAt:string|null}>();
+    const saved=await env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,status,due_at AS dueAt,NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch FROM invoices WHERE id=?")
+      .bind(id).first<{id:string;subtotalCents:number;discountCents:number;discountType:string;discountValue:number;totalCents:number;status:string;dueAt:string|null;invoiceOwnershipMismatch:number}>();
     const savedLines=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC")
       .bind(id).all<Required<InvoiceItem>>();
     const savedRevision=await env.DB.prepare("SELECT id FROM invoice_revisions WHERE id=? AND invoice_id=? LIMIT 1")
       .bind(revisionId,id).first<{id:string}>();
-    if(!saved||saved.id!==id||Number(saved.subtotalCents)!==subtotalCents||
+    if(!saved||Number(saved.invoiceOwnershipMismatch)!==0||saved.id!==id||Number(saved.subtotalCents)!==subtotalCents||
       Number(saved.discountCents)!==appliedDiscountCents||
       saved.discountType!==discountType||Number(saved.discountValue)!==discountValue||
       Number(saved.totalCents)!==totalCents||saved.status!==status||
