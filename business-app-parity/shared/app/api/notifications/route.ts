@@ -70,8 +70,8 @@ export async function PATCH(request:Request){
             WHEN ?>0 THEN 'partial'
             WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
             ELSE 'draft' END WHERE estimate_id=? AND customer_id=(SELECT e.customer_id FROM estimates e WHERE e.id=?)`).bind(paidCents,paidCents,value.estimateId,value.estimateId),
-          env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note=? WHERE id=? AND estimate_id=? AND type='payment_overage' AND resolved_at IS NULL AND EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND amount_cents=?)
-            AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)").bind(now,now,`refund:${refundAmountCents}`,alert.id,value.estimateId,providerId,-refundAmountCents,value.estimateId),
+          env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note=? WHERE id=? AND estimate_id=? AND type='payment_overage' AND resolved_at IS NULL AND EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND amount_cents=?)
+            AND NOT EXISTS(SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)`).bind(now,now,`refund:${refundAmountCents}`,alert.id,value.estimateId,providerId,-refundAmountCents,value.estimateId),
         ]);
         const persistedRefund=await env.DB.prepare("SELECT amount_cents AS amountCents FROM payments WHERE provider_id=? LIMIT 1").bind(providerId).first<{amountCents:number}>();
         const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(value.estimateId).first<{paidCents:number}>();
