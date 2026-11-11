@@ -155,6 +155,55 @@ jobs:
           set -euo pipefail
           node business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs "$RUNNER_TEMP/FIRE-GATE9-SYNTHETIC-LOCAL/dist/client"
           echo 'SOURCE_BUILD_ONLY=PASS; NO CLOUD PROVIDER OR STRIPE WRITES; NOT APPROVED TO UPLOAD.'
+      - name: Start compiled full-app in LOCAL workerd and reject unauthenticated customers API
+        working-directory: ${{ runner.temp }}/FIRE-GATE9-SYNTHETIC-LOCAL
+        shell: bash
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+          CLOUDFLARE_SEND_METRICS: 'false'
+        run: |
+          set -euo pipefail
+          # This is the SAME generated local-only fake-D1 app, never the TEST
+          # predecessor. Local workerd is not a hosting provider deployment.
+          # Unset inherited provider credentials and force local persistence
+          # to a disposable GitHub Actions temp directory. No remote bindings.
+          mkdir -p "$RUNNER_TEMP/FIRE-GATE9-LOCAL-WORKER-STATE"
+          env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN -u CF_API_KEY -u CLOUDFLARE_API_KEY -u CLOUDFLARE_EMAIL -u CLOUDFLARE_ACCOUNT_ID \
+            node ./node_modules/wrangler/bin/wrangler.js dev \
+              --local --config dist/server/wrangler.json \
+              --persist-to "$RUNNER_TEMP/FIRE-GATE9-LOCAL-WORKER-STATE" \
+              --ip 127.0.0.1 --port 18787 --inspector-port 0 \
+              > "$RUNNER_TEMP/FIRE-GATE9-LOCAL-WORKER.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
+          # Log only the HTTP status: never response bodies, client data,
+          # local Worker logs, original source or headers.
+          python3 - <<'PY'
+          import http.client,time,sys
+          status=None
+          for attempt in range(45):
+              try:
+                  connection=http.client.HTTPConnection("127.0.0.1",18787,timeout=2)
+                  connection.request("GET","/api/customers")
+                  response=connection.getresponse()
+                  status=response.status
+                  response.close()
+                  connection.close()
+                  if status in (401,403):
+                      print("PASS: local compiled TEST workerd started; protected customers GET denied", status)
+                      print("LOCAL_ONLY=TRUE; REAL_D1=NONE; PROVIDER_POST=NONE; DEPLOYED=NO")
+                      sys.exit(0)
+                  # A 200 means the protected route was unexpectedly exposed.
+                  if status in (200,201,204):
+                      print("STOP: local customers API unexpectedly exposed; NO deployment")
+                      sys.exit(1)
+              except (ConnectionError,OSError,TimeoutError):
+                  pass
+              time.sleep(1)
+          print("STOP: local compiled Worker did not produce authenticated-denial proof; last HTTP status",status)
+          print("No provider or real database was accessed.")
+          sys.exit(1)
+          PY
       - name: Preserve exact CI-built TEST candidate without Cloudflare or Stripe access
         uses: actions/upload-artifact@v4
         with:
