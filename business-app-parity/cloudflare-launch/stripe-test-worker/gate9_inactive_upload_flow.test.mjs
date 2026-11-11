@@ -115,6 +115,30 @@ test('forged free-text provider message never leaves the safe error boundary',as
     e.message.includes('REQUEST_UNCERTAIN')&&!e.message.includes('SECRET'));
   assert.equal(f.calls.length,1);
 });
+test('unsupported Cloudflare 10162 JSON MIME fails before asset registration',async()=>{
+  const f=fixture();
+  f.candidate.versionBody.modules.push({
+    name:'vinext-server.json',
+    content_type:'application/json',
+    content_base64:Buffer.from('{"test":true}').toString('base64')
+  });
+  f.approval.candidateDigest=uploadApprovalDigest(f.candidate);
+  await assert.rejects(runApprovedInactiveUpload(f),/MODULE_BYTES/);
+  assert.equal(f.calls.length,0);
+});
+test('exact generated Vinext JSON metadata with text/plain is permitted offline',async()=>{
+  const f=fixture({cached:true});
+  f.candidate.versionBody.modules.push({
+    name:'vinext-server.json',
+    content_type:'text/plain',
+    content_base64:Buffer.from('{"test":true}').toString('base64')
+  });
+  f.approval.candidateDigest=uploadApprovalDigest(f.candidate);
+  const receipt=await runApprovedInactiveUpload(f);
+  assert.equal(receipt.newVersionPercentage,0);
+  assert.equal(f.calls.length,2);
+});
+
 test('mutated candidate no longer matches approval',async()=>{
   const f=fixture();f.candidate.versionBody.modules[0].content_base64='eQ==';
   await assert.rejects(runApprovedInactiveUpload(f),/APPROVAL/);assert.equal(f.calls.length,0);
