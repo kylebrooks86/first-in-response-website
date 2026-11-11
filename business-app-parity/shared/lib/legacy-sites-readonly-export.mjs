@@ -100,6 +100,13 @@ export async function captureLegacySitesReviewReadOnly(db){
   if(stableValue(first.meta)!==stableValue(last.meta)||stableValue(tables)!==stableValue(last.tables))blocked();
   const rowCounts=Object.fromEntries(tables.map(name=>[name,captured.counts.get(name)]));
   const hasRefundLedger=tables.includes('payment_refunds');
+  // A local self-check for accidental loss/alteration of the downloaded
+  // review file. This is NOT a provider-signed attestation of source identity.
+  const integrityMaterial=stableValue({
+    sourceTables:tables,rowCounts,schemaObjects:first.meta,tables:captured.data
+  });
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(integrityMaterial));
+  const reviewDigest=Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
   const payload={
     format:LEGACY_REVIEW_FORMAT,version:LEGACY_REVIEW_VERSION,
     exportedAt:new Date().toISOString(),
@@ -113,6 +120,8 @@ export async function captureLegacySitesReviewReadOnly(db){
     photoMetadataMayBeIncluded:tables.includes('customer_photos'),
     photoObjectBytesIncluded:false,localDevicePhotoBytesIncluded:false,
     sourceTables:tables,
+    recordsSelfCheckSHA256:reviewDigest,
+    recordsSelfCheckIsProviderAttestation:false,
     rowCounts,
     schemaObjects:first.meta,
     tables:captured.data,
