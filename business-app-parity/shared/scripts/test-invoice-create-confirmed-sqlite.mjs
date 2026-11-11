@@ -34,9 +34,16 @@ const query=(sql,args=[])=>({sql,args,bind(...a){return query(sql,a)},
 const env={DB:{prepare:query,async batch(statements){
  if(behavior==='uncommitted'){behavior='normal';return statements.map(()=>({success:true,meta:{changes:0}}));}
  const lost=behavior==='commit-throw',fail=behavior==='missing-line',mismatch=behavior==='wrong-line';
+ const reassignBefore=behavior==='foreign-before-batch';
+ const reopenBefore=behavior==='reopened-before-batch';
+ const reassignAfter=behavior==='foreign-after-commit';
+ const estimateToWrite=statements[0]?.args?.[1];
+ if(reassignBefore)db.prepare("UPDATE estimates SET customer_id='c-normal' WHERE id=?").run(estimateToWrite);
+ if(reopenBefore)db.prepare("UPDATE estimates SET status='scheduled' WHERE id=?").run(estimateToWrite);
  behavior='normal';db.exec('BEGIN');
  try{const results=statements.map(statement=>{mutations++;return{success:true,meta:{changes:Number(db.prepare(statement.sql).run(...statement.args).changes)}}});db.exec('COMMIT');
   if(fail)readbackMode='missing-line';if(mismatch)readbackMode='wrong-line';
+  if(reassignAfter)db.prepare("UPDATE estimates SET customer_id='c-normal' WHERE id=?").run(estimateToWrite);
   if(lost)throw Error('Synthetic lost D1 acknowledgement after COMMIT');
   return results;
  }catch(error){try{db.exec('ROLLBACK')}catch{}throw error;}
@@ -104,6 +111,40 @@ try{
  response=await post('corrupt');eq(response.status,201,'Seed invoice for corruption case');
  db.prepare("DELETE FROM invoice_items WHERE invoice_id=(SELECT id FROM invoices WHERE estimate_id=?)").run('e-corrupt');
  response=await post('corrupt');eq(response.status,409,'Broken saved invoice line set is not returned as confirmed');
+ // A different customer or an unfinished job can appear BETWEEN initial
+ // validation and actual D1.batch. Header and every line must be guarded in
+ // the SQL transaction, not merely at the earlier request snapshot.
+ add('owner-race');behavior='foreign-before-batch';
+ const beforeOwnerRace=mutations;
+ response=await post('owner-race');
+ eq(response.status,503,'Owner reassignment between SELECT and INSERT cannot confirm invoice');
+ eq((await response.json()).saveUncertain,true,'Invoice creation holds for review after customer race');
+ eq(rows('owner-race').length,0,'Customer reassociation creates no invoice header');
+ eq(db.prepare("SELECT COUNT(*) AS n FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE estimate_id='e-owner-race')").get().n,0,
+    'Customer reassociation cannot save invoice lines');
+ eq(mutations>beforeOwnerRace,true,'Synthetic transaction actually attempted its guarded SQL writes');
+ db.prepare("UPDATE estimates SET customer_id='c-owner-race' WHERE id='e-owner-race'").run();
+ eq((await post('owner-race')).status,201,'Valid restored customer/job can then create invoice');
+ eq(rows('owner-race').length,1,'Owner race recovery creates exactly one invoice');
+
+ add('status-race');behavior='reopened-before-batch';
+ response=await post('status-race');
+ eq(response.status,503,'Reopened job between read/transaction cannot create final invoice');
+ eq(rows('status-race').length,0,'Reopened job leaves no invoice');
+ db.prepare("UPDATE estimates SET status='completed' WHERE id='e-status-race'").run();
+ eq((await post('status-race')).status,201,'Completed job restored before retry can be invoiced');
+ eq(rows('status-race').length,1,'Job-status race recovery does not duplicate invoice');
+
+ add('late-owner-race');behavior='foreign-after-commit';
+ response=await post('late-owner-race');
+ eq(response.status,503,'Ownership changed after COMMIT invalidates the invoice success readback');
+ eq((await response.json()).saveUncertain,true,'Postcommit cross-owner mismatch is explicitly uncertain');
+ eq(rows('late-owner-race').length,1,'Uncertain invoice must not be blindly recreated');
+ db.prepare("UPDATE estimates SET customer_id='c-late-owner-race' WHERE id='e-late-owner-race'").run();
+ response=await post('late-owner-race');
+ eq(response.status,200,'After owner restores association, saved existing invoice can be read');
+ eq(rows('late-owner-race').length,1,'Reopened invoice remains one original record');
+
  add('invalid-total','synthetic',30000);
  const before=mutations;response=await post('invalid-total');
  eq(response.status,409,'Original estimate cannot exceed actual saved service scope');
