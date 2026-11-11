@@ -61,6 +61,18 @@ export async function POST(request:Request){
     if(existing?.status==="failed")return Response.json({error:"That refund attempt failed. Start a new refund request to try again."},{status:409});
 
     if(!stripePayment&&!externalRefundConfirmed)return Response.json({error:"Confirm the money was returned outside FIRE first."},{status:409});
+    // Never initiate a NEW Stripe money movement against a job whose invoice
+    // currently belongs to a different homeowner. Existing pending/succeeded
+    // requests must remain reconcilable: Stripe might already have refunded.
+    if(stripePayment&&!existing){
+      const ownership=await env.DB.prepare(`SELECT COUNT(*) AS count FROM invoices inv
+        JOIN estimates e ON e.id=inv.estimate_id
+        WHERE e.id=? AND inv.customer_id IS NOT e.customer_id`)
+        .bind(payment.estimateId).first<{count:number}>();
+      if(Number(ownership?.count??0)>0)return Response.json({
+        error:"Invoice ownership must be reconciled before starting a new Stripe refund. No new refund request was reserved."
+      },{status:409,headers:{"cache-control":"no-store, private"}});
+    }
     if(!existing){
       const available=await env.DB.prepare(`SELECT
         COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=? AND status='paid' AND CASE WHEN ?='Tip' THEN type IN ('Tip','Tip Refund') ELSE type NOT IN ('Tip','Tip Refund') END),0)
@@ -73,9 +85,23 @@ export async function POST(request:Request){
         FROM payments p
         WHERE p.id=? AND p.status='paid' AND p.amount_cents>0
           AND ? <= COALESCE((SELECT SUM(x.amount_cents) FROM payments x WHERE x.estimate_id=p.estimate_id AND x.status='paid' AND CASE WHEN p.type='Tip' THEN x.type IN ('Tip','Tip Refund') ELSE x.type NOT IN ('Tip','Tip Refund') END),0)-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r JOIN payments x ON x.id=r.payment_id WHERE r.estimate_id=p.estimate_id AND r.status='pending' AND CASE WHEN p.type='Tip' THEN x.type='Tip' ELSE x.type<>'Tip' END),0)
-          AND ? <= p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)`)
-        .bind(requestId,amountCents,mode,note,now,paymentId,amountCents,amountCents).run();
+          AND ? <= p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)
+          -- Atomic ownership check against a reassignment after the first
+          -- read. Manual refunds may already have moved outside FIRE.
+          AND (? <> 'stripe' OR NOT EXISTS (
+            SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+            WHERE e.id=p.estimate_id AND inv.customer_id IS NOT e.customer_id))`)
+        .bind(requestId,amountCents,mode,note,now,paymentId,amountCents,amountCents,mode).run();
       if(!reserved.meta.changes){
+        if(stripePayment){
+          const ownership=await env.DB.prepare(`SELECT COUNT(*) AS count FROM invoices inv
+            JOIN estimates e ON e.id=inv.estimate_id
+            WHERE e.id=? AND inv.customer_id IS NOT e.customer_id`)
+            .bind(payment.estimateId).first<{count:number}>();
+          if(Number(ownership?.count??0)>0)return Response.json({
+            error:"Invoice ownership changed before Stripe refund reservation. No refund was started."
+          },{status:409,headers:{"cache-control":"no-store, private"}});
+        }
         const totals=await env.DB.prepare(`SELECT p.amount_cents AS originalAmount,
           COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0) AS reservedRefunds
           FROM payments p WHERE p.id=?`).bind(paymentId).first<{originalAmount:number;reservedRefunds:number}>();
