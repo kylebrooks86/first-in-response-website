@@ -89,6 +89,46 @@ try{
  const replayLost=await patch(lost,'refund',2000);
  check(replayLost.status===404&&adjustment(lost).length===1,
  'Reopening saved history after lost acknowledgement prevents duplicate adjustment');
+ // Owner overpayment alerts can represent real money. If an invoice was
+ // reassociated to another customer, neither Record refund nor Keep may
+ // write an adjustment, resolve the alert or alter the other person's bill.
+ const anotherCustomer=seed('unrelated-owner'),foreign=seed('foreign-invoice');
+ db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(anotherCustomer.cid,'i-foreign-invoice');
+ const foreignOriginalPaid=paid(foreign),foreignOriginalInvoice=invoiceStatus(foreign);
+ for(const mode of ['refund','keep']){
+  const result=await patch(foreign,mode,mode==='refund'?2000:undefined);
+  check(result.status===409&&adjustment(foreign).length===0&&paid(foreign)===foreignOriginalPaid&&
+    !alert(foreign).resolvedAt&&invoiceStatus(foreign)===foreignOriginalInvoice,
+    'Wrong-homeowner invoice cannot resolve a payment alert or create a refund adjustment: '+mode);
+ }
+ const ownerNotifications=await api.GET();
+ const ownerFeed=(await ownerNotifications.json()).notifications;
+ check(ownerFeed.find(x=>x.id===foreign.nid).invoiceId===null,
+    'Owner notifications do not expose another homeowner invoice link on a corrupted alert');
+ db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(foreign.cid,'i-foreign-invoice');
+ const fixed=await patch(foreign,'refund',2000);
+ check(fixed.status===200&&paid(foreign)===10000&&!!alert(foreign).resolvedAt,
+   'Correct customer invoice allows the original owner-confirmed external refund to be recorded');
+
+ // A second SQL-connection changing the invoice AFTER the owner billing
+ // read, but BEFORE the D1.batch, cannot cause an offsetting money row or
+ // resolve the alert. An ambiguous result remains owner-review only.
+ const raced=seed('owner-race');
+ rt.env.DB.batch=async statements=>{
+  db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(anotherCustomer.cid,'i-owner-race');
+  return originalBatch(statements);
+ };
+ const crossed=await patch(raced,'refund',2000);
+ check(crossed.status===503&&crossed.data.saveUncertain===true&&
+   adjustment(raced).length===0&&paid(raced)===12000&&
+   invoiceStatus(raced)==='sent'&&!alert(raced).resolvedAt,
+   'Reassignment inside the transaction boundary cannot write money or close a warning');
+ rt.env.DB.batch=originalBatch;
+ db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(raced.cid,'i-owner-race');
+ const repairedRace=await patch(raced,'refund',2000);
+ check(repairedRace.status===200&&adjustment(raced).length===1&&paid(raced)===10000,
+   'After fixing the owner association, one correct adjustment closes the original alert');
+
  const source=readFileSync('app/dashboard.tsx','utf8');
  check(source.includes('resolutionMode==="refund"?exactMoneyInputCents(refundAmount):undefined'),
    'Actual owner UI parses refund amount in exact cents instead of rounding');
