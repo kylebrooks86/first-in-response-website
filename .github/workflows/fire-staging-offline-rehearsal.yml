@@ -200,6 +200,10 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-overpayment-reconciliation-sqlite.mjs
           node --experimental-sqlite scripts/test-notification-mark-all-sqlite.mjs
+          # Owner Follow-ups must not attach a foreign homeowner's invoice
+          # token, price or service/notification link to a saved estimate.
+          node scripts/test-followup-exact-lookup.mjs
+          node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
       - name: Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
