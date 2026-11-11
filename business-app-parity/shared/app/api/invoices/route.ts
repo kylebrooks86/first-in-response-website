@@ -14,16 +14,22 @@ export async function GET() {
   try {
     const customerNumbersReady=await customerNumberingReady(env.DB,env);
     const customerNumberColumn=customerNumbersReady?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=inv.customer_id) AS customerNumber":"NULL AS customerNumber";
-    const result = await env.DB.prepare(`SELECT e.status AS estimateStatus,e.deposit_cents AS depositCents,inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.discount_type AS discountType,inv.discount_value AS discountValue,inv.total_cents AS totalCents,inv.due_at AS dueAt,inv.share_token AS shareToken,inv.first_viewed_at AS firstViewedAt,inv.created_at AS createdAt,c.name AS customer,c.email,c.phone,${customerNumberColumn},${serviceAddressColumns(serviceLocationsEnabled(env))+propertyAssociationColumns(customerPropertiesEnabled(env))},
+    const result = await env.DB.prepare(`SELECT e.status AS estimateStatus,e.deposit_cents AS depositCents,inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.discount_type AS discountType,inv.discount_value AS discountValue,inv.total_cents AS totalCents,inv.due_at AS dueAt,inv.share_token AS shareToken,inv.first_viewed_at AS firstViewedAt,inv.created_at AS createdAt,(inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,c.name AS customer,c.email,c.phone,${customerNumberColumn},${serviceAddressColumns(serviceLocationsEnabled(env))+propertyAssociationColumns(customerPropertiesEnabled(env))},
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM invoice_items ii WHERE ii.invoice_id=inv.id),'Custom service') AS service,
       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
       (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount
-      FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id ORDER BY inv.created_at DESC`).all();
+      FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id JOIN customers c ON c.id=e.customer_id ORDER BY inv.created_at DESC`).all();
+    // Avoid showing a foreign customer's invoice under either homeowner.
+    // The same association is checked by the manual payment and checkout
+    // handlers; a read must be at least as strict as collecting the money.
+    if(result.results.some(row=>Number(row.invoiceOwnershipMismatch)!==0))
+      return Response.json({error:"An invoice is linked to a different customer than its estimate. Review and reconcile invoice ownership before billing."},
+        {status:409,headers:{"Cache-Control":"no-store, private"}});
     const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
     const jobNumbers=showJobs?await attachedJobNumbers(env.DB,result.results.map(row=>String(row.estimateId))):new Map();
-    return Response.json({ invoices: result.results.map(row=>currentInvoice({...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.estimateId))??null}:{})})) },{headers:{"Cache-Control":"no-store, private"}});
+    return Response.json({ invoices: result.results.map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return currentInvoice({...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.estimateId))??null}:{})});}) },{headers:{"Cache-Control":"no-store, private"}});
   } catch { return Response.json({ error: "Invoices are temporarily unavailable." }, { status: 503 }); }
 }
 
