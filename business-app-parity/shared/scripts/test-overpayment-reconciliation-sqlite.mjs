@@ -27,6 +27,13 @@ const patch=async (job,mode,amount)=>{const body={estimateId:job.eid,resolveOver
 };
 const adjustment=job=>db.prepare("SELECT amount_cents AS cents, provider_id AS providerId FROM payments WHERE estimate_id=? AND type='Refund adjustment'").all(job.eid);
 const alert=job=>db.prepare('SELECT resolved_at AS resolvedAt,resolution_note AS resolutionNote FROM notifications WHERE id=?').get(job.nid);
+const addPendingRefund=(job,suffix='')=>{
+ const payment=db.prepare('SELECT id FROM payments WHERE estimate_id=? AND amount_cents>0 LIMIT 1').get(job.eid);
+ assert.ok(payment,'Synthetic payment exists for pending refund');
+ db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,'pending',?)")
+   .run('pending-'+job.eid+suffix,payment.id,job.eid,2000,'stripe',stamp);
+};
+const clearPendingRefund=job=>db.prepare("DELETE FROM payment_refunds WHERE estimate_id=? AND status='pending'").run(job.eid);
 const paid=job=>db.prepare("SELECT COALESCE(SUM(amount_cents),0) AS cents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").get(job.eid).cents;
 const invoiceStatus=job=>db.prepare('SELECT status FROM invoices WHERE estimate_id=?').get(job.eid).status;
 try{
@@ -93,6 +100,35 @@ try{
  // Owner overpayment alerts can represent real money. If an invoice was
  // reassociated to another customer, neither Record refund nor Keep may
  // write an adjustment, resolve the alert or alter the other person's bill.
+ // Pending provider refunds are in-flight money; never record a separate
+ // negative payment or deliberately keep the excess until Stripe settles.
+ const pendingJob=seed('refund-in-flight');
+ addPendingRefund(pendingJob);
+ for(const mode of ['refund','keep']){
+  const result=await patch(pendingJob,mode,mode==='refund'?2000:undefined);
+  check(result.status===409&&adjustment(pendingJob).length===0&&paid(pendingJob)===12000&&
+        invoiceStatus(pendingJob)==='sent'&&!alert(pendingJob).resolvedAt,
+    'Owner '+mode+' cannot reconcile an overpayment during a pending refund');
+ }
+ const racePending=seed('pending-appeared-mid-batch');
+ rt.env.DB.batch=async statements=>{addPendingRefund(racePending);return originalBatch(statements);};
+ const racePendingResult=await patch(racePending,'refund',2000);
+ rt.env.DB.batch=originalBatch;
+ check(racePendingResult.status===503&&racePendingResult.data.saveUncertain===true&&
+       adjustment(racePending).length===0&&paid(racePending)===12000&&
+       invoiceStatus(racePending)==='sent'&&!alert(racePending).resolvedAt,
+   'A refund appearing inside D1 batch blocks adjustment, invoice status and alert resolution atomically');
+ const raceKeep=seed('pending-before-keep-write');
+ const originalKeepPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'"))
+    addPendingRefund(raceKeep);
+  return originalKeepPrepare(sql);
+ };
+ const raceKeepResult=await patch(raceKeep,'keep');
+ rt.env.DB.prepare=originalKeepPrepare;
+ check(raceKeepResult.status===409&&!alert(raceKeep).resolvedAt&&paid(raceKeep)===12000,
+   'SQL-time Keep predicate refuses a refund created after the initial provider read');
  const anotherCustomer=seed('unrelated-owner'),foreign=seed('foreign-invoice');
  db.prepare('UPDATE invoices SET customer_id=? WHERE id=?').run(anotherCustomer.cid,'i-foreign-invoice');
  const foreignOriginalPaid=paid(foreign),foreignOriginalInvoice=invoiceStatus(foreign);
@@ -112,6 +148,32 @@ try{
   }));
   return {status:response.status,data:await response.json()};
  };
+ const drPending=await drKeep(pendingJob);
+ check(drPending.status===409&&paid(pendingJob)===12000&&!alert(pendingJob).resolvedAt,
+   'Independent DR also refuses Keep while a refund is pending');
+ const drPendingRace=seed('dr-refund-appeared-before-write');
+ const drOriginalPendingPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'"))
+   addPendingRefund(drPendingRace);
+  return drOriginalPendingPrepare(sql);
+ };
+ const drPendingRaceResult=await drKeep(drPendingRace);
+ rt.env.DB.prepare=drOriginalPendingPrepare;
+ check(drPendingRaceResult.status===409&&!alert(drPendingRace).resolvedAt&&paid(drPendingRace)===12000,
+   'DR SQL-time pending-refund guard protects an alert after the initial read');
+ const drFalseWrite=seed('dr-false-write-ack');
+ const drOriginalAckPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'"))
+   return {bind:()=>({run:async()=>({meta:{changes:1}})})};
+  return drOriginalAckPrepare(sql);
+ };
+ const drFalseAckResult=await drKeep(drFalseWrite);
+ rt.env.DB.prepare=drOriginalAckPrepare;
+ check(drFalseAckResult.status===503&&drFalseAckResult.data.saveUncertain===true&&
+       !alert(drFalseWrite).resolvedAt&&paid(drFalseWrite)===12000,
+   'DR readback rejects a success-looking SQLite ACK that did not save a resolution');
  const drForeign=await drKeep(foreign);
  check(drForeign.status===409&&paid(foreign)===foreignOriginalPaid&&!alert(foreign).resolvedAt,
    'DR overpayment Keep refuses a mismatched customer invoice without changing money or alert');
