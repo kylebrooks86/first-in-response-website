@@ -42,23 +42,41 @@ try{
    estimate_id TEXT PRIMARY KEY NOT NULL,
    job_number INTEGER NOT NULL REFERENCES fire_job_numbers(job_number)
  );`);
- db.prepare("INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES('estimate-000','2026-10-01')").run();
- db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('estimate-000',1)").run();
+ // The flag alone must never make an incomplete job map authoritative.
  env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ eq((await historyGet('focus=estimate-000')).status,503);
+ eq((await get('Job #0001','jobs')).status,503);
+ // Rehearse a COMPLETE, internally consistent migration of all 65 historical
+ // estimates and the four immutable-link safeguards. No hosted data, no writes.
+ db.exec(`CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT RAISE(ABORT,'immutable'); END;
+ CREATE TRIGGER fire_job_numbers_no_delete BEFORE DELETE ON fire_job_numbers BEGIN SELECT RAISE(ABORT,'immutable'); END;
+ CREATE TRIGGER fire_job_estimate_links_no_update BEFORE UPDATE ON fire_job_estimate_links BEGIN SELECT RAISE(ABORT,'immutable'); END;
+ CREATE TRIGGER fire_job_estimate_links_no_delete BEFORE DELETE ON fire_job_estimate_links BEGIN SELECT RAISE(ABORT,'immutable'); END;`);
+ for(const row of db.prepare('SELECT id,created_at FROM estimates ORDER BY id').all()){
+  const result=db.prepare("INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES(?,?)").run(row.id,row.created_at);
+  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)").run(row.id,Number(result.lastInsertRowid));
+ }
  const historyLinked=await historyGet('focus=estimate-000');
  eq(historyLinked.status,200);
  const historyJob=(await historyLinked.json()).estimates;
  eq(historyJob.length,1);eq(historyJob[0].id,'estimate-000');eq(historyJob[0].jobNumber,1);
  const historyUnlinked=(await (await historyGet('focus=estimate-001')).json()).estimates;
- eq(historyUnlinked.length,1);eq(historyUnlinked[0].jobNumber,null);
+ eq(historyUnlinked.length,1);eq(historyUnlinked[0].jobNumber,2);
  const historyService=(await (await historyGet('q=Special%20Search')).json()).estimates;
  eq(historyService.some(row=>row.id==='estimate-000'&&row.jobNumber===1),true);
  const byJob=(await (await historyGet('q=Job%20%230001')).json()).estimates;
  eq(byJob.length,1);eq(byJob[0].id,'estimate-000');eq(byJob[0].jobNumber,1);
+ for(const q of ['0001','Job #1','#1','job 0001']){
+  const match=(await (await historyGet('q='+encodeURIComponent(q))).json()).estimates;
+  eq(match.length,1);eq(match[0].jobNumber,1);
+ }
+ eq((await (await historyGet('q=7')).json()).estimates.length,0);
  eq((await (await historyGet('q=Job%20%239999')).json()).estimates.length,0);
  eq((await (await historyGet('q=Job%20%230')).json()).estimates.length,0);
  const linkedJob=(await search('Job #0001','jobs')).results;
  eq(linkedJob.length,1);eq(linkedJob[0].id,'estimate-000');eq(linkedJob[0].jobNumber,1);
+ eq((await search('0001','jobs')).results[0].jobNumber,1);
+ eq((await search('#1','jobs')).results[0].jobNumber,1);
  const linkedInvoice=(await search('Job #0001','invoices')).results;
  eq(linkedInvoice.length,1);eq(linkedInvoice[0].id,'6528c9aa-0000-4000-8000-000000000001');eq(linkedInvoice[0].jobNumber,1);
  const both=(await search('Job #0001')).results;
