@@ -1076,6 +1076,18 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     if(estimateProperty&&estimateProperty.property.customerId!==selectedCustomer?.id){setStep(1);setPropertyBlocked(true);setError('The service property does not belong to this customer. Review their properties again.');return;}
     if(selectedCustomer&&propertyBlocked){setStep(1);setError('Review and select an active service property before saving.');return;}
     if(!customerName.trim()){setStep(1);setError("Customer name is required.");return;}
+    // Inline NEW customers are created by this estimate. Validate contacts
+    // locally BEFORE reserving a persistent request UUID or making a POST;
+    // otherwise the owner gets an avoidable failed save/recovery hold.
+    // Existing selected customers retain their saved legacy contact details.
+    if(customerMode==='new'&&!selectedCustomer){
+      if(email.trim()&&!usableCustomerEmail(email)){
+        setStep(1);setError("Enter a valid customer email address or leave it blank.");return;
+      }
+      if(phone.trim()&&!usableCustomerPhone(phone)){
+        setStep(1);setError("Enter a valid 10-digit U.S. customer phone number or leave it blank.");return;
+      }
+    }
     if(!Number.isSafeInteger(subtotal)||!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!validEditablePrice(item))){setStep(2);setError("Every service needs a service, quantity, and valid price.");return;}
     if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
     if(discountInputCents===null){setError("Enter a valid nonnegative discount with at most two decimals and within the percentage limit.");return;}
