@@ -29,9 +29,12 @@ const setup=()=>{
  CREATE TABLE estimate_items(id TEXT PRIMARY KEY,estimate_id TEXT,name TEXT,description TEXT,quantity REAL,unit TEXT,total_cents INTEGER);
  CREATE TABLE message_templates(key TEXT PRIMARY KEY,subject TEXT,body TEXT,updated_at TEXT);
  CREATE TABLE payments(estimate_id TEXT,status TEXT,type TEXT,amount_cents INTEGER);
- CREATE TABLE invoices(estimate_id TEXT);
+ CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT,share_token TEXT,total_cents INTEGER);
  CREATE TABLE job_reports(estimate_id TEXT,created_at TEXT,status TEXT);
- CREATE TABLE estimate_change_requests(estimate_id TEXT,status TEXT);
+ CREATE TABLE estimate_change_requests(estimate_id TEXT,status TEXT,message TEXT,created_at TEXT);
+ CREATE TABLE customer_messages(estimate_id TEXT,template TEXT,channel TEXT,created_at TEXT);
+ CREATE TABLE notifications(estimate_id TEXT,type TEXT,resolved_at TEXT);
+ CREATE TABLE payment_refunds(estimate_id TEXT,status TEXT);
  `);
  batchMode='normal';
 };
@@ -43,7 +46,8 @@ const DB={
    async all(){return {results:db.prepare(sql).all(...args)};},
    async run(){let result=db.prepare(sql).run(...args);return {success:true,meta:{changes:Number(result.changes)}};},
   });
-  return {bind,async first(){return db.prepare(sql).get()??null;},async all(){return {results:db.prepare(sql).all()};}};
+  return {bind,queryText:sql,async first(){return db.prepare(sql).get()??null;},
+    async all(){return {results:db.prepare(sql).all()};}};
  },
  async batch(statements){
   events.push('batch:'+batchMode);
@@ -52,7 +56,9 @@ const DB={
   if(batchMode==='schedule-before-write')db.prepare("UPDATE estimates SET scheduled_at='2026-11-15T08:00:00.000Z' WHERE id=?").run(currentId);
   if(batchMode==='payment-before-write')db.prepare("INSERT INTO payments VALUES(?,'paid','deposit',2500)").run(currentId);
   db.exec('BEGIN');
-  try{let output=[];for(const stmt of statements)output.push(await stmt.run());db.exec('COMMIT');return output;}
+  try{let output=[];for(const stmt of statements)
+    output.push(/^\s*SELECT\b/i.test(stmt.queryText??'')?await stmt.all():await stmt.run());
+    db.exec('COMMIT');return output;}
   catch(e){db.exec('ROLLBACK');throw e;}
  }
 };
@@ -196,5 +202,24 @@ setup();
  check(attempted.status===409&&one().status==='draft',
        'Owner cannot fabricate a signed customer approval from status controls');
 }
+// Owner-facing estimate history must never show an invoice/share link from
+// another customer's record (especially in an emergency DR recovery).
+setup();
+{
+ const created=await posted(base(2500));const id=created.data.id,customerId=created.data.customerId;
+ db.prepare("INSERT INTO invoices VALUES('invoice-1',?,?,?,?)")
+   .run(id,customerId,'synthetic-invoice-token',2500);
+ const good=await api.GET();
+ const goodBody=await good.json();
+ check(good.status===200&&goodBody.estimates?.length===1&&
+       goodBody.estimates[0].invoiceId==='invoice-1'&&
+       goodBody.estimates[0].invoiceShareToken==='synthetic-invoice-token'&&
+       !Object.hasOwn(goodBody.estimates[0],'invoiceOwnershipMismatch'),
+   'Actual DR estimate list preserves same-customer invoice and omits internal ownership checks');
+ db.prepare("UPDATE invoices SET customer_id='foreign-customer' WHERE id='invoice-1'").run();
+ const foreign=await api.GET();const wrong=await foreign.json();
+ check(foreign.status===409&&typeof wrong.error==='string'&&!wrong.estimates,
+   'Actual DR estimate list refuses crossed-customer invoice totals and public share tokens');
+}
 db.close();
-console.log('PASS '+checks+'/'+checks+' actual DR quote pricing AND atomic job lifecycle tests (disposable native SQLite, no hosted provider calls).');
+console.log('PASS '+checks+'/'+checks+' actual DR quote pricing, job lifecycle and owner-safe estimate listing (disposable native SQLite, no provider calls).');
