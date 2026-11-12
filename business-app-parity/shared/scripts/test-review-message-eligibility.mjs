@@ -8,9 +8,16 @@ import {shouldOfferReviewAfterPayment} from "../lib/customer-review-invite.mjs";
 const db=new DatabaseSync(":memory:");
 for(const p of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+p,"utf8"));
 let user={email:"kylebrooks8605@gmail.com"},writes=0,sequence=0;
+let beforeReviewInsert=null; // Simulate an external/second-device state change after preflight.
 const env={DB:{prepare(sql){return {bind(...args){const query=db.prepare(sql);return {
  first:async()=>query.get(...args)??null,
- run:async()=>{const result=query.run(...args);if(result.changes)writes+=result.changes;return {meta:{changes:result.changes}}},
+ run:async()=>{
+   if(beforeReviewInsert&&sql.startsWith("INSERT OR IGNORE INTO customer_messages")){
+     const mutation=beforeReviewInsert;beforeReviewInsert=null;mutation();
+   }
+   const result=query.run(...args);if(result.changes)writes+=result.changes;
+   return {meta:{changes:result.changes}};
+ },
  };}};}}};
 const load=()=>{
  const exports={};const js=ts.transpileModule(readFileSync("app/api/customer-messages/route.ts","utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
@@ -45,6 +52,27 @@ try{
  }
  check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE channel IN ('text_confirmed','email_confirmed')").get().n===0,"Preparing messages never creates send-confirmed receipts");
  check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages").get().n===2,"Only two authorized preparation records saved");
+ // Real SQLite must enforce a second permission check inside the INSERT
+ // because webhook/another device can change the job AFTER the first SELECT.
+ for(const kind of ["refund","checkout","overage","retired","reassigned"]){
+   const id="racing-"+kind;job(id);
+   const est="e-"+id,who="c-"+id;
+   beforeReviewInsert=()=>{
+     if(kind==="refund")db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,?,?)")
+       .run("race-refund","p-"+id,est,1000,"Stripe","pending",stamp);
+     if(kind==="checkout")db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)")
+       .run("cs_race_payment",est,"balance",10000,"open",stamp);
+     if(kind==="overage")db.prepare("INSERT INTO notifications(id,customer_id,estimate_id,type,title,body,created_at) VALUES(?,?,?,?,?,?,?)")
+       .run("race-billing-alert",who,est,"payment_overage","Review","Synthetic",stamp);
+     if(kind==="retired")db.prepare("UPDATE estimates SET status='superseded' WHERE id=?").run(est);
+     if(kind==="reassigned")db.prepare("UPDATE estimates SET customer_id='c-paid' WHERE id=?").run(est);
+   };
+   res=await post(id);
+   check(res.status===409,"Review draft blocked if "+kind+" changes immediately before the atomic INSERT");
+   check(beforeReviewInsert===null,"The "+kind+" mutation occurred after preflight at INSERT time");
+   check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE estimate_id=?").get(est).n===0,
+     "No review draft could be prepared for the newly held "+kind+" job");
+ }
  const before=writes;
  user=null;res=await post("paid");check(res.status===401&&writes===before,"Unauthenticated message preparation denied before write");
  user={email:"someoneelse@example.invalid"};res=await post("paid");check(res.status===401&&writes===before,"Non-owner message preparation denied");
