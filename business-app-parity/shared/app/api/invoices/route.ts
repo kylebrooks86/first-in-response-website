@@ -2,6 +2,7 @@ import {currentInvoice} from "../../../lib/invoice-state.mjs";
 import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
+import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 import {attachedJobNumbers} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
@@ -11,6 +12,10 @@ async function authorized(){ const user=await getChatGPTUser(); return Boolean(u
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // A full financial list requires known refund-ledger table and index
+  // identities. Return a clear no-retry 503 instead of a SQL 500 or stale
+  // balance if this target has not completed Gate5 migration review.
+  if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   try {
     const customerNumbersReady=await customerNumberingReady(env.DB,env);
     const customerNumberColumn=customerNumbersReady?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=inv.customer_id) AS customerNumber":"NULL AS customerNumber";

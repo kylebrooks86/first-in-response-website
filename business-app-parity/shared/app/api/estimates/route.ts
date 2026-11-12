@@ -5,6 +5,7 @@ import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution,promotio
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
+import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel,jobNumberingReady,JOB_NUMBER_FLAG} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
@@ -27,6 +28,10 @@ type ItemRow={id:string;estimateId:string;name:string;description:string;quantit
 
 export async function GET() {
   if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // A full financial list requires known refund-ledger table and index
+  // identities. Return a clear no-retry 503 instead of a SQL 500 or stale
+  // balance if this target has not completed Gate5 migration review.
+  if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   try {
     const [estimateResult,itemResult]=await env.DB.batch([
       env.DB.prepare(`

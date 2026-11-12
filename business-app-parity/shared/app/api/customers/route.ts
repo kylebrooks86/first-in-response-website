@@ -2,6 +2,7 @@ import {currentInvoice} from "../../../lib/invoice-state.mjs";
 import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
+import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {CUSTOMER_PHONE_SQL,customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
@@ -37,6 +38,11 @@ export async function GET(request?:Request) {
       const customer=await env.DB.prepare("SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,"+numberColumn+" FROM customers c WHERE c.id=? LIMIT 1").bind(confirmId).first();
       return customer?Response.json({customer},{headers:{"Cache-Control":"no-store, private"}}):Response.json({error:"Customer record not found."},{status:404,headers:{"Cache-Control":"no-store, private"}});
     }
+    // The confirmEdit single-record read above is independent of payment
+    // history. Full customer lists include financial/refund state and must
+    // stop safely before any private row or joined-ledger query if the
+    // legacy LIVE refund table/indexes are missing.
+    if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
     const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = await env.DB.batch([
       env.DB.prepare(`
         SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,${numberColumn},

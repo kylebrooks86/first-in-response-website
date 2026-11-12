@@ -245,6 +245,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-public-refund-ledger-holds-sqlite.mjs
+      - name: Gate 5 missing refund ledger blocks owner financial lists but preserves customer-save readback (new SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-owner-financial-list-refund-holds-sqlite.mjs
       - name: Gate 5 actual notification overpayment refund/keep, cross-customer alert and SQL-time ownership races (synthetic SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
