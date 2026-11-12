@@ -10,11 +10,12 @@ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;console.log('PASS: '+description);};
 const body=JSON.stringify({shareToken:'synthetic-share-token',paymentType:'deposit'});
-function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01'}={}){
- const state={open:priorStatus?{id:'cs_test_previoussynthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0};
+function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01',siteOrigin='https://synthetic.invalid',requestOrigin='https://synthetic.invalid'}={}){
+ const state={open:priorStatus?{id:'cs_test_previoussynthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0,dbPrepares:0};
  let readers=0,openReaders;
  const bothReaders=new Promise(resolve=>{openReaders=resolve;});
  const db={prepare(sql){
+   state.dbPrepares++;
    return {bind(...params){
      return {
        async first(){
@@ -53,13 +54,15 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
      };
    }};
  }};
- const env={DB:db,FIRE_ENV:'synthetic',FIRE_STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_synthetic',SITE_ORIGIN:'https://synthetic.invalid'};
+ const env={DB:db,FIRE_ENV:'synthetic',FIRE_STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_synthetic',SITE_ORIGIN:siteOrigin};
  async function fakeFetch(url,options){
    if(url==='https://api.stripe.com/v1/checkout/sessions'&&options.method==='POST'){
      state.creates++;
      check(options.headers['Idempotency-Key'].startsWith('fire-checkout-fire-creating:'),'Stripe create uses the reserved operation ID as idempotency key');
      const form=new URLSearchParams(options.body);
      check(form.get('metadata[fire_checkout_reservation_id]')===state.open?.id,'Checkout session carries its exact reserved slot for signed-event recovery');
+     check(form.get('success_url')==='https://synthetic.invalid/estimate/synthetic-share-token?session_id={CHECKOUT_SESSION_ID}'&&form.get('cancel_url')==='https://synthetic.invalid/estimate/synthetic-share-token',
+       'Customer Stripe success/cancel links use only the pinned canonical HTTPS origin');
      if(stripeResponse==='rejection')return Response.json({error:{message:'Synthetic card setup rejected'}},{status:400});
      if(stripeResponse==='server-error')return Response.json({error:{message:'Stripe internal error'}},{status:500});
      if(stripeResponse==='rate-limit')return Response.json({error:{message:'Stripe rate limit'}},{status:429});
@@ -88,10 +91,34 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
  const exports={};
  new Function('require','exports','env','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT',compiled)(
    id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,env,Response,Request,webcrypto,fakeFetch,'doomsday');
- const request=(payload=body,headers={})=>new Request('https://synthetic.invalid/api/payments/checkout',{
+ const request=(payload=body,headers={})=>new Request(requestOrigin+'/api/payments/checkout',{
    method:'POST',headers:{'content-type':'application/json',...headers},body:payload
  });
  return {post:(payload,headers)=>exports.POST(request(payload,headers)),state};
+}
+// Stripe checkout callback URLs contain a private estimate share-token.
+// An attacker-controlled Host, Cloudflare version-preview URL, or missing/unsafe
+// SITE_ORIGIN must never be accepted or sent to Stripe. Rejection must precede
+// all database reads and payment-network requests.
+for(const [label,siteOrigin,requestOrigin] of [
+ ['missing SITE_ORIGIN',undefined,'https://synthetic.invalid'],
+ ['non-HTTPS SITE_ORIGIN','http://synthetic.invalid','http://synthetic.invalid'],
+ ['path in SITE_ORIGIN','https://synthetic.invalid/estimate','https://synthetic.invalid'],
+ ['query in SITE_ORIGIN','https://synthetic.invalid/?redirect=evil','https://synthetic.invalid'],
+ ['credentials in SITE_ORIGIN','https://owner:secret@synthetic.invalid','https://synthetic.invalid'],
+ ['wrong incoming host','https://synthetic.invalid','https://attacker.invalid'],
+ ['Cloudflare preview vs canonical TEST origin','https://synthetic.invalid','https://ce69c574-synthetic.invalid'],
+ ['non-HTTPS incoming host','https://synthetic.invalid','http://synthetic.invalid']
+]){
+ const h=harness({siteOrigin,requestOrigin});
+ const response=await h.post();
+ check(response.status===503,label+' fails closed before accepting public payment');
+ check(h.state.dbPrepares===0&&h.state.locks===0&&h.state.creates===0&&h.state.inspections===0,
+   label+' never reads D1, contacts Stripe, or reserves a checkout');
+}
+{
+ const h=harness({siteOrigin:'https://synthetic.invalid/'});
+ check((await h.post()).status===200,'Canonical HTTPS SITE_ORIGIN with trailing slash supports card checkout');
 }
 // Public checkout receives an unauthenticated request before its estimate
 // bearer token is checked. Refuse large/malformed JSON without any D1 read,
