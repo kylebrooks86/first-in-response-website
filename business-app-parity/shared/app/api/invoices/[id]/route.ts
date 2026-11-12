@@ -1,0 +1,194 @@
+import {submittedDiscountCents} from '../../../../lib/discount-input';
+import {currentInvoice} from "../../../../lib/invoice-state.mjs";
+import { env } from "cloudflare:workers";
+import { getChatGPTUser } from "../../../chatgpt-auth";
+
+const OWNER_EMAIL="kylebrooks8605@gmail.com";
+type RuntimeEnv=Cloudflare.Env&{STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KEY?:string};
+async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+type InvoiceItem={id?:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
+
+async function expireOpenCheckoutSessions(estimateId:string){
+  const sessions=await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(estimateId).all<{id:string}>();
+  if(!sessions.results.length)return {ok:true as const};
+  const runtime=env as RuntimeEnv;
+  const secret=runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY;
+  if(!secret)return {ok:false as const,error:"An active payment checkout must be closed before editing this invoice. Connect Stripe or wait for the checkout to finish."};
+  for(const session of sessions.results){
+    const headers={authorization:`Bearer ${secret}`};
+    const response=await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(session.id)}/expire`,{method:"POST",headers});
+    if(!response.ok){
+      // A prior remote expiration can succeed even if the local status update failed.
+      // Re-read Stripe before blocking invoice edits so stale local "open" tracking
+      // cannot permanently lock an otherwise safe invoice revision.
+      const inspect=await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(session.id)}`,{headers});
+      if(!inspect.ok)return {ok:false as const,error:"A customer payment checkout is already processing. Wait for it to finish or expire before editing the invoice."};
+      const remote=await inspect.json() as {status?:string};
+      if(remote.status!=="expired")return {ok:false as const,error:"A customer payment checkout is already processing. Wait for it to finish or expire before editing the invoice."};
+    }
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='expired',expired_at=? WHERE id=? AND status='open'").bind(new Date().toISOString(),session.id).run();
+  }
+  return {ok:true as const};
+}
+
+export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  const {id}=await params;
+  const storedInvoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
+    NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch,
+    COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=invoices.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+    (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=invoices.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
+    (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=invoices.estimate_id AND r.status='pending') AS pendingRefundCount FROM invoices WHERE id=?`).bind(id).first();
+  if(storedInvoice&&Number(storedInvoice.invoiceOwnershipMismatch)!==0)
+    return Response.json({error:"This invoice belongs to a different customer than its estimate. Reconcile the association before viewing or editing billing."},
+      {status:409,headers:{"Cache-Control":"no-store, private"}});
+  const invoice=storedInvoice?currentInvoice(storedInvoice):null;
+  if(!invoice)return Response.json({error:"Invoice not found."},{status:404});
+  const [items,revisions]=await Promise.all([
+    env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all(),
+    env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status,items_json AS itemsJson,created_at AS createdAt FROM invoice_revisions WHERE invoice_id=? ORDER BY created_at DESC LIMIT 20").bind(id).all(),
+  ]);
+  const normalizedRevisions=(revisions.results??[]).map((revision)=>{
+    const record=revision as Record<string,unknown>;
+    let revisionItems:unknown[]=[];
+    try{const parsed=JSON.parse(String(record.itemsJson??"[]"));revisionItems=Array.isArray(parsed)?parsed:[];}catch{revisionItems=[];}
+    const {itemsJson:_itemsJson,...rest}=record;void _itemsJson;
+    return {...rest,items:revisionItems};
+  });
+  return Response.json({invoice:{...invoice,items:items.results,revisions:normalizedRevisions}},{headers:{"Cache-Control":"no-store, private"}});
+}
+
+export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  try{
+    const {id}=await params;
+    const body=await request.json() as Record<string,unknown>;
+    const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt,NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string;invoiceOwnershipMismatch:number}>();
+    if(!existing)return Response.json({error:"Invoice not found."},{status:404});
+    if(Number(existing.invoiceOwnershipMismatch)!==0)
+      return Response.json({error:"This invoice is linked to a different customer. Reconcile ownership before editing it."},
+        {status:409,headers:{"Cache-Control":"no-store, private"}});
+    const items=(Array.isArray(body.items)?body.items:[]) as Record<string,unknown>[];
+    const normalized:InvoiceItem[]=items.map((item)=>({id:String(item.id??"").trim()||undefined,name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:typeof item.totalCents==='number'?item.totalCents:NaN}));
+    if(!normalized.length||normalized.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return Response.json({error:"Every invoice service needs a name, quantity, and valid price."},{status:400});
+    const subtotalCents=normalized.reduce((sum,item)=>sum+item.totalCents,0);
+    if(!Number.isSafeInteger(subtotalCents))return Response.json({error:"The invoice total is too large to store safely."},{status:400});
+    const discountType=String(body.discountType??"dollar")==="percent"?"percent":"dollar";
+    const discountValue=submittedDiscountCents(body.discountValue);
+    if(discountValue===null)return Response.json({error:"Enter a valid nonnegative discount in exact cents."},{status:400});
+    let discountCents=0;
+    if(discountType==="percent"){
+      if(discountValue>5000)return Response.json({error:"Percentage discount cannot exceed 50%."},{status:400});
+      discountCents=Math.round(subtotalCents*(discountValue/10000));
+    }else{
+      if(discountValue>subtotalCents)return Response.json({error:"Dollar discount cannot exceed the invoice subtotal."},{status:400});
+      discountCents=discountValue;
+    }
+    const totalCents=subtotalCents>0?Math.max(0,subtotalCents-discountCents):0;
+    const appliedDiscountCents=Math.max(0,subtotalCents-totalCents);
+    const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
+    const paidCents=Number(paidRow?.paidCents||0);
+    if(!Number.isSafeInteger(paidCents)||paidCents<0)return Response.json({error:"Recorded payments are outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
+    if(totalCents<paidCents)return Response.json({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
+    const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
+    if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
+    const updateDueAt=Object.prototype.hasOwnProperty.call(body,"dueAt");
+    const rawDueAt=String(body.dueAt??"").trim();
+    let dueAt:string|null|undefined;
+    if(updateDueAt){
+      if(rawDueAt==="receipt")dueAt=null;
+      else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);if(Number.isNaN(parsed.getTime()))return Response.json({error:"Choose a valid invoice due date."},{status:400});dueAt=parsed.toISOString();}
+      else return Response.json({error:"Choose a valid invoice due date."},{status:400});
+    }
+    const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
+    const latestPaidCents=Number(latestPaidRow?.paidCents??0);
+    if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
+    if(totalCents<latestPaidCents)return Response.json({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
+    // Status and the transactional payment guard must use the same snapshot.
+    // Money arriving between the two reads must not leave a paid invoice draft.
+    const status=latestPaidCents>=totalCents?"paid":latestPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
+    const currentItems=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all();
+    const currentInvoice=await env.DB.prepare("SELECT subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
+    const revisionId=crypto.randomUUID();
+    const revisionCreatedAt=new Date().toISOString();
+    // Allocate stable line IDs once so the owner receives the exact persisted
+    // items, not an unsaved input echo with missing generated IDs.
+    const submittedItems=normalized.map(item=>({...item,id:item.id||crypto.randomUUID()}));
+    // The earlier paid snapshot can go stale before D1.batch starts. Make
+    // revision creation the transactional eligibility gate: all subsequent
+    // service-line and header writes depend on this unique revision ID.
+    // If a payment arrives before the batch, every statement becomes a no-op.
+    // No hosted migration, extra table, or external payment action is needed.
+    const actualPaid = `COALESCE((SELECT SUM(p.amount_cents) FROM payments p
+      WHERE p.estimate_id=guard.estimate_id AND p.status='paid'
+        AND p.type NOT IN ('Tip','Tip Refund')),0)`;
+    const revisionGuard = `EXISTS(SELECT 1 FROM invoice_revisions
+      WHERE id=? AND invoice_id=?)`;
+    const revisionGate = env.DB.prepare(`INSERT INTO invoice_revisions
+      (id,invoice_id,subtotal_cents,discount_cents,discount_type,discount_value,
+        total_cents,due_at,status,items_json,created_at)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?
+      WHERE EXISTS(SELECT 1 FROM invoices guard WHERE guard.id=?
+        AND EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=guard.estimate_id AND parent.customer_id=guard.customer_id)
+        AND ${actualPaid}=? AND ${actualPaid}<=?)`)
+      .bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),
+        Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),
+        Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),
+        currentInvoice?.dueAt?String(currentInvoice.dueAt):null,
+        String(currentInvoice?.status||existing.status),JSON.stringify(currentItems.results),
+        revisionCreatedAt,id,latestPaidCents,totalCents);
+    const statements=[revisionGate,
+      env.DB.prepare(`DELETE FROM invoice_items WHERE invoice_id=?
+        AND ${revisionGuard}`).bind(id,revisionId,id)];
+    for(const item of submittedItems)statements.push(env.DB.prepare(`INSERT INTO invoice_items
+      (id,invoice_id,name,description,quantity,unit,total_cents)
+      SELECT ?,?,?,?,?,?,? WHERE ${revisionGuard}`)
+      .bind(item.id,id,item.name,item.description,item.quantity,item.unit,item.totalCents,
+        revisionId,id));
+    if(updateDueAt)statements.push(env.DB.prepare(`UPDATE invoices
+      SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,
+        total_cents=?,status=?,due_at=? WHERE id=? AND ${revisionGuard}`)
+      .bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,
+        dueAt,id,revisionId,id));
+    else statements.push(env.DB.prepare(`UPDATE invoices
+      SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,
+        total_cents=?,status=? WHERE id=? AND ${revisionGuard}`)
+      .bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,
+        id,revisionId,id));
+    // D1.batch is atomic, but its return value alone must not be interpreted
+    // as a verified saved invoice. The server must read back BOTH header and
+    // every line before reporting success to the iPhone owner.
+    const acknowledged=await env.DB.batch(statements);
+    const uncertain=()=>Response.json({
+      error:"Invoice save confirmation is uncertain. Reopen the invoice and check the stored amounts and service lines before another edit.",
+      saveUncertain:true
+    },{status:503,headers:{"Cache-Control":"no-store, private"}});
+    if(!Array.isArray(acknowledged)||acknowledged.length!==statements.length||
+      acknowledged.some(result=>(result as {success?:boolean})?.success===false))return uncertain();
+    const saved=await env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,status,due_at AS dueAt,NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch FROM invoices WHERE id=?")
+      .bind(id).first<{id:string;subtotalCents:number;discountCents:number;discountType:string;discountValue:number;totalCents:number;status:string;dueAt:string|null;invoiceOwnershipMismatch:number}>();
+    const savedLines=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC")
+      .bind(id).all<Required<InvoiceItem>>();
+    const savedRevision=await env.DB.prepare("SELECT id FROM invoice_revisions WHERE id=? AND invoice_id=? LIMIT 1")
+      .bind(revisionId,id).first<{id:string}>();
+    if(!saved||Number(saved.invoiceOwnershipMismatch)!==0||saved.id!==id||Number(saved.subtotalCents)!==subtotalCents||
+      Number(saved.discountCents)!==appliedDiscountCents||
+      saved.discountType!==discountType||Number(saved.discountValue)!==discountValue||
+      Number(saved.totalCents)!==totalCents||saved.status!==status||
+      (updateDueAt&&(saved.dueAt??null)!==(dueAt??null))||
+      !savedRevision||savedRevision.id!==revisionId||
+      !Array.isArray(savedLines.results)||savedLines.results.length!==submittedItems.length||
+      savedLines.results.some((item,index)=>{
+        const expected=submittedItems[index];
+        return item.id!==expected.id||item.name!==expected.name||
+          item.description!==expected.description||Number(item.quantity)!==expected.quantity||
+          item.unit!==expected.unit||Number(item.totalCents)!==expected.totalCents;
+      }))return uncertain();
+    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,
+      discountType,discountValue,totalCents,status,dueAt:saved.dueAt??null,
+      items:savedLines.results}}, {headers:{"Cache-Control":"no-store, private"}});
+  }catch{return Response.json({
+    error:"Invoice save confirmation is unavailable. Reopen this invoice and verify the saved total and service lines before retrying.",
+    saveUncertain:true
+  },{status:503,headers:{"Cache-Control":"no-store, private"}});}
+}

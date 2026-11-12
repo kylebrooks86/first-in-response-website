@@ -1,0 +1,93 @@
+{
+  "asOf": "2026-10-22",
+  "scope": "Read-only provider metadata and table names; no deployed runtime, complete DDL, migration journal or routing seal verification",
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "targets": [
+    {
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "title": "FIRE App",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "latestVersionNumber": 61,
+      "publicationUpdatedAt": "2026-10-08T01:23:39.747570+00:00",
+      "versionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+      "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+      "archiveHash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2",
+      "deploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+      "deploymentStatus": "succeeded",
+      "environmentRevision": 9,
+      "binding": "DB",
+      "tables": [
+        "auth_rate_limits",
+        "customer_messages",
+        "customer_notes",
+        "customer_photos",
+        "customers",
+        "estimate_change_requests",
+        "estimate_items",
+        "estimates",
+        "expenses",
+        "invoice_items",
+        "invoice_revisions",
+        "invoices",
+        "job_reports",
+        "message_templates",
+        "notifications",
+        "payment_checkout_sessions",
+        "payments",
+        "tasks"
+      ],
+      "completeSchemaVerified": false,
+      "migrationJournalVerified": false,
+      "deployedRuntimeVerified": false
+    },
+    {
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "title": "FIRE LIVE — Isolated Refund Staging",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "latestVersionNumber": 3,
+      "publicationUpdatedAt": "2026-10-08T19:50:54.931582+00:00",
+      "versionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+      "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+      "archiveHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+      "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+      "deploymentStatus": "succeeded",
+      "environmentRevision": 2,
+      "binding": "DB",
+      "tables": [
+        "auth_rate_limits",
+        "customer_messages",
+        "customer_notes",
+        "customer_photos",
+        "customers",
+        "estimate_change_requests",
+        "estimate_items",
+        "estimates",
+        "expenses",
+        "invoice_items",
+        "invoice_revisions",
+        "invoices",
+        "job_reports",
+        "message_templates",
+        "notifications",
+        "payment_checkout_sessions",
+        "payment_refunds",
+        "payments",
+        "tasks"
+      ],
+      "completeSchemaVerified": false,
+      "migrationJournalVerified": false,
+      "deployedRuntimeVerified": false
+    }
+  ],
+  "findings": [
+    "LIVE currently exposes 18 user tables and does not list payment_refunds.",
+    "Refund staging exposes 19 user tables including payment_refunds.",
+    "Provider metadata still identifies LIVE version 61 and refund staging version 3 with their October 8 source commits.",
+    "Doomsday/DR provider credentials are not exposed in available connected tools; no independent target identity or schema gate closed."
+  ],
+  "mutationsPerformed": []
+}

@@ -1,0 +1,22 @@
+{
+  "manifestFile": "RELEASE_BLOCKER_REVIEW_MANIFEST.json",
+  "manifestSha256": "ad92eb516427f9bf597e8585607e4bbb596ea1ab3810d29e25378966ca37f66d",
+  "manifestVerified": true,
+  "latestVerifiedAppCandidatesPreserved": true,
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "productionReady": false,
+  "deployed": false,
+  "publicationAuthorized": false,
+  "historicalFilesPreservedSha256": {
+    "DOOMSDAY_0022_MIGRATION_PLAN.md": "ed4feba043c6be4d9445c163e8e9cd17e3c61fc017104c1ba916427d1958f9b6",
+    "DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json": "c160b6196b8274294f85a077df977b81ffbf6bb1f4e61f9784bd8c646168a6d5",
+    "JOB_COST_RECOVERY_EVIDENCE.json": "eaaa90bf935f27f833b1b73859d8f828b7056eb6a2d87e69d0f3bbf6b3cd7301",
+    "shared/app/dashboard.tsx": "df93bb3c0df59fbe615bd54f85eb3318c69c68bebde4fec1c0a8fb14340ae30b",
+    "shared/app/globals.css": "d20d722b17dc72f344bc13f74d1e0761cf4db27cbdfd44a8f6e1159031f10d18"
+  },
+  "limits": "Native saved-version/publish and table-name metadata only; owner Doomsday findings preserved. Unauthenticated identity attempt 403. No new remote schema/runtime/mobile gate verified; release-tooling tests are local synthetic checks."
+}
