@@ -12,17 +12,31 @@ const source=ts.createSourceFile('customers-route.ts',readFileSync('app/api/cust
 const get=n=>source.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(source);
 const contactSource=ts.createSourceFile('customer-contact-links.ts',readFileSync('lib/customer-contact-links.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const getContact=n=>contactSource.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(contactSource);
-const code=['const OWNER_EMAIL="qa-owner@example.invalid";',getContact('usableCustomerPhone'),getContact('usableCustomerEmail'),get('authorized'),get('readCustomerRequest'),get('GET'),get('PATCH'),'exports.run={GET,PATCH}'].join('\n');
+const identitySource=ts.createSourceFile('customer-identity.ts',readFileSync('lib/customer-identity.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+const getIdentityVar=n=>identitySource.statements.find(s=>ts.isVariableStatement(s)&&
+ s.declarationList.declarations.some(d=>d.name.getText(identitySource)===n))?.getText(identitySource).replace(/^export /,'');
+const code=['const OWNER_EMAIL="qa-owner@example.invalid";',
+ getIdentityVar('digits'),getIdentityVar('CUSTOMER_PHONE_SQL'),
+ getContact('usableCustomerPhone'),getContact('usableCustomerEmail'),
+ get('authorized'),get('readCustomerRequest'),get('GET'),get('PATCH'),'exports.run={GET,PATCH}'].join('\n');
 assert.ok(code.includes('GET(')&&code.includes('PATCH('),'Could not extract actual customer route source');
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
 let writes=0,reads=0,authorized=true,throwAfterWrite=false,skipNextUpdate=false,throwAfterUpdate=false,distortNextReadback=false,missingNextReadback=false;
+const ctxPhoneDigits=raw=>{const digits=String(raw??'').replace(/\D/g,'');return digits.length===11&&digits.startsWith('1')?digits.slice(1):digits;};
 const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,customerNumberForCustomer,
   getChatGPTUser:async()=>authorized?{email:'qa-owner@example.invalid'}:null,
   env:{DB:{prepare(sql){return {bind(...values){
     return {
       async first(){
         reads++;
+        if(sql.includes('SELECT id FROM customers WHERE id<>?')){
+          const [exclude,email,_,phone]=values;
+          const match=[...rows.values()].find(row=>row.id!==exclude&&
+            (email&&row.email.trim().toLowerCase()===email||
+             phone&&ctxPhoneDigits(row.phone)===phone));
+          return match?{id:match.id}:null;
+        }
         if(sql.includes('SELECT id FROM customers'))return rows.has(values[0])?{id:values[0]}:null;
         if(/FROM customers(?: c)? WHERE (?:c\.)?id=\? LIMIT 1/.test(sql)) {
           if(throwAfterWrite){throwAfterWrite=false;throw Error('Synthetic lost readback after commit');}
@@ -42,8 +56,13 @@ const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,cu
         assert.ok(sql.startsWith('UPDATE customers SET'));
         writes++;
         if(skipNextUpdate){skipNextUpdate=false;return {success:true,meta:{changes:0}};}
-        const [name,email,phone,address,leadSource,id]=values;
+        const [name,email,phone,address,leadSource,id,excluded,normalizedEmail,,phoneDigits]=values;
         if(!rows.has(id))throw Error('Missing record');
+        assert.equal(excluded,id,'SQL guards exclude the row being edited');
+        const hasConflict=[...rows.values()].some(row=>row.id!==id&&
+          (normalizedEmail&&String(row.email??'').trim().toLowerCase()===normalizedEmail||
+           phoneDigits&&ctxPhoneDigits(row.phone)===phoneDigits));
+        if(hasConflict)return {success:true,meta:{changes:0}};
         rows.set(id,{...rows.get(id),name,email:email??'',phone:phone??'',address:address??'',leadSource});
         if(throwAfterUpdate){throwAfterUpdate=false;throw Error('Synthetic lost UPDATE acknowledgement after commit');}
         return {meta:{changes:1}};
