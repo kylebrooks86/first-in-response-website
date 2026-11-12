@@ -79,7 +79,7 @@ export async function POST(request:Request){
  let saved:{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}|null;
  try{
    saved=await env.DB.prepare("SELECT id,estimate_id AS estimateId,category,description,amount_cents AS amountCents,incurred_at AS incurredAt,created_at AS createdAt FROM expenses WHERE id=?")
-     .bind(id).first();
+     .bind(id).first<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}>();
  }catch{return uncertain();}
  if(!saved)return uncertain();
  if(saved.id!==id||saved.estimateId!==estimateId||saved.category!==category||
