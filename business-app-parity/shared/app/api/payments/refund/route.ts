@@ -120,8 +120,14 @@ export async function POST(request:Request){
     }
 
     if(!stripeSecret){
-      await env.DB.prepare("UPDATE payment_refunds SET status='failed' WHERE id=? AND status='pending'").bind(requestId).run();
-      return Response.json({error:"Stripe refunds are unavailable because Stripe is not configured."},{status:503});
+      // Missing credentials do NOT prove Stripe declined a previous refund.
+      // A prior idempotent POST might have succeeded before losing its ACK;
+      // preserve the pending D1 reservation and original request key so
+      // recovery cannot free the amount for a second refund attempt.
+      return Response.json({
+        error:"Stripe cannot verify this refund while its key is unavailable. Keep this request pending and retry the same request only.",
+        pending:true,
+      },{status:503,headers:{"cache-control":"no-store"}});
     }
 
     if(sandboxTarget&&!/^(sk|rk|rkcs)_test_/.test(stripeSecret))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
