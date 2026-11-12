@@ -3,7 +3,7 @@ import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
+import {CUSTOMER_PHONE_SQL,customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 import {customerNumberingReady,customerNumberForCustomer,newCustomerNumberStatement} from '../../../lib/customer-numbering.mjs';
 import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
@@ -185,14 +185,23 @@ export async function PATCH(request: Request) {
       duplicateEmail?"This email is already on another customer. Nothing was changed.":
       "This phone number is already on another customer. Nothing was changed."},{status:409});
 
+    // Duplicate contacts must be checked AT THE SQL WRITE boundary, too.
+    // A second editor can change another customer after our initial SELECT;
+    // SQLite's conditional UPDATE prevents two saved records claiming the
+    // same email or equivalent 10/11-digit U.S. contact during that race.
+    const phoneDigits=normalizedPhone?.slice(2)??'';
     // A nonthrowing D1 write, including an ambiguous/zero-change ACK, does
     // NOT prove the new contact details were saved. Read back the exact row
     // separately before telling the owner that the edit succeeded.
     // If the UPDATE committed but the network acknowledgement was lost, the
     // readback can still confirm success without repeating the write.
     try {
-      await env.DB.prepare("UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=? WHERE id=?")
-        .bind(name, email || null, phone || null, address || null, leadSource, id).run();
+      await env.DB.prepare(`UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=?
+        WHERE id=? AND NOT EXISTS(SELECT 1 FROM customers WHERE id<>?
+          AND ((?<>'' AND lower(trim(COALESCE(email,'')))=?)
+          OR (?<>'' AND ${CUSTOMER_PHONE_SQL}=?)))`)
+        .bind(name,email||null,phone||null,address||null,leadSource,id,
+          id,normalizedEmail,normalizedEmail,phoneDigits,phoneDigits).run();
     } catch {
       // Do not automatically retry a possibly committed UPDATE.
       // A separate authoritative SELECT below decides the result.
@@ -208,6 +217,17 @@ export async function PATCH(request: Request) {
     if(!customer || customer.id!==id || customer.name!==name ||
       customer.email!==email || customer.phone!==phone ||
       customer.address!==address || customer.leadSource!==leadSource) {
+      // If the guarded UPDATE lost a contact race, report an actionable
+      // conflict instead of inviting blind retry after a possible commit.
+      // If conflict inspection fails, retain the existing uncertain status.
+      try{
+        const conflict=await env.DB.prepare(`SELECT id FROM customers WHERE id<>?
+          AND ((?<>'' AND lower(trim(COALESCE(email,'')))=?)
+          OR (?<>'' AND ${CUSTOMER_PHONE_SQL}=?)) LIMIT 1`)
+          .bind(id,normalizedEmail,normalizedEmail,phoneDigits,phoneDigits).first();
+        if(conflict)return Response.json({error:"Another customer now uses this email or phone number. No edit was confirmed; reopen the customer record before retrying.",saveUncertain:true},
+          {status:409,headers:{"Cache-Control":"no-store, private"}});
+      }catch{}
       return Response.json({error:"Customer changes could not be confirmed. Reopen this record to check before retrying.",saveUncertain:true},
         {status:503,headers:{"Cache-Control":"no-store, private"}});
     }
