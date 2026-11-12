@@ -18,7 +18,10 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
-MAX_RECORDS_BYTES = 5_000_000
+# The historical legacy record validator still enforces 5 MB. A separate
+# bounded 8 MB owner-private Sites review format has its own round-trip proof.
+MAX_RECORDS_BYTES = 8_000_000
+MAX_APP_RECORDS_BYTES = 5_000_000
 MAX_ARCHIVE_BYTES = 260 * 1024 * 1024
 FIELDS = {
     "id": "id", "customerId": "customer_id", "category": "category",
@@ -57,22 +60,50 @@ def validated_complete_archive(zip_path):
 
 def validated_records_backup(path):
     fail_if(not path.is_file() or path.stat().st_size > MAX_RECORDS_BYTES,
-            "Records backup missing or over the 5 MB limit")
+            "Records backup missing or exceeds the bounded 8 MB private maximum")
     payload = json.loads(path.read_text(encoding="utf-8"))
     fail_if(not isinstance(payload, dict), "Unsupported records backup format")
     numbered_v2 = (payload.get("format") == "fire-numbered-core-records-snapshot"
                    and type(payload.get("version")) is int
                    and payload["version"] == 2)
-    # Legacy v1 and source-only numbered v2 need DIFFERENT validators. Never
-    # quietly reinterpret a numbered v2 archive as old unnumbered JSON.
-    validator = ("validate-numbered-core-records-v2.mjs" if numbered_v2
-                 else "validate-records-backup.mjs")
+    sites_review = (payload.get("format") == "fire-sites-legacy-records-review"
+                    and type(payload.get("version")) is int
+                    and payload["version"] == 1)
+    # Do not reinterpret an 8 MB legacy Sites review as a 5 MB app backup,
+    # or a numbered v2 snapshot as historical unnumbered customer rows.
+    if not sites_review:
+        fail_if(path.stat().st_size > MAX_APP_RECORDS_BYTES,
+                "Records backup exceeds the legacy app 5 MB limit")
+    validator = ("verify-legacy-sites-review-local.mjs" if sites_review else
+                 "validate-numbered-core-records-v2.mjs" if numbered_v2 else
+                 "validate-records-backup.mjs")
+    command = ["node"]
+    if sites_review:
+        command.append("--experimental-sqlite")
     process = subprocess.run(
-        ["node", str(ROOT / validator), str(path)],
+        [*command, str(ROOT / validator), str(path)],
         cwd=ROOT.parent, capture_output=True, timeout=40, check=False,
     )
     fail_if(process.returncode != 0, "Records backup integrity validation failed")
-    if numbered_v2:
+    if sites_review:
+        # The independent local Node verifier checks the exact source
+        # self-digest and reconstructs schema + every row in ephemeral SQLite.
+        # A verified source file is still NOT a provider-attested LIVE backup.
+        try:
+            receipt = json.loads(process.stdout)
+        except (ValueError, TypeError):
+            raise UnsafePair("Private legacy review verifier receipt invalid")
+        fail_if(receipt.get("result") !=
+                "PASS_OFFLINE_LEGACY_RECORDS_DISPOSABLE_ROUNDTRIP"
+                or receipt.get("gate7Accepted") is not False
+                or receipt.get("liveReleaseAuthorized") is not False
+                or receipt.get("sourceDatabaseIdentityVerified") is not False
+                or receipt.get("uploadedPhotoBytesVerified") is not False
+                or receipt.get("verifiedTables") != len(payload.get("sourceTables", [])),
+                "Private legacy review did not prove an offline records round trip")
+        tables = payload.get("tables")
+        archive_kind = "legacy-sites-review-v1"
+    elif numbered_v2:
         # The dedicated checker independently validates immutable serial roots,
         # 23-table coverage, high-water, financial/refund relationships and the
         # signed agreement document digests. It does not produce a DB restore.
