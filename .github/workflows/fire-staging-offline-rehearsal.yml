@@ -508,6 +508,11 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-task-create-ownership-recovery-sqlite.mjs
+      - name: FIRE task completion and due-date owner PATCH lost-ACK recovery (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node --experimental-strip-types scripts/test-task-due.mjs
       - name: FIRE Google Voice review invitation eligibility at atomic database save (synthetic only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
