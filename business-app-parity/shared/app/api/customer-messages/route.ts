@@ -87,13 +87,14 @@ export async function POST(request: Request) {
     if(template==="review"){
       if(!estimateId)return Response.json({error:"A completed paid job is required before requesting a review."},{status:409});
       const reviewState=await env.DB.prepare(`SELECT e.status,
-        COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS billingTotalCents,
+        COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS billingTotalCents,
+        (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
         COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
         (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
         (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount,
         (SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open') AS openCheckoutCount
-        FROM estimates e WHERE e.id=? AND e.customer_id=?`).bind(estimateId,customerId).first<{status:string;billingTotalCents:number;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
-      if(!reviewState||!shouldOfferReviewAfterPayment({
+        FROM estimates e WHERE e.id=? AND e.customer_id=?`).bind(estimateId,customerId).first<{status:string;billingTotalCents:number;invoiceOwnershipMismatch:number;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
+      if(!reviewState||Number(reviewState.invoiceOwnershipMismatch)!==0||!shouldOfferReviewAfterPayment({
         status:reviewState.status,totalCents:Number(reviewState.billingTotalCents),
         paidCents:Number(reviewState.paidCents),paymentReviewPending:Number(reviewState.paymentOverageOpen)>0||Number(reviewState.pendingRefundCount)>0||Number(reviewState.openCheckoutCount)>0
       }))
@@ -117,12 +118,31 @@ export async function POST(request: Request) {
     const createdAt=new Date().toISOString();
     // A concurrent double POST with the same operation ID can commit once only.
     // Read back the actual immutable row and refuse conflicting attempts.
-    const write=await env.DB.prepare("INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)")
-      .bind(id,customerId,estimateId||null,channel,template,body,createdAt).run();
+    // The review eligibility SELECT above is not atomic with this INSERT.
+    // A Stripe refund, new checkout, invoice reassignment, or billing exception
+    // can arrive on another device in between. Recheck those facts in the
+    // SAME SQLite/D1 write that creates the review draft; no text/email sends.
+    const reviewGuard=template==="review"?` AND EXISTS (
+       SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='completed'
+       AND NOT EXISTS (SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
+       AND COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)>0
+       AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+           =COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
+       AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
+       AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
+       AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
+     )`:"";
+    const write=await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
+      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}`)
+      .bind(id,customerId,estimateId||null,channel,template,body,createdAt,
+        ...(template==="review"?[estimateId,customerId]:[])).run();
     const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
       id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
     }>();
-    if(!saved)return Response.json({error:"Message preparation is not verified. Check saved drafts before retrying."},{status:503});
+    if(!saved)return Response.json({error:template==="review"?
+      "Review invitation eligibility changed during preparation. Recheck job completion, payment and refund status before trying again.":
+      "Message preparation is not verified. Check saved drafts before retrying."},
+      {status:template==="review"&&write.meta.changes===0?409:503,headers:{"Cache-Control":"no-store, private"}});
     if(!matches(saved))return Response.json({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
     return Response.json({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
   } catch {
