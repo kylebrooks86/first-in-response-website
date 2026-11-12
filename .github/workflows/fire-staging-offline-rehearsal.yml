@@ -201,6 +201,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-public-accept-token-cas.mjs
+      - name: Gate 6 owner share-link actual SQLite ownership and race refusal (new coverage only)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-owner-share-links-ownership-sqlite.mjs
       - name: Gate 6 public change-request receipt revoked-token and duplicate-notification denial (native local SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
