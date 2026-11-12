@@ -14,8 +14,8 @@ const DB={prepare(query){return {query,args:[],bind(...args){this.args=args;retu
  async all(){return {results:sql.prepare(query).all(...this.args)};},
  async run(){return {meta:{changes:Number(sql.prepare(query).run(...this.args).changes)}}}
 };},async batch(stmts){sql.exec('BEGIN');try{const results=[];for(const s of stmts)results.push({meta:{changes:Number(sql.prepare(s.query).run(...s.args).changes)}});sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
-let network=0,owner=true,remote=null,allowedKey='sk_test_fake-fixture';
-const env={DB,FIRE_ENV:'staging',get STRIPE_SECRET_KEY(){return allowedKey;}};
+let network=0,owner=true,remote=null,allowedKey='sk_test_fake-fixture',stripeMode='test';
+const env={DB,FIRE_ENV:'staging',get STRIPE_SECRET_KEY(){return allowedKey;},get FIRE_STRIPE_MODE(){return stripeMode;}};
 const load=(path,extra={})=>{
  const source=readFileSync(resolve(root,path),'utf8').replace(/^import .*?;\n/gm,'');
  const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -47,7 +47,20 @@ const call=(rid=reserve,sid=sessionId)=>api.POST(new Request('https://synthetic.
 const status=()=>sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id=?").get(reserve)?.status;
 const paymentCount=()=>sql.prepare("SELECT COUNT(*) n FROM payments").get().n;
 owner=false;let net=network;check((await call()).status===401,'Non-owner blocked before Stripe lookup');check(network===net,'Non-owner cannot retrieve Stripe sessions');
-owner=true;check((await call('bad','cs_test_ownerfix')).status===400,'Malformed reservation rejected');
+owner=true;
+// Before TEST activation, even a correctly signed-in owner cannot retrieve
+// a Stripe session or change a checkout lock, invoice, or financial ledger.
+remote=session('complete','paid');stripeMode='disabled';net=network;
+let disabled=await call();
+check(disabled.status===503,'Disabled TEST mode blocks owner-paid reconciliation');
+check(network===net&&status()==='open'&&paymentCount()===0,
+ 'Disabled paid recovery causes no provider calls or D1 money/checkout writes');
+stripeMode='';remote=session('expired','unpaid');disabled=await call();
+check(disabled.status===503,'Unset TEST mode blocks owner-expired recovery');
+check(network===net&&status()==='open'&&paymentCount()===0,
+ 'Missing mode cannot release a checkout reservation or call Stripe');
+stripeMode='test';
+check((await call('bad','cs_test_ownerfix')).status===400,'Malformed reservation rejected');
 remote=session();remote.metadata.estimate_id='wrong-job';
 check((await call()).status===409,'Cross-job Stripe session rejected');check(status()==='open'&&paymentCount()===0,'Cross-job rejection does not change the D1 reservation or ledger');
 remote=session();remote.metadata.fire_checkout_reservation_id='fire-creating:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
