@@ -500,6 +500,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-expense-save-receipt-sqlite.mjs
+      - name: Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
           CI: 'true'
