@@ -60,6 +60,15 @@ check(disabled.status===503,'Unset TEST mode blocks owner-expired recovery');
 check(network===net&&status()==='open'&&paymentCount()===0,
  'Missing mode cannot release a checkout reservation or call Stripe');
 stripeMode='test';
+// A Stripe session can be valid while the job's invoice has been linked to
+// someone else's customer record. Refuse money/ledger changes before repair.
+sql.prepare("INSERT INTO customers(id,name,created_at) VALUES ('foreign-owner','Unrelated synthetic owner','now')").run();
+sql.prepare("UPDATE invoices SET customer_id='foreign-owner' WHERE id='inv-owner'").run();
+remote=session('complete','paid');net=network;
+check((await call()).status===409,'Cross-customer invoice blocks a paid owner Stripe reconciliation');
+check(status()==='open'&&paymentCount()===0,'Wrong-customer invoice leaves the reservation and ledger untouched');
+check(network===net+1,'Rejected owner reconciliation makes only its single verifying Stripe GET');
+sql.prepare("UPDATE invoices SET customer_id='cust-owner' WHERE id='inv-owner'").run();
 check((await call('bad','cs_test_ownerfix')).status===400,'Malformed reservation rejected');
 remote=session();remote.metadata.estimate_id='wrong-job';
 check((await call()).status===409,'Cross-job Stripe session rejected');check(status()==='open'&&paymentCount()===0,'Cross-job rejection does not change the D1 reservation or ledger');
