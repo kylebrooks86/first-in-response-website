@@ -11,6 +11,7 @@ assert.ok(owner,'Owner guard preserved');
 const db=new DatabaseSync(':memory:');
 db.exec("CREATE TABLE tasks(id TEXT PRIMARY KEY,title TEXT,status TEXT NOT NULL,completed_at TEXT,due_at TEXT,customer_id TEXT,estimate_id TEXT,notes TEXT); INSERT INTO tasks VALUES ('synthetic-task','Synthetic task','open',NULL,NULL,'synthetic-customer','synthetic-estimate','FIRE yard sign placement: 2026-10-22T10:00:00.000Z');");
 let toggleBehavior='normal',toggleReadback='normal';
+let dueBehavior='normal',dueReadback='normal';
 const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){return {
  async run(){
   if(sql.startsWith('UPDATE tasks SET status=')){
@@ -21,6 +22,14 @@ const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){ret
    if(mode==='zero-ack')return {meta:{changes:0}};
    return {meta:{changes:changed}};
   }
+  if(sql.startsWith('UPDATE tasks SET due_at=')){
+   const mode=dueBehavior;dueBehavior='normal';
+   if(mode==='no-write')return {success:true,meta:{changes:0}};
+   const changed=Number(stmt.run(...args).changes);
+   if(mode==='commit-lost')throw Error('Synthetic D1 due-date acknowledgement lost after commit');
+   if(mode==='false-ack')return {success:false,meta:{changes:changed}};
+   return {success:true,meta:{changes:changed}};
+  }
   return {meta:{changes:Number(stmt.run(...args).changes)}};
  },
  async first(){
@@ -30,6 +39,12 @@ const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){ret
    if(mode==='lost')throw Error('Synthetic readback unavailable');
    if(mode==='missing')return null;
    if(mode==='wrong'&&row)return {...row,status:'open',completedAt:null};
+  }
+  if(sql==='SELECT status,due_at AS dueAt FROM tasks WHERE id=?'){
+   const mode=dueReadback;dueReadback='normal';
+   if(mode==='lost')throw Error('Synthetic due-date readback unavailable');
+   if(mode==='missing')return null;
+   if(mode==='wrong'&&row)return {...row,dueAt:'2020-01-01T00:00:00.000Z'};
   }
   return row;
  }
@@ -118,6 +133,51 @@ let tests=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);tests++;};
  eq(db.prepare('SELECT customer_id,estimate_id,notes FROM tasks WHERE id=?').get(id),linkedBefore,'Refused deadline update leaves linked context unchanged');
  const reopened=await patch({id,status:'open',expectedStatus:'completed'});
  eq(reopened.status,200,'Task can be reopened through existing explicit completion control');
+}
+// Due-date saves must handle lost D1 acknowledgements the same way as
+// task creation: an independent SELECT, not a speculative second UPDATE.
+// These regressions execute the real authenticated PATCH on disposable SQLite.
+{
+ const move=(expectedDueAt,dueAt)=>patch({operation:'reschedule',id,expectedStatus:'open',expectedDueAt,dueAt});
+ const a='2026-11-18T10:00:00.000Z',b='2026-11-20T11:00:00.000Z',
+   c='2026-11-23T12:00:00.000Z',d='2026-11-24T13:00:00.000Z';
+ eq(state().status,'open','Synthetic reschedule recovery starts with an open task');
+ db.prepare("UPDATE tasks SET due_at=NULL WHERE id=?").run(id);
+ dueBehavior='commit-lost';
+ let result=await move(null,a);
+ eq(result.status,200,'Lost D1 ACK after committed task deadline is recovered from readback');
+ eq(result.data.replayed,true,'Unknown D1 receipt is reported as recovered, not a fresh acknowledgement');
+ eq(state().dueAt,a,'Lost ACK recovery keeps the exact saved deadline');
+ result=await move(null,a);
+ eq(result.status,200,'Same request replay does not create another due-date change');
+ eq(result.data.dueAt,a,'Replay confirms the original saved due date');
+ dueBehavior='false-ack';
+ result=await move(a,b);
+ eq(result.status,503,'Explicit false database receipt refuses claiming a due-date save');
+ eq(result.data.saveUncertain,true,'False write acknowledgement requires owner refresh');
+ eq(state().dueAt,b,'A false receipt may follow a real commit and cannot cause a duplicate');
+ result=await move(a,b);
+ eq(result.status,200,'Refreshed retry recovers the already-saved due date');
+ dueBehavior='no-write';
+ result=await move(b,c);
+ eq(result.status,409,'Silent no-write cannot invent a new deadline');
+ eq(state().dueAt,b,'Silent no-write preserves the original deadline');
+ dueReadback='lost';
+ result=await move(b,c);
+ eq(result.status,503,'Lost due-date SELECT cannot falsely acknowledge a committed UPDATE');
+ eq(state().dueAt,c,'D1 persisted deadline survives readback outage');
+ result=await move(b,c);
+ eq(result.status,200,'Replayed due date recovers after database readback returns');
+ dueReadback='wrong';
+ result=await move(c,d);
+ eq(result.status,503,'Contradictory due-date SELECT after committed UPDATE remains uncertain');
+ eq(state().dueAt,d,'Contradictory readback does not rewrite the saved deadline');
+ dueReadback='missing';
+ result=await move(d,null);
+ eq(result.status,503,'Missing saved task after D1 changed row remains uncertain');
+ eq(state().dueAt,null,'Changed deadline persisted despite missing readback');
+ result=await move(d,null);
+ eq(result.status,200,'Clear-deadline retry resolves by exact saved NULL');
 }
 for(const candidate of [{id,status:'invalid'},{id,status:undefined},{id,status:'open',expectedStatus:'invalid'},{id:'',status:'open'}]){
  const response=await patch(candidate);eq(response.status,400,'Invalid transition rejected');
