@@ -487,6 +487,9 @@ jobs:
           # No D1 provider, cloud customer records, SMS or customer messages.
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
           node --experimental-sqlite scripts/test-customer-edit-route.mjs
+          # Actual SQL conditional UPDATE verifies email/+1 phone uniqueness
+          # even if another customer claims that contact during owner edit.
+          node --experimental-sqlite scripts/test-customer-edit-readback-sqlite.mjs
           # New Estimate can create a new customer without Add Customer.
           # Exercise REAL quote/inline-customer source and transactional D1
           # with invalid contact inputs and immutable save replay.
