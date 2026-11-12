@@ -38,11 +38,57 @@ export async function POST(request:Request){
   const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first<{id:string}>();
   if(!customer)return Response.json({error:"Customer not found."},{status:404});
  }
- // A repeated owner request reuses its primary key; never append a second task.
- const inserted=await env.DB.prepare("INSERT OR IGNORE INTO tasks (id,title,customer_id,estimate_id,due_at,status,notes,created_at) VALUES (?,?,?,?,?,'open',?,?)").bind(id,title,customerId,estimateId,dueAt,notes,createdAt).run();
- const saved=await env.DB.prepare("SELECT id,title,customer_id AS customerId,estimate_id AS estimateId,due_at AS dueAt,status,notes,created_at AS createdAt,completed_at AS completedAt FROM tasks WHERE id=?").bind(id).first<{id:string;title:string;customerId:string|null;estimateId:string|null;dueAt:string|null;status:string;notes:string|null;createdAt:string;completedAt:string|null}>();
- if(!saved||saved.title!==title||saved.customerId!==customerId||saved.estimateId!==estimateId||saved.dueAt!==dueAt||saved.notes!==notes)return Response.json({error:"That task request ID is already associated with different details. Review saved tasks before trying again."},{status:409});
- return Response.json({task:{...saved,customer:null},requestId:id,confirmed:true},{status:inserted.meta.changes===1?201:200});
+ // The job/customer preflight above is not atomic with task creation:
+ // a second device could reassign the job after the SELECT. Recheck the
+ // association in the very INSERT that creates the task. A stale owner
+ // screen must never silently attach a to-do to another homeowner.
+ const linkedGuard=estimateId
+  ?"EXISTS(SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=?)"
+  :customerId?"EXISTS(SELECT 1 FROM customers c WHERE c.id=?)":"1=1";
+ const guardArgs=estimateId?[estimateId,customerId]:customerId?[customerId]:[];
+ const privateHeaders={"Cache-Control":"no-store, private"};
+ const uncertain=()=>Response.json({error:"Task save was not confirmed. Reopen saved tasks and retry using the original request ID.",saveUncertain:true},
+   {status:503,headers:privateHeaders});
+ // A missing D1 acknowledgement cannot establish noncommit. Read the
+ // immutable task ID even when the INSERT appears to have failed.
+ let inserted:{success?:boolean;meta?:{changes?:number}}|null=null;
+ try{
+   inserted=await env.DB.prepare(`INSERT OR IGNORE INTO tasks
+     (id,title,customer_id,estimate_id,due_at,status,notes,created_at)
+     SELECT ?,?,?,?,?,'open',?,? WHERE ${linkedGuard}`)
+      .bind(id,title,customerId,estimateId,dueAt,notes,createdAt,...guardArgs).run();
+ }catch{/* D1 may already have committed; the readback is authoritative. */}
+ let saved:{id:string;title:string;customerId:string|null;estimateId:string|null;dueAt:string|null;status:string;notes:string|null;createdAt:string;completedAt:string|null}|null;
+ try{
+   saved=await env.DB.prepare("SELECT id,title,customer_id AS customerId,estimate_id AS estimateId,due_at AS dueAt,status,notes,created_at AS createdAt,completed_at AS completedAt FROM tasks WHERE id=?")
+     .bind(id).first<{id:string;title:string;customerId:string|null;estimateId:string|null;dueAt:string|null;status:string;notes:string|null;createdAt:string;completedAt:string|null}>();
+ }catch{return uncertain();}
+ if(!saved){
+   if(inserted?.success!==false&&inserted?.meta?.changes===0&&(estimateId||customerId))
+     return Response.json({error:"The linked job or customer changed while creating the task. Refresh saved customers and jobs before trying again."},
+       {status:409,headers:privateHeaders});
+   return uncertain();
+ }
+ if(saved.id!==id||saved.title!==title||saved.customerId!==customerId||
+    saved.estimateId!==estimateId||saved.dueAt!==dueAt||saved.notes!==notes)
+   return Response.json({error:"That task request ID is already associated with different details. Review saved tasks before trying again."},
+     {status:409,headers:privateHeaders});
+ // Check again after readback. No success for a completed task save whose
+ // job now points to a different homeowner, even if its INSERT once passed.
+ try{
+   if(estimateId){
+     const current=await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?")
+       .bind(estimateId).first<{customerId:string}>();
+     if(current?.customerId!==customerId)return Response.json({error:"This job changed customers during task creation. Review the current job and task history before proceeding.",saveUncertain:true},
+       {status:409,headers:privateHeaders});
+   }else if(customerId){
+     const current=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
+     if(!current)return Response.json({error:"The task's customer is no longer available. Refresh saved records before retrying.",saveUncertain:true},
+       {status:409,headers:privateHeaders});
+   }
+ }catch{return uncertain();}
+ return Response.json({task:{...saved,customer:null},requestId:id,confirmed:true},
+   {status:inserted?.success!==false&&inserted?.meta?.changes===1?201:200,headers:privateHeaders});
 }
 
 export async function PATCH(request:Request){
