@@ -69,7 +69,10 @@ async function sessionIsValid(value: string) {
   const [version, expiresText, signature] = parts;
   if (version !== "v1" || !expiresText || !signature) return false;
   const expires = Number(expiresText);
-  if (!Number.isSafeInteger(expires) || expires <= Math.floor(Date.now() / 1000)) return false;
+  const now = Math.floor(Date.now() / 1000);
+  // A valid signature is not permission for a session longer than the
+  // configured 12-hour window. Refuse forged-future expiration periods.
+  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + SESSION_SECONDS) return false;
   const expected = await hmac(version + "." + expiresText);
   return Boolean(expected && constantTimeEqual(signature, expected));
 }
