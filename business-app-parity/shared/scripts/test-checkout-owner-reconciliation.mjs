@@ -125,6 +125,32 @@ const confirmedTracked=await call(trackedPaidId,trackedPaidId);
 check(confirmedTracked.status===200&&(await confirmedTracked.json()).action==='paid','Owner can reconcile paid tracked checkout against actual D1 ledger');
 check(sql.prepare('SELECT status FROM payment_checkout_sessions WHERE id=?').get(trackedPaidId).status==='paid','Reconciled tracked checkout is marked paid');
 check(sql.prepare('SELECT COUNT(*) n FROM payments WHERE provider_id=?').get(trackedPaidId).n===1,'Tracked checkout adds exactly one verified payment');
+// Simulate another owner session reassigning an invoice between the signed
+// session ownership SELECT and the atomic payment INSERT. The conditional D1
+// INSERT must fail closed, not credit the now-foreign customer's invoice.
+sql.prepare("INSERT INTO customers(id,name,created_at) VALUES ('cust-race','Race synthetic owner','now')").run();
+sql.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES ('job-race','cust-race','completed',10000,10000,5000,'now')").run();
+sql.prepare("INSERT INTO invoices(id,estimate_id,customer_id,total_cents,status,created_at) VALUES ('inv-race','job-race','cust-race',10000,'sent','now')").run();
+sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES ('cs_test_raceowner','job-race','balance',10000,'open','now')").run();
+const racingSession={...session(),id:'cs_test_raceowner',client_reference_id:'job-race',
+ metadata:{...session().metadata,estimate_id:'job-race',fire_checkout_reservation_id:undefined}};
+let raceApplied=false;
+const racingDb={...DB,async batch(statements){
+ if(!raceApplied){raceApplied=true;sql.prepare("UPDATE invoices SET customer_id='foreign-owner' WHERE id='inv-race'").run();}
+ return DB.batch(statements);
+}};
+const deniedRace=await stripe.reconcileStripeCheckout(racingDb,racingSession);
+check(raceApplied&&deniedRace.ok===false,'Invoice reassignment during ledger INSERT fails closed');
+check(sql.prepare("SELECT COUNT(*) n FROM payments WHERE estimate_id='job-race'").get().n===0&&
+ sql.prepare("SELECT status FROM invoices WHERE id='inv-race'").get().status==='sent'&&
+ sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_test_raceowner'").get().status==='open',
+ 'Concurrent cross-owner reassignment creates no payment or invoice-paid mutation');
+sql.prepare("UPDATE invoices SET customer_id='cust-race' WHERE id='inv-race'").run();
+check((await stripe.reconcileStripeCheckout(DB,racingSession)).ok===true,
+ 'Original signed TEST checkout can reconcile after invoice ownership is corrected');
+check(sql.prepare("SELECT COUNT(*) n FROM payments WHERE estimate_id='job-race'").get().n===1,
+ 'Repaired checkout records exactly one principal payment');
+
 // Signed async-failure handling: real helper, native disposable SQLite only.
 // A failure alert must never resolve or release checkout reservations.
 const failedId='cs_test_failedowner';
