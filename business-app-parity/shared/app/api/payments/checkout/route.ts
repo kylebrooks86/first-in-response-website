@@ -110,6 +110,23 @@ export async function POST(request: Request) {
     return Response.json({error:"Isolated Stripe TEST payments are disabled."},{status:503,headers:{"cache-control":"no-store"}});
   if(sandboxTarget&&stripeKey&&!/^(sk|rk|rkcs)_test_/.test(stripeKey))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
   if (!stripeKey) return Response.json({ error: "Payments have not been connected yet." }, { status: 503 });
+  // Stripe's success/cancel redirects carry the private estimate share token.
+  // Never construct them from the incoming Host or an arbitrary version-preview
+  // origin. The exact configured canonical HTTPS origin is a payment boundary.
+  // Reject missing/unsafe origin BEFORE any D1 read or Stripe POST/expiry.
+  let checkoutOrigin:string;
+  try{
+    const canonical=new URL(runtime.SITE_ORIGIN||"");
+    const received=new URL(request.url);
+    if(canonical.protocol!=="https:"||canonical.username||canonical.password||
+       canonical.pathname!=="/"||canonical.search||canonical.hash||
+       received.protocol!=="https:"||received.origin!==canonical.origin)
+      throw Error("checkout_origin_mismatch");
+    checkoutOrigin=canonical.origin;
+  }catch{
+    return Response.json({error:"Card checkout is unavailable on this site address. Contact FIRE before paying."},
+      {status:503,headers:{"cache-control":"no-store"}});
+  }
   try {
     const parsed=await boundedCheckoutBody(request);
     if(!parsed.ok)return Response.json({error:parsed.tooLarge?
@@ -195,11 +212,10 @@ export async function POST(request: Request) {
     const releaseReservation=async()=>env.DB.prepare(`UPDATE payment_checkout_sessions
       SET status='expired',expired_at=? WHERE id=? AND status='open'`)
       .bind(new Date().toISOString(),reservationId).run();
-    const origin = runtime.SITE_ORIGIN || new URL(request.url).origin;
     const form = new URLSearchParams();
     form.set("mode", "payment");
-    form.set("success_url", `${origin}/estimate/${shareToken}?session_id={CHECKOUT_SESSION_ID}`);
-    form.set("cancel_url", `${origin}/estimate/${shareToken}`);
+    form.set("success_url", `${checkoutOrigin}/estimate/${shareToken}?session_id={CHECKOUT_SESSION_ID}`);
+    form.set("cancel_url", `${checkoutOrigin}/estimate/${shareToken}`);
     form.set("client_reference_id", row.id);
     form.set("metadata[estimate_id]", row.id);
     // Signed Stripe events can use this to finish a checkout reservation if
