@@ -67,6 +67,53 @@ def fixtures():
     return manifest, records
 
 
+
+def rehash_sites_review(review):
+    # The JS legacy review's stableValue recursively sorts object keys.
+    material = {
+        "sourceTables": review["sourceTables"],
+        "rowCounts": review["rowCounts"],
+        "schemaObjects": review["schemaObjects"],
+        "tables": review["tables"],
+    }
+    review["recordsSelfCheckSHA256"] = hashlib.sha256(
+        json.dumps(material, sort_keys=True, separators=(",", ":"),
+                   ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    return review
+
+
+def legacy_sites_review(records):
+    # Invented source with exactly the same shape as Gate7's owner-private
+    # legacy LIVE review, generated with no hosted authentication or D1 calls.
+    tables = {name: records["tables"][name] for name in ("customer_photos", "customers")}
+    photo_schema = ("CREATE TABLE customer_photos (id TEXT PRIMARY KEY, "
+                    "customer_id TEXT, category TEXT, caption TEXT, "
+                    "filename TEXT, content_type TEXT, size_bytes INTEGER, "
+                    "object_key TEXT, created_at TEXT)")
+    customer_schema = "CREATE TABLE customers (id TEXT PRIMARY KEY)"
+    schema = [
+        {"type": "table", "name": "customer_photos",
+         "tbl_name": "customer_photos", "sql": photo_schema},
+        {"type": "table", "name": "customers",
+         "tbl_name": "customers", "sql": customer_schema},
+    ]
+    review = {
+        "format": "fire-sites-legacy-records-review", "version": 1,
+        "completeBackup": False, "recoveryAuthorized": False,
+        "repeatReadRowsMatch": True, "independentRowCountsMatch": True,
+        "schemaCatalogStableAcrossReads": True,
+        "sourceD1UuidVerified": False,
+        "sameInstantProviderSnapshotVerified": False,
+        "photoObjectBytesIncluded": False,
+        "recordsSelfCheckIsProviderAttestation": False,
+        "sourceTables": list(tables),
+        "rowCounts": {name: len(rows) for name, rows in tables.items()},
+        "schemaObjects": schema, "tables": tables,
+    }
+    return rehash_sites_review(review)
+
+
 def files(folder, manifest, records, tamper=False):
     archive = Path(folder) / "photo.zip"
     record_path = Path(folder) / "records.json"
@@ -121,6 +168,39 @@ class OfflineRecoveryPlan(unittest.TestCase):
         self.assertNotIn(PID, cmd.stdout + cmd.stderr)
         self.assertNotIn(KEY, cmd.stdout + cmd.stderr)
         return result
+
+    def test_legacy_sites_review_pairs_with_full_photo_bytes_without_live_claim(self):
+        manifest, records = fixtures()
+        review = legacy_sites_review(records)
+        archive, private_review = files(self.temp.name, manifest, review)
+        before = (archive.read_bytes(), private_review.read_bytes())
+        result = planner.plan(archive, private_review)
+        self.assertEqual(result["recordsBackupKind"], "legacy-sites-review-v1")
+        self.assertEqual(result["referencedPhotoCount"], 1)
+        self.assertEqual(result["objectsWhoseArchiveChecksumsPassed"], 2)
+        self.assertEqual(result["permanentNumberMappingsVerified"], False)
+        self.assertEqual(result["providerProvenanceVerified"], False)
+        self.assertEqual(result["pairedBackupSameInstantVerified"], False)
+        self.assertEqual(result["combinedRecordsAndPhotoBytesRestored"], False)
+        self.assertEqual(result["releaseGate7Accepted"], False)
+        self.assertEqual((archive.read_bytes(), private_review.read_bytes()), before)
+
+    def test_legacy_sites_review_tamper_fails_before_pairing(self):
+        manifest, records = fixtures()
+        review = legacy_sites_review(records)
+        review["tables"]["customer_photos"][0]["object_key"] = "modified"
+        archive, private_review = files(self.temp.name, manifest, review)
+        with self.assertRaises(planner.UnsafePair):
+            planner.plan(archive, private_review)
+
+    def test_authentic_local_review_with_different_photo_metadata_still_refused(self):
+        manifest, records = fixtures()
+        review = legacy_sites_review(records)
+        review["tables"]["customer_photos"][0]["caption"] = "Changed despite valid local digest"
+        rehash_sites_review(review)
+        archive, private_review = files(self.temp.name, manifest, review)
+        with self.assertRaises(planner.UnsafePair):
+            planner.plan(archive, private_review)
 
     def test_verified_full_pair_is_plan_only(self):
         result = self.validate()

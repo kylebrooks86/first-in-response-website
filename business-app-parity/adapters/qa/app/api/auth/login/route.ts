@@ -9,7 +9,10 @@ const encoder = new TextEncoder();
 
 async function rateLimitKey(request: Request) {
   const runtime = env as Cloudflare.Env & { FIRE_QA_SESSION_SECRET?: string };
-  const address = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Cloudflare overwrites cf-connecting-ip on trusted ingress. Never use
+  // client-controlled X-Forwarded-For to partition login rate limits: when
+  // the provider address is absent, all attempts share one conservative bucket.
+  const address = request.headers.get("cf-connecting-ip") || "unknown";
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${runtime.FIRE_QA_SESSION_SECRET || "missing"}:${address}`));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
