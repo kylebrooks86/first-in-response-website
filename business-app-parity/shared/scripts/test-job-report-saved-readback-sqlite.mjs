@@ -5,10 +5,11 @@ import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 const rt=stackedRuntime(),db=rt.db,route=rt.load('app/api/job-reports/route.ts');
 const at='2026-11-04T10:00:00.000Z',customer='synthetic-report-owner';
 db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(customer,'Synthetic Owner Report',at);
-for(const id of ['report-job','lost-receipt-job','concurrent-job']){
+for(const id of ['report-job','lost-receipt-job','concurrent-job','retired-race-job','ownership-race-job']){
  db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)")
   .run(id,customer,'scheduled',20000,20000,10000,at);
 }
+db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run('other-report-owner','Other synthetic customer',at);
 const steps=['Property condition documented','Before photos captured','Plants and fragile areas protected','Service completed as quoted','After photos captured'];
 const legacy=Object.fromEntries([...steps,'Customer walkthrough completed'].map(k=>[k,true]));
 const absent={...Object.fromEntries(steps.map(k=>[k,true])), 'Customer walkthrough completed':false,
@@ -92,6 +93,57 @@ try{
  eq(db.prepare("SELECT COUNT(*) AS n FROM job_reports WHERE estimate_id='concurrent-job'").get().n,1,'Concurrent insert did not duplicate report');
  eq(db.prepare("SELECT notes FROM job_reports WHERE id='concurrent-winner'").get().notes,'Other tab saved first','Winning report is not overwritten');
  rt.env.DB.prepare=orig;
+ // A job can be declined/superseded or reassigned on another device AFTER
+ // its initial ownership/status SELECT. The conditional INSERT or UPDATE
+ // must check actual estimate state at SQL write time, not only in JS.
+ const beforeStatusRace=JSON.stringify(row());
+ let injected=false;
+ rt.env.DB.prepare=function(sql){
+  const stmt=orig(sql);
+  if(sql.startsWith('UPDATE job_reports')&&!injected)return {...stmt,bind(...args){
+   const bound=stmt.bind(...args);return {...bound,async run(){
+    injected=true;
+    db.prepare("UPDATE estimates SET status='superseded' WHERE id='report-job'").run();
+    return bound.run();
+   }};
+  }};
+  return stmt;
+ };
+ const changedBeforeWrite=await post({...input,checklist:absent,notes:'Report edit raced a retired job'});
+ eq(changedBeforeWrite.status,409,'Completion update rechecks current job status atomically');
+ eq(JSON.stringify(row()),beforeStatusRace,'Retired job race cannot overwrite completed report');
+ rt.env.DB.prepare=orig;
+ db.prepare("UPDATE estimates SET status='scheduled' WHERE id='report-job'").run();
+ const preventFirstWrite=async(jobId,mutation,label)=>{
+  let fired=false;
+  rt.env.DB.prepare=function(sql){
+   const stmt=orig(sql);
+   if(sql.startsWith('INSERT INTO job_reports')&&sql.includes('WHERE NOT EXISTS')&&!fired)
+    return {...stmt,bind(...args){const bound=stmt.bind(...args);return {...bound,async run(){
+     fired=true;mutation();
+     return bound.run();
+    }};}};
+   return stmt;
+  };
+  const result=await post({...input,estimateId:jobId});
+  eq(fired,true,label+' race was injected precisely before insert');
+  eq(result.status,409,label+' prevents first completed report from being saved');
+  eq(db.prepare("SELECT COUNT(*) n FROM job_reports WHERE estimate_id=?").get(jobId).n,0,
+   label+' leaves no misleading completed report for final invoicing');
+  rt.env.DB.prepare=orig;
+ };
+ await preventFirstWrite('retired-race-job',
+  ()=>db.prepare("UPDATE estimates SET status='declined' WHERE id='retired-race-job'").run(),
+  'Declined job');
+ await preventFirstWrite('ownership-race-job',
+  ()=>db.prepare("UPDATE estimates SET customer_id='other-report-owner' WHERE id='ownership-race-job'").run(),
+  'Wrong-customer job');
+ db.prepare("UPDATE estimates SET status='scheduled' WHERE id='retired-race-job'").run();
+ db.prepare("UPDATE estimates SET customer_id=? WHERE id='ownership-race-job'").run(customer);
+ eq((await post({...input,estimateId:'retired-race-job'})).status,201,
+  'Repaired scheduled job can save genuine completed report');
+ eq((await post({...input,estimateId:'ownership-race-job'})).status,201,
+  'Repaired original customer job can save genuine completed report');
  // The legacy schema is not unique; detect historical duplicates and refuse
  // to treat the newest one as unambiguous completion evidence.
  db.prepare("INSERT INTO job_reports (id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES (?,?,?,?,?,'draft',?,NULL)")
