@@ -504,6 +504,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
+      - name: FIRE owner task creation atomic customer/job ownership and lost ACK (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-task-create-ownership-recovery-sqlite.mjs
       - name: FIRE Google Voice review invitation eligibility at atomic database save (synthetic only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
