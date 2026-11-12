@@ -1,0 +1,118 @@
+name: FIRE App-Only Main Integration — Preserve Public Website and Calculator
+
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/**'
+      - 'fire-app-dr/**'
+      - 'dr-parity-evidence/**'
+      - 'dr-parity-overlays/**'
+      - '.github/workflows/fire-app-only-public-scope.yml'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+      - '.github/workflows/fire-numbered-core-recovery-v2-preflight.yml'
+      - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
+      - '.github/workflows/fire-gate4-provider-identity-preflight.yml'
+      - '.github/workflows/fire-qa-release-review-fail-closed.yml'
+      - '.github/workflows/fire-qa-v25-private-backup-offline.yml'
+      - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
+      - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
+      - '.github/workflows/fire-gate7-legacy-sites-offline-export.yml'
+      - 'verify-site.mjs'
+      - 'verify-site-ci.mjs'
+      - 'ci/test-site-verifier-scope.mjs'
+      - '.github/workflows/verify-site.yml'
+
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  protect-website-and-calculator:
+    name: Compare exact public-site and calculator Git trees to target main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout candidate with source history, without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refuse any public website, calculator, or unreviewed file changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_BASE_REF:-}" != "main" ]]; then
+            echo "BLOCKED: this source-preservation packet only targets main"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          base="origin/main"
+          protected=(
+            assets calculator index.html services privacy review recent-work
+            robots.txt sitemap.xml terms service-terms
+            .github/workflows/capture-live-hero.yml
+            .github/workflows/capture-recent-work-assets.yml
+            .github/workflows/deploy-full-v18-calculator.yml
+            .github/workflows/run-live-visual-match.yml
+          )
+          for path in "${protected[@]}"; do
+            expected="$(git rev-parse "${base}:${path}")"
+            actual="$(git rev-parse "HEAD:${path}")"
+            if [[ "$expected" != "$actual" ]]; then
+              echo "BLOCKED: protected website/calculator path differs: $path"
+              exit 1
+            fi
+          done
+          # Four exact PR173 verifier blobs and THREE reviewed Gate7/Gate9 CI workflow blobs are pinned exceptions.
+          # Real public pages, assets, calculator and unrelated paths remain protected.
+          reviewed_paths=(
+            verify-site.mjs verify-site-ci.mjs ci/test-site-verifier-scope.mjs
+            .github/workflows/verify-site.yml
+            .github/workflows/fire-gate9-fullapp-offline-build.yml
+            .github/workflows/fire-gate9-readonly-version-inventory.yml
+            .github/workflows/fire-gate7-legacy-sites-offline-export.yml
+          )
+          reviewed_blobs=(
+            4042570221cf4f31d2749534775bfd7d349ccfe1
+            ccf96985afb7949af8999792708ab4761fa308b3
+            5c4c28a43de2d6be5c1e6de0ba0cfd2b4c6e784e
+            6c9aab68423963fa85a5b295ce4c1a16f676a7da
+            0be8fac63f391d5526f54823f0e641951b134116
+            0e9f192d377226d65639324c09b037b5080cbea6
+            5a0d5b3fedfefb06d3ac158b4aad502fa8be65c8
+          )
+          for i in "${!reviewed_paths[@]}"; do
+            file="${reviewed_paths[$i]}"
+            actual="$(git rev-parse "HEAD:${file}" 2>/dev/null || true)"
+            if [[ "$actual" != "${reviewed_blobs[$i]}" ]]; then
+              echo "BLOCKED: reviewed verifier or Gate7/Gate9 CI workflow does not match pinned blob: $file"
+              exit 1
+            fi
+          done
+          mapfile -t changed < <(git diff --name-only --diff-filter=ACDMRT "${base}...HEAD")
+          if (("${#changed[@]}" == 0)); then
+            echo "BLOCKED: no app source differences to review"
+            exit 1
+          fi
+          for file in "${changed[@]}"; do
+            case "$file" in
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml)
+                ;;
+              *)
+                echo "BLOCKED: unreviewed non-app change: $file"
+                exit 1
+                ;;
+            esac
+          done
+          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and three reviewed Gate7/Gate9 CI workflow blobs are pinned."
+          echo "PASS: changed paths limited to app source, approved workflows and four pinned verifier files."
+          echo "NO merge, publish, provider authentication or deployment was attempted."
