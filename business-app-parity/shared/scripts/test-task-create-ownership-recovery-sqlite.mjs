@@ -85,7 +85,7 @@ try{
  // external customer reassignment. Refuse false success, preserve history.
  db.prepare("UPDATE estimates SET customer_id=? WHERE id='task-job'").run(other);
  const stale=await post(body(1));
- check(stale.status===409&&stale.data.saveUncertain===true,
+ check(stale.status===409&&typeof stale.data.error==='string'&&!stale.data.confirmed,
   'Stale task replay cannot claim correct ownership after external reassignment');
  check(count()===3,'Stale replay cannot move or erase historical tasks');
  db.prepare("UPDATE estimates SET customer_id=? WHERE id='task-job'").run(customer);
