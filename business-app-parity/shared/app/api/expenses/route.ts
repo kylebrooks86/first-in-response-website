@@ -55,16 +55,43 @@ export async function POST(request:Request){
   const estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();
   if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404});
  }
- const rawIncurredAt=String(body.incurredAt??new Date().toISOString());
+ // If no purchase date was supplied, the server chooses the timestamp only
+ // for the FIRST write. Never compare a fresh "now" against a committed retry:
+ // that would falsely report an idempotency conflict after a lost reply.
+ const explicitDate=body.incurredAt!==undefined&&body.incurredAt!==null;
+ const rawIncurredAt=String(explicitDate?body.incurredAt:new Date().toISOString());
  const parsedIncurredAt=new Date(rawIncurredAt);
  if(!Number.isFinite(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400});
  const category=String(body.category??"Supplies");
  const incurredAt=parsedIncurredAt.toISOString();
  const createdAt=new Date().toISOString();
- // A repeated owner request must resolve to the original expense, not a duplicate.
- const inserted=await env.DB.prepare("INSERT OR IGNORE INTO expenses (id,estimate_id,category,description,amount_cents,incurred_at,created_at) VALUES (?,?,?,?,?,?,?)").bind(id,estimateId,category,description,amountCents,incurredAt,createdAt).run();
- const saved=await env.DB.prepare("SELECT id,estimate_id AS estimateId,category,description,amount_cents AS amountCents,incurred_at AS incurredAt,created_at AS createdAt FROM expenses WHERE id=?").bind(id).first<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}>();
- if(!saved||saved.estimateId!==estimateId||saved.category!==category||saved.description!==description||Number(saved.amountCents)!==amountCents||saved.incurredAt!==incurredAt)
-  return Response.json({error:"That expense request ID is already associated with different details. Review saved expenses before trying again."},{status:409});
- return Response.json({expense:saved,requestId:id,confirmed:true},{status:inserted.meta.changes===1?201:200});
+ const privateHeaders={"cache-control":"private, no-store"};
+ const uncertain=()=>Response.json({error:"Expense save could not be verified. Reopen saved expenses and keep the original request ID before trying again.",saveUncertain:true},
+   {status:503,headers:privateHeaders});
+ // A successful D1 acknowledgement is NOT proof of persistence. A thrown
+ // acknowledgement also cannot prove the INSERT failed: read the original
+ // immutable ID rather than issuing a second payment/expense write.
+ let inserted:{success?:boolean;meta?:{changes?:number}}|null=null;
+ try{
+   inserted=await env.DB.prepare("INSERT OR IGNORE INTO expenses (id,estimate_id,category,description,amount_cents,incurred_at,created_at) VALUES (?,?,?,?,?,?,?)")
+     .bind(id,estimateId,category,description,amountCents,incurredAt,createdAt).run();
+ }catch{/* The database may already have committed the original operation. */}
+ let saved:{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}|null;
+ try{
+   saved=await env.DB.prepare("SELECT id,estimate_id AS estimateId,category,description,amount_cents AS amountCents,incurred_at AS incurredAt,created_at AS createdAt FROM expenses WHERE id=?")
+     .bind(id).first();
+ }catch{return uncertain();}
+ if(!saved)return uncertain();
+ if(saved.id!==id||saved.estimateId!==estimateId||saved.category!==category||
+    saved.description!==description||Number(saved.amountCents)!==amountCents||
+    (explicitDate&&saved.incurredAt!==incurredAt)||
+    !Number.isFinite(Date.parse(saved.incurredAt))||
+    !Number.isFinite(Date.parse(saved.createdAt)))
+   return Response.json({error:"That expense request ID is already associated with different details. Review saved expenses before trying again."},
+     {status:409,headers:privateHeaders});
+ // Only call it newly inserted when D1 confirms one row changed AND an
+ // independent SELECT confirms the exact identity and request details.
+ const newlyInserted=inserted?.success!==false&&inserted?.meta?.changes===1;
+ return Response.json({expense:saved,requestId:id,confirmed:true},
+   {status:newlyInserted?201:200,headers:privateHeaders});
 }
