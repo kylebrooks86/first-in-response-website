@@ -97,11 +97,17 @@ export async function reconcileStripeCheckout(db:Database,session:StripeCheckout
   if(session.client_reference_id && session.client_reference_id!==estimateId)return {ok:false,reason:"reference_mismatch"};
 
   const estimate = await db.prepare(`
-    SELECT e.id,e.status,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.customer_id AS customerId,c.name AS customer,
+    SELECT e.id,e.status,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.customer_id AS customerId,c.name AS customer,
+      (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
     FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.id=? LIMIT 1
-  `).bind(estimateId).first<{id:string;status:string;totalCents:number;depositCents:number;customerId:string;customer:string;service:string}>();
+  `).bind(estimateId).first<{id:string;status:string;totalCents:number;depositCents:number;customerId:string;customer:string;service:string;invoiceOwnershipMismatch:number}>();
   if (!estimate) return { ok:false, reason:"estimate_not_found" };
+  // A paid Stripe event may arrive after an invoice is reassigned to someone else.
+  // Fail before reservation promotion or ledger writes instead of allocating
+  // payment to the wrong customer invoice.
+  if(Number(estimate.invoiceOwnershipMismatch)!==0)
+    return {ok:false,reason:"invoice_customer_mismatch"};
 
   const sessionAmount=Number(session.amount_total);
   const paymentType = session.metadata?.payment_type === "balance" ? "balance" : "deposit";
@@ -152,8 +158,10 @@ export async function reconcileStripeCheckout(db:Database,session:StripeCheckout
   const now=new Date().toISOString();
   const ledger=[db.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
     SELECT ?,?,?,?,'paid',?,? WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)
-    AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND (?=0 OR estimate_id<>? OR type<>'Tip' OR status<>'paid' OR amount_cents<>?))`)
-    .bind(`stripe:${session.id}`,estimateId,paymentType,expectedAmount,session.id,now,session.id,`${session.id}:tip`,tipCents,estimateId,tipCents)];
+    AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND (?=0 OR estimate_id<>? OR type<>'Tip' OR status<>'paid' OR amount_cents<>?))
+    AND NOT EXISTS (SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
+      WHERE inv.estimate_id=? AND inv.customer_id IS NOT e.customer_id)`)
+    .bind(`stripe:${session.id}`,estimateId,paymentType,expectedAmount,session.id,now,session.id,`${session.id}:tip`,tipCents,estimateId,tipCents,estimateId)];
   if(tipCents>0)ledger.push(db.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
     SELECT ?,?,'Tip',?,'paid',?,? WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)
     AND EXISTS (SELECT 1 FROM payments WHERE provider_id=? AND estimate_id=? AND type=? AND status='paid' AND amount_cents=?)`)
@@ -183,7 +191,7 @@ export async function reconcileStripeCheckout(db:Database,session:StripeCheckout
       WHEN ?>=total_cents THEN 'paid'
       WHEN ?>0 THEN 'partial'
       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
-      ELSE 'draft' END WHERE estimate_id=?`).bind(nextPaid,nextPaid,estimateId)
+      ELSE 'draft' END WHERE estimate_id=? AND customer_id=?`).bind(nextPaid,nextPaid,estimateId,estimate.customerId)
   );
   if(tipCents>0){
     followups.push(
