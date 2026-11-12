@@ -101,7 +101,7 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
 // SITE_ORIGIN must never be accepted or sent to Stripe. Rejection must precede
 // all database reads and payment-network requests.
 for(const [label,siteOrigin,requestOrigin] of [
- ['missing SITE_ORIGIN',undefined,'https://synthetic.invalid'],
+ ['missing SITE_ORIGIN','','https://synthetic.invalid'],
  ['non-HTTPS SITE_ORIGIN','http://synthetic.invalid','http://synthetic.invalid'],
  ['path in SITE_ORIGIN','https://synthetic.invalid/estimate','https://synthetic.invalid'],
  ['query in SITE_ORIGIN','https://synthetic.invalid/?redirect=evil','https://synthetic.invalid'],
