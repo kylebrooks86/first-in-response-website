@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../../chatgpt-auth";
 import { reconcileStripeCheckout, type StripeCheckoutSession } from "../../../../../lib/stripe-payments";
 
-type RuntimeEnv=Cloudflare.Env & {STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KEY?:string;FIRE_ENV?:string};
+type RuntimeEnv=Cloudflare.Env & {STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KEY?:string;FIRE_ENV?:string;FIRE_STRIPE_MODE?:string};
 type RemoteSession=StripeCheckoutSession & {status?:string;livemode?:boolean};
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 
@@ -11,6 +11,14 @@ export async function POST(request:Request){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const owner=await getChatGPTUser();
   if(!owner||owner.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
+  const runtime=env as RuntimeEnv;
+  const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=="live"||/(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV||"");
+  // An authenticated owner must not bypass the isolated TEST payment kill-switch
+  // by reconciling a paid or expired checkout directly. Check BEFORE any D1
+  // read or Stripe GET; no ledger, invoice, or checkout-lock mutations.
+  if(sandbox&&runtime.FIRE_STRIPE_MODE!=="test")
+    return Response.json({error:"Isolated Stripe TEST reconciliation is disabled."},
+      {status:503,headers:{"cache-control":"no-store"}});
   try{
     const body=await request.json() as Record<string,unknown>;
     const reservationId=String(body.reservationId??"").trim();
@@ -24,8 +32,6 @@ export async function POST(request:Request){
       FROM payment_checkout_sessions WHERE id=? AND status='open' LIMIT 1`)
       .bind(reservationId).first<{id:string;estimateId:string;type:string;amountCents:number}>();
     if(!reservation)return Response.json({error:"This checkout is no longer awaiting reconciliation. Refresh Payment History."},{status:409});
-    const runtime=env as RuntimeEnv;
-    const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=="live"||/(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV||"");
     const secret=runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY;
     if(!secret||(sandbox&&!/^(sk|rk|rkcs)_test_/.test(secret)))
       return Response.json({error:"A matching test/live Stripe connection is required to verify this checkout."},{status:503});
