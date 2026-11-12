@@ -123,13 +123,33 @@ export async function PATCH(request:Request){
    return Response.json({error:"Choose a valid open task and a precise due date."},{status:400});
   // A conditional write protects a newer edit or completion on another phone.
   // NULL and date values must both match the caller's last verified GET.
-  const changed=await env.DB.prepare("UPDATE tasks SET due_at=? WHERE id=? AND status='open' AND due_at IS ?")
-   .bind(next,taskId,expected).run();
-  const saved=await env.DB.prepare("SELECT status,due_at AS dueAt FROM tasks WHERE id=?").bind(taskId).first<{status:string;dueAt:string|null}>();
-  if(!saved)return Response.json({error:"Task not found. Refresh saved tasks."},{status:404});
-  if(saved.status!=="open")return Response.json({error:"Task is no longer open. Refresh saved tasks before editing."},{status:409});
-  if(saved.dueAt===next)return Response.json({ok:true,id:taskId,status:"open",dueAt:saved.dueAt,replayed:changed.meta.changes!==1});
-  return Response.json({error:"The task due date changed on another device. Refresh saved tasks before rescheduling.",currentDueAt:saved.dueAt},{status:409});
+  const headers={"Cache-Control":"no-store, private"};
+  const uncertain=()=>Response.json({error:"Task due-date save could not be verified. Refresh saved tasks before changing the deadline again.",saveUncertain:true},
+    {status:503,headers});
+  // D1 can commit the compare-and-swap UPDATE before the acknowledgement is
+  // lost. A second UPDATE would be unsafe; independently inspect this exact
+  // task ID and the requested deadline before confirming success.
+  let changed:{success?:boolean;meta?:{changes?:number}}|null=null;
+  try{
+    changed=await env.DB.prepare("UPDATE tasks SET due_at=? WHERE id=? AND status='open' AND due_at IS ?")
+      .bind(next,taskId,expected).run();
+  }catch{/* A write may have committed; do not retry automatically. */}
+  let saved:{status:string;dueAt:string|null}|null;
+  try{
+    saved=await env.DB.prepare("SELECT status,due_at AS dueAt FROM tasks WHERE id=?")
+      .bind(taskId).first<{status:string;dueAt:string|null}>();
+  }catch{return uncertain();}
+  if(!saved)return changed?.meta?.changes===0?
+    Response.json({error:"Task not found. Refresh saved tasks."},{status:404,headers}):uncertain();
+  if(saved.status!=="open")return Response.json({error:"Task is no longer open. Refresh saved tasks before editing."},{status:409,headers});
+  // Never claim a D1 error receipt is a confirmed write, even if another
+  // device independently moved the task to the same deadline.
+  if(changed?.success===false)return uncertain();
+  if(saved.dueAt===next)return Response.json({ok:true,id:taskId,status:"open",
+    dueAt:saved.dueAt,replayed:changed?.meta?.changes!==1},{headers});
+  if(changed===null||changed?.meta?.changes===1)return uncertain();
+  return Response.json({error:"The task due date changed on another device. Refresh saved tasks before rescheduling.",currentDueAt:saved.dueAt},
+    {status:409,headers});
  }
  if(!id||id.length>128||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
   return Response.json({error:"Choose a valid task and status."},{status:400});
