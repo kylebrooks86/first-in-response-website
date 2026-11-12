@@ -504,6 +504,11 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
+      - name: FIRE Google Voice review invitation eligibility at atomic database save (synthetic only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-review-message-eligibility.mjs
+          node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
       - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
         env:
           CI: 'true'
