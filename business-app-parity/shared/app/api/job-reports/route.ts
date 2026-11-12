@@ -93,10 +93,14 @@ export async function POST(request: Request) {
         SET checklist=?,notes=?,airflow_before=?,airflow_after=?,status=?,completed_at=?
         WHERE id=? AND estimate_id=? AND customer_id=? AND status=? AND created_at=?
           AND completed_at IS ? AND checklist=? AND notes IS ?
-          AND airflow_before IS ? AND airflow_after IS ?`)
+          AND airflow_before IS ? AND airflow_after IS ?
+          AND EXISTS (SELECT 1 FROM estimates e WHERE e.id=job_reports.estimate_id
+            AND e.customer_id=job_reports.customer_id
+            AND (?=0 OR e.status IN ('scheduled','completed')))`)
         .bind(checklist,notes,airflowBefore,airflowAfter,status,completedAt,
           id,body.estimateId,body.customerId,existing.status,existing.createdAt,
-          existing.completedAt,existing.checklist,existing.notes,existing.airflowBefore,existing.airflowAfter).run();
+          existing.completedAt,existing.checklist,existing.notes,existing.airflowBefore,existing.airflowAfter,
+          complete?1:0).run();
       if (changed.meta?.changes !== 1)
         return Response.json({ error: "This job report changed while you were saving. Reopen the saved report before trying again." },
           { status: 409, headers: privateHeaders });
@@ -106,9 +110,11 @@ export async function POST(request: Request) {
       const inserted = await env.DB.prepare(`INSERT INTO job_reports
         (id,estimate_id,customer_id,checklist,notes,airflow_before,airflow_after,status,created_at,completed_at)
         SELECT ?,?,?,?,?,?,?,?,?,?
-        WHERE NOT EXISTS (SELECT 1 FROM job_reports WHERE estimate_id=?)`)
+        WHERE NOT EXISTS (SELECT 1 FROM job_reports WHERE estimate_id=?)
+          AND EXISTS (SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=?
+            AND (?=0 OR e.status IN ('scheduled','completed')))`)
         .bind(id,body.estimateId,body.customerId,checklist,notes,airflowBefore,airflowAfter,
-          status,createdAt,completedAt,body.estimateId).run();
+          status,createdAt,completedAt,body.estimateId,body.estimateId,body.customerId,complete?1:0).run();
       if (inserted.meta?.changes !== 1)
         return Response.json({ error: "A job report was created while you were saving. Reopen it before making another change." },
           { status: 409, headers: privateHeaders });
