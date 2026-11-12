@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/scripts/plan-complete-photo-recovery.py'
+      - 'business-app-parity/shared/scripts/plan-legacy-sites-three-part-recovery.py'
+      - 'business-app-parity/shared/scripts/test-legacy-sites-three-part-recovery.py'
+      - 'business-app-parity/shared/scripts/verify-legacy-sites-review-local.mjs'
       - 'business-app-parity/shared/scripts/validate-numbered-core-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
       - 'business-app-parity/shared/scripts/disposable-numbered-v2-photo-restore.py'
@@ -19,6 +22,9 @@ on:
     branches: [work/fire-mobile-contact-consolidation-2026-10-31]
     paths:
       - 'business-app-parity/shared/scripts/plan-complete-photo-recovery.py'
+      - 'business-app-parity/shared/scripts/plan-legacy-sites-three-part-recovery.py'
+      - 'business-app-parity/shared/scripts/test-legacy-sites-three-part-recovery.py'
+      - 'business-app-parity/shared/scripts/verify-legacy-sites-review-local.mjs'
       - 'business-app-parity/shared/scripts/validate-numbered-core-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
       - 'business-app-parity/shared/scripts/disposable-numbered-v2-photo-restore.py'
@@ -63,6 +69,8 @@ jobs:
           python-version: '3.12'
       - name: Validate existing legacy records and complete photo pairing
         run: python3 scripts/test-plan-complete-photo-recovery.py
+      - name: Validate separate historical Sites records plus cloud and iPhone photo archives
+        run: python3 scripts/test-legacy-sites-three-part-recovery.py
       - name: Validate numbered v2 core records, signed agreement checksums and complete photo byte coverage
         run: python3 scripts/test-numbered-v2-photo-pair.py
       - name: Rehearse checksum-verified complete photo bytes into isolated in-memory store only
