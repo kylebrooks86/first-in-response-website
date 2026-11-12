@@ -64,9 +64,19 @@ export async function POST(request:Request){
      .bind(id).first<{id:string;title:string;customerId:string|null;estimateId:string|null;dueAt:string|null;status:string;notes:string|null;createdAt:string;completedAt:string|null}>();
  }catch{return uncertain();}
  if(!saved){
-   if(inserted?.success!==false&&inserted?.meta?.changes===0&&(estimateId||customerId))
-     return Response.json({error:"The linked job or customer changed while creating the task. Refresh saved customers and jobs before trying again."},
-       {status:409,headers:privateHeaders});
+   // A zero-row insert might indicate a concurrent link reassignment OR an
+   // unacknowledged no-op. Only diagnose a conflict if a fresh D1 read proves
+   // that the association is now invalid; otherwise leave the save uncertain.
+   if(inserted?.success!==false&&inserted?.meta?.changes===0&&(estimateId||customerId)){
+     try{
+       const current=estimateId?
+         await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?").bind(estimateId).first<{customerId:string}>():
+         await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
+       if(!current||(estimateId&&"customerId" in current&&current.customerId!==customerId))
+         return Response.json({error:"The linked job or customer changed while creating the task. Refresh saved customers and jobs before trying again."},
+           {status:409,headers:privateHeaders});
+     }catch{return uncertain();}
+   }
    return uncertain();
  }
  if(saved.id!==id||saved.title!==title||saved.customerId!==customerId||
