@@ -51,6 +51,8 @@ const signedQaCookie=(expiry,secret=env.FIRE_QA_SESSION_SECRET)=>{
 const now=Math.floor(Date.now()/1000);
 for(const [label,expiry,valid] of [
  ['valid test-only signed cookie',now+120,true],
+ ['signed future cookie beyond 12-hour maximum',now+86400,false],
+ ['signed future cookie beyond 30 days',now+31*86400,false],
  ['expired 1 second ago',now-1,false],
  ['expired 12 hours ago',now-43200,false],
  ['exact expiry second',now,false],
@@ -96,4 +98,34 @@ const unavailable=await authRoute.POST(new Request('https://qa-fixture.invalid/a
 await check(unavailable.status===503&&!unavailable.headers.has('set-cookie'),'Unavailable rate-limit storage never authenticates or sets a session');
 await check(diagnostics.length===1&&diagnostics[0][1].stage==='rate-read'&&diagnostics[0][1].code==='SQLITE_BUSY','Login diagnostic identifies failing stage and safe database error class');
 await check(!JSON.stringify(diagnostics).includes(good)&&!JSON.stringify(diagnostics).includes(env.FIRE_QA_SESSION_SECRET)&&!JSON.stringify(diagnostics).includes('sensitive fixture'),'Login diagnostic excludes credentials and arbitrary exception details');
+
+const ipRateKeys=[];
+env.DB={prepare(sql){
+  return {bind(key){
+    if(sql.startsWith('SELECT attempts')){
+      ipRateKeys.push(key);
+      return {first:async()=>null};
+    }
+    throw Error('Synthetic rate-record stopped before any DB mutation');
+  }};
+}};
+for(const [header,value] of [
+ ['x-forwarded-for','192.0.2.10'],
+ ['x-forwarded-for','192.0.2.11'],
+ ['cf-connecting-ip','192.0.2.12'],
+]){
+  const request=new Request('https://qa-fixture.invalid/api/auth/login',{
+    method:'POST',headers:{[header]:value},
+    body:JSON.stringify({password:'invalid-synthetic-attempt-long-passphrase'}),
+  });
+  const denial=await authRoute.POST(request);
+  await check(denial.status===503&&!denial.headers.has('set-cookie'),
+    'QA throttling probe refuses login before synthetic DB mutation');
+}
+await check(ipRateKeys.length===3&&ipRateKeys[0]===ipRateKeys[1],
+ 'Spoofed forwarded IPs share one fail-safe throttling bucket when provider IP absent');
+await check(ipRateKeys[2]!==ipRateKeys[0],
+ 'Genuine provider-set client IP uses a distinct throttling bucket');
+await check(!JSON.stringify(diagnostics).includes('192.0.2.10'),
+ 'No client-supplied raw forwarded IP is logged');
 console.log('PASS '+count+' synthetic QA auth assertions: separate long passphrase, cookie, fail-closed origin/env, no gateway spoofing, no old PIN. No host, D1 or credential mutation.');
