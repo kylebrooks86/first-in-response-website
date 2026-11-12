@@ -14,6 +14,7 @@ INSERT INTO customers VALUES
  ('other','Other','other@example.invalid','9185550101','555 Synthetic','Google','2026-10-29');`);
 let user={email:'kylebrooks8605@gmail.com'},writes=0,readbacks=0;
 let skipUpdate=false,throwAfterCommit=false,loseReadback=false,distortReadback=false,deleteAfterUpdate=false;
+let concurrentContactClaim=null; // Inject another owner's write between preflight and UPDATE.
 function prep(sql){
  return {sql,params:[],bind(...params){return {...this,params}},
   async first(){
@@ -32,8 +33,13 @@ function prep(sql){
    assert.ok(sql.startsWith('UPDATE customers SET'),'Only customer updates allowed');
    writes++;
    if(skipUpdate){skipUpdate=false;return {success:true,meta:{changes:0}};}
+   if(concurrentContactClaim){
+     const type=concurrentContactClaim;concurrentContactClaim=null;
+     if(type==='email')db.prepare("UPDATE customers SET email=? WHERE id='other'").run(this.params[1]);
+     if(type==='phone')db.prepare("UPDATE customers SET phone=? WHERE id='other'").run('9185550198');
+   }
    const changes=db.prepare(sql).run(...this.params).changes;
-   if(deleteAfterUpdate){deleteAfterUpdate=false;db.prepare('DELETE FROM customers WHERE id=?').run(this.params.at(-1));}
+   if(deleteAfterUpdate){deleteAfterUpdate=false;db.prepare('DELETE FROM customers WHERE id=?').run(this.params[5]);}
    if(throwAfterCommit){throwAfterCommit=false;throw Error('Synthetic D1 post-commit ACK lost');}
    return {success:true,meta:{changes:Number(changes)}};
   }
@@ -60,6 +66,25 @@ try{
  await expect(400,{email:'not an email'},'Invalid email blocked');
  await expect(409,{email:'other@example.invalid'},'Duplicate email blocked');
  await expect(409,{phone:'9185550101'},'Duplicate phone blocked');
+ // Two customers can edit different records concurrently. Duplicate preflight
+ // sees the older contact, then another edit claims the same email/phone before
+ // the guarded SQL UPDATE. The actual SQLite write must atomically refuse it.
+ concurrentContactClaim='email';
+ const emailRace=await patch({email:'race-claimed@example.invalid'});
+ assert.equal(emailRace.status,409,'Concurrent email claim blocks customer save at SQL boundary');
+ assert.equal((await emailRace.json()).saveUncertain,true,'Concurrent email race returns an actionable unconfirmed save');
+ assert.equal(customer().email,'first@example.invalid','Email race preserves original customer');
+ assert.equal(db.prepare("SELECT email FROM customers WHERE id='other'").get().email,'race-claimed@example.invalid');
+ db.prepare("UPDATE customers SET email='other@example.invalid' WHERE id='other'").run();
+ checks.push('Atomic conflict on concurrent email claim');
+ concurrentContactClaim='phone';
+ const phoneRace=await patch({phone:'+1 (918) 555-0198'});
+ assert.equal(phoneRace.status,409,'Concurrent normalized phone claim blocks customer save at SQL boundary');
+ assert.equal((await phoneRace.json()).saveUncertain,true,'Concurrent phone race returns an unconfirmed save');
+ assert.equal(customer().phone,'9185550100','Phone race preserves original customer');
+ assert.equal(db.prepare("SELECT phone FROM customers WHERE id='other'").get().phone,'9185550198');
+ db.prepare("UPDATE customers SET phone='9185550101' WHERE id='other'").run();
+ checks.push('Atomic conflict on concurrent +1/10-digit phone claim');
  const saved=await expect(200,{name:'Updated Name',address:'New Synthetic Address'},'Exact persisted edit confirmed');
  assert.equal((await saved.json()).customer.name,'Updated Name');
  assert.equal(customer().address,'New Synthetic Address');
