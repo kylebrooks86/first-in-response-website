@@ -1,4 +1,5 @@
 import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-state.mjs";
+import {refundLedgerObjectsPresent} from "../../../lib/refund-ledger-readiness";
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
@@ -44,6 +45,11 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   // The owner must be able to leave an unavailable token preview without
   // browser Back. The caller-supplied ownerPreview hint never grants access.
   const ownerMissingExit=ownerPreview?<><OwnerPreviewTheme/><OwnerPreviewReturnLink className="owner-estimate-preview-close owner-invoice-preview-close" href="/" label="Close invoice preview"/></>:null;
+  // A legacy LIVE database was observed without payment_refunds. Never
+  // evaluate an unverified payment balance or issue a customer document
+  // before confirming the required refund-ledger schema objects.
+  if(!await refundLedgerObjectsPresent(env.DB))
+    return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerMissingExit}<section className="pay-card"><h1>Invoice temporarily unavailable</h1><p>We cannot verify the payment and refund history for this invoice right now. Please contact First In Response Exteriors before making another payment.</p></section></main>;
   const row = await env.DB.prepare(`
     SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.total_cents AS totalCents,
       inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,e.accepted_at AS estimateAcceptedAt,e.signed_at AS estimateSignedAt,

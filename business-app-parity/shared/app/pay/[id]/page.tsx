@@ -1,4 +1,5 @@
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
+import {refundLedgerObjectsPresent} from "../../../lib/refund-ledger-readiness";
 import { env } from "cloudflare:workers";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { PayButton } from "./pay-button";
@@ -15,6 +16,10 @@ const currency = (value: number) => new Intl.NumberFormat("en-US", { style: "cur
 export default async function PaymentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ paid?: string }> }) {
   const { id: shareToken } = await params;
   const { paid } = await searchParams;
+  // A missing legacy refund ledger must be a safe customer-facing hold, not
+  // an uncaught SELECT error or a guessed collectible balance.
+  if(!await refundLedgerObjectsPresent(env.DB))
+    return <main className="pay-page"><section className="pay-card"><h1>Payment temporarily unavailable</h1><p>We cannot verify this payment balance until the refund history is reviewed. Please contact First In Response Exteriors before sending a payment.</p></section></main>;
   const row = await env.DB.prepare(`
     SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch, e.status, e.accepted_at AS acceptedAt, e.signed_at AS signedAt,
            c.name AS customer, ${serviceAddressColumns(serviceLocationsEnabled(env))},
