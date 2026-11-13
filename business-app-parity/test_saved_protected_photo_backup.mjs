@@ -170,6 +170,18 @@ try{
   'owner-saved protected file hash really uses disk bytes');
  await reject(inspectOwnerSavedNumberedPhotoPair(recordsPath,file,
   'incorrect synthetic passphrase for pairing 2026'),/wrong passphrase|damaged/i);
+ // The real owner HTTP download is an envelope, not bare core JSON.
+ const envelope={format:'fire-numbered-core-export-review',version:1,
+  completeBackup:false,recoveryAuthorized:false,photoBytesIncluded:false,
+  offDeviceCustodyVerified:false,warning:'Core review only',coreSnapshot:records};
+ writeFileSync(recordsPath,JSON.stringify(envelope));
+ const downloaded=await inspectOwnerSavedNumberedPhotoPair(recordsPath,file,phrase);
+ ok(downloaded.pairSha256===pair.pairSha256,
+  'actual owner-facing downloaded review JSON pairs identically to core snapshot');
+ const forgedEnvelope={...envelope,completeBackup:true};
+ writeFileSync(recordsPath,JSON.stringify(forgedEnvelope));
+ await reject(inspectOwnerSavedNumberedPhotoPair(recordsPath,file,phrase),/blocked/i);
+ writeFileSync(recordsPath,JSON.stringify(envelope));
  const beforeRecords=readFileSync(recordsPath);
  const wrong=structuredClone(records);
  delete wrong.tables.payment_refunds;
