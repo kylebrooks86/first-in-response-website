@@ -22,8 +22,8 @@ const REQUIRED_TRIGGERS=Object.freeze([
 // Only these exact definitions are exempt; unknown _cf_* or sqliteX tables
 // must block activation instead of being silently omitted.
 const PROVIDER_DDL=Object.freeze({
- _cf_KV:/^CREATE\\s+TABLE\\s+(?:_cf_KV|"_cf_KV"|`_cf_KV`|\\[_cf_KV\\])\\s*\\(\\s*(?:key|"key"|`key`|\\[key\\])\\s+TEXT\\s+PRIMARY\\s+KEY\\s*,\\s*(?:value|"value"|`value`|\\[value\\])\\s+BLOB\\s*\\)\\s+WITHOUT\\s+ROWID\\s*;?$/i,
- _cf_METADATA:/^CREATE\\s+TABLE\\s+(?:_cf_METADATA|"_cf_METADATA"|`_cf_METADATA`|\\[_cf_METADATA\\])\\s*\\(\\s*(?:key|"key"|`key`|\\[key\\])\\s+INTEGER\\s+PRIMARY\\s+KEY\\s*,\\s*(?:value|"value"|`value`|\\[value\\])\\s+BLOB\\s*\\)\\s*;?$/i
+ _cf_KV:/^CREATE\s+TABLE\s+(?:_cf_KV|"_cf_KV"|`_cf_KV`|\[_cf_KV\])\s*\(\s*(?:key|"key"|`key`|\[key\])\s+TEXT\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|`value`|\[value\])\s+BLOB\s*\)\s+WITHOUT\s+ROWID\s*;?$/i,
+ _cf_METADATA:/^CREATE\s+TABLE\s+(?:_cf_METADATA|"_cf_METADATA"|`_cf_METADATA`|\[_cf_METADATA\])\s*\(\s*(?:key|"key"|`key`|\[key\])\s+INTEGER\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|`value`|\[value\])\s+BLOB\s*\)\s*;?$/i
 });
 async function one(db,sql,params=[]){
  if(!db||typeof db.prepare!=='function')stop('independent physical D1 reader missing');
@@ -67,7 +67,7 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  });
  if(new Set(entries.map(item=>item.name)).size!==entries.length)
   stop('duplicate schema inventory');
- const known=new Set(expected);
+ const known=new Set([...expected,'d1_migrations']);
  const appTables=[];
  for(const item of entries){
   if(Object.hasOwn(PROVIDER_DDL,item.name)){
@@ -75,7 +75,8 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
     stop('unrecognized Cloudflare provider metadata schema');
   }else appTables.push(item.name);
  }
- if(appTables.length!==expected.length||appTables.some(name=>!known.has(name)))
+ if(appTables.length!==expected.length+1||!appTables.includes('d1_migrations')||
+    appTables.some(name=>!known.has(name)))
   stop('unexpected or missing application tables; full migration/schema review required');
  const trig=await one(db,
   "SELECT GROUP_CONCAT(name, ',') AS names FROM sqlite_master WHERE type='trigger'");
