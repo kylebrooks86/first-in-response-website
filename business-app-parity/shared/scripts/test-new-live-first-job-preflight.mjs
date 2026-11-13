@@ -13,7 +13,7 @@ let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
 const create=(override={})=>{
- const v={tables:[...tables],triggers:[...triggers],rows:{},serialRows:0,
+ const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:25},serialRows:0,
   validSchema:true,validCoverage:true,validCustomerSchema:true,validCustomerCoverage:true,...override};
  const statements=[];
  const db={prepare(sql){
@@ -64,6 +64,8 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validSchema:false}).d
  'missing numbered schema/trigger stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCoverage:false}).db,env),
  'bad original estimate/job ownership stops');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:0}}).db,env),
+ 'empty D1 migration journal cannot establish a real migrated database');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='d1_migrations')}).db,env),
  'NEW LIVE migration journal cannot be absent');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='payment_refunds')}).db,env),
