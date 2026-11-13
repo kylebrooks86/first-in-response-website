@@ -76,6 +76,10 @@ export async function POST(request: Request) {
     catch{return Response.json({error:'A valid estimate request object is required.'},{status:400});}
     if(body.requestId!==undefined&&!validEstimateCreateRequestId(body.requestId))return Response.json({error:'A valid estimate creation request ID is required.'},{status:400});
     const requestId=typeof body.requestId==='string'?body.requestId:null;
+    // A lost response must never let an enabled Job # flow allocate a second
+    // permanent serial through a legacy, non-idempotent retry.
+    if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE===JOB_NUMBER_FLAG&&!requestId)
+      return Response.json({error:'Permanent Job # creation requires a retained estimate request ID. No new job was created.'},{status:409,headers:{'cache-control':'private, no-store'}});
     const requestHash=requestId?await fingerprintEstimateCreateRequest(body):null;
     // A completed request replays its original immutable receipt. Never create
     // another estimate or re-evaluate now-expired offers for the same request ID.
