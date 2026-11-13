@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {
   jobNumberLabel,parseJobNumberQuery,matchesJobNumberQuery,newJobStatements,replacementJobStatement,
   completedJobCount,jobNumberLabelForEstimate,attachedJobNumbers,JOB_NUMBER_FOR_ESTIMATE_SQL,
@@ -87,4 +88,21 @@ assert.equal(numbers.get(first),1);
 assert.equal(numbers.get(second),2);
 assert.equal(numbers.size,2);
 assert.equal((await attachedJobNumbers(populated,[])).size,0);
+// The Schedule's approved-job picker must display and search the saved
+// immutable Job #, instead of requiring the owner to remember a customer name.
+// UI source contract only: no hosted D1, Cloudflare, customer or browser writes.
+const scheduleSource=readFileSync('app/dashboard.tsx','utf8');
+const approvedPickerStart=scheduleSource.indexOf('const readyToBook=rows.filter(');
+const approvedPickerEnd=scheduleSource.indexOf('className="schedule-board"',approvedPickerStart);
+assert.ok(approvedPickerStart>=0&&approvedPickerEnd>approvedPickerStart,
+  'Locate the real approved-job booking picker in the Schedule UI');
+const approvedPicker=scheduleSource.slice(approvedPickerStart,approvedPickerEnd);
+assert.ok(approvedPicker.includes('matchesJobNumberQuery(job.jobNumber,bookingSearch)'),
+  'An approved job must be searchable by its permanent Job #');
+assert.ok(approvedPicker.includes('placeholder="Job #, customer, service or address"'),
+  'Schedule search should tell the owner that Job # queries work');
+assert.ok(approvedPicker.includes('{jobNumberLabel(job.jobNumber)&&<>{jobNumberLabel(job.jobNumber)} · </>}'),
+  'Show the DB-backed Job # alongside the customer and service in booking choices');
+console.log('PASS: Schedule approved-job picker has permanent Job # display and search without inventing numbers');
+
 console.log('PASS: token-scoped customer display and owner batched lookups');
