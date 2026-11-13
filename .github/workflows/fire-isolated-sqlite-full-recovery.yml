@@ -10,6 +10,7 @@ on:
       - 'business-app-parity/test_migrated_d1_journal_recovery.mjs'
       - 'business-app-parity/protected_complete_isolated_sqlite_recovery.mjs'
       - 'business-app-parity/rehearse_protected_complete_records_and_photos.mjs'
+      - 'business-app-parity/protected_recovery_pair_receipt.mjs'
       - 'business-app-parity/recover_saved_protected_photo_zip.mjs'
       - 'business-app-parity/adapters/independent-live/drizzle/0025_independent_permanent_numbers.sql'
       - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'

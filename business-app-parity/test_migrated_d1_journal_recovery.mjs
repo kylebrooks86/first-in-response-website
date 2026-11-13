@@ -20,6 +20,8 @@ import {sealCompleteIsolatedSqliteSnapshot,restoreSavedProtectedCompleteRecords,
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
 import {rehearseProtectedCompleteRecordsAndPhotos}
  from './rehearse_protected_complete_records_and_photos.mjs';
+import {sealProtectedPairReceipt,inspectSavedProtectedPairReceipt}
+ from './protected_recovery_pair_receipt.mjs';
 
 const folder=await mkdtemp(join(tmpdir(),'fire-migrated-journal-'));
 const template=join(folder,'independent-26-empty-schema.sqlite');
@@ -256,6 +258,50 @@ try{
  const protectedPhotoFile=join(folder,'saved-photos.firephotos');
  const galleryCipher=await protectOfflinePhotoZip(new Blob([galleryZip]),photoPhrase);
  await writeFile(protectedPhotoFile,Buffer.from(await galleryCipher.arrayBuffer()));
+ const receiptFile=join(folder,'saved-encrypted-records-photos.firepair');
+ const receipt=await sealProtectedPairReceipt(protectedFile,protectedPhotoFile,receiptFile);
+ okay(receipt.savedPairReceiptCreated&&receipt.exactSavedEncryptedPairVerified,
+  'two saved encrypted files are immutably bound by a separate checksum receipt');
+ const receiptProof=await inspectSavedProtectedPairReceipt(
+  receiptFile,protectedFile,protectedPhotoFile);
+ okay(receiptProof.exactSavedEncryptedPairVerified&&
+      receiptProof.snapshotSameTimeVerified===false&&
+      receiptProof.gate7Accepted===false,
+  'read-back checks exact ciphertext identities without falsely claiming source-time completeness');
+ const receiptBackedDb=join(folder,'receipt-recovered.sqlite');
+ const receiptBackedZip=join(folder,'receipt-gallery.zip');
+ const receiptRecovery=await rehearseProtectedCompleteRecordsAndPhotos(
+  protectedFile,independentTemplate,protectedPhotoFile,receiptBackedDb,receiptBackedZip,
+  phrase,photoPhrase,{approved:true,pairReceiptPath:receiptFile});
+ okay(receiptRecovery.exactPairReceiptVerified===true&&
+      receiptRecovery.recoveredCustomerRows===1&&
+      receiptRecovery.recoveredJobNumberRows===1&&
+      (await readFile(receiptBackedZip)).equals(galleryZip),
+  'verified exact-record/photo receipt authorizes guarded local joint recovery');
+ const receiptDb=new DatabaseSync(receiptBackedDb,{readOnly:true});
+ okay(receiptDb.prepare('SELECT COUNT(*) AS n FROM d1_migrations').get().n===26,
+  'receipt-protected local restore preserves all 26 native DR migrations');
+ receiptDb.close();
+ const rotatedFile=join(folder,'different-valid-encrypted-photos.firephotos');
+ const rotatedCipher=await protectOfflinePhotoZip(new Blob([galleryZip]),photoPhrase);
+ await writeFile(rotatedFile,Buffer.from(await rotatedCipher.arrayBuffer()));
+ const rejectRotatedDb=join(folder,'reject-rotated-pair.sqlite');
+ await assert.rejects(rehearseProtectedCompleteRecordsAndPhotos(
+  protectedFile,independentTemplate,rotatedFile,rejectRotatedDb,
+  join(folder,'reject-rotated-pair.zip'),phrase,photoPhrase,
+  {approved:true,pairReceiptPath:receiptFile}),/BLOCKED|blocked/i);
+ await assert.rejects(access(rejectRotatedDb));
+ checks++;
+ const swappedReceipt=join(folder,'tampered-receipt.firepair');
+ const receiptJson=JSON.parse(await readFile(receiptFile,'utf8'));
+ receiptJson.photosSha256='0'.repeat(64);
+ await writeFile(swappedReceipt,JSON.stringify(receiptJson));
+ await assert.rejects(inspectSavedProtectedPairReceipt(
+  swappedReceipt,protectedFile,protectedPhotoFile),/BLOCKED|blocked/i);
+ checks++;
+ await assert.rejects(sealProtectedPairReceipt(
+  protectedFile,protectedPhotoFile,receiptFile),/EEXIST|exists/i);
+ checks++;
  const pairDb=join(folder,'paired-restored.sqlite'),pairZip=join(folder,'paired-gallery.zip');
  const paired=await rehearseProtectedCompleteRecordsAndPhotos(
   protectedFile,independentTemplate,protectedPhotoFile,pairDb,pairZip,
@@ -279,12 +325,13 @@ try{
  const cliScript=fileURLToPath(new URL('./rehearse_protected_complete_records_and_photos.mjs',import.meta.url));
  const cli=spawnSync(process.execPath,[
   '--experimental-sqlite',cliScript,protectedFile,independentTemplate,protectedPhotoFile,
-  cliDb,cliZip,'--allow-private-recovery'
+  cliDb,cliZip,'--allow-private-recovery','--pair-receipt',receiptFile
  ],{input:phrase+'\n'+photoPhrase+'\n',encoding:'utf8',timeout:20000});
  okay(cli.status===0&&cli.error===undefined,
   'actual two-password CLI reads stdin and restores protected records plus photos');
  okay((await readFile(cliZip)).equals(galleryZip)&&
-      JSON.parse(cli.stdout).localSqliteAndPhotoZipRecovered===true,
+      JSON.parse(cli.stdout).localSqliteAndPhotoZipRecovered===true&&
+      JSON.parse(cli.stdout).exactPairReceiptVerified===true,
   'actual CLI creates the exact independently checked protected recovery pair');
  const cliDbOpened=new DatabaseSync(cliDb,{readOnly:true});
  okay(cliDbOpened.prepare('SELECT COUNT(*) AS n FROM d1_migrations').get().n===26&&
