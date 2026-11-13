@@ -100,3 +100,10 @@ Exact tested **source SHA `e24a5c6c7bb74037df0c3a371e13edd8e77180cf`** on draft 
 **Parallel source branch notice:** Additional active main-based review PR #246 and separate NEW LIVE clean-start guard PR #247 exist in GitHub. They are separate, unmerged drafts; do not overwrite/automatically merge or infer their physical gate acceptance from PR248 source testing.
 
 **Official Gates 1,2,3,8 ACCEPTED: 4/10 (40%). Gates 4,5,6,7,9,10 OPEN, LIVE NO-GO.** A genuine outstanding Gate4 metadata item remains the UUID of owner-created empty `fire-fullapp-dr-db`, not old QA/STAGING/TEST screenshot recaptures.
+
+
+## November 13 continuation — draft PR #249 strict saved-photo ZIP parser (source only)
+
+Draft [PR #249](https://github.com/kylebrooks86/first-in-response-website/pull/249) stacks on unmerged draft #248, **HEAD `57ef107bb136218e772313681604bed986c438e9`**. It hardens the independent Acer saved protected-photo archive verifier to reject mismatched ZIP local/central versions, compression method and DOS timestamps, reject out-of-bounds entry payload/descriptor offsets, and reject unknown manifest fields or invalid export timestamps. Synthetic negative tests cover malformed local header, forged directory offset and unexpected manifest fields. This is actual new source and test code; **do not claim focused tests passed until an exact-head execution result is observed**. No existing accepted QA/iPhone/Acer checks are reopened. No Cloudflare/Stripe/provider write, paid/R2 subscription, merge, deployment, migration or real restore.
+
+Formal **4/10 accepted (1,2,3,8)** remains unchanged; Gates 4,5,6,7,9,10 OPEN and LIVE NO-GO. Existing DR D1 was owner-created empty, but physical UUID still requires one read-only metadata value before target-specific binding. A local photo archive verifier does not prove off-device custody, complete D1 snapshot or isolated full restore. Review PR #249's exact SHA and targeted workflow before any further release claim.
