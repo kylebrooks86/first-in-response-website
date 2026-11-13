@@ -592,3 +592,15 @@ foreach ($db in @('fire-fullapp-dr-db', 'fire-fullapp-new-live-db')) {
 ```
 
 Preserve the actual returned result or error. An empty schema can be distinguished from Cloudflare `d1 info` metadata, but the command **does not show data-row emptiness, 26-migration application, resource-to-Worker binding or Gate5 approval**. Never auto-run this command from GitHub/chat and never treat it as consent to migrate either DB. Once physical schema state is known, request separate narrow owner consent before first 26-migration application, and preserve first NEW LIVE Job #0001.
+
+---
+
+## November 13 — VERIFIED REMOTE SQL: NEW LIVE zero application tables; DR count cropped (no repeat)
+
+**Authenticated physical Acer/Cloudflare SQL result now supplied by owner screenshot:** The *existing approved read-only* `wrangler d1 execute ... --remote --command` inventory completed, and the screenshot clearly exposes the **NEW LIVE** output for exact name `fire-fullapp-new-live-db`: `application_tables:0`, `success:true`, `changes:0`, `changed_db:false`, `rows_read:1`, `rows_written:0`. This is real remote SQLite `sqlite_master` SQL, **not** mere D1 list/info metadata or synthetic CI. The SQL counts tables excluding `sqlite_%` and `_cf_%`; it does not prove no indexes/views/triggers, all records or target-to-Worker physical bindings. The first (DR) result's **application_tables count is NOT visible** in the photograph (only the final tail). Never guess the DR result, do not run the two-database query again; if the DR count becomes necessary, use its existing terminal scrollback.
+
+**Previously recorded physical target identities preserved without repetition:** DR D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145` and NEW LIVE D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`. The NEW LIVE schema is name-targeted at this step; prior provider CREATE evidence supplies UUID independently. This counts as new Gate5 *partial physical database state evidence* only, not migration approval, first Job #0001 established, or gate acceptance. Real remote 26-migration installation to either target remains separately approval-gated.
+
+**Current source and CI separation:** Consolidated main-based draft PR #264 reached `33859eac823340fbe7e005faf016bd26e31db2a2` (source-only test fixture change) at last inspection; exact-head workflow status was still running. Prior `8e3da42ee0f213a68f46b1f7bc3233b19a10e333` finalized **15/15 source workflows successful**; do NOT transfer that blanket claim to newer head. The local 26-migration workspace source is retained unmerged/undeployed. No repeated iPhone QA, Cloudflare Work sign-in, D1 CREATE, paid storage/R2, remote write, Stripe, Git merge or legacy retirement.
+
+**GitHub evidence:** [Issue #19 verified owner screenshot interpretation](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6867493924). **G1/2/3/8 accepted 4/10; G4/5/6/7/9/10 open, NEW LIVE NO-GO.**
