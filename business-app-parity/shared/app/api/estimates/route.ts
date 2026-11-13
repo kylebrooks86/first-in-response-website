@@ -200,6 +200,33 @@ export async function POST(request: Request) {
           return Response.json({error:'Original Job # not verified. No replacement quote was created.'},{status:409});
       }
     }
+    // NEW LIVE is a clean-start deployment, not a copy of QA test history.
+    // The owner may enable this strict requirement ONLY on the physically
+    // isolated new-LIVE Worker. No activation, migration or data deletion here.
+    // Existing jobs may continue normally; the very first permanent Job #
+    // must not inherit a nonzero sqlite_sequence from a reused test DB.
+    if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START==='required'){
+      if(!jobNumberFlag)
+        return Response.json({error:'NEW LIVE requires permanent Job # allocation before saving estimates.'},
+          {status:503,headers:{'Cache-Control':'no-store, private'}});
+      if(!revisionSource){
+        try{
+          const start=await env.DB.prepare(`SELECT
+            (SELECT COUNT(*) FROM estimates) AS estimates,
+            (SELECT COUNT(*) FROM fire_job_numbers) AS numberedJobs,
+            COALESCE((SELECT seq FROM sqlite_sequence WHERE name='fire_job_numbers'),0) AS highWater`).first<{estimates:number;numberedJobs:number;highWater:number}>();
+          if(!start||![start.estimates,start.numberedJobs,start.highWater].every(Number.isSafeInteger)||
+             start.estimates<0||start.numberedJobs<0||start.highWater<0||
+             (start.estimates===0&&(start.numberedJobs!==0||start.highWater!==0))||
+             (start.estimates>0&&start.numberedJobs===0))
+            return Response.json({error:'NEW LIVE Job # history is not a verified clean start. No estimate was created.'},
+              {status:503,headers:{'Cache-Control':'no-store, private'}});
+        }catch{
+          return Response.json({error:'NEW LIVE Job # clean-start verification is unavailable. No estimate was created.'},
+            {status:503,headers:{'Cache-Control':'no-store, private'}});
+        }
+      }
+    }
     // Allocate real immutable IDs before the atomic D1 batch, never after
     // its acknowledgment or in the iPhone optimistic UI.
     const persistedItems=items.map(item=>({...item,id:crypto.randomUUID()}));
