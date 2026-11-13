@@ -54,6 +54,8 @@ assert.match(communications,/deliveryConfirmed:false,confirmationSource:'owner'/
 assert.match(communications,/receipt\.template!==op.template\|\|receipt\.body!==expectedBody/);
 assert.match(communications,/\.bind\(op.estimateId,op.customerId\)\.first/);
 assert.doesNotMatch(communications,/deliveryConfirmed:!op.cancelled/);
+assert.match(communications,/estimateStatus:estimate\?\.status,ownerConfirmedSent:true/);
+assert.match(communications,/message:receipt,cancelled:true,ownerConfirmedSent:false/);
 assert.match(communications,/saveUncertain:true/);
 assert.match(communications,/uncertainOperation\.template!=='review'/);
 assert.match(communications,/customer_messages WHERE id=\? AND customer_id=\? AND channel=\?/);
