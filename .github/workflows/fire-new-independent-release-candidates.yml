@@ -1,0 +1,79 @@
+name: FIRE NEW independent DR and LIVE candidates (LOCAL ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/adapters/independent-dr/**'
+      - 'business-app-parity/adapters/independent-live/**'
+      - 'business-app-parity/prepare_new_independent_release_manifest.mjs'
+      - 'business-app-parity/test_new_independent_release_manifest.mjs'
+      - '.github/workflows/fire-new-independent-release-candidates.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build-local-candidate:
+    name: Source-identical independent ${{ matrix.target }} build and isolation guards (NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [independent-dr, independent-live]
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_TARGET: ${{ matrix.target }}
+    steps:
+      - name: Checkout reviewed code without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22 and Python 3
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check both targets refuse unsafe resource and auth combinations
+        run: node business-app-parity/test_new_independent_release_manifest.mjs
+      - name: Materialize exact QA-master shared source with isolated target overlay
+        run: python3 business-app-parity/materialize.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
+      - name: Prove complete overlay-source identity before build
+        run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
+      - name: Install pinned dependencies and build actual separate release candidate locally
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm build
+      - name: Prove built source remained identical to reviewed shared/target source
+        run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate" --built
+      - name: Inspect actual compiled Wrangler manifest and simulate independent only
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          import {prepareReviewedIndependentManifest} from './business-app-parity/prepare_new_independent_release_manifest.mjs';
+          const manifest=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/fire-release-candidate/dist/server/wrangler.json','utf8'));
+          const target=process.env.FIRE_TARGET;
+          const dr=target==='independent-dr';
+          const reviewed=prepareReviewedIndependentManifest(target,manifest,{
+           databaseId:dr?'54a5e470-2ae3-471b-a2db-ea8bdf092513':'54a5e470-2ae3-471b-a2db-ea8bdf092514',
+           bucketName:dr?'fire-fullapp-dr-photos':'fire-fullapp-new-live-photos',
+           resourceAttestation:'owner-checked-'+target,
+           enableAuth:false
+          });
+          assert.equal(reviewed.evidence.remoteOperationAttempted,false);
+          assert.equal(reviewed.evidence.providerResourcesIndependentlyVerified,false);
+          assert.equal(reviewed.evidence.ownerApprovedDeployment,false);
+          assert.equal(reviewed.config.d1_databases.length,1);
+          assert.equal(reviewed.config.r2_buckets.length,1);
+          assert.equal(reviewed.config.vars[dr?'FIRE_DR_AUTH_ENABLED':'FIRE_NEW_LIVE_AUTH_ENABLED'],'blocked');
+          console.log('PASS built '+target+' exact reviewed source, inert default config and separate simulated D1/R2 manifest; 0 hosted changes.');
+          NODE

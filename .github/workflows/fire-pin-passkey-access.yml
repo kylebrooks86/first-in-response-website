@@ -1,0 +1,36 @@
+name: FIRE four-digit PIN and Cloudflare Access passkey guards (LOCAL ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/lib/access-passkey-identity.mjs'
+      - 'business-app-parity/adapters/qa/app/owner-auth.ts'
+      - 'business-app-parity/adapters/qa/app/login/page.tsx'
+      - 'business-app-parity/adapters/qa/app/api/auth/login/route.ts'
+      - 'business-app-parity/adapters/doomsday/app/owner-auth.ts'
+      - 'business-app-parity/adapters/doomsday/app/login/page.tsx'
+      - 'business-app-parity/adapters/doomsday/app/api/auth/login/route.ts'
+      - 'business-app-parity/adapters/doomsday/app/api/app-version/route.ts'
+      - 'business-app-parity/adapters/independent-dr/**'
+      - 'business-app-parity/adapters/independent-live/**'
+      - 'business-app-parity/test_pin_passkey_access.mjs'
+      - '.github/workflows/fire-pin-passkey-access.yml'
+permissions:
+  contents: read
+jobs:
+  signed-owner-identity:
+    name: Signed Access JWT, isolated owner, no PIN-only public bypass
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run synthetic signed-JWT and all-source Access-PIN refusal checks
+        run: node business-app-parity/test_pin_passkey_access.mjs
