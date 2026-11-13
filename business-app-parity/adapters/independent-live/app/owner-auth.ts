@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {verifyCloudflareAccessOwnerJwt} from "../lib/access-passkey-identity.mjs";
+import {jobNumberingReady} from "../lib/job-numbering.mjs";
 
 export type OwnerUser = {
   userId: string;
@@ -36,6 +37,20 @@ function releaseEnvironmentEnabled() {
   } catch { return false; }
 }
 
+
+/** Provider-bound NEW LIVE readiness must be proven on the *actual* D1
+ * before issuing any new owner session. A correctly spelled feature flag
+ * alone cannot establish durable Job # schema/triggers/ownership.
+ *
+ * This is intentionally checked at sign-in, not on every dashboard request.
+ * The existing numbered-write endpoints independently fail closed if live
+ * schema or links stop being valid after sign-in.
+ */
+export async function verifiedNewLiveJobNumberSchema(){
+  if(!releaseEnvironmentEnabled() || !env.DB) return false;
+  try { return await jobNumberingReady(env.DB,env); }
+  catch { return false; }
+}
 
 function secrets() {
   return env as typeof env & IndependentSecrets;
@@ -87,6 +102,7 @@ async function sessionIsValid(value: string) {
 export async function verifyIndependentPassword(password: string) {
   const configuredHash = secrets().FIRE_NEW_LIVE_PASSWORD_HASH?.trim().toLowerCase();
   if (!releaseEnvironmentEnabled() || !configuredHash || !/^[a-f0-9]{64}$/.test(configuredHash) || password.length < 24 || password.length > 128) return false;
+  if(!await verifiedNewLiveJobNumberSchema())return false;
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(password)));
   const suppliedHash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return constantTimeEqual(suppliedHash, configuredHash);
