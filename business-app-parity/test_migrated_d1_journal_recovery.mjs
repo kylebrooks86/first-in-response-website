@@ -51,8 +51,25 @@ try{
   .run('synthetic-first-customer','Synthetic','2026-11-13T00:00:00Z');
  synthetic.prepare('INSERT INTO fire_customer_numbers(customer_id,created_at) VALUES (?,?)')
   .run('synthetic-first-customer','2026-11-13T00:00:00Z');
+ // Exercise actual daily FIRE work records, not only numbering table shape.
+ // All synthetic: one signed-workflow-shaped estimate, Job #0001, one paid
+ // balance, and a smaller associated refund with its required journal row.
+ synthetic.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES (?,?,'completed',3000,0,3000,1500,?)")
+  .run('synthetic-first-job','synthetic-first-customer','2026-11-13T00:01:00Z');
+ synthetic.prepare('INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES (?,?)')
+  .run('synthetic-first-job','2026-11-13T00:01:00Z');
+ synthetic.prepare('INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES (?,?)')
+  .run('synthetic-first-job',1);
+ synthetic.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?,'Balance',3000,'paid',?,?)")
+  .run('synthetic-paid','synthetic-first-job','manual:synthetic-paid','2026-11-13T00:02:00Z');
+ synthetic.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?,'Refund',-500,'paid',?,?)")
+  .run('synthetic-refund-ledger','synthetic-first-job','refund:synthetic-paid:synthetic-refund','2026-11-13T00:03:00Z');
+ synthetic.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES (?,?,?,500,'manual','succeeded',?)")
+  .run('synthetic-refund','synthetic-paid','synthetic-first-job','2026-11-13T00:03:00Z');
  okay(synthetic.prepare('SELECT customer_number AS n FROM fire_customer_numbers').get().n===1,
   'source real-numbering schema allocated Customer #0001');
+ okay(synthetic.prepare('SELECT job_number AS n FROM fire_job_numbers').get().n===1,
+  'source real-numbering schema allocated first Job #0001');
  synthetic.close();
  const archived=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
  const saved=JSON.parse(await readFile(supp,'utf8'));
@@ -71,6 +88,14 @@ try{
   'exact permanent Customer #0001 actually restored');
  okay(verified.prepare('SELECT name FROM customers').get().name==='Synthetic',
   'real customer row restored into migrated schema');
+ okay(verified.prepare("SELECT job_number AS n FROM fire_job_estimate_links WHERE estimate_id='synthetic-first-job'").get().n===1,
+  'actual job relationship preserved with Job #0001');
+ okay(verified.prepare("SELECT amount_cents AS n FROM payments WHERE id='synthetic-paid'").get().n===3000,
+  'paid synthetic $30 balance preserved exactly in cents');
+ okay(verified.prepare("SELECT amount_cents AS n FROM payments WHERE id='synthetic-refund-ledger'").get().n===-500,
+  'negative synthetic $5 refund ledger preserved exactly');
+ okay(verified.prepare("SELECT amount_cents AS n FROM payment_refunds WHERE id='synthetic-refund'").get().n===500,
+  'actual refund journal still reconciles to the negative payment entry');
  const sourceJournal=new DatabaseSync(template,{readOnly:true});
  const rows=db=>db.prepare('SELECT * FROM d1_migrations ORDER BY id').all();
  okay(JSON.stringify(rows(verified))===JSON.stringify(rows(sourceJournal)),
@@ -82,6 +107,17 @@ try{
  okay(verified.prepare('PRAGMA foreign_key_check').all().length===0,
   'recovered actual 26-migration schema has no FK violations');
  verified.close();sourceJournal.close();
+ // A successful recovery must continue issuing new permanent Job numbers,
+ // never restarting at #0001 and never replaying deleted legacy counters.
+ const resumed=new DatabaseSync(recovered);
+ resumed.exec('PRAGMA foreign_keys=ON');
+ resumed.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES (?,?,'draft',2000,0,2000,1000,?)")
+  .run('synthetic-second-job','synthetic-first-customer','2026-11-13T00:05:00Z');
+ resumed.prepare('INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES (?,?)')
+  .run('synthetic-second-job','2026-11-13T00:05:00Z');
+ okay(resumed.prepare("SELECT job_number AS n FROM fire_job_numbers WHERE root_estimate_id='synthetic-second-job'").get().n===2,
+  'after isolated restore a genuinely new estimate allocates Job #0002');
+ resumed.close();
 
  const mismatched=join(folder,'mismatched-journal-template.sqlite');
  await copyFile(template,mismatched);
