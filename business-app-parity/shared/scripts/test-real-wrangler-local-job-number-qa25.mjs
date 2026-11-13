@@ -7,6 +7,7 @@
  * feature flags. Never reuse the existing QA Wrangler config or persist dir.
  */
 import assert from 'node:assert/strict';
+import {JOB_NUMBER_FOR_ESTIMATE_SQL,JOB_REFERENCE_BY_INVOICE_SQL,COMPLETED_JOB_COUNT_SQL} from '../lib/job-numbering.mjs';
 import {spawnSync} from 'node:child_process';
 import {copyFileSync,existsSync,mkdirSync,mkdtempSync,readFileSync,readdirSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -152,6 +153,33 @@ try{
   ].join('\n'));
   call(good,['d1','execute','DB','--file',next,'--yes']);checks++;
   assert.equal(scalar(good,"SELECT job_number AS n FROM fire_job_estimate_links WHERE estimate_id='quote-08'"),8);checks++;
+
+  // New genuine numbered work and its invoice must resolve through the
+  // authoritative root, customer ownership and original immutable Job #.
+  const syntheticQuery=(sql,id)=>{assert.equal((sql.match(/\\?/g)||[]).length,1);return sql.replace('?',"'"+id+"'");};
+  assert.equal(query(good,syntheticQuery(JOB_NUMBER_FOR_ESTIMATE_SQL,'quote-08'))[0]?.jobNumber,8);
+  assert.equal(query(good,syntheticQuery(JOB_REFERENCE_BY_INVOICE_SQL,'inv-01'))[0]?.jobNumber,2);
+  assert.equal(query(good,COMPLETED_JOB_COUNT_SQL)[0]?.completedJobs,1);
+  checks+=3;
+
+  // D1 relationship FKs do not by themselves enforce same-customer ownership.
+  // A corrupted link must not disclose another customer's number or inflate
+  // the owner's completed-job counter; no real DB or customer is accessed.
+  const injected=join(good.dir,'synthetic-cross-customer-only.sql');
+  writeFileSync(injected,[
+    "INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES ('quote-cross','cust-1','completed',14000,0,14000,7000,'2026-10-13T12:00:00Z');",
+    "INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES ('quote-cross',1);",
+    "INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at) VALUES ('inv-cross','quote-cross','cust-1','sent',14000,'2026-10-13T14:00:00Z');"
+  ].join('\\n'));
+  call(good,['d1','execute','DB','--file',injected,'--yes']);checks++;
+  assert.equal(query(good,syntheticQuery(JOB_NUMBER_FOR_ESTIMATE_SQL,'quote-cross')).length,0,
+    'Wrong-owner estimate must not inherit somebody else\'s Job #');
+  assert.equal(query(good,syntheticQuery(JOB_REFERENCE_BY_INVOICE_SQL,'inv-cross')).length,0,
+    'Invoice attached through corrupt job ownership must not disclose a Job #');
+  assert.equal(query(good,COMPLETED_JOB_COUNT_SQL)[0]?.completedJobs,1,
+    'Wrong-owner completed quote may not inflate the genuine completed-job count');
+  checks+=3;
+
   const bad=context('drift-six','10000002-1111-4111-8111-000000000002');
   seed(bad,6);
   const badBefore=snapshot(bad);
