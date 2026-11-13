@@ -569,3 +569,26 @@ Next Acer step, one short *read-only* D1 list filtered by the two names, not a n
 **ACTUAL SOURCE CODE FOLLOW-ON (no provider activity):** Main-based DRAFT [PR #264](https://github.com/kylebrooks86/first-in-response-website/pull/264) changes the exact single-target manifest preparer **and** final DR/NEW LIVE pair guard to pin the newly owner-created LIVE UUID, just as existing DR UUID was pinned, and refuse every arbitrary replacement. The related unit, real CLI and independent compiled-build fixtures were updated to use real UUIDs with new negative substitutions. Exact new source HEAD `f35a462ec469695e661f0b23acb9504801153e03` at initial write; source CI result requires exact new commit workflow verification. This does NOT enable auth, set the Worker binding remotely, migrate D1, put traffic on LIVE, or prove Job #0001.
 
 **No further authorization inferred:** The owner allowed CREATE of one empty D1 only. Do NOT execute any D1 migration, INSERT, remote export POST, Worker creation/version/deploy, Cloudflare Access/PIN/secret modification, R2/paid product, Stripe, Git merge, public site edit or Sites retirement without additional specific consent. New LIVE's applied 26 migrations remain unverified/unapplied (no hosted SQL executed), Job #0001 cannot be declared physically ready. **G1/2/3/8 accepted 4/10; G4/5/6/7/9/10 OPEN, NEW LIVE NO-GO.**
+
+---
+
+## November 13 — REAL SOURCE PROGRESS: independent DR / NEW LIVE 26-migration Wrangler workspaces (NO REMOTE WRITES)
+
+Current consolidated main-based DRAFT [PR #264](https://github.com/kylebrooks86/first-in-response-website/pull/264) has **new source commit `8e3da42ee0f213a68f46b1f7bc3233b19a10e333`**, which follows actual owner-approved independent NEW LIVE D1 creation and its UUID pin in previous `f35a462` source. This is **later than PR #244**; DO NOT restart old source investigations or repeat the original owner iPhone/Work/Acer login/screenshots.
+
+**Actual changes made:** `business-app-parity/prepare_independent_d1_migration_workspace.mjs` creates a brand-new owner-local workspace with **exact 25 source-reviewed Doomsday SQL migration files plus byte-identical target-specific 26th permanent Customer #/Job # SQL**, a genuine Wrangler `migrations_dir:migrations` + `migrations_table:d1_migrations` config, source SHA-256 receipts, and explicit unapproved-provider status. It only accepts `independent-dr` or `independent-live`, hard-pins physical DR D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145` / NEW LIVE D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, refuses existing output folders and keeps existing owner Wrangler configs untouched. The paired source test `test_prepare_independent_d1_migration_workspace.mjs` is integrated into the DR/LIVE CI workflow, which tested both actual source-identical compiled targets.
+
+**Verified GitHub test:** [DR+NEW LIVE independent source build/targeted workspace workflow #43526102567](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43526102567) **BOTH JOBS SUCCESS**, exact commit `8e3da42ee0f213a68f46b1f7bc3233b19a10e333`. Other exact-head workflows may still be running; do not infer all 15 have passed from this result.
+
+**Provider reality remains unchanged:** Separate actual Cloudflare D1 identities exist; no new provider operation, remote SQL, database migration, hosting binding, new DR/LIVE Worker version, test payment, off-device complete protected photo+record recovery or release acceptance occurred. The D1 CREATE approval was already consumed. Never run `d1 migrations apply`, `d1 execute` writes, `d1 create`, `workers deploy`, Access/Stripe writes, R2 subscription, Git merge, public website publishing or Sites retirement without new action-specific owner consent. **G1/G2/G3/G8 accepted = 4/10, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO.**
+
+**Smallest next NEW physical Gate5 evidence, if owner uses existing signed-in Acer:** the following is **read-only SQL schema inventory**, deliberately NOT a migration or backup. One grouped PowerShell 5.1 block uses `npx.cmd` (avoids blocked PowerShell npm.ps1 wrapper). It queries physical DR and NEW LIVE separately, once, without outputting secrets or rows:
+
+```powershell
+foreach ($db in @('fire-fullapp-dr-db', 'fire-fullapp-new-live-db')) {
+  Write-Host "READ-ONLY SCHEMA $db"
+  npx.cmd wrangler d1 execute $db --remote --command "SELECT COUNT(*) AS application_tables FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';" --json
+}
+```
+
+Preserve the actual returned result or error. An empty schema can be distinguished from Cloudflare `d1 info` metadata, but the command **does not show data-row emptiness, 26-migration application, resource-to-Worker binding or Gate5 approval**. Never auto-run this command from GitHub/chat and never treat it as consent to migrate either DB. Once physical schema state is known, request separate narrow owner consent before first 26-migration application, and preserve first NEW LIVE Job #0001.
