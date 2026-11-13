@@ -9,6 +9,7 @@ import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,r
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
+import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
 
 type Preview={photo:OfflinePhoto;url:string};
 export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,legacyCloudPhotoCount=0,onPhotoCountChange}:{customerId:string;customerName:string;knownCustomerIds:string[];legacyCloudPhotoCount?:number;onPhotoCountChange?:(customerId:string,count:number)=>void}){
@@ -16,6 +17,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
  const [preparedBackup,setPreparedBackup]=useState<File|null>(null);
+ const [backupPassphrase,setBackupPassphrase]=useState('');
+ const [confirmBackupPassphrase,setConfirmBackupPassphrase]=useState('');
  const [category,setCategory]=useState<'before'|'after'|'property'>('before'),[caption,setCaption]=useState('');
  const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
  const cameraRef=useRef<HTMLInputElement>(null),libraryRef=useRef<HTMLInputElement>(null),restoreRef=useRef<HTMLInputElement>(null),verifyRef=useRef<HTMLInputElement>(null);
@@ -104,14 +107,21 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  // a ZIP first and THEN trying to share after awaits loses that gesture.
  // Step 1 prepares/verifies asynchronously; step 2 opens sharing immediately
  // inside a new actual button click, before the first await.
- const prepareArchive=async(scope:'all'|'customer')=>{
+ const prepareArchive=async(scope:'all'|'customer',protectedFile=true)=>{
   if(active.current)return;active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
+   // Keep the verified legacy ZIP import/export while making the default new backup private.
+   if(protectedFile&&backupPassphrase!==confirmBackupPassphrase)
+    throw Error('Recovery passphrases do not match. Re-enter both before creating a protected backup.');
    const zip=await exportLocalPhotos(scope==='customer'?customerId:undefined);
-   const filename='FIRE-'+(scope==='customer'?'customer-'+customerId:'all')+'-photos-'+new Date().toISOString().slice(0,10)+'.zip';
-   const file=new File([zip],filename,{type:'application/zip'});
-   setPreparedBackup(file);
-   setMessage((scope==='customer'?'Customer':'All-photos')+' ZIP is ready. Save to Files, then verify the saved ZIP.');
+   const payload=protectedFile?await protectOfflinePhotoZip(zip,backupPassphrase):zip;
+   const filename='FIRE-'+(scope==='customer'?'customer-'+customerId:'all')+'-photos-'+
+    new Date().toISOString().slice(0,10)+(protectedFile?'.firephotos':'.zip');
+   setPreparedBackup(new File([payload],filename,{type:protectedFile?'application/octet-stream':'application/zip'}));
+   if(protectedFile){
+    setBackupPassphrase('');setConfirmBackupPassphrase('');
+    setMessage('Protected photo backup ready. Save it to Files or a separate private location, then RE-ENTER your passphrase to verify the SAVED file. FIRE cannot recover a forgotten passphrase.');
+   }else setMessage('Legacy UNENCRYPTED ZIP ready. This copy is not private or protected. Save and verify before relying on it.');
   }catch(err){setError(err instanceof Error?err.message:'Photo archive was not created.');}
   finally{active.current=false;setBusy(false);}
  };
