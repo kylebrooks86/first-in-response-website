@@ -72,6 +72,8 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...opts,databaseId:'8ccfb1f8-1657-4074-b1b2-47de78f95003'});
  reject(manifest,{...opts,databaseId:'afb2c05a-d794-4a9a-b580-924ce01c26ad'});
  reject(manifest,{...opts,databaseId:'dba421ba-fc66-4cf8-9c31-51616f8249ba'});
+ if(target==='independent-live')
+  reject(manifest,{...opts,databaseId:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'});
  reject(manifest,{...opts,databaseId:uuid,otherReleaseDatabaseId:uuid});
  reject(manifest,{...opts,bucketName:'fire-fullapp-qa-photos-20261023'});
  reject(manifest,{...opts,bucketName:bucket});
@@ -128,6 +130,13 @@ const sample=(target,id)=> {
   resourceAttestation:'owner-checked-'+target,enableAuth:false
  });
 };
+// The owner-recorded DR UUID is eligible only for an inert DR review,
+// never for a NEW LIVE candidate. This is source validation, not D1 attestation.
+const ownerDr=sample('independent-dr','5e55c5b7-cd67-4c8f-a52e-40f71b5d3145');
+check(()=>assert.equal(ownerDr.config.d1_databases[0].database_name,'fire-fullapp-dr-db'),
+ 'owner DR UUID remains bound to the DR database name');
+check(()=>assert.equal(ownerDr.config.vars.FIRE_DR_AUTH_ENABLED,'blocked'),
+ 'owner DR UUID review cannot activate DR login');
 const simulatedDr=sample('independent-dr','54a5e470-2ae3-471b-a2db-ea8bdf092513');
 const simulatedLive=sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092514');
 const pair=reviewIndependentReleasePair(simulatedDr,simulatedLive);
