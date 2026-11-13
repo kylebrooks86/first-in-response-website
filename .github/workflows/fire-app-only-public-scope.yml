@@ -73,6 +73,9 @@ jobs:
             fi
           done
           # Four exact PR173 verifier blobs and THREE reviewed Gate7/Gate9 CI workflow blobs are pinned exceptions.
+          # The Gate7 legacy workflow pin below is the exact separately-tested
+          # 2026-11-12 immutable blob including private-file negative checks;
+          # all other verifier and protected website blobs remain unchanged.
           # Real public pages, assets, calculator and unrelated paths remain protected.
           reviewed_paths=(
             verify-site.mjs verify-site-ci.mjs ci/test-site-verifier-scope.mjs
@@ -88,7 +91,7 @@ jobs:
             6c9aab68423963fa85a5b295ce4c1a16f676a7da
             0be8fac63f391d5526f54823f0e641951b134116
             0e9f192d377226d65639324c09b037b5080cbea6
-            5a0d5b3fedfefb06d3ac158b4aad502fa8be65c8
+            b290edbc2ae4d2134d5eecb5dc79b04b92235ae8
           )
           for i in "${!reviewed_paths[@]}"; do
             file="${reviewed_paths[$i]}"
