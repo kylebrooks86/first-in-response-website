@@ -58,14 +58,16 @@ export function compileEmptyIsolatedNumberedRestore(snapshot,schemaColumns,empty
  // A blank, correctly provisioned AUTOINCREMENT table can have no sequence
  // row until its first insert. Explicitly initialize the sequence identity
  // rather than assuming an existing row, including zero-record releases.
- sql.push("INSERT OR IGNORE INTO sqlite_sequence(name,seq) VALUES ('fire_customer_numbers',0);");
- sql.push("INSERT OR IGNORE INTO sqlite_sequence(name,seq) VALUES ('fire_job_numbers',0);");
+ sql.push("INSERT INTO sqlite_sequence(name,seq) SELECT 'fire_customer_numbers',0 WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='fire_customer_numbers');");
+ sql.push("INSERT INTO sqlite_sequence(name,seq) SELECT 'fire_job_numbers',0 WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='fire_job_numbers');");
  sql.push("UPDATE sqlite_sequence SET seq="+literal(snapshot.highWater.customer)+
   " WHERE name='fire_customer_numbers';");
  sql.push('INSERT INTO temp.__fire_restore_assert(ok) VALUES (CASE WHEN changes()=1 THEN 1 ELSE 0 END);');
  sql.push("UPDATE sqlite_sequence SET seq="+literal(snapshot.highWater.job)+
   " WHERE name='fire_job_numbers';");
  sql.push('INSERT INTO temp.__fire_restore_assert(ok) VALUES (CASE WHEN changes()=1 THEN 1 ELSE 0 END);');
+ sql.push("INSERT INTO temp.__fire_restore_assert(ok) SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM sqlite_sequence WHERE name='fire_customer_numbers';");
+ sql.push("INSERT INTO temp.__fire_restore_assert(ok) SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM sqlite_sequence WHERE name='fire_job_numbers';");
  sql.push('DROP TABLE temp.__fire_restore_assert;');
  sql.push('COMMIT;');
  return Object.freeze({sql:sql.join('\n')+'\n',sourceRows:rows,
