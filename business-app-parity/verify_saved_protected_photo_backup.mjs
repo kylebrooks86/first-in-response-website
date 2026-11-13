@@ -45,7 +45,7 @@ function validPhoto(p){
   typeof p.createdAt==='string'&&Number.isFinite(Date.parse(p.createdAt))&&
   typeof p.sha256==='string'&&/^[a-f0-9]{64}$/.test(p.sha256);
 }
-export function inspectStoredFirePhotoZip(zip){
+export function inspectStoredFirePhotoZip(zip,{includePhotoInventory=false,includeVerifiedPhotoItems=false}={}){
  if(!Buffer.isBuffer(zip)||zip.length<=22||zip.length>MAX_ARCHIVE)
   fail('unsupported decrypted ZIP size');
  // FIRE's v1 ZIP writer produces an exact no-comment, one-disk archive.
@@ -72,13 +72,17 @@ export function inspectStoredFirePhotoZip(zip){
   if((name!=='manifest.json'&&!/^photos\/[a-zA-Z0-9_-]{1,90}$/.test(name))||entries.has(name))
    fail('unknown, unsafe or duplicate ZIP entry');
   if(local!==localExpected||local+30>dir||zip.readUInt32LE(local)!==0x04034b50||
+     zip.readUInt16LE(local+4)!==20||
+     zip.readUInt16LE(local+10)!==zip.readUInt16LE(p+12)||
+     zip.readUInt16LE(local+12)!==zip.readUInt16LE(p+14)||
      zip.readUInt16LE(local+6)!==flags||zip.readUInt16LE(local+8)!==0||
      zip.readUInt16LE(local+26)!==nameLength||zip.readUInt16LE(local+28)!==0||
      zip.readUInt32LE(local+14)!==0||zip.readUInt32LE(local+18)!==0||
      zip.readUInt32LE(local+22)!==0)
    fail('ZIP local file or metadata does not match its central directory');
   const nameAt=local+30,start=nameAt+nameLength,descriptor=start+size;
-  if(decoder.decode(zip.subarray(nameAt,nameAt+nameLength))!==name||
+  if(start>dir||descriptor>dir-16||
+     decoder.decode(zip.subarray(nameAt,nameAt+nameLength))!==name||
      descriptor+16>dir||zip.readUInt32LE(descriptor)!==0x08074b50||
      zip.readUInt32LE(descriptor+4)!==crc||
      zip.readUInt32LE(descriptor+8)!==size||
@@ -96,7 +100,10 @@ export function inspectStoredFirePhotoZip(zip){
  let manifest;
  try{manifest=JSON.parse(decoder.decode(entries.get('manifest.json')));}
  catch{fail('photo manifest JSON cannot be decoded');}
- if(!manifest||manifest.format!=='fire-offline-photo-vault'||manifest.version!==1||
+ if(!manifest||typeof manifest!=='object'||Array.isArray(manifest)||
+    Object.keys(manifest).sort().join(',')!=='exportedAt,format,photos,requiresMatchingCustomerRecords,version'||
+    typeof manifest.exportedAt!=='string'||!Number.isFinite(Date.parse(manifest.exportedAt))||
+    manifest.format!=='fire-offline-photo-vault'||manifest.version!==1||
     manifest.requiresMatchingCustomerRecords!==true||!Array.isArray(manifest.photos)||
     manifest.photos.length!==count-1||manifest.photos.length>MAX_PHOTOS)
   fail('unsupported photo manifest, incomplete inventory or missing relationship declaration');
@@ -118,6 +125,13 @@ export function inspectStoredFirePhotoZip(zip){
   archiveFormat:'fire-offline-photo-vault',version:1,
   allFilesCryptographicallyVerified:true,
   photoCount:manifest.photos.length,distinctCustomerIds:customers.size,
+  // Exact manifest inventory lets offline recovery reject missing customer
+  // relationships without extracting any photo bytes to disk.
+  ...(includePhotoInventory?{photoInventory:Object.freeze(manifest.photos.map(item=>Object.freeze({...item})))}:{}),
+  // Only requested by the paired saved-record/photo auditor, after CRC and
+  // original SHA-256 verification of EVERY byte; never written to disk.
+  ...(includeVerifiedPhotoItems?{verifiedPhotoItems:Object.freeze(manifest.photos.map(item=>
+    Object.freeze({...item,blob:new Blob([entries.get('photos/'+item.id)],{type:item.contentType})})))}:{}),
   totalOriginalPhotoBytes:photoBytes,verifiedZipSha256:sha(zip)
  });
 }

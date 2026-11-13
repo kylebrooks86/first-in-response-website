@@ -61,8 +61,15 @@ export async function GET(request:Request) {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  let uncertainOperation:{id:string;customerId:string;estimateId:string;channel:string;template:string;body:string}|null=null;
   try {
-    const value = await request.json() as Record<string, unknown>;
+    let value:Record<string,unknown>;
+    try{
+      const parsed:unknown=await request.json();
+      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+        return Response.json({error:'Enter a valid customer message.'},{status:400});
+      value=parsed as Record<string,unknown>;
+    }catch{return Response.json({error:'Enter a valid customer message.'},{status:400});}
     const customerId = String(value.customerId ?? "").trim();
     const estimateId = String(value.estimateId ?? "").trim();
     const channel = String(value.channel ?? "").trim();
@@ -76,6 +83,7 @@ export async function POST(request: Request) {
       !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))
       return Response.json({error:"Invalid message preparation request identifier."},{status:400});
     const stableId=typeof requestId==="string"?"owner-message-prep:"+requestId:null;
+    if(stableId)uncertainOperation={id:stableId,customerId,estimateId,channel,template,body};
     const matches=(row:{customerId:string;estimateId:string|null;channel:string;template:string;body:string})=>
       row.customerId===customerId&&(row.estimateId??"")===(estimateId||"")&&row.channel===channel&&row.template===template&&row.body===body;
     const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(customerId).first<{id:string}>();
@@ -146,15 +154,47 @@ export async function POST(request: Request) {
     if(!matches(saved))return Response.json({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
     return Response.json({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
   } catch {
-    return Response.json({ error: "We couldn't save this communication." }, { status: 500 });
+    // D1 can commit a prepared handoff before its acknowledgement is lost.
+    // Recover only the EXACT saved operation, never infer an SMS/email send.
+    // Review invitations need fresh payment eligibility, so do not turn an
+    // old recovered draft into a newly authorized review handoff here.
+    if(uncertainOperation&&uncertainOperation.template!=='review'){
+      const op=uncertainOperation;
+      try{
+        const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
+          .bind(op.id,op.customerId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
+        if(saved){
+          if(saved.customerId!==op.customerId||(saved.estimateId??'')!==op.estimateId||
+             saved.channel!==op.channel||saved.template!==op.template||saved.body!==op.body)
+            return Response.json({error:'This preparation identifier belongs to different saved content. No handoff was started.'},
+              {status:409,headers:{"Cache-Control":"no-store, private"}});
+          const terminal=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
+            .bind(op.id+':owner-confirmed',op.id+':owner-cancelled').first();
+          if(terminal)return Response.json({error:'This prepared message was already confirmed or discarded. Reopen its history; no new handoff was started.'},
+            {status:409,headers:{"Cache-Control":"no-store, private"}});
+          return Response.json({message:saved,duplicate:true,recoveredAfterUncertainPreparation:true,
+            deliveryConfirmed:false},{status:200,headers:{"Cache-Control":"no-store, private"}});
+        }
+      }catch{/* No authoritative readback means no asserted save or delivery. */}
+    }
+    return Response.json({error:"Message preparation could not be confirmed. Reopen the saved drafts before retrying.",
+      saveUncertain:true,requestId:uncertainOperation?.id??null,deliveryConfirmed:false},
+      {status:503,headers:{"Cache-Control":"no-store, private"}});
   }
 }
 
 // Confirmation appends evidence; preparation and legacy history stay immutable.
 export async function PATCH(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  let confirmationOperation:{id:string;customerId:string;channel:string;cancelled:boolean;preparedId:string;estimateId:string|null;template:string;body:string}|null=null;
   try {
-    const value=await request.json() as Record<string,unknown>;
+    let value:Record<string,unknown>;
+    try{
+      const parsed:unknown=await request.json();
+      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+        return Response.json({error:'Enter a valid send confirmation.'},{status:400});
+      value=parsed as Record<string,unknown>;
+    }catch{return Response.json({error:'Enter a valid send confirmation.'},{status:400});}
     const id=String(value.preparedMessageId??"").trim();
     const customerId=String(value.customerId??"").trim();
     const confirmed=value.ownerConfirmedSent===true, cancelled=value.ownerConfirmedNotSent===true;
@@ -164,6 +204,7 @@ export async function PATCH(request: Request) {
     const confirmedId=prepared.id+":owner-confirmed";
     const cancelledId=prepared.id+":owner-cancelled";
     const channel=prepared.channel==="text_prepared"?"text_confirmed":"email_confirmed";
+    confirmationOperation={id:cancelled?cancelledId:confirmedId,customerId,channel:cancelled?'send_cancelled':channel,cancelled,preparedId:prepared.id,estimateId:prepared.estimateId,template:prepared.template,body:prepared.body};
     const createdAt=new Date().toISOString();
     if(cancelled){
       // Never delete the prepared message. Its cancellation is a separate,
@@ -175,7 +216,9 @@ export async function PATCH(request: Request) {
         .bind(cancelledId,createdAt,prepared.id,customerId,confirmedId).run();
       const receipt=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
       if(!receipt)return Response.json({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
-      return Response.json({message:receipt,cancelled:true});
+      return Response.json({message:receipt,cancelled:true,ownerConfirmedSent:false,
+        deliveryConfirmed:false,confirmationSource:'owner'},
+        {headers:{"Cache-Control":"no-store, private"}});
     }
     const alreadyCancelled=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
     if(alreadyCancelled)return Response.json({error:"This draft was marked not sent. A later confirmation cannot change its history."},{status:409});
@@ -186,6 +229,42 @@ export async function PATCH(request: Request) {
     const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
     if(!message)return Response.json({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
     const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
-    return Response.json({message,estimateStatus:estimate?.status});
-  }catch{return Response.json({error:"Send confirmation could not be saved. No delivery is claimed."},{status:500});}
+    return Response.json({message,estimateStatus:estimate?.status,ownerConfirmedSent:true,
+      deliveryConfirmed:false,confirmationSource:'owner'},
+      {headers:{"Cache-Control":"no-store, private"}});
+  }catch{
+    // Owner's explicit send/not-sent decision may have committed before the
+    // D1 response failed. Read back its exact immutable evidence event.
+    const op=confirmationOperation;
+    if(op){
+      try{
+        const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel=? LIMIT 1")
+          .bind(op.id,op.customerId,op.channel).first();
+        if(message){
+          const receipt=message as {id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string};
+          const expectedBody=op.cancelled?'Owner confirmed this prepared message was not sent.':op.body;
+          if(receipt.customerId!==op.customerId||(receipt.estimateId??'')!==(op.estimateId??'')||
+             receipt.channel!==op.channel||receipt.template!==op.template||receipt.body!==expectedBody||
+             typeof receipt.createdAt!=='string'||!Number.isFinite(Date.parse(receipt.createdAt)))
+            return Response.json({error:'Saved send decision does not match this prepared message. Review message history.',
+              saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+          const otherId=op.id.replace(/:(owner-confirmed|owner-cancelled)$/,op.cancelled?':owner-confirmed':':owner-cancelled');
+          const conflicting=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
+            .bind(otherId,op.customerId).first();
+          if(conflicting)return Response.json({error:'Conflicting send decisions require manual review.',
+            saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+          const estimate=op.estimateId&&!op.cancelled?
+            await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
+              .bind(op.estimateId,op.customerId).first<{status:string}>():null;
+          return Response.json({message:receipt,cancelled:op.cancelled,
+            ...(estimate?{estimateStatus:estimate.status}:{}),
+            recoveredAfterUncertainConfirmation:true,ownerConfirmedSent:!op.cancelled,
+            deliveryConfirmed:false,confirmationSource:'owner'},
+            {headers:{"Cache-Control":"no-store, private"}});
+        }
+      }catch{/* No authoritative evidence; never infer delivery. */}
+    }
+    return Response.json({error:"Send confirmation could not be verified. Reopen the saved message history; no delivery is inferred.",
+      saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+  }
 }

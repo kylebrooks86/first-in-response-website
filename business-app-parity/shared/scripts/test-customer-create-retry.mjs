@@ -15,6 +15,16 @@ const get=id=>confirmation.GET(new Request('https://synthetic.invalid/api/custom
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
 const original={requestId:randomUUID(),name:'Synthetic Name Only',email:'',phone:'',address:'',leadSource:'Referral'};
 try{
+ // Actual POST must refuse a NEW LIVE customer if the permanent
+ // Customer # schema was not explicitly approved, even on an empty DB.
+ env.FIRE_NEW_LIVE_CLEAN_START='required';
+ const preGuardWrites=writes;
+ const unnumbered=await post(original);
+ eq(unnumbered.status,503);
+ eq((await unnumbered.json()).error,'NEW LIVE customer numbering is not enabled. No customer was created.');
+ eq(writes,preGuardWrites);
+ eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,0);
+ delete env.FIRE_NEW_LIVE_CLEAN_START;
  owner=null;eq((await get(original.requestId)).status,401);eq((await post(original)).status,401);owner={email:'other@example.invalid'};eq((await get(original.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
  for(const requestId of ['bad',null,42,'A'.repeat(36)])eq((await post({...original,requestId})).status,400);
  eq((await get('bad')).status,400);let response=await get(original.requestId);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
@@ -43,7 +53,13 @@ try{
    eq(writes,beforeWrites);
   }
  }
- failAfterInsert=true;eq((await post(original)).status,500);let receipt=await (await get(original.requestId)).json();const customer=confirmedCreatedCustomer(receipt,original.requestId);assert.ok(customer);checks++;eq(customer.name,original.name);eq(customer.estimateCount,0);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
+ failAfterInsert=true;const recovered=await post(original);
+ eq(recovered.status,200);
+ const recoveredBody=await recovered.json();
+ eq(recoveredBody.recoveredAfterUncertainSave,true);
+ eq(recoveredBody.duplicate,true);
+ eq(recoveredBody.customer.id,original.requestId);
+ let receipt=await (await get(original.requestId)).json();const customer=confirmedCreatedCustomer(receipt,original.requestId);assert.ok(customer);checks++;eq(customer.name,original.name);eq(customer.estimateCount,0);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
  const snapshot=JSON.stringify(db.prepare('SELECT * FROM customers').all());response=await post(original);eq(response.status,200);eq((await response.json()).customer.id,original.requestId);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
  for(const field of ['name','email','phone','address','leadSource'])eq((await post({...original,[field]:'Different '+field})).status,409);eq(JSON.stringify(db.prepare('SELECT * FROM customers').all()),snapshot);
  // Replays use current authoritative history counts, not invented zero totals.

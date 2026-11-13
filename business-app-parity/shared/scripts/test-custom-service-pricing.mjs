@@ -23,6 +23,19 @@ try{
  response=await r.put({id:'deck',rateCents:45,details,expectedRevision:deck.revision});eq(response.status,200);deck=(await response.json()).rate;
  eq(deck.details,details);eq(history(),before,'Metadata does not rewrite accepted documents');
  response=await r.put({id:'deck',rateCents:46,expectedRevision:deck.revision});eq(response.status,200);deck=(await response.json()).rate;eq(deck.details,details,'Rate-only save preserves name/unit');
+ // Actual SQLite commit followed by lost response: recover exact revision.
+ r.loseNextWriteAck();
+ response=await r.put({id:'deck',rateCents:47,expectedRevision:deck.revision});
+ eq(response.status,200,'Lost D1 ACK recovers committed price');
+ const recoveredPrice=await response.json();
+ eq(recoveredPrice.recoveredAfterUncertainSave,true,'Recovery explicitly reported');
+ eq(recoveredPrice.rate.rateCents,47,'Recovered cents match actual write');
+ eq(recoveredPrice.rate.revision,(await r.get()).data.rates.find(s=>s.id==='deck').revision,
+   'Recovered revision matches persisted price');
+ deck=recoveredPrice.rate;
+ response=await r.put({id:'deck',rateCents:46,expectedRevision:deck.revision});
+ eq(response.status,200);
+ deck=(await response.json()).rate;
  const unchanged=r.counters().writes;eq((await r.put({id:'deck',rateCents:46,details,expectedRevision:null})).status,200);eq(r.counters().writes,unchanged,'Exact lost-response retry is read-only');
  eq((await r.put({id:'deck',rateCents:46,details:{...details,name:'Stale change'},expectedRevision:null})).status,409,'Metadata needs the current revision');
  for(const invalid of [{...details,name:''},{...details,unit:'acre'},{...details,active:'false'},{...details,category:'automatic'},{...details,extra:1}])eq((await r.put({id:'deck',rateCents:46,details:invalid,expectedRevision:deck.revision})).status,400);

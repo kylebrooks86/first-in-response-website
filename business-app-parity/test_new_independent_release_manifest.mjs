@@ -34,10 +34,25 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  check(()=>assert.equal(pass.evidence.remoteOperationAttempted,false),'pure source');
  check(()=>assert.equal(manifest.d1_databases[0].database_id,PLACEHOLDER),'source never mutated');
  const numberApproval=target==='independent-live'
-  ?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'}
+  ?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1',
+    customerNumbersSchemaAttestation:'owner-verified-independent-live-customer-numbers-empty-v1'}
   :{jobNumbersSchemaAttestation:'owner-verified-independent-dr-job-numbers-v1'};
  const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth',...numberApproval});
  check(()=>assert.equal(allowed.config.vars[prefix+'_AUTH_ENABLED'],'owner-approved'),'explicit independent auth approval');
+ if(target==='independent-live'){
+  check(()=>assert.equal(allowed.config.vars.FIRE_CUSTOMER_NUMBERS_CANDIDATE,'owner-approved-schema-v1'),
+   'NEW LIVE login requires permanent customer numbering');
+  check(()=>assert.equal(allowed.config.vars.FIRE_NEW_LIVE_CLEAN_START,'required'),
+   'NEW LIVE first Job # guard must be enabled in approved manifest');
+  check(()=>assert.equal(pass.config.vars.FIRE_NEW_LIVE_CLEAN_START,undefined),
+   'inert NEW LIVE manifest remains inert');
+  rejectMissingCustomerNumbers: {
+   const bad={...opts,enableAuth:true,authAttestation:'owner-approved-independent-live-auth',
+    jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'};
+   assert.throws(()=>prepareReviewedIndependentManifest(target,manifest,bad),/Customer #/);
+  }
+ }
+
 
  const quickOpts={...opts,enableAuth:true,
   authAttestation:'owner-approved-'+target+'-auth',
@@ -72,6 +87,8 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...opts,databaseId:'8ccfb1f8-1657-4074-b1b2-47de78f95003'});
  reject(manifest,{...opts,databaseId:'afb2c05a-d794-4a9a-b580-924ce01c26ad'});
  reject(manifest,{...opts,databaseId:'dba421ba-fc66-4cf8-9c31-51616f8249ba'});
+ if(target==='independent-live')
+  reject(manifest,{...opts,databaseId:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'});
  reject(manifest,{...opts,databaseId:uuid,otherReleaseDatabaseId:uuid});
  reject(manifest,{...opts,bucketName:'fire-fullapp-qa-photos-20261023'});
  reject(manifest,{...opts,bucketName:bucket});
@@ -128,6 +145,13 @@ const sample=(target,id)=> {
   resourceAttestation:'owner-checked-'+target,enableAuth:false
  });
 };
+// The owner-recorded DR UUID is eligible only for an inert DR review,
+// never for a NEW LIVE candidate. This is source validation, not D1 attestation.
+const ownerDr=sample('independent-dr','5e55c5b7-cd67-4c8f-a52e-40f71b5d3145');
+check(()=>assert.equal(ownerDr.config.d1_databases[0].database_name,'fire-fullapp-dr-db'),
+ 'owner DR UUID remains bound to the DR database name');
+check(()=>assert.equal(ownerDr.config.vars.FIRE_DR_AUTH_ENABLED,'blocked'),
+ 'owner DR UUID review cannot activate DR login');
 const simulatedDr=sample('independent-dr','54a5e470-2ae3-471b-a2db-ea8bdf092513');
 const simulatedLive=sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092514');
 const pair=reviewIndependentReleasePair(simulatedDr,simulatedLive);
@@ -140,6 +164,10 @@ const pairReject=(dr,live,description)=>check(()=>assert.throws(
  ()=>reviewIndependentReleasePair(dr,live),/BLOCKED/,description),description);
 pairReject(simulatedDr,sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092513'),
  'two valid target manifests sharing one D1 must STOP');
+pairReject(ownerDr,{...simulatedLive,config:{...simulatedLive.config,
+ d1_databases:[{...simulatedLive.config.d1_databases[0],
+ database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'}]}},
+ 'pair review must reject owner DR D1 forged into NEW LIVE even when identities match');
 pairReject(simulatedLive,simulatedDr,'swapped target manifests must STOP');
 pairReject(simulatedDr,undefined,'missing NEW LIVE manifest must STOP');
 pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
@@ -153,6 +181,20 @@ pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
 pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
  vars:{...simulatedLive.config.vars,FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'}}},
  'auth enabled without permanent Job schema must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ routes:[{pattern:'*/*'}]}},'forged Worker route must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ vars:{...simulatedLive.config.vars,FIRE_QUICK_AUTH_MODE:'passkey-or-pin-v1'}}},
+ 'unapproved quick authentication flag must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ vars:{...simulatedLive.config.vars,FIRE_BYPASS_AUTH:'true'}}},
+ 'unexpected authentication override variable must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ secrets:{...simulatedLive.config.secrets,extra:['unreviewed']}}},
+ 'unexpected secret metadata must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ account_id:'unreviewed-cloudflare-account'}},
+ 'unreviewed Cloudflare account binding must STOP');
 pairReject(simulatedDr,{...simulatedLive,evidence:{...simulatedLive.evidence,
  isolatedPhotoRestoreVerified:true}},'fabricated photo restore acceptance must STOP');
 pairReject(simulatedDr,{...simulatedLive,evidence:{...simulatedLive.evidence,

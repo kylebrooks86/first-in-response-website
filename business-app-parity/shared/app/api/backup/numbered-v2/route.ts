@@ -35,7 +35,7 @@ export async function GET(){
    recoveryAuthorized:false,
    photoBytesIncluded:false,
    offDeviceCustodyVerified:false,
-   warning:'CORE DATABASE RECORDS ONLY. This is NOT a complete FIRE app backup or restore point. Obtain independently verified R2 and device-local photo archives, provider database identity, all activated schemas and an owner-approved isolated restore before activation.',
+   warning:'CORE DATABASE RECORDS ONLY. This is NOT a complete FIRE app backup or restore point. Pair this review file with an independently saved encrypted owner-device .firephotos archive. Verify all active schemas, provider database identity, off-device custody and an owner-approved isolated restore before activation. No R2 subscription or paid Cloudflare service is authorized.',
    coreSnapshot
   },{
    status:200,

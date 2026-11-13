@@ -1,3 +1,4 @@
+import {verifyNewLiveFirstJobState,NEW_LIVE_CLEAN_START_FLAG} from "../../../lib/new-live-clean-start.mjs";
 import {QUOTE_REVISION_PREFIX,readQuoteRevisionSource,quoteRevisionAllowed,supersedeQuoteStatement} from '../../../lib/quote-revisions';
 import {submittedDiscountCents, quoteDiscounts, discountSnapshot, readDiscountSnapshot, DISCOUNT_SNAPSHOT_PREFIX} from '../../../lib/discount-input';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions} from '../../../lib/saved-promotions';
@@ -198,6 +199,19 @@ export async function POST(request: Request) {
         const sourceNumber=await env.DB.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(revisionSource.id).first<{jobNumber:number}>();
         if(!jobNumberLabel(sourceNumber?.jobNumber))
           return Response.json({error:'Original Job # not verified. No replacement quote was created.'},{status:409});
+      }
+    }
+    // Optional strict NEW LIVE clean-start policy: refuse legacy or QA
+    // serials, including deleted-row high-water, before first real Job #.
+    if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START===NEW_LIVE_CLEAN_START_FLAG){
+      if(!jobNumberFlag||!customerNumberFlag)
+        return Response.json({error:'NEW LIVE requires both permanent Customer # and Job # before accepting estimates.'},
+          {status:503,headers:{'Cache-Control':'no-store, private'}});
+      try{
+        await verifyNewLiveFirstJobState(env.DB);
+      }catch{
+        return Response.json({error:'NEW LIVE clean-start history could not be verified. No estimate was created.'},
+          {status:503,headers:{'Cache-Control':'no-store, private'}});
       }
     }
     // Allocate real immutable IDs before the atomic D1 batch, never after

@@ -16,6 +16,9 @@ const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
 // The QA-master on-device customer photo vault and verified owner-saved ZIP
 // are a source-only candidate, not evidence of off-device custody or restore.
 const PHOTO_MODE='owner-device-zip';
+// Owner-supplied DR D1 binding identity (Nov 13). A NEW LIVE candidate must
+// never silently reuse this DR resource. This does not attest provider state.
+const OWNER_RECORDED_DR_D1='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145';
 const RESERVED_D1=new Set([
  PLACEHOLDER,
  '8ccfb1f8-1657-4074-b1b2-47de78f95003', // NEW QA
@@ -64,6 +67,7 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
    !empty(original.r2_buckets))fail('source has non-placeholder database or unexpected R2 binding');
  const uuid=options.databaseId;
  if(!validUuid(uuid)||RESERVED_D1.has(uuid)||
+    (target==='independent-live'&&uuid===OWNER_RECORDED_DR_D1)||
     (options.otherReleaseDatabaseId&&uuid===options.otherReleaseDatabaseId))
   fail('database must be a new independent, owner-verified physical D1 UUID');
  if(options.photoStorageMode!==PHOTO_MODE||options.bucketName!==undefined)
@@ -81,6 +85,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(target==='independent-live'&&enabled&&
    options.jobNumbersSchemaAttestation!=='owner-verified-independent-live-job-numbers-empty-v1')
   fail('NEW LIVE login requires verified permanent Job # schema and clean #0001 start');
+ if(target==='independent-live'&&enabled&&
+   options.customerNumbersSchemaAttestation!=='owner-verified-independent-live-customer-numbers-empty-v1')
+  fail('NEW LIVE login requires separately verified permanent Customer # schema and complete identity coverage');
+ if(target==='independent-live'&&!enabled&&options.customerNumbersSchemaAttestation!==undefined)
+  fail('NEW LIVE customer-number attestation cannot activate an inert manifest');
  const drNumbers=target==='independent-dr'&&
    options.jobNumbersSchemaAttestation==='owner-verified-independent-dr-job-numbers-v1';
  if(target==='independent-dr'&&options.jobNumbersSchemaAttestation!==undefined&&
@@ -119,6 +128,12 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
   [spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
  if(jobNumbersPrepared)
   updated.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ if(target==='independent-live'&&enabled){
+  // This matches the actual owner app's first-job route guard. An auth-ready
+  // manifest must not quietly omit the customer serials required by the app.
+  updated.vars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+  updated.vars.FIRE_NEW_LIVE_CLEAN_START='required';
+ }
  if(quick){
   updated.vars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
   updated.vars.FIRE_ACCESS_TEAM_DOMAIN=options.accessTeamDomain;
@@ -177,9 +192,48 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
      config.d1_databases[0]?.binding!=='DB'||
      config.d1_databases[0]?.database_name!==spec.db)
    failPair('incorrect target, origin or D1 binding identity');
+  // A paired review is a release boundary, not merely a database-name check.
+  // Reject a forged route, extra flag, secret or provider binding even if the
+  // caller bypassed the single-target manifest preparation function.
+  if(config.env||config.zone_id||config.account_id||
+     !empty(config.routes)||!empty(config.route)||!empty(config.triggers)||
+     !empty(config.secrets?.extra)||
+     !exact(Object.keys(config.secrets||{}).sort(),['required']))
+   failPair('unexpected route, provider identity or secret metadata');
+  const authValue=config.vars?.[spec.prefix+'_AUTH_ENABLED'];
+  const allowedVars={
+   FIRE_ENV:spec.fireEnv,SITE_ORIGIN:spec.origin,
+   FIRE_PHOTO_STORAGE_MODE:PHOTO_MODE,
+   [spec.prefix+'_AUTH_ENABLED']:authValue
+  };
+  if(authValue==='owner-approved'){
+   allowedVars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+   if(target==='independent-live'){
+    allowedVars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+    allowedVars.FIRE_NEW_LIVE_CLEAN_START='required';
+   }
+  }
+  if(config.vars?.FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1'){
+   allowedVars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
+   allowedVars.FIRE_ACCESS_TEAM_DOMAIN=config.vars.FIRE_ACCESS_TEAM_DOMAIN;
+   allowedVars.FIRE_ACCESS_AUDIENCE=config.vars.FIRE_ACCESS_AUDIENCE;
+   allowedVars.FIRE_ACCESS_OWNER_EMAIL=config.vars.FIRE_ACCESS_OWNER_EMAIL;
+   if(typeof allowedVars.FIRE_ACCESS_TEAM_DOMAIN!=='string'||
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(allowedVars.FIRE_ACCESS_TEAM_DOMAIN)||
+      typeof allowedVars.FIRE_ACCESS_AUDIENCE!=='string'||
+      allowedVars.FIRE_ACCESS_AUDIENCE.length<12||
+      allowedVars.FIRE_ACCESS_AUDIENCE.length>256||
+      typeof allowedVars.FIRE_ACCESS_OWNER_EMAIL!=='string'||
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(allowedVars.FIRE_ACCESS_OWNER_EMAIL))
+    failPair('invalid target-bound quick authentication identity');
+  }
+  if(!exact(Object.keys(config.vars||{}).sort(),Object.keys(allowedVars).sort())||
+     Object.keys(allowedVars).some(k=>config.vars[k]!==allowedVars[k]))
+   failPair('unexpected release variable or authentication override');
   const id=config.d1_databases[0].database_id;
-  if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id))
-   failPair('D1 must be a valid distinct physical identifier, never QA/STAGING/TEST');
+  if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id)||
+     (target==='independent-live'&&id===OWNER_RECORDED_DR_D1))
+   failPair('D1 must be a valid distinct target-bound identifier, never QA/STAGING/TEST/DR-as-LIVE');
   ids.add(id);
   if(names.has(config.name)||origins.has(spec.origin))
    failPair('duplicate Worker name or origin');
@@ -205,6 +259,15 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
   if(!['blocked','owner-approved'].includes(auth)||
      (auth==='owner-approved'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')||
      (auth==='blocked'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!==undefined)||
+     (target==='independent-live'&&auth==='owner-approved'&&
+       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!=='owner-approved-schema-v1'||
+        config.vars?.FIRE_NEW_LIVE_CLEAN_START!=='required'))||
+     (target==='independent-live'&&auth==='blocked'&&
+       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined||
+        config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined))||
+     (target==='independent-dr'&&
+       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined||
+        config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined))||
      (evidence.authEnabled!==(auth==='owner-approved'))||
      (evidence.jobNumberSourceFlagPrepared!==(auth==='owner-approved')))
    failPair('authentication and permanent Job # readiness disagree');
