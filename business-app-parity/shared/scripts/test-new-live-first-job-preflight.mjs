@@ -12,9 +12,9 @@ const triggers=[
 ];
 const trustedTriggerSql=new Map([
  ...[...readFileSync(new URL('../../customer-numbering/customer_numbers_v1.sql',import.meta.url),'utf8').matchAll(
-  /CREATE TRIGGER\\s+([a-z_]+)[\\s\\S]*?\\bEND\\s*;/gi)],
+  /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)],
  ...[...readFileSync(new URL('../../job-numbering/job_numbers_v1.sql',import.meta.url),'utf8').matchAll(
-  /CREATE TRIGGER\\s+([a-z_]+)[\\s\\S]*?\\bEND\\s*;/gi)]
+  /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)]
 ].map(match=>[match[1],match[0]]));
 let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
