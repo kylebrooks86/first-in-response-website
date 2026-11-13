@@ -69,6 +69,12 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({serialRows:1}).db,env
  'deleted jobs still consume permanent high-water');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{tasks:'garbage'}}).db,env),
  'invalid D1 counts cannot be treated as empty');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{customers:'  '}}).db,env),
+ 'whitespace D1 count cannot coerce to zero');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{customers:'0x0'}}).db,env),
+ 'non-decimal D1 count cannot masquerade as empty');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{customers:[]}}).db,env),
+ 'array D1 count cannot masquerade as empty');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{payments:null}}).db,env),
  'missing count cannot be converted to zero');
 const unavailable=create();unavailable.db.prepare=()=>{throw Error('D1 offline')};
