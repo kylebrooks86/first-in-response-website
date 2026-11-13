@@ -9,7 +9,10 @@ const encoder = new TextEncoder();
 
 async function rateLimitKey(request: Request) {
   const runtime = env as Cloudflare.Env & { FIRE_SESSION_SECRET?: string };
-  const address = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Only Cloudflare-owned ingress metadata is trusted. A client-controlled
+  // X-Forwarded-For value must never create fresh throttling identities.
+  // Without a provider IP, use one conservative shared bucket.
+  const address = request.headers.get("cf-connecting-ip") || "unknown";
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${runtime.FIRE_SESSION_SECRET || "missing"}:${address}`));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
