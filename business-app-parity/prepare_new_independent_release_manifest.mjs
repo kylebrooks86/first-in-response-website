@@ -74,6 +74,12 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(target==='independent-live'&&enabled&&
    options.jobNumbersSchemaAttestation!=='owner-verified-independent-live-job-numbers-empty-v1')
   fail('NEW LIVE login requires verified permanent Job # schema and clean #0001 start');
+ const drNumbers=target==='independent-dr'&&
+   options.jobNumbersSchemaAttestation==='owner-verified-independent-dr-job-numbers-v1';
+ if(target==='independent-dr'&&options.jobNumbersSchemaAttestation!==undefined&&
+   (!drNumbers||!enabled))
+  fail('DR Job # mode requires enabled owner authentication and verified DR numbering schema');
+ const jobNumbersPrepared=enabled&&(target==='independent-live'||drNumbers);
  // Optional passkey / 4-digit PIN mode needs a provider-verified Access
  // application for THIS Worker, separate owner consent and per-target
  // secret-name custody. Source may never silently enable this mode.
@@ -97,7 +103,7 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  updated.d1_databases=[{binding:'DB',database_name:spec.db,database_id:uuid}];
  updated.r2_buckets=[{binding:'BUCKET',bucket_name:spec.bucket}];
  updated.vars={...initialVars,[spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
- if(target==='independent-live'&&enabled)
+ if(jobNumbersPrepared)
   updated.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
  if(quick){
   updated.vars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
@@ -114,7 +120,7 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  return {config:updated,evidence:{
   target,worker:spec.name,d1:spec.db,r2:spec.bucket,authEnabled:enabled,
   quickAuthPrepared:quick,accessProviderIndependentlyVerified:false,
-  jobNumberSchemaPhysicallyVerified:false,jobNumberSourceFlagPrepared:target==='independent-live'&&enabled,
+  jobNumberSchemaPhysicallyVerified:false,jobNumberSourceFlagPrepared:jobNumbersPrepared,
   localManifestPrepared:true,remoteOperationAttempted:false,
   providerResourcesIndependentlyVerified:false,remoteSchemaVerified:false,
   hostedR2Verified:false,ownerApprovedDeployment:false,gate4Accepted:false,
@@ -140,7 +146,7 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
     accessAudience:process.env.FIRE_ACCESS_AUDIENCE,
     accessOwnerEmail:process.env.FIRE_ACCESS_OWNER_EMAIL,
     pinSecretNamesAttestation:process.env.FIRE_RELEASE_PIN_SECRET_NAMES_ATTESTATION,
-    jobNumbersSchemaAttestation:process.env.FIRE_RELEASE_JOB_NUMBERS_ATTESTATION});
+    jobNumbersSchemaAttestation:process.env.FIRE_RELEASE_JOB_NUMBERS_ATTESTATION||undefined});
   writeFileSync(output,JSON.stringify(reviewed.config,null,2)+'\n',{flag:'wx',mode:0o600});
   console.log(JSON.stringify({...reviewed.evidence,outputFileWritten:true}));
  }catch(error){
