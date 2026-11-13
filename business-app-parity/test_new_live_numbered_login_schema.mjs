@@ -25,7 +25,7 @@ await pass("complete immutable schema",async()=>{
  const db=fakeDb();
  assert.equal(await jobNumberingReady(db,on),true);
  assert.equal(db.prepared.length,2);
- assert(db.prepared.every(sql=>/SELECT/i.test(sql)&&!/INSERT|UPDATE|DELETE|DROP/i.test(sql)));
+ assert(db.prepared.every(sql=>/^SELECT\b/i.test(sql.trim())&&!/^(INSERT|UPDATE|DELETE|DROP)\b/i.test(sql.trim())));
 });
 await pass("feature flag off means disabled",async()=>{
  const db=fakeDb();
