@@ -184,6 +184,9 @@ try{
  await page.getByRole('alert').getByText(/wrong passphrase or damaged protected file/).waitFor({timeout:30000});
  check(await page.locator('.photo-card').count()===2,
   'Wrong owner recovery passphrase refuses protected photo archive without changing IndexedDB');
+ // This new focused test opened the optional drawer; return it to the
+ // prior legacy regression's default collapsed state before continuing.
+ if(await backupTools.evaluate(node=>node.open))await backupSummary.click();
  await ctx.setOffline(true);
  // The earlier interrupted-selection test reloads the page; optional tools
  // must be explicitly reopened after a real browser restart.
