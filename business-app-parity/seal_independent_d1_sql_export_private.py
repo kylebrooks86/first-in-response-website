@@ -64,6 +64,27 @@ def reviewed_migrations():
     return names
 
 
+def expected_application_objects(migrations):
+    """Real reviewed SQL, independently replayed; a filtered export is NOT full."""
+    baseline = sqlite3.connect(":memory:")
+    try:
+        baseline.execute(
+            "CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "name TEXT NOT NULL UNIQUE, applied_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"
+        )
+        for i, name in enumerate(migrations, 1):
+            path = (BASE / "adapters/doomsday/drizzle" / name if i <= 25 else
+                    BASE / "adapters/independent-live/drizzle" / name)
+            baseline.executescript(path.read_text("utf-8"))
+        return {(kind, name, table) for kind, name, table in baseline.execute(
+            "SELECT type,name,tbl_name FROM sqlite_master "
+            "WHERE type IN ('table','index','trigger','view') "
+            "AND lower(substr(name,1,7)) <> 'sqlite_'"
+        )}
+    finally:
+        baseline.close()
+
+
 def sql_authorizer(action, arg1, arg2, database, trigger):
     if database not in (None, "main"):
         return sqlite3.SQLITE_DENY
@@ -131,6 +152,16 @@ def verified_memory_sqlite(source, expected_hash, migrations):
         )}
         if not REQUIRED_TABLES.issubset(tables):
             stop("full independent Customer/Job/refund records schema is missing")
+        # A D1 --table/--no-schema-filtered SQL export can still contain
+        # d1_migrations and our key tables. Demand every reviewed table,
+        # index and trigger, not just the journal and selected rows.
+        actual_objects = {(kind, name, table) for kind, name, table in db.execute(
+            "SELECT type,name,tbl_name FROM sqlite_master "
+            "WHERE type IN ('table','index','trigger','view') "
+            "AND lower(substr(name,1,7)) <> 'sqlite_'"
+        )}
+        if actual_objects != expected_application_objects(migrations):
+            stop("D1 SQL export omits or alters reviewed application schema objects")
         journal = db.execute(
             'SELECT id,name FROM "d1_migrations" ORDER BY id'
         ).fetchall()
@@ -166,7 +197,11 @@ def seal_saved_full_sql_export(sql_path, output_path, expected_hash, phrase,
             prefix=".fire-transient-owner-records-", suffix=".sqlite", dir=private_folder
         )
         try:
-            os.fchmod(fd, 0o600)
+            # Python <3.13 on Windows has no os.fchmod. Windows file
+            # access follows the explicitly private folder's inherited ACL;
+            # Unix additionally enforces 0600. Neither proves encryption.
+            if os.name != "nt":
+                os.fchmod(fd, 0o600)
         finally:
             os.close(fd)
         # This file is unencrypted only INSIDE the acknowledged private folder.
