@@ -21,6 +21,7 @@ on:
       - 'business-app-parity/shared/lib/new-live-clean-start.mjs'
       - 'business-app-parity/shared/app/api/estimates/route.ts'
       - 'business-app-parity/shared/app/api/customers/route.ts'
+      - 'business-app-parity/shared/app/api/customer-messages/route.ts'
       - 'business-app-parity/shared/scripts/test-new-live-clean-start.mjs'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
 permissions:
