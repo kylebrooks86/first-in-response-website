@@ -314,6 +314,11 @@ try{
  await page.getByRole('button',{name:'Delete on-device photo'}).first().click();
  await page.locator('.photo-card').nth(1).waitFor({state:'detached'});
  check(await page.locator('.photo-card').count()===1,'Confirmed owner deletion affects only the selected local photo');
+ // Gallery paints before mutation receipt finalization. Wait until the real
+ // restore control is enabled, so the deliberate lost-ACK fixture exercises
+ // a started restore rather than a file selection silently ignored as busy.
+ await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>
+  b.textContent?.includes('Restore verified photo backup')&&!b.disabled));
  // Lose the verification read AFTER native IndexedDB restore commits.
  await page.evaluate(()=>{
   window.originalRestoreAdd=IDBObjectStore.prototype.add;
