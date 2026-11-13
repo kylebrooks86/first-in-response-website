@@ -30,6 +30,15 @@ const base={customerId,estimateId:'',channel:'text_prepared',template:'custom',b
 try{
  user=null;eq((await post(base)).status,401);eq((await patch({})).status,401);eq((await list()).status,401);
  user={email:'kylebrooks8605@gmail.com'};
+ for(const method of ['POST','PATCH']){
+  for(const raw of ['null','[]','42','"string"','{invalid','']){
+   const before=db.prepare('SELECT COUNT(*) AS n FROM customer_messages').get().n;
+   const response=await route[method](new Request('https://synthetic.invalid/api/customer-messages',
+    {method,headers:{'Content-Type':'application/json'},body:raw}));
+   eq(response.status,400);
+   eq(db.prepare('SELECT COUNT(*) AS n FROM customer_messages').get().n,before);
+  }
+ }
  loseAck=true;
  let response=await post(base);eq(response.status,200);
  let data=await response.json();eq(data.recoveredAfterUncertainPreparation,true);eq(data.deliveryConfirmed,false);
