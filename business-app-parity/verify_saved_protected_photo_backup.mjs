@@ -73,7 +73,8 @@ export function inspectStoredFirePhotoZip(zip){
    fail('unknown, unsafe or duplicate ZIP entry');
   if(local!==localExpected||local+30>dir||zip.readUInt32LE(local)!==0x04034b50||
      zip.readUInt16LE(local+4)!==20||zip.readUInt16LE(local+10)!==0||
-     zip.readUInt16LE(local+12)!==0||zip.readUInt16LE(local+14)!==0||
+     zip.readUInt16LE(local+12)!==zip.readUInt16LE(p+12)||
+     zip.readUInt16LE(local+14)!==zip.readUInt16LE(p+14)||
      zip.readUInt16LE(local+6)!==flags||zip.readUInt16LE(local+8)!==0||
      zip.readUInt16LE(local+26)!==nameLength||zip.readUInt16LE(local+28)!==0||
      zip.readUInt32LE(local+14)!==0||zip.readUInt32LE(local+18)!==0||
