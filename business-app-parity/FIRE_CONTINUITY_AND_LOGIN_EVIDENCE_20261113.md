@@ -2,6 +2,18 @@
 
 **Owner standard last confirmed November 13, 2026. Read THIS before requesting any more authentication, screenshots, tests, paid services or Cloudflare actions.** Also read [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) latest comments and the current DR/LIVE [draft PR #244](https://github.com/kylebrooks86/first-in-response-website/pull/244). Historical files and older messages are not licenses to re-test or overrule owner decisions.
 
+## CURRENT NOVEMBER 13 CANONICAL SOURCE — MAIN-BASED DRAFT PR #264
+
+**Current review branch:** [draft PR #264](https://github.com/kylebrooks86/first-in-response-website/pull/264), `work/fire-app-main-candidate-unified-20261113`, based directly on `main`. This is the first consolidated QA-master + STAGING/DR/NEW LIVE no-paid/no-R2 source candidate; older stacked PR #244–#263 source and evidence remain historical, not new starting instructions. Do NOT restart from #244 or treat any draft as deployed.
+
+**Pre-existing exact integrated source `033a5d0ff096c264e1824d88f0cd8142610bdcb8`:** all **15/15 GitHub source workflows SUCCESS**, including staging source/browser jobs, public-website/calculator preservation, local full TEST build, independent DR/NEW LIVE local builds, local 26-step recovery and paired encrypted .firerecords/.firephotos/.firepair proof. This proves reviewed source only, not Cloudflare serving artifacts, signed Stripe TEST, hosted D1 migration or release acceptance.
+
+**New focused Gate 7 integrity fix:** Actual code/test revision `b8edb76c24902373ef435a5ee15deda0b1c373bb` fixes an incomplete-history acceptance gap in `restore_numbered_records_to_isolated_sqlite.mjs`. Before this change, SOURCE and independently migrated DR both showing only the same 25/26 migration entries could pass the self-consistency check. When a migrated D1 journal is present, recovery now requires **exactly all 26 reviewed migrations**. `test_migrated_d1_journal_recovery.mjs` now constructs a matching but incomplete 25/26 source/target pair and requires a clean, non-destructive refusal. The pre-existing synthetic historical no-journal isolation test path is preserved. Source-only changes; no provider reads/writes, bills, deploys, merges, production transactions, owner-device tests or Cloudflare login. At the time this note was created, 14 of 15 changed-code workflows passed and staging remained in progress; check the exact GitHub runs rather than assuming completion.
+
+**Formal acceptance still 4/10 (G1,2,3,8). G4,5,6,7,9,10 OPEN; LIVE NO-GO.** Owner-confirmed DR D1 `fire-fullapp-dr-db` already exists empty; its actual provider UUID is still the next new **read-only** target-specific identity field. Do not create it again. NEW LIVE physical D1 remains unprovisioned; no R2 bucket/subscription, paid Cloudflare, automatic photo sync, migration, hosted signed Stripe TEST receipt, actual independent off-device full-record+photo recovery, fresh TEST upload, or final cutover is authorized. Preserve all prior authenticated login failures and accepted QA/iPhone/Acer evidence in the register below.
+
+---
+
 ## Nonnegotiable owner decisions
 
 1. **QA-master is the NEW app**. The NEW QA design/behavior, pricing, navigation, permanent Job #, 4-digit PIN/passkey feature candidate and mobile layouts must match STAGING, DR and NEW LIVE. **Old ChatGPT Sites LIVE is not the master** and is not to be rebuilt, mined for nonexistent real customers, or retired until a separately approved final cutover.
