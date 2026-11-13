@@ -22,6 +22,8 @@ on:
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
       - 'business-app-parity/shared/lib/new-live-clean-start.mjs'
       - 'business-app-parity/shared/lib/new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/lib/new-live-financial-index-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
       - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
       - 'business-app-parity/test_independent_numbered_release_migration.mjs'
       - 'business-app-parity/prepare_independent_d1_migration_workspace.mjs'
