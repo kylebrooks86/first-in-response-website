@@ -13,6 +13,7 @@ import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,validateNumberedCoreRecord
  NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION}
  from './shared/lib/numbered-records-v2-preflight.mjs';
 import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
+import {fingerprintIsolatedSqliteSchema} from './fingerprint_isolated_sqlite_schema.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
 const stop=why=>{throw Error('FIRE offline snapshot export BLOCKED: '+why);};
 const ident=x=>typeof x==='string'&&/^[a-z][a-z0-9_]*$/.test(x);
@@ -28,6 +29,7 @@ function capture(db){
  if(names.some(x=>!ident(x)))stop('unrecognized database table name');
  if(tables.some(x=>!names.includes(x)))stop('missing numbered-core or identity table');
  const extras=names.filter(x=>!tables.includes(x)).sort();
+ const schemaIdentity=fingerprintIsolatedSqliteSchema(db);
  const result={},counts={};
  // A read transaction ensures all table snapshots and sqlite_sequence
  // high-water values belong to the SAME logical database instant.
@@ -47,13 +49,13 @@ function capture(db){
   };
   const core={
    format:NUMBERED_RECORDS_V2_FORMAT,version:NUMBERED_RECORDS_V2_VERSION,
-   allTablesComplete:true,truncated:false,highWater,
+   allTablesComplete:true,truncated:false,highWater,schemaIdentity,
    tables:Object.fromEntries(tables.map(t=>[t,result[t]])),
    rowCounts:Object.fromEntries(tables.map(t=>[t,counts[t]]))
   };
   const supplemental={
    format:'fire-isolated-supplemental-records',version:1,
-   allTablesComplete:true,truncated:false,
+   allTablesComplete:true,truncated:false,schemaIdentity,
    tables:Object.fromEntries(extras.map(t=>[t,result[t]])),
    rowCounts:Object.fromEntries(extras.map(t=>[t,counts[t]]))
   };
