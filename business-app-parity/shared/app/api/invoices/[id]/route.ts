@@ -1,5 +1,6 @@
 import {submittedDiscountCents} from '../../../../lib/discount-input';
 import {currentInvoice} from "../../../../lib/invoice-state.mjs";
+import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../../lib/refund-ledger-readiness";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 
@@ -33,6 +34,8 @@ async function expireOpenCheckoutSessions(estimateId:string){
 
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  // Do not query pending refunds or invoice money against an unverified LIVE ledger.
+  if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   const {id}=await params;
   const storedInvoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
     NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch,
@@ -60,6 +63,9 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
 
 export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  // Before any invoice edits, remote checkout expiration or payment read:
+  // a missing or incomplete refund ledger must hold all financial changes.
+  if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   try{
     const {id}=await params;
     const body=await request.json() as Record<string,unknown>;
