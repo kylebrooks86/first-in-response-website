@@ -27,6 +27,31 @@ function base64url(input){
 const validOwnerEmail=email=>typeof email==='string'&&
  /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)&&email.length<=254;
 
+/** Cache only Cloudflare's PUBLIC JWKS for 5 minutes. Never cache tokens or
+ * auth decisions. Protected routes otherwise fetch certs on EVERY request,
+ * which adds latency and makes Access DNS availability a runtime dependency.
+ * An unfamiliar KID bypasses the cache and triggers a fresh provider fetch.
+ */
+const jwksCache=new Map();
+const CERT_TTL_MS=5*60*1000;
+async function accessJwks(teamDomain,fetcher,kid,nowMs){
+ const cacheable=fetcher===fetch;
+ const stored=cacheable?jwksCache.get(teamDomain):undefined;
+ if(stored&&stored.expiresAt>nowMs&&stored.keys.some(k=>k.kid===kid))return stored.keys;
+ const response=await fetcher('https://'+teamDomain+'/cdn-cgi/access/certs',{
+  method:'GET',headers:{accept:'application/json'},
+  signal:AbortSignal.timeout(3500)
+ });
+ if(!response?.ok)throw Error('Access certs unavailable');
+ const jwks=await response.json();
+ if(!Array.isArray(jwks?.keys)||jwks.keys.length>60)throw Error('Access certs invalid');
+ if(cacheable){
+  jwksCache.clear(); // one known team domain per Worker; bounded public key cache
+  jwksCache.set(teamDomain,{keys:jwks.keys,expiresAt:nowMs+CERT_TTL_MS});
+ }
+ return jwks.keys;
+}
+
 /** Validates a signed Access JWT; never trusts an unverified header or cookie. */
 export async function verifyCloudflareAccessOwnerJwt(token,config,{fetcher=fetch,now=Math.floor(Date.now()/1000)}={}){
  try{
@@ -49,14 +74,8 @@ export async function verifyCloudflareAccessOwnerJwt(token,config,{fetcher=fetch
     claims.exp-claims.iat>60*60*24*30||
     (claims.nbf!==undefined&&(!Number.isSafeInteger(claims.nbf)||claims.nbf>now+60)))
    return false;
-  const response=await fetcher('https://'+teamDomain+'/cdn-cgi/access/certs',{
-    method:'GET',headers:{accept:'application/json'},
-    signal:AbortSignal.timeout(3500)
-  });
-  if(!response?.ok)return false;
-  const jwks=await response.json();
-  if(!Array.isArray(jwks?.keys)||jwks.keys.length>60)return false;
-  const matching=jwks.keys.filter(j=>j&&j.kid===header.kid&&j.kty==='RSA'&&
+  const publicKeys=await accessJwks(teamDomain,fetcher,header.kid,Date.now());
+  const matching=publicKeys.filter(j=>j&&j.kid===header.kid&&j.kty==='RSA'&&
     (j.alg===undefined||j.alg==='RS256')&&(j.use===undefined||j.use==='sig')&&
     typeof j.n==='string'&&typeof j.e==='string'&&j.n.length>300&&j.n.length<3000);
   if(matching.length!==1)return false;
