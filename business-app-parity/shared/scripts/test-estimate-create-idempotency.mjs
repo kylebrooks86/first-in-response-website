@@ -151,5 +151,35 @@ try{
  eq(legacy.status,201,'Legacy POST with no request ID remains backward compatible');
  eq(legacy.body.requestId,undefined,'Legacy successful response stays compatible');
  eq(count('estimates'),2,'Legacy quote still saves one new record');
- console.log('PASS '+checks+'/'+checks+': server-side immutable estimate UUIDs, lost-response replay, unchanged discount/deposit, conflict and tamper refusal, no-write replay, owner-only auth, legacy compatibility.');
+
+ // NEW behavior: when permanent Job # is enabled, a saved quote must be
+ // recognized only if it has its genuine immutable same-customer job link.
+ db.exec(readFileSync('../job-numbering/job_numbers_v1.sql','utf8'));
+ runtime.env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ const beforeNumbered=financialSnapshot();
+ const missingKey=await post({...quote,requestId:undefined,customer:'Synthetic unsafe legacy retry'});
+ eq(missingKey.status,409,'Enabled numbering refuses a request without an idempotency UUID');
+ eq(financialSnapshot(),beforeNumbered,'Missing numbered request ID writes no financial or customer record');
+
+ const unresolved=await lookup(quote.requestId);
+ eq(unresolved.status,200,'Saved quote can still be inspected when Job # is missing');
+ eq(unresolved.body.recognized,false,'Unnumbered estimate cannot be confirmed as a recovered success');
+ eq(unresolved.body.estimate.jobNumber,null,'No invented permanent Job # for an incomplete historical link');
+ const missingReplay=await post(quote);
+ eq(missingReplay.status,503,'Idempotent replay with missing Job # refuses inaccurate success');
+ eq(missingReplay.body.saveUncertain,true,'Missing number advises reviewing existing quote, not creating a duplicate');
+ eq(financialSnapshot(),beforeNumbered,'Missing-number replay writes nothing');
+
+ const originalTime=db.prepare('SELECT created_at FROM estimates WHERE id=?').get(quote.requestId).created_at;
+ db.prepare('INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES (?,?)').run(quote.requestId,originalTime);
+ db.prepare('INSERT INTO fire_job_estimate_links(estimate_id,job_number) SELECT ?,job_number FROM fire_job_numbers WHERE root_estimate_id=?').run(quote.requestId,quote.requestId);
+ const recovered=await lookup(quote.requestId);
+ eq(recovered.body.recognized,true,'A genuine same-customer permanent Job # restores read-only recovery');
+ eq(recovered.body.estimate.jobNumber,1,'Recovery returns actual saved Job #0001 serial');
+ const numberedReplay=await post(quote);
+ eq(numberedReplay.status,200,'Idempotent replay succeeds with a valid original Job #');
+ eq(numberedReplay.body.jobNumber,1,'Replay returns the original immutable serial, never another number');
+ eq(count('estimates'),2,'Verifying Job # creates no duplicate estimate');
+
+ console.log('PASS '+checks+'/'+checks+': immutable estimate UUIDs, safe numbered Job # save/replay/recovery, no-ID refusal, discounts, deposit and legacy compatibility.');
 }finally{db.close();}
