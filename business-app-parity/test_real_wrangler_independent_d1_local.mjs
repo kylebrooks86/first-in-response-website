@@ -11,6 +11,7 @@ import {spawnSync} from 'node:child_process';
 import {existsSync,lstatSync,mkdtempSync,readdirSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {DatabaseSync} from 'node:sqlite';
 import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
 import {verifySavedIndependentD1MigrationWorkspace} from './verify_saved_independent_d1_migration_workspace.mjs';
@@ -117,7 +118,7 @@ export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary){
   rmSync(temp,{recursive:true,force:true});
  }
 }
-if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
   if(process.argv.length!==3)fail('usage: node --experimental-sqlite test_real_wrangler_independent_d1_local.mjs INSTALLED_WRANGLER_CLI_JS');
   console.log(JSON.stringify(await rehearseRealWranglerLocalD1Migrations(process.argv[2])));
