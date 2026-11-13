@@ -10,7 +10,10 @@
 -- failure; do NOT submit this through raw d1 execute as separate statements.
 -- Exact provider-reserved _cf_METADATA and _cf_KV table NAMES are ignored
 -- for clean-app record emptiness. Do not read, export or alter their contents.
--- Unknown application tables remain a hard stop. Provider attestation is
+-- Unknown application tables remain a hard stop. Check the literal
+-- sqlite_ reserved prefix: SQL LIKE 'sqlite_%' would hide names such as
+-- sqliteX_private_history because _ matches any one character.
+-- Provider attestation is
 -- still needed for actual hosted D1 resource identity and schema.
 CREATE TABLE _fire_job_empty_precondition (
   passed INTEGER NOT NULL CHECK(passed=1)
@@ -40,7 +43,7 @@ SELECT CASE WHEN
   AND (SELECT COUNT(*) FROM job_reports)=0
   AND (SELECT COUNT(*) FROM auth_rate_limits)=0
   AND (SELECT COUNT(*) FROM sqlite_master
-       WHERE type='table' AND name NOT LIKE 'sqlite_%'
+       WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_'
          AND name NOT IN ('customers','estimates','customer_notes','invoices','invoice_items','invoice_revisions','payment_checkout_sessions','payment_refunds','deposit_policy_events','deposit_agreement_snapshots','estimate_items','payments','customer_photos','customer_messages','notifications','message_templates','estimate_change_requests','tasks','expenses','job_reports','auth_rate_limits','d1_migrations','_cf_KV','_cf_METADATA','_fire_job_empty_precondition'))=0
   AND (SELECT COUNT(*) FROM sqlite_master
        WHERE name IN ('fire_job_numbers','fire_job_estimate_links',
