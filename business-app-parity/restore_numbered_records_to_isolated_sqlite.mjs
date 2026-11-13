@@ -87,6 +87,16 @@ function restore(db,archive,supplemental){
     restored++;
    }
   }
+  // Preserve AUTOINCREMENT history for ALL supplemental feature tables too;
+  // otherwise deleted high IDs could be silently reused after recovery.
+  for(const [table,high] of Object.entries(supplemental.sqliteSequence)){
+   if(!/\\bAUTOINCREMENT\\b/i.test(found.get(table)||''))
+    stop('supplemental sequence references non-AUTOINCREMENT table '+table);
+   const existing=db.prepare('SELECT COUNT(*) AS n FROM sqlite_sequence WHERE name=?').get(table).n;
+   if(existing>1)stop('duplicate supplemental sequence entry');
+   if(existing===0)db.prepare('INSERT INTO sqlite_sequence(name,seq) VALUES (?,?)').run(table,high);
+   else db.prepare('UPDATE sqlite_sequence SET seq=? WHERE name=?').run(high,table);
+  }
   // sqlite_sequence can be absent for a newly provisioned empty AUTOINCREMENT
   // table. Restore exact historical high-water even if rows were deleted.
   for(const [t,high] of [['fire_customer_numbers',archive.highWater.customer],
@@ -97,6 +107,9 @@ function restore(db,archive,supplemental){
    if(existing===0)db.prepare('INSERT INTO sqlite_sequence(name,seq) VALUES (?,?)').run(t,high);
    else db.prepare('UPDATE sqlite_sequence SET seq=? WHERE name=?').run(high,t);
   }
+  for(const [table,high] of Object.entries(supplemental.sqliteSequence))
+   if(db.prepare('SELECT seq FROM sqlite_sequence WHERE name=?').get(table)?.seq!==high)
+    stop('supplemental serial high-water not preserved');
   const violations=db.prepare('PRAGMA foreign_key_check').all();
   if(violations.length)stop('foreign key violation after restore');
   // Compare ACTUAL SQLite rows to source, including each field, not just counts.
