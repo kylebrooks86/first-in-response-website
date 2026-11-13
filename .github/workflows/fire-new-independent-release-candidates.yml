@@ -19,6 +19,8 @@ on:
       - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
       - 'business-app-parity/shared/scripts/test-protected-numbered-sqlite-recovery-pair.mjs'
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
+      - 'business-app-parity/shared/lib/new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
 permissions:
   contents: read
@@ -68,6 +70,9 @@ jobs:
       - name: DR-only permanent Job # sign-in safety check (source only)
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/test_new_dr_numbered_login_schema.mjs
+      - name: NEW LIVE clean #0001 pre-activation SELECT-only safeguards (synthetic only)
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs
       - name: Materialize exact QA-master shared source with isolated target overlay
         run: python3 business-app-parity/materialize.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
       - name: Prove complete overlay-source identity before build
