@@ -41,12 +41,13 @@ const compile=(path,deps)=>{
 };
 const zipper=compile('photo-storage-zip.ts',{});
 const offline=compile('offline-photo-backup.ts',{'./photo-storage-zip':zipper});
-const dir=join(shared,'..','adapters','doomsday','drizzle');
+const sourceParityRoot=process.env.FIRE_TEST_SCHEMA_ROOT||join(shared,'..');
+const dir=join(sourceParityRoot,'adapters','doomsday','drizzle');
 const migrations=readdirSync(dir).filter(x=>/^\d{4}_[\w-]+\.sql$/.test(x)).sort();
 assert.equal(migrations.length,25,'exact existing reviewed 25-schema SQL');
 const schema=migrations.map(x=>readFileSync(join(dir,x),'utf8')).join('\n')+
- '\n'+readFileSync(join(shared,'..','customer-numbering','customer_numbers_v1.sql'),'utf8')+
- '\n'+readFileSync(join(shared,'..','job-numbering','job_numbers_v1.sql'),'utf8');
+ '\n'+readFileSync(join(sourceParityRoot,'customer-numbering','customer_numbers_v1.sql'),'utf8')+
+ '\n'+readFileSync(join(sourceParityRoot,'job-numbering','job_numbers_v1.sql'),'utf8');
 const DB=()=>{
  const db=new DatabaseSync(':memory:');
  db.exec(schema);db.exec('PRAGMA foreign_keys=ON');
