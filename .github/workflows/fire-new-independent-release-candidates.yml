@@ -31,6 +31,7 @@ on:
       - 'business-app-parity/test_prepare_independent_d1_migration_workspace.mjs'
       - 'business-app-parity/verify_saved_independent_d1_migration_workspace.mjs'
       - 'business-app-parity/test_verify_saved_independent_d1_migration_workspace.mjs'
+      - 'business-app-parity/test_real_wrangler_independent_d1_local.mjs'
       - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
@@ -123,6 +124,10 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
           corepack pnpm build
+      - name: Rehearse all 26 pinned migrations with REAL Wrangler on disposable local D1 (no Cloudflare)
+        if: matrix.target == 'independent-live'
+        run: |
+          node --experimental-sqlite business-app-parity/test_real_wrangler_independent_d1_local.mjs "$RUNNER_TEMP/fire-release-candidate/node_modules/wrangler/bin/wrangler.js"
       - name: NEW LIVE owner-only hosted evidence route denies unauthorized and uncertain D1
         if: matrix.target == 'independent-live'
         working-directory: ${{ runner.temp }}/fire-release-candidate
