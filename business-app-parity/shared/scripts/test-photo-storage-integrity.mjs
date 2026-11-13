@@ -142,6 +142,63 @@ try{
   try{const restored=await destination.getR2Bucket('BUCKET');for(const o of m.objects){const data=spawnSync('unzip',['-p',completeFile,o.archivePath]);assert.equal(data.status,0);await restored.put(o.objectKey,data.stdout,{httpMetadata:o.contentType?{contentType:o.contentType}:undefined});const recovered=Buffer.from(await (await restored.get(o.objectKey)).arrayBuffer());assert.equal(createHash('sha256').update(recovered).digest('hex'),o.sha256);}assert.equal((await restored.list()).objects.length,2);}finally{await destination.dispose();}
   assert.equal((await reader.all('SELECT * FROM customer_photos')).length,1); // No orphan metadata was invented.
  });
+ // A complete customer-photo ZIP MUST NOT be issued when the same R2
+ // bucket holds any unreviewed bytes outside customers/. Exporting only
+ // customers/ would silently strand the unknown file during disaster recovery.
+ await check('complete archive rejects R2 objects omitted by a prefix-only listing',async()=>{
+  const rogue='unreviewed/retained-object.bin';
+  await bucket.put(rogue,bytes,{httpMetadata:{contentType:'application/octet-stream'}});
+  try{
+   await assert.rejects(storageModule.exportCompletePhotoStorage(reader,bucket),
+    /outside the reviewed complete-photo archive contract/);
+  }finally{await bucket.delete(rogue);}
+  const checkOriginal=await bucket.get(key);
+  assert.deepEqual(Buffer.from(await checkOriginal.arrayBuffer()),bytes,
+    'Rejection preserves all existing customer photo bytes');
+ });
+ await check('complete archive rejects unreviewed object directly under customer prefix',async()=>{
+  const rogue='customers/customer-1/unreviewed-chunk';
+  await bucket.put(rogue,bytes,{httpMetadata:{contentType:'application/octet-stream'}});
+  try{await assert.rejects(storageModule.exportCompletePhotoStorage(reader,bucket),
+    /outside the reviewed complete-photo archive contract/);}
+  finally{await bucket.delete(rogue);}
+ });
+ await check('bucket-wide inventory must reconcile every prefix object',async()=>{
+  const filtered={
+   list:async opts=>{
+    const result=await bucket.list(opts);
+    // A provider or proxy returning a false "complete" root listing must
+    // not authorize an archive that only includes the prefixed subset.
+    if(!opts.prefix)return {...result,objects:result.objects.slice(0,1),truncated:false};
+    return result;
+   },
+   head:k=>bucket.head(k),get:k=>bucket.get(k)
+  };
+  await assert.rejects(storageModule.exportCompletePhotoStorage(reader,filtered),
+   /full bucket and customer photo namespace do not reconcile/);
+ });
+ await check('bucket-wide cursor loops cannot masquerade as complete coverage',async()=>{
+  const looping={
+   list:async opts=>opts.prefix?bucket.list(opts):{objects:[],truncated:true,cursor:'repeat-cursor'},
+   head:k=>bucket.head(k),get:k=>bucket.get(k)
+  };
+  await assert.rejects(storageModule.exportCompletePhotoStorage(reader,looping),
+   /full-bucket pagination/);
+ });
+ await check('new unknown bucket object after archive begins aborts byte stream',async()=>{
+  let rootCalls=0;
+  const changed={
+   list:async opts=>{
+    const result=await bucket.list(opts);
+    if(!opts.prefix&&++rootCalls===2)
+     return {...result,objects:[...result.objects,{...result.objects[0],key:'unexpected/late-object.bin'}]};
+    return result;
+   },
+   head:k=>bucket.head(k),get:k=>bucket.get(k)
+  };
+  const response=await storageModule.exportCompletePhotoStorage(reader,changed);
+  await assert.rejects(response.arrayBuffer(),/outside the reviewed complete-photo archive contract/);
+ });
  for(const mode of ['checksum','missing-entry','extra-entry','duplicate-entry','unsafe-entry','owner','invented-orphan-record','duplicate-key','count','coverage','partial-photo','size','version','missing-photos','truncated'])await check('complete validator rejects '+mode,async()=>{
   const corrupt=join(temp,mode+'.zip');
   const py=spawnSync('python3',['-c',`import sys,json,zipfile,copy
