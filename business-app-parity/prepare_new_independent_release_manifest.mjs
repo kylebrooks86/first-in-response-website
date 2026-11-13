@@ -77,11 +77,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
   if(!enabled||options.quickAuthAttestation!=='owner-approved-'+target+'-quick-auth')
    fail('quick sign-in requires separate owner approval and enabled owner authentication');
   if(typeof options.accessTeamDomain!=='string'||
-     !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.cloudflareaccess\\.com$/.test(options.accessTeamDomain)||
+     !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(options.accessTeamDomain)||
      typeof options.accessAudience!=='string'||options.accessAudience.length<12||
      options.accessAudience.length>256||
      typeof options.accessOwnerEmail!=='string'||
-     !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(options.accessOwnerEmail)||
+     !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(options.accessOwnerEmail)||
      options.accessOwnerEmail.length>254)
    fail('explicit protected Access team, audience and owner identity are required');
   if(options.pinSecretNamesAttestation!=='owner-checked-'+target+'-pin-secret-names')
