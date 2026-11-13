@@ -26,7 +26,9 @@ async function one(db,sql,params=[]){
  return query.first();
 }
 function naturalCount(value,label){
- if(value===undefined||value===null||value===''||typeof value==='boolean')
+ if(value===undefined||value===null||typeof value==='boolean'||
+    typeof value==='string'&&!/^(0|[1-9][0-9]*)$/.test(value)||
+    typeof value!=='string'&&typeof value!=='number')
   stop(label+' count was missing or malformed');
  const count=typeof value==='number'?value:Number(value);
  if(!Number.isSafeInteger(count)||count<0)stop(label+' returned an invalid count');
