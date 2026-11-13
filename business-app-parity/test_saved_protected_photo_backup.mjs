@@ -81,6 +81,15 @@ try{
   zip([data],'../outside'))),/unsafe|unknown/i);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(
   zip([{...data,sha256:'a'.repeat(64)}]))),/SHA-256/i);
+ // Reject ZIP directory/local-header discrepancies and noncanonical manifest
+ // fields before anyone relies on a saved encrypted recovery archive.
+ const badHeader=zip();badHeader.writeUInt16LE(99,4);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(badHeader)),/local file|metadata/i);
+ const badManifest=storedFireZip([['photos/'+photoId,photoBytes],
+  ['manifest.json',Buffer.from(JSON.stringify({...manifest(),unknown:'unexpected'}))]]);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(badManifest)),/manifest/i);
+ const badDirectory=zip();badDirectory.writeUInt32LE(0xfffffff0,42);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(badDirectory)),/local file|metadata/i);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(
   zip([data,data]))),/incomplete|duplicate/i);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(
