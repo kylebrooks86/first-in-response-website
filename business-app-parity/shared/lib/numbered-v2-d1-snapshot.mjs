@@ -21,6 +21,11 @@ const ARCHIVE_LIMIT_BYTES=5_000_000;
 const businessTables=Object.freeze([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]);
 const known=new Set(businessTables);
 const operational=new Set(['auth_rate_limits','d1_migrations']);
+// Cloudflare D1 may install its documented internal _cf_KV table. It contains
+// provider metadata, not application records; never copy it into a customer
+// backup. Accept ONLY the exact documented definition, never arbitrary
+// _cf_* tables or an application table masquerading as provider storage.
+const CLOUDFLARE_INTERNAL_KV_DDL=/^CREATE\s+TABLE\s+(?:_cf_KV|"_cf_KV"|`_cf_KV`|\[_cf_KV\])\s*\(\s*(?:key|"key"|`key`|\[key\])\s+TEXT\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|`value`|\[value\])\s+BLOB\s*\)\s+WITHOUT\s+ROWID\s*;?$/i;
 const denied=reason=>{throw new Error('FIRE numbered v2 read-only snapshot BLOCKED: '+reason);};
 const isRow=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const quoteTable=name=>'"'+name+'"'; // names are a frozen, reviewed source allowlist
@@ -52,7 +57,7 @@ export async function captureNumberedCoreV2ReadOnly(db){
    "SELECT '"+table+"' AS table_name,COUNT(*) AS count FROM "+quoteTable(table)
  ).join(' UNION ALL ');
  const statements=[
-   db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"),
+   db.prepare("SELECT name,sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"),
    db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('fire_customer_numbers','fire_job_numbers') ORDER BY name"),
    db.prepare(countSql)
  ];
@@ -66,8 +71,15 @@ export async function captureNumberedCoreV2ReadOnly(db){
  const result=await db.batch(statements);
  if(!Array.isArray(result)||result.length!==statements.length)
   denied('a complete transactional metadata/records read was not returned');
- const schema=rows(result[0],'schema').map(row=>row?.name);
- if(schema.some(name=>typeof name!=='string'||(!known.has(name)&&!operational.has(name)))||
+ const schemaRows=rows(result[0],'schema');
+ // Require the actual sqlite_master DDL so a same-named but incompatible
+ // internal table can never be silently excluded from the backup.
+ if(schemaRows.some(row=>!isRow(row)||Object.keys(row).length!==2||
+    typeof row.name!=='string'||typeof row.sql!=='string'))
+  denied('invalid or incomplete database schema metadata');
+ const schema=schemaRows.map(row=>row.name);
+ if(schemaRows.some(row=>row.name==='_cf_KV'&&!CLOUDFLARE_INTERNAL_KV_DDL.test(row.sql))||
+    schema.some(name=>!known.has(name)&&!operational.has(name)&&name!=='_cf_KV')||
     new Set(schema).size!==schema.length||
     businessTables.some(name=>!schema.includes(name)))
   denied('missing or unreviewed durable table; archive would omit state');
