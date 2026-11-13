@@ -518,6 +518,7 @@ jobs:
           # creation rejects unusable contacts; edit rejects +1/10-digit duplicates.
           # No D1 provider, cloud customer records, SMS or customer messages.
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node --experimental-sqlite scripts/test-customer-message-evidence.mjs
           node --experimental-sqlite scripts/test-customer-edit-route.mjs
           # Actual SQL conditional UPDATE verifies email/+1 phone uniqueness
           # even if another customer claims that contact during owner edit.
