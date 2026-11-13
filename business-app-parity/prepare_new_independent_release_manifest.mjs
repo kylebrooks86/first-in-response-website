@@ -85,6 +85,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(target==='independent-live'&&enabled&&
    options.jobNumbersSchemaAttestation!=='owner-verified-independent-live-job-numbers-empty-v1')
   fail('NEW LIVE login requires verified permanent Job # schema and clean #0001 start');
+ if(target==='independent-live'&&enabled&&
+   options.customerNumbersSchemaAttestation!=='owner-verified-independent-live-customer-numbers-empty-v1')
+  fail('NEW LIVE login requires separately verified permanent Customer # schema and complete identity coverage');
+ if(target==='independent-live'&&!enabled&&options.customerNumbersSchemaAttestation!==undefined)
+  fail('NEW LIVE customer-number attestation cannot activate an inert manifest');
  const drNumbers=target==='independent-dr'&&
    options.jobNumbersSchemaAttestation==='owner-verified-independent-dr-job-numbers-v1';
  if(target==='independent-dr'&&options.jobNumbersSchemaAttestation!==undefined&&
@@ -123,6 +128,12 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
   [spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
  if(jobNumbersPrepared)
   updated.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ if(target==='independent-live'&&enabled){
+  // This matches the actual owner app's first-job route guard. An auth-ready
+  // manifest must not quietly omit the customer serials required by the app.
+  updated.vars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+  updated.vars.FIRE_NEW_LIVE_CLEAN_START='required';
+ }
  if(quick){
   updated.vars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
   updated.vars.FIRE_ACCESS_TEAM_DOMAIN=options.accessTeamDomain;
