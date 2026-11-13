@@ -59,7 +59,8 @@ const manifest={
  d1_databases:[{binding:'DB',database_name:'fire-fullapp-dr-db',database_id:'00000000-0000-4000-8000-000000000000'}],
  r2_buckets:[]
 };
-const options={databaseId:'54a5e470-2ae3-471b-a2db-ea8bdf092513',photoStorageMode:'owner-device-zip',resourceAttestation:'owner-checked-independent-dr'};
+// Owner-recorded DR ID is pinned; test is still offline and NOT provider proof.
+const options={databaseId:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145',photoStorageMode:'owner-device-zip',resourceAttestation:'owner-checked-independent-dr'};
 check('DR manifest refuses owner auth with no numbered schema attestation',()=>{
  assert.throws(()=>prepareReviewedIndependentManifest('independent-dr',manifest,{
   ...options,enableAuth:true,authAttestation:'owner-approved-independent-dr-auth'
