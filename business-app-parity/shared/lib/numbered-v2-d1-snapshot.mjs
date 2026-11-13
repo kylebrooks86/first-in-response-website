@@ -26,6 +26,10 @@ const operational=new Set(['auth_rate_limits','d1_migrations']);
 // backup. Accept ONLY the exact documented definition, never arbitrary
 // _cf_* tables or an application table masquerading as provider storage.
 const CLOUDFLARE_INTERNAL_KV_DDL=/^CREATE\s+TABLE\s+(?:_cf_KV|"_cf_KV"|`_cf_KV`|\[_cf_KV\])\s*\(\s*(?:key|"key"|`key`|\[key\])\s+TEXT\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|`value`|\[value\])\s+BLOB\s*\)\s+WITHOUT\s+ROWID\s*;?$/i;
+ // Wrangler local D1 also reserves the table created by workerd's SQLite
+ // metadata manager. Never export provider-owned keys or accept a spoofed
+ // same-named table with arbitrary extra schema.
+const CLOUDFLARE_INTERNAL_METADATA_DDL=/^CREATE\s+TABLE\s+(?:_cf_METADATA|"_cf_METADATA"|`_cf_METADATA`|\[_cf_METADATA\])\s*\(\s*(?:key|"key"|`key`|\[key\])\s+INTEGER\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|`value`|\[value\])\s+BLOB\s*\)\s*;?$/i;
 const denied=reason=>{throw new Error('FIRE numbered v2 read-only snapshot BLOCKED: '+reason);};
 const isRow=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const quoteTable=name=>'"'+name+'"'; // names are a frozen, reviewed source allowlist
@@ -78,8 +82,10 @@ export async function captureNumberedCoreV2ReadOnly(db){
     typeof row.name!=='string'||typeof row.sql!=='string'))
   denied('invalid or incomplete database schema metadata');
  const schema=schemaRows.map(row=>row.name);
- if(schemaRows.some(row=>row.name==='_cf_KV'&&!CLOUDFLARE_INTERNAL_KV_DDL.test(row.sql))||
-    schema.some(name=>!known.has(name)&&!operational.has(name)&&name!=='_cf_KV')||
+ if(schemaRows.some(row=>
+      row.name==='_cf_KV'&&!CLOUDFLARE_INTERNAL_KV_DDL.test(row.sql)||
+      row.name==='_cf_METADATA'&&!CLOUDFLARE_INTERNAL_METADATA_DDL.test(row.sql))||
+    schema.some(name=>!known.has(name)&&!operational.has(name)&&name!=='_cf_KV'&&name!=='_cf_METADATA')||
     new Set(schema).size!==schema.length||
     businessTables.some(name=>!schema.includes(name)))
   denied('missing or unreviewed durable table; archive would omit state');
