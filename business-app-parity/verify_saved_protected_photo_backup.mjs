@@ -45,7 +45,7 @@ function validPhoto(p){
   typeof p.createdAt==='string'&&Number.isFinite(Date.parse(p.createdAt))&&
   typeof p.sha256==='string'&&/^[a-f0-9]{64}$/.test(p.sha256);
 }
-export function inspectStoredFirePhotoZip(zip){
+export function inspectStoredFirePhotoZip(zip,{includeVerifiedPhotoItems=false}={}){
  if(!Buffer.isBuffer(zip)||zip.length<=22||zip.length>MAX_ARCHIVE)
   fail('unsupported decrypted ZIP size');
  // FIRE's v1 ZIP writer produces an exact no-comment, one-disk archive.
@@ -114,12 +114,23 @@ export function inspectStoredFirePhotoZip(zip){
   if(name!=='manifest.json'&&!ids.has(name.slice(7)))
    fail('archive contains unlisted photo bytes');
  }
- return Object.freeze({
+ const summary={
   archiveFormat:'fire-offline-photo-vault',version:1,
   allFilesCryptographicallyVerified:true,
   photoCount:manifest.photos.length,distinctCustomerIds:customers.size,
   totalOriginalPhotoBytes:photoBytes,verifiedZipSha256:sha(zip)
- });
+ };
+ // In-memory ONLY: a separate saved numbered-record snapshot may be linked
+ // against the already SHA-256 verified original photo bytes. NEVER request
+ // this option in the public summary CLI or print the returned photo items.
+ if(includeVerifiedPhotoItems===true)
+  return Object.freeze({...summary,verifiedPhotoItems:manifest.photos.map(item=>({
+   id:item.id,customerId:item.customerId,category:item.category,
+   caption:item.caption,filename:item.filename,contentType:item.contentType,
+   sizeBytes:item.sizeBytes,createdAt:item.createdAt,
+   blob:new Blob([entries.get('photos/'+item.id)],{type:item.contentType})
+  }))});
+ return Object.freeze(summary);
 }
 async function readPhrase(){
  if(process.stdin.isTTY)fail('pipe a private passphrase on stdin; never type an echoing CLI argument');
