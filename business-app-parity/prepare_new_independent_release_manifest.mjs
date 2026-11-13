@@ -181,6 +181,39 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
      config.d1_databases[0]?.binding!=='DB'||
      config.d1_databases[0]?.database_name!==spec.db)
    failPair('incorrect target, origin or D1 binding identity');
+  // A paired review is a release boundary, not merely a database-name check.
+  // Reject a forged route, extra flag, secret or provider binding even if the
+  // caller bypassed the single-target manifest preparation function.
+  if(config.env||config.zone_id||config.account_id||
+     !empty(config.routes)||!empty(config.route)||!empty(config.triggers)||
+     !empty(config.secrets?.extra)||
+     !exact(Object.keys(config.secrets||{}).sort(),['required']))
+   failPair('unexpected route, provider identity or secret metadata');
+  const authValue=config.vars?.[spec.prefix+'_AUTH_ENABLED'];
+  const allowedVars={
+   FIRE_ENV:spec.fireEnv,SITE_ORIGIN:spec.origin,
+   FIRE_PHOTO_STORAGE_MODE:PHOTO_MODE,
+   [spec.prefix+'_AUTH_ENABLED']:authValue
+  };
+  if(authValue==='owner-approved')
+   allowedVars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+  if(config.vars?.FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1'){
+   allowedVars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
+   allowedVars.FIRE_ACCESS_TEAM_DOMAIN=config.vars.FIRE_ACCESS_TEAM_DOMAIN;
+   allowedVars.FIRE_ACCESS_AUDIENCE=config.vars.FIRE_ACCESS_AUDIENCE;
+   allowedVars.FIRE_ACCESS_OWNER_EMAIL=config.vars.FIRE_ACCESS_OWNER_EMAIL;
+   if(typeof allowedVars.FIRE_ACCESS_TEAM_DOMAIN!=='string'||
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(allowedVars.FIRE_ACCESS_TEAM_DOMAIN)||
+      typeof allowedVars.FIRE_ACCESS_AUDIENCE!=='string'||
+      allowedVars.FIRE_ACCESS_AUDIENCE.length<12||
+      allowedVars.FIRE_ACCESS_AUDIENCE.length>256||
+      typeof allowedVars.FIRE_ACCESS_OWNER_EMAIL!=='string'||
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(allowedVars.FIRE_ACCESS_OWNER_EMAIL))
+    failPair('invalid target-bound quick authentication identity');
+  }
+  if(!exact(Object.keys(config.vars||{}).sort(),Object.keys(allowedVars).sort())||
+     Object.keys(allowedVars).some(k=>config.vars[k]!==allowedVars[k]))
+   failPair('unexpected release variable or authentication override');
   const id=config.d1_databases[0].database_id;
   if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id)||
      (target==='independent-live'&&id===OWNER_RECORDED_DR_D1))
