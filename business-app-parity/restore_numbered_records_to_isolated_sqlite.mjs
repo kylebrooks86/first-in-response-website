@@ -139,7 +139,7 @@ function restore(db,archive,supplemental){
 }
 export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templatePath,outputPath,supplementalPath){
  const paths=[recordsPath,templatePath,outputPath,supplementalPath];
- if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(resolve)).size!==4)
+ if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(p=>resolve(p))).size!==4)
   stop('four different records/template/output/supplemental files required');
  let archive,supplemental;
  try{
