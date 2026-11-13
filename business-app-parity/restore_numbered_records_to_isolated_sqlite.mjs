@@ -66,8 +66,12 @@ function assertExistingD1MigrationJournal(db,supplemental,found,extras){
   stop('source and destination D1 migration journal row counts differ');
  // A restore must NOT create fake applied D1 history from an empty schema,
  // nor accept unreviewed or reordered migration names as proof of a release.
- if(saved.length>EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
-  stop('unreviewed D1 migration journal cannot be preserved');
+ // DR/NEW LIVE recovery must never accept matching but incomplete applied
+ // journals. Before this guard, two independently incomplete 25/26 journals
+ // could pass identity comparison even though migration #0025 was unrecorded.
+ // Historic synthetic schemas with no journal retain their separate path.
+ if(saved.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
+  stop('independent DR/LIVE recovery requires the complete 26-migration journal');
  // Independent DR/LIVE environments legitimately apply the exact same
  // migrations at DIFFERENT provider times. Require every reviewed ID/name and
  // other non-clock journal field to match, but preserve each target's own
