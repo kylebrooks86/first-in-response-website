@@ -31,6 +31,23 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  check(()=>assert.equal(manifest.d1_databases[0].database_id,PLACEHOLDER),'source never mutated');
  const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth'});
  check(()=>assert.equal(allowed.config.vars[prefix+'_AUTH_ENABLED'],'owner-approved'),'explicit independent auth approval');
+
+ const quickOpts={...opts,enableAuth:true,
+  authAttestation:'owner-approved-'+target+'-auth',
+  quickAuthMode:'passkey-or-pin-v1',
+  quickAuthAttestation:'owner-approved-'+target+'-quick-auth',
+  accessTeamDomain:'fire-owner.cloudflareaccess.com',
+  accessAudience:'pinned-app-audience-for-'+target,
+  accessOwnerEmail:'owner@example.invalid',
+  pinSecretNamesAttestation:'owner-checked-'+target+'-pin-secret-names'
+ };
+ const quick=prepareReviewedIndependentManifest(target,manifest,quickOpts);
+ check(()=>assert.equal(quick.config.vars.FIRE_QUICK_AUTH_MODE,'passkey-or-pin-v1'),'pin/passkey gate');
+ check(()=>assert.equal(quick.config.vars.FIRE_ACCESS_TEAM_DOMAIN,'fire-owner.cloudflareaccess.com'),'pinned Access issuer');
+ check(()=>assert.equal(quick.config.vars.FIRE_ACCESS_AUDIENCE,quickOpts.accessAudience),'pinned Access audience');
+ check(()=>assert.equal(quick.config.secrets.required.includes(
+  (target==='independent-dr'?'FIRE_DR':'FIRE_NEW_LIVE')+'_PIN_PEPPER'),true),'PIN secret names required');
+ check(()=>assert.equal(quick.evidence.accessProviderIndependentlyVerified,false),'no false provider evidence');
  const reject=(bad,options=opts,why)=>check(()=>assert.throws(
   ()=>prepareReviewedIndependentManifest(target,bad,options),
   /BLOCKED/,why||target),'invalid release must refuse');
@@ -52,6 +69,14 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...opts,resourceAttestation:null});
  reject(manifest,{...opts,enableAuth:true,authAttestation:null});
  reject(manifest,{...opts,enableAuth:'yes'});
+ reject(manifest,{...quickOpts,quickAuthAttestation:null});
+ reject(manifest,{...quickOpts,accessTeamDomain:'fake.example.invalid'});
+ reject(manifest,{...quickOpts,accessTeamDomain:'fire-owner.cloudflareaccess.com.attacker.invalid'});
+ reject(manifest,{...quickOpts,accessAudience:''});
+ reject(manifest,{...quickOpts,accessOwnerEmail:'not-email'});
+ reject(manifest,{...quickOpts,enableAuth:false});
+ reject(manifest,{...quickOpts,pinSecretNamesAttestation:null});
+
 }
 check(()=>assert.throws(()=>prepareReviewedIndependentManifest('qa',{},{}),/BLOCKED/),'unreviewed target');
 console.log('PASS '+checks+'/'+checks+' DR and NEW LIVE source-only independent Worker/D1/R2/auth release config controls; no real resources or deployment.');
