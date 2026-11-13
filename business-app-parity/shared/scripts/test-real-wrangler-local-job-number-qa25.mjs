@@ -25,7 +25,12 @@ assert.equal(migrations.length,25,'Expected the precise current QA25 migration f
 assert.ok(migrations[0].startsWith('0000_') && migrations.at(-1).startsWith('0024_'));
 for(let i=0;i<25;i++)assert.equal(Number(migrations[i].slice(0,4)),i);
 const candidate=join(rootSource,'job-numbering/qa25_job_numbers_seven_job_d1_candidate.sql');
+const cleanCandidate=join(rootSource,'job-numbering/empty_prelaunch_job_numbers_qa25_d1_candidate.sql');
 const candidateSql=readFileSync(candidate,'utf8');
+const cleanSql=readFileSync(cleanCandidate,'utf8');
+assert.ok(cleanSql.includes('CREATE TABLE fire_job_numbers'));
+assert.ok(!/^\\s*(BEGIN|COMMIT)\\s[^;]*;/mi.test(cleanSql),
+  'Empty prelaunch D1 candidate must not use raw transaction statements');
 assert.ok(candidateSql.includes('CREATE TABLE fire_job_numbers'));
 assert.ok(!/^\s*(BEGIN|COMMIT)\s[^;]*;/mi.test(candidateSql),
   'D1 migration must have no explicit transaction');
@@ -119,8 +124,9 @@ function snapshot(ctx){
     return JSON.stringify(rows);
   }).join('\n');
 }
-function addCandidate(ctx){
-  copyFileSync(candidate,join(ctx.migration,'0025_fire_job_numbers_qa_seven.sql'));
+function addCandidate(ctx,{empty=false}={}){
+  copyFileSync(empty?cleanCandidate:candidate,join(ctx.migration,
+    empty?'0025_fire_job_numbers_new_app_empty.sql':'0025_fire_job_numbers_qa_seven.sql'));
 }
 try{
   const good=context('seven','10000001-1111-4111-8111-000000000001');
@@ -193,7 +199,42 @@ try{
     'Rejected native migration must roll back ALL newly added tables');
   assert.equal(snapshot(bad),badBefore,'Failed native migration must preserve source rows');
   checks+=4;
-  console.log('PASS: '+checks+' actual Wrangler LOCAL D1 QA25 Job # migration, immutable high-water, 26-journal and failed-drift rollback checks. NO REMOTE D1, EXPORT, DEPLOY OR REAL DATA.');
+
+  // A genuinely new, independent app must not inherit seven QA sample jobs.
+  // Rehearse its no-data migration in a THIRD isolated local D1 namespace.
+  const fresh=context('empty-prelaunch','10000003-1111-4111-8111-000000000003');
+  addCandidate(fresh,{empty:true});
+  call(fresh,['d1','migrations','apply','DB']);checks++;
+  assert.equal(scalar(fresh,'SELECT COUNT(*) AS n FROM d1_migrations'),26);
+  assert.equal(scalar(fresh,'SELECT COUNT(*) AS n FROM fire_job_numbers'),0);
+  assert.equal(scalar(fresh,'SELECT COUNT(*) AS n FROM fire_job_estimate_links'),0);
+  assert.equal(scalar(fresh,"SELECT COALESCE(MAX(seq),0) AS n FROM sqlite_sequence WHERE name='fire_job_numbers'"),0);
+  checks+=4;
+  const firstReal=join(fresh.dir,'synthetic-first-job.sql');
+  writeFileSync(firstReal,[
+    "INSERT INTO customers(id,name,created_at) VALUES ('brandnew-customer','Prelaunch fixture','2026-10-15T09:00:00Z');",
+    "INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES ('brandnew-job','brandnew-customer','draft',10000,0,10000,5000,'2026-10-15T10:00:00Z');",
+    "INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES ('brandnew-job','2026-10-15T10:00:00Z');",
+    "INSERT INTO fire_job_estimate_links(estimate_id,job_number) SELECT 'brandnew-job',job_number FROM fire_job_numbers WHERE root_estimate_id='brandnew-job';"
+  ].join('\n'));
+  call(fresh,['d1','execute','DB','--file',firstReal,'--yes']);checks++;
+  assert.equal(scalar(fresh,"SELECT job_number AS n FROM fire_job_estimate_links WHERE estimate_id='brandnew-job'"),1,
+    'Clean real LIVE would start with #0001, never #0008 from QA');checks++;
+  assert.equal(query(fresh,syntheticQuery(JOB_NUMBER_FOR_ESTIMATE_SQL,'brandnew-job'))[0]?.jobNumber,1);checks++;
+
+  // An allegedly clean target containing even one prelaunch record MUST
+  // reject this empty-only candidate, with D1 migration journal unchanged.
+  const dirty=context('nonempty-rejected','10000004-1111-4111-8111-000000000004');
+  seed(dirty,7);
+  const dirtyRows=snapshot(dirty);
+  addCandidate(dirty,{empty:true});
+  const refused=call(dirty,['d1','migrations','apply','DB'],{allowFailure:true});
+  assert.notEqual(refused.status,0);
+  assert.equal(scalar(dirty,'SELECT COUNT(*) AS n FROM d1_migrations'),25);
+  assert.equal(scalar(dirty,"SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='fire_job_numbers'"),0);
+  assert.equal(snapshot(dirty),dirtyRows,'Refused clean migration must leave source history untouched');
+  checks+=4;
+  console.log('PASS: '+checks+' actual Wrangler LOCAL QA Job # #0008 rehearsal, clean new-app #0001 allocation, refusal on nonempty database, customer ownership and immutable numbering. NO REMOTE D1, EXPORT, DEPLOY OR REAL DATA.');
 }finally{
   rmSync(temp,{recursive:true,force:true});
 }
