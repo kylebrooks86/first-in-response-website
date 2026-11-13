@@ -48,6 +48,6 @@ assert.match(communications,/recoveredAfterUncertainConfirmation:true/);
 assert.match(communications,/deliveryConfirmed:false/);
 assert.match(communications,/confirmationSource:'owner'/);
 assert.match(communications,/saveUncertain:true/);
-assert.match(communications,/op\.template!=='review'/);
+assert.match(communications,/uncertainOperation\.template!=='review'/);
 assert.match(communications,/customer_messages WHERE id=\? AND customer_id=\? AND channel=\?/);
 console.log('PASS: NEW LIVE numbering, customer save and communication uncertain-ACK recovery contracts');
