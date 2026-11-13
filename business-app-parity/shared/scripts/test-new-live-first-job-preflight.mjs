@@ -59,7 +59,7 @@ const env={FIRE_ENV:'new-live-prelaunch',FIRE_JOB_NUMBERS_CANDIDATE:'owner-appro
 // Compare the allowlist to the real reviewed migration source, not a
 // second independently hard-coded test array that could drift in silence.
 const actualSql=readdirSync(new URL('../../adapters/doomsday/drizzle/',import.meta.url))
- .filter(name=>/^\\d{4}_.+\\.sql$/.test(name)).sort();
+ .filter(name=>/^\d{4}_.+\.sql$/.test(name)).sort();
 assert.deepEqual(EXPECTED_NEW_LIVE_D1_MIGRATIONS,actualSql,
  'Exact applied D1 journal must match all reviewed doomsday 25 SQL migrations');
 checks++;
