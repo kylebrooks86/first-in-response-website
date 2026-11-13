@@ -56,7 +56,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
     !empty(original.routes)||!empty(original.route)||!empty(original.triggers)||
     !empty(original.kv_namespaces)||!empty(original.queues)||
     !empty(original.services)||!empty(original.unsafe)||
-    !empty(original.dispatch_namespaces)||!empty(original.durable_objects))
+    !empty(original.dispatch_namespaces)||!empty(original.durable_objects)||
+    !empty(original.analytics_engine_datasets)||!empty(original.vectorize)||
+    !empty(original.hyperdrive)||!empty(original.workflows)||
+    !empty(original.secrets?.extra)||
+    !exact(Object.keys(original.secrets||{}).sort(),['required']))
   fail('unexpected Worker identity, route, environment or other connected service');
  const secretNames=[spec.prefix+'_PASSWORD_HASH',spec.prefix+'_SESSION_SECRET'];
  if(!exact(original.secrets?.required,secretNames))fail('missing/reused owner authentication secret names');
@@ -66,6 +70,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(!exact(original.d1_databases,[{binding:'DB',database_name:spec.db,database_id:PLACEHOLDER}])||
    !empty(original.r2_buckets))fail('source has non-placeholder database or unexpected R2 binding');
  const uuid=options.databaseId;
+ // The owner ALREADY created and supplied this exact DR database. A
+ // purported DR manifest using a different UUID is an identity mix-up,
+ // not permission to silently replace, recreate, or swap environments.
+ if(target==='independent-dr'&&uuid!==OWNER_RECORDED_DR_D1)
+  fail('DR database identity differs from the already owner-recorded D1 UUID');
  if(!validUuid(uuid)||RESERVED_D1.has(uuid)||
     (target==='independent-live'&&uuid===OWNER_RECORDED_DR_D1)||
     (options.otherReleaseDatabaseId&&uuid===options.otherReleaseDatabaseId))
@@ -239,6 +248,7 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
    failPair('unexpected release variable or authentication override');
   const id=config.d1_databases[0].database_id;
   if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id)||
+     (target==='independent-dr'&&id!==OWNER_RECORDED_DR_D1)||
      (target==='independent-live'&&id===OWNER_RECORDED_DR_D1))
    failPair('D1 must be a valid distinct target-bound identifier, never QA/STAGING/TEST/DR-as-LIVE');
   ids.add(id);
