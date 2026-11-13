@@ -90,7 +90,7 @@ function restore(db,archive,supplemental){
   // Preserve AUTOINCREMENT history for ALL supplemental feature tables too;
   // otherwise deleted high IDs could be silently reused after recovery.
   for(const [table,high] of Object.entries(supplemental.sqliteSequence)){
-   if(!/\\bAUTOINCREMENT\\b/i.test(found.get(table)||''))
+   if(!/\bAUTOINCREMENT\b/i.test(found.get(table)||''))
     stop('supplemental sequence references non-AUTOINCREMENT table '+table);
    const existing=db.prepare('SELECT COUNT(*) AS n FROM sqlite_sequence WHERE name=?').get(table).n;
    if(existing>1)stop('duplicate supplemental sequence entry');
