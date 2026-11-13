@@ -7,7 +7,7 @@ import {Input} from './ui/input';
 import {Label} from './ui/label';
 import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
-import type {OfflinePhoto} from '../lib/offline-photo-backup';
+import {readOfflinePhotoBackup,type OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 import {readOfflinePhotoBackup} from '../lib/offline-photo-backup';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
@@ -195,6 +195,13 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   try{
    // Wrong passphrase and damaged encrypted files fail BEFORE a mutation receipt.
    const zip=await openOwnerOfflinePhotoArchive(files[0],backupPassphrase);
+   // Finish ZIP CRC/SHA-256 and customer-relationship preflight before the
+   // first durable mutation receipt. Invalid ZIPs must not pause safe edits.
+   const incoming=await readOfflinePhotoBackup(zip);
+   if(!incoming.length)throw Error('This photo archive contains no photos.');
+   const known=new Set(knownCustomerIds);
+   if(incoming.some(photo=>!known.has(photo.customerId)))
+    throw Error('Restore matching customer records before importing these photos.');
    mutationStarted=true;
    const result=await runPhotoMutation('restore',customerId,async()=>{
     const restored=await restoreLocalPhotos(zip,knownCustomerIds);
