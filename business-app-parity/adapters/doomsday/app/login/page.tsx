@@ -20,7 +20,7 @@ export default function LoginPage(){
   let active=true;
   fetch("/api/app-version",{cache:"no-store",credentials:"same-origin"})
    .then(r=>{if(!r.ok)throw Error("unavailable");return r.json();})
-   .then((r:{quickAuthMode?:string})=>{if(active)setMode(r.quickAuthMode==="pin-or-passkey"?"pin-or-passkey":"legacy");})
+   .then((response:unknown)=>{const r=response as {quickAuthMode?:string};if(active)setMode(r?.quickAuthMode==="pin-or-passkey"?"pin-or-passkey":"legacy");})
    .catch(()=>{if(active)setMode("legacy");});
   return()=>{active=false;};
  },[]);
