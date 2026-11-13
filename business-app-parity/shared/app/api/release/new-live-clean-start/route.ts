@@ -11,8 +11,11 @@ const fail=(status:number,message:string)=>Response.json({
  error:message,releaseApproved:false,providerIdentityVerified:false
 },{status,headers});
 export async function GET(){
- const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')
+ let user;
+ try{user=await getChatGPTUser();}
+ catch{return fail(401,'Unauthorized');}
+ if(!user||typeof user.email!=='string'||
+    user.email.toLowerCase()!=='kylebrooks8605@gmail.com')
   return fail(401,'Unauthorized');
  const flags=env as typeof env & {
   FIRE_ENV?:string;FIRE_NEW_LIVE_CLEAN_START?:string;
