@@ -28,7 +28,8 @@ export function compileEmptyIsolatedNumberedRestore(snapshot,schemaColumns,empty
     Object.keys(emptyTableCounts).length!==tables.length||
     tables.some(t=>!Object.hasOwn(schemaColumns,t)||!Object.hasOwn(emptyTableCounts,t)))
   fail('complete isolated schema inventory and destination emptiness required');
- const sql=['BEGIN IMMEDIATE;'];
+ const sql=['BEGIN IMMEDIATE;',
+  'CREATE TEMP TABLE __fire_restore_assert(ok INTEGER NOT NULL CHECK(ok=1));'];
  let rows=0;
  for(const table of tables){
   const columns=schemaColumns[table],count=emptyTableCounts[table];
@@ -53,10 +54,11 @@ export function compileEmptyIsolatedNumberedRestore(snapshot,schemaColumns,empty
  // silently insert these into an unknown schema or reset existing counters.
  sql.push("UPDATE sqlite_sequence SET seq="+literal(snapshot.highWater.customer)+
   " WHERE name='fire_customer_numbers';");
- sql.push("SELECT CASE WHEN changes()!=1 THEN RAISE(ABORT,'missing customer sequence') END;");
+ sql.push('INSERT INTO temp.__fire_restore_assert(ok) VALUES (CASE WHEN changes()=1 THEN 1 ELSE 0 END);');
  sql.push("UPDATE sqlite_sequence SET seq="+literal(snapshot.highWater.job)+
   " WHERE name='fire_job_numbers';");
- sql.push("SELECT CASE WHEN changes()!=1 THEN RAISE(ABORT,'missing job sequence') END;");
+ sql.push('INSERT INTO temp.__fire_restore_assert(ok) VALUES (CASE WHEN changes()=1 THEN 1 ELSE 0 END);');
+ sql.push('DROP TABLE temp.__fire_restore_assert;');
  sql.push('COMMIT;');
  return Object.freeze({sql:sql.join('\n')+'\n',sourceRows:rows,
   customers:summary.customers,jobNumbers:summary.jobNumbers,
