@@ -31,8 +31,26 @@ function findLocalSqlite(dir){
   }
  };
  visit(dir);
- if(found.length!==1)fail('expected exactly one isolated Wrangler-local SQLite file; got '+found.length);
- return found[0];
+ // Wrangler can create its own local metadata SQLite alongside the D1
+ // database. Identify the reviewed D1 by its exact 26-entry migration journal,
+ // not by the number or order of files in the private persistence directory.
+ if(found.length===0)fail('Wrangler produced no local SQLite files');
+ const matches=[],inventory=[];
+ for(const file of found){
+  const db=new DatabaseSync(file,{readOnly:true});
+  try{
+   const names=db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='d1_migrations'").get().n;
+   if(names===0){inventory.push('no-journal');continue;}
+   const rows=db.prepare('SELECT id,name FROM d1_migrations ORDER BY id').all();
+   inventory.push('journal='+rows.length);
+   if(rows.length===EXPECTED_NEW_LIVE_D1_MIGRATIONS.length&&
+      rows.every((r,i)=>r.id===i+1&&r.name===EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]))
+    matches.push(file);
+  }finally{db.close();}
+ }
+ if(matches.length!==1)
+  fail('expected exactly one local D1 with all 26 reviewed migrations; observed '+inventory.join(','));
+ return matches[0];
 }
 function adaptSqlite(db){
  return {prepare(sql){
