@@ -59,6 +59,18 @@ export async function inspectOwnerSavedNumberedPhotoPair(recordsFile,photoFile,p
  let records;
  try{records=JSON.parse(decode.decode(rawRecords));}
  catch{fail('numbered records JSON is invalid or incomplete');}
+ // The owner-facing review endpoint downloads an envelope containing
+ // coreSnapshot, whereas the internal validator accepts the bare snapshot.
+ // Accept ONLY the exact owner-facing review envelope; never mistake a
+ // partial/authorized-looking export for a full backup.
+ if(records?.format==='fire-numbered-core-export-review'){
+  if(records.version!==1||records.completeBackup!==false||
+     records.recoveryAuthorized!==false||records.photoBytesIncluded!==false||
+     records.offDeviceCustodyVerified!==false||
+     !records.coreSnapshot||typeof records.coreSnapshot!=='object')
+   fail('owner review export envelope is incomplete or misrepresents recovery');
+  records=records.coreSnapshot;
+ }
  const encrypted=new Blob([rawProtected]);
  if(!await isProtectedOfflinePhotoArchive(encrypted))
   fail('photo file must be a protected .firephotos archive');
