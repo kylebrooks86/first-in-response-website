@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 // Confirmation appends evidence; preparation and legacy history stay immutable.
 export async function PATCH(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  let confirmationOperation:{id:string;customerId:string;channel:string;cancelled:boolean}|null=null;
+  let confirmationOperation:{id:string;customerId:string;channel:string;cancelled:boolean;preparedId:string;estimateId:string|null;template:string;body:string}|null=null;
   try {
     const value=await request.json() as Record<string,unknown>;
     const id=String(value.preparedMessageId??"").trim();
@@ -192,7 +192,7 @@ export async function PATCH(request: Request) {
     const confirmedId=prepared.id+":owner-confirmed";
     const cancelledId=prepared.id+":owner-cancelled";
     const channel=prepared.channel==="text_prepared"?"text_confirmed":"email_confirmed";
-    confirmationOperation={id:cancelled?cancelledId:confirmedId,customerId,channel:cancelled?'send_cancelled':channel,cancelled};
+    confirmationOperation={id:cancelled?cancelledId:confirmedId,customerId,channel:cancelled?'send_cancelled':channel,cancelled,preparedId:prepared.id,estimateId:prepared.estimateId,template:prepared.template,body:prepared.body};
     const createdAt=new Date().toISOString();
     if(cancelled){
       // Never delete the prepared message. Its cancellation is a separate,
@@ -225,12 +225,26 @@ export async function PATCH(request: Request) {
         const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel=? LIMIT 1")
           .bind(op.id,op.customerId,op.channel).first();
         if(message){
+          const receipt=message as {id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string};
+          const expectedBody=op.cancelled?'Owner confirmed this prepared message was not sent.':op.body;
+          if(receipt.customerId!==op.customerId||(receipt.estimateId??'')!==(op.estimateId??'')||
+             receipt.channel!==op.channel||receipt.template!==op.template||receipt.body!==expectedBody||
+             typeof receipt.createdAt!=='string'||!Number.isFinite(Date.parse(receipt.createdAt)))
+            return Response.json({error:'Saved send decision does not match this prepared message. Review message history.',
+              saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
           const otherId=op.id.replace(/:(owner-confirmed|owner-cancelled)$/,op.cancelled?':owner-confirmed':':owner-cancelled');
           const conflicting=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
             .bind(otherId,op.customerId).first();
-          if(!conflicting)return Response.json({message,cancelled:op.cancelled,
-            recoveredAfterUncertainConfirmation:true,deliveryConfirmed:!op.cancelled,
-            confirmationSource:'owner'},{headers:{"Cache-Control":"no-store, private"}});
+          if(conflicting)return Response.json({error:'Conflicting send decisions require manual review.',
+            saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+          const estimate=op.estimateId&&!op.cancelled?
+            await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
+              .bind(op.estimateId,op.customerId).first<{status:string}>():null;
+          return Response.json({message:receipt,cancelled:op.cancelled,
+            ...(estimate?{estimateStatus:estimate.status}:{}),
+            recoveredAfterUncertainConfirmation:true,ownerConfirmedSent:!op.cancelled,
+            deliveryConfirmed:false,confirmationSource:'owner'},
+            {headers:{"Cache-Control":"no-store, private"}});
         }
       }catch{/* No authoritative evidence; never infer delivery. */}
     }
