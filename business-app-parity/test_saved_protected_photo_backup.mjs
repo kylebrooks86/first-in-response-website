@@ -91,6 +91,32 @@ try{
   storedFireZip([['photos/'+photoId,photoBytes]]))),/manifest/i);
  const tamperedZip=zip();tamperedZip[30+Buffer.byteLength('photos/'+photoId)+1]^=0x20;
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(tamperedZip)),/CRC/i);
+ // Real FIRE ZIPs contain nonzero DOS timestamps, with DIFFERENT local
+ // (+10,+12) and central (+12,+14) field positions. Guard against the
+ // previously proposed same-offset validation that breaks valid backups.
+ const timed=zip(),firstDir=timed.readUInt32LE(timed.length-22+16);
+ timed.writeUInt16LE(0x4567,10);timed.writeUInt16LE(0x5a42,12);
+ timed.writeUInt16LE(0x4567,firstDir+12);timed.writeUInt16LE(0x5a42,firstDir+14);
+ ok(inspectStoredFirePhotoZip(timed).photoCount===1,
+  'normal nonzero timestamped FIRE ZIP remains restorable');
+ const wrongTime=Buffer.from(timed);wrongTime.writeUInt16LE(0x1234,10);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(wrongTime)),
+  /local file|metadata/i);
+ const wrongVersion=zip();wrongVersion.writeUInt16LE(99,4);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(wrongVersion)),
+  /local file|metadata/i);
+ const wrongDir=zip(),dir=wrongDir.readUInt32LE(wrongDir.length-22+16);
+ wrongDir.writeUInt32LE(0xfffffff0,dir+42);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(wrongDir)),
+  /local file|metadata/i);
+ const unknownField=storedFireZip([['photos/'+photoId,photoBytes],[
+  'manifest.json',Buffer.from(JSON.stringify({...manifest(),unknown:'forged'}))]]);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(unknownField)),
+  /manifest/i);
+ const absentDate=storedFireZip([['photos/'+photoId,photoBytes],[
+  'manifest.json',Buffer.from(JSON.stringify({...manifest(),exportedAt:null}))]]);
+ await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(absentDate)),
+  /manifest/i);
  // Confirm the real command-line boundary reads the passphrase from stdin,
  // never from process arguments, never emits customer IDs or plaintext bytes,
  // and sets exit nonzero on an incorrect passphrase.
