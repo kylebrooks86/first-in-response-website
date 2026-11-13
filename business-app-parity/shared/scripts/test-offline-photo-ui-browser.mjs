@@ -156,6 +156,34 @@ try{
  check(comparisonDownload.suggestedFilename()==='FIRE-before-after.png','Owner can create a downloadable comparison with original saved photos');
  await comparisonMore.locator(':scope > summary').click();
  check(!await comparisonMore.evaluate(node=>node.open),'Comparison editor can be closed without deleting or changing saved photos');
+ // NEW Gate7 behavior: actual browser photo UI must default to protected
+ // owner-held backups and reject wrong phrases BEFORE any IndexedDB mutation.
+ const privatePhrase='FIRE synthetic photo recovery with 20+ characters';
+ await page.getByLabel('Photo backup recovery passphrase').fill(privatePhrase);
+ await page.getByLabel('Confirm new photo backup passphrase').fill(privatePhrase);
+ await page.getByRole('button',{name:'Prepare protected all-photos backup'}).click();
+ await page.getByText(/Protected photo backup ready/).waitFor({timeout:30000});
+ if(!await backupTools.evaluate(node=>node.open))await backupSummary.click();
+ const [protectedDownload]=await Promise.all([
+  page.waitForEvent('download'),page.getByRole('button',{name:'Download prepared backup'}).click()
+ ]);
+ const protectedName=protectedDownload.suggestedFilename();
+ const protectedBytes=readFileSync(await protectedDownload.path());
+ check(protectedName.endsWith('.firephotos')&&protectedBytes.length>100&&
+  protectedBytes.subarray(0,8).toString('utf8')==='FIREPX01',
+  'Actual owner photo UI exports an opaque encrypted .firephotos archive by default');
+ const protectedVerify=page.locator('input[type="file"][accept*=".firephotos"]').first();
+ await page.getByLabel('Photo backup recovery passphrase').fill(privatePhrase);
+ await protectedVerify.setInputFiles({name:protectedName,mimeType:'application/octet-stream',buffer:protectedBytes});
+ await page.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});
+ check(await page.locator('.photo-card').count()===2,
+  'Actual saved protected file round-trips through browser verification without photo mutations');
+ await page.getByLabel('Photo backup recovery passphrase').fill('wrong passphrase long enough');
+ await protectedVerify.setInputFiles([]);
+ await protectedVerify.setInputFiles({name:protectedName,mimeType:'application/octet-stream',buffer:protectedBytes});
+ await page.getByRole('alert').getByText(/wrong passphrase or damaged protected file/).waitFor({timeout:30000});
+ check(await page.locator('.photo-card').count()===2,
+  'Wrong owner recovery passphrase refuses protected photo archive without changing IndexedDB');
  await ctx.setOffline(true);
  // The earlier interrupted-selection test reloads the page; optional tools
  // must be explicitly reopened after a real browser restart.
