@@ -1,8 +1,11 @@
 /** Source-only NEW LIVE #0001 clean-D1 pre-activation regression, NO D1 writes. */
 import assert from 'node:assert/strict';
+import {readdirSync} from 'node:fs';
+import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from '../lib/new-live-migration-journal.mjs';
 import {inspectNewLiveFirstJobCleanStart} from '../lib/new-live-first-job-preflight.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from '../lib/numbered-records-v2-preflight.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','d1_migrations'];
+const applied=EXPECTED_NEW_LIVE_D1_MIGRATIONS.map((name,i)=>({id:i+1,name}));
 const provider={name:'_cf_METADATA',sql:'CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB)'};
 const triggers=[
  'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',
@@ -13,14 +16,16 @@ let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
 const create=(override={})=>{
- const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:25},serialRows:0,
+ const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:25},
+  journalRows:applied.map(item=>({...item})),serialRows:0,
   validSchema:true,validCoverage:true,validCustomerSchema:true,validCustomerCoverage:true,...override};
  const statements=[];
  const db={prepare(sql){
   statements.push(sql);
   if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write SQL!');
   const count=/^SELECT COUNT\(\*\) AS n FROM "([a-z0-9_]+)"$/.exec(sql);
-  return {all:async()=>({results:v.validCustomerSchema?
+  return {all:async()=>sql==='SELECT id, name FROM "d1_migrations" ORDER BY id'?
+   ({results:v.journalRows}):({results:v.validCustomerSchema?
    ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
    [{name:'fire_customer_numbers'}]}),first:async()=>{
    if(sql.includes('AS tables')&&sql.includes('AS triggers'))return {
@@ -42,12 +47,20 @@ const create=(override={})=>{
 };
 const env={FIRE_ENV:'new-live-prelaunch',FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
  FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1'};
+const actualSql=readdirSync(new URL('../../adapters/doomsday/drizzle/',import.meta.url))
+ .filter(name=>name.length>8&&name.slice(0,4).split('').every(ch=>ch>='0'&&ch<='9')&&
+  name[4]==='_'&&name.endsWith('.sql')).sort();
+assert.deepEqual(EXPECTED_NEW_LIVE_D1_MIGRATIONS,actualSql,
+ 'The exact applied journal allowlist MUST match all 25 reviewed adapter migrations');
+checks++;
 const base=create();const proof=await inspectNewLiveFirstJobCleanStart(base.db,env);
 ok(proof.firstJobNumberExpected==='0001','clean schema predicts first permanent Job #0001');
 ok(proof.tableRecordsAllEmpty===true&&proof.jobAndCustomerSequencesEmpty===true,
  'all known operational tables and sequences inspected');
+ok(proof.exactSourceMigrationJournalMatched===true,
+ 'bound D1 has exact reviewed 25 ordered migration names and IDs');
 ok(proof.physicalD1IdentityVerified===false&&proof.orderedMigrationsVerified===false,
- 'no false provider identity or migration proof');
+ 'source journal match never claims independent provider identity/provenance');
 ok(proof.ownerApprovedRelease===false&&proof.gate5Accepted===false,'no false gate approval');
 ok(base.statements.every(sql=>/^SELECT\b/.test(sql)),'only read-only SELECT operations');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create().db,{...env,FIRE_ENV:'synthetic-qa'}),
@@ -66,6 +79,22 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCoverage:false})
  'bad original estimate/job ownership stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:0}}).db,env),
  'empty D1 migration journal cannot establish a real migrated database');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:24}}).db,env),
+ 'old 24-migration D1 cannot claim new LIVE readiness');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:26}}).db,env),
+ 'unreviewed extra migration must block first use');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:applied.slice(0,-1)}).db,env),
+ 'count-only spoof with missing journal entry must block');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:applied.map((row,i)=>
+ i===18?{...row,name:'0018_manual_processing_fees.sql'}:row)}).db,env),
+ 'payment/refund migration identity cannot be substituted');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:applied.map((row,i)=>
+ i===5?{...row,id:5}:row)}).db,env),
+ 'duplicated journal ID cannot be accepted');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:[...applied].reverse()}).db,env),
+ 'applied migrations must be returned in strict ascending ID order');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:null}).db,env),
+ 'malformed journal response fails closed');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='d1_migrations')}).db,env),
  'NEW LIVE migration journal cannot be absent');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='payment_refunds')}).db,env),

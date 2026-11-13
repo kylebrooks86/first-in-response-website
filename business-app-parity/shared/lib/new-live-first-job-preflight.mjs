@@ -10,6 +10,7 @@
 import {JOB_NUMBER_FLAG,jobNumberingReady} from './job-numbering.mjs';
 import {CUSTOMER_NUMBER_FLAG,customerNumberingReady} from './customer-numbering.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
+import {EXPECTED_NEW_LIVE_D1_MIGRATIONS,assertNewLiveMigrationJournal} from './new-live-migration-journal.mjs';
 
 const stop=reason=>{throw Error('FIRE NEW LIVE clean start BLOCKED: '+reason);};
 const expected=Object.freeze([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits']);
@@ -93,12 +94,15 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   if(naturalCount(row?.n,table)!==0)
    stop('prelaunch DB contains records in '+table+'; do not reset or delete them');
  }
- // The migration journal must be present and populated. An empty journal
- // indicates an unproven/manual schema copy, not a known migrated NEW LIVE.
- // This checks only presence; ordered provider provenance is still required.
+ // A merely populated journal cannot establish that the reviewed 25
+ // migrations were applied to THIS D1 in their required order. Reject old,
+ // skipped, extra, renamed, or duplicated migrations before first use.
+ // This is a read-only app-binding check, NOT provider-attested provenance.
  const migrationJournal=await one(db,'SELECT COUNT(*) AS n FROM "d1_migrations"');
- if(naturalCount(migrationJournal?.n,'D1 migration journal')===0)
-  stop('D1 migration journal is empty; ordered migration provenance required');
+ if(naturalCount(migrationJournal?.n,'D1 migration journal')!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
+  stop('D1 migration journal must contain exactly the reviewed 25 migrations');
+ try{await assertNewLiveMigrationJournal(db);}
+ catch{stop('D1 migration journal names, IDs or order disagree with reviewed source');}
  // AUTOINCREMENT can retain a high-water even after deleting all rows. That
  // would make a visibly empty NEW LIVE start at #0002 or higher. Do not use
  // DELETE FROM sqlite_sequence; the owner requires untouched inspection.
@@ -107,12 +111,14 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   "('fire_job_numbers','fire_customer_numbers')");
  if(naturalCount(seq?.n,'number serial history')!==0)
   stop('permanent serial history is not clean; Job #0001 cannot be claimed');
- // No schema/data migration journal is validated by this helper; gating
- // production still requires independent ordered migration provenance.
+ // Source-pinned ordered journal identity was validated above. This does
+ // NOT attest provider UUID, migration SQL execution or independent
+ // source-to-physical-DB provenance. G5 remains separately blocked.
  return Object.freeze({
   target:'independent-live',firstJobNumberExpected:'0001',
   expectedOperationalTables:expected.length,tableRecordsAllEmpty:true,
   jobAndCustomerSequencesEmpty:true,requiredImmutabilityTriggersPresent:true,
+  exactSourceMigrationJournalMatched:true,
   physicalD1IdentityVerified:false,orderedMigrationsVerified:false,
   isolatedRestoreVerified:false,ownerApprovedRelease:false,
   gate4Accepted:false,gate5Accepted:false,gate7Accepted:false,
