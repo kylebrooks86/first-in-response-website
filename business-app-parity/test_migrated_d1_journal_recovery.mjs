@@ -403,6 +403,23 @@ try{
  await reject(join(folder,'reject-forged-destination.sqlite'),core,mismatched,supp,
   'destination with substituted refund migration must reject before customer restore');
 
+ // A source and DR that are BOTH missing migration #0025 must not look
+ // mutually consistent merely because their names and high-water agree.
+ // This is distinct from the already-tested one-sided missing journal.
+ const bothShortTemplate=join(folder,'both-missing-final-migration.sqlite');
+ await copyFile(template,bothShortTemplate);
+ const bothShortDb=new DatabaseSync(bothShortTemplate);
+ bothShortDb.exec('DELETE FROM d1_migrations WHERE id=26');
+ bothShortDb.close();
+ const bothShortSaved=structuredClone(saved);
+ bothShortSaved.tables.d1_migrations.pop();
+ bothShortSaved.rowCounts.d1_migrations=25;
+ const bothShortArchive=join(folder,'both-missing-final-migration.json');
+ await writeFile(bothShortArchive,JSON.stringify(bothShortSaved));
+ await reject(join(folder,'reject-both-25-of-26.sqlite'),core,
+  bothShortTemplate,bothShortArchive,
+  'two independently incomplete but matching 25/26 migration journals are not releasable');
+
  const lostJournal=join(folder,'missing-journal-row.sqlite');
  await copyFile(template,lostJournal);
  const missing=new DatabaseSync(lostJournal);
