@@ -68,14 +68,44 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
   fail('separate owner approval for login enablement missing');
  if(options.enableAuth!==false&&options.enableAuth!==true&&options.enableAuth!==undefined)
   fail('ambiguous login-enable instruction');
+ // Optional passkey / 4-digit PIN mode needs a provider-verified Access
+ // application for THIS Worker, separate owner consent and per-target
+ // secret-name custody. Source may never silently enable this mode.
+ const quick=options.quickAuthMode==='passkey-or-pin-v1';
+ if(options.quickAuthMode!==undefined&&!quick)fail('unsupported quick login mode');
+ if(quick){
+  if(!enabled||options.quickAuthAttestation!=='owner-approved-'+target+'-quick-auth')
+   fail('quick sign-in requires separate owner approval and enabled owner authentication');
+  if(typeof options.accessTeamDomain!=='string'||
+     !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.cloudflareaccess\\.com$/.test(options.accessTeamDomain)||
+     typeof options.accessAudience!=='string'||options.accessAudience.length<12||
+     options.accessAudience.length>256||
+     typeof options.accessOwnerEmail!=='string'||
+     !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(options.accessOwnerEmail)||
+     options.accessOwnerEmail.length>254)
+   fail('explicit protected Access team, audience and owner identity are required');
+  if(options.pinSecretNamesAttestation!=='owner-checked-'+target+'-pin-secret-names')
+   fail('per-environment PIN hash/pepper secret-name review missing');
+ }
  const updated=structuredClone(original);
  updated.d1_databases=[{binding:'DB',database_name:spec.db,database_id:uuid}];
  updated.r2_buckets=[{binding:'BUCKET',bucket_name:spec.bucket}];
  updated.vars={...initialVars,[spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
+ if(quick){
+  updated.vars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
+  updated.vars.FIRE_ACCESS_TEAM_DOMAIN=options.accessTeamDomain;
+  updated.vars.FIRE_ACCESS_AUDIENCE=options.accessAudience;
+  updated.vars.FIRE_ACCESS_OWNER_EMAIL=options.accessOwnerEmail;
+  updated.secrets.required=[
+   ...secretNames,spec.prefix+'_PIN_HASH',spec.prefix+'_PIN_PEPPER'
+  ];
+ }
+
  // Does NOT verify that credentials, bound R2 bytes, provider versions or
  // migration journal actually exist. Gate4, Gate5, Gate7 remain OPEN.
  return {config:updated,evidence:{
   target,worker:spec.name,d1:spec.db,r2:spec.bucket,authEnabled:enabled,
+  quickAuthPrepared:quick,accessProviderIndependentlyVerified:false,
   localManifestPrepared:true,remoteOperationAttempted:false,
   providerResourcesIndependentlyVerified:false,remoteSchemaVerified:false,
   hostedR2Verified:false,ownerApprovedDeployment:false,gate4Accepted:false,
@@ -94,7 +124,13 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
     otherReleaseDatabaseId:process.env.FIRE_OTHER_RELEASE_D1_UUID,
     resourceAttestation:process.env.FIRE_RELEASE_RESOURCE_ATTESTATION,
     enableAuth:process.env.FIRE_RELEASE_ENABLE_AUTH==='yes',
-    authAttestation:process.env.FIRE_RELEASE_AUTH_ATTESTATION});
+    authAttestation:process.env.FIRE_RELEASE_AUTH_ATTESTATION,
+    quickAuthMode:process.env.FIRE_RELEASE_QUICK_AUTH_MODE||undefined,
+    quickAuthAttestation:process.env.FIRE_RELEASE_QUICK_AUTH_ATTESTATION,
+    accessTeamDomain:process.env.FIRE_ACCESS_TEAM_DOMAIN,
+    accessAudience:process.env.FIRE_ACCESS_AUDIENCE,
+    accessOwnerEmail:process.env.FIRE_ACCESS_OWNER_EMAIL,
+    pinSecretNamesAttestation:process.env.FIRE_RELEASE_PIN_SECRET_NAMES_ATTESTATION});
   writeFileSync(output,JSON.stringify(reviewed.config,null,2)+'\n',{flag:'wx',mode:0o600});
   console.log(JSON.stringify({...reviewed.evidence,outputFileWritten:true}));
  }catch(error){
