@@ -86,6 +86,10 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(target==='independent-dr'&&options.jobNumbersSchemaAttestation!==undefined&&
    (!drNumbers||!enabled))
   fail('DR Job # mode requires enabled owner authentication and verified DR numbering schema');
+ // DR may remain inert before a full private recovery, but owner sign-in
+ // must never activate in a non-numbered DR and quietly drop QA Job # parity.
+ if(target==='independent-dr'&&enabled&&!drNumbers)
+  fail('DR login requires target-bound verified permanent Job # schema; no unnumbered recovery sign-in');
  const jobNumbersPrepared=enabled&&(target==='independent-live'||drNumbers);
  // Optional passkey / 4-digit PIN mode needs a provider-verified Access
  // application for THIS Worker, separate owner consent and per-target
