@@ -18,7 +18,8 @@ const files=walk(root).sort();
 // ABSENT from the isolated Stripe TEST Worker. Both reviewed inventories are
 // valid, but any OTHER added/removed route still fails closed.
 const legacyReviewPresent=files.some(file=>relative(root,file)===join('backup','legacy-review','route.ts'));
-assert.equal(files.length,legacyReviewPresent?70:69,
+const liveInspectionPresent=files.some(file=>relative(root,file)===join('release','new-live-clean-start','route.ts'));
+assert.equal(files.length,(legacyReviewPresent?70:69)+(liveInspectionPresent?1:0),
  'The reviewed FIRE route inventory changed. Re-audit any added/removed API surface before release.');
 const publicMethods=new Map([
  ['app-version/route.ts','GET'],
@@ -61,6 +62,19 @@ for(const file of files){
   continue;
  }
  owner++;
+ if(rel==='release/new-live-clean-start/route.ts'){
+  assert.deepEqual(declared,['GET'],'NEW LIVE preactivation evidence must be read-only');
+  assert.match(content,/FIRE_ENV/);
+  assert.match(content,/new-live-prelaunch/);
+  assert.match(content,/FIRE_NEW_LIVE_CLEAN_START/);
+  assert.match(content,/inspectNewLiveFirstJobCleanStart/);
+  assert.match(content,/getChatGPTUser/);
+  assert.match(content,/ownerEmail|kylebrooks8605@gmail\\.com/);
+  assert.match(content,/no-store/);
+  assert.match(content,/releaseApproved:false/);
+  assert.match(content,/providerIdentityVerified:false/);
+  assert.doesNotMatch(content,/export\\s+async\\s+function\\s+(POST|PUT|PATCH|DELETE)\\s*\\(/);
+ }
  if(rel==='backup/legacy-review/route.ts'){
   assert.deepEqual(declared,['GET'],'Legacy records review must never expose write methods');
   assert.match(content,/getChatGPTUser/);
@@ -77,7 +91,7 @@ for(const file of files){
   rel+': no visible owner denial or owner identity rule');
 }
 assert.equal(publicCount,6);
-assert.equal(owner,legacyReviewPresent?64:63);
+assert.equal(owner,(legacyReviewPresent?64:63)+(liveInspectionPresent?1:0));
 const publicEstimate=readFileSync('app/estimate/[token]/page.tsx','utf8');
 const publicPay=readFileSync('app/pay/[id]/page.tsx','utf8');
 assert.match(publicEstimate,/row\.status==="declined"/,'Withdrawn customer estimate may not expose stale approval/price');
