@@ -1,5 +1,8 @@
 /** FIRE NEW DR / NEW LIVE: local-only review of independently provisioned bindings.
  * Never calls Cloudflare or Stripe and never creates/deploys/migrates resources.
+ * OWNER HARD STOP: no R2 subscription, paid service or billing activation.
+ * Owner-device ZIP candidate still needs private off-device custody and an
+ * actual independent recovery test before Gate7 or LIVE release approval.
  * INPUT is the exact SOURCE-ONLY built candidate manifest with inert placeholder.
  * OUTPUT is a separate, private manifest for a later authorized review; this
  * script does NOT attest that the named UUID, R2 bucket, or secrets exist.
@@ -9,6 +12,10 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
+// Owner's firm November 13 no-subscription rule: cloud R2 is NOT an option.
+// The QA-master on-device customer photo vault and verified owner-saved ZIP
+// are a source-only candidate, not evidence of off-device custody or restore.
+const PHOTO_MODE='owner-device-zip';
 const RESERVED_D1=new Set([
  PLACEHOLDER,
  '8ccfb1f8-1657-4074-b1b2-47de78f95003', // NEW QA
@@ -17,13 +24,12 @@ const RESERVED_D1=new Set([
 ]);
 const TARGETS=Object.freeze({
  'independent-dr':{
-  name:'fire-fullapp-dr',db:'fire-fullapp-dr-db',bucket:'fire-fullapp-dr-photos',
+  name:'fire-fullapp-dr',db:'fire-fullapp-dr-db',
   origin:'https://fire-fullapp-dr.kyle-bfc.workers.dev',
   fireEnv:'isolated-dr',prefix:'FIRE_DR'
  },
  'independent-live':{
   name:'fire-fullapp-new-live',db:'fire-fullapp-new-live-db',
-  bucket:'fire-fullapp-new-live-photos',
   origin:'https://fire-fullapp-new-live.kyle-bfc.workers.dev',
   fireEnv:'new-live-prelaunch',prefix:'FIRE_NEW_LIVE'
  }
@@ -60,7 +66,8 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(!validUuid(uuid)||RESERVED_D1.has(uuid)||
     (options.otherReleaseDatabaseId&&uuid===options.otherReleaseDatabaseId))
   fail('database must be a new independent, owner-verified physical D1 UUID');
- if(options.bucketName!==spec.bucket)fail('new independent R2 bucket name must match target');
+ if(options.photoStorageMode!==PHOTO_MODE||options.bucketName!==undefined)
+  fail('paid R2/subscription provisioning is forbidden; use reviewed owner-device ZIP candidate only');
  if(options.resourceAttestation!=='owner-checked-'+target)
   fail('owner-controlled resource identity review missing');
  const enabled=options.enableAuth===true;
@@ -101,8 +108,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  }
  const updated=structuredClone(original);
  updated.d1_databases=[{binding:'DB',database_name:spec.db,database_id:uuid}];
- updated.r2_buckets=[{binding:'BUCKET',bucket_name:spec.bucket}];
- updated.vars={...initialVars,[spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
+ // Explicitly NO R2/BUCKET binding: hosted cloud-photo endpoints must keep
+ // failing closed. The existing QA-master local photo gallery uses IndexedDB.
+ updated.r2_buckets=[];
+ updated.vars={...initialVars,FIRE_PHOTO_STORAGE_MODE:PHOTO_MODE,
+  [spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
  if(jobNumbersPrepared)
   updated.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
  if(quick){
@@ -118,7 +128,9 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  // Does NOT verify that credentials, bound R2 bytes, provider versions or
  // migration journal actually exist. Gate4, Gate5, Gate7 remain OPEN.
  return {config:updated,evidence:{
-  target,worker:spec.name,d1:spec.db,r2:spec.bucket,authEnabled:enabled,
+  target,worker:spec.name,d1:spec.db,photoStorageMode:PHOTO_MODE,
+  r2Required:false,remotePhotoSyncAvailable:false,offDeviceZipVerified:false,
+  isolatedPhotoRestoreVerified:false,authEnabled:enabled,
   quickAuthPrepared:quick,accessProviderIndependentlyVerified:false,
   jobNumberSchemaPhysicallyVerified:false,jobNumberSourceFlagPrepared:jobNumbersPrepared,
   localManifestPrepared:true,remoteOperationAttempted:false,
@@ -136,6 +148,7 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
   const reviewed=prepareReviewedIndependentManifest(target,
    JSON.parse(readFileSync(input,'utf8')),{databaseId:process.env.FIRE_RELEASE_D1_UUID,
     bucketName:process.env.FIRE_RELEASE_R2_BUCKET,
+    photoStorageMode:process.env.FIRE_RELEASE_PHOTO_STORAGE_MODE,
     otherReleaseDatabaseId:process.env.FIRE_OTHER_RELEASE_D1_UUID,
     resourceAttestation:process.env.FIRE_RELEASE_RESOURCE_ATTESTATION,
     enableAuth:process.env.FIRE_RELEASE_ENABLE_AUTH==='yes',
