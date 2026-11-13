@@ -81,7 +81,26 @@ try{
  okay(saved.sqliteSequence.d1_migrations===26,
   'migration high-water captured without provider writes');
 
- const result=await restoreNumberedRecordsToIsolatedSqlite(core,template,recovered,supp);
+ // Real independent DR cannot reuse LIVE's migration clock: execute the
+ // approved 25+1 SQL migrations in a distinct synthetic physical SQLite file
+ // and record a DIFFERENT legitimate migration-applied timestamp per row.
+ const independentTemplate=join(folder,'independent-dr-26-migrated.sqlite');
+ const dr=new DatabaseSync(independentTemplate);
+ dr.exec('PRAGMA foreign_keys=ON');
+ dr.exec('CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,applied_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)');
+ for(let i=0;i<base.length;i++){
+  dr.exec(readFileSync(new URL(base[i],sqlDir),'utf8'));
+  dr.prepare('INSERT INTO d1_migrations(id,name,applied_at) VALUES (?,?,?)')
+   .run(i+1,base[i],'2026-11-14 09:45:00');
+ }
+ dr.exec(readFileSync(new URL('./adapters/independent-dr/drizzle/'+addon,import.meta.url),'utf8'));
+ dr.prepare('INSERT INTO d1_migrations(id,name,applied_at) VALUES (?,?,?)')
+  .run(26,addon,'2026-11-14 09:45:00');
+ const targetBefore=dr.prepare('SELECT * FROM d1_migrations ORDER BY id').all();
+ okay(targetBefore.length===26&&targetBefore[0].applied_at!==saved.tables.d1_migrations[0].applied_at,
+  'separately migrated DR has its own valid provider-local migration time');
+ dr.close();
+ const result=await restoreNumberedRecordsToIsolatedSqlite(core,independentTemplate,recovered,supp);
  okay(result.sqliteRestoreVerified===true&&result.existingD1MigrationRowsVerified===26,
   'real migrated target preserves and verifies existing 26-row journal');
  okay(result.supplementalRowsRestored===0&&result.providerD1Restored===false,
@@ -101,10 +120,10 @@ try{
   'negative synthetic $5 refund ledger preserved exactly');
  okay(verified.prepare("SELECT amount_cents AS n FROM payment_refunds WHERE id='synthetic-refund'").get().n===500,
   'actual refund journal still reconciles to the negative payment entry');
- const sourceJournal=new DatabaseSync(template,{readOnly:true});
+ const sourceJournal=new DatabaseSync(independentTemplate,{readOnly:true});
  const rows=db=>db.prepare('SELECT * FROM d1_migrations ORDER BY id').all();
  okay(JSON.stringify(rows(verified))===JSON.stringify(rows(sourceJournal)),
-  'all existing migration rows identical including applied timestamps');
+  'restored DR preserves ITS OWN applied times rather than rewriting them to LIVE timestamps');
  okay(verified.prepare("SELECT seq FROM sqlite_sequence WHERE name='d1_migrations'").get().seq===26,
   'D1 journal high-water unchanged; no INSERT into existing provider history');
  okay(verified.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_customer_numbers'").get().seq===1,
@@ -123,6 +142,20 @@ try{
  okay(resumed.prepare("SELECT job_number AS n FROM fire_job_numbers WHERE root_estimate_id='synthetic-second-job'").get().n===2,
   'after isolated restore a genuinely new estimate allocates Job #0002');
  resumed.close();
+
+ const differentDrClock=join(folder,'dr-bad-applied-time.sqlite');
+ await copyFile(independentTemplate,differentDrClock);
+ const invalidClock=new DatabaseSync(differentDrClock);
+ invalidClock.exec("UPDATE d1_migrations SET applied_at='not-a-valid-date' WHERE id=4");
+ invalidClock.close();
+ await reject(join(folder,'reject-invalid-dr-clock.sqlite'),core,differentDrClock,supp,
+  'malformed independent DR provider timestamp cannot be silently accepted');
+ const corruptedSource=structuredClone(saved);
+ corruptedSource.tables.d1_migrations[4].applied_at='nonsense-time';
+ const corruptSrc=join(folder,'forged-migration-clock.json');
+ await writeFile(corruptSrc,JSON.stringify(corruptedSource));
+ await reject(join(folder,'reject-invalid-source-clock.sqlite'),core,independentTemplate,corruptSrc,
+  'unreadable source provider timestamp cannot impersonate legitimate migration metadata');
 
  const mismatched=join(folder,'mismatched-journal-template.sqlite');
  await copyFile(template,mismatched);
