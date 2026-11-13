@@ -1,6 +1,7 @@
 import {currentInvoice} from "../../../lib/invoice-state.mjs";
 import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
+import {verifyNewLiveFirstJobState} from "../../../lib/new-live-clean-start.mjs";
 import { env } from "cloudflare:workers";
 import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 import { getChatGPTUser } from "../../chatgpt-auth";
@@ -136,6 +137,14 @@ export async function POST(request: Request) {
     if(requestId!==undefined&&(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId)))return Response.json({error:'Invalid customer save identifier.'},{status:400});
     const id = typeof requestId==='string'?requestId:crypto.randomUUID();
     const numbered=await customerNumberingReady(env.DB,env);
+    if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START==='required'){
+      try{
+        await verifyNewLiveFirstJobState(env.DB);
+      }catch{
+        return Response.json({error:'NEW LIVE permanent customer and job identities are not verified. No customer was created.'},
+          {status:503,headers:{'Cache-Control':'no-store, private'}});
+      }
+    }
     const replay=async()=>{
       const customer=await customerCreationReceipt(env.DB,id);
       if(!customer)return null;
