@@ -104,12 +104,23 @@ try{
  db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?, 'balance',20000,'open','2026-11-04')")
    .run('cs_synthetic_open','e-invalid-date-checkout');
  const invalidBefore=JSON.stringify(invoice('invalid-date-checkout'));
- response=await patch('invalid-date-checkout',items(22000),'dollar',0,{dueAt:'not-a-date'});
- eq(response.status,400,'Invalid due date rejected before existing Stripe checkout expiration');
- eq(db.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_synthetic_open'").get().status,'open',
-   'Rejected edit does not expire the tracked customer checkout');
- eq(JSON.stringify(invoice('invalid-date-checkout')),invalidBefore,'Rejected edit never reprices the invoice');
- eq(remoteCalls,0,'No Stripe call for rejected due date');
+ for(const invalid of ['not-a-date','2026-02-30','2026-04-31','2025-02-29','2026-13-01']){
+   response=await patch('invalid-date-checkout',items(22000),'dollar',0,{dueAt:invalid});
+   eq(response.status,400,'Invalid or impossible due date '+invalid+' rejected before Stripe expiration');
+   eq(db.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_synthetic_open'").get().status,'open',
+     'Rejected date '+invalid+' leaves the active checkout open');
+   eq(JSON.stringify(invoice('invalid-date-checkout')),invalidBefore,
+     'Rejected date '+invalid+' never reprices invoice');
+   eq(revisions('invalid-date-checkout'),0,
+     'Rejected date '+invalid+' cannot create an audit revision');
+   eq(remoteCalls,0,'Rejected date '+invalid+' makes zero Stripe calls');
+ }
+ // An actual leap day must remain valid, with the exact chosen UTC date.
+ seed('valid-leap-day');
+ response=await patch('valid-leap-day',items(18000),'dollar',0,{dueAt:'2028-02-29'});
+ eq(response.status,200,'Real leap-day due date is accepted');
+ eq((await response.json()).invoice.dueAt,'2028-02-29T12:00:00.000Z',
+   'Leap-day date is preserved exactly rather than normalized');
  // A pending refund must block invoice edits. It is financially unsafe to
  // reprice a still-unsettled refund, even before checkout expiration.
  seed('refund-pending');
