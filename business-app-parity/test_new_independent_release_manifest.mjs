@@ -19,7 +19,7 @@ const v=(target,name,db,bucket,env,prefix,origin)=>({
 });
 for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  const manifest=v(target,name,db,bucket,env,prefix,origin);
- const uuid=target==='independent-dr'?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'54a5e470-2ae3-471b-a2db-ea8bdf092514';
+ const uuid=target==='independent-dr'?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
  const opts={databaseId:uuid,photoStorageMode:'owner-device-zip',resourceAttestation:'owner-checked-'+target,enableAuth:false};
  const pass=prepareReviewedIndependentManifest(target,manifest,opts);
  check(()=>assert.equal(pass.config.name,name),'exact name');
@@ -97,6 +97,8 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...opts,databaseId:'dba421ba-fc66-4cf8-9c31-51616f8249ba'});
  if(target==='independent-live')
   reject(manifest,{...opts,databaseId:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'});
+ if(target==='independent-live')
+  reject(manifest,{...opts,databaseId:'54a5e470-2ae3-471b-a2db-ea8bdf092514'});
  if(target==='independent-dr')
   reject(manifest,{...opts,databaseId:'54a5e470-2ae3-471b-a2db-ea8bdf092513'});
  reject(manifest,{...opts,databaseId:uuid,otherReleaseDatabaseId:uuid});
@@ -171,7 +173,9 @@ check(()=>assert.equal(ownerDr.config.vars.FIRE_DR_AUTH_ENABLED,'blocked'),
 const simulatedDr=ownerDr;
 check(()=>assert.throws(()=>sample('independent-dr','54a5e470-2ae3-471b-a2db-ea8bdf092513'),/BLOCKED/),
  'unknown DR resource cannot replace owner-created DR');
-const simulatedLive=sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092514');
+const simulatedLive=sample('independent-live','0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662');
+check(()=>assert.throws(()=>sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092514'),/BLOCKED/),
+ 'unknown LIVE resource cannot replace owner-created LIVE');
 const pair=reviewIndependentReleasePair(simulatedDr,simulatedLive);
 check(()=>assert.equal(pair.d1IdsDistinct,true),'source-only DR and NEW LIVE D1 IDs must differ');
 check(()=>assert.equal(pair.noR2OrOtherStorageBound,true),'pair contains no cloud photo subscription');
@@ -189,6 +193,10 @@ pairReject(ownerDr,{...simulatedLive,config:{...simulatedLive.config,
  database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'}]}},
  'pair review must reject owner DR D1 forged into NEW LIVE even when identities match');
 pairReject(simulatedLive,simulatedDr,'swapped target manifests must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ d1_databases:[{...simulatedLive.config.d1_databases[0],
+  database_id:'54a5e470-2ae3-471b-a2db-ea8bdf092514'}]}},
+ 'pair review pins actual owner-created NEW LIVE identity');
 pairReject({...simulatedDr,config:{...simulatedDr.config,
  d1_databases:[{...simulatedDr.config.d1_databases[0],
   database_id:'54a5e470-2ae3-471b-a2db-ea8bdf092513'}]}},
