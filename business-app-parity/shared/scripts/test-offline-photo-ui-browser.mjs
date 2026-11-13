@@ -185,10 +185,16 @@ try{
  check(await page.locator('.photo-card').count()===2,
   'Wrong owner recovery passphrase refuses protected photo archive without changing IndexedDB');
  await ctx.setOffline(true);
- // The earlier interrupted-selection test reloads the page; optional tools
- // must be explicitly reopened after a real browser restart.
- check(!await backupTools.evaluate(node=>node.open),'Reload resets secondary ZIP tools to the simple default');
+ // The owner has explicitly expanded the optional ZIP tools in this
+ // session. A passphrase error must not unexpectedly collapse the panel.
+ check(await backupTools.evaluate(node=>node.open),
+  'Failed protected-file verification retains the explicitly expanded backup tools');
  await backupSummary.click();
+ check(!await backupTools.evaluate(node=>node.open),
+  'Optional ZIP tools can be collapsed while offline');
+ await backupSummary.click();
+ check(await backupTools.evaluate(node=>node.open),
+  'Optional ZIP tools can be reopened while offline');
  await page.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
  await page.getByText(/Legacy UNENCRYPTED ZIP ready/).waitFor({timeout:30000});
  check(await page.getByRole('button',{name:'Save prepared backup to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
