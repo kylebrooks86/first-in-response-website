@@ -270,6 +270,9 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          # New Gate5: invalid invoice requests never expire Stripe checkout;
+          # unsettled refunds block repricing before and during D1.batch.
+          node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
           # Actual invoice POST source must refuse a customer reassignment or
           # reopened job between initial read and its atomic header+line writes.
           node --experimental-sqlite scripts/test-invoice-create-confirmed-sqlite.mjs
