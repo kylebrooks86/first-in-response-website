@@ -8,6 +8,7 @@
  * authenticated provider attestation of the target remains mandatory.
  */
 import {JOB_NUMBER_FLAG,jobNumberingReady} from './job-numbering.mjs';
+import {CUSTOMER_NUMBER_FLAG,customerNumberingReady} from './customer-numbering.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
 
 const stop=reason=>{throw Error('FIRE NEW LIVE clean start BLOCKED: '+reason);};
@@ -35,11 +36,17 @@ function naturalCount(value,label){
  return count;
 }
 export async function inspectNewLiveFirstJobCleanStart(db,vars){
- if(vars?.FIRE_ENV!=='new-live-prelaunch'||vars?.FIRE_JOB_NUMBERS_CANDIDATE!==JOB_NUMBER_FLAG)
+ if(vars?.FIRE_ENV!=='new-live-prelaunch'||vars?.FIRE_JOB_NUMBERS_CANDIDATE!==JOB_NUMBER_FLAG||
+    vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==CUSTOMER_NUMBER_FLAG)
   stop('target is not an explicitly numbered NEW LIVE candidate');
  // First validate app-numbering source, ownership links and immutable triggers.
  try{if(!await jobNumberingReady(db,vars))stop('permanent number controls disabled');}
  catch{stop('physical permanent Job # schema or ownership is not ready');}
+ // Customer #0001 must be just as safe as Job #0001. Merely finding the
+ // table is insufficient: require the owner's explicit feature flag,
+ // immutable triggers and complete historical customer identity coverage.
+ try{if(!await customerNumberingReady(db,vars))stop('permanent Customer # controls disabled');}
+ catch{stop('physical permanent Customer # schema or ownership is not ready');}
  // Explicitly inspect names before SELECTing anything: missing supplemental
  // tables, new unknown feature tables, or an incomplete migration cannot be
  // passed off as a clean and recoverable production schema.
