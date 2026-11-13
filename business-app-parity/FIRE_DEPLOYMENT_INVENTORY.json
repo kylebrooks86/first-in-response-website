@@ -1,0 +1,160 @@
+{
+  "scope": "FIRE Business App only; Business Command Center excluded",
+  "productionApprovalRequired": true,
+  "paidServicesAllowed": false,
+  "targets": [
+    {
+      "name": "LIVE",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "nativeVersion": 61,
+      "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+      "runtimeVersion": "105",
+      "nativeProjectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "nativeVersionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+      "nativeDeploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+      "nativePublishStatus": "succeeded",
+      "nativeArchiveHash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2",
+      "nativeEnvironmentRevision": 9,
+      "nativePublicationUpdatedAt": "2026-10-08T01:23:39.590116+00:00",
+      "candidateTableComparison": {
+        "target": "live",
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "binding": "DB",
+        "tableNamesMatch": false,
+        "matchedTableNames": 18,
+        "candidateTableCount": 19,
+        "observedTableCount": 18,
+        "missingTables": [
+          "payment_refunds"
+        ],
+        "unexpectedTables": [],
+        "problems": [
+          "missing table: payment_refunds"
+        ],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      },
+      "runtimeVersionObservation": "Historical value preserved; no runtime endpoint refresh in this batch."
+    },
+    {
+      "name": "Refund staging",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "nativeVersion": 3,
+      "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+      "runtimeVersion": "refund-staging-ebc670f",
+      "nativeProjectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "nativeVersionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+      "nativeDeploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+      "nativePublishStatus": "succeeded",
+      "nativeArchiveHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+      "nativeEnvironmentRevision": 2,
+      "nativePublicationUpdatedAt": "2026-10-08T19:50:54.872235+00:00",
+      "candidateTableComparison": {
+        "target": "staging",
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "binding": "DB",
+        "tableNamesMatch": true,
+        "matchedTableNames": 19,
+        "candidateTableCount": 19,
+        "observedTableCount": 19,
+        "missingTables": [],
+        "unexpectedTables": [],
+        "problems": [],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      },
+      "runtimeVersionObservation": "Historical value preserved; no runtime endpoint refresh in this batch."
+    },
+    {
+      "name": "Doomsday",
+      "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
+      "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
+      "deployedCommitVerified": false,
+      "identityStatus": "Retained owner runtime screenshot visually matches the preserved historical build-log source and capture ID. Current routing seal, independent artifact fingerprint and cross-target database isolation remain unverified.",
+      "workerName": "fire-app-independent-staging",
+      "ownerObservedCloudflareVersionPrefix": "61fa32a3",
+      "ownerObservedTrafficPercent": 100,
+      "ownerObservedD1Binding": {
+        "binding": "DB",
+        "databaseName": "fire-app-staging-db",
+        "immutableUuidVerified": true,
+        "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+        "verificationProvenance": "Owner copied bound database URL after production binding screenshot; isolation from other targets not verified"
+      },
+      "githubDeploymentLinkCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "githubDeploymentLinkBranch": "fire-calculator-exact-live-clone",
+      "githubReferenceVerified": true,
+      "ownerObservedSchemaSummary": {
+        "provenance": "Owner's independently verified findings supplied in this turn; not new direct Cloudflare access by this session",
+        "worker": "fire-app-independent-staging",
+        "activeVersionPrefix": "61fa32a3",
+        "trafficPercent": 100,
+        "binding": "DB",
+        "databaseName": "fire-app-staging-db",
+        "applicationTables": 19,
+        "paymentsColumns": 11,
+        "paymentRefundsColumns": 10,
+        "paymentRefundsApplicationIndexes": 3,
+        "duplicateStripeProviderGroups": 0,
+        "foreignKeyViolations": 0,
+        "migrationJournalRange": "0000\u20130021",
+        "candidateMigration0022Applied": false,
+        "candidate0022IndexApplied": false,
+        "fullWorkerVersionUuidObserved": false,
+        "immutableDatabaseUuidObserved": false,
+        "completeSchemaSqlCaptured": false
+      },
+      "candidateMigrationGap": [
+        "0022_stripe_provider_uniqueness.sql"
+      ],
+      "latestEvidenceFile": "DOOMSDAY_ACTIVE_BUILD_LOG_EVIDENCE.json",
+      "ownerObservedCloudflareVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+      "ownerObservedBuildConfiguration": {
+        "repository": "kylebrooks86/first-in-response-website",
+        "productionBranch": "fire-calculator-exact-live-clone",
+        "rootDirectory": "/",
+        "buildCommand": "git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculator-exact-live-clone && bash scripts/prepare-fire-v138-dr-no-r2.sh",
+        "deployCommand": "bash scripts/deploy-fire-dr-staging.sh",
+        "buildsEnabled": true,
+        "includeWatchPaths": [
+          "*"
+        ],
+        "evidence": [
+          "IMG_1606.png",
+          "IMG_1607.png",
+          "Owner copied full build command"
+        ]
+      },
+      "ownerObservedBuildLogSourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "ownerObservedBuildLogCaptureId": "3c5ac73d57b01602429b699e",
+      "ownerObservedHistoricalTypecheckStatus": "FAIL_NONBLOCKING",
+      "historicalSourceToVersionLinked": true,
+      "ownerAuthenticatedRuntimeCapture": {
+        "schemaVersion": 1,
+        "environment": "independent-dr-staging",
+        "worker": "fire-app-independent-staging",
+        "sourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+        "release": "v138",
+        "packageVersion": "1.0.0-rc.138",
+        "captureId": "3c5ac73d57b01602429b699e",
+        "forwardSyncRegistrySha256": "207979f0a074cc37e474c6b3bbc34b5bc40db044803198ee53d71721be1e6d16",
+        "production": false,
+        "photoStorageR2Provisioned": false
+      },
+      "ownerAuthenticatedCaptureEvidence": "GATE4_SOURCE_CAPTURE_RECONCILIATION.json",
+      "sourceTranscriptionMismatchResolved": true
+    }
+  ],
+  "asOf": "2026-10-09",
+  "metadataCapturedAt": "2026-10-09T17:18:49.374Z",
+  "latestDevelopmentCommit": "fd0acba588e7d6f9cff4fdac64461c0355c580a1",
+  "candidatePublished": false,
+  "nativeMetadataScope": "Native site metadata identifies the saved source and successful latest publish attempt for that version; a runtime build/routing identity seal is not established. Table names are complete within the returned projection, but types, constraints, indexes, journals and independent D1 resource IDs/isolation are unavailable.",
+  "latestIndependentEvidenceAsOf": "2026-10-09",
+  "latestDevelopmentCommitScope": "Verified app checkpoint before this release-tooling-only batch",
+  "latestReadOnlyCheckpointEvidence": "RELEASE_BLOCKER_CHECKPOINT_EVIDENCE.json"
+}

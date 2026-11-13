@@ -1,0 +1,77 @@
+import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
+import {refundLedgerObjectsPresent} from "../../../lib/refund-ledger-readiness";
+import { env } from "cloudflare:workers";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { PayButton } from "./pay-button";
+import { paymentHandles } from "../../../lib/payment-methods";
+import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite.mjs";
+import {CustomerReviewInvitation} from "../../../components/customer-review-invitation";
+import {canOfferManualPayment,isWithdrawnPublicEstimate} from "../../../lib/public-payment-visibility.mjs";
+import {jobNumberLabelForEstimate} from "../../../lib/job-numbering.mjs";
+
+export const dynamic = "force-dynamic";
+export const metadata={robots:{index:false,follow:false,nocache:true}};
+const currency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value / 100);
+
+export default async function PaymentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ paid?: string }> }) {
+  const { id: shareToken } = await params;
+  const { paid } = await searchParams;
+  // A missing legacy refund ledger must be a safe customer-facing hold, not
+  // an uncaught SELECT error or a guessed collectible balance.
+  if(!await refundLedgerObjectsPresent(env.DB))
+    return <main className="pay-page"><section className="pay-card"><h1>Payment temporarily unavailable</h1><p>We cannot verify this payment balance until the refund history is reviewed. Please contact First In Response Exteriors before sending a payment.</p></section></main>;
+  const row = await env.DB.prepare(`
+    SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch, e.status, e.accepted_at AS acceptedAt, e.signed_at AS signedAt,
+           c.name AS customer, ${serviceAddressColumns(serviceLocationsEnabled(env))},
+           COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+           COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
+           COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount,
+           COALESCE((SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open'),0) AS openCheckoutCount
+    FROM estimates e JOIN customers c ON c.id=e.customer_id
+    WHERE e.share_token=? LIMIT 1
+  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; invoiceOwnershipMismatch:number; status:string; acceptedAt:string|null; signedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; openCheckoutCount:number; customer:string; address:string|null;serviceAddressSource?:string }>();
+  if (!row) return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  // Do not expose stale customer/scope or alternate payment instructions
+  // through an older /pay link after an estimate was withdrawn or replaced.
+  if(isWithdrawnPublicEstimate(row.status))return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Payment link no longer available</h1><p>This estimate was withdrawn or replaced. Please contact First In Response Exteriors for a current quote.</p></section></main>;
+  // Only the original share-token-resolved estimate can supply this reference.
+  // Numbering stays absent on non-migrated QA/LIVE; never create an ID in a public request.
+  const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
+    ?await jobNumberLabelForEstimate(env.DB,row.id):null;
+  const itemResult = await env.DB.prepare(`SELECT name,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;quantity:number;unit:string;totalCents:number}>();
+  const items = itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
+  const paidCents = Number(row.paidCents??0);
+  // A URL query parameter cannot prove a payment. Only saved whole-cent
+  // balances may support a paid-in-full state or a review invitation.
+  const billingNumbersSafe = Number(row.invoiceOwnershipMismatch)===0&&[row.totalCents,row.depositCents,paidCents].every(value=>Number.isSafeInteger(value)&&value>=0)&&row.totalCents>0&&row.depositCents<=row.totalCents;
+  const depositRemaining = billingNumbersSafe?Math.max(0,row.depositCents-paidCents):0;
+  const balance = billingNumbersSafe?Math.max(0,row.totalCents-paidCents):0;
+  const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0||Number(row.openCheckoutCount??0)>0;
+  const signed = Boolean(row.acceptedAt&&row.signedAt);
+  const approved = signed&&["approved","scheduled","completed"].includes(row.status);
+  const paymentType: "deposit"|"balance" = row.status==="completed"?"balance":"deposit";
+  const dueNow = paymentType==="deposit"?depositRemaining:balance;
+  const runtime=env as Cloudflare.Env & {STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KEY?:string;CASH_APP_HANDLE?:string;VENMO_HANDLE?:string};
+  const paymentsReady=Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
+  const canPay = paymentsReady&&billingNumbersSafe&&!paymentReviewPending&&dueNow>0&&approved&&(paymentType==="deposit"||row.status==="completed");
+  const manualPaymentEligible=canOfferManualPayment({status:row.status,acceptedAt:row.acceptedAt,signedAt:row.signedAt,billingVerified:billingNumbersSafe,balanceCents:balance,reviewPending:paymentReviewPending});
+  const showReviewInvitation=billingNumbersSafe&&shouldOfferReviewAfterPayment({status:row.status,totalCents:Number(row.totalCents),paidCents,paymentReviewPending});
+  const showRecordedSuccess=paid==="1"&&showReviewInvitation;
+  const handles = paymentHandles(runtime);
+  return <main className="pay-page"><section className="pay-card">
+    <header><div className="pay-logo">F</div><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
+    {showRecordedSuccess ? <div className="paid-state"><CheckCircle2 /><h1>Job paid in full</h1>{jobLabel&&<p className="pay-note">{jobLabel}</p>}<p>Thank you, {row.customer}. Our saved records show this completed job is paid in full.</p><CustomerReviewInvitation/></div> : <>
+      <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{jobLabel&&<small>{jobLabel}</small>}{row.address && <span>{row.address}</span>}</div>
+      {row.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; original service address unverified.</p>}
+      <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong><span>{item.quantity} {item.unit}</span></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
+      <div className="pay-summary"><span><small>Estimate total</small><strong>{currency(row.totalCents)}</strong></span><span><small>Paid</small><strong>{currency(paidCents)}</strong></span><span><small>{paymentType==="deposit"?"Deposit remaining":"Balance due"}</small><strong className="red-text">{currency(dueNow)}</strong></span></div>
+      {approved&&<p className="pay-note">Your signed estimate shows the agreed deposit. Any remaining balance is due upon completion of the work.</p>}
+      {manualPaymentEligible&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
+      {!billingNumbersSafe&&<p className="pay-note" role="status">Billing details need verification. Please contact First In Response Exteriors before paying again.</p>}
+      {paid==="1"&&!showRecordedSuccess&&<p className="pay-note" role="status">The link alone cannot confirm a new payment. Please review the recorded balance below or contact us if your payment is not yet reflected.</p>}
+      {showReviewInvitation&&<CustomerReviewInvitation/>}
+      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} dueAmountCents={dueNow} tipBaseCents={Number(row.totalCents)} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:paymentReviewPending?<p className="pay-note">Payment or refund review in progress. Contact us before another payment.</p>:!billingNumbersSafe?<p className="pay-note">Payment options are paused until FIRE verifies the invoice and customer records.</p>:billingNumbersSafe&&balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:!paymentsReady&&dueNow>0?<p className="pay-note">Online card payments are unavailable. Please contact First In Response Exteriors to arrange payment.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
+      {paymentsReady&&<div className="secure-note"><ShieldCheck /> Card details are handled securely by Stripe.</div>}
+    </>}
+  </section></main>;
+}
