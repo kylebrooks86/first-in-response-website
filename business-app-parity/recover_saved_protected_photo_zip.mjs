@@ -13,10 +13,11 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {recoverProtectedOfflinePhotoZip,isProtectedOfflinePhotoArchive} from './shared/lib/protected-offline-photo-archive.mjs';
 import {inspectStoredFirePhotoZip} from './verify_saved_protected_photo_backup.mjs';
+import {validateNumberedCoreRecordsV2} from './shared/lib/numbered-records-v2-preflight.mjs';
 
 const MAX_FILE=161*1024*1024+4096;
 const stop=message=>{throw Error('FIRE private photo ZIP recovery BLOCKED: '+message);};
-export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPlaintextRecovery=false}={}){
+export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPlaintextRecovery=false,recordsPath}={}){
  if(!allowPlaintextRecovery)stop('explicit plaintext-recovery consent required');
  if(typeof input!=='string'||typeof output!=='string'||!input||!output||
     resolve(input)===resolve(output))stop('separate input and output files required');
@@ -35,6 +36,22 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  // Full CRC, SHA-256, filename, manifest and relationship verification BEFORE
  // creating any output. A corrupted or forged archive never writes photos.
  const proof=inspectStoredFirePhotoZip(plain);
+ let matchingRecordsVerified=false;
+ if(recordsPath!==undefined){
+  if(typeof recordsPath!=='string'||!recordsPath||resolve(recordsPath)===resolve(output))
+   stop('independent numbered-records source file required');
+  let records;
+  try{records=JSON.parse(await readFile(resolve(recordsPath),'utf8'));}
+  catch{stop('numbered customer records file cannot be read');}
+  try{validateNumberedCoreRecordsV2(records);}
+  catch{stop('numbered customer records archive is incomplete or invalid');}
+  if(records.tables.customer_photos.length!==0)
+   stop('cloud-only photo metadata prevents a complete device-photo recovery');
+  const customers=new Set(records.tables.customers.map(row=>row.id));
+  if(proof.photoInventory.some(photo=>!customers.has(photo.customerId)))
+   stop('a photo references a customer absent from the records snapshot');
+  matchingRecordsVerified=true;
+ }
  let handle;
  try{
   handle=await open(resolve(output),'wx',0o600);
@@ -48,7 +65,7 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  return Object.freeze({
   photoCount:proof.photoCount,distinctCustomerIds:proof.distinctCustomerIds,
   verifiedZipSha256:proof.verifiedZipSha256,
-  originalGalleryZipRecovered:true,
+  originalGalleryZipRecovered:true,matchingCustomerRecordsVerified:matchingRecordsVerified,
   customerRecordsRestored:false,independentD1Restored:false,
   providerWriteAttempted:false,gate7Accepted:false
  });
@@ -66,9 +83,9 @@ async function readPhrase(){
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  try{
-  if(process.argv.length!==5||process.argv[4]!=='--allow-plaintext-recovery')
-   stop('usage: node recover_saved_protected_photo_zip.mjs INPUT.firephotos OUTPUT.zip --allow-plaintext-recovery');
-  const result=await recoverSavedProtectedPhotoZip(process.argv[2],process.argv[3],await readPhrase(),{allowPlaintextRecovery:true});
+  if(![5,6].includes(process.argv.length)||process.argv[4]!=='--allow-plaintext-recovery')
+   stop('usage: node recover_saved_protected_photo_zip.mjs INPUT.firephotos OUTPUT.zip --allow-plaintext-recovery [NUMBERED_RECORDS.json]');
+  const result=await recoverSavedProtectedPhotoZip(process.argv[2],process.argv[3],await readPhrase(),{allowPlaintextRecovery:true,recordsPath:process.argv[5]});
   process.stdout.write(JSON.stringify(result)+'\n');
  }catch(error){
   console.error(error instanceof Error?error.message:'private recovery failed');
