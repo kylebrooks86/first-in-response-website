@@ -25,16 +25,25 @@ try{
  }
  db.exec('CREATE TABLE supplemental_synthetic (id TEXT PRIMARY KEY, value TEXT)');
  db.exec('CREATE TABLE supplemental_serial (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT)');
+ // The prefix sqliteX is NOT SQLite's reserved literal sqlite_ prefix.
+ // SQL LIKE 'sqlite_%' wrongly ignores this entire business table.
+ db.exec('CREATE TABLE sqliteX_customer_data (id TEXT PRIMARY KEY, private_value TEXT)');
+ db.exec('CREATE INDEX idx_sqliteX_customer_data_value ON sqliteX_customer_data(private_value)');
  db.close();
  const {copyFile}=await import('node:fs/promises');
  await copyFile(template,source);
  const live=new DatabaseSync(source);
  live.prepare('INSERT INTO supplemental_synthetic(id,value) VALUES (?,?)').run('synthetic','owner-only');
+ live.prepare('INSERT INTO sqliteX_customer_data(id,private_value) VALUES (?,?)').run('synthetic-x','must-recover');
  live.exec("INSERT INTO supplemental_serial(value) VALUES ('temporary'); DELETE FROM supplemental_serial;");
  live.close();
  const exported=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
  const originalSupplemental=JSON.parse(await readFile(supp,'utf8'));
  assert.equal(originalSupplemental.tables.supplemental_synthetic.length,1);
+ assert.equal(originalSupplemental.tables.sqliteX_customer_data.length,1,
+  'literal sqlite_ filter must not lose sqliteX table rows');
+ assert.equal(originalSupplemental.tables.sqliteX_customer_data[0].private_value,'must-recover');
+ assert.equal(originalSupplemental.rowCounts.sqliteX_customer_data,1);
  assert.equal(originalSupplemental.sqliteSequence.supplemental_serial,1);
  assert.equal(exported.coreAndSupplementalArchivesWritten,true);
  // A different schema, even with all the same required table names, must
@@ -49,9 +58,12 @@ try{
   /schema differ/i);
  const result=await restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp);
  assert.equal(result.sqliteRestoreVerified,true);
- assert.equal(result.supplementalRowsRestored,1);
+ assert.equal(result.supplementalRowsRestored,2);
+ assert.equal(result.supplementalTablesRestored,3,'all three supplemental tables including sqliteX restored');
  const restoredDb=new DatabaseSync(restored,{readOnly:true});
  assert.equal(restoredDb.prepare('SELECT value FROM supplemental_synthetic').get().value,'owner-only');
+ assert.equal(restoredDb.prepare('SELECT private_value FROM sqliteX_customer_data WHERE id=?').get('synthetic-x').private_value,
+  'must-recover','sqliteX business row must survive exact isolated restore');
  assert.equal(restoredDb.prepare("SELECT seq FROM sqlite_sequence WHERE name='supplemental_serial'").get().seq,1);
  restoredDb.close();
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp));
@@ -65,6 +77,17 @@ try{
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,invalidOutput,invalid),
   /row count|truncated|missing/i);
  await assert.rejects(readFile(invalidOutput));
+ // A purportedly complete archive that omits any sqliteX application table
+ // must never pass schema coverage or create a partially recovered file.
+ const incomplete=structuredClone(originalSupplemental);
+ delete incomplete.tables.sqliteX_customer_data;
+ delete incomplete.rowCounts.sqliteX_customer_data;
+ const omittedPath=join(folder,'omitted-sqlitex.json');
+ const omittedOutput=join(folder,'rejected-omitted.sqlite');
+ await writeFile(omittedPath,JSON.stringify(incomplete));
+ await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(
+  core,template,omittedOutput,omittedPath),/supplemental inventory/i);
+ await assert.rejects(readFile(omittedOutput));
  // A nonempty destination schema template is not a valid restore target.
  const nonemptyTemplate=join(folder,'nonempty.sqlite');
  await copyFile(source,nonemptyTemplate);
