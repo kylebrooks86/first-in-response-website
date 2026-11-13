@@ -61,7 +61,7 @@ export async function captureNumberedCoreV2ReadOnly(db){
    "SELECT '"+table+"' AS table_name,COUNT(*) AS count FROM "+quoteTable(table)
  ).join(' UNION ALL ');
  const statements=[
-   db.prepare("SELECT name,sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"),
+   db.prepare("SELECT name,sql FROM sqlite_master WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_' ORDER BY name"),
    db.prepare("SELECT name,seq FROM sqlite_sequence WHERE name IN ('fire_customer_numbers','fire_job_numbers') ORDER BY name"),
    db.prepare(countSql)
  ];
@@ -76,6 +76,10 @@ export async function captureNumberedCoreV2ReadOnly(db){
  if(!Array.isArray(result)||result.length!==statements.length)
   denied('a complete transactional metadata/records read was not returned');
  const schemaRows=rows(result[0],'schema');
+ // Exclude ONLY SQLite's reserved literal sqlite_ prefix. A LIKE
+ // 'sqlite_%' predicate treats _ as a wildcard and silently omits durable
+ // user-defined tables such as sqliteX_customer_data from a "full" backup.
+ // Those unreviewed tables must be detected and block the archive.
  // Require the actual sqlite_master DDL so a same-named but incompatible
  // internal table can never be silently excluded from the backup.
  if(schemaRows.some(row=>!isRow(row)||Object.keys(row).length!==2||
