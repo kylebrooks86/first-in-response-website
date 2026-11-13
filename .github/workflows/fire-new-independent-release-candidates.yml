@@ -8,6 +8,8 @@ on:
       - 'business-app-parity/adapters/independent-live/**'
       - 'business-app-parity/prepare_new_independent_release_manifest.mjs'
       - 'business-app-parity/test_new_independent_release_manifest.mjs'
+      - 'business-app-parity/review_new_independent_release_pair.mjs'
+      - 'business-app-parity/test_new_independent_release_pair_cli.mjs'
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
 permissions:
@@ -43,6 +45,9 @@ jobs:
           python-version: '3.12'
       - name: Check both targets refuse unsafe resource and auth combinations
         run: node business-app-parity/test_new_independent_release_manifest.mjs
+      - name: Review DR plus NEW LIVE pair together, offline (synthetic only)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_independent_release_pair_cli.mjs
       - name: DR-only permanent Job # sign-in safety check (source only)
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/test_new_dr_numbered_login_schema.mjs
