@@ -12,13 +12,16 @@ export function validateSupplementalRecoveryArchive(snapshot,extraSchema){
  if(!record(snapshot)||snapshot.format!=='fire-isolated-supplemental-records'||
     snapshot.version!==1||snapshot.allTablesComplete!==true||
     snapshot.truncated!==false||!record(snapshot.tables)||!record(snapshot.rowCounts)||
-    !Array.isArray(extraSchema))
+    !Array.isArray(extraSchema)||!record(snapshot.sqliteSequence))
   fail('complete supplemental snapshot and schema inventory required');
  const extras=extraSchema.slice().sort();
  if(new Set(extras).size!==extras.length||extras.some(x=>!ident(x)||core.has(x))||
     Object.keys(snapshot.tables).sort().join('|')!==extras.join('|')||
     Object.keys(snapshot.rowCounts).sort().join('|')!==extras.join('|'))
   fail('supplemental inventory does not exactly match isolated schema');
+ for(const [name,seq] of Object.entries(snapshot.sqliteSequence))
+  if(!extras.includes(name)||!Number.isSafeInteger(seq)||seq<0)
+   fail('invalid supplemental AUTOINCREMENT sequence');
  let total=0;
  for(const table of extras){
   const rows=snapshot.tables[table];
