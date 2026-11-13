@@ -54,7 +54,7 @@ function restore(db,archive,supplemental){
  for(const t of ['fire_customer_numbers','fire_job_numbers'])
   if(!/\bAUTOINCREMENT\b/i.test(found.get(t)||''))
    stop('numbering schema is not AUTOINCREMENT for '+t);
- const fk=db.pragma('foreign_keys',{simple:true});
+ const fk=db.prepare('PRAGMA foreign_keys').get().foreign_keys;
  if(fk!==1)stop('SQLite foreign key enforcement unavailable');
  db.exec('BEGIN IMMEDIATE');
  try{
@@ -159,7 +159,7 @@ export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templat
   await copyFile(resolve(templatePath),resolve(outputPath),1);
   created=true;await chmod(resolve(outputPath),0o600);
   db=new DatabaseSync(resolve(outputPath));
-  if(db.pragma('journal_mode',{simple:true})==='wal')
+  if(db.prepare('PRAGMA journal_mode').get().journal_mode==='wal')
    stop('template must be a checkpointed standalone SQLite database, not WAL mode');
   db.exec('PRAGMA foreign_keys=ON');
   const result=restore(db,archive,supplemental);
