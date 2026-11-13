@@ -182,8 +182,9 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
      config.d1_databases[0]?.database_name!==spec.db)
    failPair('incorrect target, origin or D1 binding identity');
   const id=config.d1_databases[0].database_id;
-  if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id))
-   failPair('D1 must be a valid distinct physical identifier, never QA/STAGING/TEST');
+  if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id)||
+     (target==='independent-live'&&id===OWNER_RECORDED_DR_D1))
+   failPair('D1 must be a valid distinct target-bound identifier, never QA/STAGING/TEST/DR-as-LIVE');
   ids.add(id);
   if(names.has(config.name)||origins.has(spec.origin))
    failPair('duplicate Worker name or origin');
