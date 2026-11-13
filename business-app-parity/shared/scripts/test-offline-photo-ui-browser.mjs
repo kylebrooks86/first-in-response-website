@@ -95,8 +95,8 @@ try{
  await page.setViewportSize({width:390,height:844});
  const backupTools=page.locator('details.photo-backup-more');
  check(await backupTools.evaluate(node=>!node.open),'Less-used photo ZIP options are initially collapsed while all-photos backup and verification remain visible');
- check(await page.getByRole('button',{name:'Prepare all local photos ZIP'}).isVisible()&&await page.getByRole('button',{name:'Verify saved ZIP from Files'}).isVisible(),
-  'Owner can immediately back up and verify all local photos without expanding optional tools');
+ check(await page.getByRole('button',{name:'Prepare protected all-photos backup'}).isVisible()&&await page.getByRole('button',{name:'Verify saved photo backup'}).isVisible(),
+  'Protected all-photos export is the new visible default; legacy ZIP stays in expanded tools');
  const backupSummary=backupTools.locator(':scope > summary');
  check(await backupSummary.evaluate(node=>node.getBoundingClientRect().height>=44),
   'Optional photo backup summary has a finger-sized target');
@@ -161,9 +161,9 @@ try{
  // must be explicitly reopened after a real browser restart.
  check(!await backupTools.evaluate(node=>node.open),'Reload resets secondary ZIP tools to the simple default');
  await backupSummary.click();
- await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
+ await page.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
  await page.getByText(/ZIP is ready/).waitFor({timeout:30000});
- check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
+ check(await page.getByRole('button',{name:'Save prepared backup to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
  await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
   Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
@@ -174,8 +174,8 @@ try{
      filename:files[0].name,size:files[0].size,type:files[0].type};
   }});
  });
- await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await page.getByText(/Check that the ZIP is in Files, then use Verify saved ZIP from Files/).waitFor();
+ await page.getByRole('button',{name:'Save prepared backup to Files'}).click();
+ await page.getByText(/Check that the backup exists in Files or separate private storage/).waitFor();
  const share=await page.evaluate(()=>window.fixtureNativeShare);
  check(share?.active===true&&share.size>100&&share.type==='application/zip',
    'Real owner Save-to-Files button invokes the native share sheet within its fresh user gesture');
@@ -186,13 +186,13 @@ try{
  await page.locator('.photo-backup-more > summary').click();
  check(!await page.locator('details.photo-backup-more').evaluate(node=>node.open),'Rare backup tools can be collapsed after saving');
  await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw Error('Synthetic share sheet refusal');}}));
- await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await page.getByRole('alert').getByText(/Open More photo backup tools, then Download prepared ZIP/).waitFor();
- check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).isVisible(),'Sharing failure keeps the verified prepared ZIP available');
+ await page.getByRole('button',{name:'Save prepared backup to Files'}).click();
+ await page.getByRole('alert').getByText(/Open More photo backup tools, then Download prepared backup/).waitFor();
+ check(await page.getByRole('button',{name:'Save prepared backup to Files'}).isVisible(),'Sharing failure keeps the verified prepared ZIP available');
  await page.locator('.photo-backup-more > summary').click();
- check(await page.getByRole('button',{name:'Download prepared ZIP'}).isVisible(),'Fallback download is discoverable exactly where the error message directs the owner');
+ check(await page.getByRole('button',{name:'Download prepared backup'}).isVisible(),'Fallback download is discoverable exactly where the error message directs the owner');
 
- const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download prepared ZIP'}).click()]);
+ const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download prepared backup'}).click()]);
  const filename=download.suggestedFilename();
  const exported=readFileSync(await download.path());
  check(filename.startsWith('FIRE-customer-synthetic-customer-photo-photos-')&&exported.length>100,'Real owner click downloads a nonempty customer-only ZIP');
@@ -221,7 +221,7 @@ try{
  // The gallery can rerender before the mutation journal finishes and unlocks.
  // Do not send another file action while active.current is still true.
  await page.waitForFunction(()=>{
-  const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Prepare all local photos ZIP'));
+  const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Legacy unencrypted all-photos ZIP'));
   return button&&!button.disabled;
  });
  // Native file input may retain the last selection after a previous verify.
@@ -241,8 +241,8 @@ try{
    'Fresh exact archive versus device coverage check clears the incomplete warning');
  // Two tabs share IndexedDB but can disagree about an ALREADY PREPARED ZIP.
  // A photo added in the other tab must withdraw Save/Download until re-export.
- await page.getByRole('button',{name:'Prepare all local photos ZIP'}).click();
- await page.getByRole('button',{name:'Save prepared ZIP to Files'}).waitFor({timeout:30000});
+ await page.getByRole('button',{name:'Legacy unencrypted all-photos ZIP'}).click();
+ await page.getByRole('button',{name:'Save prepared backup to Files'}).waitFor({timeout:30000});
  await ctx.setOffline(false);
  const otherTab=await ctx.newPage();
  otherTab.on('dialog',dialog=>dialog.accept());
@@ -259,8 +259,8 @@ try{
  await otherTab.locator('input[type="file"][multiple]').setInputFiles(take('other-tab-new-photo.png'));
  await otherTab.locator('.photo-card').nth(2).waitFor();
  await page.getByText(/Another FIRE tab changed on-device photos/).waitFor({timeout:30000});
- check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===0&&
-   await page.getByRole('button',{name:'Download prepared ZIP'}).count()===0,
+ check(await page.getByRole('button',{name:'Save prepared backup to Files'}).count()===0&&
+   await page.getByRole('button',{name:'Download prepared backup'}).count()===0,
    'Other-tab photo mutation immediately withdraws stale prepared ZIP controls');
  const otherAdded=otherTab.locator('.photo-card').filter({hasText:'other-tab-new-photo.png'});
  check(await otherAdded.count()===1,'Second-tab new photo is identified by filename, not gallery position');
@@ -270,9 +270,9 @@ try{
  await otherTab.close();await ctx.setOffline(true);
  check(await page.locator('.photo-card').count()===2,
    'Cross-tab changes refresh original gallery without overwriting other photos');
- await page.getByRole('button',{name:'Prepare all local photos ZIP'}).click();
- await page.getByRole('button',{name:'Save prepared ZIP to Files'}).waitFor({timeout:30000});
- check(await page.getByRole('button',{name:'Download prepared ZIP'}).count()===1,
+ await page.getByRole('button',{name:'Legacy unencrypted all-photos ZIP'}).click();
+ await page.getByRole('button',{name:'Save prepared backup to Files'}).waitFor({timeout:30000});
+ check(await page.getByRole('button',{name:'Download prepared backup'}).count()===1,
    'Owner can prepare a fresh all-customer ZIP after cross-tab changes');
  const restoreInput=page.locator('input[type="file"][accept*=".zip"]').nth(1);
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
@@ -293,7 +293,7 @@ try{
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/Photos may already have been added/).waitFor();
  check(await page.locator('.photo-card').count()===2,'Interrupted post-commit restore refreshes both actual saved photos');
- check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Unconfirmed restore blocks a second recovery request');
+ check(await page.getByRole('button',{name:'Restore verified photo backup',exact:true}).isDisabled(),'Unconfirmed restore blocks a second recovery request');
  await page.evaluate(()=>{IDBObjectStore.prototype.add=window.originalRestoreAdd;IDBObjectStore.prototype.getAll=window.originalRestoreGetAll;});
  await ctx.setOffline(false);await page.reload();
  await page.getByText(/Photo changes are paused/).waitFor();
@@ -301,7 +301,7 @@ try{
  const restoreDisclosure=page.locator('details.photo-backup-more');
  check(!await restoreDisclosure.evaluate(node=>node.open),'Optional photo recovery stays collapsed after reload while durable save warning remains');
  await restoreDisclosure.locator(':scope > summary').click();
- check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Reload cannot enable an unreviewed ZIP restore retry');
+ check(await page.getByRole('button',{name:'Restore verified photo backup',exact:true}).isDisabled(),'Reload cannot enable an unreviewed ZIP restore retry');
  await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
  await page.getByRole('button',{name:'I reviewed saved photos; allow new changes'}).click();
  check(await page.locator('.photo-card').count()===2,'Review after interrupted restore never duplicates committed photos');
@@ -339,10 +339,10 @@ try{
  check(await coldPage.locator('.photo-card').count()===2,'Browser fully closed, HTTP server stopped: actual React customer-photo screen cold-launches offline with original IndexedDB photos');
  check(await coldPage.locator('details.photo-backup-more').evaluate(node=>!node.open),'Offline restart keeps advanced photo tools collapsed by default');
  await coldPage.locator('.photo-backup-more > summary').click();
- check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
- await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
+ check(await coldPage.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
+ await coldPage.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
  await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
- check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
+ check(await coldPage.getByRole('button',{name:'Download prepared backup'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
  // Browser-managed download paths can disappear when Chromium detaches its
  // offline download context. Verify a fresh ZIP through the native file-share
  // entry point, and separately reselect the previously saved bytes from Files.
@@ -354,8 +354,8 @@ try{
      active:Boolean(navigator.userActivation?.isActive)};
   }});
  });
- await coldPage.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await coldPage.getByText(/Check that the ZIP is in Files, then use Verify saved ZIP from Files/).waitFor();
+ await coldPage.getByRole('button',{name:'Save prepared backup to Files'}).click();
+ await coldPage.getByText(/Check that the backup exists in Files or separate private storage/).waitFor();
  const coldShare=await coldPage.evaluate(()=>window.fixtureOfflineShare);
  check(coldShare?.active===true&&coldShare?.size===exported.length&&coldShare.size>100,
    'Fresh ZIP built after offline cold launch contains original two photographs and was handed to native share');
@@ -368,18 +368,18 @@ try{
  coldPage.on('dialog',dialog=>dialog.accept());
  await coldPage.locator('input[type="file"][accept="image/*"]').last().setInputFiles({name:'third-synthetic.png',mimeType:'image/png',buffer:png});
  await coldPage.locator('.photo-card').nth(2).waitFor();
- await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
+ await coldPage.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
  await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
  await coldPage.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async({files})=>{
    window.fixtureThreePhotoZip=Array.from(new Uint8Array(await files[0].arrayBuffer()));
  }}));
- await coldPage.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
+ await coldPage.getByRole('button',{name:'Save prepared backup to Files'}).click();
  await coldPage.waitForFunction(()=>window.fixtureThreePhotoZip?.length>100);
  const threePhotoZip=Buffer.from(await coldPage.evaluate(()=>window.fixtureThreePhotoZip));
  for(let remaining=2;remaining>=0;remaining--){
   await coldPage.getByRole('button',{name:'Delete on-device photo'}).first().click();
   await coldPage.waitForFunction(count=>document.querySelectorAll('.photo-card').length===count,remaining);
-  await coldPage.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Verify saved ZIP from Files'&&!b.disabled));
+  await coldPage.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Verify saved photo backup'&&!b.disabled));
   await coldVerify.setInputFiles({name:'synthetic-three.zip',mimeType:'application/zip',buffer:threePhotoZip});
   await coldPage.getByText(/Saved ZIP VERIFIED: 3 photo\(s\) in archive/).waitFor({timeout:30000});
   const status=(await coldPage.getByRole('status').allInnerTexts()).join(' ');
