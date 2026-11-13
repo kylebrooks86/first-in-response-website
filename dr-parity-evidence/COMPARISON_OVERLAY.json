@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "purpose": "Persistent deliberate LIVE-vs-independent DR rendered comparison decisions. This overlay never creates evidence and only records reviewed results tied to exact registered evidence hashes.",
+  "entries": []
+}
