@@ -30,13 +30,7 @@ async function readCustomerRequest(request: Request): Promise<Record<string, unk
 export async function GET(request?:Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    // Read-only, owner-authenticated verification of an uncertain edit.
-    // A NEW LIVE customer must never save without its permanent Customer #.
-    // This is scoped to the owner-approved independent LIVE environment only.
-    if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START==='required'&&
-       (env as typeof env & {FIRE_CUSTOMER_NUMBERS_CANDIDATE?:string}).FIRE_CUSTOMER_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')
-      return Response.json({error:'NEW LIVE customer numbering is not enabled. No customer was created.'},
-        {status:503,headers:{'Cache-Control':'no-store, private'}});
+    // Read-only owner-authenticated customer listing and edit confirmation.
     const numbered=await customerNumberingReady(env.DB,env);
     const numberColumn=numbered?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=c.id) AS customerNumber":"NULL AS customerNumber";
     const confirmId=request?new URL(request.url).searchParams.get("confirmEdit"):null;
@@ -136,6 +130,12 @@ export async function POST(request: Request) {
     const requestId=body.requestId;
     if(requestId!==undefined&&(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId)))return Response.json({error:'Invalid customer save identifier.'},{status:400});
     const id = typeof requestId==='string'?requestId:crypto.randomUUID();
+    // Enforce the permanent Customer # flag on the actual write path, not
+    // merely on the customer-list GET. Fail closed before inserting anything.
+    if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START==='required'&&
+       (env as typeof env & {FIRE_CUSTOMER_NUMBERS_CANDIDATE?:string}).FIRE_CUSTOMER_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')
+      return Response.json({error:'NEW LIVE customer numbering is not enabled. No customer was created.'},
+        {status:503,headers:{'Cache-Control':'no-store, private'}});
     const numbered=await customerNumberingReady(env.DB,env);
     if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START==='required'){
       try{
