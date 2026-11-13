@@ -8,6 +8,10 @@
 -- recovery point, unchanged QA-master app, and separate owner approval.
 -- Cloudflare D1 migration application supplies transactional rollback on
 -- failure; do NOT submit this through raw d1 execute as separate statements.
+-- Exact provider-reserved _cf_METADATA and _cf_KV table NAMES are ignored
+-- for clean-app record emptiness. Do not read, export or alter their contents.
+-- Unknown application tables remain a hard stop. Provider attestation is
+-- still needed for actual hosted D1 resource identity and schema.
 CREATE TABLE _fire_job_empty_precondition (
   passed INTEGER NOT NULL CHECK(passed=1)
 );
@@ -37,7 +41,7 @@ SELECT CASE WHEN
   AND (SELECT COUNT(*) FROM auth_rate_limits)=0
   AND (SELECT COUNT(*) FROM sqlite_master
        WHERE type='table' AND name NOT LIKE 'sqlite_%'
-         AND name NOT IN ('customers','estimates','customer_notes','invoices','invoice_items','invoice_revisions','payment_checkout_sessions','payment_refunds','deposit_policy_events','deposit_agreement_snapshots','estimate_items','payments','customer_photos','customer_messages','notifications','message_templates','estimate_change_requests','tasks','expenses','job_reports','auth_rate_limits','d1_migrations','_cf_KV','_fire_job_empty_precondition'))=0
+         AND name NOT IN ('customers','estimates','customer_notes','invoices','invoice_items','invoice_revisions','payment_checkout_sessions','payment_refunds','deposit_policy_events','deposit_agreement_snapshots','estimate_items','payments','customer_photos','customer_messages','notifications','message_templates','estimate_change_requests','tasks','expenses','job_reports','auth_rate_limits','d1_migrations','_cf_KV','_cf_METADATA','_fire_job_empty_precondition'))=0
   AND (SELECT COUNT(*) FROM sqlite_master
        WHERE name IN ('fire_job_numbers','fire_job_estimate_links',
                       'idx_fire_job_estimate_links_number',
