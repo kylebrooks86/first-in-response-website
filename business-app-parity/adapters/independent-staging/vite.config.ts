@@ -29,6 +29,37 @@ const reviewedJobNumberVars = NUMBERING_OPT_IN
   ? { FIRE_JOB_NUMBERS_CANDIDATE: "owner-approved-schema-v1" }
   : {};
 
+
+// Face ID / fingerprint sign-in happens at a VERIFIED Cloudflare Access
+// passkey relying party. Source-only builds keep quick unlock OFF unless
+// the owner has approved a specifically bound Access app and separate
+// PIN-HASH + PIN-PEPPER secrets for this Worker. No PIN or pepper in vars.
+const quickAuthMode = process.env.FIRE_STAGING_QUICK_AUTH_MODE;
+if (quickAuthMode && quickAuthMode !== "passkey-or-pin-v1") {
+  throw new Error("Unreviewed FIRE STAGING quick sign-in mode.");
+}
+const quickAuthRequested = quickAuthMode === "passkey-or-pin-v1";
+const quickAuthTeam = process.env.FIRE_STAGING_ACCESS_TEAM_DOMAIN;
+const quickAuthAudience = process.env.FIRE_STAGING_ACCESS_AUDIENCE;
+const quickAuthOwnerEmail = process.env.FIRE_STAGING_ACCESS_OWNER_EMAIL;
+if (quickAuthRequested &&
+    (process.env.FIRE_STAGING_QUICK_AUTH_APPROVAL !== "owner-approved-staging-quick-auth-v1" ||
+     typeof quickAuthTeam !== "string" ||
+     !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(quickAuthTeam) ||
+     typeof quickAuthAudience !== "string" || quickAuthAudience.length < 12 || quickAuthAudience.length > 256 ||
+     typeof quickAuthOwnerEmail !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(quickAuthOwnerEmail))) {
+  throw new Error("FIRE STAGING passkey/PIN requires separate owner-verified Cloudflare Access application settings.");
+}
+const reviewedQuickAuthVars = quickAuthRequested
+  ? { FIRE_QUICK_AUTH_MODE:"passkey-or-pin-v1",
+      FIRE_ACCESS_TEAM_DOMAIN:quickAuthTeam,
+      FIRE_ACCESS_AUDIENCE:quickAuthAudience,
+      FIRE_ACCESS_OWNER_EMAIL:quickAuthOwnerEmail }
+  : {};
+const reviewedQuickAuthSecrets = quickAuthRequested
+  ? [...["FIRE_ADMIN_PASSWORD_HASH", "FIRE_SESSION_SECRET"], "FIRE_PIN_HASH", "FIRE_PIN_PEPPER"]
+  : ["FIRE_ADMIN_PASSWORD_HASH", "FIRE_SESSION_SECRET"];
+
 if (process.env.FIRE_STAGING_SITE_ORIGIN && process.env.FIRE_STAGING_SITE_ORIGIN !== ORIGIN) {
   throw new Error("Staging origin override is not the owner-verified Worker.");
 }
@@ -55,11 +86,12 @@ export default defineConfig(async () => {
           compatibility_date: "2026-10-16",
           compatibility_flags: ["nodejs_compat"],
           workers_dev: true,
-          secrets: { required: ["FIRE_ADMIN_PASSWORD_HASH", "FIRE_SESSION_SECRET"] },
+          secrets: { required: reviewedQuickAuthSecrets },
           vars: {
             FIRE_ENV: "staging",
             SITE_ORIGIN: ORIGIN,
-            ...reviewedJobNumberVars
+            ...reviewedJobNumberVars,
+            ...reviewedQuickAuthVars
           },
           d1_databases: [{ binding: "DB", database_name: DB_NAME, database_id: DB_ID }]
           // No R2, custom route, or production payment binding configured here.
