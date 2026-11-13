@@ -1,0 +1,122 @@
+{
+  "asOf": "2026-10-12 America/Chicago",
+  "baseCheckpoint": "29ded81770c248118ba103277d63000b962b6070",
+  "scope": "Inactive opt-in Customers contacts repository boundary; no Dashboard/runtime activation",
+  "newSourceHashes": {
+    "lib/local-customer-repository.ts": "07149d457f860752a68be87130ef8000ab539fe6a1a2a7689b34304bd26fc276",
+    "scripts/test-local-customer-repository-browser.mjs": "fc8b8fa6fb0eaa94378bb2f84d5be3f04bdfaadf884e7a3a0d676263f8306873"
+  },
+  "browserChecks": {
+    "passed": 78,
+    "total": 78,
+    "candidateCount": 3,
+    "checksPerCandidate": 26,
+    "nativeIndexedDB": true,
+    "nativeWebCrypto": true,
+    "syntheticLocalhostOnly": true,
+    "results": [
+      {
+        "target": "live",
+        "passed": 26,
+        "total": 26,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      {
+        "target": "doomsday",
+        "passed": 26,
+        "total": 26,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      {
+        "target": "staging",
+        "passed": 26,
+        "total": 26,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      }
+    ]
+  },
+  "focusedTypeScript": {
+    "passed": 3,
+    "total": 3,
+    "scope": "Final repository/vault/store/backup graph, strict TypeScript; not full app"
+  },
+  "sharedRuntimeParity": {
+    "sharedFilesChecked": 123,
+    "roots": [
+      "/workspace/scratch/35908c1b6c07/candidate-live",
+      "/workspace/scratch/35908c1b6c07/candidate-doomsday",
+      "/workspace/scratch/35908c1b6c07/candidate-staging"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "newFileParity": "2/2 identical to shared source across 3 candidates",
+  "initialFailureResolved": "Synchronous cross-tab revocation emitted locked, then repository read catch changed it to unavailable. Catch now preserves already emitted locked/closed. Final 26/26 tests passed on all 3 candidates.",
+  "boundary": [
+    "Locked/unavailable/loading data is null rather than fake empty or zero",
+    "Unlock refuses unused destination and never initializes",
+    "Local save acknowledged only after encrypted transaction completion",
+    "Older idempotent retry reads latest snapshot",
+    "Wrong phrase, stale revision, abort, quota and concurrent writes fail safely",
+    "Generation and callback checks prevent late plaintext after lock",
+    "Native restart and target isolation verified",
+    "Job/financial history requires connection; no invented amounts",
+    "Dispose revokes shared vault session explicitly"
+  ],
+  "unchanged": [
+    "Dashboard and customer API routes",
+    "Vault schema/encryption/atomic recovery",
+    "Published synthetic shell and ZIP hashes",
+    "Navigation scroll reset and scrolling styles",
+    "Existing hosting/auth adapters"
+  ],
+  "notVerified": [
+    "Full-app offline shell and runtime Customers integration",
+    "Full-app builds with complete dependencies",
+    "Real-device repository workflow",
+    "Server sync/conflicts",
+    "Unused-device recovery",
+    "Bottom-screen shaking"
+  ],
+  "productionChanges": 0,
+  "agentDeployments": 0,
+  "databaseMigrations": 0,
+  "stripeActions": 0,
+  "additionalSpendingUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "nextTask": "Separate isolated contacts-only view with explicit owner unlock/local pending-save status, followed by reviewed account/target adapter before Customers runtime activation"
+}

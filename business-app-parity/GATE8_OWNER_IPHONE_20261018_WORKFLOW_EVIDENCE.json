@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-18",
+  "source": "Owner report from actual iPhone QA in this conversation; no independent hosted record inspection claimed",
+  "qaOrigin": "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev/",
+  "reportedPassed": [
+    "Original $200 Gutter Cleaning + Flush estimate edited and persisted after Safari refresh; original $100 deposit retained",
+    "Customer-facing prices, descriptions, agreement, signature and acknowledgments displayed and operated correctly",
+    "Second synthetic $200 QA APPROVAL TEST estimate electronically signed and approved; timestamp recorded; marketing photo permission No",
+    "Owner estimate-approved notification received",
+    "Approval did not create any payment; Payments showed No payments recorded",
+    "Second job scheduled for 2026-10-20 10:00 America/Chicago; owner status Scheduled, customer appointment visible, dashboard one upcoming job"
+  ],
+  "reportedDefects": [
+    "Scheduling succeeded without collecting deposit; owner requests mandatory standard deposit with audited owner-only exceptions",
+    "Customer summary counts two $200 estimates, including one Sent, as $400 open balance",
+    "Photo ZIP backup/recovery controls clipped at right edge on iPhone",
+    "Messages tab lacks direct compose entry point"
+  ],
+  "pending": [
+    "Further appointment refresh/restart persistence",
+    "Independent confirmation that original estimate remains unchanged after second approval and scheduling",
+    "Remaining stored signature and approval record details"
+  ],
+  "preserve": [
+    "Original $200 estimate / $100 deposit editing baseline",
+    "Second synthetic signed/approved/scheduled estimate; do not reset data",
+    "Existing installed Home Screen apps and recovery vaults"
+  ],
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30,
+    "gate8Accepted": false
+  }
+}
