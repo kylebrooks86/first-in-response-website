@@ -138,3 +138,6 @@ try{
  ok(bad.status!==0&&!bad.stderr.includes('Wrong private synthetic'),'CLI rejects wrong passphrase without echo');
  console.log('PASS '+n+'/'+n+' independent saved protected FIRE photo backup tests; no Cloudflare, restore or customer data.');
 }finally{rmSync(folder,{recursive:true,force:true});}
+
+// New recovery code requires one targeted synthetic local SQLite round-trip.
+await import('./test_isolated_sqlite_recovery.mjs');
