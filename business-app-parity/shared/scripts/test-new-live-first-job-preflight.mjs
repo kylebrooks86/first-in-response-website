@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {inspectNewLiveFirstJobCleanStart} from '../lib/new-live-first-job-preflight.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from '../lib/numbered-records-v2-preflight.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits'];
+const provider={name:'_cf_METADATA',sql:'CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB)'};
 const triggers=[
  'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',
  'fire_job_numbers_no_update','fire_job_numbers_no_delete',
@@ -26,8 +27,10 @@ const create=(override={})=>{
     tables:v.validSchema?2:1,triggers:v.validSchema?4:3};
    if(sql.includes('AS invalid'))return {invalid:v.validCoverage?0:1};
    if(sql.includes('AS missing'))return {missing:v.validCustomerCoverage?0:1};
-   if(sql.includes("GROUP_CONCAT(name, ',') AS names")&&sql.includes("type='table'"))
-    return {names:v.tables.join(',')};
+   if(sql.includes('AS entries')&&sql.includes("type='table'"))
+    return {entries:v.tables.map(item=>typeof item==='string'?
+     item+String.fromCharCode(31)+'CREATE TABLE '+item+' (id TEXT)':
+     item.name+String.fromCharCode(31)+item.sql).join(String.fromCharCode(30))};
    if(sql.includes("GROUP_CONCAT(name, ',') AS names")&&sql.includes("type='trigger'"))
     return {names:v.triggers.join(',')};
    if(count)return {n:Object.hasOwn(v.rows,count[1])?v.rows[count[1]]:0};
@@ -63,6 +66,14 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCoverage:false})
  'bad original estimate/job ownership stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='payment_refunds')}).db,env),
  'missing refund journal schema table stops');
+const withProvider=create({tables:[...tables,provider]});
+ok((await inspectNewLiveFirstJobCleanStart(withProvider.db,env)).firstJobNumberExpected==='0001',
+ 'documented D1 metadata does not falsely block a clean first job');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:[...tables,
+ {name:'_cf_METADATA',sql:'CREATE TABLE _cf_METADATA (key TEXT, value BLOB)'}]}).db,env),
+ 'spoofed provider metadata cannot hide business records');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:[...tables,'sqliteX_customer_data']}).db,env),
+ 'sqliteX user tables must not disappear through SQL LIKE underscore wildcard');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:[...tables,'unreviewed_feature']}).db,env),
  'unexpected business table requires separate migration review');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:triggers.slice(1)}).db,env),
