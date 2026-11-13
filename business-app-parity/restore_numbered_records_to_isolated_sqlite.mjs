@@ -118,6 +118,10 @@ export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templat
  try{archive=JSON.parse(await readFile(resolve(recordsPath),'utf8'));}
  catch{stop('records archive unreadable');}
  validateNumberedCoreRecordsV2(archive);
+ // This local path cannot recover object-backed photo bytes; do not produce
+ // a deceptively complete recovery database with orphaned cloud references.
+ if(archive.tables.customer_photos.length)
+  stop('object-backed customer photo rows require a separate full-byte restore');
  let db,created=false;
  try{
   const st=await stat(resolve(templatePath));
@@ -126,6 +130,8 @@ export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templat
   await copyFile(resolve(templatePath),resolve(outputPath),1);
   created=true;await chmod(resolve(outputPath),0o600);
   db=new DatabaseSync(resolve(outputPath));
+  if(db.pragma('journal_mode',{simple:true})==='wal')
+   stop('template must be a checkpointed standalone SQLite database, not WAL mode');
   db.exec('PRAGMA foreign_keys=ON');
   const result=restore(db,archive);
   db.close();db=undefined;
