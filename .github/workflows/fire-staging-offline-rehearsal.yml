@@ -142,6 +142,10 @@ jobs:
         run: |
           pnpm --dir fire-app-dr install --frozen-lockfile --ignore-scripts
           pnpm --dir fire-app-dr run typecheck
+      - name: Gate 6 independent DR login spoofed IP, parallel lockout and signed session TTL (new-case, SQLite only)
+        run: |
+          cd fire-app-dr
+          node --experimental-sqlite scripts/test-gate6-login-lockout.mjs
       - name: Gate 6 owner-hosted evidence collector strict URL allowlist and leakage prevention (OFFLINE)
         run: |
           node --test business-app-parity/test_owner_gate6_hosted_readonly.mjs
@@ -463,6 +467,11 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           pnpm install --frozen-lockfile
           pnpm run build
+      - name: Gate 6 Doomsday PIN login and owner session hardening (new negative cases, disposable SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-independent-pin-login.mjs
+          node scripts/test-independent-auth-adapter.mjs
       - name: Actual Wrangler LOCAL D1 Job # 0025 migration and rollback (no Cloudflare access)
         env:
           CI: 'true'
