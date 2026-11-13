@@ -17,6 +17,9 @@ on:
       - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
+      - 'business-app-parity/shared/lib/photo-storage-archive.ts'
+      - 'fire-app-dr/lib/photo-storage-archive.ts'
+      - 'business-app-parity/shared/scripts/test-photo-storage-integrity.mjs'
       - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
   push:
     branches: [work/fire-mobile-contact-consolidation-2026-10-31]
@@ -36,6 +39,9 @@ on:
       - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
+      - 'business-app-parity/shared/lib/photo-storage-archive.ts'
+      - 'fire-app-dr/lib/photo-storage-archive.ts'
+      - 'business-app-parity/shared/scripts/test-photo-storage-integrity.mjs'
       - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
 concurrency:
   # The latest candidate supersedes previous PR revisions only. Never cancel
@@ -79,3 +85,12 @@ jobs:
         run: python3 scripts/test-three-part-numbered-v2-recovery.py
       - name: Reject independently modified signed deposit terms and service scope
         run: node scripts/test-numbered-v2-signed-digests.mjs
+      # New Gate 7 behavior only: run the actual QA-master complete-photo
+      # exporter with disposable Miniflare D1/R2 and without any cloud binding.
+      # The existing Python ZIP and numbered-core checks above are preserved.
+      - name: Install pinned dependencies for native local R2 coverage checks
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+      - name: Prove complete photo R2 bucket coverage and fail-closed omissions
+        run: node scripts/test-photo-storage-integrity.mjs
