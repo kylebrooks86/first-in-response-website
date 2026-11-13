@@ -9,6 +9,10 @@ import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
 import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
+import {inspectOwnerSavedNumberedPhotoPair} from './verify_saved_numbered_photo_pair.mjs';
+import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,
+ NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION}
+ from './shared/lib/numbered-records-v2-preflight.mjs';
 let n=0;const ok=(v,msg)=>{assert.ok(v,msg);n++;};
 const reject=async(fn,match)=>{await assert.rejects(fn,match);n++;};
 const sha=b=>createHash('sha256').update(b).digest('hex');
@@ -100,5 +104,63 @@ try{
     !good.stderr.includes(customerId),'no private customer ID or passphrase printed');
  const bad=run('Wrong private synthetic recovery phrase 123456\n');
  ok(bad.status!==0&&!bad.stderr.includes('Wrong private synthetic'),'CLI rejects wrong passphrase without echo');
+
+ // End-to-end: two INDEPENDENTLY SAVED original source files are read back,
+ // never merely two in-memory archives. Full numbered core financial/identity
+ // validation and exact owner-held photo bytes must form one recovery seal.
+ const recordsPath=join(folder,'synthetic-numbered-records-v2.json');
+ const tables=Object.fromEntries([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]
+  .map(table=>[table,[]]));
+ const id='synthetic-estimate-one',date='2026-11-13T12:00:00.000Z';
+ tables.customers=[{id:customerId,name:'Synthetic test only',created_at:date}];
+ tables.estimates=[{id,customer_id:customerId,status:'draft',total_cents:100,created_at:date}];
+ tables.fire_customer_numbers=[{customer_id:customerId,customer_number:1,created_at:date}];
+ tables.fire_job_numbers=[{root_estimate_id:id,job_number:1,created_at:date}];
+ tables.fire_job_estimate_links=[{estimate_id:id,job_number:1}];
+ const records={format:NUMBERED_RECORDS_V2_FORMAT,version:NUMBERED_RECORDS_V2_VERSION,
+  allTablesComplete:true,truncated:false,tables,
+  rowCounts:Object.fromEntries(Object.entries(tables).map(([key,list])=>[key,list.length])),
+  highWater:{customer:1,job:1}};
+ writeFileSync(recordsPath,JSON.stringify(records));
+ const pair=await inspectOwnerSavedNumberedPhotoPair(recordsPath,file,phrase);
+ ok(pair.savedRecordsFileReadBack&&pair.savedProtectedPhotoFileReadBack,
+  'read back the separate actual saved records AND protected photo files');
+ ok(pair.photoCount===1&&pair.customerCount===1&&pair.jobCount===1,
+  'separate source records and photo metadata reference same numbered customer');
+ ok(pair.matchingCustomerAndFinancialReferences&&/^[a-f0-9]{64}$/.test(pair.pairSha256),
+  'financial/customer integrity and original photograph bytes paired cryptographically');
+ ok(pair.recordSourceD1UuidPhysicallyVerified===false&&
+    pair.originalRecordsSnapshotConsistencyVerified===false&&
+    pair.destinationD1RestorePerformed===false&&pair.gate7Accepted===false,
+  'saved-file relationship never pretends to prove physical D1 binding or restore');
+ ok(pair.encryptedPhotoFileSha256===sha(readFileSync(file)),
+  'owner-saved protected file hash really uses disk bytes');
+ await reject(inspectOwnerSavedNumberedPhotoPair(recordsPath,file,
+  'incorrect synthetic passphrase for pairing 2026'),/wrong passphrase|damaged/i);
+ const beforeRecords=readFileSync(recordsPath);
+ const wrong=structuredClone(records);
+ delete wrong.tables.payment_refunds;
+ writeFileSync(recordsPath,JSON.stringify(wrong));
+ await reject(inspectOwnerSavedNumberedPhotoPair(recordsPath,file,phrase),/blocked/i);
+ const forged=structuredClone(records);
+ forged.tables.customer_photos=[{id:'phantom-hosted',
+  customer_id:customerId,object_key:'customers/forged/nonexistent.jpg'}];
+ forged.rowCounts.customer_photos=1;
+ writeFileSync(recordsPath,JSON.stringify(forged));
+ await reject(inspectOwnerSavedNumberedPhotoPair(recordsPath,file,phrase),/blocked/i);
+ writeFileSync(recordsPath,beforeRecords);
+ const pairCli=resolve('business-app-parity/verify_saved_numbered_photo_pair.mjs');
+ const check=spawnSync(process.execPath,[pairCli,recordsPath,file],{
+  input:phrase+'\\n',encoding:'utf8',timeout:15000});
+ ok(check.status===0&&JSON.parse(check.stdout).gate7Accepted===false,
+  'standalone real-file paired-audit CLI executes safely: '+check.stderr);
+ ok(!check.stdout.includes(customerId)&&!check.stderr.includes(customerId)&&
+    !check.stdout.includes(phrase),'paired CLI cannot disclose customer ID or passphrase');
+ const badPairCli=spawnSync(process.execPath,[pairCli,recordsPath,file],{
+  input:'A wrong but long synthetic phrase 2026\\n',encoding:'utf8',timeout:15000});
+ ok(badPairCli.status!==0&&!badPairCli.stderr.includes(customerId)&&
+    !badPairCli.stderr.includes('wrong but long'),'paired CLI fails without disclosing private data');
+ ok(sha(readFileSync(recordsPath))===sha(beforeRecords)&&
+    sha(readFileSync(file))===originalHash,'paired proof never changes original saved files');
  console.log('PASS '+n+'/'+n+' independent saved protected FIRE photo backup tests; no Cloudflare, restore or customer data.');
 }finally{rmSync(folder,{recursive:true,force:true});}
