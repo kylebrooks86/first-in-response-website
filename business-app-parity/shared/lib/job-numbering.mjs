@@ -43,7 +43,12 @@ export const JOB_NUMBER_FOR_ESTIMATE_SQL =
   'AND EXISTS (SELECT 1 FROM fire_job_estimate_links origin WHERE origin.estimate_id=root.id AND origin.job_number=j.job_number)';
 
 export const COMPLETED_JOB_COUNT_SQL =
-  "SELECT COUNT(DISTINCT links.job_number) AS completedJobs FROM fire_job_estimate_links links JOIN estimates e ON e.id=links.estimate_id WHERE e.status='completed'";
+  "SELECT COUNT(DISTINCT links.job_number) AS completedJobs FROM fire_job_estimate_links links "+
+  "JOIN estimates e ON e.id=links.estimate_id "+
+  "JOIN fire_job_numbers j ON j.job_number=links.job_number "+
+  "JOIN estimates root ON root.id=j.root_estimate_id "+
+  "WHERE e.status='completed' AND e.customer_id=root.customer_id AND j.created_at=root.created_at "+
+  "AND EXISTS (SELECT 1 FROM fire_job_estimate_links origin WHERE origin.estimate_id=root.id AND origin.job_number=j.job_number)";
 
 export const JOB_REFERENCE_BY_INVOICE_SQL =
   'SELECT links.job_number AS jobNumber FROM invoices inv '+
