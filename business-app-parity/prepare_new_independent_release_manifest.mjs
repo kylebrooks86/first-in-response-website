@@ -19,6 +19,10 @@ const PHOTO_MODE='owner-device-zip';
 // Owner-supplied DR D1 binding identity (Nov 13). A NEW LIVE candidate must
 // never silently reuse this DR resource. This does not attest provider state.
 const OWNER_RECORDED_DR_D1='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145';
+// Owner-executed, successful Wrangler D1 create on Nov 13, with provider
+// creation receipt retained on Issue #19. The create consent was consumed;
+// this does NOT authorize binding, migrating, auth, uploading or publishing.
+const OWNER_CREATED_NEW_LIVE_D1='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
 const RESERVED_D1=new Set([
  PLACEHOLDER,
  '8ccfb1f8-1657-4074-b1b2-47de78f95003', // NEW QA
@@ -75,6 +79,10 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  // not permission to silently replace, recreate, or swap environments.
  if(target==='independent-dr'&&uuid!==OWNER_RECORDED_DR_D1)
   fail('DR database identity differs from the already owner-recorded D1 UUID');
+ // NEW LIVE was now created once, under narrowly scoped owner consent.
+ // No other UUID can be substituted for the independently provisioned DB.
+ if(target==='independent-live'&&uuid!==OWNER_CREATED_NEW_LIVE_D1)
+  fail('NEW LIVE database identity differs from the owner-created D1 UUID');
  if(!validUuid(uuid)||RESERVED_D1.has(uuid)||
     (target==='independent-live'&&uuid===OWNER_RECORDED_DR_D1)||
     (options.otherReleaseDatabaseId&&uuid===options.otherReleaseDatabaseId))
@@ -249,7 +257,7 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
   const id=config.d1_databases[0].database_id;
   if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id)||
      (target==='independent-dr'&&id!==OWNER_RECORDED_DR_D1)||
-     (target==='independent-live'&&id===OWNER_RECORDED_DR_D1))
+     (target==='independent-live'&&id!==OWNER_CREATED_NEW_LIVE_D1))
    failPair('D1 must be a valid distinct target-bound identifier, never QA/STAGING/TEST/DR-as-LIVE');
   ids.add(id);
   if(names.has(config.name)||origins.has(spec.origin))
