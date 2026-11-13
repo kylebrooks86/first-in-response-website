@@ -149,6 +149,10 @@ const pairReject=(dr,live,description)=>check(()=>assert.throws(
  ()=>reviewIndependentReleasePair(dr,live),/BLOCKED/,description),description);
 pairReject(simulatedDr,sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092513'),
  'two valid target manifests sharing one D1 must STOP');
+pairReject(ownerDr,{...simulatedLive,config:{...simulatedLive.config,
+ d1_databases:[{...simulatedLive.config.d1_databases[0],
+ database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'}]}},
+ 'pair review must reject owner DR D1 forged into NEW LIVE even when identities match');
 pairReject(simulatedLive,simulatedDr,'swapped target manifests must STOP');
 pairReject(simulatedDr,undefined,'missing NEW LIVE manifest must STOP');
 pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
