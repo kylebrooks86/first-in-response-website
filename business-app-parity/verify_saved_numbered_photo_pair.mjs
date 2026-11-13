@@ -10,7 +10,7 @@
  * relationship. It cannot attest source DB UUID, snapshot consistency,
  * supplemental tables, independent off-device custody or isolated restore.
  */
-import {readFile} from 'node:fs/promises';
+import {readFile,stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -33,6 +33,20 @@ export async function inspectOwnerSavedNumberedPhotoPair(recordsFile,photoFile,p
   fail('two saved source files and a private phrase are required');
  if(resolve(recordsFile)===resolve(photoFile))
   fail('records and encrypted photos must be separate saved files');
+ // A malicious or accidentally selected giant file must be rejected BEFORE
+ // allocating it. Recheck lengths after read to fail closed if files changed.
+ try{
+  const [recordsInfo,photosInfo]=await Promise.all([
+   stat(resolve(recordsFile)),stat(resolve(photoFile))
+  ]);
+  if(!recordsInfo.isFile()||!photosInfo.isFile()||
+     recordsInfo.size<1||recordsInfo.size>MAX_RECORDS||
+     photosInfo.size<64||photosInfo.size>MAX_ENCRYPTED)
+   fail('saved file size is unsupported; no bytes were loaded');
+ }catch(error){
+  if(error instanceof Error&&error.message.startsWith('FIRE saved recovery pair BLOCKED:'))throw error;
+  fail('saved file metadata could not be read');
+ }
  let rawRecords,rawProtected;
  try{
   [rawRecords,rawProtected]=await Promise.all([
