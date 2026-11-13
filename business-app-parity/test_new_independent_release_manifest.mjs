@@ -20,11 +20,15 @@ const v=(target,name,db,bucket,env,prefix,origin)=>({
 for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  const manifest=v(target,name,db,bucket,env,prefix,origin);
  const uuid=target==='independent-dr'?'54a5e470-2ae3-471b-a2db-ea8bdf092513':'54a5e470-2ae3-471b-a2db-ea8bdf092514';
- const opts={databaseId:uuid,bucketName:bucket,resourceAttestation:'owner-checked-'+target,enableAuth:false};
+ const opts={databaseId:uuid,photoStorageMode:'owner-device-zip',resourceAttestation:'owner-checked-'+target,enableAuth:false};
  const pass=prepareReviewedIndependentManifest(target,manifest,opts);
  check(()=>assert.equal(pass.config.name,name),'exact name');
  check(()=>assert.equal(pass.config.d1_databases[0].database_id,uuid),'new D1 bound');
- check(()=>assert.equal(pass.config.r2_buckets[0].bucket_name,bucket),'new R2 bound');
+ check(()=>assert.deepEqual(pass.config.r2_buckets,[]),'no R2 binding or subscription');
+ check(()=>assert.equal(pass.config.vars.FIRE_PHOTO_STORAGE_MODE,'owner-device-zip'),'explicit local-photo candidate');
+ check(()=>assert.equal(pass.evidence.remotePhotoSyncAvailable,false),'no false cloud photo claim');
+ check(()=>assert.equal(pass.evidence.offDeviceZipVerified,false),'no false off-device backup claim');
+ check(()=>assert.equal(pass.evidence.isolatedPhotoRestoreVerified,false),'no false photo restore claim');
  check(()=>assert.equal(pass.config.vars[prefix+'_AUTH_ENABLED'],'blocked'),'sign-in blocked by default');
  check(()=>assert.equal(pass.evidence.gate4Accepted,false),'no false gate acceptance');
  check(()=>assert.equal(pass.evidence.remoteOperationAttempted,false),'pure source');
@@ -68,6 +72,9 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...opts,databaseId:'dba421ba-fc66-4cf8-9c31-51616f8249ba'});
  reject(manifest,{...opts,databaseId:uuid,otherReleaseDatabaseId:uuid});
  reject(manifest,{...opts,bucketName:'fire-fullapp-qa-photos-20261023'});
+ reject(manifest,{...opts,bucketName:bucket});
+ reject(manifest,{...opts,photoStorageMode:undefined});
+ reject(manifest,{...opts,photoStorageMode:'r2'});
  reject(manifest,{...opts,resourceAttestation:null});
  reject(manifest,{...opts,enableAuth:true,authAttestation:null});
  reject(manifest,{...opts,enableAuth:'yes'});
@@ -106,4 +113,4 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
 
 }
 check(()=>assert.throws(()=>prepareReviewedIndependentManifest('qa',{},{}),/BLOCKED/),'unreviewed target');
-console.log('PASS '+checks+'/'+checks+' DR and NEW LIVE source-only independent Worker/D1/R2/auth release config controls; no real resources or deployment.');
+console.log('PASS '+checks+'/'+checks+' DR and NEW LIVE source-only independent Worker/D1/no-R2 device-ZIP/auth release config controls; no real resources or deployment.');
