@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,readFileSync,rmSync,truncateSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -186,6 +186,11 @@ try{
   input:'A wrong but long synthetic phrase 2026\n',encoding:'utf8',timeout:15000});
  ok(badPairCli.status!==0&&!badPairCli.stderr.includes(customerId)&&
     !badPairCli.stderr.includes('wrong but long'),'paired CLI fails without disclosing private data');
+ const oversized=join(folder,'oversized-source-records.json');
+ writeFileSync(oversized,'{}');
+ truncateSync(oversized,65*1024*1024);
+ await reject(inspectOwnerSavedNumberedPhotoPair(oversized,file,phrase),
+  /file size|unsupported/i);
  ok(sha(readFileSync(recordsPath))===sha(beforeRecords)&&
     sha(readFileSync(file))===originalHash,'paired proof never changes original saved files');
  console.log('PASS '+n+'/'+n+' independent saved protected FIRE photo backup tests; no Cloudflare, restore or customer data.');
