@@ -81,7 +81,11 @@ function restore(db,archive,supplemental){
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
    for(const row of supplemental.tables[t]){
     const keys=Object.keys(row).sort();
-    if(keys.some(k=>!allowed.has(k)))stop('unknown supplemental column in '+t);
+    // A COMPLETE database archive must include every actual saved column.
+    // Accepting only an ID (or one omitted field) silently substitutes a
+    // destination DEFAULT/NULL, losing owner data while counts still match.
+    if(keys.length!==allowed.size||keys.some(k=>!allowed.has(k)))
+     stop('incomplete or unknown supplemental source columns in '+t);
     db.prepare('INSERT INTO '+q(t)+' ('+keys.map(q).join(',')+') VALUES ('+
      keys.map(()=>'?').join(',')+')').run(...keys.map(k=>toSql(row[k])));
     restored++;
@@ -131,12 +135,10 @@ function restore(db,archive,supplemental){
    const expected=supplemental.tables[t];
    const actual=db.prepare('SELECT * FROM '+q(t)).all();
    if(actual.length!==expected.length)stop('supplemental row count differs in '+t);
-   // Row order is not guaranteed in SQLite; compare sorted complete row values.
-   const normalize=rows=>rows.map(row=>stable(Object.fromEntries(
-    Object.entries(row).filter(([k])=>Object.hasOwn(expected[0]||{},k))
-   ))).sort();
-   if(actual.some(row=>Object.keys(expected[0]||{}).some(k=>!Object.hasOwn(row,k)))||
-      stable(normalize(actual))!==stable(normalize(expected)))
+   // Row order is not guaranteed. Compare ALL fields of every row, not
+   // only the keys on the first archive row (which can hide later omissions).
+   const normalize=rows=>rows.map(row=>stable(row)).sort();
+   if(stable(normalize(actual))!==stable(normalize(expected)))
     stop('supplemental restored values differ in '+t);
   }
   for(const [t,high] of [['fire_customer_numbers',archive.highWater.customer],
