@@ -16,6 +16,9 @@ const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
 // The QA-master on-device customer photo vault and verified owner-saved ZIP
 // are a source-only candidate, not evidence of off-device custody or restore.
 const PHOTO_MODE='owner-device-zip';
+// Owner-supplied DR D1 binding identity (Nov 13). A NEW LIVE candidate must
+// never silently reuse this DR resource. This does not attest provider state.
+const OWNER_RECORDED_DR_D1='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145';
 const RESERVED_D1=new Set([
  PLACEHOLDER,
  '8ccfb1f8-1657-4074-b1b2-47de78f95003', // NEW QA
@@ -64,6 +67,7 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
    !empty(original.r2_buckets))fail('source has non-placeholder database or unexpected R2 binding');
  const uuid=options.databaseId;
  if(!validUuid(uuid)||RESERVED_D1.has(uuid)||
+    (target==='independent-live'&&uuid===OWNER_RECORDED_DR_D1)||
     (options.otherReleaseDatabaseId&&uuid===options.otherReleaseDatabaseId))
   fail('database must be a new independent, owner-verified physical D1 UUID');
  if(options.photoStorageMode!==PHOTO_MODE||options.bucketName!==undefined)
