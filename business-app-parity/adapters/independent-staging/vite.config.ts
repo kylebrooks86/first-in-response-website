@@ -12,6 +12,23 @@ const WORKER = "fire-app-independent-staging";
 const DB_NAME = "fire-app-staging-db";
 const DB_ID = "afb2c05a-d794-4a9a-b580-924ce01c26ad";
 const ORIGIN = "https://fire-app-independent-staging.kyle-bfc.workers.dev";
+// Permanent Job # display/search/creation is OFF by default.
+// Only a target-bound OWNER-reviewed D1 schema, immutable trigger/link and
+// numbering high-water receipt may authorize adding this flag to a build.
+// The actual D1 Job # ready check still blocks writes if data is incomplete.
+const NUMBERING_OPT_IN = process.env.FIRE_STAGING_JOB_NUMBERS_CANDIDATE;
+if (NUMBERING_OPT_IN && NUMBERING_OPT_IN !== "owner-approved-schema-v1") {
+  throw new Error("FIRE STAGING permanent Job # flag is not a reviewed value.");
+}
+if (NUMBERING_OPT_IN &&
+    (process.env.FIRE_STAGING_JOB_NUMBERS_D1_UUID !== DB_ID ||
+     process.env.FIRE_STAGING_JOB_NUMBERS_SCHEMA_APPROVAL !== "owner-verified-staging-job-numbers-v1")) {
+  throw new Error("FIRE STAGING permanent Job #s require separate physical D1 schema and owner review.");
+}
+const reviewedJobNumberVars = NUMBERING_OPT_IN
+  ? { FIRE_JOB_NUMBERS_CANDIDATE: "owner-approved-schema-v1" }
+  : {};
+
 if (process.env.FIRE_STAGING_SITE_ORIGIN && process.env.FIRE_STAGING_SITE_ORIGIN !== ORIGIN) {
   throw new Error("Staging origin override is not the owner-verified Worker.");
 }
@@ -41,7 +58,8 @@ export default defineConfig(async () => {
           secrets: { required: ["FIRE_ADMIN_PASSWORD_HASH", "FIRE_SESSION_SECRET"] },
           vars: {
             FIRE_ENV: "staging",
-            SITE_ORIGIN: ORIGIN
+            SITE_ORIGIN: ORIGIN,
+            ...reviewedJobNumberVars
           },
           d1_databases: [{ binding: "DB", database_name: DB_NAME, database_id: DB_ID }]
           // No R2, custom route, or production payment binding configured here.
