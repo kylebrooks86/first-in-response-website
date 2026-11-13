@@ -7,7 +7,7 @@ import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');
 for(const name of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())
   db.exec(readFileSync('drizzle/'+name,'utf8'));
-let user={email:'kylebrooks8605@gmail.com'},loseAck=false;
+let user={email:'kylebrooks8605@gmail.com'},loseAck=false,loseBatchAck=false;
 const prep=sql=>({sql,values:[],bind(...values){return {...this,values}},
   async first(){return db.prepare(sql).get(...this.values)??null},
   async all(){return {results:db.prepare(sql).all(...this.values)}},
@@ -15,7 +15,7 @@ const prep=sql=>({sql,values:[],bind(...values){return {...this,values}},
 });
 const env={DB:{prepare:prep,async batch(rows){
   db.exec('BEGIN');
-  try{const result=rows.map(row=>({results:db.prepare(row.sql).all(...row.values)}));db.exec('COMMIT');return result;}
+  try{const result=rows.map(row=>({results:db.prepare(row.sql).all(...row.values)}));db.exec('COMMIT');if(loseBatchAck){loseBatchAck=false;throw Error('Synthetic committed confirmation batch lost D1 ACK');}return result;}
   catch(error){db.exec('ROLLBACK');throw error;}
 }}};
 const route=createRouteFixtureLoader(process.cwd(),env,()=>user)('app/api/customer-messages/route.ts');
@@ -49,9 +49,11 @@ try{
  const second={...base,requestId:randomUUID(),body:'Synthetic follow-up'};
  response=await post(second);eq(response.status,201);
  const secondId=(await response.json()).message.id;
+ loseBatchAck=true;
  response=await patch({customerId,preparedMessageId:secondId,ownerConfirmedSent:true});
  eq(response.status,200);data=await response.json();
  eq(data.ownerConfirmedSent,true);eq(data.deliveryConfirmed,false);
+ eq(data.recoveredAfterUncertainConfirmation,true);
  eq(data.confirmationSource,'owner');
  response=await patch({customerId,preparedMessageId:secondId,ownerConfirmedNotSent:true});
  eq(response.status,409);
