@@ -40,6 +40,12 @@ assert.match(customer,/customerCreationReceipt\(env.DB,recoveryRequestId\)/);
 assert.match(customer,/saveUncertain:true,requestId:recoveryRequestId/);
 assert.match(customer,/FIRE_NEW_LIVE_CLEAN_START/);
 assert.match(customer,/FIRE_CUSTOMER_NUMBERS_CANDIDATE/);
+const customerPost=customer.slice(customer.indexOf('export async function POST'));
+const customerGet=customer.slice(customer.indexOf('export async function GET'),customer.indexOf('export async function POST'));
+assert.match(customerPost,/FIRE_CUSTOMER_NUMBERS_CANDIDATE/,'POST must refuse unnumbered NEW LIVE customers');
+assert.ok(customerPost.indexOf('FIRE_CUSTOMER_NUMBERS_CANDIDATE')<customerPost.indexOf('const insertStatement='),
+  'NEW LIVE flag checked before customer INSERT');
+assert.doesNotMatch(customerGet,/NEW LIVE customer numbering is not enabled/,'Read-only GET must not substitute for POST guard');
 assert.match(customer,/await verifyNewLiveFirstJobState\(env.DB\)/);
 assert.ok(customer.indexOf('await verifyNewLiveFirstJobState(env.DB)')<customer.indexOf('const insertStatement='));
 assert.match(customer,/if\(numbered&&!customerNumber\)/);
