@@ -175,7 +175,7 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
 }).db,env),'named but NONUNIQUE refund-ledger index blocks');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
  financialIndexes:actualFinancialIndexes.map(row=>row.name==='idx_payments_stripe_provider_unique'?
-  {...row,sql:row.sql.replace(/WHERE[\\s\\S]*;/,';')}:row)
+  {...row,sql:row.sql.replace(/WHERE[\s\S]*;/,';')}:row)
 }).db,env),'Stripe provider index lacking correct partial scope blocks');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
  financialIndexes:[...actualFinancialIndexes,actualFinancialIndexes[0]]
