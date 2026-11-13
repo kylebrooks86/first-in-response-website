@@ -34,10 +34,25 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  check(()=>assert.equal(pass.evidence.remoteOperationAttempted,false),'pure source');
  check(()=>assert.equal(manifest.d1_databases[0].database_id,PLACEHOLDER),'source never mutated');
  const numberApproval=target==='independent-live'
-  ?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'}
+  ?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1',
+    customerNumbersSchemaAttestation:'owner-verified-independent-live-customer-numbers-empty-v1'}
   :{jobNumbersSchemaAttestation:'owner-verified-independent-dr-job-numbers-v1'};
  const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth',...numberApproval});
  check(()=>assert.equal(allowed.config.vars[prefix+'_AUTH_ENABLED'],'owner-approved'),'explicit independent auth approval');
+ if(target==='independent-live'){
+  check(()=>assert.equal(allowed.config.vars.FIRE_CUSTOMER_NUMBERS_CANDIDATE,'owner-approved-schema-v1'),
+   'NEW LIVE login requires permanent customer numbering');
+  check(()=>assert.equal(allowed.config.vars.FIRE_NEW_LIVE_CLEAN_START,'required'),
+   'NEW LIVE first Job # guard must be enabled in approved manifest');
+  check(()=>assert.equal(pass.config.vars.FIRE_NEW_LIVE_CLEAN_START,undefined),
+   'inert NEW LIVE manifest remains inert');
+  rejectMissingCustomerNumbers: {
+   const bad={...opts,enableAuth:true,authAttestation:'owner-approved-independent-live-auth',
+    jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'};
+   assert.throws(()=>prepareReviewedIndependentManifest(target,manifest,bad),/Customer #/);
+  }
+ }
+
 
  const quickOpts={...opts,enableAuth:true,
   authAttestation:'owner-approved-'+target+'-auth',
