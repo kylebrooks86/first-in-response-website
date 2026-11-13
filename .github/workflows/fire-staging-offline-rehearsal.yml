@@ -197,6 +197,10 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           test -n "$CHROME" || { echo "STOP: runner's preinstalled Chrome missing"; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Gate 7 changed protected photo UI actual Chrome export/verify/restore (synthetic only)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-offline-photo-ui-browser.mjs
       - name: Gate 6 QA HMAC expiry, origin and cookie-negative controls (offline)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
