@@ -13,6 +13,7 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {validateNumberedCoreRecordsV2,NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './shared/lib/numbered-records-v2-preflight.mjs';
 
+import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
 const stop=reason=>{throw Error('FIRE isolated SQLite restore BLOCKED: '+reason);};
 const ident=x=>typeof x==='string'&&/^[a-z][a-z0-9_]*$/.test(x);
@@ -46,8 +47,9 @@ function inspectSchema(db){
  }
  return {found,extras};
 }
-function restore(db,archive){
+function restore(db,archive,supplemental){
  const {found,extras}=inspectSchema(db);
+ const supplementalState=validateSupplementalRecoveryArchive(supplemental,extras);
  // Restore requires AUTOINCREMENT number history to survive deleted rows.
  for(const t of ['fire_customer_numbers','fire_job_numbers'])
   if(!/\bAUTOINCREMENT\b/i.test(found.get(t)||''))
@@ -66,6 +68,18 @@ function restore(db,archive){
      stop('unrecognized source column for '+t);
     const sql='INSERT INTO '+q(t)+' ('+keys.map(q).join(',')+') VALUES ('+keys.map(()=>'?').join(',')+')';
     db.prepare(sql).run(...keys.map(k=>toSql(row[k])));
+    restored++;
+   }
+  }
+  // Restore all feature-specific tables in the same transaction. Their exact
+  // schema inventory is required; no ignored or inferred supplemental tables.
+  for(const t of extras){
+   const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
+   for(const row of supplemental.tables[t]){
+    const keys=Object.keys(row).sort();
+    if(keys.some(k=>!allowed.has(k)))stop('unknown supplemental column in '+t);
+    db.prepare('INSERT INTO '+q(t)+' ('+keys.map(q).join(',')+') VALUES ('+
+     keys.map(()=>'?').join(',')+')').run(...keys.map(k=>toSql(row[k])));
     restored++;
    }
   }
@@ -96,6 +110,17 @@ function restore(db,archive){
       stop('restored field differs in '+t+'.'+column);
    }
   }
+  for(const t of extras){
+   const expected=supplemental.tables[t];
+   const actual=db.prepare('SELECT * FROM '+q(t)).all();
+   if(actual.length!==expected.length)stop('supplemental row count differs in '+t);
+   // Row order is not guaranteed in SQLite; compare sorted complete row values.
+   const normalize=rows=>rows.map(row=>stable(Object.fromEntries(
+    Object.entries(row).filter(([k])=>Object.hasOwn(expected[0]||{},k))
+   ))).sort();
+   if(stable(normalize(actual))!==stable(normalize(expected)))
+    stop('supplemental restored values differ in '+t);
+  }
   for(const [t,high] of [['fire_customer_numbers',archive.highWater.customer],
                           ['fire_job_numbers',archive.highWater.job]]){
    if(db.prepare('SELECT seq FROM sqlite_sequence WHERE name=?').get(t)?.seq!==high)
@@ -106,16 +131,20 @@ function restore(db,archive){
    stop('restored database integrity check failed');
   return {restoredRows:restored,customers:archive.tables.customers.length,
    jobNumbers:archive.tables.fire_job_numbers.length,
-   supplementalTablesEmpty:extras.length,sqliteRestoreVerified:true,
+   supplementalTablesRestored:supplementalState.tables,
+   supplementalRowsRestored:supplementalState.rows,sqliteRestoreVerified:true,
    providerD1Restored:false,photosRestored:false,gate7Accepted:false};
  }catch(e){try{db.exec('ROLLBACK');}catch{}throw e;}
 }
-export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templatePath,outputPath){
- const paths=[recordsPath,templatePath,outputPath];
+export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templatePath,outputPath,supplementalPath){
+ const paths=[recordsPath,templatePath,outputPath,supplementalPath];
  if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(resolve)).size!==3)
   stop('three different records/template/output files required');
- let archive;
- try{archive=JSON.parse(await readFile(resolve(recordsPath),'utf8'));}
+ let archive,supplemental;
+ try{
+  archive=JSON.parse(await readFile(resolve(recordsPath),'utf8'));
+  supplemental=JSON.parse(await readFile(resolve(supplementalPath),'utf8'));
+ }
  catch{stop('records archive unreadable');}
  validateNumberedCoreRecordsV2(archive);
  // This local path cannot recover object-backed photo bytes; do not produce
@@ -133,7 +162,7 @@ export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templat
   if(db.pragma('journal_mode',{simple:true})==='wal')
    stop('template must be a checkpointed standalone SQLite database, not WAL mode');
   db.exec('PRAGMA foreign_keys=ON');
-  const result=restore(db,archive);
+  const result=restore(db,archive,supplemental);
   db.close();db=undefined;
   return Object.freeze({...result,outputCreated:true,remoteWritesPerformed:false});
  }catch(e){
@@ -144,7 +173,7 @@ export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templat
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  try{
-  if(process.argv.length!==5)stop('usage: node restore_numbered_records_to_isolated_sqlite.mjs RECORDS.json EMPTY_SCHEMA.sqlite RECOVERED.sqlite');
+  if(process.argv.length!==6)stop('usage: node restore_numbered_records_to_isolated_sqlite.mjs RECORDS.json EMPTY_SCHEMA.sqlite RECOVERED.sqlite SUPPLEMENTAL.json');
   console.log(JSON.stringify(await restoreNumberedRecordsToIsolatedSqlite(...process.argv.slice(2))));
  }catch(e){console.error(e instanceof Error?e.message:'restore failed');process.exitCode=1;}
 }
