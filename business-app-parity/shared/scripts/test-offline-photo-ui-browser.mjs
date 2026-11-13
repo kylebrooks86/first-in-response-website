@@ -187,10 +187,12 @@ try{
  // This new focused test opened the optional drawer; return it to the
  // prior legacy regression's default collapsed state before continuing.
  if(await backupTools.evaluate(node=>node.open))await backupSummary.click();
+ // A real reload (while online) is necessary to test disclosure defaults.
+ // Merely switching the browser context offline does NOT reload the page.
+ await page.reload();
+ await page.getByRole('button',{name:'Photo library',exact:true}).waitFor();
+ check(!await backupTools.evaluate(node=>node.open),'A real reload resets secondary ZIP tools to the simple default');
  await ctx.setOffline(true);
- // The earlier interrupted-selection test reloads the page; optional tools
- // must be explicitly reopened after a real browser restart.
- check(!await backupTools.evaluate(node=>node.open),'Reload resets secondary ZIP tools to the simple default');
  await backupSummary.click();
  await page.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
  await page.getByText(/Legacy UNENCRYPTED ZIP ready/).waitFor({timeout:30000});
