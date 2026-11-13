@@ -69,7 +69,7 @@ async function sessionIsValid(value: string) {
   const parts = value.split(".");
   if (parts.length !== 3) return false;
   const [version, expiresText, signature] = parts;
-  if (version !== "v1" || !expiresText || !signature) return false;
+  if (version !== (quickUnlockEnabled() ? "v2" : "v1") || !expiresText || !signature) return false;
   const expires = Number(expiresText);
   const now = Math.floor(Date.now() / 1000);
   // A valid signature is not permission for a session longer than the
@@ -118,7 +118,7 @@ export async function verifyIndependentPin(pin:string) {
 
 export async function independentSessionCookie() {
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
-  const value = "v1." + expires;
+  const value = (quickUnlockEnabled() ? "v2." : "v1.") + expires;
   const signature = await hmac(value);
   if (!signature) throw new Error("FIRE_DR_SESSION_SECRET is missing or too short.");
   return COOKIE_NAME + "=" + value + "." + signature + "; Path=/; Max-Age=" + SESSION_SECONDS + "; HttpOnly; Secure; SameSite=Strict";
@@ -131,7 +131,6 @@ export function clearedIndependentSessionCookie() {
 export async function getOwnerUser(): Promise<OwnerUser | null> {
   if (!releaseEnvironmentEnabled()) return null;
   const requestHeaders = await headers();
-  if(quickUnlockEnabled()&&!await verifyAccessOwnerRequest({headers:requestHeaders}))return null;
   if (!await sessionIsValid(cookieValue(requestHeaders.get("cookie")))) return null;
   return { userId: "fire-dr-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
 }
