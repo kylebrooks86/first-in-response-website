@@ -8,9 +8,10 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const script=fileURLToPath(new URL('./prepare_new_independent_release_manifest.mjs',import.meta.url));
 const directory=mkdtempSync(join(tmpdir(),'fire-manifest-cli-'));
+// DR ID is the previously owner-recorded database, not new authenticated evidence.
 const specs=[
  {target:'independent-dr',name:'fire-fullapp-dr',db:'fire-fullapp-dr-db',
-  env:'isolated-dr',prefix:'FIRE_DR',id:'54a5e470-2ae3-471b-a2db-ea8bdf092513',
+  env:'isolated-dr',prefix:'FIRE_DR',id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145',
   job:'owner-verified-independent-dr-job-numbers-v1',
   customer:'owner-verified-independent-dr-customer-numbers-v1'},
  {target:'independent-live',name:'fire-fullapp-new-live',db:'fire-fullapp-new-live-db',
