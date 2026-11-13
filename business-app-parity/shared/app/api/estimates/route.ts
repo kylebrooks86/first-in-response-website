@@ -13,8 +13,9 @@ import {customerIdentityPredicate,duplicateCustomer,validInlineCustomerEmail,val
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-// Optional post-save read. Never turn a successfully committed estimate into a
-// retryable failed POST merely because a Job # display lookup is unavailable.
+// Verify a permanent Job # only when the separately approved numbering
+// feature is enabled. Failure after a commit must report an UNCERTAIN save,
+// never tell the owner to create another estimate or allocate another Job #.
 async function savedJobReference(estimateId:string):Promise<number|null>{
   if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')return null;
   try{
@@ -98,6 +99,8 @@ export async function POST(request: Request) {
         if(proof.promotionAttributionSaved&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+requestId).first())return Response.json({error:'Original promotion audit is unavailable. Review saved estimate.'},{status:409});
         if(proof.bundleDiscountCents>0&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+requestId).first())return Response.json({error:'Original bundle discount audit is unavailable. Review saved estimate.'},{status:409});
         const replayJobNumber=await savedJobReference(requestId);
+        if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE===JOB_NUMBER_FLAG&&replayJobNumber===null)
+          return Response.json({error:'The estimate is saved, but its permanent Job # could not be verified. Open the existing estimate; do not create another job.',saveUncertain:true},{status:503,headers:{'cache-control':'private, no-store'}});
         return Response.json({id:requestId,requestId,replayed:true,...(replayJobNumber!==null?{jobNumber:replayJobNumber}:{}),customerId:proof.customerId,customer:String(body.customer??'').trim(),email:String(body.email??'').trim(),phone:String(body.phone??'').trim(),address:String(body.address??'').trim(),propertyId:proof.propertyId,propertyRevision:proof.propertyRevision,shareToken:existing.shareToken,customerPath:'/estimate/'+existing.shareToken,subtotalCents:proof.subtotalCents,discountCents:proof.discountCents,totalCents:proof.totalCents,depositCents:proof.depositCents,appreciationDiscount:proof.appreciationDiscount,additionalDiscountType:proof.additionalDiscountType,additionalDiscountValue:proof.additionalDiscountValue,bundleDiscountCents:proof.bundleDiscountCents,promotionAttributionSaved:proof.promotionAttributionSaved,items:persisted},{status:200,headers:{'cache-control':'private, no-store'}});
       }
     }
@@ -255,6 +258,10 @@ export async function POST(request: Request) {
           Number(row.quantity)!==expected.quantity||row.unit!==expected.unit||Number(row.totalCents)!==expected.totalCents;
       }))return uncertainReceipt();
     const savedJobNumber=await savedJobReference(estimateId);
+    // The D1 batch may have committed even when a follow-up read fails. Never
+    // issue a successful numbered-job receipt with a missing/foreign Job #.
+    // This is an uncertain saved state, NOT authorization to retry creation.
+    if(jobNumberFlag&&savedJobNumber===null)return uncertainReceipt();
     return Response.json({id:estimateId,...(savedJobNumber!==null?{jobNumber:savedJobNumber}:{}),...(requestId?{requestId,replayed:false}:{}),customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution),items:savedItems.results},{status:201,headers:{'cache-control':'private, no-store'}});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
