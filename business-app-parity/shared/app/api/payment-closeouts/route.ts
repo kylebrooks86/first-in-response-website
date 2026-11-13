@@ -1,6 +1,7 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {buildPaymentCloseoutActions,type CloseoutRow} from "../../../lib/payment-closeout-actions";
+import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 export const dynamic="force-dynamic";
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cache-Control":"no-store, private"}});
 /** Authenticated, no-write list of confirmed closeouts requiring owner review-message attention.
@@ -18,6 +19,9 @@ export async function GET(request?:Request){
   if(!match||!Number.isFinite(Date.parse(match[1])))return json({error:"Invalid review queue cursor."},400);
   cursor={lastPaidAt:match[1],estimateId:match[2]};
  }
+ // A legacy LIVE schema can lack the refund table or indexes. Hold this
+ // read-only owner queue rather than showing incomplete review eligibility.
+ if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
  try{
   const paymentDateSql="(SELECT MAX(p.created_at) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund') AND p.amount_cents>0)";
   const result=await env.DB.prepare(`
