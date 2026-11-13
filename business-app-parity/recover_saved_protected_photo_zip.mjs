@@ -35,7 +35,7 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  const plain=Buffer.from(await recovered.arrayBuffer());
  // Full CRC, SHA-256, filename, manifest and relationship verification BEFORE
  // creating any output. A corrupted or forged archive never writes photos.
- const proof=inspectStoredFirePhotoZip(plain);
+ const proof=inspectStoredFirePhotoZip(plain,{includePhotoInventory:recordsPath!==undefined});
  let matchingRecordsVerified=false;
  if(recordsPath!==undefined){
   if(typeof recordsPath!=='string'||!recordsPath||resolve(recordsPath)===resolve(output))
