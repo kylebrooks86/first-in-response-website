@@ -17,6 +17,7 @@ type IndependentSecrets = {
 
 const COOKIE_NAME = "fire_admin_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
+const sessionSeconds = () => quickUnlockEnabled() ? 60 * 60 * 12 : SESSION_SECONDS;
 const encoder = new TextEncoder();
 
 function secrets() {
@@ -56,12 +57,12 @@ async function sessionIsValid(value: string) {
   const parts = value.split(".");
   if (parts.length !== 3) return false;
   const [version, expiresText, signature] = parts;
-  if (version !== "v1" || !expiresText || !/^[A-Za-z0-9_-]{43}$/.test(signature)) return false;
+  if (version !== (quickUnlockEnabled() ? "v2" : "v1") || !expiresText || !/^[A-Za-z0-9_-]{43}$/.test(signature)) return false;
   const expires = Number(expiresText);
   // Reject a correctly signed cookie whose expiry exceeds this deployment
   // configured 30-day maximum. HMAC validity alone is not unlimited lifetime.
   const now = Math.floor(Date.now() / 1000);
-  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + SESSION_SECONDS) return false;
+  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + sessionSeconds()) return false;
   const expected = await hmac(version + "." + expiresText);
   return Boolean(expected && constantTimeEqual(signature, expected));
 }
@@ -104,11 +105,11 @@ export async function verifyIndependentPin(pin:string) {
 }
 
 export async function independentSessionCookie() {
-  const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
-  const value = "v1." + expires;
+  const expires = Math.floor(Date.now() / 1000) + sessionSeconds();
+  const value = (quickUnlockEnabled() ? "v2." : "v1.") + expires;
   const signature = await hmac(value);
   if (!signature) throw new Error("FIRE_SESSION_SECRET is missing or too short.");
-  return COOKIE_NAME + "=" + value + "." + signature + "; Path=/; Max-Age=" + SESSION_SECONDS + "; HttpOnly; Secure; SameSite=Strict";
+  return COOKIE_NAME + "=" + value + "." + signature + "; Path=/; Max-Age=" + sessionSeconds() + "; HttpOnly; Secure; SameSite=Strict";
 }
 
 export function clearedIndependentSessionCookie() {
@@ -117,7 +118,6 @@ export function clearedIndependentSessionCookie() {
 
 export async function getOwnerUser(): Promise<OwnerUser | null> {
   const requestHeaders = await headers();
-  if(quickUnlockEnabled()&&!await verifyAccessOwnerRequest({headers:requestHeaders}))return null;
   if (process.env.NODE_ENV !== "production" && requestHeaders.get("host")?.startsWith("terminal.local")) {
     return { userId: "preview-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
   }
