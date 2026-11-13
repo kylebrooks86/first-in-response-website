@@ -1,7 +1,9 @@
 /**
- * Read-only, source-pinned NEW LIVE 25-migration D1 journal verifier.
+ * Read-only, source-pinned NEW independent LIVE 26-migration D1 journal verifier.
  * The order and filenames are the independent release's reviewed
- * adapters/doomsday/drizzle SQL set, NOT the incomplete Drizzle meta journal.
+ * 25 shared adapters/doomsday/drizzle SQL files plus one isolated DR/LIVE
+ * permanent-number migration, NOT the incomplete Drizzle meta journal.
+ * QA/STAGING retain their original 25 migrations, unchanged.
  * A matching journal is necessary but does not prove provider UUID,
  * physical isolation, schema content, migrations actually ran, or release.
  */
@@ -30,7 +32,8 @@ export const EXPECTED_NEW_LIVE_D1_MIGRATIONS=Object.freeze([
   "0021_manual_processing_fees.sql",
   "0022_stripe_provider_uniqueness.sql",
   "0023_deposit_policy_events.sql",
-  "0024_deposit_agreement_snapshots.sql"
+  "0024_deposit_agreement_snapshots.sql",
+  "0025_independent_permanent_numbers.sql"
 ]);
 
 export async function assertNewLiveMigrationJournal(db){
@@ -42,7 +45,7 @@ export async function assertNewLiveMigrationJournal(db){
  const response=await statement.all();
  if(!response||!Array.isArray(response.results)||
     response.results.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
-  throw Error('FIRE NEW LIVE migration journal BLOCKED: expected exact 25 applied migrations');
+  throw Error('FIRE NEW LIVE migration journal BLOCKED: expected exact 26 applied migrations');
  for(let i=0;i<EXPECTED_NEW_LIVE_D1_MIGRATIONS.length;i++){
   const row=response.results[i];
   if(!row||typeof row!=='object'||Array.isArray(row)||
