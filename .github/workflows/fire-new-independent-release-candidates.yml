@@ -76,9 +76,6 @@ jobs:
       - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
         if: matrix.target == 'independent-live'
         run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs
-      - name: NEW LIVE owner-only hosted evidence route denies unauthorized and uncertain D1
-        if: matrix.target == 'independent-live'
-        run: node business-app-parity/shared/scripts/test-new-live-first-job-route.mjs
       - name: NEW LIVE Job #0001 and uncertain customer-save targeted regression
         if: matrix.target == 'independent-live'
         run: node business-app-parity/shared/scripts/test-new-live-clean-start.mjs
@@ -95,6 +92,10 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
           corepack pnpm build
+      - name: NEW LIVE owner-only hosted evidence route denies unauthorized and uncertain D1
+        if: matrix.target == 'independent-live'
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: node scripts/test-new-live-first-job-route.mjs
       - name: Prove built source remained identical to reviewed shared/target source
         run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate" --built
       - name: Inspect actual compiled Wrangler manifest and simulate independent only
