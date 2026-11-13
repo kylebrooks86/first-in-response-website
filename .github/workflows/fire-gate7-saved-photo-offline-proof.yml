@@ -4,6 +4,8 @@ on:
     paths:
       - 'business-app-parity/verify_saved_protected_photo_backup.mjs'
       - 'business-app-parity/test_saved_protected_photo_backup.mjs'
+      - 'business-app-parity/verify_saved_numbered_photo_pair.mjs'
+      - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
       - 'business-app-parity/shared/lib/protected-offline-photo-archive.mjs'
       - '.github/workflows/fire-gate7-saved-photo-offline-proof.yml'
 permissions:
