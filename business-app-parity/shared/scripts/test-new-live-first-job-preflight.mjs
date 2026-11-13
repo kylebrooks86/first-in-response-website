@@ -27,7 +27,7 @@ const create=(override={})=>{
     return {names:v.tables.join(',')};
    if(sql.includes("GROUP_CONCAT(name, ',') AS names")&&sql.includes("type='trigger'"))
     return {names:v.triggers.join(',')};
-   if(count)return {n:v.rows[count[1]]??0};
+   if(count)return {n:Object.hasOwn(v.rows,count[1])?v.rows[count[1]]:0};
    if(sql.includes('FROM sqlite_sequence'))return {n:v.serialRows};
    throw Error('Unexpected synthetic SELECT');
   }};
@@ -69,6 +69,8 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({serialRows:1}).db,env
  'deleted jobs still consume permanent high-water');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{tasks:'garbage'}}).db,env),
  'invalid D1 counts cannot be treated as empty');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{payments:null}}).db,env),
+ 'missing count cannot be converted to zero');
 const unavailable=create();unavailable.db.prepare=()=>{throw Error('D1 offline')};
 await blocked(()=>inspectNewLiveFirstJobCleanStart(unavailable.db,env),
  'unreadable target fails closed');
