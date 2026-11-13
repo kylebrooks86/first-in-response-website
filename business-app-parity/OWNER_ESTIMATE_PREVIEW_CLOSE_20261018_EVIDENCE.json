@@ -1,0 +1,84 @@
+{
+  "baseCommit": "789899905c80374dc55b876509d358b75d4a4448",
+  "implemented": [
+    "Authenticated estimate details open Customer view in the same tab with an explicit preview hint. Customer-share/message URLs remain unchanged.",
+    "The server verifies the current target owner before rendering a fixed upper-right 48px X. A query hint alone is never authorization.",
+    "X returns to the estimate ID resolved from the share token through the existing authenticated historical-estimate detail route; no caller-controlled return URL or Safari Back dependency.",
+    "Safe-area spacing, keyboard focus outline and long-scroll access at phone/tablet/desktop sizes. X omitted from print/PDF.",
+    "Owner preview excludes false first-view timestamps and customer-view notifications. Customer-facing agreement, prices, deposit and approval content unchanged.",
+    "Browser fixture now waits for native lock release after tab termination, rather than assuming tab close or lock-state query is a release barrier. Production non-queuing mutation guards remain unchanged."
+  ],
+  "localVerification": {
+    "typechecksPassed": 4,
+    "candidateBuildsPassed": 4,
+    "financialSuiteInvocationsPassed": 4,
+    "publicDocumentGuardSuiteInvocationsPassed": 4,
+    "targets": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "sourceParityExactFiles": {
+      "live": 355,
+      "doomsday": 360,
+      "staging": 356,
+      "qa": 360
+    },
+    "actualBuiltQAWorkerNativeD1HTTPSBrowserAssertionsPassed": 45,
+    "viewports": [
+      [
+        320,
+        568
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        768,
+        1024
+      ],
+      [
+        1366,
+        900
+      ]
+    ],
+    "previewChecks": [
+      "Same-tab authenticated owner entry",
+      "48px upper-right hit target",
+      "Non-zero long-document scroll; X stays fixed and hit-testable",
+      "Keyboard Enter returns to the originating estimate details",
+      "Identical $200/$100 price/deposit",
+      "Standalone links omit X even in authenticated owner browser",
+      "Forged query and gateway email header cannot expose owner control or return ID to anonymous QA visitor",
+      "Anonymous response after authenticated same-URL use contains no owner return href",
+      "Agreement and approval document text identical",
+      "Print/PDF excludes X",
+      "Owner preview leaves first_viewed_at and view notifications untouched"
+    ],
+    "actualNestedEditorProductionCSSAssertionsPassed": 171,
+    "photoJournalNativeBrowserAssertionsPassed": 24,
+    "zeroExternalBrowserRequests": true,
+    "zeroUncaughtClientErrors": true
+  },
+  "limitations": [
+    "Local Chromium viewport/keyboard evidence is not native iOS acceptance. Physical QA acceptance follows a separately reviewed QA release.",
+    "The locked local workerd fixture uses 2026-05-22 compatibility; actual QA candidate retains 2026-10-16.",
+    "No new deployment performed. Include this change with the photo-recovery safeguards in the next reviewed QA-only code release.",
+    "Before any later release, freshly verify active QA Worker version and update the reviewed baseline; never rerun the completed older publisher approval."
+  ],
+  "safety": {
+    "deployedAppsChanged": false,
+    "hostedDatabasesChanged": false,
+    "existingCustomerDataChanged": false,
+    "stripeOrCredentialsChanged": false,
+    "paidServicesCreated": false
+  },
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "nextIndependentTask": "Expand full built-Worker workflow verification through signed acceptance, scheduling, completion and invoicing using isolated synthetic D1 only."
+}
