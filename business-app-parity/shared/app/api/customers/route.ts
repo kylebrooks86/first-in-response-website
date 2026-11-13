@@ -187,6 +187,7 @@ export async function POST(request: Request) {
           },{status:409,headers:{"Cache-Control":"no-store, private"}});
           const numbered=await customerNumberingReady(env.DB,env);
           const customerNumber=numbered?await customerNumberForCustomer(env.DB,recoveryRequestId,env):null;
+          if(numbered&&!customerNumber)throw Error('Permanent customer number not confirmed');
           return Response.json({requestId:recoveryRequestId,duplicate:true,
             recoveredAfterUncertainSave:true,customer:{...receipt,customerNumber}},
             {status:200,headers:{"Cache-Control":"no-store, private"}});
