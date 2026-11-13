@@ -1,0 +1,179 @@
+/** Independent DR owner-only auth; must fail closed until provider-bound release approval. */
+import { env } from "cloudflare:workers";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import {verifyCloudflareAccessOwnerJwt} from "../lib/access-passkey-identity.mjs";
+import {jobNumberingReady} from "../lib/job-numbering.mjs";
+import {customerNumberingReady} from "../lib/customer-numbering.mjs";
+import {immutableNumberingTriggersReady} from "../lib/numbered-immutable-trigger-contract.mjs";
+
+export type OwnerUser = {
+  userId: string;
+  displayName: string;
+  email: string;
+  fullName: string | null;
+};
+
+type IndependentSecrets = {
+  FIRE_DR_PASSWORD_HASH?: string;
+  FIRE_DR_SESSION_SECRET?: string;
+};
+
+const COOKIE_NAME = "fire_dr_session";
+const SESSION_SECONDS = 60 * 60 * 12;
+const encoder = new TextEncoder();
+
+function releaseEnvironmentEnabled() {
+  const runtime = env as typeof env & { FIRE_DR_AUTH_ENABLED?: string; FIRE_ENV?: string; SITE_ORIGIN?: string; FIRE_JOB_NUMBERS_CANDIDATE?: string; FIRE_CUSTOMER_NUMBERS_CANDIDATE?: string };
+  if (runtime.FIRE_DR_AUTH_ENABLED !== "owner-approved" || runtime.FIRE_ENV !== "isolated-dr") return false;
+  // Recovery must preserve the same permanent Job # contract as NEW QA.
+  // The source flag is necessary but not proof of actual bound D1 readiness.
+  if (runtime.FIRE_JOB_NUMBERS_CANDIDATE !== "owner-approved-schema-v1" ||
+      runtime.FIRE_CUSTOMER_NUMBERS_CANDIDATE !== "owner-approved-schema-v1") return false;
+  try {
+    const address = new URL(runtime.SITE_ORIGIN || "");
+    return runtime.SITE_ORIGIN === "https://fire-fullapp-dr.kyle-bfc.workers.dev"
+      && address.origin === runtime.SITE_ORIGIN
+      && !address.username && !address.password && !address.port;
+  } catch { return false; }
+}
+
+
+/** Before issuing any independent DR owner session, inspect the ACTUAL
+ * bound recovery D1 for immutable Job # tables/triggers and correct links.
+ * No D1 mutations and no new session when the schema is absent/unready.
+ * This is evaluated on sign-in; existing numbered writes retain guards.
+ */
+export async function verifiedDrJobNumberSchema() {
+  if (!releaseEnvironmentEnabled() || !env.DB) return false;
+  try { return await jobNumberingReady(env.DB, env) && await customerNumberingReady(env.DB, env) && await immutableNumberingTriggersReady(env.DB); }
+  catch { return false; }
+}
+
+function secrets() {
+  return env as typeof env & IndependentSecrets;
+}
+
+function base64Url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+}
+
+async function hmac(value: string) {
+  const secret = secrets().FIRE_DR_SESSION_SECRET;
+  if (!releaseEnvironmentEnabled() || !secret || secret.length < 32) return null;
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return base64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value))));
+}
+
+function constantTimeEqual(left: string, right: string) {
+  const length = Math.max(left.length, right.length);
+  let mismatch = left.length ^ right.length;
+  for (let index = 0; index < length; index += 1) mismatch |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
+  return mismatch === 0;
+}
+
+function cookieValue(cookieHeader: string | null) {
+  if (!cookieHeader) return "";
+  for (const part of cookieHeader.split(";")) {
+    const [name, ...value] = part.trim().split("=");
+    if (name === COOKIE_NAME) return value.join("=");
+  }
+  return "";
+}
+
+async function sessionIsValid(value: string) {
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  const [version, expiresText, signature] = parts;
+  if (version !== (quickUnlockEnabled() ? "v2" : "v1") || !expiresText || !signature) return false;
+  const expires = Number(expiresText);
+  const now = Math.floor(Date.now() / 1000);
+  // A valid signature is not permission for a session longer than the
+  // configured 12-hour window. Refuse forged-future expiration periods.
+  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + SESSION_SECONDS) return false;
+  const expected = await hmac(version + "." + expiresText);
+  return Boolean(expected && constantTimeEqual(signature, expected));
+}
+
+export async function verifyIndependentPassword(password: string) {
+  const configuredHash = secrets().FIRE_DR_PASSWORD_HASH?.trim().toLowerCase();
+  if (!releaseEnvironmentEnabled() || !configuredHash || !/^[a-f0-9]{64}$/.test(configuredHash) || password.length < 24 || password.length > 128) return false;
+  if (!await verifiedDrJobNumberSchema()) return false;
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(password)));
+  const suppliedHash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return constantTimeEqual(suppliedHash, configuredHash);
+}
+
+
+/** Optional secure convenience login. Defaults OFF in every compiled environment.
+ * Cloudflare Access must first verify owner identity for this exact Worker.
+ * A PIN alone NEVER authenticates an unverified public request.
+ */
+export function quickUnlockEnabled() {
+ return (env as typeof env & {FIRE_QUICK_AUTH_MODE?:string}).FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1';
+}
+export async function verifyAccessOwnerRequest(request:{headers:Pick<Headers,'get'>}) {
+ if(!quickUnlockEnabled())return false;
+ const v=env as typeof env & {FIRE_ACCESS_TEAM_DOMAIN?:string;
+  FIRE_ACCESS_AUDIENCE?:string;FIRE_ACCESS_OWNER_EMAIL?:string};
+ return verifyCloudflareAccessOwnerJwt(request.headers.get('cf-access-jwt-assertion'),{
+  teamDomain:v.FIRE_ACCESS_TEAM_DOMAIN,
+  audience:v.FIRE_ACCESS_AUDIENCE,ownerEmail:v.FIRE_ACCESS_OWNER_EMAIL
+ });
+}
+export async function verifyIndependentPin(pin:string) {
+ const v=env as typeof env & {FIRE_DR_PIN_HASH?:string;FIRE_DR_PIN_PEPPER?:string};
+ if(!quickUnlockEnabled()||typeof pin!=='string'||! /^\d{4}$/.test(pin)||
+  typeof v.FIRE_DR_PIN_HASH!=='string'||!/^[0-9a-f]{64}$/.test(v.FIRE_DR_PIN_HASH)||
+  !v.FIRE_DR_PIN_PEPPER||v.FIRE_DR_PIN_PEPPER.length<32)return false;
+ const key=await crypto.subtle.importKey('raw',encoder.encode(v.FIRE_DR_PIN_PEPPER),
+  {name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const proof=new Uint8Array(await crypto.subtle.sign('HMAC',key,encoder.encode(pin)));
+ const digest=Array.from(proof,b=>b.toString(16).padStart(2,'0')).join('');
+ return constantTimeEqual(digest,v.FIRE_DR_PIN_HASH);
+}
+
+export async function independentSessionCookie() {
+  const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
+  const value = (quickUnlockEnabled() ? "v2." : "v1.") + expires;
+  const signature = await hmac(value);
+  if (!signature) throw new Error("FIRE_DR_SESSION_SECRET is missing or too short.");
+  return COOKIE_NAME + "=" + value + "." + signature + "; Path=/; Max-Age=" + SESSION_SECONDS + "; HttpOnly; Secure; SameSite=Strict";
+}
+
+export function clearedIndependentSessionCookie() {
+  return COOKIE_NAME + "=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
+}
+
+export async function getOwnerUser(): Promise<OwnerUser | null> {
+  if (!releaseEnvironmentEnabled()) return null;
+  const requestHeaders = await headers();
+  if (!await sessionIsValid(cookieValue(requestHeaders.get("cookie")))) return null;
+  return { userId: "fire-dr-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
+}
+
+export async function requireOwnerUser(returnTo: string): Promise<OwnerUser> {
+  const user = await getOwnerUser();
+  if (user) return user;
+  redirect(ownerSignInPath(returnTo));
+}
+
+export function ownerSignInPath(returnTo: string) {
+  return "/login?return_to=" + encodeURIComponent(safeRelativeReturnPath(returnTo));
+}
+
+export function ownerSignOutPath(returnTo = "/") {
+  return "/api/auth/logout?return_to=" + encodeURIComponent(safeRelativeReturnPath(returnTo));
+}
+
+export function safeRelativeReturnPath(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) return "/";
+  try {
+    const url = new URL(value, "https://app.local");
+    return url.origin === "https://app.local" ? url.pathname + url.search + url.hash : "/";
+  } catch {
+    return "/";
+  }
+}

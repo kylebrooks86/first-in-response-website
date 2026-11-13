@@ -1,0 +1,74 @@
+{
+  "manifestFile": "INVOICE_EDITOR_REVIEW_MANIFEST.json",
+  "manifestSha256": "2e3ee4e8f8dec208e362bf5f651861f6c3a7c2b6feee056a021fb33b6147290b",
+  "manifestVerified": true,
+  "candidateSnapshotReferences": {
+    "live": "035b3c01b33cac3cc527e08ec281f7a186680119",
+    "doomsday": "67a7f58ae599572929c741306f9c674207ada958",
+    "staging": "d020149c38d962461298b035f8db623daafad3e4"
+  },
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30.0,
+    "meaning": "verified release gates, not effort or time remaining"
+  },
+  "productionReady": false,
+  "publicationAuthorized": false,
+  "deployed": false,
+  "nativeTablePreflights": {
+    "live": {
+      "observed": true,
+      "target": "live",
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "binding": "DB",
+      "tableNamesMatch": false,
+      "matchedTableNames": 18,
+      "candidateTableCount": 19,
+      "observedTableCount": 18,
+      "missingTables": [
+        "payment_refunds"
+      ],
+      "unexpectedTables": [],
+      "problems": [
+        "missing table: payment_refunds"
+      ],
+      "completeRemoteSchemaVerified": false,
+      "resourceIsolationVerified": false,
+      "migrationJournalVerified": false,
+      "productionReady": false
+    },
+    "doomsday": {
+      "observed": false,
+      "tableNamesMatch": null,
+      "reason": "Independent metadata unavailable",
+      "completeRemoteSchemaVerified": false,
+      "productionReady": false
+    },
+    "staging": {
+      "observed": true,
+      "target": "staging",
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "binding": "DB",
+      "tableNamesMatch": true,
+      "matchedTableNames": 19,
+      "candidateTableCount": 19,
+      "observedTableCount": 19,
+      "missingTables": [],
+      "unexpectedTables": [],
+      "problems": [],
+      "completeRemoteSchemaVerified": false,
+      "resourceIsolationVerified": false,
+      "migrationJournalVerified": false,
+      "productionReady": false
+    }
+  },
+  "historicalFilesPreservedSha256": {
+    "RELIABILITY_RECOVERY_EVIDENCE.json": "b27626a4c72b9f7ebc75649761d1b80883a8cb10cf13b43c0ee2680940b2b5e8",
+    "INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json": "9e0c8d7bb93b6906749ed08ba83bd05e4df12361afd2a9e8d6f7de80c81f560a",
+    "LATEST_CANDIDATE_REVIEW_MANIFEST_20261009.json": "5d37436ff0b97cdd5027bcc5ff72e6476e9fc7ccd75614fc02ae87e887fce88c",
+    "candidate_release_manifest.py": "3666c8f3058e6499f8d50ea256e063b9677c6298b4991cdbf2b177eb769fb578",
+    "test_candidate_release_manifest.py": "970e47b09b99e18646a1ee4e397aecfae4a248144355e3f46c58b9c153bf87a8"
+  },
+  "limits": "Current local candidate review only; runtime identity and remote schema/isolation remain unverified. No deployed/mobile evidence added."
+}

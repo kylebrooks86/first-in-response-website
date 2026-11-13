@@ -1,0 +1,144 @@
+name: FIRE NEW independent DR and LIVE candidates (LOCAL ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/adapters/independent-dr/**'
+      - 'business-app-parity/adapters/independent-live/**'
+      - 'business-app-parity/prepare_new_independent_release_manifest.mjs'
+      - 'business-app-parity/test_new_independent_release_manifest.mjs'
+      - 'business-app-parity/test_new_independent_manifest_cli.mjs'
+      - 'business-app-parity/test_new_live_numbered_login_schema.mjs'
+      - 'business-app-parity/review_new_independent_release_pair.mjs'
+      - 'business-app-parity/test_new_independent_release_pair_cli.mjs'
+      - 'business-app-parity/shared/lib/protected-offline-photo-archive.mjs'
+      - 'business-app-parity/shared/lib/protected-offline-photo-archive.d.mts'
+      - 'business-app-parity/shared/components/offline-customer-photos.tsx'
+      - 'business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-protected-photo-zip.mjs'
+      - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
+      - 'business-app-parity/shared/lib/new-live-clean-start.mjs'
+      - 'business-app-parity/shared/lib/new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
+      - 'business-app-parity/test_independent_numbered_release_migration.mjs'
+      - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-route.mjs'
+      - 'business-app-parity/shared/app/api/release/new-live-clean-start/route.ts'
+      - 'business-app-parity/shared/app/api/estimates/route.ts'
+      - 'business-app-parity/shared/app/api/customers/route.ts'
+      - 'business-app-parity/shared/app/api/customer-messages/route.ts'
+      - 'business-app-parity/shared/scripts/test-new-live-clean-start.mjs'
+      - '.github/workflows/fire-new-independent-release-candidates.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build-local-candidate:
+    name: Source-identical independent ${{ matrix.target }} build and isolation guards (NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [independent-dr, independent-live]
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_TARGET: ${{ matrix.target }}
+    steps:
+      - name: Checkout reviewed code without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22 and Python 3
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check both targets refuse unsafe resource and auth combinations
+        run: node business-app-parity/test_new_independent_release_manifest.mjs
+      - name: Verify actual DR and NEW LIVE CLI requires target-bound Customer # approval
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_independent_manifest_cli.mjs
+      - name: Review DR plus NEW LIVE pair together, offline (synthetic only)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_independent_release_pair_cli.mjs
+      - name: Protected offline photo ZIP encryption/restore safety (no provider)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-protected-photo-zip.mjs
+      - name: Verify changed encrypted photo ZIP backup and legacy compatibility locally
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs
+      - name: Pair numbered records and verified device photos without provider writes
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs
+      - name: Verify immutable customer/job trigger SQL from reviewed v1 migrations
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs
+      - name: Execute only the independent 25-to-26 numbered-schema migration in disposable SQLite
+        if: matrix.target == 'independent-live'
+        run: node --experimental-sqlite business-app-parity/test_independent_numbered_release_migration.mjs
+      - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs
+      - name: NEW LIVE Job #0001 and uncertain customer-save targeted regression
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/shared/scripts/test-new-live-clean-start.mjs
+      - name: DR permanent Job # and Customer # sign-in safety (source only)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_dr_numbered_login_schema.mjs
+      - name: NEW LIVE permanent Job # and Customer # sign-in safety (source only)
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/test_new_live_numbered_login_schema.mjs
+      - name: Materialize exact QA-master shared source with isolated target overlay
+        run: python3 business-app-parity/materialize.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
+      - name: Prove complete overlay-source identity before build
+        run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
+      - name: Install pinned dependencies and build actual separate release candidate locally
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm build
+      - name: NEW LIVE owner-only hosted evidence route denies unauthorized and uncertain D1
+        if: matrix.target == 'independent-live'
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: node scripts/test-new-live-first-job-route.mjs
+      - name: Prove built source remained identical to reviewed shared/target source
+        run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate" --built
+      - name: Inspect actual compiled Wrangler manifest and simulate independent only
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          import {prepareReviewedIndependentManifest} from './business-app-parity/prepare_new_independent_release_manifest.mjs';
+          const manifest=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/fire-release-candidate/dist/server/wrangler.json','utf8'));
+          const target=process.env.FIRE_TARGET;
+          const dr=target==='independent-dr';
+          const reviewed=prepareReviewedIndependentManifest(target,manifest,{
+           databaseId:dr?'54a5e470-2ae3-471b-a2db-ea8bdf092513':'54a5e470-2ae3-471b-a2db-ea8bdf092514',
+           photoStorageMode:'owner-device-zip',
+           resourceAttestation:'owner-checked-'+target,
+           enableAuth:false
+          });
+          assert.equal(reviewed.evidence.remoteOperationAttempted,false);
+          assert.equal(reviewed.evidence.providerResourcesIndependentlyVerified,false);
+          assert.equal(reviewed.evidence.ownerApprovedDeployment,false);
+          assert.equal(reviewed.config.d1_databases.length,1);
+          assert.equal(reviewed.config.r2_buckets.length,0);
+          assert.equal(reviewed.config.vars.FIRE_PHOTO_STORAGE_MODE,'owner-device-zip');
+          assert.equal(reviewed.evidence.offDeviceZipVerified,false);
+          assert.equal(reviewed.evidence.isolatedPhotoRestoreVerified,false);
+          assert.equal(reviewed.config.vars[dr?'FIRE_DR_AUTH_ENABLED':'FIRE_NEW_LIVE_AUTH_ENABLED'],'blocked');
+          console.log('PASS built '+target+' exact reviewed source, inert default config and separate simulated D1/no-R2 owner-device-ZIP manifest; 0 hosted changes.');
+          NODE
