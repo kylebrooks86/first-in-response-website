@@ -24,7 +24,7 @@ if (NUMBERING_OPT_IN &&
      process.env.FIRE_QA_JOB_NUMBERS_SCHEMA_APPROVAL !== "owner-verified-qa-job-numbers-v1")) {
   throw new Error("FIRE QA permanent Job #s require separate physical D1 schema and owner review.");
 }
-const reviewedJobNumberVars = NUMBERING_OPT_IN
+const reviewedJobNumberVars: Record<string,string> = NUMBERING_OPT_IN
   ? { FIRE_JOB_NUMBERS_CANDIDATE: "owner-approved-schema-v1" }
   : {};
 
@@ -49,7 +49,7 @@ if (quickAuthRequested &&
      typeof quickAuthOwnerEmail !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(quickAuthOwnerEmail))) {
   throw new Error("FIRE QA passkey/PIN requires separate owner-verified Cloudflare Access application settings.");
 }
-const reviewedQuickAuthVars = quickAuthRequested
+const reviewedQuickAuthVars: Record<string,string> = quickAuthRequested
   ? { FIRE_QUICK_AUTH_MODE:"passkey-or-pin-v1",
       FIRE_ACCESS_TEAM_DOMAIN:quickAuthTeam!,
       FIRE_ACCESS_AUDIENCE:quickAuthAudience!,
