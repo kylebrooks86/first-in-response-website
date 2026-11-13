@@ -9,7 +9,7 @@ const script=resolve('business-app-parity/review_new_independent_release_pair.mj
 const placeholder='00000000-0000-4000-8000-000000000000';
 // Existing owner-recorded DR resource, NOT fresh provider verification.
 const drId='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145';
-const liveId='54a5e470-2ae3-471b-a2db-ea8bdf092514';
+const liveId='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
 const source=(name,db,environment,prefix,origin)=>({
  name,workers_dev:true,
  vars:{FIRE_ENV:environment,SITE_ORIGIN:origin,[prefix+'_AUTH_ENABLED']:'blocked'},
@@ -51,6 +51,8 @@ try{
  expect(summary.ownerApprovedDeployment===false,'never imply release consent');
  expect(call({FIRE_RELEASE_NEW_LIVE_D1_UUID:drId}).status!==0,'shared physical UUID rejected');
  expect(call({FIRE_RELEASE_NEW_LIVE_D1_UUID:placeholder}).status!==0,'placeholder rejected');
+ expect(call({FIRE_RELEASE_NEW_LIVE_D1_UUID:'54a5e470-2ae3-471b-a2db-ea8bdf092514'}).status!==0,
+  'unknown NEW LIVE D1 must not replace owner-created resource');
  expect(call({FIRE_RELEASE_DR_D1_UUID:'54a5e470-2ae3-471b-a2db-ea8bdf092513'}).status!==0,
   'unknown DR UUID must not replace existing DR resource');
  expect(call({FIRE_RELEASE_DR_D1_UUID:'8ccfb1f8-1657-4074-b1b2-47de78f95003'}).status!==0,
