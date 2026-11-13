@@ -51,9 +51,9 @@ if (quickAuthRequested &&
 }
 const reviewedQuickAuthVars = quickAuthRequested
   ? { FIRE_QUICK_AUTH_MODE:"passkey-or-pin-v1",
-      FIRE_ACCESS_TEAM_DOMAIN:quickAuthTeam,
-      FIRE_ACCESS_AUDIENCE:quickAuthAudience,
-      FIRE_ACCESS_OWNER_EMAIL:quickAuthOwnerEmail }
+      FIRE_ACCESS_TEAM_DOMAIN:quickAuthTeam!,
+      FIRE_ACCESS_AUDIENCE:quickAuthAudience!,
+      FIRE_ACCESS_OWNER_EMAIL:quickAuthOwnerEmail! }
   : {};
 const reviewedQuickAuthSecrets = quickAuthRequested
   ? [...["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"], "FIRE_QA_PIN_HASH", "FIRE_QA_PIN_PEPPER"]
