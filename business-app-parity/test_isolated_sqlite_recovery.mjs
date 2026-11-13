@@ -24,19 +24,36 @@ try{
     table==='fire_job_estimate_links'?'estimate_id':'id')+'" TEXT PRIMARY KEY)');
  }
  db.exec('CREATE TABLE supplemental_synthetic (id TEXT PRIMARY KEY, value TEXT)');
+ // SQL LIKE 'sqlite_%' incorrectly hides sqlitex_* user tables because _
+ // is a wildcard. Such records MUST be present in full private recovery.
+ db.exec('CREATE TABLE sqlitex_private_history (id TEXT PRIMARY KEY, value TEXT)');
  db.exec('CREATE TABLE supplemental_serial (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT)');
  db.close();
  const {copyFile}=await import('node:fs/promises');
  await copyFile(template,source);
  const live=new DatabaseSync(source);
  live.prepare('INSERT INTO supplemental_synthetic(id,value) VALUES (?,?)').run('synthetic','owner-only');
+ live.prepare('INSERT INTO sqlitex_private_history(id,value) VALUES (?,?)').run('private','must-survive');
  live.exec("INSERT INTO supplemental_serial(value) VALUES ('temporary'); DELETE FROM supplemental_serial;");
  live.close();
  const exported=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
  const originalSupplemental=JSON.parse(await readFile(supp,'utf8'));
  assert.equal(originalSupplemental.tables.supplemental_synthetic.length,1);
+ assert.equal(originalSupplemental.tables.sqlitex_private_history.length,1,
+  'a sqlitex-prefixed application table cannot vanish from the complete export');
+ assert.equal(originalSupplemental.tables.sqlitex_private_history[0].value,'must-survive');
+ assert.equal(originalSupplemental.rowCounts.sqlitex_private_history,1);
  assert.equal(originalSupplemental.sqliteSequence.supplemental_serial,1);
  assert.equal(exported.coreAndSupplementalArchivesWritten,true);
+ const incompleteSupp=join(folder,'missing-sqlitex-table.json');
+ const omitted=structuredClone(originalSupplemental);
+ delete omitted.tables.sqlitex_private_history;
+ delete omitted.rowCounts.sqlitex_private_history;
+ await writeFile(incompleteSupp,JSON.stringify(omitted));
+ await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(
+  core,template,join(folder,'rejected-sqlitex-omission.sqlite'),incompleteSupp),
+  /inventory|schema differ/i,
+  'a forged supplemental backup omitting sqlitex history must be rejected');
  // A different schema, even with all the same required table names, must
  // not accept a source archive (index/trigger drift matters for FIRE).
  const driftTemplate=join(folder,'schema-drift.sqlite');
@@ -49,9 +66,11 @@ try{
   /schema differ/i);
  const result=await restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp);
  assert.equal(result.sqliteRestoreVerified,true);
- assert.equal(result.supplementalRowsRestored,1);
+ assert.equal(result.supplementalRowsRestored,2);
  const restoredDb=new DatabaseSync(restored,{readOnly:true});
  assert.equal(restoredDb.prepare('SELECT value FROM supplemental_synthetic').get().value,'owner-only');
+ assert.equal(restoredDb.prepare('SELECT value FROM sqlitex_private_history').get().value,
+  'must-survive','isolated recovery preserves sqlitex application records');
  assert.equal(restoredDb.prepare("SELECT seq FROM sqlite_sequence WHERE name='supplemental_serial'").get().seq,1);
  restoredDb.close();
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp));
