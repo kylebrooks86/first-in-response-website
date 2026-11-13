@@ -125,6 +125,7 @@ try{
  db.prepare("UPDATE estimate_items SET description='Manually revised scope' WHERE estimate_id=?").run(quote.requestId);
  eq((await post(quote)).status,409,'Service edits refuse stale duplicate-success receipt');
  db.prepare("UPDATE estimate_items SET description='Front and rear' WHERE estimate_id=? AND name='House Wash'").run(quote.requestId);
+ db.prepare("UPDATE estimate_items SET description='One section' WHERE estimate_id=? AND name='Gutter Cleaning + Flush'").run(quote.requestId);
  db.prepare("UPDATE estimates SET total_cents=35000 WHERE id=?").run(quote.requestId);
  eq((await post(quote)).status,409,'Changed agreed total refuses stale duplicate-success receipt');
  db.prepare("UPDATE estimates SET total_cents=36600,status='approved' WHERE id=?").run(quote.requestId);
