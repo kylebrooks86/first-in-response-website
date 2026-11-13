@@ -13,16 +13,19 @@ const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
 const create=(override={})=>{
  const v={tables:[...tables],triggers:[...triggers],rows:{},serialRows:0,
-  validSchema:true,validCoverage:true,...override};
+  validSchema:true,validCoverage:true,validCustomerSchema:true,validCustomerCoverage:true,...override};
  const statements=[];
  const db={prepare(sql){
   statements.push(sql);
   if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write SQL!');
   const count=/^SELECT COUNT\(\*\) AS n FROM "([a-z_]+)"$/.exec(sql);
-  return {first:async()=>{
+  return {all:async()=>({results:v.validCustomerSchema?
+   ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
+   [{name:'fire_customer_numbers'}]}),first:async()=>{
    if(sql.includes('AS tables')&&sql.includes('AS triggers'))return {
     tables:v.validSchema?2:1,triggers:v.validSchema?4:3};
    if(sql.includes('AS invalid'))return {invalid:v.validCoverage?0:1};
+   if(sql.includes('AS missing'))return {missing:v.validCustomerCoverage?0:1};
    if(sql.includes("GROUP_CONCAT(name, ',') AS names")&&sql.includes("type='table'"))
     return {names:v.tables.join(',')};
    if(sql.includes("GROUP_CONCAT(name, ',') AS names")&&sql.includes("type='trigger'"))
@@ -34,7 +37,8 @@ const create=(override={})=>{
  }};
  return {db,statements};
 };
-const env={FIRE_ENV:'new-live-prelaunch',FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1'};
+const env={FIRE_ENV:'new-live-prelaunch',FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
+ FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1'};
 const base=create();const proof=await inspectNewLiveFirstJobCleanStart(base.db,env);
 ok(proof.firstJobNumberExpected==='0001','clean schema predicts first permanent Job #0001');
 ok(proof.tableRecordsAllEmpty===true&&proof.jobAndCustomerSequencesEmpty===true,
@@ -47,6 +51,12 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create().db,{...env,FIRE_ENV:
  'cannot inspect QA as new LIVE');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create().db,{...env,FIRE_JOB_NUMBERS_CANDIDATE:undefined}),
  'numbering flag cannot be omitted');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create().db,{...env,FIRE_CUSTOMER_NUMBERS_CANDIDATE:undefined}),
+ 'permanent customer numbering cannot be omitted');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCustomerSchema:false}).db,env),
+ 'missing immutable customer number triggers block new LIVE');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCustomerCoverage:false}).db,env),
+ 'incomplete customer numbering coverage blocks new LIVE');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validSchema:false}).db,env),
  'missing numbered schema/trigger stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCoverage:false}).db,env),
