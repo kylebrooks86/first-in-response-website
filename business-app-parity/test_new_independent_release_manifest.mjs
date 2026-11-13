@@ -19,7 +19,7 @@ const v=(target,name,db,bucket,env,prefix,origin)=>({
 });
 for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  const manifest=v(target,name,db,bucket,env,prefix,origin);
- const uuid=target==='independent-dr'?'54a5e470-2ae3-471b-a2db-ea8bdf092513':'54a5e470-2ae3-471b-a2db-ea8bdf092514';
+ const uuid=target==='independent-dr'?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'54a5e470-2ae3-471b-a2db-ea8bdf092514';
  const opts={databaseId:uuid,photoStorageMode:'owner-device-zip',resourceAttestation:'owner-checked-'+target,enableAuth:false};
  const pass=prepareReviewedIndependentManifest(target,manifest,opts);
  check(()=>assert.equal(pass.config.name,name),'exact name');
@@ -84,6 +84,11 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject({...manifest,d1_databases:[{...manifest.d1_databases[0],database_id:uuid}]});
  reject({...manifest,d1_databases:[...manifest.d1_databases,{...manifest.d1_databases[0]}]});
  reject({...manifest,r2_buckets:[{binding:'BUCKET',bucket_name:'some-bucket'}]});
+ reject({...manifest,vectorize:[{binding:'EXTRA',index_name:'unapproved'}]});
+ reject({...manifest,hyperdrive:[{binding:'UNREVIEWED',id:'unapproved'}]});
+ reject({...manifest,analytics_engine_datasets:[{binding:'ADDED'}]});
+ reject({...manifest,workflows:[{binding:'WRITES',name:'unapproved'}]});
+ reject({...manifest,secrets:{...manifest.secrets,extra:['NEW_BACKDOOR_SECRET']}});
  reject({...manifest,routes:[{pattern:'example.com/*'}]});
  reject({...manifest,secrets:{required:['FIRE_SESSION_SECRET','FIRE_ADMIN_PASSWORD_HASH']}});
  reject(manifest,{...opts,databaseId:PLACEHOLDER});
@@ -92,6 +97,8 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...opts,databaseId:'dba421ba-fc66-4cf8-9c31-51616f8249ba'});
  if(target==='independent-live')
   reject(manifest,{...opts,databaseId:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'});
+ if(target==='independent-dr')
+  reject(manifest,{...opts,databaseId:'54a5e470-2ae3-471b-a2db-ea8bdf092513'});
  reject(manifest,{...opts,databaseId:uuid,otherReleaseDatabaseId:uuid});
  reject(manifest,{...opts,bucketName:'fire-fullapp-qa-photos-20261023'});
  reject(manifest,{...opts,bucketName:bucket});
@@ -160,7 +167,10 @@ check(()=>assert.equal(ownerDr.config.d1_databases[0].database_name,'fire-fullap
  'owner DR UUID remains bound to the DR database name');
 check(()=>assert.equal(ownerDr.config.vars.FIRE_DR_AUTH_ENABLED,'blocked'),
  'owner DR UUID review cannot activate DR login');
-const simulatedDr=sample('independent-dr','54a5e470-2ae3-471b-a2db-ea8bdf092513');
+// The known DR identifier is a recorded owner fact, not a newly read provider value.
+const simulatedDr=ownerDr;
+check(()=>assert.throws(()=>sample('independent-dr','54a5e470-2ae3-471b-a2db-ea8bdf092513'),/BLOCKED/),
+ 'unknown DR resource cannot replace owner-created DR');
 const simulatedLive=sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092514');
 const pair=reviewIndependentReleasePair(simulatedDr,simulatedLive);
 check(()=>assert.equal(pair.d1IdsDistinct,true),'source-only DR and NEW LIVE D1 IDs must differ');
@@ -170,13 +180,19 @@ check(()=>assert.equal(pair.providerResourcesIndependentlyVerified,false),'pair 
 check(()=>assert.equal(pair.ownerApprovedDeployment,false),'pair proof is not provider write authorization');
 const pairReject=(dr,live,description)=>check(()=>assert.throws(
  ()=>reviewIndependentReleasePair(dr,live),/BLOCKED/,description),description);
-pairReject(simulatedDr,sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092513'),
- 'two valid target manifests sharing one D1 must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ d1_databases:[{...simulatedLive.config.d1_databases[0],
+  database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'}]}},
+ 'pair review rejects forged shared owner DR UUID');
 pairReject(ownerDr,{...simulatedLive,config:{...simulatedLive.config,
  d1_databases:[{...simulatedLive.config.d1_databases[0],
  database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'}]}},
  'pair review must reject owner DR D1 forged into NEW LIVE even when identities match');
 pairReject(simulatedLive,simulatedDr,'swapped target manifests must STOP');
+pairReject({...simulatedDr,config:{...simulatedDr.config,
+ d1_databases:[{...simulatedDr.config.d1_databases[0],
+  database_id:'54a5e470-2ae3-471b-a2db-ea8bdf092513'}]}},
+ simulatedLive,'pair review also pins real DR identity');
 pairReject(simulatedDr,undefined,'missing NEW LIVE manifest must STOP');
 pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
  r2_buckets:[{binding:'BUCKET',bucket_name:'unapproved'}]}},'R2 addition must STOP');
