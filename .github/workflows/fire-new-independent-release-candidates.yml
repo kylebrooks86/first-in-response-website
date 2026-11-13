@@ -23,6 +23,7 @@ on:
       - 'business-app-parity/shared/lib/new-live-clean-start.mjs'
       - 'business-app-parity/shared/lib/new-live-first-job-preflight.mjs'
       - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
+      - 'business-app-parity/test_independent_numbered_release_migration.mjs'
       - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
@@ -84,6 +85,9 @@ jobs:
       - name: Verify immutable customer/job trigger SQL from reviewed v1 migrations
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs
+      - name: Execute only the independent 25-to-26 numbered-schema migration in disposable SQLite
+        if: matrix.target == 'independent-live'
+        run: node --experimental-sqlite business-app-parity/test_independent_numbered_release_migration.mjs
       - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
         if: matrix.target == 'independent-live'
         run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs
