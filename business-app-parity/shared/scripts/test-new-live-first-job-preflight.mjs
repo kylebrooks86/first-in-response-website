@@ -22,7 +22,7 @@ let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
 const create=(override={})=>{
- const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:25},
+ const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:26},
   journalRows:applied.map(row=>({...row})),serialRows:0,
   validSchema:true,validCoverage:true,validCustomerSchema:true,validCustomerCoverage:true,...override};
  const statements=[];
@@ -58,17 +58,25 @@ const env={FIRE_ENV:'new-live-prelaunch',FIRE_JOB_NUMBERS_CANDIDATE:'owner-appro
  FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1'};
 // Compare the allowlist to the real reviewed migration source, not a
 // second independently hard-coded test array that could drift in silence.
-const actualSql=readdirSync(new URL('../../adapters/doomsday/drizzle/',import.meta.url))
+const baseSql=readdirSync(new URL('../../adapters/doomsday/drizzle/',import.meta.url))
  .filter(name=>/^\d{4}_.+\.sql$/.test(name)).sort();
-assert.deepEqual(EXPECTED_NEW_LIVE_D1_MIGRATIONS,actualSql,
- 'Exact applied D1 journal must match all reviewed doomsday 25 SQL migrations');
+const isolatedSql=readdirSync(new URL('../../adapters/independent-live/drizzle/',import.meta.url))
+ .filter(name=>/^\d{4}_.+\.sql$/.test(name)).sort();
+assert.equal(baseSql.length,25,'QA/STAGING source retains its original 25 migrations');
+assert.deepEqual(isolatedSql,['0025_independent_permanent_numbers.sql'],
+ 'Only independent targets append numbered release schema');
+assert.deepEqual(EXPECTED_NEW_LIVE_D1_MIGRATIONS,[...baseSql,...isolatedSql],
+ 'Exact journal requires 25 shared plus 1 independent release migration');
+assert.equal(readFileSync(new URL('../../adapters/independent-dr/drizzle/0025_independent_permanent_numbers.sql',import.meta.url),'utf8'),
+ readFileSync(new URL('../../adapters/independent-live/drizzle/0025_independent_permanent_numbers.sql',import.meta.url),'utf8'),
+ 'DR and NEW LIVE numbered migration bytes must match');
 checks++;
 const base=create();const proof=await inspectNewLiveFirstJobCleanStart(base.db,env);
 ok(proof.firstJobNumberExpected==='0001','clean schema predicts first permanent Job #0001');
 ok(proof.tableRecordsAllEmpty===true&&proof.jobAndCustomerSequencesEmpty===true,
  'all known operational tables and sequences inspected');
 ok(proof.exactSourceMigrationJournalMatched===true,
- 'actual NEW LIVE source check now requires all 25 ordered D1 migrations');
+ 'actual NEW LIVE source check now requires all 26 ordered D1 migrations');
 ok(proof.requiredImmutabilityTriggersPresent===true,
  'source check also enforces actual immutable trigger SQL');
 ok(proof.physicalD1IdentityVerified===false&&proof.orderedMigrationsVerified===false,
@@ -91,9 +99,9 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCoverage:false})
  'bad original estimate/job ownership stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:0}}).db,env),
  'empty D1 migration journal cannot establish a real migrated database');
-await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:24}}).db,env),
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:25}}).db,env),
  'older migration journal cannot claim NEW LIVE readiness');
-await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:26}}).db,env),
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:27}}).db,env),
  'unreviewed new migration blocks first-use');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:applied.slice(0,-1)}).db,env),
  'forged count with missing migration row blocks first-use');
