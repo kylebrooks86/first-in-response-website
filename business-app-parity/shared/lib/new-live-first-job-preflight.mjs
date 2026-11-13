@@ -18,7 +18,13 @@ const REQUIRED_TRIGGERS=Object.freeze([
  'fire_job_numbers_no_update','fire_job_numbers_no_delete',
  'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete'
 ]);
-const D1_READER_ONLY=Symbol('FIRE new-live read-only');
+// D1's documented provider-owned metadata tables are not customer records.
+// Only these exact definitions are exempt; unknown _cf_* or sqliteX tables
+// must block activation instead of being silently omitted.
+const PROVIDER_DDL=Object.freeze({
+ _cf_KV:/^CREATE\\s+TABLE\\s+(?:_cf_KV|"_cf_KV"|`_cf_KV`|\\[_cf_KV\\])\\s*\\(\\s*(?:key|"key"|`key`|\\[key\\])\\s+TEXT\\s+PRIMARY\\s+KEY\\s*,\\s*(?:value|"value"|`value`|\\[value\\])\\s+BLOB\\s*\\)\\s+WITHOUT\\s+ROWID\\s*;?$/i,
+ _cf_METADATA:/^CREATE\\s+TABLE\\s+(?:_cf_METADATA|"_cf_METADATA"|`_cf_METADATA`|\\[_cf_METADATA\\])\\s*\\(\\s*(?:key|"key"|`key`|\\[key\\])\\s+INTEGER\\s+PRIMARY\\s+KEY\\s*,\\s*(?:value|"value"|`value`|\\[value\\])\\s+BLOB\\s*\\)\\s*;?$/i
+});
 async function one(db,sql,params=[]){
  if(!db||typeof db.prepare!=='function')stop('independent physical D1 reader missing');
  const prepared=db.prepare(sql);
@@ -50,14 +56,26 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  // Explicitly inspect names before SELECTing anything: missing supplemental
  // tables, new unknown feature tables, or an incomplete migration cannot be
  // passed off as a clean and recoverable production schema.
- const tables=await one(db,
-  "SELECT GROUP_CONCAT(name, ',') AS names FROM sqlite_master "+
-  "WHERE type='table' AND name NOT LIKE 'sqlite_%'");
- if(!tables||typeof tables.names!=='string')stop('schema table inventory unavailable');
- const found=tables.names.split(',').filter(Boolean);
- if(new Set(found).size!==found.length)stop('duplicate schema inventory');
+ const schema=await one(db,
+  "SELECT GROUP_CONCAT(name || CHAR(31) || COALESCE(sql,''), CHAR(30)) AS entries FROM sqlite_master "+
+  "WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_'");
+ if(!schema||typeof schema.entries!=='string')stop('schema table inventory unavailable');
+ const entries=schema.entries.split(String.fromCharCode(30)).map(item=>{
+  const parts=item.split(String.fromCharCode(31));
+  if(parts.length!==2||!parts[0]||!parts[1])stop('incomplete table definition');
+  return {name:parts[0],sql:parts[1]};
+ });
+ if(new Set(entries.map(item=>item.name)).size!==entries.length)
+  stop('duplicate schema inventory');
  const known=new Set(expected);
- if(found.length!==expected.length||found.some(name=>!known.has(name)))
+ const appTables=[];
+ for(const item of entries){
+  if(Object.hasOwn(PROVIDER_DDL,item.name)){
+   if(!PROVIDER_DDL[item.name].test(item.sql))
+    stop('unrecognized Cloudflare provider metadata schema');
+  }else appTables.push(item.name);
+ }
+ if(appTables.length!==expected.length||appTables.some(name=>!known.has(name)))
   stop('unexpected or missing application tables; full migration/schema review required');
  const trig=await one(db,
   "SELECT GROUP_CONCAT(name, ',') AS names FROM sqlite_master WHERE type='trigger'");
