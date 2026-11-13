@@ -68,14 +68,30 @@ function assertExistingD1MigrationJournal(db,supplemental,found,extras){
  // nor accept unreviewed or reordered migration names as proof of a release.
  if(saved.length>EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
   stop('unreviewed D1 migration journal cannot be preserved');
- const ordered=[...saved].sort((a,b)=>a.id-b.id);
- for(let i=0;i<ordered.length;i++){
-  if(ordered[i]?.id!==i+1||ordered[i]?.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i])
-   stop('source D1 migration journal is not the reviewed ordered release lineage');
+ // Independent DR/LIVE environments legitimately apply the exact same
+ // migrations at DIFFERENT provider times. Require every reviewed ID/name and
+ // other non-clock journal field to match, but preserve each target's own
+ // applied_at rather than copying/forging the source's provider timestamp.
+ // Matching SQL journal rows alone still never proves hosted D1 provenance.
+ const orderedSource=[...saved].sort((a,b)=>a.id-b.id);
+ const orderedTarget=[...actual].sort((a,b)=>a.id-b.id);
+ const providerClock=value=>typeof value==='string'
+  ?value.length>=10&&Number.isFinite(Date.parse(value))
+  :Number.isSafeInteger(value)&&value>0;
+ for(let i=0;i<orderedSource.length;i++){
+  const source=orderedSource[i],target=orderedTarget[i];
+  if(source.id!==i+1||target.id!==i+1||
+     source.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]||
+     target.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i])
+   stop('source or target D1 migration IDs/names differ from reviewed lineage');
+  if(columns.includes('applied_at')&&
+     (!providerClock(source.applied_at)||!providerClock(target.applied_at)))
+   stop('source or target D1 applied migration timestamp is malformed');
+  for(const column of columns){
+   if(column!=='applied_at'&&stable(source[column])!==stable(target[column]))
+    stop('source and target D1 applied migration identity or metadata differ');
+  }
  }
- const normalized=rows=>rows.map(row=>stable(row)).sort().join('\n');
- if(normalized(saved)!==normalized(actual))
-  stop('source and destination applied migration history are not identical');
  const journalSeq=supplemental.sqliteSequence.d1_migrations;
  const actualSeq=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='d1_migrations'").get()?.seq;
  if(/\bAUTOINCREMENT\b/i.test(found.get('d1_migrations')||'')){
