@@ -471,6 +471,16 @@ try{
  await copyFile(source,occupied);
  await reject(join(folder,'reject-existing-business.sqlite'),core,occupied,supp,
   'nonempty customer destination must remain non-destructive');
+ // Use this existing focused workflow (not another general QA rerun) to
+ // validate the new owner-saved D1 SQL -> encrypted .firerecords bridge.
+ // This Python test uses actual 26 SQL migrations and synthetic rows only.
+ const bridge=spawnSync('python3',[
+  fileURLToPath(new URL('./test_seal_independent_d1_sql_export_private.py',import.meta.url))
+ ],{encoding:'utf8',timeout:180000,maxBuffer:1024*1024});
+ assert.equal(bridge.status,0,
+  'synthetic 26-migration PRIVATE SQL export encryption bridge failed: '+
+   String(bridge.stderr||bridge.error||'').slice(-2500));
+ okay(!bridge.error,'complete D1 SQL dump sealed into .firerecords and independently restored');
  console.log('PASS '+checks+'/'+checks+' real 26-migration independent SQLite schema offline customer backup/restore and immutable migration-journal provenance checks; zero provider writes.');
 }finally{
  await rm(folder,{recursive:true,force:true});
