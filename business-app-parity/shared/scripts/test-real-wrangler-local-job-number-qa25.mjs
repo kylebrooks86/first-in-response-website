@@ -205,7 +205,7 @@ try{
   const fresh=context('empty-prelaunch','10000003-1111-4111-8111-000000000003');
   // Local synthetic diagnostics only; print object names and INTEGER counts,
   // never rows, customer details, secrets or remote database identifiers.
-  const objectNames=query(fresh,"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map(row=>row.name);
+  const objectNames=query(fresh,"SELECT name FROM sqlite_master WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_' ORDER BY name").map(row=>row.name);
   const coreNames=['customers','estimates','customer_notes','invoices','invoice_items','invoice_revisions','payment_checkout_sessions','payment_refunds','deposit_policy_events','deposit_agreement_snapshots','estimate_items','payments','customer_photos','customer_messages','notifications','message_templates','estimate_change_requests','tasks','expenses','job_reports'];
   const nonempty=coreNames.filter(table=>scalar(fresh,'SELECT COUNT(*) AS n FROM '+table)!==0);
   console.log('SYNTHETIC CLEAN D1 CHECK: '+JSON.stringify({objectNames,nonempty,journalCount:scalar(fresh,'SELECT COUNT(*) AS n FROM d1_migrations'),authCount:scalar(fresh,'SELECT COUNT(*) AS n FROM auth_rate_limits')}));
@@ -240,7 +240,29 @@ try{
   assert.equal(scalar(dirty,"SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='fire_job_numbers'"),0);
   assert.equal(snapshot(dirty),dirtyRows,'Refused clean migration must leave source history untouched');
   checks+=4;
-  console.log('PASS: '+checks+' actual Wrangler LOCAL QA Job # #0008 rehearsal, clean new-app #0001 allocation, refusal on nonempty database, customer ownership and immutable numbering. NO REMOTE D1, EXPORT, DEPLOY OR REAL DATA.');
+
+  // SQLite's LIKE underscore is a wildcard. An unexpected application table
+  // beginning sqliteX must not pass the "new LIVE is empty" migration guard.
+  // This fifth DB is a distinct throwaway local Wrangler namespace.
+  const hidden=context('sqlite-x-hidden-table','10000005-1111-4111-8111-000000000005');
+  call(hidden,['d1','execute','DB','--command',
+    'CREATE TABLE sqliteX_private_customer_history (id TEXT PRIMARY KEY)','--yes']);checks++;
+  assert.equal(scalar(hidden,
+    "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='sqliteX_private_customer_history'"),1);
+  addCandidate(hidden,{empty:true});
+  const hiddenRefused=call(hidden,['d1','migrations','apply','DB'],{allowFailure:true});
+  assert.notEqual(hiddenRefused.status,0,
+    'An unreviewed sqliteX table must block the clean new-app Job # migration');
+  assert.equal(scalar(hidden,'SELECT COUNT(*) AS n FROM d1_migrations'),25,
+    'Rejected sqliteX table must leave the original migration journal intact');
+  assert.equal(scalar(hidden,
+    "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='fire_job_numbers'"),0,
+    'Failed migration must not leave any numbered identities behind');
+  assert.equal(scalar(hidden,
+    "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='sqliteX_private_customer_history'"),1,
+    'Refusal must preserve the pre-existing unknown data table');
+  checks+=5;
+  console.log('PASS: '+checks+' actual Wrangler LOCAL QA Job # #0008 rehearsal, clean new-app #0001 allocation, refusal of nonempty or sqliteX-hidden durable tables, customer ownership and immutable numbering. NO REMOTE D1, EXPORT, DEPLOY OR REAL DATA.');
 }finally{
   rmSync(temp,{recursive:true,force:true});
 }
