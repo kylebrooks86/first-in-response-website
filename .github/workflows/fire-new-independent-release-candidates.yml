@@ -126,8 +126,9 @@ jobs:
           const target=process.env.FIRE_TARGET;
           const dr=target==='independent-dr';
           // DR uses previously owner-recorded resource ID (not provider attestation).
+          // Both IDs are actual owner-created resources. This is still LOCAL-only review.
           const reviewed=prepareReviewedIndependentManifest(target,manifest,{
-           databaseId:dr?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'54a5e470-2ae3-471b-a2db-ea8bdf092514',
+           databaseId:dr?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662',
            photoStorageMode:'owner-device-zip',
            resourceAttestation:'owner-checked-'+target,
            enableAuth:false
