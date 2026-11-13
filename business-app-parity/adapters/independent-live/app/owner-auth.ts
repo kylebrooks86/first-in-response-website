@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {verifyCloudflareAccessOwnerJwt} from "../lib/access-passkey-identity.mjs";
 import {jobNumberingReady} from "../lib/job-numbering.mjs";
 import {customerNumberingReady} from "../lib/customer-numbering.mjs";
+import {immutableNumberingTriggersReady} from "../lib/numbered-immutable-trigger-contract.mjs";
 
 export type OwnerUser = {
   userId: string;
@@ -50,7 +51,7 @@ function releaseEnvironmentEnabled() {
  */
 export async function verifiedNewLiveJobNumberSchema(){
   if(!releaseEnvironmentEnabled() || !env.DB) return false;
-  try { return await jobNumberingReady(env.DB,env) && await customerNumberingReady(env.DB,env); }
+  try { return await jobNumberingReady(env.DB,env) && await customerNumberingReady(env.DB,env) && await immutableNumberingTriggersReady(env.DB); }
   catch { return false; }
 }
 
