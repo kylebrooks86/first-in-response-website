@@ -5,7 +5,7 @@
  * Neither file is uploaded, deployed, or imported into Cloudflare.
  *
  * node rehearse_isolated_records_and_photos.mjs RECORDS.json EMPTY_SCHEMA.sqlite \
- *   OWNER_BACKUP.firephotos RESTORED.sqlite RESTORED_PHOTOS.zip --allow-private-recovery
+ *   OWNER_BACKUP.firephotos RESTORED.sqlite RESTORED_PHOTOS.zip SUPPLEMENTAL.json --allow-private-recovery
  * Passphrase MUST be piped on stdin. Output files must not exist.
  */
 import {readFile,unlink} from 'node:fs/promises';
@@ -14,14 +14,14 @@ import {fileURLToPath} from 'node:url';
 import {restoreNumberedRecordsToIsolatedSqlite} from './restore_numbered_records_to_isolated_sqlite.mjs';
 import {recoverSavedProtectedPhotoZip} from './recover_saved_protected_photo_zip.mjs';
 const stop=why=>{throw Error('FIRE paired offline recovery BLOCKED: '+why);};
-export async function rehearseIsolatedRecordsAndPhotos(records,template,protectedPhotos,outputDb,outputPhotos,phrase,{approved=false}={}){
+export async function rehearseIsolatedRecordsAndPhotos(records,template,protectedPhotos,outputDb,outputPhotos,phrase,{approved=false,supplementalPath}={}){
  if(!approved)stop('explicit private recovery acknowledgment required');
- const paths=[records,template,protectedPhotos,outputDb,outputPhotos];
- if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(resolve)).size!==5)
-  stop('all five source and output paths must be distinct');
+ const paths=[records,template,protectedPhotos,outputDb,outputPhotos,supplementalPath];
+ if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(resolve)).size!==6)
+  stop('all six source and output paths must be distinct');
  // Restore the records first; if photos fail validation or cannot be saved,
  // discard the newly created DB rather than leaving an incomplete pair.
- const database=await restoreNumberedRecordsToIsolatedSqlite(records,template,outputDb);
+ const database=await restoreNumberedRecordsToIsolatedSqlite(records,template,outputDb,supplementalPath);
  try{
   const photos=await recoverSavedProtectedPhotoZip(protectedPhotos,outputPhotos,phrase,{
    allowPlaintextRecovery:true,recordsPath:records
@@ -33,9 +33,11 @@ export async function rehearseIsolatedRecordsAndPhotos(records,template,protecte
    restoredCustomers:database.customers,restoredJobNumbers:database.jobNumbers,
    verifiedPhotoCount:photos.photoCount,photoZipSha256:photos.verifiedZipSha256,
    localDatabaseRowParityVerified:database.sqliteRestoreVerified,
+   supplementalTablesRestored:database.supplementalTablesRestored,
+   supplementalRowsRestored:database.supplementalRowsRestored,
    photoCustomerRelationshipsVerified:true,
    hostedD1RestoreVerified:false,hostedPhotoRestoreVerified:false,
-   supplementalTablesRestored:false,remoteWritesPerformed:false,gate7Accepted:false
+   remoteWritesPerformed:false,gate7Accepted:false
   });
  }catch(error){
   await unlink(resolve(outputDb)).catch(()=>{});
@@ -55,9 +57,9 @@ async function readPhrase(){
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  try{
-  if(process.argv.length!==8||process.argv[7]!=='--allow-private-recovery')
+  if(process.argv.length!==9||process.argv[8]!=='--allow-private-recovery')
    stop('usage: node rehearse_isolated_records_and_photos.mjs RECORDS.json EMPTY_SCHEMA.sqlite BACKUP.firephotos RESTORED.sqlite PHOTOS.zip --allow-private-recovery');
   console.log(JSON.stringify(await rehearseIsolatedRecordsAndPhotos(
-   ...process.argv.slice(2,7),await readPhrase(),{approved:true})));
+   ...process.argv.slice(2,7),await readPhrase(),{approved:true,supplementalPath:process.argv[7]})));
  }catch(error){console.error(error instanceof Error?error.message:'recovery failed');process.exitCode=1;}
 }
