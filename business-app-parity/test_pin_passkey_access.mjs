@@ -128,4 +128,30 @@ for(const file of ['adapters/qa/app/api/app-version/route.ts',
  assert.match(search,/Permanent Job # lookup works|enter a full number such as Job #0001/i);
  passed+=11;
 }
+
+// QA and existing STAGING must not lose Job # / Face ID/PIN configuration
+// on a future Wrangler build. Each target is disabled unless the owner
+// independently verified that physical D1 and protected Access application.
+for(const [file,prefix,pinPrefix,ownerLabel] of [
+ ['adapters/qa/vite.config.ts','FIRE_QA','FIRE_QA','QA'],
+ ['adapters/independent-staging/vite.config.ts','FIRE_STAGING','FIRE','STAGING']
+]){
+ const source=readFileSync(new URL(file,import.meta.url),'utf8');
+ assert.ok(source.includes('process.env.'+prefix+'_JOB_NUMBERS_CANDIDATE'));
+ assert.ok(source.includes('process.env.'+prefix+'_JOB_NUMBERS_D1_UUID'));
+ assert.ok(source.includes('process.env.'+prefix+'_JOB_NUMBERS_SCHEMA_APPROVAL'));
+ assert.ok(source.includes('FIRE_JOB_NUMBERS_CANDIDATE: "owner-approved-schema-v1"'));
+ assert.ok(source.includes('process.env.'+prefix+'_QUICK_AUTH_MODE'));
+ assert.ok(source.includes('process.env.'+prefix+'_QUICK_AUTH_APPROVAL'));
+ assert.ok(source.includes('process.env.'+prefix+'_ACCESS_TEAM_DOMAIN'));
+ assert.ok(source.includes('process.env.'+prefix+'_ACCESS_AUDIENCE'));
+ assert.ok(source.includes('process.env.'+prefix+'_ACCESS_OWNER_EMAIL'));
+ assert.ok(source.includes('"'+pinPrefix+'_PIN_HASH"'));
+ assert.ok(source.includes('"'+pinPrefix+'_PIN_PEPPER"'));
+ assert.ok(source.includes('secrets: { required: reviewedQuickAuthSecrets }'));
+ assert.ok(source.includes('...reviewedQuickAuthVars'));
+ assert.ok(source.includes('...reviewedJobNumberVars'));
+ assert.ok(source.includes('quickAuthRequested = quickAuthMode === "passkey-or-pin-v1"'));
+ passed+=15;
+}
 console.log('PASS '+passed+'/'+passed+' signed Access JWT integrity, owner/audience/issuer, short-PIN security source and all app overlays; no real credentials or provider requests.');
