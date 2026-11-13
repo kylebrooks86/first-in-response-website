@@ -47,10 +47,12 @@ const route=readFileSync(new URL("./adapters/independent-live/app/api/auth/login
 await pass("NEW LIVE is gated by owner authorization and flag",()=>{
  assert.match(auth,/FIRE_NEW_LIVE_AUTH_ENABLED !== "owner-approved"/);
  assert.match(auth,/FIRE_JOB_NUMBERS_CANDIDATE !== "owner-approved-schema-v1"/);
+ assert.match(auth,/FIRE_CUSTOMER_NUMBERS_CANDIDATE !== "owner-approved-schema-v1"/);
 });
 await pass("NEW LIVE invokes D1 readiness, catching missing tables or links",()=>{
  assert.match(auth,/async function verifiedNewLiveJobNumberSchema\(\)/);
  assert.match(auth,/await jobNumberingReady\(env.DB,env\)/);
+ assert.match(auth,/await customerNumberingReady\(env.DB,env\)/);
  assert.match(auth,/catch \{ return false; \}/);
 });
 await pass("Passphrase login checks verified D1",()=>{
