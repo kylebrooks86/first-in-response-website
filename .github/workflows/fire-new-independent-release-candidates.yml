@@ -14,8 +14,6 @@ on:
       - 'business-app-parity/shared/lib/protected-offline-photo-archive.d.mts'
       - 'business-app-parity/shared/components/offline-customer-photos.tsx'
       - 'business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs'
-      - 'business-app-parity/shared/lib/protected-offline-photo-archive.*'
-      - 'business-app-parity/shared/components/offline-customer-photos.tsx'
       - 'business-app-parity/shared/scripts/test-protected-photo-zip.mjs'
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
