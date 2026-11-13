@@ -194,6 +194,11 @@ function restore(db,archive,supplemental){
    }
   }
   for(const t of extras){
+   // Independently applied D1 migration timestamps are target-local. All
+   // reviewed migration IDs, names and other metadata were already checked
+   // by assertExistingD1MigrationJournal before any business row insert.
+   // Never replace that bounded equivalence with byte-identical clocks.
+   if(t==='d1_migrations')continue;
    const expected=supplemental.tables[t];
    const actual=db.prepare('SELECT * FROM '+q(t)).all();
    if(actual.length!==expected.length)stop('supplemental row count differs in '+t);
