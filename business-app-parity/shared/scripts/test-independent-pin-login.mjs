@@ -46,6 +46,21 @@ try {
  now+=900;equal((await login.POST(request('1234'))).status,200);
  reset();await login.POST(request('9999'));equal(db.prepare('SELECT attempts FROM auth_rate_limits').get().attempts,1);equal((await login.POST(request('1234'))).status,200);equal(db.prepare('SELECT COUNT(*) AS n FROM auth_rate_limits').get().n,0);
  reset();await login.POST(request('9999'));now+=901;await login.POST(request('9999'));equal(db.prepare('SELECT attempts FROM auth_rate_limits').get().attempts,1);
+ reset();const spoofedIP=xff=>new Request('https://fixture.invalid/api/auth/login',{
+  method:'POST',headers:{'content-type':'application/json','x-forwarded-for':xff},
+  body:JSON.stringify({password:'9999'})
+ });
+ for(let i=0;i<5;i++){
+   response=await login.POST(spoofedIP('203.0.113.'+(20+i)));
+   equal(response.status,i===4?429:401);
+ }
+ equal(db.prepare('SELECT COUNT(*) AS n FROM auth_rate_limits').get().n,1);
+ equal(db.prepare('SELECT attempts FROM auth_rate_limits').get().attempts,5);
+ const spoofSuccess=new Request('https://fixture.invalid/api/auth/login',{
+   method:'POST',headers:{'content-type':'application/json','x-forwarded-for':'198.51.100.88'},
+   body:JSON.stringify({password:'1234'})
+ });
+ equal((await login.POST(spoofSuccess)).status,429);
  reset();const simultaneous=await Promise.all(Array.from({length:5},()=>login.POST(request('9999'))));equal(db.prepare('SELECT attempts FROM auth_rate_limits').get().attempts,5);ok(simultaneous.some(r=>r.status===429));equal((await login.POST(request('1234'))).status,429);
  reset();env.DB=undefined;response=await login.POST(request('1234'));equal(response.status,503);equal(response.headers.get('set-cookie'),null);env.DB=binding;
  const signingSecret=env.FIRE_SESSION_SECRET;env.FIRE_SESSION_SECRET='short';response=await login.POST(request('1234'));equal(response.status,503);equal(response.headers.get('set-cookie'),null);env.FIRE_SESSION_SECRET=signingSecret;
