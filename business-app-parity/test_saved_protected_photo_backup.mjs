@@ -9,9 +9,11 @@ import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
 import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
+import {recoverSavedProtectedPhotoZip} from './recover_saved_protected_photo_zip.mjs';
 let n=0;const ok=(v,msg)=>{assert.ok(v,msg);n++;};
 const reject=async(fn,match)=>{await assert.rejects(fn,match);n++;};
 const sha=b=>createHash('sha256').update(b).digest('hex');
+const readFileSyncSafe=p=>{try{return readFileSync(p);}catch{return null;}};
 const crc32=b=>{
  let crc=0xffffffff;
  for(const byte of b){crc^=byte;for(let j=0;j<8;j++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}
@@ -98,6 +100,29 @@ try{
   storedFireZip([['photos/'+photoId,photoBytes]]))),/manifest/i);
  const tamperedZip=zip();tamperedZip[30+Buffer.byteLength('photos/'+photoId)+1]^=0x20;
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(tamperedZip)),/CRC/i);
+ // New actual offline recovery: ensure decrypted output matches original bytes,
+ // exclusive file creation prevents accidental overwrite, and failures leave
+ // no plaintext file behind. Synthetic data only.
+ const recoveredPath=join(folder,'recovered-gallery.zip');
+ await reject(recoverSavedProtectedPhotoZip(file,recoveredPath,phrase),
+  /explicit plaintext-recovery consent/i);
+ ok(!readFileSyncSafe(recoveredPath),'refused recovery does not create output');
+ const recovered=await recoverSavedProtectedPhotoZip(file,recoveredPath,phrase,
+  {allowPlaintextRecovery:true});
+ ok(recovered.originalGalleryZipRecovered&&recovered.photoCount===1,
+  'offline protected photo recovery writes original gallery ZIP');
+ ok(sha(readFileSync(recoveredPath))===sha(original),
+  'recovered original ZIP is byte-identical to protected source plaintext');
+ await reject(recoverSavedProtectedPhotoZip(file,recoveredPath,phrase,
+  {allowPlaintextRecovery:true}),/output already exists/i);
+ ok(sha(readFileSync(recoveredPath))===sha(original),
+  'existing recovery output is never overwritten');
+ const missingRecordsPath=join(folder,'missing-records.json');
+ await reject(recoverSavedProtectedPhotoZip(file,join(folder,'orphan.zip'),phrase,
+  {allowPlaintextRecovery:true,recordsPath:missingRecordsPath}),
+  /numbered customer records file cannot be read/i);
+ ok(!readFileSyncSafe(join(folder,'orphan.zip')),
+  'invalid paired customer archive never writes plaintext photos');
  // Confirm the real command-line boundary reads the passphrase from stdin,
  // never from process arguments, never emits customer IDs or plaintext bytes,
  // and sets exit nonzero on an incorrect passphrase.
