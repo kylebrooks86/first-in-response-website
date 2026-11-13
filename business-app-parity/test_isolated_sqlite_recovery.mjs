@@ -34,6 +34,16 @@ try{
  const originalSupplemental=JSON.parse(await readFile(supp,'utf8'));
  assert.equal(originalSupplemental.tables.supplemental_synthetic.length,1);
  assert.equal(exported.coreAndSupplementalArchivesWritten,true);
+ // A different schema, even with all the same required table names, must
+ // not accept a source archive (index/trigger drift matters for FIRE).
+ const driftTemplate=join(folder,'schema-drift.sqlite');
+ await copyFile(template,driftTemplate);
+ const driftDb=new DatabaseSync(driftTemplate);
+ driftDb.exec('CREATE INDEX synthetic_drift_index ON supplemental_synthetic(value)');
+ driftDb.close();
+ await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(
+  core,driftTemplate,join(folder,'rejected-schema-drift.sqlite'),supp),
+  /schema differ/i);
  const result=await restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp);
  assert.equal(result.sqliteRestoreVerified,true);
  assert.equal(result.supplementalRowsRestored,1);
