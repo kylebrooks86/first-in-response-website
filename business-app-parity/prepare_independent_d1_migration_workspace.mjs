@@ -25,6 +25,7 @@ const TARGETS=Object.freeze({
  }
 });
 const fail=reason=>{throw Error('FIRE independent D1 migration workspace BLOCKED: '+reason)};
+export const REVIEWED_RELEASE_D1_TARGETS=TARGETS;
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const migrationName=name=>/^\d{4}_[a-z0-9_]+\.sql$/.test(name);
 
