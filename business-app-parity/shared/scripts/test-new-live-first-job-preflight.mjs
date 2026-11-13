@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {inspectNewLiveFirstJobCleanStart} from '../lib/new-live-first-job-preflight.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from '../lib/numbered-records-v2-preflight.mjs';
-const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits'];
+const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','d1_migrations'];
 const provider={name:'_cf_METADATA',sql:'CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB)'};
 const triggers=[
  'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',
@@ -64,6 +64,8 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validSchema:false}).d
  'missing numbered schema/trigger stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({validCoverage:false}).db,env),
  'bad original estimate/job ownership stops');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='d1_migrations')}).db,env),
+ 'NEW LIVE migration journal cannot be absent');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:tables.filter(x=>x!=='payment_refunds')}).db,env),
  'missing refund journal schema table stops');
 const withProvider=create({tables:[...tables,provider]});
