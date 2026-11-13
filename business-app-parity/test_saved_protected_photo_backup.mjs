@@ -151,13 +151,13 @@ try{
  writeFileSync(recordsPath,beforeRecords);
  const pairCli=resolve('business-app-parity/verify_saved_numbered_photo_pair.mjs');
  const check=spawnSync(process.execPath,[pairCli,recordsPath,file],{
-  input:phrase+'\\n',encoding:'utf8',timeout:15000});
+  input:phrase+'\n',encoding:'utf8',timeout:15000});
  ok(check.status===0&&JSON.parse(check.stdout).gate7Accepted===false,
   'standalone real-file paired-audit CLI executes safely: '+check.stderr);
  ok(!check.stdout.includes(customerId)&&!check.stderr.includes(customerId)&&
     !check.stdout.includes(phrase),'paired CLI cannot disclose customer ID or passphrase');
  const badPairCli=spawnSync(process.execPath,[pairCli,recordsPath,file],{
-  input:'A wrong but long synthetic phrase 2026\\n',encoding:'utf8',timeout:15000});
+  input:'A wrong but long synthetic phrase 2026\n',encoding:'utf8',timeout:15000});
  ok(badPairCli.status!==0&&!badPairCli.stderr.includes(customerId)&&
     !badPairCli.stderr.includes('wrong but long'),'paired CLI fails without disclosing private data');
  ok(sha(readFileSync(recordsPath))===sha(beforeRecords)&&
