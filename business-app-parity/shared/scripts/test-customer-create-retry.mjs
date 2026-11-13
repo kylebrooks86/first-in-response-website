@@ -43,7 +43,13 @@ try{
    eq(writes,beforeWrites);
   }
  }
- failAfterInsert=true;eq((await post(original)).status,500);let receipt=await (await get(original.requestId)).json();const customer=confirmedCreatedCustomer(receipt,original.requestId);assert.ok(customer);checks++;eq(customer.name,original.name);eq(customer.estimateCount,0);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
+ failAfterInsert=true;const recovered=await post(original);
+ eq(recovered.status,200);
+ const recoveredBody=await recovered.json();
+ eq(recoveredBody.recoveredAfterUncertainSave,true);
+ eq(recoveredBody.duplicate,true);
+ eq(recoveredBody.customer.id,original.requestId);
+ let receipt=await (await get(original.requestId)).json();const customer=confirmedCreatedCustomer(receipt,original.requestId);assert.ok(customer);checks++;eq(customer.name,original.name);eq(customer.estimateCount,0);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
  const snapshot=JSON.stringify(db.prepare('SELECT * FROM customers').all());response=await post(original);eq(response.status,200);eq((await response.json()).customer.id,original.requestId);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
  for(const field of ['name','email','phone','address','leadSource'])eq((await post({...original,[field]:'Different '+field})).status,409);eq(JSON.stringify(db.prepare('SELECT * FROM customers').all()),snapshot);
  // Replays use current authoritative history counts, not invented zero totals.
