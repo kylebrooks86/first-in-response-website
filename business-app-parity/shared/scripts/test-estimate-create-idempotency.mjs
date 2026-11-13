@@ -154,7 +154,10 @@ try{
 
  // NEW behavior: when permanent Job # is enabled, a saved quote must be
  // recognized only if it has its genuine immutable same-customer job link.
- db.exec(readFileSync('../job-numbering/job_numbers_v1.sql','utf8'));
+ // Self-contained exact immutable candidate DDL: the isolated staging
+ // package intentionally does not ship the source-only job-numbering folder.
+ // The native Wrangler-local D1 migration test separately verifies the real SQL.
+ db.exec("CREATE TABLE fire_job_numbers (\n  job_number INTEGER PRIMARY KEY AUTOINCREMENT,\n  root_estimate_id TEXT NOT NULL UNIQUE\n    REFERENCES estimates(id) ON UPDATE RESTRICT ON DELETE RESTRICT,\n  created_at TEXT NOT NULL CHECK(length(created_at)>0)\n);\nCREATE TABLE fire_job_estimate_links (\n  estimate_id TEXT PRIMARY KEY NOT NULL\n    REFERENCES estimates(id) ON UPDATE RESTRICT ON DELETE RESTRICT,\n  job_number INTEGER NOT NULL\n    REFERENCES fire_job_numbers(job_number) ON UPDATE RESTRICT ON DELETE RESTRICT\n);\nCREATE INDEX idx_fire_job_estimate_links_number\n  ON fire_job_estimate_links(job_number);\nCREATE TRIGGER fire_job_numbers_no_update\n  BEFORE UPDATE ON fire_job_numbers BEGIN\n    SELECT RAISE(ABORT,'FIRE Job numbers cannot be renumbered');\n  END;\nCREATE TRIGGER fire_job_numbers_no_delete\n  BEFORE DELETE ON fire_job_numbers BEGIN\n    SELECT RAISE(ABORT,'FIRE Job numbers cannot be reused');\n  END;\nCREATE TRIGGER fire_job_estimate_links_no_update\n  BEFORE UPDATE ON fire_job_estimate_links BEGIN\n    SELECT RAISE(ABORT,'FIRE Job links cannot be reassigned');\n  END;\nCREATE TRIGGER fire_job_estimate_links_no_delete\n  BEFORE DELETE ON fire_job_estimate_links BEGIN\n    SELECT RAISE(ABORT,'FIRE Job links are permanent');\n  END;");
  runtime.env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
  const beforeNumbered=financialSnapshot();
  const missingKey=await post({...quote,requestId:undefined,customer:'Synthetic unsafe legacy retry'});
