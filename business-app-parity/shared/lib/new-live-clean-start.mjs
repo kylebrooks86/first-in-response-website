@@ -1,7 +1,7 @@
 /**
  * Owner-opt-in NEW LIVE startup protection. No writes or remote calls.
  * A clean prelaunch database may contain schema, preferences and templates,
- * but must never inherit QA customers, estimates or permanent serials.
+ * but must never inherit QA jobs or permanent Job # serials. Legitimate\n * new-LIVE customers may be created before their first estimate.
  */
 export const NEW_LIVE_CLEAN_START_FLAG='required';
 const integer=x=>typeof x==='number'&&Number.isSafeInteger(x)&&x>=0;
@@ -9,9 +9,11 @@ export function assertNewLiveFirstJobState(row){
   if(!row||!['customers','estimates','numberedCustomers','numberedJobs','jobLinks','customerSequence','jobSequence'].every(k=>integer(row[k])))
     throw Error('NEW LIVE source identity or serial history cannot be verified.');
   if(row.estimates===0&&
-    (row.customers!==0||row.numberedCustomers!==0||row.numberedJobs!==0||
-     row.jobLinks!==0||row.customerSequence!==0||row.jobSequence!==0))
+    (row.numberedJobs!==0||row.jobLinks!==0||row.jobSequence!==0))
     throw Error('NEW LIVE is not a clean first-job database; preserve existing data and stop.');
+  if(row.customers!==row.numberedCustomers||
+     row.customerSequence<row.numberedCustomers)
+    throw Error('NEW LIVE customer identity coverage is inconsistent.');
   if(row.estimates>0&&row.numberedJobs===0)
     throw Error('NEW LIVE permanent Job # history is missing.');
   if(row.numberedJobs>0&&row.jobSequence<row.numberedJobs)
