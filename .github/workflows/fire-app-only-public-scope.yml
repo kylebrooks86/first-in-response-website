@@ -19,6 +19,8 @@ on:
       - '.github/workflows/fire-gate7-legacy-sites-offline-export.yml'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
       - '.github/workflows/fire-pin-passkey-access.yml'
+      - '.github/workflows/fire-gate7-saved-photo-offline-proof.yml'
+      - '.github/workflows/fire-isolated-sqlite-full-recovery.yml'
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
       - 'ci/test-site-verifier-scope.mjs'
@@ -74,7 +76,7 @@ jobs:
               exit 1
             fi
           done
-          # Four exact PR173 verifier blobs and THREE reviewed Gate7/Gate9 CI workflow blobs are pinned exceptions.
+          # Four exact PR173 verifier blobs and FIVE reviewed offline Gate7/Gate9 CI workflow blobs are pinned exceptions.
           # The Gate7 legacy workflow pin below is the exact separately-tested
           # 2026-11-12 immutable blob including private-file negative checks;
           # all other verifier and protected website blobs remain unchanged.
@@ -85,6 +87,8 @@ jobs:
             .github/workflows/fire-gate9-fullapp-offline-build.yml
             .github/workflows/fire-gate9-readonly-version-inventory.yml
             .github/workflows/fire-gate7-legacy-sites-offline-export.yml
+            .github/workflows/fire-gate7-saved-photo-offline-proof.yml
+            .github/workflows/fire-isolated-sqlite-full-recovery.yml
           )
           reviewed_blobs=(
             4042570221cf4f31d2749534775bfd7d349ccfe1
@@ -94,6 +98,8 @@ jobs:
             0be8fac63f391d5526f54823f0e641951b134116
             0e9f192d377226d65639324c09b037b5080cbea6
             b290edbc2ae4d2134d5eecb5dc79b04b92235ae8
+            39815146129c81a48cdc5631eff4370ae0116a58
+            cc8b0047f4d731c093a6aa342cdc002f5aa197aa
           )
           for i in "${!reviewed_paths[@]}"; do
             file="${reviewed_paths[$i]}"
@@ -110,7 +116,7 @@ jobs:
           fi
           for file in "${changed[@]}"; do
             case "$file" in
-              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml)
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml|.github/workflows/fire-gate7-saved-photo-offline-proof.yml|.github/workflows/fire-isolated-sqlite-full-recovery.yml)
                 ;;
               *)
                 echo "BLOCKED: unreviewed non-app change: $file"
@@ -118,6 +124,6 @@ jobs:
                 ;;
             esac
           done
-          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and three reviewed Gate7/Gate9 CI workflow blobs are pinned."
+          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and five offline Gate7/Gate9 CI workflow blobs are SHA-pinned."
           echo "PASS: changed paths limited to app source, approved workflows and four pinned verifier files."
           echo "NO merge, publish, provider authentication or deployment was attempted."
