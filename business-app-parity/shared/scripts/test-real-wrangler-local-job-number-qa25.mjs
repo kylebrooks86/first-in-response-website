@@ -203,6 +203,12 @@ try{
   // A genuinely new, independent app must not inherit seven QA sample jobs.
   // Rehearse its no-data migration in a THIRD isolated local D1 namespace.
   const fresh=context('empty-prelaunch','10000003-1111-4111-8111-000000000003');
+  // Local synthetic diagnostics only; print object names and INTEGER counts,
+  // never rows, customer details, secrets or remote database identifiers.
+  const objectNames=query(fresh,"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map(row=>row.name);
+  const coreNames=['customers','estimates','customer_notes','invoices','invoice_items','invoice_revisions','payment_checkout_sessions','payment_refunds','deposit_policy_events','deposit_agreement_snapshots','estimate_items','payments','customer_photos','customer_messages','notifications','message_templates','estimate_change_requests','tasks','expenses','job_reports'];
+  const nonempty=coreNames.filter(table=>scalar(fresh,'SELECT COUNT(*) AS n FROM '+table)!==0);
+  console.log('SYNTHETIC CLEAN D1 CHECK: '+JSON.stringify({objectNames,nonempty,journalCount:scalar(fresh,'SELECT COUNT(*) AS n FROM d1_migrations'),authCount:scalar(fresh,'SELECT COUNT(*) AS n FROM auth_rate_limits')}));
   addCandidate(fresh,{empty:true});
   call(fresh,['d1','migrations','apply','DB']);checks++;
   assert.equal(scalar(fresh,'SELECT COUNT(*) AS n FROM d1_migrations'),26);
