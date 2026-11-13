@@ -1,0 +1,10 @@
+/** Actual routes and real disposable SQLite; never a hosted database. */
+import {DatabaseSync} from 'node:sqlite';import{readFileSync,readdirSync}from'node:fs';import{createRouteFixtureLoader}from'./route-test-loader.mjs';
+export function stackedRuntime(){
+ const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
+ let owner={email:'kylebrooks8605@gmail.com'},failMetadata=false,reads=0,writes=0;
+ const statement=(sql,args=[])=>({sql,args,bind(...params){return statement(sql,params);},async first(){reads++;return db.prepare(sql).get(...args)??null;},async all(){reads++;return{results:db.prepare(sql).all(...args)};},async run(){writes++;return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}});
+ const env={DB:{prepare:statement,async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements){if(failMetadata&&s.sql.startsWith('INSERT INTO message_templates'))throw Error('Synthetic metadata write failure');if(s.sql.trim().startsWith('SELECT'))results.push({results:db.prepare(s.sql).all(...s.args)});else results.push({meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}});}db.exec('COMMIT');return results;}catch(error){db.exec('ROLLBACK');throw error;}}}};
+ const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),post=load('app/api/estimates/route.ts'),patch=load('app/api/estimates/[id]/route.ts'),get=load('app/api/estimates/[id]/discounts/route.ts');
+ return{db,env,load,setOwner:value=>owner=value,failMetadata:value=>failMetadata=value,counters:()=>({reads,writes}),post:body=>post.POST(new Request('https://synthetic.invalid/api/estimates',{method:'POST',body:JSON.stringify(body)})),patch:(id,body)=>patch.PATCH(new Request('https://synthetic.invalid/api/estimates/'+id,{method:'PATCH',body:JSON.stringify(body)}),{params:Promise.resolve({id})}),get:id=>get.GET(new Request('https://synthetic.invalid/api/estimates/'+id+'/discounts'),{params:Promise.resolve({id})})};
+}

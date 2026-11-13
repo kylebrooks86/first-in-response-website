@@ -1,0 +1,589 @@
+{
+  "format": "fire-app-records-backup",
+  "version": 1,
+  "exportedAt": "2026-09-29T00:00:00.000Z",
+  "includes": {
+    "databaseRecords": true,
+    "photoMetadata": false,
+    "photoFiles": false
+  },
+  "warning": "DISPOSABLE STRICT-PARITY FIXTURE ONLY. Every record ID starts with parity-. Never use as production customer data.",
+  "tables": {
+    "customers": [
+      {
+        "id": "parity-customer-001",
+        "name": "Parity Test Customer",
+        "email": "parity@example.com",
+        "phone": "918-555-0199",
+        "address": "123 Test Route, Tulsa, OK",
+        "lead_source": "Parity fixture",
+        "created_at": "2026-09-01T14:00:00.000Z"
+      }
+    ],
+    "estimates": [
+      {
+        "id": "parity-est-draft",
+        "customer_id": "parity-customer-001",
+        "status": "draft",
+        "subtotal_cents": 18000,
+        "discount_cents": 0,
+        "total_cents": 18000,
+        "deposit_cents": 9000,
+        "scheduled_at": null,
+        "share_token": "parity-est-draft",
+        "first_viewed_at": null,
+        "accepted_at": null,
+        "signed_name": null,
+        "signed_at": null,
+        "contract_initials": null,
+        "photo_release": null,
+        "contract_version": "v49",
+        "created_at": "2026-09-02T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-sent",
+        "customer_id": "parity-customer-001",
+        "status": "sent",
+        "subtotal_cents": 24000,
+        "discount_cents": 0,
+        "total_cents": 24000,
+        "deposit_cents": 12000,
+        "scheduled_at": null,
+        "share_token": "parity-est-sent",
+        "first_viewed_at": "2026-09-03T15:00:00.000Z",
+        "accepted_at": null,
+        "signed_name": null,
+        "signed_at": null,
+        "contract_initials": null,
+        "photo_release": null,
+        "contract_version": "v49",
+        "created_at": "2026-09-03T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-approved",
+        "customer_id": "parity-customer-001",
+        "status": "approved",
+        "subtotal_cents": 50800,
+        "discount_cents": 0,
+        "total_cents": 50800,
+        "deposit_cents": 25400,
+        "scheduled_at": null,
+        "share_token": "parity-est-approved",
+        "first_viewed_at": null,
+        "accepted_at": "2026-09-04T16:00:00.000Z",
+        "signed_name": "Parity Test Customer",
+        "signed_at": "2026-09-04T16:00:00.000Z",
+        "contract_initials": "KB",
+        "photo_release": "approved",
+        "contract_version": "v49",
+        "created_at": "2026-09-04T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-scheduled",
+        "customer_id": "parity-customer-001",
+        "status": "scheduled",
+        "subtotal_cents": 48400,
+        "discount_cents": 0,
+        "total_cents": 48400,
+        "deposit_cents": 24200,
+        "scheduled_at": "2026-10-15T15:00:00.000Z",
+        "share_token": "parity-est-scheduled",
+        "first_viewed_at": null,
+        "accepted_at": "2026-09-05T15:00:00.000Z",
+        "signed_name": "Parity Test Customer",
+        "signed_at": "2026-09-05T15:00:00.000Z",
+        "contract_initials": "KB",
+        "photo_release": "approved",
+        "contract_version": "v49",
+        "created_at": "2026-09-05T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-completed",
+        "customer_id": "parity-customer-001",
+        "status": "completed",
+        "subtotal_cents": 32500,
+        "discount_cents": 0,
+        "total_cents": 32500,
+        "deposit_cents": 16250,
+        "scheduled_at": "2026-09-20T15:00:00.000Z",
+        "share_token": "parity-est-completed",
+        "first_viewed_at": null,
+        "accepted_at": "2026-09-06T15:00:00.000Z",
+        "signed_name": "Parity Test Customer",
+        "signed_at": "2026-09-06T15:00:00.000Z",
+        "contract_initials": "KB",
+        "photo_release": "approved",
+        "contract_version": "v49",
+        "created_at": "2026-09-06T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-paid",
+        "customer_id": "parity-customer-001",
+        "status": "completed",
+        "subtotal_cents": 27500,
+        "discount_cents": 0,
+        "total_cents": 27500,
+        "deposit_cents": 13750,
+        "scheduled_at": "2026-09-21T15:00:00.000Z",
+        "share_token": "parity-est-paid",
+        "first_viewed_at": null,
+        "accepted_at": "2026-09-07T15:00:00.000Z",
+        "signed_name": "Parity Test Customer",
+        "signed_at": "2026-09-07T15:00:00.000Z",
+        "contract_initials": "KB",
+        "photo_release": "approved",
+        "contract_version": "v49",
+        "created_at": "2026-09-07T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-change",
+        "customer_id": "parity-customer-001",
+        "status": "sent",
+        "subtotal_cents": 22000,
+        "discount_cents": 0,
+        "total_cents": 22000,
+        "deposit_cents": 11000,
+        "scheduled_at": null,
+        "share_token": "parity-est-change",
+        "first_viewed_at": "2026-09-08T15:00:00.000Z",
+        "accepted_at": null,
+        "signed_name": null,
+        "signed_at": null,
+        "contract_initials": null,
+        "photo_release": null,
+        "contract_version": "v49",
+        "created_at": "2026-09-08T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-refunded",
+        "customer_id": "parity-customer-001",
+        "status": "completed",
+        "subtotal_cents": 30000,
+        "discount_cents": 0,
+        "appreciation_discount": 0,
+        "additional_discount_type": "percent",
+        "additional_discount_value": 0,
+        "total_cents": 30000,
+        "deposit_cents": 15000,
+        "scheduled_at": "2026-09-22T15:00:00.000Z",
+        "share_token": "parity-est-refunded",
+        "first_viewed_at": null,
+        "accepted_at": "2026-09-09T15:00:00.000Z",
+        "signed_name": "Parity Test Customer",
+        "signed_at": "2026-09-09T15:00:00.000Z",
+        "contract_initials": "KB",
+        "photo_release": "approved",
+        "contract_version": "v49",
+        "created_at": "2026-09-09T14:00:00.000Z"
+      },
+      {
+        "id": "parity-est-refund-pending",
+        "customer_id": "parity-customer-001",
+        "status": "completed",
+        "subtotal_cents": 26000,
+        "discount_cents": 0,
+        "appreciation_discount": 0,
+        "additional_discount_type": "percent",
+        "additional_discount_value": 0,
+        "total_cents": 26000,
+        "deposit_cents": 13000,
+        "scheduled_at": "2026-09-23T15:00:00.000Z",
+        "share_token": "parity-est-refund-pending",
+        "first_viewed_at": null,
+        "accepted_at": "2026-09-10T15:00:00.000Z",
+        "signed_name": "Parity Test Customer",
+        "signed_at": "2026-09-10T15:00:00.000Z",
+        "contract_initials": "KB",
+        "photo_release": "approved",
+        "contract_version": "v49",
+        "created_at": "2026-09-10T14:00:00.000Z"
+      }
+    ],
+    "customer_notes": [
+      {
+        "id": "parity-note-001",
+        "customer_id": "parity-customer-001",
+        "body": "Parity fixture note \u2014 safe to delete.",
+        "created_at": "2026-09-08T16:00:00.000Z"
+      }
+    ],
+    "invoices": [
+      {
+        "id": "parity-invoice-open",
+        "estimate_id": "parity-est-completed",
+        "customer_id": "parity-customer-001",
+        "status": "sent",
+        "total_cents": 32500,
+        "due_at": "2026-09-20T20:00:00.000Z",
+        "share_token": "parity-invoice-open-token",
+        "first_viewed_at": "2026-09-20T21:00:00.000Z",
+        "created_at": "2026-09-20T20:00:00.000Z"
+      },
+      {
+        "id": "parity-invoice-paid",
+        "estimate_id": "parity-est-paid",
+        "customer_id": "parity-customer-001",
+        "status": "paid",
+        "total_cents": 27500,
+        "due_at": "2026-09-21T20:00:00.000Z",
+        "share_token": "parity-invoice-paid-token",
+        "first_viewed_at": "2026-09-21T21:00:00.000Z",
+        "created_at": "2026-09-21T20:00:00.000Z"
+      },
+      {
+        "id": "parity-invoice-refunded",
+        "estimate_id": "parity-est-refunded",
+        "customer_id": "parity-customer-001",
+        "status": "partial",
+        "subtotal_cents": 30000,
+        "discount_cents": 0,
+        "discount_type": "dollar",
+        "discount_value": 0,
+        "total_cents": 30000,
+        "due_at": null,
+        "share_token": "parity-invoice-refunded-token",
+        "first_viewed_at": "2026-09-22T18:00:00.000Z",
+        "created_at": "2026-09-22T17:00:00.000Z"
+      },
+      {
+        "id": "parity-invoice-refund-pending",
+        "estimate_id": "parity-est-refund-pending",
+        "customer_id": "parity-customer-001",
+        "status": "paid",
+        "subtotal_cents": 26000,
+        "discount_cents": 0,
+        "discount_type": "dollar",
+        "discount_value": 0,
+        "total_cents": 26000,
+        "due_at": null,
+        "share_token": "parity-invoice-refund-pending-token",
+        "first_viewed_at": "2026-09-23T18:00:00.000Z",
+        "created_at": "2026-09-23T17:00:00.000Z"
+      }
+    ],
+    "estimate_items": [
+      {
+        "id": "parity-item-draft-1",
+        "estimate_id": "parity-est-draft",
+        "name": "House Wash",
+        "description": "Parity test house wash.",
+        "quantity": 1000,
+        "unit": "sq ft",
+        "total_cents": 22000
+      },
+      {
+        "id": "parity-item-sent-1",
+        "estimate_id": "parity-est-sent",
+        "name": "Gutter Cleaning + Flush",
+        "description": "Parity test gutters.",
+        "quantity": 120,
+        "unit": "linear ft",
+        "total_cents": 18000
+      },
+      {
+        "id": "parity-item-sent-2",
+        "estimate_id": "parity-est-sent",
+        "name": "Trash Bin Cleaning",
+        "description": "Parity test bin.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 6000
+      },
+      {
+        "id": "parity-item-approved-1",
+        "estimate_id": "parity-est-approved",
+        "name": "House Wash",
+        "description": "Parity test house wash.",
+        "quantity": 1377,
+        "unit": "sq ft",
+        "total_cents": 30300
+      },
+      {
+        "id": "parity-item-approved-2",
+        "estimate_id": "parity-est-approved",
+        "name": "Gutter Cleaning + Flush",
+        "description": "Parity test gutters.",
+        "quantity": 120,
+        "unit": "linear ft",
+        "total_cents": 18000
+      },
+      {
+        "id": "parity-item-approved-3",
+        "estimate_id": "parity-est-approved",
+        "name": "Trash Bin Cleaning",
+        "description": "Parity test bins.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 2500
+      },
+      {
+        "id": "parity-item-scheduled-1",
+        "estimate_id": "parity-est-scheduled",
+        "name": "House Wash",
+        "description": "Parity test house wash.",
+        "quantity": 1377,
+        "unit": "sq ft",
+        "total_cents": 30300
+      },
+      {
+        "id": "parity-item-scheduled-2",
+        "estimate_id": "parity-est-scheduled",
+        "name": "Gutter Cleaning + Flush",
+        "description": "Parity test gutters.",
+        "quantity": 120,
+        "unit": "linear ft",
+        "total_cents": 18000
+      },
+      {
+        "id": "parity-item-completed-1",
+        "estimate_id": "parity-est-completed",
+        "name": "Driveway / Concrete Cleaning",
+        "description": "Parity test concrete.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 32500
+      },
+      {
+        "id": "parity-item-paid-1",
+        "estimate_id": "parity-est-paid",
+        "name": "Window Cleaning",
+        "description": "Parity test windows.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 27500
+      },
+      {
+        "id": "parity-item-change-1",
+        "estimate_id": "parity-est-change",
+        "name": "Fence Cleaning",
+        "description": "Parity test fence.",
+        "quantity": 550,
+        "unit": "sq ft",
+        "total_cents": 22000
+      },
+      {
+        "id": "parity-item-refunded-1",
+        "estimate_id": "parity-est-refunded",
+        "name": "House Wash",
+        "description": "Parity refund-state service.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 30000
+      },
+      {
+        "id": "parity-item-refund-pending-1",
+        "estimate_id": "parity-est-refund-pending",
+        "name": "Concrete Cleaning",
+        "description": "Parity pending-refund state.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 26000
+      }
+    ],
+    "payments": [
+      {
+        "id": "parity-payment-deposit",
+        "estimate_id": "parity-est-scheduled",
+        "type": "Cash App",
+        "amount_cents": 24200,
+        "status": "paid",
+        "provider_id": "PARITY-CASHAPP",
+        "created_at": "2026-09-05T18:00:00.000Z"
+      },
+      {
+        "id": "parity-payment-partial",
+        "estimate_id": "parity-est-completed",
+        "type": "Venmo",
+        "amount_cents": 16250,
+        "status": "paid",
+        "provider_id": "PARITY-VENMO",
+        "created_at": "2026-09-20T18:00:00.000Z"
+      },
+      {
+        "id": "parity-payment-paid1",
+        "estimate_id": "parity-est-paid",
+        "type": "Card",
+        "amount_cents": 13750,
+        "status": "paid",
+        "provider_id": "PARITY-STRIPE-1",
+        "created_at": "2026-09-21T18:00:00.000Z"
+      },
+      {
+        "id": "parity-payment-paid2",
+        "estimate_id": "parity-est-paid",
+        "type": "Card",
+        "amount_cents": 13750,
+        "status": "paid",
+        "provider_id": "PARITY-STRIPE-2",
+        "created_at": "2026-09-21T22:00:00.000Z"
+      },
+      {
+        "id": "parity-payment-refunded-original",
+        "estimate_id": "parity-est-refunded",
+        "type": "Cash App",
+        "amount_cents": 30000,
+        "status": "paid",
+        "provider_id": "PARITY-REFUND-ORIGINAL",
+        "created_at": "2026-09-22T18:30:00.000Z"
+      },
+      {
+        "id": "parity-payment-refund-ledger",
+        "estimate_id": "parity-est-refunded",
+        "type": "Refund",
+        "amount_cents": -5000,
+        "status": "paid",
+        "provider_id": "refund:parity-payment-refunded-original:parity-refund-succeeded",
+        "created_at": "2026-09-23T14:01:00.000Z"
+      },
+      {
+        "id": "parity-payment-refund-pending-original",
+        "estimate_id": "parity-est-refund-pending",
+        "type": "Venmo",
+        "amount_cents": 26000,
+        "status": "paid",
+        "provider_id": "PARITY-REFUND-PENDING",
+        "created_at": "2026-09-23T18:30:00.000Z"
+      }
+    ],
+    "customer_photos": [],
+    "customer_messages": [
+      {
+        "id": "parity-message-001",
+        "customer_id": "parity-customer-001",
+        "estimate_id": "parity-est-sent",
+        "channel": "text",
+        "template": "estimate_ready",
+        "body": "Parity fixture estimate message.",
+        "created_at": "2026-09-03T14:30:00.000Z"
+      }
+    ],
+    "notifications": [
+      {
+        "id": "parity-notification-001",
+        "type": "estimate_viewed",
+        "title": "Estimate viewed",
+        "body": "Parity Test Customer viewed an estimate.",
+        "customer_id": "parity-customer-001",
+        "estimate_id": "parity-est-sent",
+        "read_at": null,
+        "created_at": "2026-09-03T15:00:00.000Z"
+      },
+      {
+        "id": "parity-notification-002",
+        "type": "estimate_approved",
+        "title": "Estimate approved",
+        "body": "Parity Test Customer approved and signed.",
+        "customer_id": "parity-customer-001",
+        "estimate_id": "parity-est-approved",
+        "read_at": null,
+        "created_at": "2026-09-04T16:00:00.000Z"
+      }
+    ],
+    "message_templates": [],
+    "estimate_change_requests": [
+      {
+        "id": "parity-change-001",
+        "estimate_id": "parity-est-change",
+        "customer_id": "parity-customer-001",
+        "message": "Please remove the optional add-on before I approve.",
+        "status": "open",
+        "created_at": "2026-09-08T16:30:00.000Z"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "parity-task-001",
+        "title": "Follow up on parity estimate",
+        "customer_id": "parity-customer-001",
+        "estimate_id": "parity-est-sent",
+        "due_at": "2026-10-01T15:00:00.000Z",
+        "status": "open",
+        "notes": "Parity fixture task.",
+        "created_at": "2026-09-03T17:00:00.000Z",
+        "completed_at": null
+      }
+    ],
+    "expenses": [
+      {
+        "id": "parity-expense-001",
+        "estimate_id": "parity-est-completed",
+        "category": "Chemicals",
+        "description": "Parity fixture SH",
+        "amount_cents": 2500,
+        "incurred_at": "2026-09-20T14:00:00.000Z",
+        "created_at": "2026-09-20T14:00:00.000Z"
+      },
+      {
+        "id": "parity-expense-002",
+        "estimate_id": "parity-est-completed",
+        "category": "Fuel",
+        "description": "Parity fixture fuel",
+        "amount_cents": 1200,
+        "incurred_at": "2026-09-20T14:05:00.000Z",
+        "created_at": "2026-09-20T14:05:00.000Z"
+      }
+    ],
+    "job_reports": [
+      {
+        "id": "parity-report-001",
+        "estimate_id": "parity-est-completed",
+        "customer_id": "parity-customer-001",
+        "checklist": "{\"Work area inspected before service\": true, \"Customer concerns documented\": true, \"Service completed as estimated\": true, \"Property rinsed and checked\": true, \"Before and after photos captured\": true, \"Customer notified of completion\": true}",
+        "notes": "Parity fixture completion report.",
+        "airflow_before": null,
+        "airflow_after": null,
+        "status": "completed",
+        "created_at": "2026-09-20T19:00:00.000Z",
+        "completed_at": "2026-09-20T19:10:00.000Z"
+      }
+    ],
+    "invoice_items": [
+      {
+        "id": "parity-invoice-item-refunded-1",
+        "invoice_id": "parity-invoice-refunded",
+        "name": "House Wash",
+        "description": "Parity refund-state service.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 30000
+      },
+      {
+        "id": "parity-invoice-item-refund-pending-1",
+        "invoice_id": "parity-invoice-refund-pending",
+        "name": "Concrete Cleaning",
+        "description": "Parity pending-refund state.",
+        "quantity": 1,
+        "unit": "job",
+        "total_cents": 26000
+      }
+    ],
+    "invoice_revisions": [],
+    "payment_checkout_sessions": [],
+    "payment_refunds": [
+      {
+        "id": "parity-refund-succeeded",
+        "payment_id": "parity-payment-refunded-original",
+        "estimate_id": "parity-est-refunded",
+        "amount_cents": 5000,
+        "mode": "manual",
+        "status": "succeeded",
+        "provider_refund_id": null,
+        "note": "Parity successful partial refund.",
+        "created_at": "2026-09-23T14:00:00.000Z",
+        "completed_at": "2026-09-23T14:01:00.000Z"
+      },
+      {
+        "id": "parity-refund-pending",
+        "payment_id": "parity-payment-refund-pending-original",
+        "estimate_id": "parity-est-refund-pending",
+        "amount_cents": 4000,
+        "mode": "manual",
+        "status": "pending",
+        "provider_refund_id": null,
+        "note": "Parity pending refund.",
+        "created_at": "2026-09-24T14:00:00.000Z",
+        "completed_at": null
+      }
+    ]
+  }
+}

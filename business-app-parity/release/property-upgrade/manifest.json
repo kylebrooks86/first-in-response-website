@@ -1,0 +1,341 @@
+{
+  "format": "fire-property-upgrade-review",
+  "version": 1,
+  "sourceCheckpoint": "25c9bdef8d062d58a8df89bef4d8b198cd8f3a74",
+  "executionAuthorized": false,
+  "productionReady": false,
+  "targets": {
+    "live": {
+      "baseline": [
+        {
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050"
+        },
+        {
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b"
+        },
+        {
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09"
+        },
+        {
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0"
+        },
+        {
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b"
+        },
+        {
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0"
+        },
+        {
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde"
+        },
+        {
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda"
+        },
+        {
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e"
+        },
+        {
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa"
+        },
+        {
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95"
+        },
+        {
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412"
+        },
+        {
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3"
+        },
+        {
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e"
+        },
+        {
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e"
+        },
+        {
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4"
+        },
+        {
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb"
+        },
+        {
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37"
+        },
+        {
+          "name": "0018_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2"
+        },
+        {
+          "name": "0019_unknown_jubilee.sql",
+          "sha256": "1cc268c2d647ef406a0b3654c0252885b640a6c4215bcb731dbcfb2fa476de41"
+        },
+        {
+          "name": "0020_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710"
+        }
+      ],
+      "planned": [
+        {
+          "name": "0021_property_service_locations.sql",
+          "path": "live/0021_property_service_locations.sql",
+          "sha256": "218f77b15c8f05b0e66a4742898152c1476aff2d55e2825f8282b55370f6b909",
+          "bytes": 1115,
+          "source": "shared/db/candidate-service-locations.sql"
+        },
+        {
+          "name": "0022_customer_properties.sql",
+          "path": "live/0022_customer_properties.sql",
+          "sha256": "9bc5f94251871ee0614b6324ab01656da035ae9d2c83ebb29d9a96fe474dd093",
+          "bytes": 4507,
+          "source": "shared/db/candidate-customer-properties.sql"
+        }
+      ],
+      "existingJournalModified": false,
+      "historicalBackfill": false,
+      "remoteSchemaVerified": false,
+      "remoteJournalVerified": false
+    },
+    "doomsday": {
+      "baseline": [
+        {
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050"
+        },
+        {
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b"
+        },
+        {
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09"
+        },
+        {
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0"
+        },
+        {
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b"
+        },
+        {
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0"
+        },
+        {
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde"
+        },
+        {
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda"
+        },
+        {
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e"
+        },
+        {
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa"
+        },
+        {
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95"
+        },
+        {
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412"
+        },
+        {
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3"
+        },
+        {
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e"
+        },
+        {
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e"
+        },
+        {
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4"
+        },
+        {
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb"
+        },
+        {
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37"
+        },
+        {
+          "name": "0018_payment_refunds.sql",
+          "sha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70"
+        },
+        {
+          "name": "0019_refund_ledger_unique.sql",
+          "sha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4"
+        },
+        {
+          "name": "0020_notification_lifecycle_unique.sql",
+          "sha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb"
+        },
+        {
+          "name": "0021_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2"
+        },
+        {
+          "name": "0022_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710"
+        }
+      ],
+      "planned": [
+        {
+          "name": "0023_property_service_locations.sql",
+          "path": "doomsday/0023_property_service_locations.sql",
+          "sha256": "218f77b15c8f05b0e66a4742898152c1476aff2d55e2825f8282b55370f6b909",
+          "bytes": 1115,
+          "source": "shared/db/candidate-service-locations.sql"
+        },
+        {
+          "name": "0024_customer_properties.sql",
+          "path": "doomsday/0024_customer_properties.sql",
+          "sha256": "9bc5f94251871ee0614b6324ab01656da035ae9d2c83ebb29d9a96fe474dd093",
+          "bytes": 4507,
+          "source": "shared/db/candidate-customer-properties.sql"
+        }
+      ],
+      "existingJournalModified": false,
+      "historicalBackfill": false,
+      "remoteSchemaVerified": false,
+      "remoteJournalVerified": false
+    },
+    "staging": {
+      "baseline": [
+        {
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050"
+        },
+        {
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b"
+        },
+        {
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09"
+        },
+        {
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0"
+        },
+        {
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b"
+        },
+        {
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0"
+        },
+        {
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde"
+        },
+        {
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda"
+        },
+        {
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e"
+        },
+        {
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa"
+        },
+        {
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95"
+        },
+        {
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412"
+        },
+        {
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3"
+        },
+        {
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e"
+        },
+        {
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e"
+        },
+        {
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4"
+        },
+        {
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb"
+        },
+        {
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37"
+        },
+        {
+          "name": "0018_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2"
+        },
+        {
+          "name": "0019_unknown_jubilee.sql",
+          "sha256": "1cc268c2d647ef406a0b3654c0252885b640a6c4215bcb731dbcfb2fa476de41"
+        },
+        {
+          "name": "0020_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710"
+        }
+      ],
+      "planned": [
+        {
+          "name": "0021_property_service_locations.sql",
+          "path": "staging/0021_property_service_locations.sql",
+          "sha256": "218f77b15c8f05b0e66a4742898152c1476aff2d55e2825f8282b55370f6b909",
+          "bytes": 1115,
+          "source": "shared/db/candidate-service-locations.sql"
+        },
+        {
+          "name": "0022_customer_properties.sql",
+          "path": "staging/0022_customer_properties.sql",
+          "sha256": "9bc5f94251871ee0614b6324ab01656da035ae9d2c83ebb29d9a96fe474dd093",
+          "bytes": 4507,
+          "source": "shared/db/candidate-customer-properties.sql"
+        }
+      ],
+      "existingJournalModified": false,
+      "historicalBackfill": false,
+      "remoteSchemaVerified": false,
+      "remoteJournalVerified": false
+    }
+  }
+}
