@@ -156,7 +156,7 @@ try{
 
   // New genuine numbered work and its invoice must resolve through the
   // authoritative root, customer ownership and original immutable Job #.
-  const syntheticQuery=(sql,id)=>{assert.equal((sql.match(/\\?/g)||[]).length,1);return sql.replace('?',"'"+id+"'");};
+  const syntheticQuery=(sql,id)=>{assert.equal((sql.match(/\?/g)||[]).length,1);return sql.replace('?',"'"+id+"'");};
   assert.equal(query(good,syntheticQuery(JOB_NUMBER_FOR_ESTIMATE_SQL,'quote-08'))[0]?.jobNumber,8);
   assert.equal(query(good,syntheticQuery(JOB_REFERENCE_BY_INVOICE_SQL,'inv-01'))[0]?.jobNumber,2);
   assert.equal(query(good,COMPLETED_JOB_COUNT_SQL)[0]?.completedJobs,1);
@@ -170,7 +170,7 @@ try{
     "INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES ('quote-cross','cust-1','completed',14000,0,14000,7000,'2026-10-13T12:00:00Z');",
     "INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES ('quote-cross',1);",
     "INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at) VALUES ('inv-cross','quote-cross','cust-1','sent',14000,'2026-10-13T14:00:00Z');"
-  ].join('\\n'));
+  ].join('\n'));
   call(good,['d1','execute','DB','--file',injected,'--yes']);checks++;
   assert.equal(query(good,syntheticQuery(JOB_NUMBER_FOR_ESTIMATE_SQL,'quote-cross')).length,0,
     'Wrong-owner estimate must not inherit somebody else\'s Job #');
