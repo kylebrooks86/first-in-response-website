@@ -182,11 +182,17 @@ try{
    'Fresh Dashboard summary confirms zero estimates and balances without inventing records');
  const initialPage=await context.newPage();initialPage.on('pageerror',e=>clientErrors.push(e.message));
  await initialPage.goto(origin+'/');
- const firstUse=initialPage.getByRole('region',{name:'Start using your empty FIRE app'});
+ const firstUse=initialPage.getByRole('region',{name:'First job workflow'});
  await firstUse.waitFor({timeout:12000});
- check(await firstUse.getByText('No estimates yet',{exact:true}).count()===1,
+ check(await firstUse.getByText('Ready for your first job',{exact:true}).count()===1,
    'Real owner Dashboard shows first-use guidance only after verified empty API summary');
- await firstUse.getByRole('button',{name:'Customers',exact:true}).click();
+ // The empty-state guide is navigation only, not an external-send action.
+ for(const step of ['1 · Customer','2 · Estimate','3 · Schedule','4 · Get paid'])
+   check(await firstUse.getByText(step,{exact:true}).count()===1,
+     'Verified empty-state guide shows '+step+' without creating a separate nav');
+ check(await firstUse.getByText('Nothing sends automatically.',{exact:false}).count()===1,
+   'New job workflow never implies messages are sent automatically');
+ await firstUse.getByRole('button',{name:'Open customers',exact:true}).click();
  await initialPage.getByRole('heading',{name:'Customers',exact:true}).waitFor({timeout:10000});
  check(await initialPage.getByRole('heading',{name:'Customers',exact:true}).count()===1,
    'First-use Dashboard call to action opens actual Customers page without sending messages');
@@ -230,7 +236,7 @@ try{
  check((await qaIndicator.boundingBox()).height<=22,'QA warning remains visible in a slim persistent strip');
  check(await qaIndicator.evaluate(n=>getComputedStyle(n).position)==='sticky','QA test distinction stays persistent while scrolling');
  await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
- check(await page.getByRole('region',{name:'Start using your empty FIRE app'}).count()===0,
+ check(await page.getByRole('region',{name:'First job workflow'}).count()===0,
    'First-use empty-state guidance disappears once saved quote exists');
 
  check(true,'Entire built Business App renders authenticated SSR and client hydration on iPhone viewport');
