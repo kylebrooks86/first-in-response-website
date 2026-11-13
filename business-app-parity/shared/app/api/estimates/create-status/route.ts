@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {ESTIMATE_CREATE_PROOF_PREFIX,readEstimateCreateProof,validEstimateCreateRequestId} from '../../../../lib/estimate-create-idempotency';
+import {JOB_NUMBER_FLAG,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel} from '../../../../lib/job-numbering.mjs';
 import {DISCOUNT_SNAPSHOT_PREFIX} from '../../../../lib/discount-input';
 import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX} from '../../../../lib/estimate-promotion-attribution';
 const OWNER_EMAIL='kylebrooks8605@gmail.com';
@@ -30,6 +31,16 @@ export async function GET(request:Request){
      recognized=Number(lines?.lineCount)>0&&Number(lines?.lineTotal)===proof.subtotalCents&&Boolean(promotion)&&Boolean(bundle);
    }
   }catch{/* Any unverifiable quote, stale total, or missing audit requires manual review. */}
-  return Response.json({found:true,recognized,requestId,estimate:{id:row.id,customerId:row.customerId,customer:row.customer,status:row.status,subtotalCents:Number(row.subtotalCents),totalCents:Number(row.totalCents),depositCents:Number(row.depositCents),createdAt:row.createdAt}},{headers:{'cache-control':'private, no-store'}});
+  // A saved quote is not RECOVERED/VERIFIED in a numbered environment if
+  // the immutable same-customer Job # cannot also be resolved. Preserve the
+  // original estimate ID; never invent a second serial or advise resubmission.
+  const numberEnabled=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE===JOB_NUMBER_FLAG;
+  let jobNumber:number|null=null;
+  if(numberEnabled&&recognized){
+    const saved=await env.DB.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(requestId).first<{jobNumber:number}>();
+    if(jobNumberLabel(saved?.jobNumber))jobNumber=Number(saved!.jobNumber);
+    else recognized=false;
+  }
+  return Response.json({found:true,recognized,requestId,estimate:{id:row.id,customerId:row.customerId,customer:row.customer,status:row.status,subtotalCents:Number(row.subtotalCents),totalCents:Number(row.totalCents),depositCents:Number(row.depositCents),createdAt:row.createdAt,...(numberEnabled?{jobNumber}: {})}},{headers:{'cache-control':'private, no-store'}});
  }catch{return Response.json({error:'Saved estimate request could not be checked. Keep the pending request marker and retry the read-only check.'},{status:503,headers:{'cache-control':'private, no-store'}});}
 }
