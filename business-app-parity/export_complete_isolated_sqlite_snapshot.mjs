@@ -53,9 +53,11 @@ function capture(db){
    tables:Object.fromEntries(tables.map(t=>[t,result[t]])),
    rowCounts:Object.fromEntries(tables.map(t=>[t,counts[t]]))
   };
+  const supplementalSequence=Object.fromEntries(db.prepare('SELECT name,seq FROM sqlite_sequence').all().filter(x=>extras.includes(x.name)).map(x=>[x.name,x.seq]));
   const supplemental={
    format:'fire-isolated-supplemental-records',version:1,
    allTablesComplete:true,truncated:false,schemaIdentity,
+   sqliteSequence:supplementalSequence,
    tables:Object.fromEntries(extras.map(t=>[t,result[t]])),
    rowCounts:Object.fromEntries(extras.map(t=>[t,counts[t]]))
   };
