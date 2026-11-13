@@ -15,6 +15,16 @@ const get=id=>confirmation.GET(new Request('https://synthetic.invalid/api/custom
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
 const original={requestId:randomUUID(),name:'Synthetic Name Only',email:'',phone:'',address:'',leadSource:'Referral'};
 try{
+ // Actual POST must refuse a NEW LIVE customer if the permanent
+ // Customer # schema was not explicitly approved, even on an empty DB.
+ env.FIRE_NEW_LIVE_CLEAN_START='required';
+ const preGuardWrites=writes;
+ const unnumbered=await post(original);
+ eq(unnumbered.status,503);
+ eq((await unnumbered.json()).error,'NEW LIVE customer numbering is not enabled. No customer was created.');
+ eq(writes,preGuardWrites);
+ eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,0);
+ delete env.FIRE_NEW_LIVE_CLEAN_START;
  owner=null;eq((await get(original.requestId)).status,401);eq((await post(original)).status,401);owner={email:'other@example.invalid'};eq((await get(original.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
  for(const requestId of ['bad',null,42,'A'.repeat(36)])eq((await post({...original,requestId})).status,400);
  eq((await get('bad')).status,400);let response=await get(original.requestId);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
