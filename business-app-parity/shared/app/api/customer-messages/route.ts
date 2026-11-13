@@ -204,7 +204,9 @@ export async function PATCH(request: Request) {
         .bind(cancelledId,createdAt,prepared.id,customerId,confirmedId).run();
       const receipt=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
       if(!receipt)return Response.json({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
-      return Response.json({message:receipt,cancelled:true});
+      return Response.json({message:receipt,cancelled:true,ownerConfirmedSent:false,
+        deliveryConfirmed:false,confirmationSource:'owner'},
+        {headers:{"Cache-Control":"no-store, private"}});
     }
     const alreadyCancelled=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
     if(alreadyCancelled)return Response.json({error:"This draft was marked not sent. A later confirmation cannot change its history."},{status:409});
@@ -215,7 +217,9 @@ export async function PATCH(request: Request) {
     const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
     if(!message)return Response.json({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
     const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
-    return Response.json({message,estimateStatus:estimate?.status});
+    return Response.json({message,estimateStatus:estimate?.status,ownerConfirmedSent:true,
+      deliveryConfirmed:false,confirmationSource:'owner'},
+      {headers:{"Cache-Control":"no-store, private"}});
   }catch{
     // Owner's explicit send/not-sent decision may have committed before the
     // D1 response failed. Read back its exact immutable evidence event.
