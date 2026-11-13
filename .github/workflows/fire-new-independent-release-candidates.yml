@@ -17,6 +17,7 @@ on:
       - 'business-app-parity/shared/scripts/test-protected-photo-zip.mjs'
       - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/shared/scripts/test-protected-numbered-sqlite-recovery-pair.mjs'
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
 permissions:
@@ -77,6 +78,11 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
           corepack pnpm build
+      - name: Gate 7 integrated protected ZIP plus actual 25-migration SQLite recovery (synthetic only)
+        if: matrix.target == 'independent-dr'
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: |
+          FIRE_TEST_SCHEMA_ROOT="$GITHUB_WORKSPACE/business-app-parity" node --experimental-sqlite scripts/test-protected-numbered-sqlite-recovery-pair.mjs
       - name: Prove built source remained identical to reviewed shared/target source
         run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate" --built
       - name: Inspect actual compiled Wrangler manifest and simulate independent only
