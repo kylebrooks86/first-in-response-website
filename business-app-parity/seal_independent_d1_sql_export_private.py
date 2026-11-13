@@ -82,8 +82,11 @@ def expected_application_objects(migrations):
             baseline.execute(
                 "INSERT INTO d1_migrations(id,name) VALUES (?,?)", (i, name)
             )
-        return {(kind, name, table) for kind, name, table in baseline.execute(
-            "SELECT type,name,tbl_name FROM sqlite_master "
+        # Object names alone are insufficient: a forged dump can preserve
+        # six permanent-number trigger NAMES while replacing their SQL with
+        # a no-op. Compare original CREATE SQL for every reviewed object.
+        return {(kind, name, table): ddl for kind, name, table, ddl in baseline.execute(
+            "SELECT type,name,tbl_name,sql FROM sqlite_master "
             "WHERE type IN ('table','index','trigger','view') "
             "AND lower(substr(name,1,7)) <> 'sqlite_'"
         )}
@@ -161,13 +164,13 @@ def verified_memory_sqlite(source, expected_hash, migrations):
         # A D1 --table/--no-schema-filtered SQL export can still contain
         # d1_migrations and our key tables. Demand every reviewed table,
         # index and trigger, not just the journal and selected rows.
-        actual_objects = {(kind, name, table) for kind, name, table in db.execute(
-            "SELECT type,name,tbl_name FROM sqlite_master "
+        actual_objects = {(kind, name, table): ddl for kind, name, table, ddl in db.execute(
+            "SELECT type,name,tbl_name,sql FROM sqlite_master "
             "WHERE type IN ('table','index','trigger','view') "
             "AND lower(substr(name,1,7)) <> 'sqlite_'"
         )}
         if actual_objects != expected_application_objects(migrations):
-            stop("D1 SQL export omits or alters reviewed application schema objects")
+            stop("D1 SQL export omits or alters reviewed table/index/trigger definitions")
         journal = db.execute(
             'SELECT id,name FROM "d1_migrations" ORDER BY id'
         ).fetchall()
