@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {immutableNumberingTriggersReady} from './shared/lib/numbered-immutable-trigger-contract.mjs';
+import {verifyNewLiveFinancialIndexes} from './shared/lib/new-live-financial-index-contract.mjs';
 import {inspectNewLiveFirstJobCleanStart} from './shared/lib/new-live-first-job-preflight.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS,assertNewLiveMigrationJournal}
  from './shared/lib/new-live-migration-journal.mjs';
@@ -67,6 +68,8 @@ try{
  const connected=bound(database);
  assert.equal(await assertNewLiveMigrationJournal(connected),true);
  assert.equal(await immutableNumberingTriggersReady(connected),true);
+ assert.equal(await verifyNewLiveFinancialIndexes(connected),true);
+ checks++;
  checks+=2;
  const proof=await inspectNewLiveFirstJobCleanStart(connected,{
   FIRE_ENV:'new-live-prelaunch',
@@ -74,6 +77,8 @@ try{
   FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1'
  });
  assert.equal(proof.firstJobNumberExpected,'0001');
+ assert.equal(proof.physicalFinancialIndexesMatched,true);
+ checks++;
  assert.equal(proof.exactSourceMigrationJournalMatched,true);
  assert.equal(proof.jobAndCustomerSequencesEmpty,true);
  assert.equal(proof.physicalD1IdentityVerified,false);
@@ -108,5 +113,20 @@ await rejectMutation('forged refund journal refuses migration',db=>{
 await rejectMutation('unknown supplemental user table prevents untracked record loss',db=>{
  db.exec('CREATE TABLE unreviewed_customer_history(id TEXT PRIMARY KEY)');
 });
+// The exact 26 journal names cannot compensate for an actual physical
+// partial index that has been replaced with a non-unique no-op.
+const mutated=createBaseline();
+try{
+ applyAddon(mutated);
+ mutated.exec('DROP INDEX idx_payments_stripe_provider_unique');
+ mutated.exec('CREATE INDEX idx_payments_stripe_provider_unique ON payments(provider_id)');
+ await assert.rejects(()=>verifyNewLiveFinancialIndexes(bound(mutated)),/BLOCKED/);
+ await assert.rejects(()=>inspectNewLiveFirstJobCleanStart(bound(mutated),{
+  FIRE_ENV:'new-live-prelaunch',
+  FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
+  FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1'
+ }),/BLOCKED/);
+ checks+=2;
+}finally{mutated.close();}
 console.log('PASS '+checks+'/'+checks+
  ' independent DR/LIVE source-only 25-to-26 clean-number migration with real SQLite DDL and first Job #0001 preflight; zero provider writes.');
