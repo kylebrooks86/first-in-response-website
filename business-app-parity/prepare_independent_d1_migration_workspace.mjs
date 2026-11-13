@@ -10,6 +10,8 @@ import {existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync} from 'n
 import {join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
+import {assertReviewedIndependentD1SqlBlobs,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
+ from './reviewed_independent_d1_sql_blobs.mjs';
 
 const ROOT=fileURLToPath(new URL('.',import.meta.url));
 const TARGETS=Object.freeze({
@@ -51,6 +53,9 @@ export function prepareIndependentD1MigrationWorkspace(target,outputDir){
   name,
   bytes:readFileSync(join(i===25?addonDir:baseDir,name))
  }));
+ // A new, unreviewed SQL edit must fail BEFORE the workspace is created.
+ // Matching filenames or matching DR/LIVE copies alone cannot authorize it.
+ assertReviewedIndependentD1SqlBlobs(files);
  const config={
   d1_databases:[{
    binding:'DB',database_name:resource.database_name,
@@ -63,7 +68,8 @@ export function prepareIndependentD1MigrationWorkspace(target,outputDir){
   target,database_name:resource.database_name,database_id:resource.database_id,
   workerBinding:'DB',migrationCount:26,
   migrationJournal:'d1_migrations',migrations:files.map(f=>({
-   filename:f.name,sha256:hash(f.bytes)
+   filename:f.name,sha256:hash(f.bytes),
+   reviewedGitBlobSha1:REVIEWED_INDEPENDENT_D1_SQL_BLOBS[files.indexOf(f)].gitBlobSha1
   })),
   remoteMigrationAuthorized:false,remoteMigrationAttempted:false,
   workerBindingDeployed:false,physicalD1SchemaVerified:false,
