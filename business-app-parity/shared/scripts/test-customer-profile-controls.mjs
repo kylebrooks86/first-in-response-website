@@ -113,8 +113,8 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
  await photos.locator('input[type=file][multiple]').setInputFiles({name:'synthetic-responsive-photo.png',mimeType:'image/png',buffer:png});await photos.getByText(/Photos verified on this device/).waitFor();
- await photos.getByRole('textbox',{name:'Photo backup recovery passphrase'}).fill('synthetic-test-only-passphrase-1234');
- await photos.getByRole('textbox',{name:'Confirm new photo backup passphrase'}).fill('synthetic-test-only-passphrase-1234');
+ await photos.locator('input[aria-label="Photo backup recovery passphrase"]').fill('synthetic-test-only-passphrase-1234');
+ await photos.locator('input[aria-label="Confirm new photo backup passphrase"]').fill('synthetic-test-only-passphrase-1234');
  await photos.getByRole('button',{name:'Prepare protected all-photos backup',exact:true}).click();
  await photos.getByRole('button',{name:'Save prepared backup to Files',exact:true}).waitFor();
  const morePhotoTools=photos.locator('details.photo-backup-more');
