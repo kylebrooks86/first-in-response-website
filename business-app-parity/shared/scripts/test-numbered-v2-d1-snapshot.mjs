@@ -121,6 +121,13 @@ try{
  await reject(d1(result=>{result[2].results.push({...result[2].results[0]});}), 'A duplicate per-table count in the UNION proof is refused');
  await reject(d1(result=>{result[2].results[0].count=-1;}), 'Invalid negative SQL count fails closed');
  await reject(d1(result=>{result.pop();}), 'Partially returned D1 batch refused');
+ // Regression for a real SQLite inventory mistake: LIKE 'sqlite_%' treats
+ // underscore as a wildcard and would quietly skip a user-defined table
+ // named sqliteX_private_customer_state, yielding an incomplete backup.
+ db.exec('CREATE TABLE sqliteX_private_customer_state (id TEXT PRIMARY KEY, secret TEXT)');
+ insert('INSERT INTO sqliteX_private_customer_state(id,secret) VALUES(?,?)','local-fixture','fixture-data');
+ await reject(d1(),'User-owned sqliteX table must not disappear behind LIKE wildcard');
+ db.exec('DROP TABLE sqliteX_private_customer_state');
  db.exec('CREATE TABLE unreviewed_customer_feature (id TEXT PRIMARY KEY)');
  await reject(d1(),'Physical unreviewed source table requires a new archive contract');
  eq(externalCalls,0,'Fault tests also used no provider traffic');
