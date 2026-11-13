@@ -72,7 +72,7 @@ const source=DB(),restored=DB(),neverChanged=DB();
 try{
  source.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)')
   .run('synthetic-c1','NO REAL CUSTOMER',now);
- source.prepare("INSERT INTO estimates(id,customer_id,status,total_cents,deposit_cents,created_at) VALUES(?,?,'completed',3500,1750,?)")
+ source.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES(?,?,'completed',3500,0,3500,1750,?)")
   .run('synthetic-e1','synthetic-c1',now);
  source.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES(?,?,'Balance',3500,'paid',?,?)")
   .run('synthetic-payment','synthetic-e1','manual:synthetic-payment',now);
