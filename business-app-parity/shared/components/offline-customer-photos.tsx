@@ -5,10 +5,11 @@ import {Camera,Download,Images,Trash2,Upload} from 'lucide-react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
-import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
+import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
+import {readOfflinePhotoBackup} from '../lib/offline-photo-backup';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
 
 type Preview={photo:OfflinePhoto;url:string};
@@ -115,6 +116,11 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
     throw Error('Recovery passphrases do not match. Re-enter both before creating a protected backup.');
    const zip=await exportLocalPhotos(scope==='customer'?customerId:undefined);
    const payload=protectedFile?await protectOfflinePhotoZip(zip,backupPassphrase):zip;
+   // Owner may have another tab: encryption takes longer than ZIP creation.
+   // Re-read every current photo byte before offering a possibly stale backup.
+   const archived=await readOfflinePhotoBackup(zip);
+   if(!await byteIdenticalOfflinePhotoInventory(archived,await listOfflinePhotos(scope==='customer'?customerId:undefined)))
+    throw Error('Device photos changed while the protected backup was prepared. Discard this copy and prepare a fresh archive.');
    const filename='FIRE-'+(scope==='customer'?'customer-'+customerId:'all')+'-photos-'+
     new Date().toISOString().slice(0,10)+(protectedFile?'.firephotos':'.zip');
    setPreparedBackup(new File([payload],filename,{type:protectedFile?'application/octet-stream':'application/zip'}));
