@@ -66,7 +66,7 @@ function capture(db){
 }
 export async function exportCompleteIsolatedSqliteSnapshot(sourcePath,corePath,supplementalPath){
  const paths=[sourcePath,corePath,supplementalPath];
- if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(resolve)).size!==3)
+ if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(p=>resolve(p))).size!==3)
   stop('three distinct paths required');
  const st=await stat(resolve(sourcePath));
  if(!st.isFile()||st.size<100)stop('source must be an existing standalone SQLite snapshot');
