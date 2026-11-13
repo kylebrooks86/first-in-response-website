@@ -182,7 +182,7 @@ export async function sealCompleteIsolatedSqliteSnapshot(source,output,phrase){
 }
 export async function restoreSavedProtectedCompleteRecords(protectedPath,templatePath,outputPath,phrase){
  if(![protectedPath,templatePath,outputPath].every(pathValue)||
-    new Set([protectedPath,templatePath,outputPath].map(resolve)).size!==3)
+    new Set([protectedPath,templatePath,outputPath].map(p=>resolve(p))).size!==3)
   stop('three separate protected/source-schema/new-output paths required');
  const opened=await inspectSavedProtectedCompleteRecords(protectedPath,phrase);
  const recovered=await restoreNumberedRecordsToIsolatedSqliteFromArchives(
