@@ -166,6 +166,20 @@ pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
 pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
  vars:{...simulatedLive.config.vars,FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'}}},
  'auth enabled without permanent Job schema must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ routes:[{pattern:'*/*'}]}},'forged Worker route must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ vars:{...simulatedLive.config.vars,FIRE_QUICK_AUTH_MODE:'passkey-or-pin-v1'}}},
+ 'unapproved quick authentication flag must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ vars:{...simulatedLive.config.vars,FIRE_BYPASS_AUTH:'true'}}},
+ 'unexpected authentication override variable must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ secrets:{...simulatedLive.config.secrets,extra:['unreviewed']}}},
+ 'unexpected secret metadata must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ account_id:'unreviewed-cloudflare-account'}},
+ 'unreviewed Cloudflare account binding must STOP');
 pairReject(simulatedDr,{...simulatedLive,evidence:{...simulatedLive.evidence,
  isolatedPhotoRestoreVerified:true}},'fabricated photo restore acceptance must STOP');
 pairReject(simulatedDr,{...simulatedLive,evidence:{...simulatedLive.evidence,
