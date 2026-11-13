@@ -144,6 +144,81 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  }};
 }
 
+
+/** Final LOCAL pair review for the two independently prepared manifests.
+ * A valid DR manifest alone cannot prove it is not pointing at the NEW LIVE D1,
+ * and vice versa. Verify both together before requesting any provider write.
+ * This checks ONLY the supplied source JSON. No dashboard read, D1 query,
+ * deployed identity or independent physical recovery is proven.
+ */
+export function reviewIndependentReleasePair(drReviewed,liveReviewed){
+ const failPair=reason=>fail('DR/NEW LIVE pair: '+reason);
+ const reviewed=[['independent-dr',drReviewed],['independent-live',liveReviewed]];
+ const ids=new Set(),names=new Set(),origins=new Set(),authSecrets=new Set();
+ for(const [target,result] of reviewed){
+  const spec=TARGETS[target],config=result?.config,evidence=result?.evidence;
+  if(!config||!evidence||typeof config!=='object'||Array.isArray(config))
+   failPair('both independently reviewed manifests are required');
+  if(evidence.target!==target||evidence.localManifestPrepared!==true||
+     evidence.remoteOperationAttempted!==false||
+     evidence.providerResourcesIndependentlyVerified!==false||
+     evidence.ownerApprovedDeployment!==false||
+     evidence.gate4Accepted!==false||evidence.gate5Accepted!==false||
+     evidence.gate7Accepted!==false||evidence.gate10Accepted!==false||
+     evidence.remotePhotoSyncAvailable!==false||
+     evidence.offDeviceZipVerified!==false||
+     evidence.isolatedPhotoRestoreVerified!==false)
+   failPair('unverified source evidence cannot be converted into release acceptance');
+  if(config.name!==spec.name||config.workers_dev!==true||
+     config.vars?.FIRE_ENV!==spec.fireEnv||
+     config.vars?.SITE_ORIGIN!==spec.origin||
+     config.vars?.FIRE_PHOTO_STORAGE_MODE!==PHOTO_MODE||
+     !Array.isArray(config.d1_databases)||config.d1_databases.length!==1||
+     config.d1_databases[0]?.binding!=='DB'||
+     config.d1_databases[0]?.database_name!==spec.db)
+   failPair('incorrect target, origin or D1 binding identity');
+  const id=config.d1_databases[0].database_id;
+  if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id))
+   failPair('D1 must be a valid distinct physical identifier, never QA/STAGING/TEST');
+  ids.add(id);
+  if(names.has(config.name)||origins.has(spec.origin))
+   failPair('duplicate Worker name or origin');
+  names.add(config.name);origins.add(spec.origin);
+  // No paid/unknown storage or cross-environment data connection may hide
+  // behind a seemingly correct D1 and a flag saying "owner-device-zip".
+  if(!exact(config.r2_buckets,[])||
+     !empty(config.kv_namespaces)||!empty(config.queues)||
+     !empty(config.services)||!empty(config.durable_objects)||
+     !empty(config.dispatch_namespaces)||!empty(config.unsafe)||
+     !empty(config.analytics_engine_datasets)||!empty(config.vectorize)||
+     !empty(config.hyperdrive)||!empty(config.workflows))
+   failPair('unexpected cloud storage, service or subscription binding');
+  const required=config.secrets?.required,expected=[
+   spec.prefix+'_PASSWORD_HASH',spec.prefix+'_SESSION_SECRET'
+  ];
+  if(config.vars?.FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1')
+   expected.push(spec.prefix+'_PIN_HASH',spec.prefix+'_PIN_PEPPER');
+  if(!exact(required,expected)||required.some(name=>authSecrets.has(name)))
+   failPair('authentication secrets are reused or unexpected');
+  for(const name of required)authSecrets.add(name);
+  const auth=config.vars?.[spec.prefix+'_AUTH_ENABLED'];
+  if(!['blocked','owner-approved'].includes(auth)||
+     (auth==='owner-approved'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')||
+     (auth==='blocked'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!==undefined)||
+     (evidence.authEnabled!==(auth==='owner-approved'))||
+     (evidence.jobNumberSourceFlagPrepared!==(auth==='owner-approved')))
+   failPair('authentication and permanent Job # readiness disagree');
+ }
+ return Object.freeze({
+  pairSourceChecked:true,d1IdsDistinct:true,workerOriginsDistinct:true,
+  noR2OrOtherStorageBound:true,photoMode:PHOTO_MODE,
+  providerResourcesIndependentlyVerified:false,
+  offDevicePhotoCustodyVerified:false,isolatedRestoreVerified:false,
+  hostedParityVerified:false,ownerApprovedDeployment:false,
+  gate4Accepted:false,gate7Accepted:false,gate10Accepted:false
+ });
+}
+
 if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
  try{
   if(process.argv.length!==5)fail('usage: node prepare_new_independent_release_manifest.mjs TARGET BUILT_JSON OUTPUT_JSON');
