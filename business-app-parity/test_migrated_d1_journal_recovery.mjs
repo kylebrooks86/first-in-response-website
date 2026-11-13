@@ -6,6 +6,8 @@
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {readFileSync,readdirSync} from 'node:fs';
 import {mkdtemp,copyFile,readFile,writeFile,rm,access,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -270,6 +272,25 @@ try{
       pairedDb.prepare('SELECT amount_cents AS n FROM payment_refunds').get().n===500,
   'paired recovery contains actual immutable Job #0001 and paid/refund ledger');
  pairedDb.close();
+
+ // Exercise actual owner-facing CLI: use stdin secrets and the newly saved
+ // encrypted files, not only exported JS helpers. Never pass phrases in args.
+ const cliDb=join(folder,'cli-restored.sqlite'),cliZip=join(folder,'cli-gallery.zip');
+ const cliScript=fileURLToPath(new URL('./rehearse_protected_complete_records_and_photos.mjs',import.meta.url));
+ const cli=spawnSync(process.execPath,[
+  '--experimental-sqlite',cliScript,protectedFile,independentTemplate,protectedPhotoFile,
+  cliDb,cliZip,'--allow-private-recovery'
+ ],{input:phrase+'\n'+photoPhrase+'\n',encoding:'utf8',timeout:20000});
+ okay(cli.status===0&&cli.error===undefined,
+  'actual two-password CLI reads stdin and restores protected records plus photos');
+ okay((await readFile(cliZip)).equals(galleryZip)&&
+      JSON.parse(cli.stdout).localSqliteAndPhotoZipRecovered===true,
+  'actual CLI creates the exact independently checked protected recovery pair');
+ const cliDbOpened=new DatabaseSync(cliDb,{readOnly:true});
+ okay(cliDbOpened.prepare('SELECT COUNT(*) AS n FROM d1_migrations').get().n===26&&
+      cliDbOpened.prepare('SELECT customer_number AS n FROM fire_customer_numbers').get().n===1,
+  'actual CLI preserved independent DR migration lineage and customer #0001');
+ cliDbOpened.close();
 
  const wrongPairDb=join(folder,'wrong-photo-phrase.sqlite');
  const wrongPairZip=join(folder,'wrong-photo-phrase.zip');
