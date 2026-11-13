@@ -7,7 +7,7 @@ const stop=why=>{throw Error('FIRE isolated schema identity BLOCKED: '+why);};
 const ident=x=>typeof x==='string'&&/^[a-z][a-z0-9_]*$/.test(x);
 const q=x=>'"'+x+'"';
 export function fingerprintIsolatedSqliteSchema(db){
- const objects=db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name").all();
+ const objects=db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view') AND lower(substr(name,1,7)) <> 'sqlite_' ORDER BY type,name").all();
  if(!objects.length)stop('empty SQLite schema');
  const tables=objects.filter(x=>x.type==='table').map(x=>x.name);
  if(tables.some(x=>!ident(x)))stop('unsupported table names');
