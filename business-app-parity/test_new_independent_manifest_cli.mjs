@@ -15,7 +15,7 @@ const specs=[
   job:'owner-verified-independent-dr-job-numbers-v1',
   customer:'owner-verified-independent-dr-customer-numbers-v1'},
  {target:'independent-live',name:'fire-fullapp-new-live',db:'fire-fullapp-new-live-db',
-  env:'new-live-prelaunch',prefix:'FIRE_NEW_LIVE',id:'54a5e470-2ae3-471b-a2db-ea8bdf092514',
+  env:'new-live-prelaunch',prefix:'FIRE_NEW_LIVE',id:'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662',
   job:'owner-verified-independent-live-job-numbers-empty-v1',
   customer:'owner-verified-independent-live-customer-numbers-empty-v1'}
 ];
@@ -64,6 +64,11 @@ try{
   const missing=attempt(spec,{FIRE_RELEASE_CUSTOMER_NUMBERS_ATTESTATION:undefined});
   check(missing.result.status!==0&&!existsSync(missing.output),
    spec.target+' must not create an auth-ready manifest without Customer # attestation');
+  if(spec.target==='independent-live'){
+   const substituted=attempt(spec,{FIRE_RELEASE_D1_UUID:'54a5e470-2ae3-471b-a2db-ea8bdf092514'});
+   check(substituted.result.status!==0&&!existsSync(substituted.output),
+    'NEW LIVE cannot silently replace owner-created physical database');
+  }
   const wrong=attempt(spec,{FIRE_RELEASE_CUSTOMER_NUMBERS_ATTESTATION:
    specs.find(s=>s.target!==spec.target).customer});
   check(wrong.result.status!==0&&!existsSync(wrong.output),
