@@ -93,6 +93,12 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   if(naturalCount(row?.n,table)!==0)
    stop('prelaunch DB contains records in '+table+'; do not reset or delete them');
  }
+ // The migration journal must be present and populated. An empty journal
+ // indicates an unproven/manual schema copy, not a known migrated NEW LIVE.
+ // This checks only presence; ordered provider provenance is still required.
+ const migrationJournal=await one(db,'SELECT COUNT(*) AS n FROM "d1_migrations"');
+ if(naturalCount(migrationJournal?.n,'D1 migration journal')===0)
+  stop('D1 migration journal is empty; ordered migration provenance required');
  // AUTOINCREMENT can retain a high-water even after deleting all rows. That
  // would make a visibly empty NEW LIVE start at #0002 or higher. Do not use
  // DELETE FROM sqlite_sequence; the owner requires untouched inspection.
