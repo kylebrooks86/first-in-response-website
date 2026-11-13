@@ -325,7 +325,7 @@ try{
  });
  await restoreInput.setInputFiles([]);
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- await page.getByText(/Photos may already have been added/).waitFor();
+ await page.getByText(/Some photos may already have been saved\. No automatic retry/).waitFor();
  check(await page.locator('.photo-card').count()===2,'Interrupted post-commit restore refreshes both actual saved photos');
  check(await page.getByRole('button',{name:'Restore verified photo backup',exact:true}).isDisabled(),'Unconfirmed restore blocks a second recovery request');
  await page.evaluate(()=>{IDBObjectStore.prototype.add=window.originalRestoreAdd;IDBObjectStore.prototype.getAll=window.originalRestoreGetAll;});
