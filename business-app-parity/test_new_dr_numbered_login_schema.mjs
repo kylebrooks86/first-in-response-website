@@ -26,6 +26,8 @@ check('DR explicitly imports physical DB Job # checker',()=>{
  assert.match(auth,/await jobNumberingReady\(env\.DB, env\)/);
  assert.match(auth,/await customerNumberingReady\(env\.DB, env\)/);
  assert.match(auth,/await immutableNumberingTriggersReady\(env\.DB\)/);
+ assert.match(auth,/import \{verifyNewLiveFinancialIndexes\} from "[.][.][/]lib[/]new-live-financial-index-contract[.]mjs";/);
+ assert.match(auth,/await verifyNewLiveFinancialIndexes\(env[.]DB\)/);
  assert.match(auth,/catch \{ return false; \}/);
 });
 check('DR long-passphrase authentication never bypasses D1',()=>{
