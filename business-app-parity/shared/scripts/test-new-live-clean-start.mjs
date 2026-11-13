@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {assertNewLiveFirstJobState,verifyNewLiveFirstJobState} from '../lib/new-live-clean-start.mjs';
-const empty={customers:0,estimates:0,numberedCustomers:0,numberedJobs:0,jobLinks:0,customerSequence:0,jobSequence:0};
+const empty={customers:0,estimates:0,numberedCustomers:0,numberedJobs:0,jobLinks:0,customerSequence:0,jobSequence:0,invalidCustomers:0,invalidJobLinks:0};
 assert.equal(assertNewLiveFirstJobState(empty),true);
 assert.equal(assertNewLiveFirstJobState({...empty,customers:1,numberedCustomers:1,customerSequence:1}),true,
  'Saving a real customer before the first job must not block Job #0001');
@@ -11,6 +11,8 @@ for(const invalid of [
  {...empty,numberedJobs:1,jobSequence:1},
  {...empty,jobLinks:1},
  {...empty,customers:1},
+ {...empty,invalidCustomers:1},
+ {...empty,invalidJobLinks:1},
  {...empty,numberedCustomers:1,customerSequence:1},
  {...empty,estimates:1},
  {...empty,estimates:2,numberedJobs:1,jobSequence:0},
@@ -25,6 +27,8 @@ assert.equal(await verifyNewLiveFirstJobState(db),true);
 assert.match(sql,/sqlite_sequence/);
 assert.match(sql,/fire_job_estimate_links/);
 assert.match(sql,/fire_customer_numbers/);
+assert.match(sql,/e.customer_id<>root.customer_id/);
+assert.match(sql,/LEFT JOIN fire_customer_numbers/);
 const route=readFileSync(new URL('../app/api/estimates/route.ts',import.meta.url),'utf8');
 assert.match(route,/FIRE_NEW_LIVE_CLEAN_START/);
 assert.match(route,/await verifyNewLiveFirstJobState\(env.DB\)/);
