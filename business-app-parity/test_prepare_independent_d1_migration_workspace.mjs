@@ -6,6 +6,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
+import {assertReviewedIndependentD1SqlBlobs,gitSqlBlobSha1,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
+ from './reviewed_independent_d1_sql_blobs.mjs';
 
 const temp=mkdtempSync(join(tmpdir(),'fire-independent-d1-migrations-'));
 const hex=data=>createHash('sha256').update(data).digest('hex');
@@ -37,12 +39,29 @@ try{
   const names=readdirSync(join(out,'migrations')).sort();
   check(JSON.stringify(names)===JSON.stringify(EXPECTED_NEW_LIVE_D1_MIGRATIONS),
     'exact 26 ordered source migration filenames are required');
+  const actual=names.map(name=>({name,bytes:readFileSync(join(out,'migrations',name))}));
+  check(assertReviewedIndependentD1SqlBlobs(actual)===true,
+   'both targets must contain all 26 fixed reviewed SQL identities');
   for(let i=0;i<names.length;i++){
-   const data=readFileSync(join(out,'migrations',names[i]));
+   const data=actual[i].bytes;
    check(hex(data)===audit.migrations[i].sha256&&
-    audit.migrations[i].filename===names[i],
-    'source hash and filename mismatch: '+names[i]);
+    audit.migrations[i].filename===names[i]&&
+    audit.migrations[i].reviewedGitBlobSha1===REVIEWED_INDEPENDENT_D1_SQL_BLOBS[i].gitBlobSha1&&
+    gitSqlBlobSha1(data)===REVIEWED_INDEPENDENT_D1_SQL_BLOBS[i].gitBlobSha1,
+    'independent fixed blob pin and SHA-256 receipt mismatch: '+names[i]);
   }
+  for(const idx of [18,19,22,25]){
+   const tampered=actual.map(file=>({...file}));
+   tampered[idx]={name:actual[idx].name,bytes:Buffer.concat([actual[idx].bytes,Buffer.from('-- tampered\\n')])};
+   assert.throws(()=>assertReviewedIndependentD1SqlBlobs(tampered),/BLOCKED/);
+   checks++;
+  }
+  const renamed=actual.map(file=>({...file}));
+  renamed[25].name='0025_forged_permanent_numbers.sql';
+  assert.throws(()=>assertReviewedIndependentD1SqlBlobs(renamed),/BLOCKED/);
+  checks++;
+  assert.throws(()=>assertReviewedIndependentD1SqlBlobs(actual.slice(1)),/BLOCKED/);
+  checks++;
   check(readFileSync(join(out,'READ_ME_FIRST.txt'),'utf8').includes('NEW')&&
     !('r2_buckets' in config),'must warn before provider writes, no R2 binding');
   outputs.push(out);
