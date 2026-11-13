@@ -11,6 +11,23 @@ const QA_WORKER = "fire-fullapp-qa-20261016";
 const QA_DB_NAME = "fire-fullapp-qa-db-20261016";
 const QA_DB_ID = "8ccfb1f8-1657-4074-b1b2-47de78f95003";
 const QA_PHOTO_BUCKET = "fire-fullapp-qa-photos-20261023";
+// Permanent Job # display/search/creation is OFF by default.
+// Only a target-bound OWNER-reviewed D1 schema, immutable trigger/link and
+// numbering high-water receipt may authorize adding this flag to a build.
+// The actual D1 Job # ready check still blocks writes if data is incomplete.
+const NUMBERING_OPT_IN = process.env.FIRE_QA_JOB_NUMBERS_CANDIDATE;
+if (NUMBERING_OPT_IN && NUMBERING_OPT_IN !== "owner-approved-schema-v1") {
+  throw new Error("FIRE QA permanent Job # flag is not a reviewed value.");
+}
+if (NUMBERING_OPT_IN &&
+    (process.env.FIRE_QA_JOB_NUMBERS_D1_UUID !== QA_DB_ID ||
+     process.env.FIRE_QA_JOB_NUMBERS_SCHEMA_APPROVAL !== "owner-verified-qa-job-numbers-v1")) {
+  throw new Error("FIRE QA permanent Job #s require separate physical D1 schema and owner review.");
+}
+const reviewedJobNumberVars = NUMBERING_OPT_IN
+  ? { FIRE_JOB_NUMBERS_CANDIDATE: "owner-approved-schema-v1" }
+  : {};
+
 // Account origin verified by owner-provided Cloudflare Workers dashboard screenshot.
 // Pin the FULL origin to prevent a QA build from targeting any other account.
 const QA_SITE_ORIGIN = "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev";
@@ -48,7 +65,8 @@ export default defineConfig(async () => {
             FIRE_ENV: "synthetic-qa",
             FIRE_QA_SYNTHETIC_ONLY: "enabled",
             FIRE_LOCAL_CUSTOMERS_CANDIDATE: "synthetic-only",
-            SITE_ORIGIN: QA_SITE_ORIGIN
+            SITE_ORIGIN: QA_SITE_ORIGIN,
+            ...reviewedJobNumberVars
           },
           d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }],
           // Separate QA-only photo storage. Must be newly created and
