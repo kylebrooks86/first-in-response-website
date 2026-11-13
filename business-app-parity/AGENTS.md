@@ -1,3 +1,15 @@
+# CURRENT FIRE PROJECT STATE — NOVEMBER 13, 2026 (READ BEFORE HISTORICAL BATCH GUIDANCE)
+
+**ACTIVE SOURCE is [DRAFT PR #264](https://github.com/kylebrooks86/first-in-response-website/pull/264), NOT PR #244.** Use the latest exact PR #264 HEAD and [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) newest comments plus [canonical continuity register](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md). Older PR244/PR232 sections below are historical and must not send the owner back through accepted tests, failed Cloudflare Work sign-ins, D1 creation, login screenshots or obsolete Sites migrations.
+
+**Physical owner-provider state already established:** QA D1 `8ccfb1f8-1657-4074-b1b2-47de78f95003`; STAGING D1 `afb2c05a-d794-4a9a-b580-924ce01c26ad`; existing DR D1 `fire-fullapp-dr-db` / `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145`; and owner-created NEW LIVE D1 `fire-fullapp-new-live-db` / `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`. Owner's one-time NEW LIVE CREATE approval was used; **never recreate either database**. All four IDs are distinct. Worker binding, 26 actual migrations, off-device complete records/photo recovery, signed Stripe TEST and hosted parity remain unproven.
+
+**Recent code progression (NOT hosted):** PR264 source `8e3da42ee0f213a68f46b1f7bc3233b19a10e333` adds the correct local 26-migration DR/NEW LIVE Wrangler workspaces with actual target D1 UUID hard pins, SHA-256 receipts and tests; both independent-build CI jobs passed in run `43526102567`. Full-head CI was 14/15 completed-success at the saved checkpoint with a staging/browser group still running; check current status before reporting all 15 passed. Canonical continuity holds a **single new read-only Acer D1 SQL schema query**; do not invent a result or rerun accepted D1 info and create.
+
+**Owner requirements:** QA is master; NEW LIVE first real Job #0001; NO paid Cloudflare, R2 subscription, billing activation or upgrades; NO Work login loop; no provider writes/migrations/exports/deployments/Stripe/publish/merge/retirement without *new exact* action-scoped owner consent. Gates 1,2,3,8 accepted (4/10); Gates 4,5,6,7,9,10 OPEN, LIVE NO-GO. Preserve historic photos/test records, no real app customers have been onboarded.
+
+---
+
 # FIRE Business App parity requirement
 
 ## CURRENT OWNER CONTINUITY LOCK — 2026-11-13 (supersedes historical status and procedures below)
