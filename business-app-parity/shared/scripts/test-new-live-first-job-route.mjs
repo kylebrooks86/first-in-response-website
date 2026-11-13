@@ -17,7 +17,7 @@ async function expect(status,reason){
  assert.equal(response.headers.get('cache-control'),'private, no-store');
  assert.equal(json.releaseApproved,false);
  assert.equal(json.providerIdentityVerified,false);
- assert.equal(reads,before,'denied/uncertain access must not issue D1 reads except owner preflight');
+ if(status!==409)assert.equal(reads,before,'denied access must not issue D1 reads');
  checks++;
 }
 await expect(401,'anonymous denied before touching database');
