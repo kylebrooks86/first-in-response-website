@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {mkdtemp,rm,stat} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './shared/lib/numbered-records-v2-preflight.mjs';
@@ -31,6 +31,8 @@ try{
  live.prepare('INSERT INTO supplemental_synthetic(id,value) VALUES (?,?)').run('synthetic','owner-only');
  live.close();
  const exported=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
+ const originalSupplemental=JSON.parse(await readFile(supp,'utf8'));
+ assert.equal(originalSupplemental.tables.supplemental_synthetic.length,1);
  assert.equal(exported.coreAndSupplementalArchivesWritten,true);
  const result=await restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp);
  assert.equal(result.sqliteRestoreVerified,true);
@@ -39,5 +41,21 @@ try{
  assert.equal(restoredDb.prepare('SELECT value FROM supplemental_synthetic').get().value,'owner-only');
  restoredDb.close();
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp));
+ // Tampering the supplemental row-count manifest must fail closed and must
+ // not leave a partially restored destination file.
+ const invalid=join(folder,'invalid-supplemental.json');
+ const invalidOutput=join(folder,'rejected.sqlite');
+ const damaged=structuredClone(originalSupplemental);
+ damaged.rowCounts.supplemental_synthetic=2;
+ await writeFile(invalid,JSON.stringify(damaged));
+ await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,invalidOutput,invalid),
+  /row count|truncated|missing/i);
+ await assert.rejects(readFile(invalidOutput));
+ // A nonempty destination schema template is not a valid restore target.
+ const nonemptyTemplate=join(folder,'nonempty.sqlite');
+ await copyFile(source,nonemptyTemplate);
+ await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(
+  core,nonemptyTemplate,join(folder,'rejected-nonempty.sqlite'),supp),
+  /contains data|not empty/i);
  console.log('PASS synthetic isolated full-table SQLite export/restore and no-overwrite checks');
 }finally{await rm(folder,{recursive:true,force:true});}
