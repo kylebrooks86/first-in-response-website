@@ -121,7 +121,6 @@ export async function getOwnerUser(): Promise<OwnerUser | null> {
   if (process.env.NODE_ENV !== "production" && requestHeaders.get("host")?.startsWith("terminal.local")) {
     return { userId: "preview-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
   }
-  if(quickUnlockEnabled()&&!await verifyAccessOwnerRequest({headers:requestHeaders}))return null;
   if (!await sessionIsValid(cookieValue(requestHeaders.get("cookie")))) return null;
   return { userId: "fire-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
 }
