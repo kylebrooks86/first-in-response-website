@@ -26,7 +26,7 @@ const financialSource=['0015_single_open_checkout.sql','0017_one_invoice_per_est
  '0022_stripe_provider_uniqueness.sql'].map(name=>
   readFileSync(new URL('../../adapters/doomsday/drizzle/'+name,import.meta.url),'utf8')).join('\n');
 const actualFinancialIndexes=[...financialSource.matchAll(
- /CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+[`"]?(idx_[a-z0-9_]+)[`"]?\\s+[\\s\\S]*?;/gi)]
+ /CREATE\s+(?:UNIQUE\s+)?INDEX\s+[`"]?(idx_[a-z0-9_]+)[`"]?\s+[\s\S]*?;/gi)]
  .map(match=>({name:match[1],sql:match[0]}))
  .filter(item=>financialNames.includes(item.name))
  .sort((a,b)=>a.name.localeCompare(b.name));
