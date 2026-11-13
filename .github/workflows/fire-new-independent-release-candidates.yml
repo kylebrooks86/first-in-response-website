@@ -15,6 +15,8 @@ on:
       - 'business-app-parity/shared/components/offline-customer-photos.tsx'
       - 'business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs'
       - 'business-app-parity/shared/scripts/test-protected-photo-zip.mjs'
+      - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
       - '.github/workflows/fire-new-independent-release-candidates.yml'
 permissions:
@@ -59,6 +61,9 @@ jobs:
       - name: Verify changed encrypted photo ZIP backup and legacy compatibility locally
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs
+      - name: Pair numbered records and verified device photos without provider writes
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs
       - name: DR-only permanent Job # sign-in safety check (source only)
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/test_new_dr_numbered_login_schema.mjs
