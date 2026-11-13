@@ -55,9 +55,12 @@ async function sessionIsValid(value: string) {
   const parts = value.split(".");
   if (parts.length !== 3) return false;
   const [version, expiresText, signature] = parts;
-  if (version !== "v1" || !expiresText || !signature) return false;
+  if (version !== "v1" || !expiresText || !/^[A-Za-z0-9_-]{43}$/.test(signature)) return false;
   const expires = Number(expiresText);
-  if (!Number.isSafeInteger(expires) || expires <= Math.floor(Date.now() / 1000)) return false;
+  // Reject a correctly signed cookie whose expiry exceeds this deployment
+  // configured 30-day maximum. HMAC validity alone is not unlimited lifetime.
+  const now = Math.floor(Date.now() / 1000);
+  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + SESSION_SECONDS) return false;
   const expected = await hmac(version + "." + expiresText);
   return Boolean(expected && constantTimeEqual(signature, expected));
 }
