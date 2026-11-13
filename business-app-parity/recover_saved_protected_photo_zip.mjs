@@ -17,7 +17,7 @@ import {validateNumberedCoreRecordsV2} from './shared/lib/numbered-records-v2-pr
 
 const MAX_FILE=161*1024*1024+4096;
 const stop=message=>{throw Error('FIRE private photo ZIP recovery BLOCKED: '+message);};
-export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPlaintextRecovery=false,recordsPath}={}){
+export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPlaintextRecovery=false,recordsPath,recordsArchive}={}){
  if(!allowPlaintextRecovery)stop('explicit plaintext-recovery consent required');
  if(typeof input!=='string'||typeof output!=='string'||!input||!output||
     resolve(input)===resolve(output))stop('separate input and output files required');
@@ -35,14 +35,19 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  const plain=Buffer.from(await recovered.arrayBuffer());
  // Full CRC, SHA-256, filename, manifest and relationship verification BEFORE
  // creating any output. A corrupted or forged archive never writes photos.
- const proof=inspectStoredFirePhotoZip(plain,{includePhotoInventory:recordsPath!==undefined});
+ if(recordsPath!==undefined&&recordsArchive!==undefined)
+  stop('supply either a saved records path or authenticated in-memory records, never both');
+ const hasRecords=recordsPath!==undefined||recordsArchive!==undefined;
+ const proof=inspectStoredFirePhotoZip(plain,{includePhotoInventory:hasRecords});
  let matchingRecordsVerified=false;
- if(recordsPath!==undefined){
-  if(typeof recordsPath!=='string'||!recordsPath||resolve(recordsPath)===resolve(output))
-   stop('independent numbered-records source file required');
-  let records;
-  try{records=JSON.parse(await readFile(resolve(recordsPath),'utf8'));}
-  catch{stop('numbered customer records file cannot be read');}
+ if(hasRecords){
+  let records=recordsArchive;
+  if(recordsPath!==undefined){
+   if(typeof recordsPath!=='string'||!recordsPath||resolve(recordsPath)===resolve(output))
+    stop('independent numbered-records source file required');
+   try{records=JSON.parse(await readFile(resolve(recordsPath),'utf8'));}
+   catch{stop('numbered customer records file cannot be read');}
+  }
   try{validateNumberedCoreRecordsV2(records);}
   catch{stop('numbered customer records archive is incomplete or invalid');}
   if(records.tables.customer_photos.length!==0)
