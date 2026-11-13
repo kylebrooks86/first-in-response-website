@@ -105,4 +105,38 @@ assert.ok(approvedPicker.includes('{jobNumberLabel(job.jobNumber)&&<>{jobNumberL
   'Show the DB-backed Job # alongside the customer and service in booking choices');
 console.log('PASS: Schedule approved-job picker has permanent Job # display and search without inventing numbers');
 
+// Customer history contains scoped, owner-verified Job # values and can
+// search them directly without parsing internal UUIDs or disclosing numbers
+// to a different customer record.
+const customerSearchStart=scheduleSource.indexOf('const matchingEstimates=customerEstimates.filter(');
+const customerSearchEnd=scheduleSource.indexOf('const matchingPayments=customerPayments.filter(',customerSearchStart);
+assert.ok(customerSearchStart>=0&&customerSearchEnd>customerSearchStart,'Locate Customer history filters');
+const customerSearch=scheduleSource.slice(customerSearchStart,customerSearchEnd);
+assert.ok(customerSearch.includes('matchesJobNumberQuery(row.jobNumber,recordSearch)'),
+  'Customer estimate and invoice history must accept the original permanent Job #');
+assert.equal(customerSearch.split('matchesJobNumberQuery(row.jobNumber,recordSearch)').length-1,2,
+  'Both customer estimate and invoice tabs must match Job # searches');
+
+// Unpaid balances, review follow-ups and payment history must use the
+// feature-gated job number already attached to their saved estimate.
+// Do not manufacture numbers from invoice/payment IDs or query D1 again.
+const paymentSearchStart=scheduleSource.indexOf('function PaymentsView(');
+assert.ok(paymentSearchStart>=0,'Locate actual owner Payments workspace');
+const paymentView=scheduleSource.slice(paymentSearchStart);
+assert.ok(paymentView.includes('const paymentJobNumbers=new Map(estimates.map(job=>[job.id,job.jobNumber] as const))'),
+  'Paid review follow-ups must resolve the original attached Job #');
+assert.ok(paymentView.includes('matchesJobNumberQuery(paymentJobNumbers.get(item.estimateId),reviewCloseoutSearch)'),
+  'Review follow-up search must recognize explicit Job # input');
+assert.ok(paymentView.includes('matchesJobNumberQuery(item.jobNumber,searchQuery)'),
+  'Global payment balance search must recognize explicit Job # input');
+assert.ok(paymentView.includes('placeholder="Job #, customer, service or address"'),
+  'The balance search should advertise Job # lookup');
+assert.ok(paymentView.includes('placeholder="Customer, Job # or saved ID"'),
+  'The paid review follow-up search should advertise Job # lookup');
+assert.ok(paymentView.includes('{jobNumberLabel(paymentJobNumbers.get(item.estimateId))&&<small>'),
+  'Paid review follow-up card must display only a verified existing Job #');
+assert.ok(paymentView.includes('<strong>{estimate.customer}</strong>{jobNumberLabel(estimate.jobNumber)&&<small>'),
+  'Unpaid job card must display its immutable reference');
+console.log('PASS: Customer history, unpaid balances and paid review follow-ups display and search verified Job # references');
+
 console.log('PASS: token-scoped customer display and owner batched lookups');
