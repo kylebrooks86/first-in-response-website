@@ -206,8 +206,13 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
    FIRE_PHOTO_STORAGE_MODE:PHOTO_MODE,
    [spec.prefix+'_AUTH_ENABLED']:authValue
   };
-  if(authValue==='owner-approved')
+  if(authValue==='owner-approved'){
    allowedVars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+   if(target==='independent-live'){
+    allowedVars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+    allowedVars.FIRE_NEW_LIVE_CLEAN_START='required';
+   }
+  }
   if(config.vars?.FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1'){
    allowedVars.FIRE_QUICK_AUTH_MODE='passkey-or-pin-v1';
    allowedVars.FIRE_ACCESS_TEAM_DOMAIN=config.vars.FIRE_ACCESS_TEAM_DOMAIN;
@@ -254,6 +259,15 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
   if(!['blocked','owner-approved'].includes(auth)||
      (auth==='owner-approved'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')||
      (auth==='blocked'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!==undefined)||
+     (target==='independent-live'&&auth==='owner-approved'&&
+       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!=='owner-approved-schema-v1'||
+        config.vars?.FIRE_NEW_LIVE_CLEAN_START!=='required'))||
+     (target==='independent-live'&&auth==='blocked'&&
+       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined||
+        config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined))||
+     (target==='independent-dr'&&
+       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined||
+        config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined))||
      (evidence.authEnabled!==(auth==='owner-approved'))||
      (evidence.jobNumberSourceFlagPrepared!==(auth==='owner-approved')))
    failPair('authentication and permanent Job # readiness disagree');
