@@ -30,6 +30,12 @@ export async function GET(request?:Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     // Read-only, owner-authenticated verification of an uncertain edit.
+    // A NEW LIVE customer must never save without its permanent Customer #.
+    // This is scoped to the owner-approved independent LIVE environment only.
+    if((env as typeof env & {FIRE_NEW_LIVE_CLEAN_START?:string}).FIRE_NEW_LIVE_CLEAN_START==='required'&&
+       (env as typeof env & {FIRE_CUSTOMER_NUMBERS_CANDIDATE?:string}).FIRE_CUSTOMER_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')
+      return Response.json({error:'NEW LIVE customer numbering is not enabled. No customer was created.'},
+        {status:503,headers:{'Cache-Control':'no-store, private'}});
     const numbered=await customerNumberingReady(env.DB,env);
     const numberColumn=numbered?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=c.id) AS customerNumber":"NULL AS customerNumber";
     const confirmId=request?new URL(request.url).searchParams.get("confirmEdit"):null;
@@ -135,6 +141,8 @@ export async function POST(request: Request) {
       if(!customer)return null;
       if(customer.name!==name||customer.email!==email||customer.phone!==phone||customer.address!==address||customer.leadSource!==leadSource)return Response.json({error:'This save identifier already belongs to different customer details. Check the saved customer; no records were overwritten.'},{status:409});
       const customerNumber=numbered?await customerNumberForCustomer(env.DB,id,env):null;
+      if(numbered&&!customerNumber)return Response.json({error:'Saved customer number could not be confirmed.',saveUncertain:true,requestId:id},
+        {status:503,headers:{'Cache-Control':'no-store, private'}});
       return Response.json({requestId:id,duplicate:true,customer:{...customer,customerNumber}},{headers:{'Cache-Control':'no-store, private'}});
     };
     if(requestId){const receipt=await replay();if(receipt)return receipt;}
@@ -159,6 +167,8 @@ export async function POST(request: Request) {
       :await insertStatement.first();
     if(!inserted){if(requestId){const receipt=await replay();if(receipt)return receipt;}return Response.json({error:'A matching customer already exists. Search and select their saved record instead of creating a duplicate.'},{status:409});}
     const customerNumber=numbered?await customerNumberForCustomer(env.DB,id,env):null;
+    if(numbered&&!customerNumber)return Response.json({error:'Customer saved but permanent number could not be confirmed. Check this same request before another save.',saveUncertain:true,requestId:id},
+      {status:503,headers:{'Cache-Control':'no-store, private'}});
     return Response.json({ requestId:id,customer: { id, name, email, phone, address, leadSource, createdAt,customerNumber, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201,headers:{"Cache-Control":"no-store, private"} });
   } catch {
     // A network failure can occur AFTER an atomic D1 batch commits. Confirm
