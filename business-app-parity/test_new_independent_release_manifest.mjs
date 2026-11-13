@@ -78,6 +78,19 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...quickOpts,accessOwnerEmail:'not-email'});
  reject(manifest,{...quickOpts,enableAuth:false});
  reject(manifest,{...quickOpts,pinSecretNamesAttestation:null});
+ if(target==='independent-dr'){
+  const drNumbers={...quickOpts,
+   jobNumbersSchemaAttestation:'owner-verified-independent-dr-job-numbers-v1'};
+  const numbered=prepareReviewedIndependentManifest(target,manifest,drNumbers);
+  check(()=>assert.equal(numbered.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,'owner-approved-schema-v1'),
+   'reviewed DR schema enables permanent numbering');
+  check(()=>assert.equal(allowed.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,undefined),
+   'DR remains unnumbered by default');
+  check(()=>assert.equal(numbered.evidence.jobNumberSchemaPhysicallyVerified,false),
+   'DR manifest preparation does not attest a physical schema');
+  reject(manifest,{...opts,jobNumbersSchemaAttestation:drNumbers.jobNumbersSchemaAttestation});
+  reject(manifest,{...drNumbers,jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'});
+ }
  if(target==='independent-live'){
   // No actual provider attestation is created by this test: these strings are
   // synthetic only, and the source manifest remains blocked.
