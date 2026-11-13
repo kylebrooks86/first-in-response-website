@@ -48,7 +48,8 @@ const create=(override={})=>{
 const env={FIRE_ENV:'new-live-prelaunch',FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
  FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1'};
 const actualSql=readdirSync(new URL('../../adapters/doomsday/drizzle/',import.meta.url))
- .filter(name=>/^\\d{4}_.+\\.sql$/.test(name)).sort();
+ .filter(name=>name.length>8&&name.slice(0,4).split('').every(ch=>ch>='0'&&ch<='9')&&
+  name[4]==='_'&&name.endsWith('.sql')).sort();
 assert.deepEqual(EXPECTED_NEW_LIVE_D1_MIGRATIONS,actualSql,
  'The exact applied journal allowlist MUST match all 25 reviewed adapter migrations');
 checks++;
