@@ -1449,10 +1449,15 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><h1>Today</h1></div><NewEstimate onSaved={onSaved} /></section>
-      {summaryVerified&&metrics.estimates===0&&estimates.length===0&&<section className="business-panel" role="region" aria-label="Start using your empty FIRE app">
-        <header><div><h2>No estimates yet</h2></div></header>
-        
-        <Button className="brand-button" onClick={()=>onNavigate("customers")}><Users className="h-4 w-4"/> Customers</Button>
+      {summaryVerified&&metrics.estimates===0&&estimates.length===0&&<section className="business-panel fire-first-job" role="region" aria-label="First job workflow">
+        <header><div><h2>Ready for your first job</h2><p>Follow the job from first contact to final payment.</p></div></header>
+        <ol className="fire-first-job-steps" aria-label="FIRE job workflow">
+          <li><span className="fire-first-job-icon"><Users aria-hidden="true"/></span><span><strong>1 · Customer</strong><small>Save their contact and address.</small></span></li>
+          <li><span className="fire-first-job-icon"><ClipboardList aria-hidden="true"/></span><span><strong>2 · Estimate</strong><small>Build the quote and review it before sending.</small></span></li>
+          <li><span className="fire-first-job-icon"><CalendarDays aria-hidden="true"/></span><span><strong>3 · Schedule</strong><small>Book the approved work.</small></span></li>
+          <li><span className="fire-first-job-icon"><Receipt aria-hidden="true"/></span><span><strong>4 · Get paid</strong><small>Invoice and record the payment.</small></span></li>
+        </ol>
+        <div className="fire-first-job-action"><Button className="brand-button" onClick={()=>onNavigate("customers")}><Users aria-hidden="true" className="h-4 w-4"/> Open customers <ChevronRight aria-hidden="true" className="h-4 w-4"/></Button><p>Or tap <strong>New estimate</strong> above to start a quote. Nothing sends automatically.</p></div>
       </section>}
       {(priorityCount>0||incompletePrioritySources)&&<section className="dashboard-priority-strip" aria-label="Needs attention" role="region">
         <header><div><h2><AlertTriangle aria-hidden="true"/> Needs attention <span>{priorityCount} item{priorityCount===1?"":"s"}</span></h2></div></header>
@@ -5785,7 +5790,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
         <nav aria-label="All business sections">
           <p className="sidebar-nav-heading">Everyday</p>
-          {nav.slice(0,7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} aria-current={tab===id?"page":undefined} onClick={()=>{if(setTab(id))setMobileMenu(false);}}><Icon aria-hidden="true"/><span>{label}</span>{id==="estimates"&&liveMetrics.estimates>0&&<b>{liveMetrics.estimates}</b>}</button>)}
+          {nav.slice(0,7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} aria-current={tab===id?"page":undefined} onClick={()=>{if(setTab(id))setMobileMenu(false);}}><Icon aria-hidden="true"/><span>{label}</span>{id==="estimates"&&liveMetrics.estimates>0&&<b title={liveMetrics.estimates+" total estimates"} aria-label={liveMetrics.estimates+" total estimates"}>{liveMetrics.estimates}</b>}</button>)}
           <details className="sidebar-more-nav" open={moreNavOpen} onToggle={event=>setMoreNavOpen(event.currentTarget.open)}>
             <summary aria-label="More business tools">More tools <ChevronDown aria-hidden="true"/></summary>
             <div className="sidebar-more-items">
