@@ -118,7 +118,8 @@ function restore(db,archive,supplemental){
    const normalize=rows=>rows.map(row=>stable(Object.fromEntries(
     Object.entries(row).filter(([k])=>Object.hasOwn(expected[0]||{},k))
    ))).sort();
-   if(stable(normalize(actual))!==stable(normalize(expected)))
+   if(actual.some(row=>Object.keys(expected[0]||{}).some(k=>!Object.hasOwn(row,k)))||
+      stable(normalize(actual))!==stable(normalize(expected)))
     stop('supplemental restored values differ in '+t);
   }
   for(const [t,high] of [['fire_customer_numbers',archive.highWater.customer],
