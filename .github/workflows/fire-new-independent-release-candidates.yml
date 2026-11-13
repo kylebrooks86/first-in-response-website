@@ -27,6 +27,7 @@ on:
       - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
       - 'business-app-parity/test_independent_numbered_release_migration.mjs'
       - 'business-app-parity/prepare_independent_d1_migration_workspace.mjs'
+      - 'business-app-parity/reviewed_independent_d1_sql_blobs.mjs'
       - 'business-app-parity/test_prepare_independent_d1_migration_workspace.mjs'
       - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
