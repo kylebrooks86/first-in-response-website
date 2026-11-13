@@ -43,7 +43,8 @@ const fail=reason=>{throw Error('FIRE independent D1 reviewed SQL source BLOCKED
 export function gitSqlBlobSha1(bytes){
  if(!Buffer.isBuffer(bytes))fail('SQL content must be raw bytes');
  return createHash('sha1')
-  .update(Buffer.from('blob '+bytes.length+'\\0','utf8'))
+  .update(Buffer.from('blob '+bytes.length,'utf8'))
+  .update(Buffer.from([0]))
   .update(bytes)
   .digest('hex');
 }
