@@ -104,7 +104,7 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  // a source-bound read, NOT provider-attested physical execution provenance.
  const migrationJournal=await one(db,'SELECT COUNT(*) AS n FROM "d1_migrations"');
  if(naturalCount(migrationJournal?.n,'D1 migration journal')!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
-  stop('D1 migration journal must contain exactly the reviewed 25 migrations');
+  stop('D1 migration journal must contain exactly the reviewed 26 independent migrations');
  try{await assertNewLiveMigrationJournal(db);}
  catch{stop('D1 migration journal names, IDs or order disagree with reviewed source');}
  // AUTOINCREMENT can retain a high-water even after deleting all rows. That
