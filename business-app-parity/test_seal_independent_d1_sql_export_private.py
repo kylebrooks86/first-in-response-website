@@ -146,6 +146,25 @@ class PrivateD1SqlBridge(unittest.TestCase):
             self.bridge(src=incomplete, digest=hashlib.sha256(incomplete.read_bytes()).hexdigest())
         self.assertFalse(self.output.exists())
 
+    def test_full_sql_cannot_omit_index_while_preserving_all_journal_rows(self):
+        # A filtered/altered dump can keep all 26 migration names but lose an
+        # independent refund/financial safeguard. Do not encrypt it as complete.
+        db = sqlite3.connect(self.template)
+        try:
+            chosen = db.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND sql IS NOT NULL"
+                " ORDER BY name LIMIT 1"
+            ).fetchone()
+            self.assertIsNotNone(chosen, "reviewed 26-migration schema needs named indexes")
+        finally:
+            db.close()
+        partial = Path(self.tmp.name) / "omitted-index-full-journal.sql"
+        partial.write_text(self.source.read_text("utf-8") +
+                           '\nDROP INDEX "' + chosen[0] + '";\n', "utf-8")
+        with self.assertRaises(LocalBridgeStop):
+            self.bridge(src=partial, digest=hashlib.sha256(partial.read_bytes()).hexdigest())
+        self.assertFalse(self.output.exists())
+
     def test_wrong_hash_and_no_private_folder_approval_fail_closed(self):
         with self.assertRaises(LocalBridgeStop):
             self.bridge(digest="0" * 64)
