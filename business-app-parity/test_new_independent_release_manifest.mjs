@@ -1,6 +1,6 @@
 /** Exact NEW DR/LIVE local release-identity smoke: no provider traffic or writes. */
 import assert from 'node:assert/strict';
-import {prepareReviewedIndependentManifest} from './prepare_new_independent_release_manifest.mjs';
+import {prepareReviewedIndependentManifest,reviewIndependentReleasePair} from './prepare_new_independent_release_manifest.mjs';
 const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
 const TARGETS=[
  ['independent-dr','fire-fullapp-dr','fire-fullapp-dr-db','fire-fullapp-dr-photos',
@@ -117,5 +117,46 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  }
 
 }
+
+// Critically, an individually valid manifest can still reuse the *other*
+// release's D1. The independent candidate pair must be reviewed together.
+// All UUIDs and approvals below are synthetic test inputs, NOT provider proof.
+const sample=(target,id)=> {
+ const item=TARGETS.find(x=>x[0]===target);
+ return prepareReviewedIndependentManifest(target,v(...item),{
+  databaseId:id,photoStorageMode:'owner-device-zip',
+  resourceAttestation:'owner-checked-'+target,enableAuth:false
+ });
+};
+const simulatedDr=sample('independent-dr','54a5e470-2ae3-471b-a2db-ea8bdf092513');
+const simulatedLive=sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092514');
+const pair=reviewIndependentReleasePair(simulatedDr,simulatedLive);
+check(()=>assert.equal(pair.d1IdsDistinct,true),'source-only DR and NEW LIVE D1 IDs must differ');
+check(()=>assert.equal(pair.noR2OrOtherStorageBound,true),'pair contains no cloud photo subscription');
+check(()=>assert.equal(pair.isolatedRestoreVerified,false),'pair proof never claims physical recovery');
+check(()=>assert.equal(pair.providerResourcesIndependentlyVerified,false),'pair proof never claims provider identity');
+check(()=>assert.equal(pair.ownerApprovedDeployment,false),'pair proof is not provider write authorization');
+const pairReject=(dr,live,description)=>check(()=>assert.throws(
+ ()=>reviewIndependentReleasePair(dr,live),/BLOCKED/,description),description);
+pairReject(simulatedDr,sample('independent-live','54a5e470-2ae3-471b-a2db-ea8bdf092513'),
+ 'two valid target manifests sharing one D1 must STOP');
+pairReject(simulatedLive,simulatedDr,'swapped target manifests must STOP');
+pairReject(simulatedDr,undefined,'missing NEW LIVE manifest must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ r2_buckets:[{binding:'BUCKET',bucket_name:'unapproved'}]}},'R2 addition must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ kv_namespaces:[{binding:'PHOTOS',id:'paid-or-unreviewed'}]}},'unknown KV storage must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ services:[{binding:'PROXY',service:'some-other-app'}]}},'extra service must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ secrets:{required:simulatedDr.config.secrets.required}}},'reused DR secret names must STOP');
+pairReject(simulatedDr,{...simulatedLive,config:{...simulatedLive.config,
+ vars:{...simulatedLive.config.vars,FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'}}},
+ 'auth enabled without permanent Job schema must STOP');
+pairReject(simulatedDr,{...simulatedLive,evidence:{...simulatedLive.evidence,
+ isolatedPhotoRestoreVerified:true}},'fabricated photo restore acceptance must STOP');
+pairReject(simulatedDr,{...simulatedLive,evidence:{...simulatedLive.evidence,
+ ownerApprovedDeployment:true}},'fabricated approval must STOP');
+
 check(()=>assert.throws(()=>prepareReviewedIndependentManifest('qa',{},{}),/BLOCKED/),'unreviewed target');
 console.log('PASS '+checks+'/'+checks+' DR and NEW LIVE source-only independent Worker/D1/no-R2 device-ZIP/auth release config controls; no real resources or deployment.');
