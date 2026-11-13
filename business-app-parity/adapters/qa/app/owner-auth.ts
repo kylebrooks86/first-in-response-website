@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import {verifyCloudflareAccessOwnerJwt} from "../lib/access-passkey-identity.mjs";
 
 export type OwnerUser = {
   userId: string;
@@ -85,6 +86,35 @@ export async function verifyIndependentPassword(password: string) {
   return constantTimeEqual(suppliedHash, configuredHash);
 }
 
+
+/** Optional secure convenience login. Defaults OFF in every compiled environment.
+ * Cloudflare Access must first verify owner identity for this exact Worker.
+ * A PIN alone NEVER authenticates an unverified public request.
+ */
+export function quickUnlockEnabled() {
+ return (env as typeof env & {FIRE_QUICK_AUTH_MODE?:string}).FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1';
+}
+export async function verifyAccessOwnerRequest(request:{headers:Headers}) {
+ if(!quickUnlockEnabled())return false;
+ const v=env as typeof env & {FIRE_ACCESS_TEAM_DOMAIN?:string;
+  FIRE_ACCESS_AUDIENCE?:string;FIRE_ACCESS_OWNER_EMAIL?:string};
+ return verifyCloudflareAccessOwnerJwt(request.headers.get('cf-access-jwt-assertion'),{
+  teamDomain:v.FIRE_ACCESS_TEAM_DOMAIN,
+  audience:v.FIRE_ACCESS_AUDIENCE,ownerEmail:v.FIRE_ACCESS_OWNER_EMAIL
+ });
+}
+export async function verifyIndependentPin(pin:string) {
+ const v=env as typeof env & {FIRE_QA_PIN_HASH?:string;FIRE_QA_PIN_PEPPER?:string};
+ if(!quickUnlockEnabled()||typeof pin!=='string'||! /^\d{4}$/.test(pin)||
+  typeof v.FIRE_QA_PIN_HASH!=='string'||!/^[0-9a-f]{64}$/.test(v.FIRE_QA_PIN_HASH)||
+  !v.FIRE_QA_PIN_PEPPER||v.FIRE_QA_PIN_PEPPER.length<32)return false;
+ const key=await crypto.subtle.importKey('raw',encoder.encode(v.FIRE_QA_PIN_PEPPER),
+  {name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const proof=new Uint8Array(await crypto.subtle.sign('HMAC',key,encoder.encode(pin)));
+ const digest=Array.from(proof,b=>b.toString(16).padStart(2,'0')).join('');
+ return constantTimeEqual(digest,v.FIRE_QA_PIN_HASH);
+}
+
 export async function independentSessionCookie() {
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
   const value = "v1." + expires;
@@ -100,6 +130,7 @@ export function clearedIndependentSessionCookie() {
 export async function getOwnerUser(): Promise<OwnerUser | null> {
   if (!qaEnvironmentEnabled()) return null;
   const requestHeaders = await headers();
+  if(quickUnlockEnabled()&&!await verifyAccessOwnerRequest({headers:requestHeaders}))return null;
   if (!await sessionIsValid(cookieValue(requestHeaders.get("cookie")))) return null;
   return { userId: "fire-qa-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
 }
