@@ -16,12 +16,15 @@ const check=(name,verify)=>{verify();checks++};
 check('DR owner environment requires real permanent Job # source flag',()=>{
  assert.match(auth,/FIRE_DR_AUTH_ENABLED !== "owner-approved"/);
  assert.match(auth,/FIRE_JOB_NUMBERS_CANDIDATE !== "owner-approved-schema-v1"/);
+ assert.match(auth,/FIRE_CUSTOMER_NUMBERS_CANDIDATE !== "owner-approved-schema-v1"/);
 });
 check('DR explicitly imports physical DB Job # checker',()=>{
  assert.match(auth,/import \{jobNumberingReady\} from "\.\.\/lib\/job-numbering\.mjs";/);
+ assert.match(auth,/import \{customerNumberingReady\} from "\.\.\/lib\/customer-numbering\.mjs";/);
  assert.match(auth,/export async function verifiedDrJobNumberSchema\(\)/);
  assert.match(auth,/!env\.DB/);
  assert.match(auth,/await jobNumberingReady\(env\.DB, env\)/);
+ assert.match(auth,/await customerNumberingReady\(env\.DB, env\)/);
  assert.match(auth,/catch \{ return false; \}/);
 });
 check('DR long-passphrase authentication never bypasses D1',()=>{
@@ -45,6 +48,7 @@ check('DR login checks schema before any PIN, passkey or passphrase session',()=
 check('DR sign-in gate has no schema writes or automatic repair',()=>{
  const block=auth.slice(auth.indexOf('export async function verifiedDrJobNumberSchema'),auth.indexOf('\nfunction secrets()'));
  assert.match(block,/jobNumberingReady\(env\.DB, env\)/);
+ assert.match(block,/customerNumberingReady\(env\.DB, env\)/);
  assert.doesNotMatch(block,/\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bALTER\b|\bDROP\b|migrat|wrangler/i);
 });
 const manifest={
@@ -69,10 +73,12 @@ check('DR manifest remains auth blocked before recovery',()=>{
 check('DR reviewed numbered schema still requires physically verified provider readiness',()=>{
  const prepared=prepareReviewedIndependentManifest('independent-dr',manifest,{
   ...options,enableAuth:true,authAttestation:'owner-approved-independent-dr-auth',
-  jobNumbersSchemaAttestation:'owner-verified-independent-dr-job-numbers-v1'
+  jobNumbersSchemaAttestation:'owner-verified-independent-dr-job-numbers-v1',
+  customerNumbersSchemaAttestation:'owner-verified-independent-dr-customer-numbers-v1'
  });
  assert.equal(prepared.config.vars.FIRE_DR_AUTH_ENABLED,'owner-approved');
  assert.equal(prepared.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,'owner-approved-schema-v1');
+ assert.equal(prepared.config.vars.FIRE_CUSTOMER_NUMBERS_CANDIDATE,'owner-approved-schema-v1');
  assert.equal(prepared.evidence.jobNumberSchemaPhysicallyVerified,false);
  assert.equal(prepared.evidence.providerResourcesIndependentlyVerified,false);
  assert.equal(prepared.evidence.ownerApprovedDeployment,false);
