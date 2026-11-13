@@ -279,6 +279,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    <div className="photo-buttons">
     <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive("customer",true)}><Download className="h-4 w-4"/>Protect this customer’s photos</Button>
     <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive("all",false)}><Download className="h-4 w-4"/>Legacy unencrypted all-photos ZIP</Button>
+    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive("customer",false)}><Download className="h-4 w-4"/>Legacy unencrypted this customer’s photos ZIP</Button>
     {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared backup</Button>}
     <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo backup</Button>
    </div>
