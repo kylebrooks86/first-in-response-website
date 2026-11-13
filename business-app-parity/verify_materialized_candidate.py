@@ -12,7 +12,7 @@ import sys
 
 from candidate_release_manifest import APP_ADAPTERS, ROOT, inventory
 
-TARGETS = ("live", "doomsday", "staging", "qa", "independent-staging")
+TARGETS = ("live", "doomsday", "staging", "qa", "independent-staging", "independent-dr", "independent-live")
 # Only locally produced build artifacts are omitted from source comparisons.
 # Original strict source verification is unchanged when built=False.
 BUILT_TOP_LEVEL_DIRS = {"dist", "node_modules", ".wrangler", ".next", ".vite"}
@@ -45,7 +45,7 @@ def inventory_built_sources(directory):
 
 def check(target, directory, built=False):
     if target not in TARGETS:
-        raise ValueError("Unknown candidate; expected live, doomsday, staging, qa or independent-staging.")
+        raise ValueError("Unknown candidate; expected one of the reviewed FIRE release targets.")
     directory = Path(directory).resolve(strict=True)
     if not directory.is_dir() or directory.is_symlink():
         raise ValueError("Candidate must be a real directory, not a symlink.")
@@ -53,7 +53,9 @@ def check(target, directory, built=False):
     adapter_dirs = ([ROOT / "adapters" / "doomsday", ROOT / "adapters" / "qa"]
                     if target == "qa" else
                     [ROOT / "adapters" / "doomsday", ROOT / "adapters" / "independent-staging"]
-                    if target == "independent-staging" else [ROOT / "adapters" / target])
+                    if target == "independent-staging" else
+                    [ROOT / "adapters" / "doomsday", ROOT / "adapters" / target]
+                    if target in ("independent-dr", "independent-live") else [ROOT / "adapters" / target])
     adapters = {}
     absent = []
     for adapter_dir in adapter_dirs:
@@ -77,7 +79,9 @@ def check(target, directory, built=False):
     if not identity.is_file():
         raise ValueError("Required target-fixed local-customer identity adapter is missing.")
     identity_source = identity.read_text()
-    expected_namespace = "staging" if target == "independent-staging" else target
+    expected_namespace = ("staging" if target == "independent-staging" else
+                          "doomsday" if target == "independent-dr" else
+                          "live" if target == "independent-live" else target)
     expected_identity = f"export const LOCAL_CUSTOMER_DEPLOYMENT = '{expected_namespace}' as const;"
     declarations = re.findall(r"export\s+(?:const|function|class)\s+([A-Za-z0-9_]+)", identity_source)
     if declarations != ["LOCAL_CUSTOMER_DEPLOYMENT"] or expected_identity not in identity_source:
@@ -88,7 +92,7 @@ def check(target, directory, built=False):
     expected.update({name: digest for name, digest in adapters.items() if name != "ABSENT_FILES.json"})
     for name in absent:
         expected.pop(name, None)
-    if built and target not in ("qa", "independent-staging"):
+    if built and target not in ("qa", "independent-staging", "independent-dr", "independent-live"):
         raise ValueError("Built output verification supports isolated QA and independent staging only.")
     actual = inventory_built_sources(directory) if built else inventory(directory)
     missing = sorted(set(expected) - set(actual))
