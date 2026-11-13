@@ -13,7 +13,7 @@ import {compileEmptyIsolatedNumberedRestore} from './compile_isolated_numbered_r
 const fail=why=>{throw Error('FIRE isolated SQL preparation BLOCKED: '+why);};
 export async function prepareIsolatedRecordsRestore(recordsPath,inventoryPath,outputPath){
  if([recordsPath,inventoryPath,outputPath].some(x=>typeof x!=='string'||!x)||
-    new Set([recordsPath,inventoryPath,outputPath].map(resolve)).size!==3)
+    new Set([recordsPath,inventoryPath,outputPath].map(p=>resolve(p))).size!==3)
   fail('three separate source/inventory/output files required');
  let records,inventory;
  try{
