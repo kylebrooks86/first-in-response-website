@@ -27,9 +27,13 @@ assert.equal(completedJobCount({completedJobs:0}),0);
 assert.equal(completedJobCount({completedJobs:10}),10);
 assert.equal(completedJobCount({completedJobs:-1}),null);
 assert.equal(completedJobCount({completedJobs:'10'}),null);
-assert.match(JOB_NUMBER_FOR_ESTIMATE_SQL,/WHERE estimate_id=\?/);
-assert.match(JOB_REFERENCE_BY_INVOICE_SQL,/inv.id=\?/);
+assert.match(JOB_NUMBER_FOR_ESTIMATE_SQL,/WHERE l\.estimate_id=\?/);
+assert.match(JOB_NUMBER_FOR_ESTIMATE_SQL,/e\.customer_id=root\.customer_id/);
+assert.match(JOB_NUMBER_FOR_ESTIMATE_SQL,/origin\.estimate_id=root\.id/);
+assert.match(JOB_REFERENCE_BY_INVOICE_SQL,/inv\.id=\?/);
+assert.match(JOB_REFERENCE_BY_INVOICE_SQL,/inv\.customer_id=e\.customer_id/);
 assert.match(COMPLETED_JOB_COUNT_SQL,/COUNT\(DISTINCT links.job_number\)/);
+assert.match(COMPLETED_JOB_COUNT_SQL,/e\.customer_id=root\.customer_id/);
 
 const calls=[];
 const fakeDb={prepare(sql){return {bind(...values){const statement={sql,values};calls.push(statement);return statement;}}}};
