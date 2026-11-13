@@ -113,6 +113,12 @@ export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const body = await readCustomerRequest(request);
   if (!body) return Response.json({ error: "A valid customer request is required." }, { status: 400 });
+  // Preserve the same operation identity across a lost D1 acknowledgement.
+  // Never issue a second INSERT automatically: a committed customer must be
+  // recovered by authoritative readback, including its permanent number.
+  const recoveryRequestId=typeof body.requestId==='string'&&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId)
+      ?body.requestId:null;
   try {
     const name = String(body.name ?? "").trim();
     const email = String(body.email ?? "").trim();
@@ -155,7 +161,33 @@ export async function POST(request: Request) {
     const customerNumber=numbered?await customerNumberForCustomer(env.DB,id,env):null;
     return Response.json({ requestId:id,customer: { id, name, email, phone, address, leadSource, createdAt,customerNumber, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201,headers:{"Cache-Control":"no-store, private"} });
   } catch {
-    return Response.json({ error: "Customer save confirmation is uncertain. Check the same request before creating another record." }, { status: 500 });
+    // A network failure can occur AFTER an atomic D1 batch commits. Confirm
+    // the exact saved operation before asking the owner to retry or reenter.
+    if(recoveryRequestId){
+      try{
+        const receipt=await customerCreationReceipt(env.DB,recoveryRequestId);
+        if(receipt){
+          const same=receipt.name===String(body.name??"").trim()&&
+            receipt.email===String(body.email??"").trim()&&
+            receipt.phone===String(body.phone??"").trim()&&
+            receipt.address===String(body.address??"").trim()&&
+            receipt.leadSource===(String(body.leadSource??"Unknown").trim()||"Unknown");
+          if(!same)return Response.json({
+            error:"This save identifier belongs to different customer details. Reopen the saved record before retrying."
+          },{status:409,headers:{"Cache-Control":"no-store, private"}});
+          const numbered=await customerNumberingReady(env.DB,env);
+          const customerNumber=numbered?await customerNumberForCustomer(env.DB,recoveryRequestId,env):null;
+          return Response.json({requestId:recoveryRequestId,duplicate:true,
+            recoveredAfterUncertainSave:true,customer:{...receipt,customerNumber}},
+            {status:200,headers:{"Cache-Control":"no-store, private"}});
+        }
+      }catch{
+        // No reliable readback. Never infer whether the INSERT committed.
+      }
+    }
+    return Response.json({error:"Customer save confirmation is uncertain. Check the same request before creating another record.",
+      saveUncertain:true,requestId:recoveryRequestId},
+      {status:503,headers:{"Cache-Control":"no-store, private"}});
   }
 }
 
