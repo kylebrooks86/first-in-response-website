@@ -24,7 +24,7 @@ const normalized=v=>{
   return Number(v);
  stop('SQLite binary, unsafe integer or unsupported field cannot be exported losslessly');
 };
-function capture(db){
+export function captureCompleteIsolatedSqliteSnapshot(db){
  // Freeze schema names, definitions, rows and serial high-water together.
  // A separate SELECT before BEGIN could omit a concurrently added table.
  db.exec('BEGIN');
@@ -79,7 +79,7 @@ export async function exportCompleteIsolatedSqliteSnapshot(sourcePath,corePath,s
   db=new DatabaseSync(resolve(sourcePath),{readOnly:true});
   if(db.prepare('PRAGMA journal_mode').get().journal_mode==='wal')
    stop('WAL-backed source must first be checkpointed to a standalone snapshot');
-  const captured=capture(db);
+  const captured=captureCompleteIsolatedSqliteSnapshot(db);
   db.close();db=undefined;
   coreFile=await open(resolve(corePath),'wx',0o600);createdCore=true;
   await coreFile.writeFile(JSON.stringify(captured.core),'utf8');
