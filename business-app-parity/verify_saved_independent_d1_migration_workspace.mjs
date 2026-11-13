@@ -19,8 +19,15 @@ import {assertReviewedIndependentD1SqlBlobs,REVIEWED_INDEPENDENT_D1_SQL_BLOBS,gi
 
 const fail=reason=>{throw Error('FIRE SAVED independent D1 workspace BLOCKED: '+reason);};
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
-const isRealFile=path=>{const s=lstatSync(path);if(s.isSymbolicLink()||!s.isFile())fail('unexpected symlink or nonfile: '+path);};
-const isRealDir=path=>{const s=lstatSync(path);if(s.isSymbolicLink()||!s.isDirectory())fail('unexpected symlink or nondirectory: '+path);};
+const checkedStat=(path,kind)=>{
+ let stat;
+ try{stat=lstatSync(path);}catch{fail('required saved '+kind+' is missing or unreadable');}
+ if(stat.isSymbolicLink()||(kind==='file'?!stat.isFile():!stat.isDirectory()))
+  fail('unexpected symbolic link or non-'+kind+' in saved release workspace');
+ return stat;
+};
+const isRealFile=path=>checkedStat(path,'file');
+const isRealDir=path=>checkedStat(path,'directory');
 const exactList=(actual,expected)=>isDeepStrictEqual(actual.sort(),expected.slice().sort());
 const readJson=path=>{isRealFile(path);return JSON.parse(readFileSync(path,'utf8'));};
 
