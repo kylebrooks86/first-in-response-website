@@ -88,7 +88,9 @@ try{
  const badManifest=storedFireZip([['photos/'+photoId,photoBytes],
   ['manifest.json',Buffer.from(JSON.stringify({...manifest(),unknown:'unexpected'}))]]);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(badManifest)),/manifest/i);
- const badDirectory=zip();badDirectory.writeUInt32LE(0xfffffff0,42);
+ const badDirectory=zip();const centralAt=badDirectory.indexOf(Buffer.from([0x50,0x4b,0x01,0x02]));
+  ok(centralAt>=0,'synthetic ZIP central directory exists');
+  badDirectory.writeUInt32LE(0xfffffff0,centralAt+42);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(badDirectory)),/local file|metadata/i);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(
   zip([data,data]))),/incomplete|duplicate/i);
