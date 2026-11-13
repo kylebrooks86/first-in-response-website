@@ -95,6 +95,19 @@ try{
   'Duplicate reserved provider metadata fails closed');
  db.exec('DROP TABLE _cf_KV');
 
+ // workerd's local Wrangler D1 reserves a second exact metadata schema.
+ // Never include provider bookmarks or other bytes in customer records.
+ db.exec('CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB)');
+ insert('INSERT INTO _cf_METADATA(key,value) VALUES(?,?)',2,Buffer.from('synthetic-provider-bookmark'));
+ const localProviderSnapshot=await captureNumberedCoreV2ReadOnly(d1());
+ eq(localProviderSnapshot.rowCounts.payments,2,'Wrangler metadata does not suppress the financial ledger');
+ eq(Object.keys(localProviderSnapshot.tables).length,23,'Internal Wrangler bookkeeping never enters customer backup');
+ await reject(d1(result=>{result[0].results.find(row=>row.name==='_cf_METADATA').sql='CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB, secret TEXT)';}),
+  'Provider metadata with extra durable columns must be rejected');
+ await reject(d1(result=>{result[0].results.push({...result[0].results.find(row=>row.name==='_cf_METADATA')});}),
+  'Duplicate reserved Wrangler metadata must be rejected');
+ db.exec('DROP TABLE _cf_METADATA');
+
  await reject({prepare:()=>({}),batch:null},'Missing transactional D1 batch refused');
  await reject(d1(result=>{result[0].results.push({name:'unreviewed_business_table'});}), 'New unarchived table fails closed');
  await reject(d1(result=>{result[0].results=result[0].results.filter(r=>r.name!=='fire_job_numbers');}), 'Missing permanent identity SQL table fails closed');
