@@ -14,6 +14,7 @@ import {fileURLToPath} from 'node:url';
 import {validateNumberedCoreRecordsV2,NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './shared/lib/numbered-records-v2-preflight.mjs';
 
 import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
+import {fingerprintIsolatedSqliteSchema,requireSameIsolatedSchema} from './fingerprint_isolated_sqlite_schema.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
 const stop=reason=>{throw Error('FIRE isolated SQLite restore BLOCKED: '+reason);};
 const ident=x=>typeof x==='string'&&/^[a-z][a-z0-9_]*$/.test(x);
@@ -49,6 +50,9 @@ function inspectSchema(db){
 }
 function restore(db,archive,supplemental){
  const {found,extras}=inspectSchema(db);
+ const actualSchema=fingerprintIsolatedSqliteSchema(db);
+ requireSameIsolatedSchema(archive.schemaIdentity,actualSchema);
+ requireSameIsolatedSchema(supplemental.schemaIdentity,actualSchema);
  const supplementalState=validateSupplementalRecoveryArchive(supplemental,extras);
  // Restore requires AUTOINCREMENT number history to survive deleted rows.
  for(const t of ['fire_customer_numbers','fire_job_numbers'])
