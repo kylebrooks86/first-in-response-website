@@ -6,12 +6,14 @@
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
-import {mkdtemp,copyFile,readFile,writeFile,rm,access} from 'node:fs/promises';
+import {mkdtemp,copyFile,readFile,writeFile,rm,access,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
 import {exportCompleteIsolatedSqliteSnapshot} from './export_complete_isolated_sqlite_snapshot.mjs';
 import {restoreNumberedRecordsToIsolatedSqlite} from './restore_numbered_records_to_isolated_sqlite.mjs';
+import {sealCompleteIsolatedSqliteSnapshot,restoreSavedProtectedCompleteRecords,inspectSavedProtectedCompleteRecords}
+ from './protected_complete_isolated_sqlite_recovery.mjs';
 
 const folder=await mkdtemp(join(tmpdir(),'fire-migrated-journal-'));
 const template=join(folder,'independent-26-empty-schema.sqlite');
@@ -143,6 +145,61 @@ try{
   'after isolated restore a genuinely new estimate allocates Job #0002');
  resumed.close();
 
+ // The new no-paid encrypted full-record archive must independently export
+ // directly from SQLite without creating any plaintext JSON intermediary.
+ // Restore it into a separately migrated DR, preserving that DR's own journal.
+ const phrase='FIRE synthetic strong local recovery passphrase November 2026';
+ const protectedFile=join(folder,'complete-private.firerecords');
+ const protectedRecovered=join(folder,'recovered-from-protected.sqlite');
+ const sealed=await sealCompleteIsolatedSqliteSnapshot(source,protectedFile,phrase);
+ okay(sealed.encryptedRecordsArchiveCreated===true&&
+      sealed.savedEncryptedFileReadBack===true&&sealed.plaintextJsonFilesWritten===false,
+  'direct complete SQLite snapshot is AES-GCM protected without writing plain records JSON');
+ const ciphertext=await readFile(protectedFile);
+ okay(ciphertext.subarray(0,8).toString('ascii')==='FIRERB01'&&
+      !ciphertext.includes(Buffer.from('synthetic-owner@example.invalid'))&&
+      !ciphertext.includes(Buffer.from('synthetic-first-job')),
+  'saved private archive contains authenticated ciphertext, not visible customer/job data');
+ okay(((await stat(protectedFile)).mode&0o777)===0o600,
+  'saved full-record backup is owner-only mode 0600');
+ const unlocked=await inspectSavedProtectedCompleteRecords(protectedFile,phrase);
+ okay(unlocked.core.tables.customers[0].email==='synthetic-owner@example.invalid'&&
+      unlocked.supplemental.rowCounts.d1_migrations===26,
+  'verified saved encrypted file unseals complete customer and migration data only in memory');
+ const privatelyRestored=await restoreSavedProtectedCompleteRecords(
+  protectedFile,independentTemplate,protectedRecovered,phrase);
+ okay(privatelyRestored.sqliteRestoreVerified&&
+      privatelyRestored.existingD1MigrationRowsVerified===26&&
+      privatelyRestored.plaintextJsonFilesWritten===false,
+  'encrypted full records restore directly into independent 26-migration DR');
+ const privateDb=new DatabaseSync(protectedRecovered);
+ okay(privateDb.prepare("SELECT customer_number AS n FROM fire_customer_numbers").get().n===1&&
+      privateDb.prepare("SELECT job_number AS n FROM fire_job_numbers").get().n===1&&
+      privateDb.prepare("SELECT amount_cents AS n FROM payment_refunds").get().n===500,
+  'encrypted full-record restore preserves Customer #, Job # and signed $5 refund journal');
+ okay(JSON.stringify(privateDb.prepare('SELECT * FROM d1_migrations ORDER BY id').all())===
+      JSON.stringify(targetBefore),
+  'encrypted restore keeps native DR migration timestamps and serial lineage');
+ privateDb.close();
+ const encryptedBadPassword=join(folder,'reject-wrong-secret.sqlite');
+ await assert.rejects(restoreSavedProtectedCompleteRecords(
+  protectedFile,independentTemplate,encryptedBadPassword,'totally different recovery password 2026'),
+  /BLOCKED|blocked/i);
+ await assert.rejects(access(encryptedBadPassword));
+ checks++;
+ const damagedProtected=join(folder,'tampered.firerecords');
+ const forgedCiphertext=Buffer.from(ciphertext);
+ forgedCiphertext[forgedCiphertext.length-1]^=1;
+ await writeFile(damagedProtected,forgedCiphertext);
+ const encryptedTamperedOutput=join(folder,'reject-altered-secret.sqlite');
+ await assert.rejects(restoreSavedProtectedCompleteRecords(
+  damagedProtected,independentTemplate,encryptedTamperedOutput,phrase),/BLOCKED|blocked/i);
+ await assert.rejects(access(encryptedTamperedOutput));
+ checks++;
+ await assert.rejects(sealCompleteIsolatedSqliteSnapshot(source,protectedFile,phrase),
+  /EEXIST|already exists|file exists/i,
+  'full private backup must never overwrite previously saved ciphertext');
+ checks++;
  const differentDrClock=join(folder,'dr-bad-applied-time.sqlite');
  await copyFile(independentTemplate,differentDrClock);
  const invalidClock=new DatabaseSync(differentDrClock);
