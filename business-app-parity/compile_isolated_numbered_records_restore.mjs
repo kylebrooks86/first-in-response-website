@@ -37,6 +37,9 @@ export function compileEmptyIsolatedNumberedRestore(snapshot,schemaColumns,empty
      columns.some(c=>!ident(c))||new Set(columns).size!==columns.length)
    fail('invalid or duplicate destination column inventory for '+table);
   if(count!==0)fail('destination table '+table+' is not empty');
+  // Re-check emptiness INSIDE the SQL transaction. The inventory may have
+  // become stale between its read and the authorized isolated restore.
+  sql.push('INSERT INTO temp.__fire_restore_assert(ok) SELECT CASE WHEN COUNT(*)=0 THEN 1 ELSE 0 END FROM '+quote(table)+';');
   const permitted=new Set(columns);
   for(const row of snapshot.tables[table]){
    const keys=Object.keys(row);
@@ -52,6 +55,11 @@ export function compileEmptyIsolatedNumberedRestore(snapshot,schemaColumns,empty
  // Permanent AUTOINCREMENT serials are never regenerated from MAX(number).
  // The destination must have both dedicated SQLite sequence rows. Never
  // silently insert these into an unknown schema or reset existing counters.
+ // A blank, correctly provisioned AUTOINCREMENT table can have no sequence
+ // row until its first insert. Explicitly initialize the sequence identity
+ // rather than assuming an existing row, including zero-record releases.
+ sql.push("INSERT OR IGNORE INTO sqlite_sequence(name,seq) VALUES ('fire_customer_numbers',0);");
+ sql.push("INSERT OR IGNORE INTO sqlite_sequence(name,seq) VALUES ('fire_job_numbers',0);");
  sql.push("UPDATE sqlite_sequence SET seq="+literal(snapshot.highWater.customer)+
   " WHERE name='fire_customer_numbers';");
  sql.push('INSERT INTO temp.__fire_restore_assert(ok) VALUES (CASE WHEN changes()=1 THEN 1 ELSE 0 END);');
