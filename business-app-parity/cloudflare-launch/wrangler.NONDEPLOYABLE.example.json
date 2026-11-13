@@ -1,0 +1,56 @@
+{
+  "name": "fire-business-app-isolated",
+  "workers_dev": false,
+  "env": {
+    "staging": {
+      "name": "fire-business-app-staging",
+      "workers_dev": false,
+      "routes": [],
+      "vars": {
+        "FIRE_ENV": "cloudflare-staging",
+        "FIRE_ACCESS_REQUIRED": "enabled",
+        "FIRE_STRIPE_MODE": "disabled",
+        "SITE_ORIGIN": "https://replace-staging-origin.invalid"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "REPLACE_WITH_NEW_STAGING_D1_NAME",
+          "database_id": "REPLACE_WITH_VERIFIED_STAGING_D1_UUID"
+        }
+      ],
+      "secrets": {
+        "required": [
+          "FIRE_ACCESS_TEAM_DOMAIN",
+          "FIRE_ACCESS_AUD",
+          "FIRE_ACCESS_OWNER_EMAIL"
+        ]
+      }
+    },
+    "production": {
+      "name": "fire-business-app-production",
+      "workers_dev": false,
+      "routes": [],
+      "vars": {
+        "FIRE_ENV": "cloudflare-production",
+        "FIRE_ACCESS_REQUIRED": "enabled",
+        "FIRE_STRIPE_MODE": "disabled",
+        "SITE_ORIGIN": "https://replace-production-origin.invalid"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "REPLACE_WITH_NEW_PRODUCTION_D1_NAME",
+          "database_id": "REPLACE_WITH_VERIFIED_PRODUCTION_D1_UUID"
+        }
+      ],
+      "secrets": {
+        "required": [
+          "FIRE_ACCESS_TEAM_DOMAIN",
+          "FIRE_ACCESS_AUD",
+          "FIRE_ACCESS_OWNER_EMAIL"
+        ]
+      }
+    }
+  }
+}

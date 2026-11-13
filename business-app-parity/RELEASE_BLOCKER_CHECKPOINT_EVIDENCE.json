@@ -1,0 +1,288 @@
+{
+  "capturedAt": "2026-10-09T17:18:49.374Z",
+  "parent": "fd0acba588e7d6f9cff4fdac64461c0355c580a1",
+  "scope": "Read-only deployed release blocker checkpoint; no resource mutations",
+  "targets": {
+    "live": {
+      "site": {
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+        "status": "active",
+        "latestSavedVersion": 61
+      },
+      "version": {
+        "id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+        "number": 61,
+        "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+        "deploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+        "archiveHash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2"
+      },
+      "publication": {
+        "id": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+        "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "title": "FIRE App",
+        "version_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+        "type": "publish",
+        "status": "succeeded",
+        "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+        "has_mcp": false,
+        "screenshot_asset_pointer": "sediment://file_00000000c4c881f89b36d60fadb580ab",
+        "provider_deployment_id": "site---6aaf416f82c88191a292fa2e13a9ea61",
+        "failure_message": null,
+        "env_set_revision": 9,
+        "updated_at": "2026-10-08T01:23:39.590116+00:00"
+      },
+      "tableOverview": {
+        "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      },
+      "tableComparison": {
+        "target": "live",
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "binding": "DB",
+        "tableNamesMatch": false,
+        "matchedTableNames": 18,
+        "candidateTableCount": 19,
+        "observedTableCount": 18,
+        "missingTables": [
+          "payment_refunds"
+        ],
+        "unexpectedTables": [],
+        "problems": [
+          "missing table: payment_refunds"
+        ],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      }
+    },
+    "staging": {
+      "site": {
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+        "status": "active",
+        "latestSavedVersion": 3
+      },
+      "version": {
+        "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+        "number": 3,
+        "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+        "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+        "archiveHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38"
+      },
+      "publication": {
+        "id": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+        "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "title": "FIRE LIVE \u2014 Isolated Refund Staging",
+        "version_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+        "type": "publish",
+        "status": "succeeded",
+        "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+        "has_mcp": false,
+        "screenshot_asset_pointer": "sediment://file_0000000084448230813b47c0c1a66cfa",
+        "provider_deployment_id": "site---6ac7e8e358dc81918d0a47c4034c4a41",
+        "failure_message": null,
+        "env_set_revision": 2,
+        "updated_at": "2026-10-08T19:50:54.872235+00:00"
+      },
+      "tableOverview": {
+        "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payment_refunds",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      },
+      "tableComparison": {
+        "target": "staging",
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "binding": "DB",
+        "tableNamesMatch": true,
+        "matchedTableNames": 19,
+        "candidateTableCount": 19,
+        "observedTableCount": 19,
+        "missingTables": [],
+        "unexpectedTables": [],
+        "problems": [],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      }
+    }
+  },
+  "doomsdayIdentityAttempt": {
+    "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev/api/dr-capture-identity",
+    "status": 403,
+    "authenticatedIdentityCaptured": false,
+    "meaning": "This unauthenticated request did not capture identity; cannot infer endpoint absence or deployment source."
+  },
+  "cloudflareConnectorAvailable": false,
+  "productionReady": false,
+  "deployed": false,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "candidatePreflightSnapshotCommits": {
+    "live": "2cf28b3ee8b73805a704a4a88bfa60647c78f830",
+    "doomsday": "d2708541c27df832b22ce2525d0c23658f694dcc",
+    "staging": "a959578358752e80b34590eaf1a9e2f4410b42e8"
+  },
+  "resultsByTarget": {
+    "live": {
+      "preflight": {
+        "exitCode": 0,
+        "result": "PASS 51/51: auth table types/nullability/key, journal uncertainty/duplicates, provider collisions, cumulative pending/succeeded refund reservations, failed/canceled release, exact boundary, missing ledger tables and byte-for-byte read-only CLI; 21 disposable target migrations.",
+        "logSha256": "e5962f02ecd1c0b8c9fef05eebf3cecd2fc5498bd297e4e46eea4cb3a5b1c858"
+      },
+      "schema": {
+        "exitCode": 0,
+        "result": "PASS: 21 disposable migrations; compatible schema, unknown/incomplete journals, wrong uniqueness/predicate, missing checkout table, and CLI byte-for-byte read-only verification.",
+        "logSha256": "cc656e905458f93b932e72d911c416890a9ba8d589dac19e64dbfc47d71e6b41"
+      },
+      "migration": {
+        "exitCode": 0,
+        "result": "PASS: Two individually valid pending partial refunds block aggregate over-reservation\nPASS: Failed refund releases its reservation\nPASS: Canceled refund does not reserve funds\nPASS: Succeeded partial refund still reserves the original funds\nPASS: Exactly the original paid amount is allowed\nPASS: Succeeded refund without a matching ledger blocks preflight\nPASS: Matching negative refund ledger satisfies succeeded-refund check\nPASS: Refund ownership mismatch blocks preflight\nPASS: All preflight queries are read-only and leave fixture rows unchanged\nPASS 9/9: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.\nPASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible.",
+        "logSha256": "95118a545bf286cd865cd68373a90b6a9675444ea58fe7345bb1269c727430d2"
+      }
+    },
+    "doomsday": {
+      "preflight": {
+        "exitCode": 0,
+        "result": "PASS 51/51: auth table types/nullability/key, journal uncertainty/duplicates, provider collisions, cumulative pending/succeeded refund reservations, failed/canceled release, exact boundary, missing ledger tables and byte-for-byte read-only CLI; 23 disposable target migrations.",
+        "logSha256": "404ce122d410a40331b976348d7874e152d94c78bc4b3b4dc64a55dd6477eba9"
+      },
+      "schema": {
+        "exitCode": 0,
+        "result": "PASS: 23 disposable migrations; compatible schema, unknown/incomplete journals, wrong uniqueness/predicate, missing checkout table, and CLI byte-for-byte read-only verification.",
+        "logSha256": "4671b554bbe167ad4c601c94791fd3f35cd00b31b73c6d504bd0b10dd8e7c3ba"
+      },
+      "migration": {
+        "exitCode": 0,
+        "result": "PASS: Two individually valid pending partial refunds block aggregate over-reservation\nPASS: Failed refund releases its reservation\nPASS: Canceled refund does not reserve funds\nPASS: Succeeded partial refund still reserves the original funds\nPASS: Exactly the original paid amount is allowed\nPASS: Succeeded refund without a matching ledger blocks preflight\nPASS: Matching negative refund ledger satisfies succeeded-refund check\nPASS: Refund ownership mismatch blocks preflight\nPASS: All preflight queries are read-only and leave fixture rows unchanged\nPASS 9/9: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.\nPASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible.",
+        "logSha256": "95118a545bf286cd865cd68373a90b6a9675444ea58fe7345bb1269c727430d2"
+      }
+    },
+    "staging": {
+      "preflight": {
+        "exitCode": 0,
+        "result": "PASS 51/51: auth table types/nullability/key, journal uncertainty/duplicates, provider collisions, cumulative pending/succeeded refund reservations, failed/canceled release, exact boundary, missing ledger tables and byte-for-byte read-only CLI; 21 disposable target migrations.",
+        "logSha256": "e5962f02ecd1c0b8c9fef05eebf3cecd2fc5498bd297e4e46eea4cb3a5b1c858"
+      },
+      "schema": {
+        "exitCode": 0,
+        "result": "PASS: 21 disposable migrations; compatible schema, unknown/incomplete journals, wrong uniqueness/predicate, missing checkout table, and CLI byte-for-byte read-only verification.",
+        "logSha256": "cc656e905458f93b932e72d911c416890a9ba8d589dac19e64dbfc47d71e6b41"
+      },
+      "migration": {
+        "exitCode": 0,
+        "result": "PASS: Two individually valid pending partial refunds block aggregate over-reservation\nPASS: Failed refund releases its reservation\nPASS: Canceled refund does not reserve funds\nPASS: Succeeded partial refund still reserves the original funds\nPASS: Exactly the original paid amount is allowed\nPASS: Succeeded refund without a matching ledger blocks preflight\nPASS: Matching negative refund ledger satisfies succeeded-refund check\nPASS: Refund ownership mismatch blocks preflight\nPASS: All preflight queries are read-only and leave fixture rows unchanged\nPASS 9/9: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.\nPASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible.",
+        "logSha256": "95118a545bf286cd865cd68373a90b6a9675444ea58fe7345bb1269c727430d2"
+      }
+    }
+  },
+  "suiteRunsPassed": 9,
+  "suiteRunsTotal": 9,
+  "preflightChecksPerTarget": 51,
+  "preflightChecksPassed": 153,
+  "preflightChecksTotal": 153,
+  "newRegressionChecksPerTarget": 18,
+  "newRegressionChecksPassed": 54,
+  "newRegressionChecksTotal": 54,
+  "captureSqlLocalChecksPassed": 30,
+  "captureSqlLocalChecksTotal": 30,
+  "sourceParity": {
+    "sharedFilesChecked": 119,
+    "roots": [
+      "/workspace/scratch/a307f8c9f987/release-preflight-live",
+      "/workspace/scratch/a307f8c9f987/release-preflight-doomsday",
+      "/workspace/scratch/a307f8c9f987/release-preflight-staging"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "preflightFix": "Runner accepts/maps fourth cumulative refund reservation SELECT and fails closed for over-reservation; previous runner crashes on the already-approved four-query file.",
+  "priorPreflightNegativeControl": {
+    "exitCode": 1,
+    "error": "Unexpected read-only ledger preflight query set."
+  },
+  "builds": "Not rerun: no app, dependency, adapter or migration changes. Prior JobCost runtime 3/3 TypeScript and 3/3 builds preserved; tooling tests executed directly.",
+  "changedFilesSha256": {
+    "shared/scripts/audit-local-schema.mjs": "b87839bcb308cc2521366a3fa3f495b792e03a9f8b5abd4757f329b2ac483bad",
+    "shared/scripts/test-candidate-db-preflight.mjs": "b9e16890680f08491070e9429208abefdb2049ba69ec46b21ae9066be49deae4",
+    "RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql": "94d9448ace84561396aac9eaa3853a96045013cb35a3721f67901e1b9be9b051",
+    "test_release_schema_capture.py": "1012c017e4250ee4b975add5591c762d202cc85ae2778c3449bd5208910a558b"
+  },
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false
+}
