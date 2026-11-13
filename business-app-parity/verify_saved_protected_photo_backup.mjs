@@ -125,6 +125,9 @@ export function inspectStoredFirePhotoZip(zip){
   archiveFormat:'fire-offline-photo-vault',version:1,
   allFilesCryptographicallyVerified:true,
   photoCount:manifest.photos.length,distinctCustomerIds:customers.size,
+  // Exact manifest inventory lets offline recovery reject missing customer
+  // relationships without extracting any photo bytes to disk.
+  photoInventory:Object.freeze(manifest.photos.map(item=>Object.freeze({...item}))),
   totalOriginalPhotoBytes:photoBytes,verifiedZipSha256:sha(zip)
  });
 }
