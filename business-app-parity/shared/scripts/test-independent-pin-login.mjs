@@ -68,6 +68,14 @@ try {
  const page=load('app/login/page.tsx',{},'\nexport { safeReturnTo };');
  for(const path of ['https://evil.invalid','//evil.invalid','/\\evil.invalid']){fakeWindow.location.search='?return_to='+encodeURIComponent(path);equal(page.safeReturnTo(),'/');}
  fakeWindow.location.search='?return_to='+encodeURIComponent('/?view=customers#profile');equal(page.safeReturnTo(),'/?view=customers#profile');
- const html=renderToStaticMarkup(React.createElement(page.default));ok(html.includes('4-digit PIN'));ok(html.includes('inputMode="numeric"'));ok(html.includes('maxLength="4"'));ok(html.includes('autoComplete="off"'));ok(html.includes('disabled=""'));
+ // In quick mode the app must load the deployed auth capability first.
+ // SSR cannot expose a weaker PIN or create a session from stale metadata.
+ const html=renderToStaticMarkup(React.createElement(page.default));
+ ok(html.includes('Checking secure sign-in'));
+ ok(!html.includes('4-digit PIN'));
+ const ui=readFileSync('app/login/page.tsx','utf8');
+ ok(ui.includes('inputMode={quick||legacyNumeric?"numeric":undefined}'));
+ ok(ui.includes('maxLength={quick||legacyNumeric?4:128}'));
+ ok(ui.includes('autoComplete="off"'));
  console.log(`PASS ${checks}/${checks}: synthetic PIN login, SQLite-backed attempt limit including 30-minute lock beyond 15-minute window, simultaneous failure increments, secure session/fail-closed configuration, safe return paths and server-rendered PIN input. No deployed login, remote D1 or credential changed.`);
 } finally {db.close();}
