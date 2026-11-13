@@ -15,6 +15,7 @@ import {validateNumberedCoreRecordsV2,NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TAB
 
 import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
 import {fingerprintIsolatedSqliteSchema,requireSameIsolatedSchema} from './fingerprint_isolated_sqlite_schema.mjs';
+import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
 const stop=reason=>{throw Error('FIRE isolated SQLite restore BLOCKED: '+reason);};
 const ident=x=>typeof x==='string'&&/^[a-z][a-z0-9_]*$/.test(x);
@@ -43,10 +44,46 @@ function inspectSchema(db){
  const extras=[...found.keys()].filter(t=>!tables.includes(t)&&!t.startsWith('sqlite_'));
  for(const t of extras){
   if(!ident(t))stop('unsupported extra table in template');
-  if(db.prepare('SELECT COUNT(*) AS n FROM '+q(t)).get().n!==0)
+  // A genuinely migrated EMPTY schema necessarily contains its already
+  // applied D1 migration journal. Never erase/replay that provider history.
+  // Verify the exact source journal, target rows and high-water inside the
+  // recovery transaction before restoring any customer/application records.
+  if(t!=='d1_migrations'&&db.prepare('SELECT COUNT(*) AS n FROM '+q(t)).get().n!==0)
    stop('supplemental table contains data: '+t);
  }
  return {found,extras};
+}
+function assertExistingD1MigrationJournal(db,supplemental,found,extras){
+ if(!extras.includes('d1_migrations'))return 0;
+ const saved=supplemental.tables.d1_migrations;
+ const columns=db.prepare('PRAGMA table_info("d1_migrations")').all().map(x=>x.name).sort();
+ const sameColumns=row=>row&&typeof row==='object'&&!Array.isArray(row)&&
+  Object.keys(row).sort().join('|')===columns.join('|');
+ if(!Array.isArray(saved)||saved.some(row=>!sameColumns(row)))
+  stop('source migration journal has missing or unexpected saved columns');
+ const actual=db.prepare('SELECT * FROM "d1_migrations" ORDER BY id').all();
+ if(saved.length!==actual.length||actual.some(row=>!sameColumns(row)))
+  stop('source and destination D1 migration journal row counts differ');
+ // A restore must NOT create fake applied D1 history from an empty schema,
+ // nor accept unreviewed or reordered migration names as proof of a release.
+ if(saved.length>EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
+  stop('unreviewed D1 migration journal cannot be preserved');
+ const ordered=[...saved].sort((a,b)=>a.id-b.id);
+ for(let i=0;i<ordered.length;i++){
+  if(ordered[i]?.id!==i+1||ordered[i]?.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i])
+   stop('source D1 migration journal is not the reviewed ordered release lineage');
+ }
+ const normalized=rows=>rows.map(row=>stable(row)).sort().join('\n');
+ if(normalized(saved)!==normalized(actual))
+  stop('source and destination applied migration history are not identical');
+ const journalSeq=supplemental.sqliteSequence.d1_migrations;
+ const actualSeq=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='d1_migrations'").get()?.seq;
+ if(/\bAUTOINCREMENT\b/i.test(found.get('d1_migrations')||'')){
+  if(saved.length>0&&(!Number.isSafeInteger(journalSeq)||journalSeq!==actualSeq))
+   stop('D1 migration journal AUTOINCREMENT history differs or is missing');
+ }else if(Object.hasOwn(supplemental.sqliteSequence,'d1_migrations'))
+  stop('migration journal serial is declared for a non-AUTOINCREMENT schema');
+ return saved.length;
 }
 function restore(db,archive,supplemental){
  const {found,extras}=inspectSchema(db);
@@ -63,6 +100,7 @@ function restore(db,archive,supplemental){
  db.exec('BEGIN IMMEDIATE');
  try{
   db.exec('PRAGMA defer_foreign_keys=ON');
+  const preservedMigrationRows=assertExistingD1MigrationJournal(db,supplemental,found,extras);
   let restored=0;
   for(const t of tables){
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
@@ -78,6 +116,9 @@ function restore(db,archive,supplemental){
   // Restore all feature-specific tables in the same transaction. Their exact
   // schema inventory is required; no ignored or inferred supplemental tables.
   for(const t of extras){
+   // Do not INSERT already-applied migrations or manufacture provider history.
+   // The source and destination rows were compared in full above.
+   if(t==='d1_migrations')continue;
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
    for(const row of supplemental.tables[t]){
     const keys=Object.keys(row).sort();
@@ -94,6 +135,8 @@ function restore(db,archive,supplemental){
   // Preserve AUTOINCREMENT history for ALL supplemental feature tables too;
   // otherwise deleted high IDs could be silently reused after recovery.
   for(const [table,high] of Object.entries(supplemental.sqliteSequence)){
+   // Provider migration history is never modified, including its high-water.
+   if(table==='d1_migrations')continue;
    if(!/\bAUTOINCREMENT\b/i.test(found.get(table)||''))
     stop('supplemental sequence references non-AUTOINCREMENT table '+table);
    const existing=db.prepare('SELECT COUNT(*) AS n FROM sqlite_sequence WHERE name=?').get(table).n;
@@ -152,7 +195,9 @@ function restore(db,archive,supplemental){
   return {restoredRows:restored,customers:archive.tables.customers.length,
    jobNumbers:archive.tables.fire_job_numbers.length,
    supplementalTablesRestored:supplementalState.tables,
-   supplementalRowsRestored:supplementalState.rows,sqliteRestoreVerified:true,
+   supplementalRowsRestored:supplementalState.rows-preservedMigrationRows,
+   existingD1MigrationRowsVerified:preservedMigrationRows,
+   sqliteRestoreVerified:true,
    providerD1Restored:false,photosRestored:false,gate7Accepted:false};
  }catch(e){try{db.exec('ROLLBACK');}catch{}throw e;}
 }
