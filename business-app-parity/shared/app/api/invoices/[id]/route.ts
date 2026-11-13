@@ -101,7 +101,14 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     let dueAt:string|null|undefined;
     if(updateDueAt){
       if(rawDueAt==="receipt")dueAt=null;
-      else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);if(Number.isNaN(parsed.getTime()))return Response.json({error:"Choose a valid invoice due date."},{status:400});dueAt=parsed.toISOString();}
+      else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){
+        const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);
+        // JavaScript Date normalizes invalid calendar days (such as Feb 30)
+        // into another month. Never silently change the owner-selected due date.
+        if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==rawDueAt)
+          return Response.json({error:"Choose a valid invoice due date."},{status:400});
+        dueAt=parsed.toISOString();
+      }
       else return Response.json({error:"Choose a valid invoice due date."},{status:400});
     }
     const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
