@@ -72,13 +72,16 @@ export function inspectStoredFirePhotoZip(zip){
   if((name!=='manifest.json'&&!/^photos\/[a-zA-Z0-9_-]{1,90}$/.test(name))||entries.has(name))
    fail('unknown, unsafe or duplicate ZIP entry');
   if(local!==localExpected||local+30>dir||zip.readUInt32LE(local)!==0x04034b50||
+     zip.readUInt16LE(local+4)!==20||zip.readUInt16LE(local+10)!==0||
+     zip.readUInt16LE(local+12)!==0||zip.readUInt16LE(local+14)!==0||
      zip.readUInt16LE(local+6)!==flags||zip.readUInt16LE(local+8)!==0||
      zip.readUInt16LE(local+26)!==nameLength||zip.readUInt16LE(local+28)!==0||
      zip.readUInt32LE(local+14)!==0||zip.readUInt32LE(local+18)!==0||
      zip.readUInt32LE(local+22)!==0)
    fail('ZIP local file or metadata does not match its central directory');
   const nameAt=local+30,start=nameAt+nameLength,descriptor=start+size;
-  if(decoder.decode(zip.subarray(nameAt,nameAt+nameLength))!==name||
+  if(start>dir||descriptor>dir-16||
+     decoder.decode(zip.subarray(nameAt,nameAt+nameLength))!==name||
      descriptor+16>dir||zip.readUInt32LE(descriptor)!==0x08074b50||
      zip.readUInt32LE(descriptor+4)!==crc||
      zip.readUInt32LE(descriptor+8)!==size||
@@ -96,7 +99,10 @@ export function inspectStoredFirePhotoZip(zip){
  let manifest;
  try{manifest=JSON.parse(decoder.decode(entries.get('manifest.json')));}
  catch{fail('photo manifest JSON cannot be decoded');}
- if(!manifest||manifest.format!=='fire-offline-photo-vault'||manifest.version!==1||
+ if(!manifest||typeof manifest!=='object'||Array.isArray(manifest)||
+    Object.keys(manifest).sort().join(',')!=='exportedAt,format,photos,requiresMatchingCustomerRecords,version'||
+    typeof manifest.exportedAt!=='string'||!Number.isFinite(Date.parse(manifest.exportedAt))||
+    manifest.format!=='fire-offline-photo-vault'||manifest.version!==1||
     manifest.requiresMatchingCustomerRecords!==true||!Array.isArray(manifest.photos)||
     manifest.photos.length!==count-1||manifest.photos.length>MAX_PHOTOS)
   fail('unsupported photo manifest, incomplete inventory or missing relationship declaration');
