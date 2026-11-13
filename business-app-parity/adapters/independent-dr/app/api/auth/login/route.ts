@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { independentSessionCookie, verifyIndependentPassword, verifyIndependentPin, quickUnlockEnabled, verifyAccessOwnerRequest } from "../../../owner-auth";
+import { independentSessionCookie, verifyIndependentPassword, verifyIndependentPin, quickUnlockEnabled, verifyAccessOwnerRequest, verifiedDrJobNumberSchema } from "../../../owner-auth";
 
 type RateLimitRow = { attempts: number; windowStartedAt: number; blockedUntil: number };
 const WINDOW_SECONDS = 15 * 60;
@@ -54,6 +54,14 @@ async function clearFailures(key: string) {
 export async function POST(request: Request) {
   let stage = "rate-key";
   try {
+    // Recovered DR must match QA permanent Job #s on its REAL bound D1;
+    // neither a local manifest attestation nor a signed Access identity
+    // is sufficient to issue a new cookie when numbering is unready.
+    stage = "job-schema";
+    if (!await verifiedDrJobNumberSchema())
+      return Response.json({error:"DR Job # setup is not verified. Sign-in is paused until recovery readiness is approved."},
+        {status:503,headers:{"cache-control":"no-store"}});
+    stage = "rate-key";
   // Cloudflare Access passkey / owner PIN path. Both choices require a
   // cryptographically verified Access assertion for this exact application.
   // This is disabled until an owner-approved protected Access app is enrolled.

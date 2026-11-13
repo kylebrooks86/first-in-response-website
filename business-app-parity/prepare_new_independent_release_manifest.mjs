@@ -1,5 +1,8 @@
 /** FIRE NEW DR / NEW LIVE: local-only review of independently provisioned bindings.
  * Never calls Cloudflare or Stripe and never creates/deploys/migrates resources.
+ * OWNER HARD STOP: no R2 subscription, paid service or billing activation.
+ * Owner-device ZIP candidate still needs private off-device custody and an
+ * actual independent recovery test before Gate7 or LIVE release approval.
  * INPUT is the exact SOURCE-ONLY built candidate manifest with inert placeholder.
  * OUTPUT is a separate, private manifest for a later authorized review; this
  * script does NOT attest that the named UUID, R2 bucket, or secrets exist.
@@ -9,6 +12,10 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
+// Owner's firm November 13 no-subscription rule: cloud R2 is NOT an option.
+// The QA-master on-device customer photo vault and verified owner-saved ZIP
+// are a source-only candidate, not evidence of off-device custody or restore.
+const PHOTO_MODE='owner-device-zip';
 const RESERVED_D1=new Set([
  PLACEHOLDER,
  '8ccfb1f8-1657-4074-b1b2-47de78f95003', // NEW QA
@@ -17,13 +24,12 @@ const RESERVED_D1=new Set([
 ]);
 const TARGETS=Object.freeze({
  'independent-dr':{
-  name:'fire-fullapp-dr',db:'fire-fullapp-dr-db',bucket:'fire-fullapp-dr-photos',
+  name:'fire-fullapp-dr',db:'fire-fullapp-dr-db',
   origin:'https://fire-fullapp-dr.kyle-bfc.workers.dev',
   fireEnv:'isolated-dr',prefix:'FIRE_DR'
  },
  'independent-live':{
   name:'fire-fullapp-new-live',db:'fire-fullapp-new-live-db',
-  bucket:'fire-fullapp-new-live-photos',
   origin:'https://fire-fullapp-new-live.kyle-bfc.workers.dev',
   fireEnv:'new-live-prelaunch',prefix:'FIRE_NEW_LIVE'
  }
@@ -60,7 +66,8 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(!validUuid(uuid)||RESERVED_D1.has(uuid)||
     (options.otherReleaseDatabaseId&&uuid===options.otherReleaseDatabaseId))
   fail('database must be a new independent, owner-verified physical D1 UUID');
- if(options.bucketName!==spec.bucket)fail('new independent R2 bucket name must match target');
+ if(options.photoStorageMode!==PHOTO_MODE||options.bucketName!==undefined)
+  fail('paid R2/subscription provisioning is forbidden; use reviewed owner-device ZIP candidate only');
  if(options.resourceAttestation!=='owner-checked-'+target)
   fail('owner-controlled resource identity review missing');
  const enabled=options.enableAuth===true;
@@ -79,6 +86,10 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(target==='independent-dr'&&options.jobNumbersSchemaAttestation!==undefined&&
    (!drNumbers||!enabled))
   fail('DR Job # mode requires enabled owner authentication and verified DR numbering schema');
+ // DR may remain inert before a full private recovery, but owner sign-in
+ // must never activate in a non-numbered DR and quietly drop QA Job # parity.
+ if(target==='independent-dr'&&enabled&&!drNumbers)
+  fail('DR login requires target-bound verified permanent Job # schema; no unnumbered recovery sign-in');
  const jobNumbersPrepared=enabled&&(target==='independent-live'||drNumbers);
  // Optional passkey / 4-digit PIN mode needs a provider-verified Access
  // application for THIS Worker, separate owner consent and per-target
@@ -101,8 +112,11 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  }
  const updated=structuredClone(original);
  updated.d1_databases=[{binding:'DB',database_name:spec.db,database_id:uuid}];
- updated.r2_buckets=[{binding:'BUCKET',bucket_name:spec.bucket}];
- updated.vars={...initialVars,[spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
+ // Explicitly NO R2/BUCKET binding: hosted cloud-photo endpoints must keep
+ // failing closed. The existing QA-master local photo gallery uses IndexedDB.
+ updated.r2_buckets=[];
+ updated.vars={...initialVars,FIRE_PHOTO_STORAGE_MODE:PHOTO_MODE,
+  [spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
  if(jobNumbersPrepared)
   updated.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
  if(quick){
@@ -118,7 +132,9 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  // Does NOT verify that credentials, bound R2 bytes, provider versions or
  // migration journal actually exist. Gate4, Gate5, Gate7 remain OPEN.
  return {config:updated,evidence:{
-  target,worker:spec.name,d1:spec.db,r2:spec.bucket,authEnabled:enabled,
+  target,worker:spec.name,d1:spec.db,photoStorageMode:PHOTO_MODE,
+  r2Required:false,remotePhotoSyncAvailable:false,offDeviceZipVerified:false,
+  isolatedPhotoRestoreVerified:false,authEnabled:enabled,
   quickAuthPrepared:quick,accessProviderIndependentlyVerified:false,
   jobNumberSchemaPhysicallyVerified:false,jobNumberSourceFlagPrepared:jobNumbersPrepared,
   localManifestPrepared:true,remoteOperationAttempted:false,
@@ -126,6 +142,81 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
   hostedR2Verified:false,ownerApprovedDeployment:false,gate4Accepted:false,
   gate5Accepted:false,gate7Accepted:false,gate10Accepted:false
  }};
+}
+
+
+/** Final LOCAL pair review for the two independently prepared manifests.
+ * A valid DR manifest alone cannot prove it is not pointing at the NEW LIVE D1,
+ * and vice versa. Verify both together before requesting any provider write.
+ * This checks ONLY the supplied source JSON. No dashboard read, D1 query,
+ * deployed identity or independent physical recovery is proven.
+ */
+export function reviewIndependentReleasePair(drReviewed,liveReviewed){
+ const failPair=reason=>fail('DR/NEW LIVE pair: '+reason);
+ const reviewed=[['independent-dr',drReviewed],['independent-live',liveReviewed]];
+ const ids=new Set(),names=new Set(),origins=new Set(),authSecrets=new Set();
+ for(const [target,result] of reviewed){
+  const spec=TARGETS[target],config=result?.config,evidence=result?.evidence;
+  if(!config||!evidence||typeof config!=='object'||Array.isArray(config))
+   failPair('both independently reviewed manifests are required');
+  if(evidence.target!==target||evidence.localManifestPrepared!==true||
+     evidence.remoteOperationAttempted!==false||
+     evidence.providerResourcesIndependentlyVerified!==false||
+     evidence.ownerApprovedDeployment!==false||
+     evidence.gate4Accepted!==false||evidence.gate5Accepted!==false||
+     evidence.gate7Accepted!==false||evidence.gate10Accepted!==false||
+     evidence.remotePhotoSyncAvailable!==false||
+     evidence.offDeviceZipVerified!==false||
+     evidence.isolatedPhotoRestoreVerified!==false)
+   failPair('unverified source evidence cannot be converted into release acceptance');
+  if(config.name!==spec.name||config.workers_dev!==true||
+     config.vars?.FIRE_ENV!==spec.fireEnv||
+     config.vars?.SITE_ORIGIN!==spec.origin||
+     config.vars?.FIRE_PHOTO_STORAGE_MODE!==PHOTO_MODE||
+     !Array.isArray(config.d1_databases)||config.d1_databases.length!==1||
+     config.d1_databases[0]?.binding!=='DB'||
+     config.d1_databases[0]?.database_name!==spec.db)
+   failPair('incorrect target, origin or D1 binding identity');
+  const id=config.d1_databases[0].database_id;
+  if(!validUuid(id)||RESERVED_D1.has(id)||ids.has(id))
+   failPair('D1 must be a valid distinct physical identifier, never QA/STAGING/TEST');
+  ids.add(id);
+  if(names.has(config.name)||origins.has(spec.origin))
+   failPair('duplicate Worker name or origin');
+  names.add(config.name);origins.add(spec.origin);
+  // No paid/unknown storage or cross-environment data connection may hide
+  // behind a seemingly correct D1 and a flag saying "owner-device-zip".
+  if(!exact(config.r2_buckets,[])||
+     !empty(config.kv_namespaces)||!empty(config.queues)||
+     !empty(config.services)||!empty(config.durable_objects)||
+     !empty(config.dispatch_namespaces)||!empty(config.unsafe)||
+     !empty(config.analytics_engine_datasets)||!empty(config.vectorize)||
+     !empty(config.hyperdrive)||!empty(config.workflows))
+   failPair('unexpected cloud storage, service or subscription binding');
+  const required=config.secrets?.required,expected=[
+   spec.prefix+'_PASSWORD_HASH',spec.prefix+'_SESSION_SECRET'
+  ];
+  if(config.vars?.FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1')
+   expected.push(spec.prefix+'_PIN_HASH',spec.prefix+'_PIN_PEPPER');
+  if(!exact(required,expected)||required.some(name=>authSecrets.has(name)))
+   failPair('authentication secrets are reused or unexpected');
+  for(const name of required)authSecrets.add(name);
+  const auth=config.vars?.[spec.prefix+'_AUTH_ENABLED'];
+  if(!['blocked','owner-approved'].includes(auth)||
+     (auth==='owner-approved'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')||
+     (auth==='blocked'&&config.vars?.FIRE_JOB_NUMBERS_CANDIDATE!==undefined)||
+     (evidence.authEnabled!==(auth==='owner-approved'))||
+     (evidence.jobNumberSourceFlagPrepared!==(auth==='owner-approved')))
+   failPair('authentication and permanent Job # readiness disagree');
+ }
+ return Object.freeze({
+  pairSourceChecked:true,d1IdsDistinct:true,workerOriginsDistinct:true,
+  noR2OrOtherStorageBound:true,photoMode:PHOTO_MODE,
+  providerResourcesIndependentlyVerified:false,
+  offDevicePhotoCustodyVerified:false,isolatedRestoreVerified:false,
+  hostedParityVerified:false,ownerApprovedDeployment:false,
+  gate4Accepted:false,gate7Accepted:false,gate10Accepted:false
+ });
 }
 
 if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
@@ -136,6 +227,7 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
   const reviewed=prepareReviewedIndependentManifest(target,
    JSON.parse(readFileSync(input,'utf8')),{databaseId:process.env.FIRE_RELEASE_D1_UUID,
     bucketName:process.env.FIRE_RELEASE_R2_BUCKET,
+    photoStorageMode:process.env.FIRE_RELEASE_PHOTO_STORAGE_MODE,
     otherReleaseDatabaseId:process.env.FIRE_OTHER_RELEASE_D1_UUID,
     resourceAttestation:process.env.FIRE_RELEASE_RESOURCE_ATTESTATION,
     enableAuth:process.env.FIRE_RELEASE_ENABLE_AUTH==='yes',

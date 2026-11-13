@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {verifyCloudflareAccessOwnerJwt} from "../lib/access-passkey-identity.mjs";
+import {jobNumberingReady} from "../lib/job-numbering.mjs";
 
 export type OwnerUser = {
   userId: string;
@@ -21,8 +22,11 @@ const SESSION_SECONDS = 60 * 60 * 12;
 const encoder = new TextEncoder();
 
 function releaseEnvironmentEnabled() {
-  const runtime = env as typeof env & { FIRE_DR_AUTH_ENABLED?: string; FIRE_ENV?: string; SITE_ORIGIN?: string };
+  const runtime = env as typeof env & { FIRE_DR_AUTH_ENABLED?: string; FIRE_ENV?: string; SITE_ORIGIN?: string; FIRE_JOB_NUMBERS_CANDIDATE?: string };
   if (runtime.FIRE_DR_AUTH_ENABLED !== "owner-approved" || runtime.FIRE_ENV !== "isolated-dr") return false;
+  // Recovery must preserve the same permanent Job # contract as NEW QA.
+  // The source flag is necessary but not proof of actual bound D1 readiness.
+  if (runtime.FIRE_JOB_NUMBERS_CANDIDATE !== "owner-approved-schema-v1") return false;
   try {
     const address = new URL(runtime.SITE_ORIGIN || "");
     return runtime.SITE_ORIGIN === "https://fire-fullapp-dr.kyle-bfc.workers.dev"
@@ -31,6 +35,17 @@ function releaseEnvironmentEnabled() {
   } catch { return false; }
 }
 
+
+/** Before issuing any independent DR owner session, inspect the ACTUAL
+ * bound recovery D1 for immutable Job # tables/triggers and correct links.
+ * No D1 mutations and no new session when the schema is absent/unready.
+ * This is evaluated on sign-in; existing numbered writes retain guards.
+ */
+export async function verifiedDrJobNumberSchema() {
+  if (!releaseEnvironmentEnabled() || !env.DB) return false;
+  try { return await jobNumberingReady(env.DB, env); }
+  catch { return false; }
+}
 
 function secrets() {
   return env as typeof env & IndependentSecrets;
@@ -82,6 +97,7 @@ async function sessionIsValid(value: string) {
 export async function verifyIndependentPassword(password: string) {
   const configuredHash = secrets().FIRE_DR_PASSWORD_HASH?.trim().toLowerCase();
   if (!releaseEnvironmentEnabled() || !configuredHash || !/^[a-f0-9]{64}$/.test(configuredHash) || password.length < 24 || password.length > 128) return false;
+  if (!await verifiedDrJobNumberSchema()) return false;
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(password)));
   const suppliedHash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return constantTimeEqual(suppliedHash, configuredHash);
