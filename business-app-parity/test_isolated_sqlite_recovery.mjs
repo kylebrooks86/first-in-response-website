@@ -24,15 +24,18 @@ try{
     table==='fire_job_estimate_links'?'estimate_id':'id')+'" TEXT PRIMARY KEY)');
  }
  db.exec('CREATE TABLE supplemental_synthetic (id TEXT PRIMARY KEY, value TEXT)');
+ db.exec('CREATE TABLE supplemental_serial (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT)');
  db.close();
  const {copyFile}=await import('node:fs/promises');
  await copyFile(template,source);
  const live=new DatabaseSync(source);
  live.prepare('INSERT INTO supplemental_synthetic(id,value) VALUES (?,?)').run('synthetic','owner-only');
+ live.exec("INSERT INTO supplemental_serial(value) VALUES ('temporary'); DELETE FROM supplemental_serial;");
  live.close();
  const exported=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
  const originalSupplemental=JSON.parse(await readFile(supp,'utf8'));
  assert.equal(originalSupplemental.tables.supplemental_synthetic.length,1);
+ assert.equal(originalSupplemental.sqliteSequence.supplemental_serial,1);
  assert.equal(exported.coreAndSupplementalArchivesWritten,true);
  // A different schema, even with all the same required table names, must
  // not accept a source archive (index/trigger drift matters for FIRE).
@@ -49,6 +52,7 @@ try{
  assert.equal(result.supplementalRowsRestored,1);
  const restoredDb=new DatabaseSync(restored,{readOnly:true});
  assert.equal(restoredDb.prepare('SELECT value FROM supplemental_synthetic').get().value,'owner-only');
+ assert.equal(restoredDb.prepare("SELECT seq FROM sqlite_sequence WHERE name='supplemental_serial'").get().seq,1);
  restoredDb.close();
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp));
  // Tampering the supplemental row-count manifest must fail closed and must
