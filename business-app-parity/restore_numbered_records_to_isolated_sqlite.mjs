@@ -127,9 +127,9 @@ function restore(db,archive,supplemental){
    if(db.prepare('SELECT seq FROM sqlite_sequence WHERE name=?').get(t)?.seq!==high)
     stop('permanent numbering high-water not preserved');
   }
-  db.exec('COMMIT');
   if(db.prepare('PRAGMA integrity_check').get().integrity_check!=='ok')
-   stop('restored database integrity check failed');
+   stop('restored database integrity check failed before commit');
+  db.exec('COMMIT');
   return {restoredRows:restored,customers:archive.tables.customers.length,
    jobNumbers:archive.tables.fire_job_numbers.length,
    supplementalTablesRestored:supplementalState.tables,
