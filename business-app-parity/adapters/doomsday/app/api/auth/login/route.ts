@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { independentSessionCookie, verifyIndependentPassword } from "../../../owner-auth";
+import { independentSessionCookie, verifyIndependentPassword, verifyIndependentPin, quickUnlockEnabled, verifyAccessOwnerRequest } from "../../../owner-auth";
 
 type RateLimitRow = { attempts: number; windowStartedAt: number; blockedUntil: number };
 const WINDOW_SECONDS = 15 * 60;
@@ -53,6 +53,31 @@ async function clearFailures(key: string) {
 
 export async function POST(request: Request) {
   try {
+  // Cloudflare Access passkey / owner PIN path. Both choices require a
+  // cryptographically verified Access assertion for this exact application.
+  // This is disabled until an owner-approved protected Access app is enrolled.
+  if(quickUnlockEnabled()){
+   if(!await verifyAccessOwnerRequest(request))
+    return Response.json({error:"Verified owner Cloudflare Access sign-in is required."},
+      {status:401,headers:{"cache-control":"no-store"}});
+   const body=await request.json() as {method?:string;pin?:string};
+   if(body?.method==="passkey")
+    return Response.json({ok:true},{headers:{"cache-control":"no-store",
+      "set-cookie":await independentSessionCookie()}});
+   const key=await rateLimitKey(request),status=await rateLimitStatus(key);
+   if(status.blocked)return Response.json({error:"Too many PIN attempts. Try again later."},
+    {status:429,headers:{"cache-control":"no-store","retry-after":String(status.retryAfter)}});
+   if(body?.method!=="pin"||typeof body.pin!=="string"||
+      !/^\d{4}$/.test(body.pin)||!await verifyIndependentPin(body.pin)){
+    const retryAfter=await recordFailure(key);
+    return Response.json({error:retryAfter?"Too many PIN attempts. Try again later.":"Incorrect PIN."},
+      {status:retryAfter?429:401,headers:{"cache-control":"no-store",
+      ...(retryAfter?{"retry-after":String(retryAfter)}:{})}});
+   }
+   await clearFailures(key);
+   return Response.json({ok:true},{headers:{"cache-control":"no-store",
+     "set-cookie":await independentSessionCookie()}});
+  }
     const key = await rateLimitKey(request);
     const status = await rateLimitStatus(key);
     if (status.blocked) {
