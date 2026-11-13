@@ -241,7 +241,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  };
  return <section className="photo-panel" aria-label="On-device customer photos">
   <header><strong>Photos</strong><p>On this device only · not synced.</p></header>
-  <p className="payment-handle-note"><strong>Back up photos:</strong> Save an all-photos ZIP to Files/iCloud. Deleting FIRE or clearing browser data can erase local photos. Older cloud images are not included.</p>
+  <p className="payment-handle-note"><strong>Back up photos:</strong> Prepare a protected all-photos archive and save it outside this browser. A file left only on this device is not independent recovery. FIRE cannot reset a forgotten passphrase. Photos are not synced; older cloud photos are not included.</p>
   {legacyCloudPhotoCount>0&&<p role="alert" className="save-error">{legacyCloudPhotoCount} older hosted photo record(s) remain associated with this customer. The new on-device gallery and ZIP backup do not include those bytes. No existing hosted records were deleted or migrated. Preserve the old cloud archive separately before considering its storage retired.</p>}
   <div className="photo-toolbar">
    <div><Label>Photo type</Label><select aria-label="Photo type" value={category} onChange={e=>setCategory(e.target.value as typeof category)} disabled={busy}><option value="before">Before</option><option value="after">After</option><option value="property">Property / damage</option></select></div>
@@ -250,21 +250,29 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   </div>
   <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={e=>void add(e.target.files)}/>
   <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={e=>void add(e.target.files)}/>
+  <div className="photo-backup-passphrase">
+   <Label>Private recovery passphrase (16–1024 characters)</Label>
+   <Input type="password" aria-label="Photo backup recovery passphrase" autoComplete="off" value={backupPassphrase} maxLength={1024} disabled={busy} onChange={e=>setBackupPassphrase(e.target.value)} placeholder="Enter passphrase to protect, verify or restore"/>
+   <Label>Confirm passphrase (only for a new protected backup)</Label>
+   <Input type="password" aria-label="Confirm new photo backup passphrase" autoComplete="off" value={confirmBackupPassphrase} maxLength={1024} disabled={busy} onChange={e=>setConfirmBackupPassphrase(e.target.value)} placeholder="Repeat passphrase for new backup"/>
+   <p className="payment-handle-note">Keep the passphrase privately in a password manager, separate from the protected backup file. FIRE cannot reset it.</p>
+  </div>
   <div className="photo-buttons photo-backup-primary">
-   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('all')}><Download className="h-4 w-4"/>Prepare all local photos ZIP</Button>
-   {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>}
-   <Button variant="outline" disabled={busy||loading} onClick={()=>verifyRef.current?.click()}><Images className="h-4 w-4"/>Verify saved ZIP from Files</Button>
+   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive("all",true)}><Download className="h-4 w-4"/>Prepare protected all-photos backup</Button>
+   {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared backup to Files</Button>}
+   <Button variant="outline" disabled={busy||loading} onClick={()=>verifyRef.current?.click()}><Images className="h-4 w-4"/>Verify saved photo backup</Button>
   </div>
   <details className="photo-backup-more">
    <summary>More photo backup tools</summary>
    <div className="photo-buttons">
-    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
-    {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button>}
-    <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
+    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive("customer",true)}><Download className="h-4 w-4"/>Protect this customer’s photos</Button>
+    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive("all",false)}><Download className="h-4 w-4"/>Legacy unencrypted all-photos ZIP</Button>
+    {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared backup</Button>}
+    <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo backup</Button>
    </div>
   </details>
-  <input ref={verifyRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void verifySavedArchive(e.target.files)}/>
-  <input ref={restoreRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void restore(e.target.files)}/>
+  <input ref={verifyRef} className="photo-input" type="file" accept=".firephotos,.zip,application/zip,application/octet-stream" onChange={e=>void verifySavedArchive(e.target.files)}/>
+  <input ref={restoreRef} className="photo-input" type="file" accept=".firephotos,.zip,application/zip,application/octet-stream" onChange={e=>void restore(e.target.files)}/>
   {needsReview&&<div role="alert" className="save-error"><p>Photo changes are paused because the last result was not confirmed. Keep original images and backup files.</p>
    <Button variant="outline" disabled={busy} onClick={()=>void refreshForReview()}>Refresh saved photos for review</Button>
    <Button variant="outline" disabled={busy||!reviewLoaded} onClick={()=>void allowChanges()}>I reviewed saved photos; allow new changes</Button>
