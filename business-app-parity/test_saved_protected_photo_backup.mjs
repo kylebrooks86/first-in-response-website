@@ -85,7 +85,7 @@ try{
   zip([data,data]))),/incomplete|duplicate/i);
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(
   storedFireZip([['photos/'+photoId,photoBytes]]))),/manifest/i);
- const tamperedZip=zip();tamperedZip[35]^=0x20;
+ const tamperedZip=zip();tamperedZip[30+Buffer.byteLength('photos/'+photoId)+1]^=0x20;
  await reject(Promise.resolve().then(()=>inspectStoredFirePhotoZip(tamperedZip)),/CRC/i);
  // Confirm the real command-line boundary reads the passphrase from stdin,
  // never from process arguments, never emits customer IDs or plaintext bytes,
