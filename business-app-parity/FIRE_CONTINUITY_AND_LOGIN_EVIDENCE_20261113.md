@@ -78,6 +78,15 @@ These are historical owner-observed snapshots, **not** attestation that #244 is 
 
 See [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) newest dated development comment for the current PR245 source and workflow checkpoint; do not resurrect stale legacy Sites-first migration or past login loops.
 
+
+### Nov 13 PR #245 — verified current photo-recovery code checkpoint (no provider writes)
+
+Exact tested **source SHA `e24a5c6c7bb74037df0c3a371e13edd8e77180cf`** on draft [PR #245](https://github.com/kylebrooks86/first-in-response-website/pull/245), stacked on existing unchanged #244. Added encrypted owner-device `.firephotos` backup/verify/restore, retained explicit legacy ZIP path, re-read IndexedDB/compare SHA-256 after encryption to block stale archives, and source-only numbered-records/photo paired fingerprint guards (wrong customers, changed cents, altered photo bytes or job high-water reject the pair).
+
+**Actual checks on this exact source:** [Independent DR+NEW LIVE builds and focused tests run 43474404584](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43474404584) **SUCCESS both target jobs** (protected-file crypto, backup format, numbered-record/photo pair, no-R2 identity tests). [Website run 43474401590](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43474401590) **SUCCESS**. [Staging/QA source run 43474401666](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43474401666) has already **PASSED the targeted ACTUAL isolated Chrome React photo UI step**, including new protected-file roundtrip, wrong-passphrase refusal, old ZIP availability, iPhone-width control geometry, saved-archive coverage detection, multi-tab invalidation and verified add-only restore; separate photo upload/delete integrity step also SUCCESS. Other jobs in that longer staging run were still in progress at the latest check, and must not be called completed until recorded. [Main-only workflow 43474401768](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43474401768) still rejects the *intentionally stacked* PR at the unchanged base-main guard; do not waive it or report universal CI green.
+
+**This is source/isolated-browser evidence, NOT Gate 7 physical approval.** No protected archive has been independently held off-device and restored with an actual bound D1 customer/Job #/financial snapshot, no physical DR UUID yet attested, no hosted NEW LIVE/DR Worker and no provider write. No repeat iPhone QA, Acer test loops, Work Google/GitHub/password sign-in or paid Cloudflare/R2 request. Accepted release gates remain **1,2,3,8 = 4/10**; G4/5/6/7/9/10 OPEN and LIVE NO-GO. The one next Acer read-only fact is the existing `fire-fullapp-dr-db` D1 Database ID/UUID, **not** another screenshot or resource creation. Do not infer deployment authorization from this fact.
+
 ---
 
 ## November 13, 2026 — Actual saved protected-photo file can now be independently checked on Acer (draft PR #248)
