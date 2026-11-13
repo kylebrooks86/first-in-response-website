@@ -22,6 +22,8 @@ on:
       - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
       - 'business-app-parity/shared/lib/new-live-clean-start.mjs'
       - 'business-app-parity/shared/lib/new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-new-live-first-job-route.mjs'
       - 'business-app-parity/shared/app/api/release/new-live-clean-start/route.ts'
@@ -78,6 +80,9 @@ jobs:
       - name: Pair numbered records and verified device photos without provider writes
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs
+      - name: Verify immutable customer/job trigger SQL from reviewed v1 migrations
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs
       - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
         if: matrix.target == 'independent-live'
         run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs

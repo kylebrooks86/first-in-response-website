@@ -9,6 +9,7 @@
  */
 import {JOB_NUMBER_FLAG,jobNumberingReady} from './job-numbering.mjs';
 import {CUSTOMER_NUMBER_FLAG,customerNumberingReady} from './customer-numbering.mjs';
+import {immutableNumberingTriggersReady} from './numbered-immutable-trigger-contract.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
 
 const stop=reason=>{throw Error('FIRE NEW LIVE clean start BLOCKED: '+reason);};
@@ -84,6 +85,10 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  const triggers=trig.names.split(',').filter(Boolean);
  if(REQUIRED_TRIGGERS.some(name=>!triggers.includes(name)))
   stop('required immutable customer/job numbering trigger missing');
+ // A trigger with the correct name could still do nothing or run AFTER a
+ // modification. Require exact reviewed aborting SQL on the bound D1.
+ try{await immutableNumberingTriggersReady(db);}
+ catch{stop('immutable customer/job trigger SQL does not match approved schema');}
  // A brand-new production DB cannot contain synthetic customers, saved
  // estimates, payments, tasks, photos, notifications, previous jobs, etc.
  // Fail closed on any nonempty table. One query per known safe hard-coded name,

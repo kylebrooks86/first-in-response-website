@@ -1,5 +1,6 @@
 /** Source-only NEW LIVE #0001 clean-D1 pre-activation regression, NO D1 writes. */
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {inspectNewLiveFirstJobCleanStart} from '../lib/new-live-first-job-preflight.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from '../lib/numbered-records-v2-preflight.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','d1_migrations'];
@@ -9,6 +10,12 @@ const triggers=[
  'fire_job_numbers_no_update','fire_job_numbers_no_delete',
  'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete'
 ];
+const trustedTriggerSql=new Map([
+ ...[...readFileSync(new URL('../../customer-numbering/customer_numbers_v1.sql',import.meta.url),'utf8').matchAll(
+  /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)],
+ ...[...readFileSync(new URL('../../job-numbering/job_numbers_v1.sql',import.meta.url),'utf8').matchAll(
+  /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)]
+].map(match=>[match[1],match[0]]));
 let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
@@ -20,9 +27,12 @@ const create=(override={})=>{
   statements.push(sql);
   if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write SQL!');
   const count=/^SELECT COUNT\(\*\) AS n FROM "([a-z0-9_]+)"$/.exec(sql);
-  return {all:async()=>({results:v.validCustomerSchema?
-   ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
-   [{name:'fire_customer_numbers'}]}),first:async()=>{
+  return {all:async()=>sql.includes('SELECT name,sql FROM sqlite_master')?
+   ({results:v.triggers.map(name=>({name,sql:Object.hasOwn(v.triggerSqlOverride||{},name)?
+    v.triggerSqlOverride[name]:trustedTriggerSql.get(name)}))}):
+   ({results:v.validCustomerSchema?
+    ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
+    [{name:'fire_customer_numbers'}]}),first:async()=>{
    if(sql.includes('AS tables')&&sql.includes('AS triggers'))return {
     tables:v.validSchema?2:1,triggers:v.validSchema?4:3};
    if(sql.includes('AS invalid'))return {invalid:v.validCoverage?0:1};
@@ -82,6 +92,12 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:[...tables,'un
  'unexpected business table requires separate migration review');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:triggers.slice(1)}).db,env),
  'missing immutable customer-number trigger stops');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggerSqlOverride:{
+ fire_job_numbers_no_update:'CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT 1; END;'
+ }}).db,env),'named but ineffective Job # immutability trigger stops first-use');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggerSqlOverride:{
+ fire_customer_numbers_no_delete:'CREATE TRIGGER fire_customer_numbers_no_delete AFTER DELETE ON fire_customer_numbers BEGIN SELECT RAISE(ABORT,\'FIRE customer numbers cannot be reused\'); END;'
+ }}).db,env),'named but AFTER customer delete trigger cannot prove immutability');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{customers:1}}).db,env),
  'synthetic customer in proposed new LIVE must never be deleted silently');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{payments:1}}).db,env),

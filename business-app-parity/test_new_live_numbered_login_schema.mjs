@@ -53,6 +53,7 @@ await pass("NEW LIVE invokes D1 readiness, catching missing tables or links",()=
  assert.match(auth,/async function verifiedNewLiveJobNumberSchema\(\)/);
  assert.match(auth,/await jobNumberingReady\(env.DB,env\)/);
  assert.match(auth,/await customerNumberingReady\(env.DB,env\)/);
+ assert.match(auth,/await immutableNumberingTriggersReady\(env.DB\)/);
  assert.match(auth,/catch \{ return false; \}/);
 });
 await pass("Passphrase login checks verified D1",()=>{

@@ -25,6 +25,7 @@ check('DR explicitly imports physical DB Job # checker',()=>{
  assert.match(auth,/!env\.DB/);
  assert.match(auth,/await jobNumberingReady\(env\.DB, env\)/);
  assert.match(auth,/await customerNumberingReady\(env\.DB, env\)/);
+ assert.match(auth,/await immutableNumberingTriggersReady\(env\.DB\)/);
  assert.match(auth,/catch \{ return false; \}/);
 });
 check('DR long-passphrase authentication never bypasses D1',()=>{
