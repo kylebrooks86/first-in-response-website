@@ -19,7 +19,7 @@ const create=(override={})=>{
  const db={prepare(sql){
   statements.push(sql);
   if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write SQL!');
-  const count=/^SELECT COUNT\(\*\) AS n FROM "([a-z_]+)"$/.exec(sql);
+  const count=/^SELECT COUNT\(\*\) AS n FROM "([a-z0-9_]+)"$/.exec(sql);
   return {all:async()=>({results:v.validCustomerSchema?
    ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
    [{name:'fire_customer_numbers'}]}),first:async()=>{
