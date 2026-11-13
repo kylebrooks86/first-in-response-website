@@ -17,7 +17,7 @@ const stop=why=>{throw Error('FIRE paired offline recovery BLOCKED: '+why);};
 export async function rehearseIsolatedRecordsAndPhotos(records,template,protectedPhotos,outputDb,outputPhotos,phrase,{approved=false,supplementalPath}={}){
  if(!approved)stop('explicit private recovery acknowledgment required');
  const paths=[records,template,protectedPhotos,outputDb,outputPhotos,supplementalPath];
- if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(resolve)).size!==6)
+ if(paths.some(x=>typeof x!=='string'||!x)||new Set(paths.map(p=>resolve(p))).size!==6)
   stop('all six source and output paths must be distinct');
  // Restore the records first; if photos fail validation or cannot be saved,
  // discard the newly created DB rather than leaving an incomplete pair.
