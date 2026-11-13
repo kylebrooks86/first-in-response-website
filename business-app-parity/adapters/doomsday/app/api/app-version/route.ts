@@ -1,5 +1,5 @@
 import { FIRE_APP_VERSION } from "../../../lib/app-version";
-import { quickUnlockEnabled } from "../../../owner-auth";
+import { quickUnlockEnabled } from "../../owner-auth";
 
 export const dynamic = "force-dynamic";
 
