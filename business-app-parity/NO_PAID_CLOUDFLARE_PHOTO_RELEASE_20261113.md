@@ -33,3 +33,12 @@ The output evidence has `r2Required:false`, `remotePhotoSyncAvailable:false`, `o
 ## Hard NO-GO
 
 This document, any source-only test PASS, and the owner-created empty D1 database do **NOT** authorize subscription, R2, KV creation, Worker deployment, D1 migration, Access change, Stripe, Git merge, production cutover or retiring Sites. **Gates 1,2,3,8 ACCEPTED (4/10). Gates 4,5,6,7,9,10 OPEN; LIVE NO-GO.**
+
+
+## Nov 13 paired-identity source hard stop — review BOTH targets together before any provider write
+
+PR #244 now includes a pure offline review function `reviewIndependentReleasePair` and a standalone read-only companion `review_new_independent_release_pair.mjs`. The original per-target preparer could not, by itself, demonstrate that DR and NEW LIVE were configured against different D1 UUIDs. **Passing individually was not enough.** This additional safeguard rejects a shared DR/NEW LIVE physical UUID, known QA/STAGING/TEST UUID reuse, target name/origin mismatches, reused owner auth secret *names*, injected R2/KV/service/other storage bindings, mismatched permanent Job # login flags, and claims of already-approved backup, restore or release.
+
+The CLI reads **two existing compiled inert release manifests** from local files, plus separate, owner-reviewed DR and NEW LIVE D1 UUIDs provided through private environment variables. It requires explicit local photo mode `owner-device-zip` and distinct owner resource-identity attestations. It **always leaves authentication blocked**; any supplied R2 bucket, paid storage flag or authentication activation request aborts before output. It writes **no files**, makes **zero provider calls**, and emits only a limited non-secret source-check summary. Its path and synthetic test are wired into the local-only independent-release GitHub workflow. It cannot be run against the genuine pair until both resource identities have been independently established; do not invent the NEW LIVE UUID or reuse another environment's ID.
+
+**Important:** This is a guard against configuration mistakes, **not** Cloudflare proof. A future passing offline command cannot certify UUID ownership/provider binding, actual database separation, cross-device photo sync, secured off-device ZIP custody, isolated D1+photo restore, new hosted sessions or authorization to deploy. Gates 4/5/7/10 remain open. No new R2 or paid services and no repeat Cloudflare login are required.
