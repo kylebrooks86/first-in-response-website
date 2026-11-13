@@ -106,8 +106,11 @@ function restore(db,archive,supplemental){
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
    for(const row of archive.tables[t]){
     const keys=Object.keys(row).sort();
-    if(!keys.length||keys.some(k=>!ident(k)||!allowed.has(k)))
-     stop('unrecognized source column for '+t);
+    // Core customer, estimate, payment and refund records must be no less
+    // complete than supplemental feature records. A missing nullable field
+    // could otherwise become DEFAULT/NULL while the archive falsely passed.
+    if(keys.length!==allowed.size||keys.some(k=>!ident(k)||!allowed.has(k)))
+     stop('incomplete or unknown core source columns in '+t);
     const sql='INSERT INTO '+q(t)+' ('+keys.map(q).join(',')+') VALUES ('+keys.map(()=>'?').join(',')+')';
     db.prepare(sql).run(...keys.map(k=>toSql(row[k])));
     restored++;
