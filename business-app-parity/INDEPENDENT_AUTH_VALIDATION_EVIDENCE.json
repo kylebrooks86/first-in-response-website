@@ -1,0 +1,50 @@
+{
+  "scope": "isolated FIRE Doomsday authentication adapter; no deployed authentication change",
+  "asOf": "2026-10-09",
+  "parent": "80dc57c9db00a718b4726c1688a9c1f959e7326d",
+  "candidateSnapshotCommits": {
+    "live": "dc3fff7124adf78df439cc2ee1dda6033dcde47d",
+    "doomsday": "c227120ac685160adeda26be80cd742a34b70f70",
+    "staging": "9288aba275a6c879f5f23909e16c09c056221ea3"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/auth-adapter-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/auth-adapter-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/auth-adapter-staging"
+  },
+  "fix": "Reject signed session cookie with any extra dot-separated segments; preserve existing exact v1 expiry/signature format",
+  "credentialValidation": "Synthetic configured SHA-256 four-digit credential succeeds and wrong value fails; general credential verifier already supported this",
+  "preserved": "Existing hash configuration, password verification algorithm, 30-day signed cookies, secure flags, rate limiter, redirects, and sign-out retained",
+  "negativeControl": "Pre-fix parser fails new trailing-session-segment regression; fixed parser passes",
+  "authAssertionsPassed": 21,
+  "authAssertionsTotal": 21,
+  "syntheticOnly": true,
+  "sharedFilesMatched": 118,
+  "sharedFilesChecked": 118,
+  "typescriptTargetsPassed": 1,
+  "typescriptTargetsChecked": 1,
+  "buildTargetsPassed": 1,
+  "buildTargetsChecked": 1,
+  "buildCompletionVerified": true,
+  "unchangedLiveStagingBuildsRerun": false,
+  "changedFilesSha256": {
+    "business-app-parity/adapters/doomsday/app/owner-auth.ts": "c12a2b0e557f31f20396cbbbf528bc8ac4ffc3ca144245e45b08e6dc7cc981e9",
+    "business-app-parity/shared/scripts/test-independent-auth-adapter.mjs": "e18c62c55b3f5e5c166d6da33f2b46b4ade1f9e6984eaa5be476f658eff73d3d"
+  },
+  "limits": [
+    "Deployed PIN/hash configuration and session compatibility unverified",
+    "Candidate login currently says owner password; deployed PIN label/input differs; must address before promotion",
+    "Remote auth_rate_limits table/schema and concurrent limiter behavior unverified",
+    "Generic local Vite configuration not deployable hosting configuration",
+    "Legacy DR publish path still does not consume current candidate"
+  ],
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "remoteSchemasVerified": 0,
+  "remoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "remoteDatabaseOrStripeWrites": false
+}
