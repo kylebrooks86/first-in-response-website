@@ -10,6 +10,7 @@ let owner={email:'kylebrooks8605@gmail.com'},remoteCalls=0,checks=0;
 let skipNextBatch=false,loseNextInvoiceRead=false,distortNextInvoiceRead=false,distortNextLineRead=false,hideNextRevision=false,postBatchRead=false;
 let paymentBetweenReadAndBatch=null;
 let paymentAfterInitialPaidRead=null;
+let refundBetweenReadAndBatch=null;
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async()=>{remoteCalls++;throw Error('Synthetic invoice test forbids all remote provider requests');};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
@@ -40,7 +41,14 @@ const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
     return {results:rows};
   },
   async run(){return {meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}});
-const env={DB:{prepare:statement,async batch(statements){
+const env={STRIPE_RESTRICTED_KEY:'sk_test_SYNTHETIC_NO_NETWORK',DB:{prepare:statement,async batch(statements){
+  // Simulate a concurrent pending refund arriving after the preflight but
+  // before invoice revision SQL. The transaction must remain a no-op.
+  if(refundBetweenReadAndBatch){
+    const {id,estimateId,paymentId}=refundBetweenReadAndBatch;refundBetweenReadAndBatch=null;
+    db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES (?,?,?,1000,'manual','pending','2026-11-04')")
+      .run(id,paymentId,estimateId);
+  }
   // Model a legitimate payment committed after the invoice preflight SELECT,
   // before the atomic invoice-revision/lines/header transaction begins.
   if(paymentBetweenReadAndBatch){
@@ -56,7 +64,7 @@ const env={DB:{prepare:statement,async batch(statements){
 const loader=createRouteFixtureLoader(process.cwd(),env,()=>owner);
 const route=loader('app/api/invoices/[id]/route.ts');
 const items=(cents,name='Synthetic service')=>[{name,description:'Owner-selected rate',quantity:1,unit:'job',totalCents:cents}];
-const patch=(id,rows,discountType='dollar',discountValue=0)=>route.PATCH(new Request('https://synthetic.invalid/api/invoices/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({items:rows,discountType,discountValue})}),{params:Promise.resolve({id})});
+const patch=(id,rows,discountType='dollar',discountValue=0,extra={})=>route.PATCH(new Request('https://synthetic.invalid/api/invoices/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({items:rows,discountType,discountValue,...extra})}),{params:Promise.resolve({id})});
 const detail=id=>route.GET(new Request('https://synthetic.invalid/api/invoices/'+id),{params:Promise.resolve({id})});
 const invoice=id=>db.prepare('SELECT total_cents AS total,discount_cents AS discount,status FROM invoices WHERE id=?').get(id);
 const revisions=id=>db.prepare('SELECT COUNT(*) AS n FROM invoice_revisions WHERE invoice_id=?').get(id).n;
@@ -90,6 +98,40 @@ try{
  eq(JSON.stringify(invoice('paid')),before,'Payment guard leaves invoice unchanged');eq(revisions('paid'),previous,'Failed edit has no revision');
  response=await patch('paid',items(10000,'Too much discount'),'dollar',10001);eq(response.status,400,'Over-subtotal discount rejected');
  eq(JSON.stringify(invoice('paid')),before,'Invalid discount leaves invoice unchanged');
+ // Invalid owner invoice input must be rejected BEFORE expiring a valid
+ // customer checkout on Stripe. A bad due date cannot cause remote writes.
+ seed('invalid-date-checkout');
+ db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?, 'balance',20000,'open','2026-11-04')")
+   .run('cs_synthetic_open','e-invalid-date-checkout');
+ const invalidBefore=JSON.stringify(invoice('invalid-date-checkout'));
+ response=await patch('invalid-date-checkout',items(22000),'dollar',0,{dueAt:'not-a-date'});
+ eq(response.status,400,'Invalid due date rejected before existing Stripe checkout expiration');
+ eq(db.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_synthetic_open'").get().status,'open',
+   'Rejected edit does not expire the tracked customer checkout');
+ eq(JSON.stringify(invoice('invalid-date-checkout')),invalidBefore,'Rejected edit never reprices the invoice');
+ eq(remoteCalls,0,'No Stripe call for rejected due date');
+ // A pending refund must block invoice edits. It is financially unsafe to
+ // reprice a still-unsettled refund, even before checkout expiration.
+ seed('refund-pending');
+ db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES ('refund-pending-paid','e-refund-pending','Deposit',5000,'paid','2026-11-04')").run();
+ db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES ('pending-invoice-refund','refund-pending-paid','e-refund-pending',1000,'manual','pending','2026-11-04')").run();
+ const beforePending=JSON.stringify(invoice('refund-pending')),pendingRevisions=revisions('refund-pending');
+ response=await patch('refund-pending',items(25000,'Unsafe during pending refund'));
+ eq(response.status,409,'Open refund blocks invoice repricing');
+ eq(JSON.stringify(invoice('refund-pending')),beforePending,'Pending refund leaves invoice unchanged');
+ eq(revisions('refund-pending'),pendingRevisions,'Pending refund does not create invoice revision');
+ eq(remoteCalls,0,'Pending refund block causes no Stripe call');
+ // A new pending refund AFTER preflight but BEFORE the atomic D1 batch must
+ // prevent all invoice writes through the transaction-level revision gate.
+ seed('refund-race');
+ db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES ('refund-race-paid','e-refund-race','Deposit',5000,'paid','2026-11-04')").run();
+ const beforeRefundRace=JSON.stringify(invoice('refund-race'));
+ refundBetweenReadAndBatch={id:'concurrent-pending-refund',paymentId:'refund-race-paid',estimateId:'e-refund-race'};
+ response=await patch('refund-race',items(24000,'Concurrent refund must hold'));
+ eq(response.status,503,'Concurrent pending refund causes uncertain no-write invoice response');
+ eq(JSON.stringify(invoice('refund-race')),beforeRefundRace,'Concurrent pending refund preserves original invoice');
+ eq(revisions('refund-race'),0,'Concurrent refund refuses transaction revision');
+ eq(remoteCalls,0,'Concurrent refund race avoids Stripe calls');
  // A payment can commit AFTER the last paid-balance SELECT but BEFORE the
  // invoice D1.batch starts. All three dependent writes must remain unchanged.
  seed('race');
