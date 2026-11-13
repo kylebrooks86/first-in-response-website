@@ -80,6 +80,21 @@ try{
  eq(externalCalls,0,'No remote photo, Cloudflare, Stripe, email or other network use');
  eq(writes,0,'No D1 mutation statements');
 
+ // Cloudflare D1 itself may expose this provider-owned table. Its exact
+ // documented DDL must not block complete customer/job/ledger export, and
+ // its contents must NEVER be included among the 23 reviewed durable tables.
+ db.exec('CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB) WITHOUT ROWID');
+ insert('INSERT INTO _cf_KV(key,value) VALUES(?,?)','synthetic-provider-key',Buffer.from('not-a-customer-record'));
+ const providerSnapshot=await captureNumberedCoreV2ReadOnly(d1());
+ eq(providerSnapshot.rowCounts.customers,2,'Documented D1 internal table does not block valid source records');
+ eq(Object.keys(providerSnapshot.tables).length,23,'Reserved D1 provider data is NOT exported as customer records');
+ eq(providerSnapshot.highWater.job,15,'Internal provider table does not reset consumed Job # history');
+ await reject(d1(result=>{result[0].results.find(row=>row.name==='_cf_KV').sql='CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB, secrets TEXT) WITHOUT ROWID';}),
+  'Same-named internal table with unreviewed SQL definition fails closed');
+ await reject(d1(result=>{result[0].results.push({...result[0].results.find(row=>row.name==='_cf_KV')});}),
+  'Duplicate reserved provider metadata fails closed');
+ db.exec('DROP TABLE _cf_KV');
+
  await reject({prepare:()=>({}),batch:null},'Missing transactional D1 batch refused');
  await reject(d1(result=>{result[0].results.push({name:'unreviewed_business_table'});}), 'New unarchived table fails closed');
  await reject(d1(result=>{result[0].results=result[0].results.filter(r=>r.name!=='fire_job_numbers');}), 'Missing permanent identity SQL table fails closed');
