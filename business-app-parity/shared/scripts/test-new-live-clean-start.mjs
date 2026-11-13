@@ -34,4 +34,8 @@ const customer=readFileSync(new URL('../app/api/customers/route.ts',import.meta.
 assert.match(customer,/recoveredAfterUncertainSave:true/);
 assert.match(customer,/customerCreationReceipt\(env.DB,recoveryRequestId\)/);
 assert.match(customer,/saveUncertain:true,requestId:recoveryRequestId/);
+assert.match(customer,/FIRE_NEW_LIVE_CLEAN_START/);
+assert.match(customer,/FIRE_CUSTOMER_NUMBERS_CANDIDATE/);
+assert.match(customer,/if\(numbered&&!customerNumber\)/);
+assert.match(customer,/if\(numbered&&!customerNumber\)throw Error/);
 console.log('PASS: NEW LIVE first job guard and customer uncertain-save recovery contracts');
