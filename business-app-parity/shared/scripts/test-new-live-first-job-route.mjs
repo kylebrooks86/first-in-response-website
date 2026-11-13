@@ -11,7 +11,7 @@ const env={
  FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
  DB:{prepare(sql){reads++;if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write');throw Error('Synthetic unavailable physical D1');}}
 };
-const route=createRouteFixtureLoader(resolve(fileURLToPath(new URL('../',import.meta.url))),env,()=>user)('app/api/release/new-live-clean-start/route.ts');
+const route=createRouteFixtureLoader(resolve(fileURLToPath(new URL('../',import.meta.url))),env,()=>{if(user==='throw-auth')throw Error('Synthetic auth gateway unavailable');return user;})('app/api/release/new-live-clean-start/route.ts');
 let checks=0;
 async function expect(status,reason){
  const before=reads,response=await route.GET(),json=await response.json();
@@ -23,6 +23,10 @@ async function expect(status,reason){
  checks++;
 }
 await expect(401,'anonymous denied before touching database');
+user='throw-auth';
+await expect(401,'auth gateway exception denied before database');
+user={email:null};
+await expect(401,'malformed identity denied before database');
 user={email:'someone-else@example.invalid'};
 await expect(401,'nonowner denied before touching database');
 user={email:'kylebrooks8605@gmail.com'};
