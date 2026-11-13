@@ -93,4 +93,39 @@ for(const file of ['adapters/qa/app/api/auth/login/route.ts',
  assert.match(source,/rateLimitStatus/);
  passed+=5;
 }
+
+// Targeted source audit of QA app-version discoverability, prelaunch Job #
+// safety and first-run semantics. This is NOT hosted biometric or D1 proof.
+for(const file of ['adapters/qa/app/api/app-version/route.ts',
+ 'adapters/doomsday/app/api/app-version/route.ts']){
+ const source=readFileSync(new URL(file,import.meta.url),'utf8');
+ assert.match(source,/quickUnlockEnabled\(\)/);
+ assert.match(source,/pin-or-passkey/);
+ assert.match(source,/no-store/);
+ passed+=3;
+}
+{
+ const live=readFileSync(new URL('adapters/independent-live/app/owner-auth.ts',import.meta.url),'utf8');
+ assert.match(live,/FIRE_JOB_NUMBERS_CANDIDATE/);
+ assert.match(live,/owner-approved-schema-v1/);
+ const review=readFileSync(new URL('prepare_new_independent_release_manifest.mjs',import.meta.url),'utf8');
+ assert.match(review,/jobNumbersSchemaAttestation/);
+ assert.match(review,/owner-verified-independent-live-job-numbers-empty-v1/);
+ assert.match(review,/FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1'/);
+ passed+=5;
+}
+{
+ const home=readFileSync(new URL('shared/app/dashboard.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('shared/app/globals.css',import.meta.url),'utf8');
+ const search=readFileSync(new URL('shared/components/global-search.tsx',import.meta.url),'utf8');
+ assert.match(home,/summaryVerified&&metrics.estimates===0&&estimates.length===0/);
+ assert.match(home,/aria-label="First job workflow"/);
+ for(const label of ['Customer','Estimate','Schedule','Get paid'])assert.ok(home.includes(' · '+label));
+ assert.match(home,/Nothing sends automatically/);
+ assert.match(css,/fire-first-job-steps/);
+ assert.match(css,/@media\(max-width:530px\)/);
+ assert.match(search,/placeholder="Name, address or Job #"/);
+ assert.match(search,/Permanent Job # lookup works|enter a full number such as Job #0001/i);
+ passed+=11;
+}
 console.log('PASS '+passed+'/'+passed+' signed Access JWT integrity, owner/audience/issuer, short-PIN security source and all app overlays; no real credentials or provider requests.');
