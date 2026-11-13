@@ -29,7 +29,8 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  check(()=>assert.equal(pass.evidence.gate4Accepted,false),'no false gate acceptance');
  check(()=>assert.equal(pass.evidence.remoteOperationAttempted,false),'pure source');
  check(()=>assert.equal(manifest.d1_databases[0].database_id,PLACEHOLDER),'source never mutated');
- const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth'});
+ const liveNumberApproval=target==='independent-live'?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'}:{};
+ const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth',...liveNumberApproval});
  check(()=>assert.equal(allowed.config.vars[prefix+'_AUTH_ENABLED'],'owner-approved'),'explicit independent auth approval');
 
  const quickOpts={...opts,enableAuth:true,
@@ -39,7 +40,8 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
   accessTeamDomain:'fire-owner.cloudflareaccess.com',
   accessAudience:'pinned-app-audience-for-'+target,
   accessOwnerEmail:'owner@example.invalid',
-  pinSecretNamesAttestation:'owner-checked-'+target+'-pin-secret-names'
+  pinSecretNamesAttestation:'owner-checked-'+target+'-pin-secret-names',
+  ...liveNumberApproval
  };
  const quick=prepareReviewedIndependentManifest(target,manifest,quickOpts);
  check(()=>assert.equal(quick.config.vars.FIRE_QUICK_AUTH_MODE,'passkey-or-pin-v1'),'pin/passkey gate');
@@ -76,6 +78,18 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  reject(manifest,{...quickOpts,accessOwnerEmail:'not-email'});
  reject(manifest,{...quickOpts,enableAuth:false});
  reject(manifest,{...quickOpts,pinSecretNamesAttestation:null});
+ if(target==='independent-live'){
+  // No actual provider attestation is created by this test: these strings are
+  // synthetic only, and the source manifest remains blocked.
+  reject(manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-independent-live-auth'});
+  reject(manifest,{...quickOpts,jobNumbersSchemaAttestation:null});
+  check(()=>assert.equal(allowed.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,'owner-approved-schema-v1'),
+   'approved NEW LIVE numbered schema flag prepared');
+  check(()=>assert.equal(pass.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,undefined),
+   'unapproved NEW LIVE never enables Job #s');
+  check(()=>assert.equal(allowed.evidence.jobNumberSchemaPhysicallyVerified,false),
+   'local manifest never asserts a real database check');
+ }
 
 }
 check(()=>assert.throws(()=>prepareReviewedIndependentManifest('qa',{},{}),/BLOCKED/),'unreviewed target');
