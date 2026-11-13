@@ -88,17 +88,22 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  if(target==='independent-live'&&enabled&&
    options.customerNumbersSchemaAttestation!=='owner-verified-independent-live-customer-numbers-empty-v1')
   fail('NEW LIVE login requires separately verified permanent Customer # schema and complete identity coverage');
- if(target==='independent-live'&&!enabled&&options.customerNumbersSchemaAttestation!==undefined)
-  fail('NEW LIVE customer-number attestation cannot activate an inert manifest');
+ if(!enabled&&options.customerNumbersSchemaAttestation!==undefined)
+  fail('Customer # schema attestation cannot activate an inert manifest');
  const drNumbers=target==='independent-dr'&&
    options.jobNumbersSchemaAttestation==='owner-verified-independent-dr-job-numbers-v1';
+ const drCustomers=target==='independent-dr'&&
+   options.customerNumbersSchemaAttestation==='owner-verified-independent-dr-customer-numbers-v1';
  if(target==='independent-dr'&&options.jobNumbersSchemaAttestation!==undefined&&
    (!drNumbers||!enabled))
   fail('DR Job # mode requires enabled owner authentication and verified DR numbering schema');
+ if(target==='independent-dr'&&options.customerNumbersSchemaAttestation!==undefined&&
+   (!drCustomers||!enabled))
+  fail('DR Customer # mode requires enabled owner authentication and verified DR customer numbering schema');
  // DR may remain inert before a full private recovery, but owner sign-in
  // must never activate in a non-numbered DR and quietly drop QA Job # parity.
- if(target==='independent-dr'&&enabled&&!drNumbers)
-  fail('DR login requires target-bound verified permanent Job # schema; no unnumbered recovery sign-in');
+ if(target==='independent-dr'&&enabled&&(!drNumbers||!drCustomers))
+  fail('DR login requires target-bound verified permanent Job # and Customer # schemas; no incomplete recovery sign-in');
  const jobNumbersPrepared=enabled&&(target==='independent-live'||drNumbers);
  // Optional passkey / 4-digit PIN mode needs a provider-verified Access
  // application for THIS Worker, separate owner consent and per-target
@@ -126,12 +131,13 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
  updated.r2_buckets=[];
  updated.vars={...initialVars,FIRE_PHOTO_STORAGE_MODE:PHOTO_MODE,
   [spec.prefix+'_AUTH_ENABLED']:enabled?'owner-approved':'blocked'};
- if(jobNumbersPrepared)
+ if(jobNumbersPrepared){
   updated.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
- if(target==='independent-live'&&enabled){
-  // This matches the actual owner app's first-job route guard. An auth-ready
-  // manifest must not quietly omit the customer serials required by the app.
+  // QA-master permanent Customer # must be available on BOTH recovered DR and NEW LIVE.
   updated.vars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ }
+ if(target==='independent-live'&&enabled){
+  // This matches the actual owner app's first-job route guard.
   updated.vars.FIRE_NEW_LIVE_CLEAN_START='required';
  }
  if(quick){
@@ -151,7 +157,8 @@ export function prepareReviewedIndependentManifest(target,original,options={}){
   r2Required:false,remotePhotoSyncAvailable:false,offDeviceZipVerified:false,
   isolatedPhotoRestoreVerified:false,authEnabled:enabled,
   quickAuthPrepared:quick,accessProviderIndependentlyVerified:false,
-  jobNumberSchemaPhysicallyVerified:false,jobNumberSourceFlagPrepared:jobNumbersPrepared,
+  jobNumberSchemaPhysicallyVerified:false,customerNumberSchemaPhysicallyVerified:false,
+  jobNumberSourceFlagPrepared:jobNumbersPrepared,
   localManifestPrepared:true,remoteOperationAttempted:false,
   providerResourcesIndependentlyVerified:false,remoteSchemaVerified:false,
   hostedR2Verified:false,ownerApprovedDeployment:false,gate4Accepted:false,
@@ -208,8 +215,8 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
   };
   if(authValue==='owner-approved'){
    allowedVars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+   allowedVars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
    if(target==='independent-live'){
-    allowedVars.FIRE_CUSTOMER_NUMBERS_CANDIDATE='owner-approved-schema-v1';
     allowedVars.FIRE_NEW_LIVE_CLEAN_START='required';
    }
   }
@@ -266,8 +273,9 @@ export function reviewIndependentReleasePair(drReviewed,liveReviewed){
        (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined||
         config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined))||
      (target==='independent-dr'&&
-       (config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined||
-        config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined))||
+       (config.vars?.FIRE_NEW_LIVE_CLEAN_START!==undefined||
+        (auth==='owner-approved'&&config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')||
+        (auth==='blocked'&&config.vars?.FIRE_CUSTOMER_NUMBERS_CANDIDATE!==undefined)))||
      (evidence.authEnabled!==(auth==='owner-approved'))||
      (evidence.jobNumberSourceFlagPrepared!==(auth==='owner-approved')))
    failPair('authentication and permanent Job # readiness disagree');
@@ -301,7 +309,8 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
     accessAudience:process.env.FIRE_ACCESS_AUDIENCE,
     accessOwnerEmail:process.env.FIRE_ACCESS_OWNER_EMAIL,
     pinSecretNamesAttestation:process.env.FIRE_RELEASE_PIN_SECRET_NAMES_ATTESTATION,
-    jobNumbersSchemaAttestation:process.env.FIRE_RELEASE_JOB_NUMBERS_ATTESTATION||undefined});
+    jobNumbersSchemaAttestation:process.env.FIRE_RELEASE_JOB_NUMBERS_ATTESTATION||undefined,
+    customerNumbersSchemaAttestation:process.env.FIRE_RELEASE_CUSTOMER_NUMBERS_ATTESTATION||undefined});
   writeFileSync(output,JSON.stringify(reviewed.config,null,2)+'\n',{flag:'wx',mode:0o600});
   console.log(JSON.stringify({...reviewed.evidence,outputFileWritten:true}));
  }catch(error){

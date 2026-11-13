@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {verifyCloudflareAccessOwnerJwt} from "../lib/access-passkey-identity.mjs";
 import {jobNumberingReady} from "../lib/job-numbering.mjs";
+import {customerNumberingReady} from "../lib/customer-numbering.mjs";
 
 export type OwnerUser = {
   userId: string;
@@ -22,11 +23,12 @@ const SESSION_SECONDS = 60 * 60 * 12;
 const encoder = new TextEncoder();
 
 function releaseEnvironmentEnabled() {
-  const runtime = env as typeof env & { FIRE_DR_AUTH_ENABLED?: string; FIRE_ENV?: string; SITE_ORIGIN?: string; FIRE_JOB_NUMBERS_CANDIDATE?: string };
+  const runtime = env as typeof env & { FIRE_DR_AUTH_ENABLED?: string; FIRE_ENV?: string; SITE_ORIGIN?: string; FIRE_JOB_NUMBERS_CANDIDATE?: string; FIRE_CUSTOMER_NUMBERS_CANDIDATE?: string };
   if (runtime.FIRE_DR_AUTH_ENABLED !== "owner-approved" || runtime.FIRE_ENV !== "isolated-dr") return false;
   // Recovery must preserve the same permanent Job # contract as NEW QA.
   // The source flag is necessary but not proof of actual bound D1 readiness.
-  if (runtime.FIRE_JOB_NUMBERS_CANDIDATE !== "owner-approved-schema-v1") return false;
+  if (runtime.FIRE_JOB_NUMBERS_CANDIDATE !== "owner-approved-schema-v1" ||
+      runtime.FIRE_CUSTOMER_NUMBERS_CANDIDATE !== "owner-approved-schema-v1") return false;
   try {
     const address = new URL(runtime.SITE_ORIGIN || "");
     return runtime.SITE_ORIGIN === "https://fire-fullapp-dr.kyle-bfc.workers.dev"
@@ -43,7 +45,7 @@ function releaseEnvironmentEnabled() {
  */
 export async function verifiedDrJobNumberSchema() {
   if (!releaseEnvironmentEnabled() || !env.DB) return false;
-  try { return await jobNumberingReady(env.DB, env); }
+  try { return await jobNumberingReady(env.DB, env) && await customerNumberingReady(env.DB, env); }
   catch { return false; }
 }
 

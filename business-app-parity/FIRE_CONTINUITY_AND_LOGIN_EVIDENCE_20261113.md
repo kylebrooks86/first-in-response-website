@@ -339,3 +339,24 @@ At `5ba7e4504f625b420038086c4ae351b4b5bd2296`, the independent DR build passed, 
 ## November 13 independent candidates green and NEW LIVE auth failure guard
 
 At exact SHA `20218518a81d7e705dfbba3768f4c223e4962c78`, both independent DR and NEW LIVE local candidate build/isolation jobs PASSED (`132139235731`, `132139235211`), along with numbered-v2 recovery, protected photo recovery and website. Staging synthetic 22-to-25 migration, Stripe TEST six-event offline contract, Windows negative controls, built QA HTTPS Customer View and staging app build PASSED; deposit UI Chrome job still in progress when checked. The actual NEW LIVE owner-only read-only GET endpoint previously called `getChatGPTUser()` outside fail-closed handling and assumed a string email, which could yield a 500 on auth gateway error/malformed identity. Hardened endpoint to return private/no-store 401 without DB access for both (`9c62955b76a20c64f11389495c3a57f6ddf64bf6`) and added actual-route synthetic auth exception/null-email cases (`6671f06cc77ecc8abb4d4763a4d163a76a55eb43`). New-head CI pending. This does not attest hosted authentication, physical D1 identity, ordered migrations, provider Stripe or backups. 4/10 accepted, LIVE NO-GO; no deployment or owner retesting.
+
+
+---
+
+## November 13, 2026 — PR #252 DR / NEW LIVE permanent Customer # login parity and real CLI repair
+
+**New draft, source-only:** [PR #252](https://github.com/kylebrooks86/first-in-response-website/pull/252), branch `work/fire-dr-live-customer-number-parity-cli-20261113`, based on exact current #249 reviewed source SHA `66e78cee489105ecccc1fd88c39a11a5518876ec`. Changed and tested code SHA **`68437af706acc470cc30635cd1636a89e1c03273`**; PR is DRAFT, unmerged, undeployed.
+
+**Actual blockers fixed:**
+1. Independent DR could prepare an owner-auth-enabled manifest after checking only permanent Job # attestation; this omitted QA-master permanent Customer # requirements. DR now needs separate target-specific Customer # and Job # schema approvals, prepares both reviewed flags, and inspects both actual bound-D1 numbering readiness checks *before* PIN, passkey or passphrase session issuance.
+2. Independent NEW LIVE runtime sign-in also now requires Customer # source flag and physical bound-D1 schema readiness alongside Job #, without changing the pre-activation first Job #0001 empty-D1 proof.
+3. The local `prepare_new_independent_release_manifest.mjs` function already required a NEW LIVE Customer # attestation but its **real executable CLI** did not pass `FIRE_RELEASE_CUSTOMER_NUMBERS_ATTESTATION`, making approved auth-ready manifest generation impossible through the documented CLI. Fixed the missing pass-through for both DR and LIVE, hard rejects missing, wrong-target, disabled-auth or forged attestations, and preserves default blocked/no-R2 manifests.
+4. Independent DR/LIVE pair review recognizes exact Customer # flags **only** when corresponding target auth is approved, and rejects extra or wrong flags. New synthetic real-file CLI regression executes both target paths and negative cases; no provider access.
+
+**Exact changed-source GitHub Actions evidence** at `68437af706acc470cc30635cd1636a89e1c03273`:
+- [Independent DR and NEW LIVE candidate builds + focused tests, run 43501412216](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43501412216): **SUCCESS**, both independent jobs including actual CLI source-only positive and negative approval paths, source guard tests, no-R2 photo/record checks, materialization and build.
+- [PIN/passkey source-only guard run 43501412206](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43501412206): **SUCCESS**.
+- [Website verifier run 43501412233](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43501412233): **SUCCESS**.
+- [App-only main integration check run 43501412330](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43501412330): stopped at its existing base=main restriction because #252 is **intentionally stacked** on #249; this does NOT establish a new runtime failure and the guard was not waived.
+
+**No Cloudflare/Stripe/D1 provider operations, schema migration, Access change, R2 subscription, paid service, Git merge, owner iPhone/Acer retest or deployment.** Source-only CI does not attest serving identity, actual physical D1 isolation/migrations, off-device/isolated full recovery, hosted nonowner safeguards, provider signed Stripe TEST, or LIVE readiness. Preserve prior accepted QA evidence and Cloudflare sign-in failures. Formal gates remain **4/10 accepted (1,2,3,8)**; G4/5/6/7/9/10 OPEN, **LIVE NO-GO**. No owner action required for source-only work.

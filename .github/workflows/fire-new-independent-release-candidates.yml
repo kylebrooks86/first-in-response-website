@@ -8,6 +8,8 @@ on:
       - 'business-app-parity/adapters/independent-live/**'
       - 'business-app-parity/prepare_new_independent_release_manifest.mjs'
       - 'business-app-parity/test_new_independent_release_manifest.mjs'
+      - 'business-app-parity/test_new_independent_manifest_cli.mjs'
+      - 'business-app-parity/test_new_live_numbered_login_schema.mjs'
       - 'business-app-parity/review_new_independent_release_pair.mjs'
       - 'business-app-parity/test_new_independent_release_pair_cli.mjs'
       - 'business-app-parity/shared/lib/protected-offline-photo-archive.mjs'
@@ -61,6 +63,9 @@ jobs:
           python-version: '3.12'
       - name: Check both targets refuse unsafe resource and auth combinations
         run: node business-app-parity/test_new_independent_release_manifest.mjs
+      - name: Verify actual DR and NEW LIVE CLI requires target-bound Customer # approval
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_independent_manifest_cli.mjs
       - name: Review DR plus NEW LIVE pair together, offline (synthetic only)
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/test_new_independent_release_pair_cli.mjs
@@ -79,9 +84,12 @@ jobs:
       - name: NEW LIVE Job #0001 and uncertain customer-save targeted regression
         if: matrix.target == 'independent-live'
         run: node business-app-parity/shared/scripts/test-new-live-clean-start.mjs
-      - name: DR-only permanent Job # sign-in safety check (source only)
+      - name: DR permanent Job # and Customer # sign-in safety (source only)
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/test_new_dr_numbered_login_schema.mjs
+      - name: NEW LIVE permanent Job # and Customer # sign-in safety (source only)
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/test_new_live_numbered_login_schema.mjs
       - name: Materialize exact QA-master shared source with isolated target overlay
         run: python3 business-app-parity/materialize.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
       - name: Prove complete overlay-source identity before build
