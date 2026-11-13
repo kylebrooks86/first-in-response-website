@@ -113,13 +113,15 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
  await photos.locator('input[type=file][multiple]').setInputFiles({name:'synthetic-responsive-photo.png',mimeType:'image/png',buffer:png});await photos.getByText(/Photos verified on this device/).waitFor();
- await photos.getByRole('button',{name:'Prepare all local photos ZIP',exact:true}).click();
- await photos.getByRole('button',{name:'Save prepared ZIP to Files',exact:true}).waitFor();
+ await photos.getByLabel('Photo backup recovery passphrase').fill('Synthetic customer profile photo backup passphrase 2026');
+ await photos.getByLabel('Confirm new photo backup passphrase').fill('Synthetic customer profile photo backup passphrase 2026');
+ await photos.getByRole('button',{name:'Prepare protected all-photos backup',exact:true}).click();
+ await photos.getByRole('button',{name:'Save prepared backup to Files',exact:true}).waitFor();
  const morePhotoTools=photos.locator('details.photo-backup-more');
  check(await morePhotoTools.evaluate(node=>!node.open),'Rare ZIP and restore controls stay collapsed on a new customer photo screen');
  await morePhotoTools.locator(':scope > summary').click();
- await photos.getByRole('button',{name:'Download prepared ZIP',exact:true}).waitFor();
- const labels=['Camera','Photo library','Prepare all local photos ZIP',"Prepare this customer's photos ZIP",'Save prepared ZIP to Files','Download prepared ZIP','Verify saved ZIP from Files','Restore verified photo ZIP'];
+ await photos.getByRole('button',{name:'Download prepared backup',exact:true}).waitFor();
+ const labels=['Camera','Photo library','Prepare protected all-photos backup','Protect this customer’s photos','Legacy unencrypted all-photos ZIP','Save prepared backup to Files','Download prepared backup','Verify saved photo backup','Restore verified photo backup'];
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
   for(const label of labels){
@@ -132,7 +134,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
   check(await photos.evaluate(node=>node.scrollWidth<=node.clientWidth+1),'Photo panel has no horizontal overflow at '+width);
  }
  // Read-only picker entry points are usable; cancel without restoring any data.
- for(const label of ['Verify saved ZIP from Files','Restore verified photo ZIP']){
+ for(const label of ['Verify saved photo backup','Restore verified photo backup']){
   const [chooser]=await Promise.all([page.waitForEvent('filechooser'),photos.getByRole('button',{name:label,exact:true}).click()]);await chooser.setFiles([]);check(true,'Existing photo file picker opens safely: '+label);
  }
  await page.getByRole('button',{name:/^Messages\s+0$/}).click();
