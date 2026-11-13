@@ -34,15 +34,16 @@ try{
  const live=new DatabaseSync(source);
  live.prepare('INSERT INTO supplemental_synthetic(id,value) VALUES (?,?)').run('synthetic','owner-only');
  live.prepare('INSERT INTO sqlitex_private_history(id,value) VALUES (?,?)').run('private','must-survive');
+ live.prepare('INSERT INTO sqlitex_private_history(id,value) VALUES (?,?)').run('more','also-survives');
  live.exec("INSERT INTO supplemental_serial(value) VALUES ('temporary'); DELETE FROM supplemental_serial;");
  live.close();
  const exported=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
  const originalSupplemental=JSON.parse(await readFile(supp,'utf8'));
  assert.equal(originalSupplemental.tables.supplemental_synthetic.length,1);
- assert.equal(originalSupplemental.tables.sqlitex_private_history.length,1,
+ assert.equal(originalSupplemental.tables.sqlitex_private_history.length,2,
   'a sqlitex-prefixed application table cannot vanish from the complete export');
  assert.equal(originalSupplemental.tables.sqlitex_private_history[0].value,'must-survive');
- assert.equal(originalSupplemental.rowCounts.sqlitex_private_history,1);
+ assert.equal(originalSupplemental.rowCounts.sqlitex_private_history,2);
  assert.equal(originalSupplemental.sqliteSequence.supplemental_serial,1);
  assert.equal(exported.coreAndSupplementalArchivesWritten,true);
  const incompleteSupp=join(folder,'missing-sqlitex-table.json');
@@ -54,6 +55,17 @@ try{
   core,template,join(folder,'rejected-sqlitex-omission.sqlite'),incompleteSupp),
   /inventory|schema differ/i,
   'a forged supplemental backup omitting sqlitex history must be rejected');
+ // A forged source row with a missing valid column must not be inserted with
+ // a substituted NULL/default and falsely counted as fully recovered.
+ const missingField=structuredClone(originalSupplemental);
+ delete missingField.tables.sqlitex_private_history[1].value;
+ const partialFile=join(folder,'partial-supplemental.json');
+ const partialOutput=join(folder,'rejected-partial-fields.sqlite');
+ await writeFile(partialFile,JSON.stringify(missingField));
+ await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(
+  core,template,partialOutput,partialFile),/incomplete.*supplemental.*columns/i);
+ await assert.rejects(readFile(partialOutput),undefined,
+  'rejected partial recovery must not leave any usable output database');
  // A different schema, even with all the same required table names, must
  // not accept a source archive (index/trigger drift matters for FIRE).
  const driftTemplate=join(folder,'schema-drift.sqlite');
@@ -66,11 +78,13 @@ try{
   /schema differ/i);
  const result=await restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp);
  assert.equal(result.sqliteRestoreVerified,true);
- assert.equal(result.supplementalRowsRestored,2);
+ assert.equal(result.supplementalRowsRestored,3);
  const restoredDb=new DatabaseSync(restored,{readOnly:true});
  assert.equal(restoredDb.prepare('SELECT value FROM supplemental_synthetic').get().value,'owner-only');
- assert.equal(restoredDb.prepare('SELECT value FROM sqlitex_private_history').get().value,
+ assert.equal(restoredDb.prepare("SELECT value FROM sqlitex_private_history WHERE id='private'").get().value,
   'must-survive','isolated recovery preserves sqlitex application records');
+ assert.equal(restoredDb.prepare("SELECT value FROM sqlitex_private_history WHERE id='more'").get().value,
+  'also-survives','all supplemental rows and values survive isolated restore');
  assert.equal(restoredDb.prepare("SELECT seq FROM sqlite_sequence WHERE name='supplemental_serial'").get().seq,1);
  restoredDb.close();
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(core,template,restored,supp));
