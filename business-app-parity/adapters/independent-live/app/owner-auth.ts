@@ -131,7 +131,6 @@ export function clearedIndependentSessionCookie() {
 export async function getOwnerUser(): Promise<OwnerUser | null> {
   if (!releaseEnvironmentEnabled()) return null;
   const requestHeaders = await headers();
-  if(quickUnlockEnabled()&&!await verifyAccessOwnerRequest({headers:requestHeaders}))return null;
   if (!await sessionIsValid(cookieValue(requestHeaders.get("cookie")))) return null;
   return { userId: "fire-new-live-owner", displayName: "Kyle Brooks", email: "kylebrooks8605@gmail.com", fullName: "Kyle Brooks" };
 }
