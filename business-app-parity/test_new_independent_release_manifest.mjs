@@ -33,8 +33,10 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
  check(()=>assert.equal(pass.evidence.gate4Accepted,false),'no false gate acceptance');
  check(()=>assert.equal(pass.evidence.remoteOperationAttempted,false),'pure source');
  check(()=>assert.equal(manifest.d1_databases[0].database_id,PLACEHOLDER),'source never mutated');
- const liveNumberApproval=target==='independent-live'?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'}:{};
- const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth',...liveNumberApproval});
+ const numberApproval=target==='independent-live'
+  ?{jobNumbersSchemaAttestation:'owner-verified-independent-live-job-numbers-empty-v1'}
+  :{jobNumbersSchemaAttestation:'owner-verified-independent-dr-job-numbers-v1'};
+ const allowed=prepareReviewedIndependentManifest(target,manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-'+target+'-auth',...numberApproval});
  check(()=>assert.equal(allowed.config.vars[prefix+'_AUTH_ENABLED'],'owner-approved'),'explicit independent auth approval');
 
  const quickOpts={...opts,enableAuth:true,
@@ -45,7 +47,7 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
   accessAudience:'pinned-app-audience-for-'+target,
   accessOwnerEmail:'owner@example.invalid',
   pinSecretNamesAttestation:'owner-checked-'+target+'-pin-secret-names',
-  ...liveNumberApproval
+  ...numberApproval
  };
  const quick=prepareReviewedIndependentManifest(target,manifest,quickOpts);
  check(()=>assert.equal(quick.config.vars.FIRE_QUICK_AUTH_MODE,'passkey-or-pin-v1'),'pin/passkey gate');
@@ -91,8 +93,11 @@ for(const [target,name,db,bucket,env,prefix,origin] of TARGETS){
   const numbered=prepareReviewedIndependentManifest(target,manifest,drNumbers);
   check(()=>assert.equal(numbered.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,'owner-approved-schema-v1'),
    'reviewed DR schema enables permanent numbering');
-  check(()=>assert.equal(allowed.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,undefined),
-   'DR remains unnumbered by default');
+  check(()=>assert.equal(pass.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,undefined),
+   'disabled DR remains unnumbered by default');
+  check(()=>assert.equal(allowed.config.vars.FIRE_JOB_NUMBERS_CANDIDATE,'owner-approved-schema-v1'),
+   'enabled DR requires permanent Job # parity');
+  reject(manifest,{...opts,enableAuth:true,authAttestation:'owner-approved-independent-dr-auth'});
   check(()=>assert.equal(numbered.evidence.jobNumberSchemaPhysicallyVerified,false),
    'DR manifest preparation does not attest a physical schema');
   reject(manifest,{...opts,jobNumbersSchemaAttestation:drNumbers.jobNumbersSchemaAttestation});
