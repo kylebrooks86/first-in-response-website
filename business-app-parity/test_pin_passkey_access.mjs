@@ -75,8 +75,11 @@ for(const file of files){
  assert.match(source,/PIN_PEPPER/);
  assert.match(source,/PIN_HASH/);
  assert.match(source,/\^\\d\{4\}\$/);
- assert.match(source,/if\(quickUnlockEnabled\(\)&&!await verifyAccessOwnerRequest/);
- passed+=7;
+ // Quick-auth sessions must be distinguishable from legacy v1 cookies;
+ // only the Access-verifying login route may mint a v2 session.
+ assert.match(source,/version !== \(quickUnlockEnabled\(\) \? "v2" : "v1"\)/);
+ assert.match(source,/const value = \(quickUnlockEnabled\(\) \? "v2\." : "v1\."\)/);
+ passed+=8;
 }
 for(const file of ['adapters/qa/app/api/auth/login/route.ts',
  'adapters/doomsday/app/api/auth/login/route.ts',
