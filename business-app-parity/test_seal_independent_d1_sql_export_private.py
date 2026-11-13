@@ -184,6 +184,20 @@ class PrivateD1SqlBridge(unittest.TestCase):
                     self.bridge(src=attempt, digest=hashlib.sha256(attempt.read_bytes()).hexdigest())
                 self.assertFalse(self.output.exists())
 
+    def test_forged_immutable_number_trigger_body_with_same_name_is_rejected(self):
+        # A forged full SQL dump could retain every table, trigger and index
+        # NAME yet replace a permanent-number trigger with a no-op.
+        # Its independently valid SQL must NOT become a trusted backup.
+        original = self.source.read_text("utf-8")
+        expected = "BEFORE UPDATE ON fire_customer_numbers"
+        self.assertIn(expected, original)
+        forged = original.replace(expected, expected + " WHEN 0", 1)
+        altered = Path(self.tmp.name) / "matching-names-unsafe-trigger.sql"
+        altered.write_text(forged, "utf-8")
+        with self.assertRaises(LocalBridgeStop):
+            self.bridge(src=altered, digest=hashlib.sha256(altered.read_bytes()).hexdigest())
+        self.assertFalse(self.output.exists())
+
     def test_never_overwrite_preexisting_encrypted_output(self):
         self.output.write_bytes(b"keep original private backup exactly")
         with self.assertRaises(LocalBridgeStop):
