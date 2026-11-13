@@ -32,14 +32,28 @@ export async function jobNumberingReady(db,environment){
   return true;
 }
 
+// Resolve through both the numbered root and original estimate ownership.
+ // A corrupt cross-customer link must never become a displayed Job #.
 export const JOB_NUMBER_FOR_ESTIMATE_SQL =
-  'SELECT job_number AS jobNumber FROM fire_job_estimate_links WHERE estimate_id=?';
+  'SELECT l.job_number AS jobNumber FROM fire_job_estimate_links l '+
+  'JOIN estimates e ON e.id=l.estimate_id '+
+  'JOIN fire_job_numbers j ON j.job_number=l.job_number '+
+  'JOIN estimates root ON root.id=j.root_estimate_id '+
+  'WHERE l.estimate_id=? AND e.customer_id=root.customer_id AND j.created_at=root.created_at '+
+  'AND EXISTS (SELECT 1 FROM fire_job_estimate_links origin WHERE origin.estimate_id=root.id AND origin.job_number=j.job_number)';
 
 export const COMPLETED_JOB_COUNT_SQL =
   "SELECT COUNT(DISTINCT links.job_number) AS completedJobs FROM fire_job_estimate_links links JOIN estimates e ON e.id=links.estimate_id WHERE e.status='completed'";
 
 export const JOB_REFERENCE_BY_INVOICE_SQL =
-  'SELECT links.job_number AS jobNumber FROM invoices inv JOIN fire_job_estimate_links links ON links.estimate_id=inv.estimate_id WHERE inv.id=?';
+  'SELECT links.job_number AS jobNumber FROM invoices inv '+
+  'JOIN estimates e ON e.id=inv.estimate_id '+
+  'JOIN fire_job_estimate_links links ON links.estimate_id=e.id '+
+  'JOIN fire_job_numbers j ON j.job_number=links.job_number '+
+  'JOIN estimates root ON root.id=j.root_estimate_id '+
+  'WHERE inv.id=? AND inv.customer_id=e.customer_id AND e.customer_id=root.customer_id '+
+  'AND j.created_at=root.created_at '+
+  'AND EXISTS (SELECT 1 FROM fire_job_estimate_links origin WHERE origin.estimate_id=root.id AND origin.job_number=j.job_number)';
 
 export function jobNumberLabel(value) {
   const number = typeof value==='number' ? value
@@ -128,7 +142,14 @@ export async function attachedJobNumbers(db, estimateIds) {
   const numbers=new Map();
   for(let offset=0;offset<ids.length;offset+=400) {
     const batch=ids.slice(offset,offset+400);
-    const sql='SELECT estimate_id AS estimateId,job_number AS jobNumber FROM fire_job_estimate_links WHERE estimate_id IN ('+batch.map(()=>'?').join(',')+')';
+    const sql='SELECT l.estimate_id AS estimateId,l.job_number AS jobNumber '+
+      'FROM fire_job_estimate_links l '+
+      'JOIN estimates e ON e.id=l.estimate_id '+
+      'JOIN fire_job_numbers j ON j.job_number=l.job_number '+
+      'JOIN estimates root ON root.id=j.root_estimate_id '+
+      'WHERE l.estimate_id IN ('+batch.map(()=>'?').join(',')+') '+
+      'AND e.customer_id=root.customer_id AND j.created_at=root.created_at '+
+      'AND EXISTS (SELECT 1 FROM fire_job_estimate_links origin WHERE origin.estimate_id=root.id AND origin.job_number=j.job_number)';
     const found=await db.prepare(sql).bind(...batch).all();
     for(const row of found.results??[]) {
       if(jobNumberLabel(row.jobNumber)) numbers.set(row.estimateId,row.jobNumber);
