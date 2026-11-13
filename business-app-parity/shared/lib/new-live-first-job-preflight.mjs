@@ -10,6 +10,7 @@
 import {JOB_NUMBER_FLAG,jobNumberingReady} from './job-numbering.mjs';
 import {CUSTOMER_NUMBER_FLAG,customerNumberingReady} from './customer-numbering.mjs';
 import {immutableNumberingTriggersReady} from './numbered-immutable-trigger-contract.mjs';
+import {verifyNewLiveFinancialIndexes} from './new-live-financial-index-contract.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS,assertNewLiveMigrationJournal} from './new-live-migration-journal.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
 
@@ -107,6 +108,12 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   stop('D1 migration journal must contain exactly the reviewed 26 independent migrations');
  try{await assertNewLiveMigrationJournal(db);}
  catch{stop('D1 migration journal names, IDs or order disagree with reviewed source');}
+ // Physical refund/Stripe idempotency and invoice/checkout uniqueness must
+ // match source-reviewed SQL, not merely the names in d1_migrations.
+ // Fail closed if a D1 has the right journal but its partial indexes are
+ // missing, non-unique, scoped to the wrong table or implemented as no-ops.
+ try{await verifyNewLiveFinancialIndexes(db);}
+ catch{stop('bound D1 financial refund/payment/index contract is incomplete or altered');}
  // AUTOINCREMENT can retain a high-water even after deleting all rows. That
  // would make a visibly empty NEW LIVE start at #0002 or higher. Do not use
  // DELETE FROM sqlite_sequence; the owner requires untouched inspection.
@@ -122,6 +129,7 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   expectedOperationalTables:expected.length,tableRecordsAllEmpty:true,
   jobAndCustomerSequencesEmpty:true,requiredImmutabilityTriggersPresent:true,
   exactSourceMigrationJournalMatched:true,
+  physicalFinancialIndexesMatched:true,
   physicalD1IdentityVerified:false,orderedMigrationsVerified:false,
   isolatedRestoreVerified:false,ownerApprovedRelease:false,
   gate4Accepted:false,gate5Accepted:false,gate7Accepted:false,
