@@ -95,7 +95,7 @@ export async function verifyIndependentPassword(password: string) {
 export function quickUnlockEnabled() {
  return (env as typeof env & {FIRE_QUICK_AUTH_MODE?:string}).FIRE_QUICK_AUTH_MODE==='passkey-or-pin-v1';
 }
-export async function verifyAccessOwnerRequest(request:{headers:Headers}) {
+export async function verifyAccessOwnerRequest(request:{headers:Pick<Headers,'get'>}) {
  if(!quickUnlockEnabled())return false;
  const v=env as typeof env & {FIRE_ACCESS_TEAM_DOMAIN?:string;
   FIRE_ACCESS_AUDIENCE?:string;FIRE_ACCESS_OWNER_EMAIL?:string};
