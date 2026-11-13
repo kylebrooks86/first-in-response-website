@@ -65,7 +65,7 @@ jobs:
           const dr=target==='independent-dr';
           const reviewed=prepareReviewedIndependentManifest(target,manifest,{
            databaseId:dr?'54a5e470-2ae3-471b-a2db-ea8bdf092513':'54a5e470-2ae3-471b-a2db-ea8bdf092514',
-           bucketName:dr?'fire-fullapp-dr-photos':'fire-fullapp-new-live-photos',
+           photoStorageMode:'owner-device-zip',
            resourceAttestation:'owner-checked-'+target,
            enableAuth:false
           });
@@ -73,7 +73,10 @@ jobs:
           assert.equal(reviewed.evidence.providerResourcesIndependentlyVerified,false);
           assert.equal(reviewed.evidence.ownerApprovedDeployment,false);
           assert.equal(reviewed.config.d1_databases.length,1);
-          assert.equal(reviewed.config.r2_buckets.length,1);
+          assert.equal(reviewed.config.r2_buckets.length,0);
+          assert.equal(reviewed.config.vars.FIRE_PHOTO_STORAGE_MODE,'owner-device-zip');
+          assert.equal(reviewed.evidence.offDeviceZipVerified,false);
+          assert.equal(reviewed.evidence.isolatedPhotoRestoreVerified,false);
           assert.equal(reviewed.config.vars[dr?'FIRE_DR_AUTH_ENABLED':'FIRE_NEW_LIVE_AUTH_ENABLED'],'blocked');
-          console.log('PASS built '+target+' exact reviewed source, inert default config and separate simulated D1/R2 manifest; 0 hosted changes.');
+          console.log('PASS built '+target+' exact reviewed source, inert default config and separate simulated D1/no-R2 owner-device-ZIP manifest; 0 hosted changes.');
           NODE
