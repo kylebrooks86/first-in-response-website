@@ -16,7 +16,8 @@ function load(file,imports){
  return exports;
 }
 const helpers=load("lib/payment-closeout-actions.ts",{});
-const imports={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers};
+const ledgerTestOnly={refundLedgerObjectsPresent:async()=>true,refundLedgerNotReady:()=>Response.json({error:"Missing verified ledger"},{status:503})};
+const imports={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":ledgerTestOnly};
 const api=load("app/api/payment-closeouts/route.ts",imports);
 const stamp=d=>new Date(Date.now()-d*86400000).toISOString();
 let count=0;
@@ -104,7 +105,7 @@ try{
  owner={email:"notowner@example.invalid"};
  check((await api.GET()).status===401&&statements.length===queries,"Other user denied before database read");
  owner={email:"kylebrooks8605@gmail.com"};
- const offline=load("app/api/payment-closeouts/route.ts",{"cloudflare:workers":{env:{DB:{prepare(){throw Error("Unavailable")}}}},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers});
+ const offline=load("app/api/payment-closeouts/route.ts",{"cloudflare:workers":{env:{DB:{prepare(){throw Error("Unavailable")}}}},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":ledgerTestOnly});
  check((await offline.GET()).status===503,"Database outage visible instead of false all-caught-up");
  const dashboard=readFileSync("app/dashboard.tsx","utf8");
  const start=dashboard.indexOf("function PaymentsView("),end=dashboard.indexOf("\nfunction ",start+20);
