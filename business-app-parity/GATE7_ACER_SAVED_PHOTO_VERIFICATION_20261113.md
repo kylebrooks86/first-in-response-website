@@ -33,3 +33,18 @@ Remove-Variable plain,secured
 3. Restore exact protected files + records into a disposable, isolated approved target, comparing photo SHA-256, Job #, all invoice/refund cents and IDs; preserve existing QA/LIVE assets. Physical target writes require fresh exact authorization.
 
 **Formal release status: accepted gates 1,2,3,8 (4/10). G4, G5, G6, G7, G9 and G10 OPEN. LIVE NO-GO.** No subscription or remote changes permitted by this runbook.
+
+## Additional saved-records AND photo pair audit — future, not a repeat request now
+
+The combined review branch adds `verify_saved_numbered_photo_pair.mjs`. When an independently approved and exported **complete** `fire-numbered-core-records-snapshot` v2 JSON and an owner-saved `.firephotos` file actually exist, it can inspect **both original files from disk** on the Acer, verify all customer/Job #/payment/refund/identity relationships and exact photo SHA-256 bytes, then calculate one records/photo pair digest. It does **not** create a snapshot or perform a restore.
+
+From the same reviewed source checkout, with PowerShell and Node 22+:
+
+```powershell
+$secured = Read-Host "Private photo-backup recovery phrase" -AsSecureString
+$plain = [System.Net.NetworkCredential]::new("", $secured).Password
+$plain | node .\business-app-parity\verify_saved_numbered_photo_pair.mjs "C:\path\to\verified-numbered-records-v2.json" "C:\path\to\saved\FIRE-all-photos.firephotos"
+Remove-Variable plain,secured
+```
+
+**Do not run it yet solely to repeat tests.** The protected feature and this auditor remain draft source; a real paired export and authorized deployment are still missing. Only a true provider-bound snapshot, independent protected custody and separately approved isolated D1+photos restore can satisfy physical Gate 7. The CLI deliberately reports those proof flags as `false` even when both local files match. No screenshot or private files need to be shared in GitHub.
