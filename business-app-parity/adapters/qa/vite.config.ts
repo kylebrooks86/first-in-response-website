@@ -28,6 +28,37 @@ const reviewedJobNumberVars = NUMBERING_OPT_IN
   ? { FIRE_JOB_NUMBERS_CANDIDATE: "owner-approved-schema-v1" }
   : {};
 
+
+// Face ID / fingerprint sign-in happens at a VERIFIED Cloudflare Access
+// passkey relying party. Source-only builds keep quick unlock OFF unless
+// the owner has approved a specifically bound Access app and separate
+// PIN-HASH + PIN-PEPPER secrets for this Worker. No PIN or pepper in vars.
+const quickAuthMode = process.env.FIRE_QA_QUICK_AUTH_MODE;
+if (quickAuthMode && quickAuthMode !== "passkey-or-pin-v1") {
+  throw new Error("Unreviewed FIRE QA quick sign-in mode.");
+}
+const quickAuthRequested = quickAuthMode === "passkey-or-pin-v1";
+const quickAuthTeam = process.env.FIRE_QA_ACCESS_TEAM_DOMAIN;
+const quickAuthAudience = process.env.FIRE_QA_ACCESS_AUDIENCE;
+const quickAuthOwnerEmail = process.env.FIRE_QA_ACCESS_OWNER_EMAIL;
+if (quickAuthRequested &&
+    (process.env.FIRE_QA_QUICK_AUTH_APPROVAL !== "owner-approved-qa-quick-auth-v1" ||
+     typeof quickAuthTeam !== "string" ||
+     !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(quickAuthTeam) ||
+     typeof quickAuthAudience !== "string" || quickAuthAudience.length < 12 || quickAuthAudience.length > 256 ||
+     typeof quickAuthOwnerEmail !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(quickAuthOwnerEmail))) {
+  throw new Error("FIRE QA passkey/PIN requires separate owner-verified Cloudflare Access application settings.");
+}
+const reviewedQuickAuthVars = quickAuthRequested
+  ? { FIRE_QUICK_AUTH_MODE:"passkey-or-pin-v1",
+      FIRE_ACCESS_TEAM_DOMAIN:quickAuthTeam,
+      FIRE_ACCESS_AUDIENCE:quickAuthAudience,
+      FIRE_ACCESS_OWNER_EMAIL:quickAuthOwnerEmail }
+  : {};
+const reviewedQuickAuthSecrets = quickAuthRequested
+  ? [...["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"], "FIRE_QA_PIN_HASH", "FIRE_QA_PIN_PEPPER"]
+  : ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"];
+
 // Account origin verified by owner-provided Cloudflare Workers dashboard screenshot.
 // Pin the FULL origin to prevent a QA build from targeting any other account.
 const QA_SITE_ORIGIN = "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev";
@@ -60,13 +91,14 @@ export default defineConfig(async () => {
           workers_dev: true,
           // Wrangler must refuse a hosted QA release with either owner login
           // secret missing. Values never belong in source or plain vars.
-          secrets: { required: ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"] },
+          secrets: { required: reviewedQuickAuthSecrets },
           vars: {
             FIRE_ENV: "synthetic-qa",
             FIRE_QA_SYNTHETIC_ONLY: "enabled",
             FIRE_LOCAL_CUSTOMERS_CANDIDATE: "synthetic-only",
             SITE_ORIGIN: QA_SITE_ORIGIN,
-            ...reviewedJobNumberVars
+            ...reviewedJobNumberVars,
+            ...reviewedQuickAuthVars
           },
           d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }],
           // Separate QA-only photo storage. Must be newly created and
