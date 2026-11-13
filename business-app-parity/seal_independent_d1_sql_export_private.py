@@ -75,7 +75,13 @@ def expected_application_objects(migrations):
         for i, name in enumerate(migrations, 1):
             path = (BASE / "adapters/doomsday/drizzle" / name if i <= 25 else
                     BASE / "adapters/independent-live/drizzle" / name)
+            # #0025 explicitly aborts if the provider's 25 older migration
+            # journal entries are absent. Rehearse them in reviewed order,
+            # exactly as the existing independent-DR integration fixture does.
             baseline.executescript(path.read_text("utf-8"))
+            baseline.execute(
+                "INSERT INTO d1_migrations(id,name) VALUES (?,?)", (i, name)
+            )
         return {(kind, name, table) for kind, name, table in baseline.execute(
             "SELECT type,name,tbl_name FROM sqlite_master "
             "WHERE type IN ('table','index','trigger','view') "
