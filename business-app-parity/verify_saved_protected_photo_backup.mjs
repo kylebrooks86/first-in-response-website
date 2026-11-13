@@ -45,7 +45,7 @@ function validPhoto(p){
   typeof p.createdAt==='string'&&Number.isFinite(Date.parse(p.createdAt))&&
   typeof p.sha256==='string'&&/^[a-f0-9]{64}$/.test(p.sha256);
 }
-export function inspectStoredFirePhotoZip(zip){
+export function inspectStoredFirePhotoZip(zip,{includePhotoInventory=false}={}){
  if(!Buffer.isBuffer(zip)||zip.length<=22||zip.length>MAX_ARCHIVE)
   fail('unsupported decrypted ZIP size');
  // FIRE's v1 ZIP writer produces an exact no-comment, one-disk archive.
@@ -127,7 +127,7 @@ export function inspectStoredFirePhotoZip(zip){
   photoCount:manifest.photos.length,distinctCustomerIds:customers.size,
   // Exact manifest inventory lets offline recovery reject missing customer
   // relationships without extracting any photo bytes to disk.
-  photoInventory:Object.freeze(manifest.photos.map(item=>Object.freeze({...item}))),
+  ...(includePhotoInventory?{photoInventory:Object.freeze(manifest.photos.map(item=>Object.freeze({...item})))}:{}),
   totalOriginalPhotoBytes:photoBytes,verifiedZipSha256:sha(zip)
  });
 }
