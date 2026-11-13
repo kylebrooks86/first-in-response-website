@@ -190,7 +190,7 @@ try{
  check(!await backupTools.evaluate(node=>node.open),'Reload resets secondary ZIP tools to the simple default');
  await backupSummary.click();
  await page.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
- await page.getByText(/ZIP is ready/).waitFor({timeout:30000});
+ await page.getByText(/Legacy UNENCRYPTED ZIP ready/).waitFor({timeout:30000});
  check(await page.getByRole('button',{name:'Save prepared backup to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
  await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
@@ -369,7 +369,7 @@ try{
  await coldPage.locator('.photo-backup-more > summary').click();
  check(await coldPage.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
  await coldPage.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
- await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
+ await coldPage.getByText(/Legacy UNENCRYPTED ZIP ready/).waitFor({timeout:30000});
  check(await coldPage.getByRole('button',{name:'Download prepared backup'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
  // Browser-managed download paths can disappear when Chromium detaches its
  // offline download context. Verify a fresh ZIP through the native file-share
@@ -397,7 +397,7 @@ try{
  await coldPage.locator('input[type="file"][accept="image/*"]').last().setInputFiles({name:'third-synthetic.png',mimeType:'image/png',buffer:png});
  await coldPage.locator('.photo-card').nth(2).waitFor();
  await coldPage.getByRole('button',{name:"Legacy unencrypted this customer’s photos ZIP"}).click();
- await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
+ await coldPage.getByText(/Legacy UNENCRYPTED ZIP ready/).waitFor({timeout:30000});
  await coldPage.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async({files})=>{
    window.fixtureThreePhotoZip=Array.from(new Uint8Array(await files[0].arrayBuffer()));
  }}));
