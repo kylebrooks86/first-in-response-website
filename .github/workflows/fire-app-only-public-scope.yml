@@ -17,6 +17,8 @@ on:
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
       - '.github/workflows/fire-gate9-readonly-version-inventory.yml'
       - '.github/workflows/fire-gate7-legacy-sites-offline-export.yml'
+      - '.github/workflows/fire-new-independent-release-candidates.yml'
+      - '.github/workflows/fire-pin-passkey-access.yml'
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
       - 'ci/test-site-verifier-scope.mjs'
@@ -108,7 +110,7 @@ jobs:
           fi
           for file in "${changed[@]}"; do
             case "$file" in
-              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml)
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml)
                 ;;
               *)
                 echo "BLOCKED: unreviewed non-app change: $file"
