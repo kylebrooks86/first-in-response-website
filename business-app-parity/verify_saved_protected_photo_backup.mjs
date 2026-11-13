@@ -14,6 +14,7 @@
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {recoverProtectedOfflinePhotoZip,isProtectedOfflinePhotoArchive} from './shared/lib/protected-offline-photo-archive.mjs';
 
 const MAX_ARCHIVE=161*1024*1024,MAX_PHOTOS=500,MAX_PHOTO=15*1024*1024;
@@ -134,7 +135,9 @@ async function readPhrase(){
 export async function verifyOwnerSavedProtectedPhotoFile(path,phrase){
  if(typeof path!=='string'||!path||typeof phrase!=='string')
   fail('a saved protected file and owner-supplied secret are required');
- const file=await readFile(resolve(path));
+ let file;
+ try{file=await readFile(resolve(path));}
+ catch{fail('saved file could not be opened for read-only verification');}
  if(file.length<=64||file.length>MAX_ARCHIVE+4096)
   fail('protected backup file size is unsupported');
  const blob=new Blob([file]);
@@ -151,7 +154,7 @@ export async function verifyOwnerSavedProtectedPhotoFile(path,phrase){
   ownerApprovedDeployment:false,gate7Accepted:false,providerWriteAttempted:false
  });
 }
-if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
+if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  try{
   if(process.argv.length!==3)fail('usage: node verify_saved_protected_photo_backup.mjs SAVED.firephotos');
   const phrase=await readPhrase();
