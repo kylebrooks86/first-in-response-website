@@ -233,13 +233,22 @@ export async function restoreNumberedRecordsToIsolatedSqlite(recordsPath,templat
  try{
   archive=JSON.parse(await readFile(resolve(recordsPath),'utf8'));
   supplemental=JSON.parse(await readFile(resolve(supplementalPath),'utf8'));
- }
- catch{stop('records archive unreadable');}
+ }catch{stop('records archive unreadable');}
+ return restoreNumberedRecordsToIsolatedSqliteFromArchives(
+  archive,templatePath,outputPath,supplemental
+ );
+}
+/** Restore already-authenticated in-memory full records, e.g. from an AES-GCM
+ * saved archive. Never write plaintext JSON intermediate files to disk. */
+export async function restoreNumberedRecordsToIsolatedSqliteFromArchives(
+ archive,templatePath,outputPath,supplemental
+){
+ if([templatePath,outputPath].some(x=>typeof x!=='string'||!x)||
+    resolve(templatePath)===resolve(outputPath))
+  stop('separate empty schema and recovered SQLite paths required');
  validateNumberedCoreRecordsV2(archive);
- // This local path cannot recover object-backed photo bytes; do not produce
- // a deceptively complete recovery database with orphaned cloud references.
  if(archive.tables.customer_photos.length)
-  stop('object-backed customer photo rows require a separate full-byte restore');
+  stop('object-backed customer photo rows require separate full-byte restore');
  let db,created=false;
  try{
   const st=await stat(resolve(templatePath));
