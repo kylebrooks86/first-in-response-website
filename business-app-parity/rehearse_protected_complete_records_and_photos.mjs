@@ -25,13 +25,15 @@ import {restoreNumberedRecordsToIsolatedSqliteFromArchives}
  from './restore_numbered_records_to_isolated_sqlite.mjs';
 import {recoverSavedProtectedPhotoZip}
  from './recover_saved_protected_photo_zip.mjs';
+import {inspectSavedProtectedPairReceipt}
+ from './protected_recovery_pair_receipt.mjs';
 
 const stop=why=>{throw Error('FIRE encrypted records + photos recovery BLOCKED: '+why);};
 const passValid=x=>typeof x==='string'&&x.length>=16&&x.length<=1024&&
  Buffer.byteLength(x,'utf8')<=4096;
 export async function rehearseProtectedCompleteRecordsAndPhotos(
  protectedRecords,emptySchema,protectedPhotos,outputDb,outputZip,
- recordsPhrase,photoPhrase,{approved=false}={}
+ recordsPhrase,photoPhrase,{approved=false,pairReceiptPath}={}
 ){
  if(!approved)stop('explicit private local recovery permission required');
  const paths=[protectedRecords,emptySchema,protectedPhotos,outputDb,outputZip];
@@ -39,6 +41,15 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
   stop('all protected inputs, independent template and new output paths must differ');
  if(!passValid(recordsPhrase)||!passValid(photoPhrase))
   stop('two private 16–1024-character recovery phrases are required');
+ // Optional saved receipt binds the EXACT two encrypted files selected now.
+ // Validate it before creating a plaintext database or photo ZIP. This
+ // does NOT prove that every photo/record existed at receipt creation.
+ if(pairReceiptPath!==undefined){
+  if(typeof pairReceiptPath!=='string'||!pairReceiptPath||
+     paths.map(p=>resolve(p)).includes(resolve(pairReceiptPath)))
+   stop('the protected pair receipt must be a distinct saved file');
+  await inspectSavedProtectedPairReceipt(pairReceiptPath,protectedRecords,protectedPhotos);
+ }
  // Authenticate complete business archives and their shared source schema
  // before creating either unencrypted recovery artifact.
  const opened=await inspectSavedProtectedCompleteRecords(protectedRecords,recordsPhrase);
@@ -56,6 +67,7 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
    stop('photo/customer relationship proof is absent');
   return Object.freeze({
    pairedEncryptedInputsReadBack:true,
+   exactPairReceiptVerified:pairReceiptPath!==undefined,
    recoveredCustomerRows:result.customers,
    recoveredJobNumberRows:result.jobNumbers,
    restoredBusinessRows:result.restoredRows,
@@ -96,11 +108,16 @@ async function readTwoPhrases(){
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  try{
-  if(process.argv.length!==8||process.argv[7]!=='--allow-private-recovery')
+  if(![8,10].includes(process.argv.length)||
+     process.argv[7]!=='--allow-private-recovery'||
+     process.argv.length===10&&(
+      process.argv[8]!=='--pair-receipt'||!process.argv[9]))
+
    stop('usage: RECORDS.firerecords EMPTY.sqlite PHOTOS.firephotos RESTORED.sqlite RESTORED.zip --allow-private-recovery');
   const [recordsPhrase,photoPhrase]=await readTwoPhrases();
   const result=await rehearseProtectedCompleteRecordsAndPhotos(
-   ...process.argv.slice(2,7),recordsPhrase,photoPhrase,{approved:true}
+   ...process.argv.slice(2,7),recordsPhrase,photoPhrase,
+   {approved:true,...(process.argv.length===10?{pairReceiptPath:process.argv[9]}:{})}
   );
   console.log(JSON.stringify(result));
  }catch{
