@@ -49,6 +49,8 @@ try{
  synthetic.exec('PRAGMA foreign_keys=ON');
  synthetic.prepare('INSERT INTO customers(id,name,created_at) VALUES (?,?,?)')
   .run('synthetic-first-customer','Synthetic','2026-11-13T00:00:00Z');
+ synthetic.prepare('UPDATE customers SET email=? WHERE id=?')
+  .run('synthetic-owner@example.invalid','synthetic-first-customer');
  synthetic.prepare('INSERT INTO fire_customer_numbers(customer_id,created_at) VALUES (?,?)')
   .run('synthetic-first-customer','2026-11-13T00:00:00Z');
  // Exercise actual daily FIRE work records, not only numbering table shape.
@@ -73,6 +75,7 @@ try{
  synthetic.close();
  const archived=await exportCompleteIsolatedSqliteSnapshot(source,core,supp);
  const saved=JSON.parse(await readFile(supp,'utf8'));
+ const savedCore=JSON.parse(await readFile(core,'utf8'));
  okay(archived.coreAndSupplementalArchivesWritten&&saved.rowCounts.d1_migrations===26,
   'full local records archive includes 26 applied migrations');
  okay(saved.sqliteSequence.d1_migrations===26,
@@ -88,6 +91,8 @@ try{
   'exact permanent Customer #0001 actually restored');
  okay(verified.prepare('SELECT name FROM customers').get().name==='Synthetic',
   'real customer row restored into migrated schema');
+ okay(verified.prepare('SELECT email FROM customers').get().email==='synthetic-owner@example.invalid',
+  'customer contact information survives the complete restore exactly');
  okay(verified.prepare("SELECT job_number AS n FROM fire_job_estimate_links WHERE estimate_id='synthetic-first-job'").get().n===1,
   'actual job relationship preserved with Job #0001');
  okay(verified.prepare("SELECT amount_cents AS n FROM payments WHERE id='synthetic-paid'").get().n===3000,
@@ -142,6 +147,22 @@ try{
  altered.close();
  await reject(join(folder,'reject-journal-highwater.sqlite'),core,changedWater,supp,
   'same migration rows but modified serial high-water must reject');
+
+ // Earlier core restore code accepted source records with missing valid
+ // database columns; an absent email could silently restore as NULL and
+ // pass by comparing only the surviving archived keys. Fail closed.
+ const truncatedCore=structuredClone(savedCore);
+ delete truncatedCore.tables.customers[0].email;
+ const truncatedCoreFile=join(folder,'truncated-customer-core.json');
+ await writeFile(truncatedCoreFile,JSON.stringify(truncatedCore));
+ await reject(join(folder,'reject-missing-customer-email.sqlite'),truncatedCoreFile,template,supp,
+  'missing saved core customer contact field must never restore as NULL');
+ const truncatedPayment=structuredClone(savedCore);
+ delete truncatedPayment.tables.payments[1].provider_id;
+ const truncatedPaymentFile=join(folder,'truncated-payment-core.json');
+ await writeFile(truncatedPaymentFile,JSON.stringify(truncatedPayment));
+ await reject(join(folder,'reject-missing-payment-reference.sqlite'),truncatedPaymentFile,template,supp,
+  'missing core refund ledger provider reference cannot be silently blanked');
 
  const forged=structuredClone(saved);
  forged.tables.d1_migrations[18].name='0018_fake_refunds.sql';
