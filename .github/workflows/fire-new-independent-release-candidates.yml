@@ -125,8 +125,9 @@ jobs:
           const manifest=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/fire-release-candidate/dist/server/wrangler.json','utf8'));
           const target=process.env.FIRE_TARGET;
           const dr=target==='independent-dr';
+          // DR uses previously owner-recorded resource ID (not provider attestation).
           const reviewed=prepareReviewedIndependentManifest(target,manifest,{
-           databaseId:dr?'54a5e470-2ae3-471b-a2db-ea8bdf092513':'54a5e470-2ae3-471b-a2db-ea8bdf092514',
+           databaseId:dr?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'54a5e470-2ae3-471b-a2db-ea8bdf092514',
            photoStorageMode:'owner-device-zip',
            resourceAttestation:'owner-checked-'+target,
            enableAuth:false
