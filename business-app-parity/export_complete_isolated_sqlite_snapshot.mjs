@@ -25,7 +25,9 @@ const normalized=v=>{
  stop('SQLite binary, unsafe integer or unsupported field cannot be exported losslessly');
 };
 function capture(db){
- const names=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(x=>x.name);
+ // Match SQLite's LITERAL reserved sqlite_ prefix, never SQL LIKE 'sqlite_%'.
+ // LIKE treats '_' as a wildcard and can silently omit sqliteX business tables.
+ const names=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_'").all().map(x=>x.name);
  if(names.some(x=>!ident(x)))stop('unrecognized database table name');
  if(tables.some(x=>!names.includes(x)))stop('missing numbered-core or identity table');
  const extras=names.filter(x=>!tables.includes(x)).sort();

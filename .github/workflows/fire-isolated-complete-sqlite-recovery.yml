@@ -1,0 +1,36 @@
+name: FIRE complete isolated SQLite recovery coverage (OFFLINE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/export_complete_isolated_sqlite_snapshot.mjs'
+      - 'business-app-parity/fingerprint_isolated_sqlite_schema.mjs'
+      - 'business-app-parity/restore_numbered_records_to_isolated_sqlite.mjs'
+      - 'business-app-parity/validate_supplemental_recovery_archive.mjs'
+      - 'business-app-parity/test_isolated_sqlite_recovery.mjs'
+      - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - '.github/workflows/fire-isolated-complete-sqlite-recovery.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  offline-recovery:
+    name: Preserve every SQLite table, serial, index and offline recovery row
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout reviewed source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22 for built-in disposable SQLite
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test changed backup/restore behavior only; no provider or owner data
+        run: node --experimental-sqlite business-app-parity/test_isolated_sqlite_recovery.mjs
