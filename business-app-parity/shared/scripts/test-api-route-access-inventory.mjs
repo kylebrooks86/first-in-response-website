@@ -69,11 +69,11 @@ for(const file of files){
   assert.match(content,/FIRE_NEW_LIVE_CLEAN_START/);
   assert.match(content,/inspectNewLiveFirstJobCleanStart/);
   assert.match(content,/getChatGPTUser/);
-  assert.match(content,/ownerEmail|kylebrooks8605@gmail\\.com/);
+  assert.match(content,/ownerEmail|kylebrooks8605@gmail\.com/);
   assert.match(content,/no-store/);
   assert.match(content,/releaseApproved:false/);
   assert.match(content,/providerIdentityVerified:false/);
-  assert.doesNotMatch(content,/export\\s+async\\s+function\\s+(POST|PUT|PATCH|DELETE)\\s*\\(/);
+  assert.doesNotMatch(content,/export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)\s*\(/);
  }
  if(rel==='backup/legacy-review/route.ts'){
   assert.deepEqual(declared,['GET'],'Legacy records review must never expose write methods');
