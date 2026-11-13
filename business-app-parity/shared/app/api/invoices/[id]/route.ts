@@ -96,8 +96,6 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const paidCents=Number(paidRow?.paidCents||0);
     if(!Number.isSafeInteger(paidCents)||paidCents<0)return Response.json({error:"Recorded payments are outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
     if(totalCents<paidCents)return Response.json({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
-    const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
-    if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
     const updateDueAt=Object.prototype.hasOwnProperty.call(body,"dueAt");
     const rawDueAt=String(body.dueAt??"").trim();
     let dueAt:string|null|undefined;
@@ -110,6 +108,17 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const latestPaidCents=Number(latestPaidRow?.paidCents??0);
     if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
     if(totalCents<latestPaidCents)return Response.json({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
+    // Never reprice a job while a refund is pending: otherwise a customer
+    // could see a revised invoice inconsistent with an unsettled refund.
+    // Validate ALL owner input and current payment state before calling Stripe
+    // to expire any open checkout. Invalid edits have no remote side effects.
+    const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1")
+      .bind(existing.estimateId).first<{id:string}>();
+    if(pendingRefund)return Response.json({
+      error:"A refund is still processing. Reconcile it before changing the invoice or ending an active checkout."
+    },{status:409,headers:{"Cache-Control":"no-store, private"}});
+    const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
+    if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
     // Status and the transactional payment guard must use the same snapshot.
     // Money arriving between the two reads must not leave a paid invoice draft.
     const status=latestPaidCents>=totalCents?"paid":latestPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
@@ -136,7 +145,9 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
       SELECT ?,?,?,?,?,?,?,?,?,?,?
       WHERE EXISTS(SELECT 1 FROM invoices guard WHERE guard.id=?
         AND EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=guard.estimate_id AND parent.customer_id=guard.customer_id)
-        AND ${actualPaid}=? AND ${actualPaid}<=?)`)
+        AND ${actualPaid}=? AND ${actualPaid}<=?
+        AND NOT EXISTS(SELECT 1 FROM payment_refunds pending
+          WHERE pending.estimate_id=guard.estimate_id AND pending.status='pending'))`)
       .bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),
         Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),
         Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),
