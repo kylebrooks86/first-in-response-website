@@ -9,7 +9,7 @@ const env={
  FIRE_NEW_LIVE_CLEAN_START:'required',
  FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
  FIRE_CUSTOMER_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
- DB:{prepare(sql){reads++;if(!/^SELECT\\b/i.test(sql.trim()))throw Error('Unexpected write');throw Error('Synthetic unavailable physical D1');}}
+ DB:{prepare(sql){reads++;if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write');throw Error('Synthetic unavailable physical D1');}}
 };
 const route=createRouteFixtureLoader(resolve(fileURLToPath(new URL('../',import.meta.url))),env,()=>user)('app/api/release/new-live-clean-start/route.ts');
 let checks=0;
