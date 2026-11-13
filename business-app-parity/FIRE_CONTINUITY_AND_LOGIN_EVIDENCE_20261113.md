@@ -47,3 +47,19 @@ These are historical owner-observed snapshots, **not** attestation that #244 is 
 6. Report concise delta: *what genuinely changed / reused evidence / what's blocked / next owner-only action*, then formal **4/10** until independently accepted.
 
 **Continuation rule:** ChatGPT memory and conversation history may not always be recalled perfectly. This GitHub file plus latest Issue #19 and the current PR is the durable source-of-truth. A browser's live authenticated cookie/credentials are **not stored here** and cannot be transferred across Work/regular-chat sessions. Never commit secrets, signed cookies, authorization headers, customer data or exact private archives.
+
+---
+
+## November 13, 2026 — source-only DR/NEW LIVE paired isolation guard (PR #244 follow-on)
+
+**Actual new change:** Draft PR #244 gained a reviewIndependentReleasePair(drReviewed, liveReviewed) source-only safety function in prepare_new_independent_release_manifest.mjs and targeted tests in test_new_independent_release_manifest.mjs. The earlier preparer could individually accept two otherwise valid release manifests sharing the same non-reserved D1 UUID when the other target ID was not supplied. The new pair review rejects duplicate DR/NEW LIVE D1 IDs, wrong Worker name/origin, shared auth secret names, injected R2/KV/service/other storage bindings, mismatched Job # auth flags and fabricated release acceptance. **It does NOT verify physical provider identities, off-device archive custody, hosted parity, isolated restore or deployment permission.**
+
+**Exact tested code HEAD:** 84905b4fea920143e20b8d4e20cd7a284d066d4a on [draft PR #244](https://github.com/kylebrooks86/first-in-response-website/pull/244), unmerged and undeployed.
+- [Independent DR and NEW LIVE source-isolated build/manifest/test run 43467597114](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43467597114): SUCCESS in **both** jobs, including new synthetic paired-binding negatives; no provider calls.
+- [PIN/passkey source-only run 43467597197](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43467597197): SUCCESS.
+- [Website verifier run 43467597242](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43467597242): SUCCESS.
+- [Main-only integration workflow 43467597309](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43467597309): FAILURE at existing base=main-only restriction on intentionally stacked #244. The restriction was not relaxed; this is not an app-runtime regression verdict or full-suite pass. Prior PR #242 exact-head 13/13 acceptance remains separate.
+
+**Physical state unchanged:** Owner-created empty DR D1 is still present by owner report; its physical UUID remains unknown. No independent NEW LIVE physical D1, DR/NEW LIVE Worker, release binding, R2 photo bucket, D1 migration, hosted login, payment or protected off-device full photo restore was performed. Device-only ZIPs are not automatic cross-device sync or encrypted archives. No new user input is needed for further source-only work; actual provider binding/restore/deployment requires separately scoped authorization and physical evidence.
+
+**Formal gates unchanged: 4/10 accepted (1, 2, 3, 8), Gates 4, 5, 6, 7, 9, 10 OPEN; LIVE NO-GO.** Reuse accepted Work login failure evidence, iPhone/Acer sessions and hosted screenshots; no new R2 subscription or Work sign-in retry. Subsequent documentation-only HEADs may be newer than the exact tested source SHA; verify both before relying on CI.
