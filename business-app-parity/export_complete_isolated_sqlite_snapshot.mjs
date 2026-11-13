@@ -25,16 +25,16 @@ const normalized=v=>{
  stop('SQLite binary, unsafe integer or unsupported field cannot be exported losslessly');
 };
 function capture(db){
- const names=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(x=>x.name);
+ const names=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_'").all().map(x=>x.name);
  if(names.some(x=>!ident(x)))stop('unrecognized database table name');
  if(tables.some(x=>!names.includes(x)))stop('missing numbered-core or identity table');
  const extras=names.filter(x=>!tables.includes(x)).sort();
- const schemaIdentity=fingerprintIsolatedSqliteSchema(db);
  const result={},counts={};
- // A read transaction ensures all table snapshots and sqlite_sequence
- // high-water values belong to the SAME logical database instant.
+ // Tie the schema fingerprint to the SAME SQLite read transaction as all
+ // table rows and serial high-water. No gap for a concurrent schema edit.
  db.exec('BEGIN');
  try{
+  const schemaIdentity=fingerprintIsolatedSqliteSchema(db);
   for(const table of names){
    const rows=db.prepare('SELECT * FROM '+q(table)).all().map(row=>
     Object.fromEntries(Object.entries(row).map(([k,v])=>[k,normalized(v)])));
