@@ -62,13 +62,13 @@ $allowed=@(
  ('versions|view|'+$version+'|--name|fire-fullapp-dr|--json'),
  'd1|list|--json'
 )
-function Read-FireProvider([string[]]$args) {
-  $key=$args -join '|'
+function Read-FireProvider([string[]]$readArgs) {
+  $key=$readArgs -join '|'
   if($key -cnotin $allowed) { Block-Fire 'command outside 3-item read-only allowlist' }
   $originalPreference=$ErrorActionPreference
   try {
     $ErrorActionPreference='Continue'
-    $messages=(& $script:npxCmd --yes 'wrangler@4.162.0' @args 2>&1 | Out-String)
+    $messages=(& $script:npxCmd --yes 'wrangler@4.162.0' @readArgs 2>&1 | Out-String)
     $status=$LASTEXITCODE
   } finally {
     $ErrorActionPreference=$originalPreference
@@ -79,7 +79,7 @@ function Read-FireProvider([string[]]$args) {
   catch { Block-Fire 'unsupported provider JSON response (not guessed)' }
   return ,$value
 }
-$status=Read-FireProvider -args @('deployments','status','--name',$worker,'--json')
+$status=Read-FireProvider -readArgs @('deployments','status','--name',$worker,'--json')
 if(-not (Has-Field $status 'versions') -or @($status.versions).Count -ne 1) {
   Block-Fire 'no single current deployment version'
 }
@@ -94,7 +94,7 @@ $activeVersion=if(Has-Field $deployed 'version_id') { $deployed.version_id }
 if(-not (Exact-Id $activeVersion $version)) {
   Block-Fire 'active version differs from one-time owner-confirmed first-created version'
 }
-$detail=Read-FireProvider -args @('versions','view',$version,'--name',$worker,'--json')
+$detail=Read-FireProvider -readArgs @('versions','view',$version,'--name',$worker,'--json')
 $id=if(Has-Field $detail 'id') { $detail.id }
   elseif(Has-Field $detail 'version_id') { $detail.version_id } else { $null }
 if(-not (Exact-Id $id $version)) { Block-Fire 'version detail ID mismatch' }
@@ -131,7 +131,7 @@ foreach($key in $expected.Keys) {
     Block-Fire 'actual hosted variable does not retain exact blocked dark value'
   }
 }
-$inventory=Read-FireProvider -args @('d1','list','--json')
+$inventory=Read-FireProvider -readArgs @('d1','list','--json')
 if($inventory -isnot [array] -or $inventory.Count -gt 10000) {
   Block-Fire 'D1 inventory unavailable or unsupported'
 }
