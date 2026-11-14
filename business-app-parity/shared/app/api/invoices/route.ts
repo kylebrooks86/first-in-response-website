@@ -109,7 +109,9 @@ export async function POST(request: Request) {
     const createdAt = new Date().toISOString();
     const dueAt = null;
     const paidCents = paidSnapshotCents;
-    const invoiceStatus = paidCents >= estimateTotalCents ? "paid" : paidCents > 0 ? "partial" : "draft";
+    // A zero-dollar complimentary invoice with no payment is not paid in full.
+    // Final invoice status must reflect positive, actually recorded principal.
+    const invoiceStatus = estimateTotalCents > 0 && paidCents >= estimateTotalCents ? "paid" : paidCents > 0 ? "partial" : "draft";
     const newItems=itemResult.results.map(item=>({
       id:crypto.randomUUID(),name:item.name,description:item.description,quantity:Number(item.quantity),unit:item.unit,totalCents:Number(item.totalCents)
     }));
