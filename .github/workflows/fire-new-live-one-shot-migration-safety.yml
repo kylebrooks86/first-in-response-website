@@ -1,0 +1,37 @@
+name: FIRE NEW LIVE physical D1 one-shot migration safety (SOURCE ONLY, NO APPLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_new_live_initial_schema_one_shot.mjs'
+      - 'business-app-parity/test_owner_new_live_initial_schema_one_shot.mjs'
+      - '.github/workflows/fire-new-live-one-shot-migration-safety.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-new-live-migration-source-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  no-provider-guard:
+    name: Physical NEW LIVE D1 identity, empty DB, Job #0001 and lost-ACK fail-closed checks (NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - name: Checkout reviewed source only, no credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax of ONLY newly written migration and guard test
+        run: |
+          node --check business-app-parity/owner_new_live_initial_schema_one_shot.mjs
+          node --check business-app-parity/test_owner_new_live_initial_schema_one_shot.mjs
+      - name: Run targeted pure tests; do not call Wrangler or Cloudflare
+        run: |
+          node business-app-parity/test_owner_new_live_initial_schema_one_shot.mjs
+          echo 'PASS new source-only migration safeguards; NO migrations, D1 reads or hosted writes.'
