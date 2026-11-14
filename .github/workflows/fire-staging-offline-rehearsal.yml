@@ -529,6 +529,11 @@ jobs:
           node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
           node scripts/test-inline-new-customer-contact-parity.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
+      - name: FIRE note and Settings template committed-write recovery (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
+          node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
       - name: Gate 8 owner expense save recovery and Wave financial record ID integrity (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
