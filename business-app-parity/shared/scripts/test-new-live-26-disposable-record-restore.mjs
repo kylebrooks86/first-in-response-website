@@ -140,6 +140,10 @@ try{
  denied('wrong or forged journal',db=>db.prepare("UPDATE d1_migrations SET name='forged.sql' WHERE id=19").run());
  denied('missing last migration',db=>db.prepare('DELETE FROM d1_migrations WHERE id=26').run());
  denied('unknown stateful table',db=>db.exec('CREATE TABLE unreviewed_payment_details(id TEXT)'));
+ denied('temporary customer shadow table',db=>db.exec(
+  'CREATE TEMP TABLE customers(id TEXT)'));
+ denied('temporary payment shadow view',db=>db.exec(
+  'CREATE TEMP VIEW payments AS SELECT * FROM main.payments'));
  denied('existing customer in target',db=>db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)')
   .run('must-keep-existing','Synthetic existing customer',now));
  denied('accidentally using old QA-25 profile',db=>{}, {schemaProfile:'qa-25'});
