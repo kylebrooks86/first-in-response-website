@@ -1,0 +1,40 @@
+name: FIRE DR private owner evidence recovery (OFFLINE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/protected_dr_evidence.mjs'
+      - 'business-app-parity/owner_dr_offdevice_receipt_backup.mjs'
+      - 'business-app-parity/test_protected_dr_evidence.mjs'
+      - '.github/workflows/fire-dr-private-owner-evidence.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-owner-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  evidence-archive:
+    name: Protect accepted DR schema receipts and rehearse isolated encrypted restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout exact PR source, no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax before any evidence test
+        run: |
+          node --check business-app-parity/protected_dr_evidence.mjs
+          node --check business-app-parity/owner_dr_offdevice_receipt_backup.mjs
+          node --check business-app-parity/test_protected_dr_evidence.mjs
+      - name: Encrypt 32 reviewed DR evidence files, verify and recover exact bytes
+        run: node business-app-parity/test_protected_dr_evidence.mjs
+      - name: No remote Cloudflare/Stripe/provider writes
+        run: echo "PASS source-only authenticated 32-file private DR evidence recovery; no provider calls."
