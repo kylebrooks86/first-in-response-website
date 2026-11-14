@@ -56,6 +56,21 @@ export function wrapInertDRWorker(server,manifest){
  if(!server||typeof server.fetch!=='function')throw Error('FIRE DR assetless BLOCKED: SSR Worker missing');
  return Object.freeze({
   async fetch(request,env,ctx){
+   // A newly created Worker can have provider version/deployment addresses
+   // even when workers_dev and preview_urls are disabled. Before explicit
+   // owner activation, deny EVERY request (including compiled public static
+   // files) before exposing assets, SSR, DB, login or any application route.
+   // Do not treat a valid D1 binding or source-only preview as approval.
+   const approvedDR=env?.FIRE_ENV==='isolated-dr'&&
+     env.FIRE_DR_AUTH_ENABLED==='owner-approved'&&
+     env.FIRE_NEW_LIVE_AUTH_ENABLED===undefined;
+   const approvedLive=env?.FIRE_ENV==='new-live-prelaunch'&&
+     env.FIRE_NEW_LIVE_AUTH_ENABLED==='owner-approved'&&
+     env.FIRE_DR_AUTH_ENABLED===undefined;
+   if(!approvedDR&&!approvedLive)
+    return new Response(null,{status:404,headers:{
+     'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'
+    }});
    // No real ASSETS resource, R2 or KV binding is expected or permitted.
    if(env?.ASSETS!==undefined)
     return new Response('Unexpected cloud assets binding',{status:503});
