@@ -1,3 +1,13 @@
+# CURRENT FIRE APP DEVELOPMENT POINTER — NOVEMBER 14, 2026 (OVERRIDES OLD CURRENT-SHA ENTRIES)
+
+**Begin with the latest [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19), its latest comments and [FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md) at BOTH TOP and BOTTOM. The active integrated source is main-based [DRAFT PR #270](https://github.com/kylebrooks86/first-in-response-website/pull/270), NOT #244 or #264.** Fetch its actual GitHub HEAD before source edits. The last exact source checkpoint recorded is `70508a79ed5d82eb5ae96c3736f2c1ec0d3875f2` (Nov 14); source head may move in another chat. Do not overwrite intervening work, fork a redundant parallel main-target candidate, or treat old PR instructions as current.
+
+**Previous accepted and irreversible history:** 4/10 formal release gates (1,2,3,8), physically completed DR D1 26/26 and 32 encrypted DR files preserved owner-private off-Acer in Google Drive; actual new QA is visual and functional master across QA/STAGING/DR/NEW LIVE. Separate owner-created NEW LIVE D1 exists but has NOT been migrated; Job #0001 NOT provider-verified. Physical NEW LIVE Worker, hosted distinct nonowner proofs, fully recoverable future customer records/photos, signed Stripe TEST and final cutover remain OPEN. No paid Cloudflare/R2 or subscription, NO repeated Cloudflare Work sign-in, iPhone/Acer screenshots/tests, DR migration, or previously accepted QA. Never merge, deploy, change provider bindings or SQL, Stripe, DNS or legacy retirement without fresh narrow owner approval.
+
+**Nov 14 actual source progress:** PR270's customer stale-tab lost-ACK fix reached exact-source 23/23 CI success at `8bef686ce6780e32b27d225215354f20f6a720f1`. A later no-schema same-estimate owner multi-tab concurrency guard is source-only at `70508a79ed5d82eb5ae96c3736f2c1ec0d3875f2`; its staging test must finish before calling it verified. An unrelated known same-run GitHub artifact visibility race may fail immediate NEW LIVE offline source-custody readback; it is not a Cloudflare provider deployment or lost prior private backup. The full latest details and exact CI links are in the continuity register and Issue19.
+
+---
+
 # FIRE CURRENT INSTRUCTIONS — NOVEMBER 14, 2026: PR270 IS ACTIVE
 
 **Read before any work. This block supersedes the older PR264 / PR244 / November 13 "current source" notes below; the older notes remain for history.**
