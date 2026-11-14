@@ -124,10 +124,9 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
           corepack pnpm build
-      - name: Rehearse all 26 pinned migrations with REAL Wrangler on disposable local D1 (no Cloudflare)
-        if: matrix.target == 'independent-live'
+      - name: Rehearse 26 reviewed SQL migrations in real Wrangler for each exact independent target (LOCAL ONLY)
         run: |
-          node --experimental-sqlite business-app-parity/test_real_wrangler_independent_d1_local.mjs "$RUNNER_TEMP/fire-release-candidate/node_modules/wrangler/bin/wrangler.js"
+          node --experimental-sqlite business-app-parity/test_real_wrangler_independent_d1_local.mjs "$RUNNER_TEMP/fire-release-candidate/node_modules/wrangler/bin/wrangler.js" "$FIRE_TARGET"
       - name: NEW LIVE owner-only hosted evidence route denies unauthorized and uncertain D1
         if: matrix.target == 'independent-live'
         working-directory: ${{ runner.temp }}/fire-release-candidate
