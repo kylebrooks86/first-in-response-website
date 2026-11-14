@@ -66,6 +66,7 @@ const required26Triggers=Object.freeze([
  ['fire_job_estimate_links_no_update','fire_job_estimate_links','UPDATE','FIRE Job links cannot be reassigned'],
  ['fire_job_estimate_links_no_delete','fire_job_estimate_links','DELETE','FIRE Job links are permanent']
 ]);
+// SQLite strips IF NOT EXISTS when persisting CREATE INDEX in sqlite_master.sql.
 const required26Indexes=Object.freeze([
  ['idx_payment_checkout_sessions_one_open_per_estimate','payment_checkout_sessions',
   "CREATE UNIQUE INDEX idx_payment_checkout_sessions_one_open_per_estimate ON payment_checkout_sessions (estimate_id) WHERE status='open'"],
@@ -80,7 +81,7 @@ const required26Indexes=Object.freeze([
  ['idx_payments_unique_refund_provider','payments',
   "CREATE UNIQUE INDEX idx_payments_unique_refund_provider ON payments (provider_id) WHERE provider_id LIKE 'refund:%'"],
  ['idx_notifications_unique_lifecycle','notifications',
-  "CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_unique_lifecycle ON notifications (type,estimate_id) WHERE estimate_id IS NOT NULL AND type IN ('estimate_viewed','invoice_viewed','estimate_accepted')"],
+  "CREATE UNIQUE INDEX idx_notifications_unique_lifecycle ON notifications (type,estimate_id) WHERE estimate_id IS NOT NULL AND type IN ('estimate_viewed','invoice_viewed','estimate_accepted')"],
  ['idx_payments_stripe_provider_unique','payments',
   "CREATE UNIQUE INDEX idx_payments_stripe_provider_unique ON payments (provider_id) WHERE provider_id GLOB 'cs_*' OR provider_id GLOB 'refund:*'"],
  ['idx_fire_job_estimate_links_number','fire_job_estimate_links',
