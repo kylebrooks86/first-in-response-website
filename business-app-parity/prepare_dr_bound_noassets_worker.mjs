@@ -27,6 +27,12 @@ const ORIGIN='https://fire-fullapp-dr.kyle-bfc.workers.dev';
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const stop=msg=>{throw Error('FIRE physical DR prehost BLOCKED: '+msg);};
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// The real accepted Wrangler output contains declared but EMPTY provider
+// binding wrappers: e.g. queues:{producers:[],consumers:[]} and
+// durable_objects:{bindings:[]}. Reject non-empty entries, not the wrappers.
+const empty=x=>x===undefined||x===null||
+ (Array.isArray(x)&&x.length===0)||
+ (x&&typeof x==='object'&&!Array.isArray(x)&&Object.values(x).every(empty));
 function assertOrdinaryTree(root){
  if(!existsSync(root)||!lstatSync(root).isDirectory()||lstatSync(root).isSymbolicLink())
   stop('source must be existing plain unpacked, private release folder');
@@ -76,10 +82,19 @@ export function reviewDRWorkerSource(source){
     !equal(cfg.secrets?.required,['FIRE_DR_PASSWORD_HASH','FIRE_DR_SESSION_SECRET'])||
     !equal(cfg.d1_databases,[{binding:'DB',database_name:DR_D1_NAME,database_id:PLACEHOLDER}])||
     !equal(cfg.r2_buckets,[])||
-    !equal(cfg.kv_namespaces||[],[])||
-    !equal(cfg.services||[],[])||
-    cfg.durable_objects||cfg.queues||cfg.unsafe||
-    cfg.triggers||cfg.workflows||cfg.analytics_engine_datasets)
+    !empty(cfg.kv_namespaces)||!empty(cfg.services)||
+    !empty(cfg.durable_objects)||!empty(cfg.queues)||
+    !empty(cfg.unsafe)||!empty(cfg.triggers)||
+    !empty(cfg.workflows)||!empty(cfg.analytics_engine_datasets)||
+    !empty(cfg.vectorize)||!empty(cfg.ai_search_namespaces)||
+    !empty(cfg.ai_search)||!empty(cfg.hyperdrive)||
+    !empty(cfg.dispatch_namespaces)||!empty(cfg.worker_loaders)||
+    !empty(cfg.ratelimits)||!empty(cfg.send_email)||
+    !empty(cfg.pipelines)||!empty(cfg.vpc_services)||
+    !empty(cfg.vpc_networks)||!empty(cfg.mtls_certificates)||
+    !empty(cfg.secrets_store_secrets)||!empty(cfg.artifacts)||
+    !empty(cfg.cloudchamber)||!empty(cfg.logfwdr)||
+    !empty(cfg.unsafe_hello_world)||!empty(cfg.flagship))
   stop('unapproved Worker binding, SSR entry, account, external route, paid storage or login');
  if(!paths.includes('server/index.js')||
     !paths.includes('server/fire-noassets-entry.mjs')||
