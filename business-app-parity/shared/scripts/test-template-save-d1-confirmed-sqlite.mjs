@@ -25,6 +25,22 @@ try{
   'Success requires actual durable D1 row and timestamp readback');
  check((await serverTemplate()).body==='Saved custom owner wording',
   'Subsequent real GET uses saved owner customization');
+ // A real D1 COMMIT can succeed and the INSERT acknowledgment still throw.
+ // Readback must recover exactly the just-committed owner template.
+ rt.env.DB.prepare=function(sql){
+  if(sql.startsWith('INSERT INTO message_templates'))return {bind(...args){return {run:async()=>{
+   await originalPrepare(sql).bind(...args).run();
+   throw Error('Synthetic D1 lost INSERT acknowledgement after commit');
+  }};}};
+  return originalPrepare(sql);
+ };
+ const committedDespiteLostWrite=await put({subject:'Saved despite lost ACK',body:'Actual committed owner wording'});
+ check(committedDespiteLostWrite.status===200&&committedDespiteLostWrite.body.template.subject==='Saved despite lost ACK'&&
+  committedDespiteLostWrite.body.template.body==='Actual committed owner wording',
+  'Committed template INSERT with lost ACK is confirmed by the real stored row');
+ check((await serverTemplate()).body==='Actual committed owner wording',
+  'Independent GET returns precisely the recovered updated template');
+ rt.env.DB.prepare=originalPrepare;
  // Nonthrowing D1 write acknowledgements may still be false. In that case
  // the route must NOT echo the attempted subject as if it were saved.
  const before=JSON.stringify(stored());
@@ -60,6 +76,18 @@ try{
  check(skippedReset.status===503&&skippedReset.body.saveUncertain===true,'Silent failed restore does not report Default restored');
  check(JSON.stringify(stored())===resetAttempt,'Nonwriting DELETE leaves customization retained');
  rt.env.DB.prepare=originalPrepare;
+ // The DELETE was persisted but its ACK never reached the app.
+ rt.env.DB.prepare=function(sql){
+  if(sql.startsWith('DELETE FROM message_templates'))return {bind(...args){return {run:async()=>{
+   await originalPrepare(sql).bind(...args).run();
+   throw Error('Synthetic D1 lost DELETE acknowledgement after commit');
+  }};}};
+  return originalPrepare(sql);
+ };
+ const recoveredDefault=await put({reset:true});
+ check(recoveredDefault.status===200&&recoveredDefault.body.template.key===key&&!stored(),
+  'Committed reset with lost DELETE ACK succeeds only after absence readback');
+ rt.env.DB.prepare=originalPrepare;
  const restored=await put({reset:true});
  check(restored.status===200&&restored.body.template.key===key&&!stored(),
   'True restore returns success only after original override row is absent');
@@ -69,6 +97,10 @@ try{
  check(repeat.status===200&&!stored(),'Repeating an already-restored default is harmless and confirmed');
  const invalid=await put({subject:'Invalid',body:'  '});
  check(invalid.status===400&&!stored(),'Empty message content rejected without saving');
+ const malformed=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',body:'{not-json'}));
+ check(malformed.status===400,'Malformed owner template request returns actionable 400 instead of throwing');
+ const arrayPayload=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',body:'[]'}));
+ check(arrayPayload.status===400,'Array payload cannot change message templates');
  const unknown=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',body:JSON.stringify({key:'not-a-real-template',subject:'x',body:'x'})}));
  check(unknown.status===400,'Unknown template key cannot create unrelated metadata');
  rt.setOwner(null);
@@ -84,5 +116,5 @@ try{
  check(interrupted.status===503&&interrupted.body.saveUncertain===true&&!stored(),
   'Interrupted write returns uncertain recovery guidance and no success');
  rt.env.DB.prepare=originalPrepare;
- console.log('PASS '+checks+'/'+checks+' actual Settings templates PUT/native SQLite owner-only readback, reset, no-write, lost acknowledgment and recovery. NO HOSTED OPERATIONS.');
+ console.log('PASS '+checks+'/'+checks+' actual Settings templates PUT/native SQLite owner-only readback, committed lost INSERT/DELETE ACK recovery, reset, no-write, malformed input and interrupted confirmation. NO HOSTED OPERATIONS.');
 }finally{rt.env.DB.prepare=originalPrepare;db.close();}
