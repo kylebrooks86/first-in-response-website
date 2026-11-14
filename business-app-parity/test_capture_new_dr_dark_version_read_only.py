@@ -128,7 +128,7 @@ class DarkNewDrIdentity(unittest.TestCase):
             m.read_only_cli("FAKE_NPX", ["d1", "execute", m.DR_DB])
 
     def test_default_main_does_not_contact_cloudflare(self):
-        with patch.object("sys.argv", ["script"]), patch.object(m.shutil, "which",
+        with patch("sys.argv", ["script"]), patch.object(m.shutil, "which",
              side_effect=AssertionError("Dry mode must not look up executable")):
             self.assertEqual(m.main(), 0)
 
