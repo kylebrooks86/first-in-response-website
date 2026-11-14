@@ -11,7 +11,7 @@
  * this source is NEW LIVE ONLY, with an entirely separate one-shot lock.
  */
 import {spawnSync} from 'node:child_process';
-import {existsSync,lstatSync,mkdirSync,writeFileSync} from 'node:fs';
+import {closeSync,existsSync,fsyncSync,lstatSync,mkdirSync,openSync,writeFileSync,writeSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -111,18 +111,33 @@ export function createOneShotNewLiveAttemptLock(lockPath,preflight){
  if(!preflight||preflight.target!==TARGET||!preflight.physicalIdentityConfirmed||
     preflight.initialApplicationTables!==0||preflight.migrationCount!==26)
   stop('NEW LIVE one-shot attempt cannot begin without exact clean preflight');
+ const bytes=Buffer.from(JSON.stringify({
+  target:TARGET,database_name:LIVE.database_name,database_id:LIVE.database_id,
+  state:'REMOTE_COMMAND_RESULT_UNCONFIRMED_NO_AUTOMATIC_RETRY',
+  createdAt:new Date().toISOString(),
+  sourceMigrationCount:26,physicalIdentityConfirmed:true,
+  initialApplicationTables:0,firstJobNumber0001NotYetVerified:true,
+  cloudflareWorkerDeployed:false,ownerLoginEnabled:false,
+  stripeAndR2Untouched:true
+ },null,2)+'\n','utf8');
  try{
-  writeFileSync(lockPath,JSON.stringify({
-   target:TARGET,database_name:LIVE.database_name,database_id:LIVE.database_id,
-   state:'REMOTE_COMMAND_RESULT_UNCONFIRMED_NO_AUTOMATIC_RETRY',
-   createdAt:new Date().toISOString(),
-   sourceMigrationCount:26,physicalIdentityConfirmed:true,
-   initialApplicationTables:0,firstJobNumber0001NotYetVerified:true,
-   cloudflareWorkerDeployed:false,ownerLoginEnabled:false,
-   stripeAndR2Untouched:true
-  },null,2)+'\n',{flag:'wx',mode:0o600});
+  // Exclusive creation blocks old locks and symlink substitution. Do NOT
+  // delete even a partially written lock: the next attempt must fail closed.
+  const fd=openSync(lockPath,'wx',0o600);
+  try{
+   let pos=0;
+   while(pos<bytes.length){
+    const n=writeSync(fd,bytes,pos,bytes.length-pos,pos);
+    if(!Number.isInteger(n)||n<1)throw Error('incomplete owner attempt lock write');
+    pos+=n;
+   }
+   // Flush the lock's bytes before ANY Cloudflare mutation; flush failure
+   // leaves the lock in place but prevents a remote command.
+   fsyncSync(fd);
+  }finally{closeSync(fd);}
  }catch{stop('prior migration attempt/lock exists or secure lock failed; DO NOT RETRY');}
- return {lockWrittenBeforeRemoteOperation:true,remoteOperationAttemptedByLock:false};
+ return {lockWrittenBeforeRemoteOperation:true,lockFlushedBeforeRemoteOperation:true,
+  remoteOperationAttemptedByLock:false};
 }
 const safeParse=(stdout,step)=>{
  if(typeof stdout!=='string')stop(step+' did not return JSON');

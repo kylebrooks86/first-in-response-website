@@ -99,13 +99,19 @@ try{
  ])block(()=>createOneShotNewLiveAttemptLock(join(tmp,'should-not-exist-'+
   JSON.stringify(preflight.target||preflight.migrationCount)+Math.random()+'.json'),
    preflight),'no lock claimed without exact 26/26 clean LIVE preflight');
- ok(createOneShotNewLiveAttemptLock(lock,safe).remoteOperationAttemptedByLock===false,
-  'local attempt lock saved BEFORE simulated remote action');
- ok(existsSync(lock)&&JSON.parse(readFileSync(lock)).state===
+ const lockState=createOneShotNewLiveAttemptLock(lock,safe);
+ ok(lockState.lockWrittenBeforeRemoteOperation===true&&
+    lockState.lockFlushedBeforeRemoteOperation===true&&
+    lockState.remoteOperationAttemptedByLock===false,
+  'exclusive owner lock is fully written and fsynced before any simulated remote action');
+ const firstLockBytes=readFileSync(lock);
+ ok(existsSync(lock)&&JSON.parse(firstLockBytes).state===
   'REMOTE_COMMAND_RESULT_UNCONFIRMED_NO_AUTOMATIC_RETRY','lock records uncertain result');
  ok((statSync(lock).mode&0o777)===0o600,'owner-only lock file permissions on Linux');
  block(()=>createOneShotNewLiveAttemptLock(lock,safe),
   'must refuse a second attempt after lost ACK, crash or completed run');
+ ok(readFileSync(lock).equals(firstLockBytes),
+  'rejected duplicate attempt cannot overwrite any original locked bytes');
  const p=safeNewLiveCommandError({status:1,stderr:'timeout'},[
   'd1','migrations','apply','fire-fullapp-new-live-db','--remote']);
  ok(p.couldHaveWritten===true&&p.category==='NETWORK'&&
