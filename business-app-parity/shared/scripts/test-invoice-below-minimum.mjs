@@ -64,7 +64,12 @@ const env={STRIPE_RESTRICTED_KEY:'sk_test_SYNTHETIC_NO_NETWORK',DB:{prepare:stat
 const loader=createRouteFixtureLoader(process.cwd(),env,()=>owner);
 const route=loader('app/api/invoices/[id]/route.ts');
 const items=(cents,name='Synthetic service')=>[{name,description:'Owner-selected rate',quantity:1,unit:'job',totalCents:cents}];
-const patch=(id,rows,discountType='dollar',discountValue=0,extra={})=>route.PATCH(new Request('https://synthetic.invalid/api/invoices/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({items:rows,discountType,discountValue,...extra})}),{params:Promise.resolve({id})});
+const savedSource=id=>{
+ const h=db.prepare('SELECT estimate_id AS estimateId,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?').get(id);
+ if(!h)return null;
+ return {...h,storedStatus:h.status,items:db.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid').all(id)};
+};
+const patch=(id,rows,discountType='dollar',discountValue=0,extra={})=>route.PATCH(new Request('https://synthetic.invalid/api/invoices/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({items:rows,discountType,discountValue,expectedRevisionCount:Number(db.prepare('SELECT COUNT(*) AS n FROM invoice_revisions WHERE invoice_id=?').get(id)?.n??0),expectedOriginalInvoice:savedSource(id),...extra})}),{params:Promise.resolve({id})});
 const detail=id=>route.GET(new Request('https://synthetic.invalid/api/invoices/'+id),{params:Promise.resolve({id})});
 const invoice=id=>db.prepare('SELECT total_cents AS total,discount_cents AS discount,status FROM invoices WHERE id=?').get(id);
 const revisions=id=>db.prepare('SELECT COUNT(*) AS n FROM invoice_revisions WHERE invoice_id=?').get(id).n;
@@ -75,7 +80,14 @@ function seed(id){
  db.prepare('INSERT INTO invoice_items(id,invoice_id,name,description,quantity,unit,total_cents) VALUES(?,?,?,?,?,?,?)').run('item-'+id,id,'Original service','Original',1,'job',20000);
 }
 try{
- seed('small');let response=await patch('small',items(2500,'Trash bin'));
+ seed('small');
+ let response=await patch('small',items(2500,'Trash bin'),'dollar',0,{expectedRevisionCount:undefined});
+ eq(response.status,400,'API rejects invoice edit with missing source revision number');
+ eq(revisions('small'),0,'Missing version writes no revision');
+ response=await patch('small',items(2500,'Trash bin'),'dollar',0,{expectedOriginalInvoice:undefined});
+ eq(response.status,400,'API rejects invoice edit without complete saved original header and lines');
+ eq(revisions('small'),0,'Missing original source does not mutate invoice');
+ response=await patch('small',items(2500,'Trash bin'));
  eq(response.status,200,'$25 invoice edit accepted');let saved=await response.json();
  eq(saved.invoice.totalCents,2500,'Server saves exact $25');eq(saved.invoice.discountCents,0,'No hidden discount');
  eq(invoice('small').total,2500,'Database has exact $25');eq(revisions('small'),1,'Original invoice retained in revision history');
