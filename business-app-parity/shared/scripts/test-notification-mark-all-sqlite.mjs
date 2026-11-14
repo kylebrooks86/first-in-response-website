@@ -103,6 +103,11 @@ try{
    'Failed storage update returns actionable uncertainty and never clears unread falsely');
  rt.env.DB.prepare=originalPrepare;
 
+ const recovered=await read();
+ const remainingUnread=rows().filter(row=>row.read_at===null).length;
+ check(recovered.status===200&&remainingUnread===3&&recovered.data.unread===remainingUnread,
+   'After an interrupted update, the real GET still reports every pending notification');
+
  // Test real SQLite COMMIT followed by a deliberately lost transport ACK.
  // The route must recover from a SECOND SELECT and must not write again.
  put(9);
@@ -189,11 +194,6 @@ try{
    }));
    check(resp.status===400,'Malformed action '+body+' returns 400, no write');
  }
-
- const recovered=await read();
- const remainingUnread=rows().filter(row=>row.read_at===null).length;
- check(recovered.status===200&&remainingUnread===3&&recovered.data.unread===remainingUnread,
-   'After an interrupted update, the real GET still reports every pending notification');
 
  // Exercise the ACTUAL disaster-recovery route against the same disposable
  // SQLite store, not an approximation of its SQL. No hosted DR touched.
