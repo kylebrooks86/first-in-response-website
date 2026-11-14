@@ -44,8 +44,7 @@ export function pinnedNewLiveAccountEnvironment(raw=process.env){
   stop('Cloudflare account differs from physically established FIRE account');
  if(raw.CF_ACCOUNT_ID&&raw.CF_ACCOUNT_ID!==ACCOUNT)
   stop('alternate Cloudflare account differs from physically established FIRE account');
- return {...raw,CLOUDFLARE_ACCOUNT_ID:ACCOUNT,WRANGLER_SEND_METRICS:'false',
-  CLOUDFLARE_CF_FETCH_ENABLED:'false'};
+ return {...raw,CLOUDFLARE_ACCOUNT_ID:ACCOUNT,WRANGLER_SEND_METRICS:'false'};
 }
 export function requireIndependentNewLiveInfo(liveInfo,drInfo){
  const exact=(info,res)=>{
@@ -227,7 +226,7 @@ export async function applyNewLiveInitialSchemaAfterSeparateApproval(pinnedWrang
   target:TARGET,name:LIVE.database_name,database_id:LIVE.database_id,
   checkedAt:new Date().toISOString(),migrationCount:26,physicalIdentity:identity,
   remoteMigrationCommandReturnedSuccess:true,
-  icsSourceSqlMigrationJournalVerified:true,
+  sourceSqlMigrationJournalVerified:true,
   exactFinancialAndNumberingSchemaVerified:true,
   physicalFirstJobExpected:'0001',physicalFirstCustomerExpected:'0001',
   physicalNewLiveReadback:result,postMigrationReadOnlyStatements:reads,

@@ -30,7 +30,8 @@ try{
   'public exported executor without explicit owner scope never opens Wrangler');
  const pinned=pinnedNewLiveAccountEnvironment({SAFE:'yes'});
  ok(pinned.CLOUDFLARE_ACCOUNT_ID==='bfc00939cfb2f8dfd8581a7a7f5f1307'&&
-    pinned.SAFE==='yes'&&pinned.WRANGLER_SEND_METRICS==='false',
+    pinned.SAFE==='yes'&&pinned.WRANGLER_SEND_METRICS==='false'&&
+    pinned.CLOUDFLARE_CF_FETCH_ENABLED===undefined,
   'only already physically established FIRE account selected, no new login');
  for(const env of [
   {CLOUDFLARE_ACCOUNT_ID:'wrong'},{CF_ACCOUNT_ID:'wrong'},
