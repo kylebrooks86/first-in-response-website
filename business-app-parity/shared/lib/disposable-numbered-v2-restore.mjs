@@ -87,7 +87,46 @@ const required26Indexes=Object.freeze([
  ['idx_fire_job_estimate_links_number','fire_job_estimate_links',
   'CREATE INDEX idx_fire_job_estimate_links_number ON fire_job_estimate_links(job_number)']
 ]);
+// The migration journal, trigger names and index SQL cannot protect a table
+// whose actual CREATE TABLE lost its FK, NOT NULL, refund-cents type, CHECK,
+// UNIQUE or AUTOINCREMENT guarantees. These four definitions are pinned to
+// reviewed 0018 + 0025 migrations; any future migration must be reviewed.
+const required26TableDefinitions=Object.freeze([
+ ['payment_refunds',`CREATE TABLE payment_refunds (
+  id text PRIMARY KEY NOT NULL,
+  payment_id text NOT NULL,
+  estimate_id text NOT NULL,
+  amount_cents integer NOT NULL,
+  mode text NOT NULL,
+  status text DEFAULT 'pending' NOT NULL,
+  provider_refund_id text,
+  note text,
+  created_at text NOT NULL,
+  completed_at text,
+  FOREIGN KEY (payment_id) REFERENCES payments(id) ON UPDATE no action ON DELETE no action,
+  FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON UPDATE no action ON DELETE no action
+ )`],
+ ['fire_customer_numbers',`CREATE TABLE fire_customer_numbers (
+  customer_number INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id TEXT NOT NULL UNIQUE REFERENCES customers(id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+  created_at TEXT NOT NULL CHECK(length(created_at)>0)
+ )`],
+ ['fire_job_numbers',`CREATE TABLE fire_job_numbers (
+  job_number INTEGER PRIMARY KEY AUTOINCREMENT,
+  root_estimate_id TEXT NOT NULL UNIQUE REFERENCES estimates(id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+  created_at TEXT NOT NULL CHECK(length(created_at)>0)
+ )`],
+ ['fire_job_estimate_links',`CREATE TABLE fire_job_estimate_links (
+  estimate_id TEXT PRIMARY KEY NOT NULL REFERENCES estimates(id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+  job_number INTEGER NOT NULL REFERENCES fire_job_numbers(job_number) ON UPDATE RESTRICT ON DELETE RESTRICT
+ )`]
+]);
 function assertIndependentLive26CriticalSchema(db){
+ for(const [name,definition] of required26TableDefinitions){
+  const found=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name);
+  if(!found||schemaSql(found.sql)!==schemaSql(definition))
+   blocked('NEW LIVE refund/permanent-number table DDL differs: '+name);
+ }
  for(const [name,table,operation,message] of required26Triggers){
   const found=db.prepare("SELECT tbl_name,sql FROM sqlite_master WHERE type='trigger' AND name=?").get(name);
   const definition='CREATE TRIGGER '+name+' BEFORE '+operation+' ON '+table+
