@@ -31,6 +31,23 @@ import {inspectSavedProtectedPairReceipt}
 const stop=why=>{throw Error('FIRE encrypted records + photos recovery BLOCKED: '+why);};
 const passValid=x=>typeof x==='string'&&x.length>=16&&x.length<=1024&&
  Buffer.byteLength(x,'utf8')<=4096;
+/** A photo ZIP must be SAVED, reopened, and cross-checked against exactly
+ * the authenticated records restored into this isolated SQLite. A saved
+ * but unpaired photo ZIP is an incomplete and potentially sensitive restore.
+ */
+export function assertPairedRecoveredPhotoEvidence(photo){
+ if(!photo||photo.originalGalleryZipRecovered!==true||
+    photo.matchingCustomerRecordsVerified!==true||
+    photo.savedRecoveryZipReadBackVerified!==true||
+    photo.allFilesCryptographicallyVerified===false||
+    !/^[a-f0-9]{64}$/.test(photo.verifiedZipSha256||'')||
+    photo.savedRecoveredZipSha256!==photo.verifiedZipSha256||
+    photo.savedRecoveryPhotoCount!==photo.photoCount||
+    !Number.isSafeInteger(photo.photoCount)||photo.photoCount<0||
+    photo.providerWriteAttempted!==false||photo.gate7Accepted!==false)
+  stop('saved recovered photo ZIP, source customer relationship or no-provider proof incomplete');
+ return true;
+}
 export async function rehearseProtectedCompleteRecordsAndPhotos(
  protectedRecords,emptySchema,protectedPhotos,outputDb,outputZip,
  recordsPhrase,photoPhrase,{approved=false,pairReceiptPath}={}
@@ -56,6 +73,7 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
  const result=await restoreNumberedRecordsToIsolatedSqliteFromArchives(
   opened.core,emptySchema,outputDb,opened.supplemental
  );
+ let photoCreatedByThisRun=false;
  try{
   const photo=await recoverSavedProtectedPhotoZip(
    protectedPhotos,outputZip,photoPhrase,{
@@ -63,9 +81,10 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
     recordsArchive:opened.core
    }
   );
-  if(!photo.matchingCustomerRecordsVerified||photo.savedRecoveryZipReadBackVerified!==true||
-     photo.savedRecoveredZipSha256!==photo.verifiedZipSha256)
-   stop('saved recovered photo ZIP bytes or customer relationship were not independently verified');
+  // Only a successful exclusive save is ours to remove if the subsequent
+  // final paired proof fails. On EEXIST, preserve the owner's original ZIP.
+  photoCreatedByThisRun=true;
+  assertPairedRecoveredPhotoEvidence(photo);
   return Object.freeze({
    pairedEncryptedInputsReadBack:true,
    exactPairReceiptVerified:pairReceiptPath!==undefined,
@@ -88,9 +107,12 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
    remoteWritesPerformed:false,gate7Accepted:false
   });
  }catch(error){
-  // The new SQLite was created by this invocation. A bad photo key,
-  // corrupted ZIP, customer mismatch or preexisting photo output must never
-  // leave an apparently complete but photo-less recovered business DB.
+  // A failed pair must not leave a misleading partial database OR a newly
+  // saved unpaired PLAINTEXT photo ZIP. The photo helper itself cleans up
+  // failed writes; after a successful save, only THIS invocation's output is
+  // ours to delete. NEVER unlink an already-existing owner ZIP on EEXIST.
+  if(photoCreatedByThisRun)
+   await unlink(resolve(outputZip)).catch(()=>{});
   await unlink(resolve(outputDb)).catch(()=>{});
   throw error;
  }

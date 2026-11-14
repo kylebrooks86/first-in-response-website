@@ -18,7 +18,7 @@ import {restoreNumberedRecordsToIsolatedSqlite} from './restore_numbered_records
 import {sealCompleteIsolatedSqliteSnapshot,restoreSavedProtectedCompleteRecords,inspectSavedProtectedCompleteRecords}
  from './protected_complete_isolated_sqlite_recovery.mjs';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
-import {rehearseProtectedCompleteRecordsAndPhotos}
+import {rehearseProtectedCompleteRecordsAndPhotos,assertPairedRecoveredPhotoEvidence}
  from './rehearse_protected_complete_records_and_photos.mjs';
 import {sealProtectedPairReceipt,inspectSavedProtectedPairReceipt}
  from './protected_recovery_pair_receipt.mjs';
@@ -313,6 +313,43 @@ try{
   'one authorized call restores BOTH encrypted full records and encrypted photo gallery');
  okay((await readFile(pairZip)).equals(galleryZip),
   'encrypted saved original-photo ZIP bytes survive recovered private gallery exactly');
+ // Explicitly fail closed on fake post-save success flags even if an
+ // in-memory ZIP decrypt succeeded. No R2/provider proof may be invented.
+ const validPairedPhotoProof={
+  originalGalleryZipRecovered:true,matchingCustomerRecordsVerified:true,
+  savedRecoveryZipReadBackVerified:true,verifiedZipSha256:paired.verifiedPhotoZipSha256,
+  savedRecoveredZipSha256:paired.savedRecoveredPhotoZipSha256,
+  savedRecoveryPhotoCount:paired.recoveredPhotoCount,
+  photoCount:paired.recoveredPhotoCount,providerWriteAttempted:false,
+  gate7Accepted:false
+ };
+ okay(assertPairedRecoveredPhotoEvidence(validPairedPhotoProof)===true,
+  'exact saved photo bytes, customer pairing and no-hosted-write fields accepted');
+ for(const corruptedProof of [
+  {...validPairedPhotoProof,matchingCustomerRecordsVerified:false},
+  {...validPairedPhotoProof,savedRecoveryZipReadBackVerified:false},
+  {...validPairedPhotoProof,savedRecoveredZipSha256:'0'.repeat(64)},
+  {...validPairedPhotoProof,savedRecoveryPhotoCount:2},
+  {...validPairedPhotoProof,providerWriteAttempted:true},
+  {...validPairedPhotoProof,gate7Accepted:true},
+  {...validPairedPhotoProof,originalGalleryZipRecovered:false}
+ ]){
+  assert.throws(()=>assertPairedRecoveredPhotoEvidence(corruptedProof),/BLOCKED/i,
+   'falsified partial or hosted photo success cannot be paired');
+  checks++;
+ }
+ // Pre-existing owner ZIP must NEVER be removed even when a new isolated DB
+ // was created before the exclusive ZIP save refuses EEXIST.
+ const existingPhotoZip=join(folder,'preexisting-owner-photo.zip');
+ const existingZipBytes=Buffer.from('OWNER ORIGINAL PRIVATE ZIP - MUST REMAIN');
+ await writeFile(existingPhotoZip,existingZipBytes);
+ const rejectExistingDb=join(folder,'refuse-existing-owner-photo.sqlite');
+ await assert.rejects(rehearseProtectedCompleteRecordsAndPhotos(
+  protectedFile,independentTemplate,protectedPhotoFile,rejectExistingDb,
+  existingPhotoZip,phrase,photoPhrase,{approved:true}),/BLOCKED|blocked|exists/i);
+ await assert.rejects(access(rejectExistingDb));
+ okay((await readFile(existingPhotoZip)).equals(existingZipBytes),
+  'paired restore rejects existing photo output without deleting or modifying owner bytes');
  const pairedDb=new DatabaseSync(pairDb,{readOnly:true});
  okay(pairedDb.prepare('SELECT job_number AS n FROM fire_job_numbers').get().n===1&&
       pairedDb.prepare('SELECT amount_cents AS n FROM payment_refunds').get().n===500,
