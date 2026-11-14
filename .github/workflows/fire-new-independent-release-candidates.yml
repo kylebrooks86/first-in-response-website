@@ -36,6 +36,9 @@ on:
       - 'business-app-parity/review_owner_dr_postinstall_worker_candidate.mjs'
       - 'business-app-parity/test_owner_dr_postinstall_worker_candidate.mjs'
       - 'business-app-parity/verify_inert_dr_ci_artifact.mjs'
+      - 'business-app-parity/prepare_current_dark_worker_package.mjs'
+      - 'business-app-parity/test_current_dark_worker_package.mjs'
+      - 'business-app-parity/seal_current_new_live_compiled_source.mjs'
       - 'business-app-parity/test_verify_inert_dr_ci_artifact.mjs'
       - 'business-app-parity/owner_approved_dr_d1_migrate_20261113.mjs'
       - 'business-app-parity/test_owner_approved_dr_d1_migrate_20261113.mjs'
@@ -278,3 +281,86 @@ jobs:
           test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/client/.vite/manifest.json"
           test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/server/.vite/manifest.json"
           echo 'PASS actual DOWNLOAD of retained DR artifact preserves all sealed bytes and 3 hidden build files; no provider action.'
+
+
+      - name: Changed-source unit checks for CURRENT, target-pinned DARK no-R2 Worker bundles
+        if: matrix.target == 'independent-dr'
+        run: |
+          node --check business-app-parity/prepare_current_dark_worker_package.mjs
+          node --check business-app-parity/test_current_dark_worker_package.mjs
+          node --check business-app-parity/seal_current_new_live_compiled_source.mjs
+          node business-app-parity/test_current_dark_worker_package.mjs
+
+      - name: Seal exact current NEW LIVE built source (DR already separately SHA-sealed)
+        if: matrix.target == 'independent-live'
+        env:
+          REVIEWED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node business-app-parity/seal_current_new_live_compiled_source.mjs \
+            "$RUNNER_TEMP/fire-release-candidate/dist" \
+            "$REVIEWED_SOURCE_SHA" \
+            "$RUNNER_TEMP/fire-current-new-live-seal.json"
+          node business-app-parity/verify_inert_new_live_ci_artifact.mjs \
+            "$RUNNER_TEMP/fire-release-candidate/dist" \
+            "$RUNNER_TEMP/fire-current-new-live-seal.json" \
+            "$REVIEWED_SOURCE_SHA"
+
+      - name: Build exact HEAD QA-master no-assets alternative and first-create DARK candidate (SOURCE ONLY)
+        env:
+          REVIEWED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$FIRE_TARGET" = "independent-dr" ]; then
+            TARGET=dr
+            SEAL="$RUNNER_TEMP/fire-dr-offline-seal.json"
+            node business-app-parity/prepare_dr_noassets_worker.mjs \
+              "$RUNNER_TEMP/fire-release-candidate/dist" "$SEAL" \
+              "$REVIEWED_SOURCE_SHA" "$RUNNER_TEMP/fire-current-noassets"
+          elif [ "$FIRE_TARGET" = "independent-live" ]; then
+            TARGET=new-live
+            SEAL="$RUNNER_TEMP/fire-current-new-live-seal.json"
+            node business-app-parity/prepare_new_live_noassets_worker.mjs \
+              "$RUNNER_TEMP/fire-release-candidate/dist" "$SEAL" \
+              "$REVIEWED_SOURCE_SHA" "$RUNNER_TEMP/fire-current-noassets"
+          else
+            echo "FIRE unknown independent target - BLOCKED"
+            exit 1
+          fi
+          node business-app-parity/prepare_current_dark_worker_package.mjs \
+            "$TARGET" "$RUNNER_TEMP/fire-current-noassets" "$SEAL" \
+            "$REVIEWED_SOURCE_SHA" "$RUNNER_TEMP/fire-current-dark-first-create"
+          node business-app-parity/prepare_current_dark_worker_package.mjs verify \
+            "$TARGET" "$RUNNER_TEMP/fire-current-dark-first-create"
+
+      - name: Current QA-master dark first-create Worker dry-run only; NEVER Cloudflare upload
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fire-modern-qa-workerd" \
+            --no-save --ignore-scripts --no-audit --no-fund wrangler@4.162.0
+          node "$RUNNER_TEMP/fire-modern-qa-workerd/node_modules/wrangler/bin/wrangler.js" deploy \
+            --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-current-dark-first-create/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/fire-current-dark-first-create-offline"
+          echo "PASS exact-current-source DARK Worker-only package inspected OFFLINE; not uploaded/deployed."
+
+      - name: Retain exact current SHA first-create DARK worker for private review only (NO DEPLOY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-CURRENT-DARK-${{ matrix.target }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-current-dark-first-create/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+          compression-level: 6
+
+      - name: Independently read back retained current SHA DARK review artifact (NO PROVIDER)
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-CURRENT-DARK-${{ matrix.target }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-current-dark-downloaded
+
+      - name: Verify every archived current QA-master SSR, client Data, dark route, physical-D1 source byte
+        run: |
+          if [ "$FIRE_TARGET" = "independent-dr" ]; then TARGET=dr;
+          else TARGET=new-live; fi
+          node business-app-parity/prepare_current_dark_worker_package.mjs verify \
+            "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded"
+          echo "NO Cloudflare/Stripe provider, migration, auth enablement, paid service or release."
