@@ -21,6 +21,9 @@ const ROOT=fileURLToPath(new URL('.',import.meta.url));
 const TARGET='independent-dr';
 const DR=REVIEWED_RELEASE_D1_TARGETS[TARGET];
 const LIVE=REVIEWED_RELEASE_D1_TARGETS['independent-live'];
+// Owner-attested nonsecret Cloudflare account, already pinned in Gate 9 TEST.
+// Keep DR/LIVE inventory in the SAME approved account; never select default.
+const FIRE_CF_ACCOUNT_ID='bfc00939cfb2f8dfd8581a7a7f5f1307';
 const OUT=join(homedir(),'FIRE-DR-APPROVED-MIGRATION-20261113');
 const WORK=join(OUT,'pinned-26-migrations');
 const LOCK=join(OUT,'remote-one-shot-attempt.json');
@@ -32,6 +35,34 @@ const noSecrets={
   noPaidR2:true,noWorkerDeploy:true,noStripeOperation:true
 };
 
+export function requirePinnedDRInfo(drInfo,liveInfo){
+ // Cloudflare D1's read-only "info NAME --json" is an alternate to its
+ // account-wide "list --json", which stopped on the owner's Acer. Require
+ // the exact physical UUIDs; never treat a configured name alone as proof.
+ const exactly=(value,resource)=>{
+  if(!value||typeof value!=='object'||Array.isArray(value))
+   stop('provider-specific D1 info missing');
+  const name=value.name;
+  const uuid=value.uuid??value.id??value.database_id;
+  if(name!==resource.database_name||uuid!==resource.database_id)
+   stop('provider-specific D1 physical name/UUID mismatch');
+  return {name,uuid};
+ };
+ const dr=exactly(drInfo,DR),live=exactly(liveInfo,LIVE);
+ if(dr.uuid===live.uuid)stop('provider returned colliding DR and LIVE identifiers');
+ return Object.freeze({target:TARGET,name:dr.name,uuid:dr.uuid,
+  separateLiveName:live.name,readOnlyIdentityVerified:true,
+  method:'two-independent-d1-info'});
+}
+export function pinnedDRCloudflareEnv(current=process.env){
+ if(current.CLOUDFLARE_ACCOUNT_ID&&
+    current.CLOUDFLARE_ACCOUNT_ID!==FIRE_CF_ACCOUNT_ID)
+  stop('inherited Cloudflare account is not the owner-attested account; no remote operation');
+ if(current.CF_ACCOUNT_ID&&current.CF_ACCOUNT_ID!==FIRE_CF_ACCOUNT_ID)
+  stop('inherited alternate Cloudflare account is not the owner-attested account');
+ return {...current,CLOUDFLARE_ACCOUNT_ID:FIRE_CF_ACCOUNT_ID,
+  WRANGLER_SEND_METRICS:'false'};
+}
 export function requirePinnedDRProviderIdentity(raw){
   if(!Array.isArray(raw))stop('D1 provider list must be an exact JSON array');
   const mapped=raw.map(v=>({
@@ -123,6 +154,7 @@ export function classifyWranglerFailure(run,args=[]){
     .filter(([,pattern])=>pattern.test(output)).map(([name])=>name);
   const mutation=args[0]==='d1'&&args[1]==='migrations'&&args[2]==='apply';
   const step=args[0]==='d1'&&args[1]==='list'?'read-only D1 inventory':
+    args[0]==='d1'&&args[1]==='info'?'read-only targeted D1 identity':
     args[0]==='d1'&&args[1]==='execute'?'read-only DR SELECT':
     mutation?'one-shot DR remote migration':'local Wrangler version';
   const exit=Number.isInteger(run?.status)?run.status:'unknown';
@@ -139,7 +171,7 @@ function wrangler(js,args,{inherit=false,cwd=WORK}={}){
   const run=spawnSync(process.execPath,[js,...args],{
     cwd,stdio:inherit?'inherit':'pipe',encoding:inherit?undefined:'utf8',
     timeout:inherit?600000:90000,maxBuffer:8*1024*1024,
-    env:{...process.env,WRANGLER_SEND_METRICS:'false'}
+    env:pinnedDRCloudflareEnv(process.env)
   });
   if(run.error||run.signal||run.status!==0){
     const safe=classifyWranglerFailure(run,args);
@@ -170,9 +202,14 @@ export async function ownerApprovedDRApply(pinnedWrangler){
     stop('saved exact 26 SQL migration files or binding do not match reviewed DR');
   const conf=join(WORK,'wrangler.json');
   const query=(args)=>parseExactJson(wrangler(js,args),args.slice(0,3).join(' '));
-  const identity=requirePinnedDRProviderIdentity(query([
-    'd1','list','--json','--config',conf
-  ]));
+  // An earlier owner Acer session stopped on account-wide d1 list.
+  // Do NOT replay that same unsuccessful inventory request. Obtain fresh,
+  // provider-returned identities from TWO exact-target read-only D1 info
+  // commands. Failure on either blocks ALL remote migration writes.
+  const identity=requirePinnedDRInfo(
+    query(['d1','info',DR.database_name,'--json','--config',conf]),
+    query(['d1','info',LIVE.database_name,'--json','--config',conf])
+  );
   const before=readOnlyWranglerRows(query([
     'd1','execute',DR.database_name,'--remote','--json','--config',conf,
     '--command',"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','view','index','trigger') AND (name NOT LIKE 'sqlite_%' OR name='sqlite_sequence') ORDER BY type,name"
