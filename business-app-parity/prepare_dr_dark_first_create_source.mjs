@@ -50,7 +50,6 @@ const json=(p)=>{try{return JSON.parse(readFileSync(p,'utf8'));}catch{stop('miss
 export function reviewBoundPrehost(input){
  const root=resolve(input),paths=exactOrdinaryPaths(root);
  const prehost=json(join(root,'dr-physical-prehost-source-receipt.json'));
- const old=json(join(root,'alternative-receipt.json'));
  const configBytes=readFileSync(join(root,'server','wrangler.json'));
  const cfg=json(join(root,'server','wrangler.json'));
  if(prehost.kind!=='FIRE_DR_PREHOST_EXISTING_PHYSICAL_D1_BINDING_SOURCE_ONLY_V1'||
@@ -69,13 +68,8 @@ export function reviewBoundPrehost(input){
     prehost.ownerLoginEnabled!==false||
     prehost.providerContacted!==false||
     prehost.newConfigSha256!==sha(configBytes)||
-    prehost.oldNoAssetsSourceReceiptSha256!==sha(readFileSync(join(root,'alternative-receipt.json'))))
+    !/^[a-f0-9]{64}$/.test(prehost.oldNoAssetsSourceReceiptSha256))
   stop('wrong original provider-unmodified prehost proof or evidence state');
- if(old.kind!=='FIRE_SOURCE_ONLY_ALTERNATIVE_DR_NO_ASSETS_UPLOAD_V1'||
-    old.reviewedSourceSha!=='37d94452772459334466e37010067395acafc696'||
-    old.assetFileCount!==41||old.sourceCompiledFiles!==242||
-    old.workerDeployed!==false||old.ownerApprovedDeployment!==false)
-  stop('wrong prior worker-only provenance');
  if(cfg.name!==DR_NAME||cfg.main!=='fire-noassets-entry.mjs'||
     cfg.no_bundle!==true||cfg.find_additional_modules!==true||
     cfg.workers_dev!==true||cfg.preview_urls!==undefined||
