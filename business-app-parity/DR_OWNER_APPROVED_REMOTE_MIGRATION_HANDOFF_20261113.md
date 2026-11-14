@@ -7,7 +7,7 @@ Existing separate NEW LIVE database (never touch): fire-fullapp-new-live-db, UUI
 
 Exact frozen source for this execution: main-based DRAFT PR #264 commit 44fbefe6c1308cba54a591471247c978884a0b0f.
 New runner source: business-app-parity/owner_approved_dr_d1_migration.mjs.
-Exact independent DR/LIVE local migration and new runner safeguards: GitHub Actions run 43539145899 SUCCESS, Earlier DR source run logged 135/135 safety PASS at prior exact source SHA. The new exact source additionally refuses stale sqlite_sequence history; check its newly triggered focused CI result before execution. None of this is Cloudflare physical proof.
+Exact independent DR/LIVE local migration and new runner safeguards: GitHub Actions run 43539145899 SUCCESS, FINAL exact-source [independent DR + NEW LIVE workflow 43539544095](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43539544095) BOTH jobs SUCCESS at pinned source. Decoded DR log: PASS 136/136 reviewed migration workspaces plus one-shot UUID/empty schema/SQLite-sequence/read-only guards, PASS 26/26 saved SQL integrity and PASS 32/32 remote-identity safety fixtures. These are local/synthetic CI proofs, NOT a Cloudflare physical migration.
 
 ## Owner Acer PowerShell command (one time; do not repeat after a remote attempt)
 
