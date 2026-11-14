@@ -203,10 +203,19 @@ export function safeNewLiveCommandError(run,args){
    'STOP without performing any remote write'
  });
 }
+// Cloudflare's D1 migrations apply prompts the operator for an additional
+// confirmation. Closing stdin would prevent a future *separately authorized*
+// local owner execution from completing. Only the remote one-shot write inherits
+// the already-verified owner's terminal; all JSON readbacks stay captured.
+export function newLiveWranglerStdio(write=false){
+ if(write!==true&&write!==false)
+  stop('unexpected Wrangler stdin mode');
+ return write===true?['inherit','inherit','inherit']:'pipe';
+}
 function wrangler(js,args,{cwd=WORK,write=false}={}){
  const proc=spawnSync(process.execPath,[js,...args],{
   cwd,env:pinnedNewLiveAccountEnvironment(process.env),
-  stdio:write?['ignore','inherit','inherit']:'pipe',
+  stdio:newLiveWranglerStdio(write),
   encoding:write?undefined:'utf8',timeout:write?600000:90000,
   maxBuffer:8*1024*1024
  });

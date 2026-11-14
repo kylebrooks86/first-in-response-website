@@ -8,7 +8,7 @@ import {
  requireTypedNewLiveMigrationConfirmation,pinnedNewLiveAccountEnvironment,
  requireIndependentNewLiveInfo,requireEmptyPhysicalNewLive,
  newLiveResultRows,bindReadOnlyNewLiveSelect,
- createOneShotNewLiveAttemptLock,safeNewLiveCommandError,
+ createOneShotNewLiveAttemptLock,safeNewLiveCommandError,newLiveWranglerStdio,
  applyNewLiveInitialSchemaAfterSeparateApproval
 } from './owner_new_live_initial_schema_one_shot.mjs';
 
@@ -55,6 +55,13 @@ try{
  await blockAsync(()=>applyNewLiveInitialSchemaAfterSeparateApproval('/fake/path',
   '--exact-new-live-26-migrations-separately-authorized'),
   'public exported executor cannot reach Wrangler from a headless CI test even with the correct flag');
+ ok(JSON.stringify(newLiveWranglerStdio(true))===
+    JSON.stringify(['inherit','inherit','inherit']),
+  'owner-authorized Wrangler migration gets a real terminal to confirm provider 26-SQL apply');
+ ok(newLiveWranglerStdio(false)==='pipe',
+  'read-only Wrangler JSON probes remain captured, not printed to terminal');
+ block(()=>newLiveWranglerStdio('true'),
+  'unexpected write mode cannot silently request an interactive migration');
  const pinned=pinnedNewLiveAccountEnvironment({SAFE:'yes'});
  ok(pinned.CLOUDFLARE_ACCOUNT_ID==='bfc00939cfb2f8dfd8581a7a7f5f1307'&&
     pinned.SAFE==='yes'&&pinned.WRANGLER_SEND_METRICS==='false'&&
