@@ -4,6 +4,8 @@ on:
     paths:
       - 'business-app-parity/capture_new_dr_dark_version_read_only.py'
       - 'business-app-parity/test_capture_new_dr_dark_version_read_only.py'
+      - 'business-app-parity/owner_dr_dark_postcreate_readonly.ps1'
+      - 'business-app-parity/test_owner_dr_dark_postcreate_readonly.ps1'
       - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
 permissions:
   contents: read
@@ -44,3 +46,6 @@ jobs:
       - name: Validate Windows npx.cmd argument and exit capture with fake local command ONLY
         shell: pwsh
         run: python -m unittest discover -s business-app-parity -p 'test_capture_new_dr_dark_version_read_only.py' -v
+      - name: Run full PowerShell DR hosted-readonly owner script with fake npx and malicious responses
+        shell: powershell
+        run: .\business-app-parity\test_owner_dr_dark_postcreate_readonly.ps1
