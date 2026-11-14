@@ -107,3 +107,35 @@ CURRENT NEXT STEP IS LOCAL-ONLY FILE/PACKAGE DIAGNOSIS, NO MIGRATION:
     npm ls --prefix $tool wrangler --depth=0
 
 These commands only read local npm/package state; they cannot reach Cloudflare D1. DO NOT run the old combined npm+remote migration command until we identify the actual missing path/package and fix it. Owner DR-only approval remains valid because no remote migration attempt was made; Gate5 physical DR remains pending.
+
+## Third accepted Acer screenshot: root cause CONFIRMED — PowerShell blocked npm.ps1
+
+Latest owner screenshot shows local Tool folder=False, Package=False, Wrangler script=False. The attempted `npm ls` prints the precise PowerShell SecurityError: `C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system`, `PSSecurityException`, `UnauthorizedAccess`. This explains why the preceding `npm install` did NOT install a package; the expected Wrangler entrypoint never existed, and both earlier `MODULE_NOT_FOUND` and missing-pinned-local-Wrangler errors were expected local fails. The root cause is **Windows PowerShell execution policy blocking npm.ps1**, not Cloudflare/D1, npm registry, or the app. NO Cloudflare provider call or remote migration had been reached.
+
+Do NOT change any execution policy, use bypass, administrator commands, or reinstall Node. Use the installed Windows `npm.cmd` executable instead of the blocked `npm` PowerShell shim. This is still FREE npm package tooling and no paid Cloudflare/R2. Leave already-created detached Git worktree alone; do NOT rerun previous Git commands. No prior owner evidence/screenshot needs repeating.
+
+Corrected, self-contained owner PowerShell. This single scriptblock aborts BEFORE remote execution if any local install/version/path/one-shot marker condition is wrong. The only possible hosted action is already approved physical-empty DR migration invoked by the pinned runner.
+
+    & {
+      $ErrorActionPreference = 'Stop'
+      $work = Join-Path $env:USERPROFILE 'FIRE-DR-GATE5-44fbefe6'
+      $tool = Join-Path $env:USERPROFILE 'FIRE-DR-WRANGLER-4.92.0'
+      $attempt = Join-Path $env:USERPROFILE 'FIRE-DR-APPROVED-MIGRATION-20261113\remote-one-shot-attempt.json'
+      $runner = Join-Path $work 'business-app-parity\owner_approved_dr_d1_migration.mjs'
+      if (!(Test-Path -LiteralPath $runner)) { throw 'Pinned DR source absent: STOP.' }
+      if (Test-Path -LiteralPath $attempt) { throw 'Physical DR remote attempt already marked: STOP, read-only investigation only.' }
+      if (!(Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw 'npm.cmd missing: STOP.' }
+      & npm.cmd install --prefix $tool --no-save --no-audit --no-fund wrangler@4.92.0
+      if ($LASTEXITCODE -ne 0) { throw 'Exact local Wrangler installation FAILED: no remote operation.' }
+      $wrangler = Join-Path $tool 'node_modules\wrangler\bin\wrangler.js'
+      if (!(Test-Path -LiteralPath $wrangler)) { throw 'Pinned Wrangler script missing: STOP, no remote operation.' }
+      $ver = & node $wrangler --version
+      if ($LASTEXITCODE -ne 0 -or ($ver -notmatch '4\.92\.0')) { throw 'Pinned Wrangler 4.92.0 version check failed: STOP.' }
+      Write-Host 'Pinned Wrangler 4.92.0 confirmed locally. Entering DR-only guarded runner.'
+      & node $runner $wrangler --execute-approved-dr-only
+      if ($LASTEXITCODE -ne 0) { throw 'Guarded DR command STOPPED or uncertain; NEVER repeat the remote migration.' }
+    }
+
+CRITICAL: Even if some lines are pasted separately, the enclosing `& { ... }` forces fail-fast execution as one PowerShell statement. The runner independently checks the existing physical DR UUID, separate NEW LIVE UUID, truly empty DR schema, 26 reviewed SQL blob IDs, and one-shot attempt receipt. A physical D1 schema mutation is *not* authorized on any other target. If the runner reaches migration apply and returns an uncertain result, do not rerun this block. Report the safe error line without secrets.
+
+State: physical DR 26 migration still PENDING as of third screenshot. No Git source edits, no accepted QA retests, no hosted Worker/Stripe/R2/paid Cloudflare actions. 4/10 gates accepted, NEW LIVE NO-GO.
