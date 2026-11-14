@@ -10,7 +10,9 @@ const provider={name:'_cf_METADATA',sql:'CREATE TABLE _cf_METADATA (key INTEGER 
 const triggers=[
  'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',
  'fire_job_numbers_no_update','fire_job_numbers_no_delete',
- 'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete'
+ 'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete',
+ 'deposit_policy_events_no_update','deposit_policy_events_no_delete',
+ 'deposit_agreement_snapshots_no_update','deposit_agreement_snapshots_no_delete'
 ];
 // Real migration SQL is the test oracle; a hard-coded copy of the index
 // contract would permit test and implementation to drift together.
@@ -36,6 +38,10 @@ const trustedTriggerSql=new Map([
  ...[...readFileSync(new URL('../../customer-numbering/customer_numbers_v1.sql',import.meta.url),'utf8').matchAll(
   /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)],
  ...[...readFileSync(new URL('../../job-numbering/job_numbers_v1.sql',import.meta.url),'utf8').matchAll(
+  /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)],
+ ...[...readFileSync(new URL('../../adapters/doomsday/drizzle/0023_deposit_policy_events.sql',import.meta.url),'utf8').matchAll(
+  /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)],
+ ...[...readFileSync(new URL('../../adapters/doomsday/drizzle/0024_deposit_agreement_snapshots.sql',import.meta.url),'utf8').matchAll(
   /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)]
 ].map(match=>[match[1],match[0]]));
 let checks=0;
@@ -54,7 +60,8 @@ const create=(override={})=>{
   return {all:async()=>sql.includes("FROM sqlite_master WHERE type='index'")?
    ({results:v.financialIndexes.map(row=>({...row}))}):sql==='SELECT id, name FROM "d1_migrations" ORDER BY id'?
    ({results:v.journalRows}):sql.includes('SELECT name,sql FROM sqlite_master')?
-   ({results:v.triggers.map(name=>({name,sql:Object.hasOwn(v.triggerSqlOverride||{},name)?
+   ({results:v.triggers.filter(name=>[...sql.matchAll(/'([a-z_]+)'/g)]
+    .some(match=>match[1]===name)).map(name=>({name,sql:Object.hasOwn(v.triggerSqlOverride||{},name)?
     v.triggerSqlOverride[name]:trustedTriggerSql.get(name)}))}):
    ({results:v.validCustomerSchema?
     ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
@@ -103,6 +110,8 @@ ok(proof.exactSourceMigrationJournalMatched===true,
  'actual NEW LIVE source check now requires all 26 ordered D1 migrations');
 ok(proof.requiredImmutabilityTriggersPresent===true,
  'source check also enforces actual immutable trigger SQL');
+ok(proof.immutableDepositHistoryTriggersVerified===true,
+ 'source check also enforces signed deposit agreements and append-only exception audit');
 ok(proof.physicalD1IdentityVerified===false&&proof.orderedMigrationsVerified===false,
  'no false provider identity or migration execution proof');
 ok(proof.ownerApprovedRelease===false&&proof.gate5Accepted===false,'no false gate approval');
@@ -160,6 +169,16 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({tables:[...tables,'un
  'unexpected business table requires separate migration review');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:triggers.slice(1)}).db,env),
  'missing immutable customer-number trigger stops');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:triggers.filter(name=>name!=='deposit_agreement_snapshots_no_delete')}).db,env),
+ 'missing signed agreement delete barrier prevents first use');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:[...triggers,'unknown_payment_trigger']}).db,env),
+ 'unknown trigger may alter business rows and must not pass reviewed clean-start');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggerSqlOverride:{
+ deposit_policy_events_no_update:'CREATE TRIGGER deposit_policy_events_no_update BEFORE UPDATE ON deposit_policy_events BEGIN SELECT 1; END;'
+ }}).db,env),'named but no-op deposit audit barrier cannot establish immutable exception history');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggerSqlOverride:{
+ deposit_agreement_snapshots_no_delete:"CREATE TRIGGER deposit_agreement_snapshots_no_delete AFTER DELETE ON deposit_agreement_snapshots BEGIN SELECT RAISE(ABORT,'Signed deposit agreement is immutable'); END;"
+ }}).db,env),'signed agreement delete barrier must run BEFORE DELETE');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggerSqlOverride:{
  fire_job_numbers_no_update:'CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT 1; END;'
  }}).db,env),'named but ineffective Job # immutability trigger stops first-use');
