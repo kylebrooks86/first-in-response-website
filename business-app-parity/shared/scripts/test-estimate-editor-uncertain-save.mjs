@@ -27,6 +27,9 @@ function fixture(kind){
   status:'draft',subtotalCents:20001,discountCents:0,totalCents:20001,depositCents:10001,
   items:[{id:'saved-real-uuid',name:'Synthetic Wash',description:'Exact charge',quantity:3,unit:'job',totalCents:20001}]};
  const ctx={exports:{},saveLock:{current:false},saving:false,uncertain:false,savedLinesVerified:true,bundle:{ready:true},
+  openedSavedQuote:{current:{status:'draft',subtotalCents:20001,discountCents:0,
+    totalCents:20001,depositCents:10001,appreciationDiscount:0,additionalDiscountType:'percent',
+    additionalDiscountValue:0,items:row.items}},
   estimate:{id:'estimate-uuid',customerId:'customer-uuid'},items:[{id:'saved-real-uuid',name:'Synthetic Wash',description:'Exact charge',quantity:3,unit:'job',unitRateCents:6667,preservedLineTotalCents:20001}],
   editableLineTotalCents:()=>20001,validEditablePrice:()=>true,subtotal:20001,bundleInvalid:false,
   discountInputCents:0,bundleInputCents:0,discountMode:'percent',discount:{total:20001,deposit:10001,appliedDiscount:0},
@@ -88,5 +91,10 @@ for(const kind of ['badHistory','badDiscounts']){
  const f=fixture('success');await f.save();eq(f.out.uncertain,false,'Verified 200 has no uncertain flag');
  eq(f.out.saved.length,1,'Confirmed saved edit updates parent');
  eq(f.out.requests.length,1,'One successful PATCH only');
+ const source=JSON.parse(f.out.requests[0].opts.body).expectedSaved;
+ eq(source.status,'draft','Owner quote carries original status frozen at opening');
+ eq(source.items[0].id,'saved-real-uuid','Owner quote carries actual original saved D1 line ID');
+ eq(source.items[0].totalCents,20001,'Original D1 line price is not replaced by edited cents');
+
 }
 console.log('PASS '+checks+'/'+checks+' actual EditEstimateDialog Save/checkSaved handlers: ambiguous 503/network/malformed 200 fail closed; exact line and discount GET recovers without another write; stale reads and 409 handled safely.');
