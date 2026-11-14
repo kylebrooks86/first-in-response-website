@@ -54,6 +54,8 @@ await pass("NEW LIVE invokes D1 readiness, catching missing tables or links",()=
  assert.match(auth,/await jobNumberingReady\(env.DB,env\)/);
  assert.match(auth,/await customerNumberingReady\(env.DB,env\)/);
  assert.match(auth,/await immutableNumberingTriggersReady\(env.DB\)/);
+ assert.match(auth,/import \{immutableDepositHistoryTriggersReady\} from ["'][.][.][/]lib[/]deposit-immutability-contract[.]mjs["'];/);
+ assert.match(auth,/await immutableDepositHistoryTriggersReady\(env[.]DB\)/);
  assert.match(auth,/import \{verifyNewLiveFinancialIndexes\} from "[.][.][/]lib[/]new-live-financial-index-contract[.]mjs";/);
  assert.match(auth,/await verifyNewLiveFinancialIndexes\(env[.]DB\)/);
  assert.match(auth,/catch \{ return false; \}/);
