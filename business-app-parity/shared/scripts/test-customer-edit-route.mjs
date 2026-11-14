@@ -15,14 +15,15 @@ const getContact=n=>contactSource.statements.find(s=>ts.isFunctionDeclaration(s)
 const identitySource=ts.createSourceFile('customer-identity.ts',readFileSync('lib/customer-identity.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const getIdentityVar=n=>identitySource.statements.find(s=>ts.isVariableStatement(s)&&
  s.declarationList.declarations.some(d=>d.name.getText(identitySource)===n))?.getText(identitySource).replace(/^export /,'');
+const getIdentityFunction=n=>identitySource.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(identitySource).replace(/^export /,'');
 const code=['const OWNER_EMAIL="qa-owner@example.invalid";',
- getIdentityVar('digits'),getIdentityVar('CUSTOMER_PHONE_SQL'),
+ getIdentityVar('digits'),getIdentityVar('CUSTOMER_PHONE_SQL'),getIdentityFunction('customerIdentityPredicate'),
  getContact('usableCustomerPhone'),getContact('usableCustomerEmail'),
  get('authorized'),get('readCustomerRequest'),get('GET'),get('PATCH'),'exports.run={GET,PATCH}'].join('\n');
 assert.ok(code.includes('GET(')&&code.includes('PATCH('),'Could not extract actual customer route source');
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
-let writes=0,reads=0,authorized=true,throwAfterWrite=false,skipNextUpdate=false,throwAfterUpdate=false,distortNextReadback=false,missingNextReadback=false;
+let writes=0,reads=0,authorized=true,throwAfterWrite=false,skipNextUpdate=false,throwAfterUpdate=false,distortNextReadback=false,missingNextReadback=false,beforeUpdate=null;
 const ctxPhoneDigits=raw=>{const digits=String(raw??'').replace(/\D/g,'');return digits.length===11&&digits.startsWith('1')?digits.slice(1):digits;};
 const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,customerNumberForCustomer,
   getChatGPTUser:async()=>authorized?{email:'qa-owner@example.invalid'}:null,
@@ -31,10 +32,12 @@ const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,cu
       async first(){
         reads++;
         if(sql.includes('SELECT id FROM customers WHERE id<>?')){
-          const [exclude,email,_,phone]=values;
+          const [exclude,email,,phone,,name,address]=values;
           const match=[...rows.values()].find(row=>row.id!==exclude&&
-            (email&&row.email.trim().toLowerCase()===email||
-             phone&&ctxPhoneDigits(row.phone)===phone));
+            (email&&String(row.email??'').trim().toLowerCase()===email||
+             phone&&ctxPhoneDigits(row.phone)===phone||
+             name&&address&&String(row.name??'').trim().toLowerCase()===name&&
+               String(row.address??'').trim().toLowerCase()===address));
           return match?{id:match.id}:null;
         }
         if(sql.includes('SELECT id FROM customers'))return rows.has(values[0])?{id:values[0]}:null;
@@ -56,12 +59,15 @@ const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,cu
         assert.ok(sql.startsWith('UPDATE customers SET'));
         writes++;
         if(skipNextUpdate){skipNextUpdate=false;return {success:true,meta:{changes:0}};}
-        const [name,email,phone,address,leadSource,id,excluded,normalizedEmail,,phoneDigits]=values;
+        const [name,email,phone,address,leadSource,id,excluded,normalizedEmail,,phoneDigits,,matchName,matchAddress]=values;
         if(!rows.has(id))throw Error('Missing record');
         assert.equal(excluded,id,'SQL guards exclude the row being edited');
+        if(beforeUpdate){const fn=beforeUpdate;beforeUpdate=null;fn();}
         const hasConflict=[...rows.values()].some(row=>row.id!==id&&
           (normalizedEmail&&String(row.email??'').trim().toLowerCase()===normalizedEmail||
-           phoneDigits&&ctxPhoneDigits(row.phone)===phoneDigits));
+           phoneDigits&&ctxPhoneDigits(row.phone)===phoneDigits||
+           matchName&&matchAddress&&String(row.name??'').trim().toLowerCase()===matchName&&
+             String(row.address??'').trim().toLowerCase()===matchAddress));
         if(hasConflict)return {success:true,meta:{changes:0}};
         rows.set(id,{...rows.get(id),name,email:email??'',phone:phone??'',address:address??'',leadSource});
         if(throwAfterUpdate){throwAfterUpdate=false;throw Error('Synthetic lost UPDATE acknowledgement after commit');}
@@ -98,8 +104,14 @@ rows.set('second',{...secondOriginal,phone:'+1 918 555 0101'});
 result=await patch({phone:'9185550101'});
 eq(result.status,409,'10-digit edit must not duplicate already saved +1-format number');
 rows.set('second',secondOriginal);
-
-eq(writes,before,'Rejected contacts have no writes');
+result=await patch({name:'  OTHER ',address:' 555 Synthetic  ',email:'first@example.invalid',phone:'9185550100'});
+eq(result.status,409,'Create and edit must equally reject same name and service address even with casing/spacing differences');
+eq((await result.json()).error.includes('name and service address'),true,'Duplicate homeowner edit explains the name/address collision');
+result=await patch({name:'Other',address:''});
+eq(result.status,200,'Same name with no saved address is not falsely treated as an identity match');
+result=await patch({name:'Original',address:'123 Synthetic'});
+eq(result.status,200,'Restoring unique name and address remains supported');
+eq(writes,before+2,'Rejected identity edit was not written; two independent valid edits committed');
 result=await patch({phone:'9185550134'});eq(result.status,200,'Unique contact can be saved');
 eq((await result.json()).customer.phone,'9185550134','Response returns saved exact contact');
 eq(writes,before+1,'Exactly one update');
@@ -138,6 +150,16 @@ result=await patch({phone:'',email:''});
 eq(result.status,200,'Clearing phone/email to blank is a supported edit');
 const cleared=(await result.json()).customer;
 eq(cleared.phone,'');eq(cleared.email,'');
+// An unrelated editor may claim the exact name+address only AFTER the
+// first preflight SELECT. Guard inside the actual SQL must still refuse it.
+const beforeRace=rows.get('first');
+const secondBeforeRace=rows.get('second');
+beforeUpdate=()=>rows.set('second',{...secondBeforeRace,name:'Claimed Shared Home',address:'750 Shared Road'});
+result=await patch({name:'Claimed Shared Home',address:'750 Shared Road'});
+eq(result.status,409,'Atomic write prevents a concurrent name+address duplicate');
+eq((await result.json()).saveUncertain,true,'Concurrent duplicate edit requires authoritative refresh');
+eq(rows.get('first').name,beforeRace.name,'Concurrent collision did not change the original customer');
+rows.set('second',secondBeforeRace);
 authorized=false;
 const beforeDeniedWrites=writes;
 eq((await patch({name:'Forbidden'})).status,401,'Nonowner cannot PATCH customer');
