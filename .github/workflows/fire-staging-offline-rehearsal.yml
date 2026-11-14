@@ -471,6 +471,14 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           pnpm install --frozen-lockfile
           pnpm run build
+      - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-owner-settings-confirmed-cas-sqlite.mjs
+          node --experimental-sqlite scripts/test-custom-service-pricing.mjs
+          node --experimental-sqlite scripts/test-saved-promotions.mjs
+          node --experimental-sqlite scripts/test-quote-packages.mjs
+          node --experimental-sqlite scripts/test-business-preferences.mjs
       - name: Gate 6 Doomsday PIN login and owner session hardening (new negative cases, disposable SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
@@ -534,14 +542,6 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
-      - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
-        run: |
-          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
-          node --experimental-sqlite scripts/test-owner-settings-confirmed-cas-sqlite.mjs
-          node --experimental-sqlite scripts/test-custom-service-pricing.mjs
-          node --experimental-sqlite scripts/test-saved-promotions.mjs
-          node --experimental-sqlite scripts/test-quote-packages.mjs
-          node --experimental-sqlite scripts/test-business-preferences.mjs
       - name: Gate 8 owner expense save recovery and Wave financial record ID integrity (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
