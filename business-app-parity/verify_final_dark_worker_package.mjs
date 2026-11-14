@@ -29,6 +29,9 @@ const drId='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145';
 const liveId='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
 const isHex64=s=>typeof s==='string'&&/^[0-9a-f]{64}$/.test(s);
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const inert=v=>v===undefined||v===null||
+ (Array.isArray(v)&&v.every(inert))||
+ (typeof v==='object'&&!Array.isArray(v)&&Object.values(v).every(inert));
 
 function filesIn(root){
  if(!existsSync(root))stop('saved package folder not found');
@@ -80,11 +83,10 @@ function strictConfig(config,target){
    stop('wrong D1, auth, route, static, photo mode or private Worker config');
  for(const key of ['kv_namespaces','services','durable_objects','triggers','queues',
                    'workflows','dispatch_namespaces','analytics_engine_datasets',
-                   'hyperdrive','send_email','tail_consumers']){
-  const v=config[key];
-  if(v!==undefined&&v!==null&&
-      (Array.isArray(v)?v.length!==0:Object.keys(v).length!==0))
-   stop('unapproved hosted resource or trigger: '+key);
+                   'hyperdrive','send_email','tail_consumers','unsafe']){
+  // Wrangler emits harmless empty nested objects such as
+  // durable_objects:{bindings:[]}. Reject actual resources, not that shape.
+  if(!inert(config[key]))stop('unapproved hosted resource or trigger: '+key);
  }
  return {worker,envName,dbId};
 }
