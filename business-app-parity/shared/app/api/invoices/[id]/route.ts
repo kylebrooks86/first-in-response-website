@@ -1,5 +1,6 @@
 import {submittedDiscountCents} from '../../../../lib/discount-input';
 import {currentInvoice} from "../../../../lib/invoice-state.mjs";
+import {normalizeOriginalInvoiceSnapshot,matchesOriginalInvoiceSnapshot,invoiceOriginalSQLGuard} from "../../../../lib/invoice-editor-source-guard.mjs";
 import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../../lib/refund-ledger-readiness";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
@@ -73,10 +74,13 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     // The owner editor supplies the revision count observed when it loaded
     // the original invoice. An older tab may not silently replace newer saved
     // invoice services, discounts or due dates.
-    const expectedRevisionCount=body.expectedRevisionCount===undefined?null:body.expectedRevisionCount;
-    if(expectedRevisionCount!==null&&(typeof expectedRevisionCount!=="number"||
-       !Number.isSafeInteger(expectedRevisionCount)||expectedRevisionCount<0))
-      return Response.json({error:"Refresh the saved invoice before editing its revision history."},
+    const expectedRevisionCount=body.expectedRevisionCount;
+    const expectedOriginalInvoice=normalizeOriginalInvoiceSnapshot(body.expectedOriginalInvoice);
+    // No legacy/version-less invoice write bypass. Every edit must originate
+    // from the complete saved header and original durable D1 service-line set.
+    if(typeof expectedRevisionCount!=="number"||!Number.isSafeInteger(expectedRevisionCount)||
+       expectedRevisionCount<0||!expectedOriginalInvoice)
+      return Response.json({error:"Load the current saved invoice before making changes."},
         {status:400,headers:{"Cache-Control":"no-store, private"}});
     const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt,NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string;invoiceOwnershipMismatch:number}>();
     if(!existing)return Response.json({error:"Invoice not found."},{status:404});
@@ -133,16 +137,19 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     if(pendingRefund)return Response.json({
       error:"A refund is still processing. Reconcile it before changing the invoice or ending an active checkout."
     },{status:409,headers:{"Cache-Control":"no-store, private"}});
-    if(expectedRevisionCount!==null){
-      // Refuse a stale tab BEFORE expiring any Stripe checkout session.
-      const version=await env.DB.prepare("SELECT COUNT(*) AS revisionCount FROM invoice_revisions WHERE invoice_id=?")
-        .bind(id).first<{revisionCount:number}>();
-      if(Number(version?.revisionCount)!==expectedRevisionCount)
-        return Response.json({
-          error:"This invoice changed in another tab or device. Close and reopen it to review the latest services, prices and due date before editing.",
-          staleInvoice:true
-        },{status:409,headers:{"Cache-Control":"no-store, private"}});
-    }
+    // Refuse a stale tab BEFORE expiring any Stripe checkout session. A
+    // revision count alone is insufficient: out-of-band payment status,
+    // due date or service-line changes may add NO invoice revision.
+    const version=await env.DB.prepare("SELECT COUNT(*) AS revisionCount FROM invoice_revisions WHERE invoice_id=?")
+      .bind(id).first<{revisionCount:number}>();
+    const currentItems=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all();
+    const currentInvoice=await env.DB.prepare("SELECT estimate_id AS estimateId,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
+    if(Number(version?.revisionCount)!==expectedRevisionCount||
+       !matchesOriginalInvoiceSnapshot(currentInvoice,currentItems.results,expectedOriginalInvoice))
+      return Response.json({
+        error:"This invoice changed in another tab or device. Close and reopen it to review the latest services, prices and due date before editing.",
+        staleInvoice:true
+      },{status:409,headers:{"Cache-Control":"no-store, private"}});
     const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
     if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
     // Status and the transactional payment guard must use the same snapshot.
@@ -150,8 +157,6 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     // Zero-dollar invoice with zero received payments is NOT a payment receipt.
     // Retain sent/draft status until there is a positive settled balance.
     const status=totalCents>0&&latestPaidCents>=totalCents?"paid":latestPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
-    const currentItems=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all();
-    const currentInvoice=await env.DB.prepare("SELECT subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
     const revisionId=crypto.randomUUID();
     const revisionCreatedAt=new Date().toISOString();
     // Allocate stable line IDs once so the owner receives the exact persisted
