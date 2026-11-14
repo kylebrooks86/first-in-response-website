@@ -11,7 +11,7 @@ const stateNames=[],tags=new Set();
 function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')stateNames.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
-const body=id=>({invoice:{id:'synthetic-invoice',estimateId:'synthetic-estimate',customerId:'synthetic-customer',items:[{id,name:id,description:id,quantity:2,unit:'job',totalCents:20000}],discountType:'dollar',discountValue:1000,dueAt:'2026-11-20',createdAt:'2026-10-09',revisions:[{id:'revision-'+id,items:[],totalCents:20000}]}});
+const body=id=>({invoice:{id:'synthetic-invoice',estimateId:'synthetic-estimate',customerId:'synthetic-customer',items:[{id,name:id,description:id,quantity:2,unit:'job',totalCents:20000}],subtotalCents:20000,discountCents:0,discountType:'dollar',discountValue:0,totalCents:20000,storedStatus:'sent',revisionCount:0,dueAt:'2026-11-20',createdAt:'2026-10-09',revisions:[{id:'revision-'+id,items:[],totalCents:20000}]}});
 const ok=id=>({ok:true,json:async()=>body(id)});
 let checks=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
 function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;const writes=[];
@@ -21,7 +21,7 @@ function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;cons
  fetch:(url,options)=>{eq(url,'/api/invoices/synthetic-invoice');eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Only authenticated no-store invoice GET is allowed');return fetcher();}};
  vm.runInNewContext(ts.transpileModule(discountParser.getText(ast)+'\n'+fn.getText(ast).replace('  const setOpenSafe=', '  exports.hydrate=hydrate;\n  const setOpenSafe=')+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
  const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate:{id:'synthetic-estimate',customerId:'synthetic-customer',invoiceId:'synthetic-invoice',paidCents:0},onSaved(){throw Error('Saving is forbidden in loader recovery checks');}});};
- render();return {render,setFetcher:f=>fetcher=f,load:()=>context.exports.hydrate(),get:k=>state[stateNames.indexOf(k)],snapshot:()=>JSON.stringify(state),writes,close:()=>render().props.onOpenChange(false),reopen:()=>render().props.onOpenChange(true),unmount:()=>effect?.()()};
+ render();return {render,setFetcher:f=>fetcher=f,load:()=>context.exports.hydrate(),get:k=>state[stateNames.indexOf(k)],snapshot:()=>JSON.stringify(state),savedOriginal:()=>refs[6]?.current,writes,close:()=>render().props.onOpenChange(false),reopen:()=>render().props.onOpenChange(true),unmount:()=>effect?.()()};
 }
 for(const scenario of ['older success','older failure while pending','older success after latest failure','delayed old JSON']){
  const f=fixture(),first=deferred(),second=deferred(),json=deferred();let round=first;f.setFetcher(()=>round.promise);const old=f.load();
@@ -32,7 +32,7 @@ for(const scenario of ['older success','older failure while pending','older succ
  const before=f.snapshot(),count=f.writes.length;
  if(scenario==='delayed old JSON')json.resolve(body('old'));else if(scenario!=='older failure while pending')first.resolve(ok('old'));await old;
  eq(f.snapshot(),before,scenario+': stale result changed current editor');eq(f.writes.length,count,scenario+': stale result wrote state');
- if(scenario!=='older success after latest failure')eq(f.get('items')[0].id,'new');
+ if(scenario!=='older success after latest failure'){eq(f.get('items')[0].id,'new');eq(f.savedOriginal()?.items?.[0]?.id,'new',scenario+': original D1 line snapshot came from latest GET only');}
 }
 for(const outcome of ['success','network failure','JSON failure']){
  const f=fixture(),pending=deferred();f.setFetcher(()=>pending.promise);const old=f.load();f.close();const before=f.snapshot(),count=f.writes.length;
