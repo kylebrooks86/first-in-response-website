@@ -75,8 +75,8 @@ try{
  verify(config.assets===undefined&&config.main==='fire-noassets-entry.mjs'&&
   config.no_bundle===true&&config.find_additional_modules===true,
   'Real client asset upload configuration removed entirely');
- verify(config.rules.some(r=>r.type==='Data'&&r.globs.includes('fire-inline-assets/*.bin')),
-  'Client binary files carried exclusively as ordinary Worker Data modules');
+ verify(config.rules.every(r=>r.type!=='Data')&&config.rules.some(r=>r.type==='ESModule'),
+  'Wrangler default built-in Data binary rule is not overridden with duplicate rule');
  verify(config.vars.FIRE_DR_AUTH_ENABLED==='blocked'&&config.d1_databases[0].database_id===
   '00000000-0000-4000-8000-000000000000'&&config.r2_buckets.length===0,
   'Owner auth blocked, D1 remains unbound and no paid R2');
