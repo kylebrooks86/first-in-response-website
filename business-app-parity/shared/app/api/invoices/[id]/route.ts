@@ -147,7 +147,9 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
     // Status and the transactional payment guard must use the same snapshot.
     // Money arriving between the two reads must not leave a paid invoice draft.
-    const status=latestPaidCents>=totalCents?"paid":latestPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
+    // Zero-dollar invoice with zero received payments is NOT a payment receipt.
+    // Retain sent/draft status until there is a positive settled balance.
+    const status=totalCents>0&&latestPaidCents>=totalCents?"paid":latestPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
     const currentItems=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all();
     const currentInvoice=await env.DB.prepare("SELECT subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
     const revisionId=crypto.randomUUID();
