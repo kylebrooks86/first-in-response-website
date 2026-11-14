@@ -10,7 +10,7 @@ import {existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync} from 'n
 import {join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
-import {assertReviewedIndependentD1SqlBlobs,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
+import {assertReviewedIndependentD1SqlBlobs,canonicalReviewedSqlBytes,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
  from './reviewed_independent_d1_sql_blobs.mjs';
 
 const ROOT=fileURLToPath(new URL('.',import.meta.url));
@@ -47,12 +47,17 @@ export function prepareIndependentD1MigrationWorkspace(target,outputDir){
  const addonFiles=readdirSync(addonDir).filter(name=>name.endsWith('.sql')).sort();
  if(addonFiles.length!==1||addonFiles[0]!==finalName)
   fail('target must have only its reviewed independent numbered migration 0025');
- const dr=readFileSync(join(ROOT,'adapters','independent-dr','drizzle',finalName));
- const live=readFileSync(join(ROOT,'adapters','independent-live','drizzle',finalName));
+ // A Windows Acer checkout can convert canonical Git LF source files to
+ // CRLF. Compare ONLY the original exact reviewed Git blob identities after
+ // newline normalization, never trust edited SQL or raw worktree bytes.
+ const dr=canonicalReviewedSqlBytes(finalName,
+  readFileSync(join(ROOT,'adapters','independent-dr','drizzle',finalName)));
+ const live=canonicalReviewedSqlBytes(finalName,
+  readFileSync(join(ROOT,'adapters','independent-live','drizzle',finalName)));
  if(!dr.equals(live))fail('DR and NEW LIVE permanent-number migration content has diverged');
  const files=expected.map((name,i)=>({
   name,
-  bytes:readFileSync(join(i===25?addonDir:baseDir,name))
+  bytes:canonicalReviewedSqlBytes(name,readFileSync(join(i===25?addonDir:baseDir,name)))
  }));
  // A new, unreviewed SQL edit must fail BEFORE the workspace is created.
  // Matching filenames or matching DR/LIVE copies alone cannot authorize it.
