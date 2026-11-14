@@ -35,7 +35,12 @@ export async function confirmedSettingCAS(db,{key,previousBody,encoded,updatedAt
  // overridden or represented as current after a stale response.
  if(persisted&&typeof persisted.body==='string'&&persisted.body===encoded)
   return Object.freeze({status:'confirmed',recoveredAfterUncertainSave:!acknowledged});
- if(persisted&&typeof persisted.body==='string')
+ if(persisted&&typeof persisted.body==='string'){
+  // A positive-looking update ACK followed by the exact old bytes is NOT a
+  // successful save and is not proof of another device's competing edit.
+  if(acknowledged&&persisted.body===previousBody)
+   return Object.freeze({status:'uncertain',recoveredAfterUncertainSave:false});
   return Object.freeze({status:'conflict',recoveredAfterUncertainSave:false});
+ }
  return Object.freeze({status:'uncertain',recoveredAfterUncertainSave:false});
 }
