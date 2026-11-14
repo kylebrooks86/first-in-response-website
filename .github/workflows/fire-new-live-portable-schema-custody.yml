@@ -1,0 +1,65 @@
+name: FIRE NEW LIVE reviewed 26-SQL source custody packet (OFFLINE, NO MIGRATION)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/prepare_new_live_portable_schema_packet.mjs'
+      - 'business-app-parity/test_new_live_portable_schema_packet.mjs'
+      - '.github/workflows/fire-new-live-portable-schema-custody.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-live-reviewed-sql-custody-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  seal-original-26-sql-only:
+    name: Portable immutable 26 SQL + existing LIVE D1 source (NO PROVIDER/NO APPLY)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - name: Checkout reviewed source, without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check only new source packet and tests syntax
+        run: |
+          node --check business-app-parity/prepare_new_live_portable_schema_packet.mjs
+          node --check business-app-parity/test_new_live_portable_schema_packet.mjs
+      - name: Exercise only new offline source integrity and negative tests
+        run: node business-app-parity/test_new_live_portable_schema_packet.mjs
+      - name: Produce new, separate source-only artifact from original reviewed 26 SQL files
+        run: |
+          node business-app-parity/prepare_new_live_portable_schema_packet.mjs \
+            "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source"
+          test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source" -type f | wc -l)" -eq 32
+          test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source/new-live-schema-source/migrations" -name '*.sql' -type f | wc -l)" -eq 26
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const root=process.env.RUNNER_TEMP+'/fire-new-live-26-sql-reviewed-source';
+          const r=JSON.parse(readFileSync(root+'/portable-schema-source-receipt.json'));
+          const c=JSON.parse(readFileSync(root+'/new-live-schema-source/wrangler.json'));
+          assert.equal(r.remoteMigrationAuthorized,false);
+          assert.equal(r.remoteMigrationAttempted,false);
+          assert.equal(r.workerDeployed,false);
+          assert.equal(r.physicalFirstJob0001Verified,false);
+          assert.equal(r.cloudflareContacted,false);
+          assert.equal(r.paidR2Required,false);
+          assert.equal(c.d1_databases.length,1);
+          assert.equal(c.d1_databases[0].database_id,'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662');
+          console.log('PASS 32 file-only source package; real NEW LIVE migrations NOT applied.');
+          NODE
+      - name: Keep portable original SQL packet in GitHub WITHOUT provider writes
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-NEW-LIVE-26-SQL-PINNED-NEVER-MIGRATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-new-live-26-sql-reviewed-source
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6

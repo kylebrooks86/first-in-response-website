@@ -28,6 +28,7 @@ on:
       - '.github/workflows/fire-dr-dark-first-create-source.yml'
       - '.github/workflows/fire-new-live-bound-dark-prehost.yml'
       - '.github/workflows/fire-new-live-one-shot-migration-safety.yml'
+      - '.github/workflows/fire-new-live-portable-schema-custody.yml'
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
       - 'ci/test-site-verifier-scope.mjs'
@@ -83,7 +84,7 @@ jobs:
               exit 1
             fi
           done
-          # Four exact PR173 verifier blobs and TWELVE exact-source-reviewed offline CI
+          # Four exact PR173 verifier blobs and THIRTEEN exact-source-reviewed offline CI
           # workflow blobs are SHA-pinned exceptions. Five additional filenames below
           # were reviewed and tested in PRs 265-269; no wildcard CI workflow exception.
           # The Gate7 legacy workflow pin below is the exact separately-tested
@@ -105,6 +106,7 @@ jobs:
             .github/workflows/fire-dr-dark-first-create-source.yml
             .github/workflows/fire-new-live-bound-dark-prehost.yml
             .github/workflows/fire-new-live-one-shot-migration-safety.yml
+            .github/workflows/fire-new-live-portable-schema-custody.yml
           )
           reviewed_blobs=(
             4042570221cf4f31d2749534775bfd7d349ccfe1
@@ -123,6 +125,7 @@ jobs:
             7c3ee946b6cd7a8f30a36776687a9390d6f26632
             6dde5c4a8c226f6967d263a537caa54b22d85a06
             e3e4df3fc0590cdb9d73baf090932031c03b520d
+            0eb05673bf97144875dddd001108984e2d665d59
           )
           for i in "${!reviewed_paths[@]}"; do
             file="${reviewed_paths[$i]}"
@@ -139,7 +142,7 @@ jobs:
           fi
           for file in "${changed[@]}"; do
             case "$file" in
-              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml|.github/workflows/fire-gate7-saved-photo-offline-proof.yml|.github/workflows/fire-isolated-sqlite-full-recovery.yml|.github/workflows/fire-dr-private-owner-evidence.yml|.github/workflows/fire-dr-worker-only-noassetupload.yml|.github/workflows/fire-new-live-worker-only-noassetupload.yml|.github/workflows/fire-dr-existing-d1-prehost.yml|.github/workflows/fire-dr-dark-first-create-source.yml|.github/workflows/fire-new-live-bound-dark-prehost.yml|.github/workflows/fire-new-live-one-shot-migration-safety.yml)
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml|.github/workflows/fire-gate7-saved-photo-offline-proof.yml|.github/workflows/fire-isolated-sqlite-full-recovery.yml|.github/workflows/fire-dr-private-owner-evidence.yml|.github/workflows/fire-dr-worker-only-noassetupload.yml|.github/workflows/fire-new-live-worker-only-noassetupload.yml|.github/workflows/fire-dr-existing-d1-prehost.yml|.github/workflows/fire-dr-dark-first-create-source.yml|.github/workflows/fire-new-live-bound-dark-prehost.yml|.github/workflows/fire-new-live-one-shot-migration-safety.yml|.github/workflows/fire-new-live-portable-schema-custody.yml)
                 ;;
               *)
                 echo "BLOCKED: unreviewed non-app change: $file"
@@ -147,6 +150,6 @@ jobs:
                 ;;
             esac
           done
-          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and twelve exact reviewed offline CI workflow blobs are SHA-pinned."
+          echo "PASS: protected public site/calculator match main, four verifier blobs match PR173, and thirteen exact reviewed offline CI workflow blobs are SHA-pinned."
           echo "PASS: changed paths limited to app source, approved workflows and four pinned verifier files."
           echo "NO merge, publish, provider authentication or deployment was attempted."
