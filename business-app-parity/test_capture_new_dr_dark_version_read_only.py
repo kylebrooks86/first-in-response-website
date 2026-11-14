@@ -56,7 +56,7 @@ class DarkNewDrIdentity(unittest.TestCase):
             lambda x: x["resources"]["bindings"][2].update({"text": "owner-approved"}),
             lambda x: x["resources"]["bindings"][3].update({"text": "r2"}),
             lambda x: x["resources"]["bindings"][4].update({"text": "https://evil.example"}),
-            lambda x: x.update({"version_id": "00000000-0000-4000-8000-000000000000"}),
+            lambda x: x.update({"id": "00000000-0000-4000-8000-000000000000"}),
             lambda x: x.pop("resources"),
         ):
             bad = details()
