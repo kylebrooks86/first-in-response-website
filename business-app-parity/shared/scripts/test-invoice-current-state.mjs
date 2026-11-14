@@ -61,7 +61,7 @@ try{
   ['invoice detail',()=>detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:'invoice'})})],
   ['customer records',()=>customers.GET()],
   ['estimate history',()=>history.GET(new Request('https://synthetic.invalid/api/estimate-history?focus=e-invoice'))],
-  ['invoice editor',()=>detail.PATCH(new Request('https://synthetic.invalid/api/invoices/invoice',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({items:[]})}),{params:Promise.resolve({id:'invoice'})})]
+  ['invoice editor',()=>detail.PATCH(new Request('https://synthetic.invalid/api/invoices/invoice',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({items:[],expectedRevisionCount:0,expectedOriginalInvoice:{estimateId:'e-invoice',customerId:'c-invoice',subtotalCents:24000,discountCents:0,discountType:'dollar',discountValue:0,totalCents:24000,dueAt:null,storedStatus:'sent',items:[{id:'synthetic-original-line',name:'Synthetic invoice service',description:'Only local fixture',quantity:1,unit:'job',totalCents:24000}]}})}),{params:Promise.resolve({id:'invoice'})})]
  ]){
   const denied=await read();
   eq(denied.status,409,screen+' refuses a foreign-customer invoice');
