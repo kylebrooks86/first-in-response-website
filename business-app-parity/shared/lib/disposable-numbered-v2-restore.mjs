@@ -53,6 +53,54 @@ const setHighWater=(db,table,sequence)=>{
  }
 };
 
+// The independent LIVE 26-row migration JOURNAL alone is not evidence that
+// its immutable numbering and financial uniqueness SQL really exists.
+// Check actual sqlite_master definitions in a disposable :memory: DB only.
+const schemaSql=sql=>String(sql??'').replace(/[\x22\x60\s]/g,'')
+ .replace(/;$/,'').toLowerCase();
+const required26Triggers=Object.freeze([
+ ['fire_customer_numbers_no_update','fire_customer_numbers','UPDATE','FIRE customer numbers are permanent'],
+ ['fire_customer_numbers_no_delete','fire_customer_numbers','DELETE','FIRE customer numbers cannot be reused'],
+ ['fire_job_numbers_no_update','fire_job_numbers','UPDATE','FIRE Job numbers cannot be renumbered'],
+ ['fire_job_numbers_no_delete','fire_job_numbers','DELETE','FIRE Job numbers cannot be reused'],
+ ['fire_job_estimate_links_no_update','fire_job_estimate_links','UPDATE','FIRE Job links cannot be reassigned'],
+ ['fire_job_estimate_links_no_delete','fire_job_estimate_links','DELETE','FIRE Job links are permanent']
+]);
+const required26Indexes=Object.freeze([
+ ['idx_payment_checkout_sessions_one_open_per_estimate','payment_checkout_sessions',
+  "CREATE UNIQUE INDEX idx_payment_checkout_sessions_one_open_per_estimate ON payment_checkout_sessions (estimate_id) WHERE status='open'"],
+ ['idx_invoices_one_per_estimate','invoices',
+  'CREATE UNIQUE INDEX idx_invoices_one_per_estimate ON invoices (estimate_id)'],
+ ['idx_payment_refunds_payment_status','payment_refunds',
+  'CREATE INDEX idx_payment_refunds_payment_status ON payment_refunds (payment_id,status)'],
+ ['idx_payment_refunds_estimate_status','payment_refunds',
+  'CREATE INDEX idx_payment_refunds_estimate_status ON payment_refunds (estimate_id,status)'],
+ ['idx_payment_refunds_provider','payment_refunds',
+  'CREATE UNIQUE INDEX idx_payment_refunds_provider ON payment_refunds (provider_refund_id) WHERE provider_refund_id IS NOT NULL'],
+ ['idx_payments_unique_refund_provider','payments',
+  "CREATE UNIQUE INDEX idx_payments_unique_refund_provider ON payments (provider_id) WHERE provider_id LIKE 'refund:%'"],
+ ['idx_notifications_unique_lifecycle','notifications',
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_unique_lifecycle ON notifications (type,estimate_id) WHERE estimate_id IS NOT NULL AND type IN ('estimate_viewed','invoice_viewed','estimate_accepted')"],
+ ['idx_payments_stripe_provider_unique','payments',
+  "CREATE UNIQUE INDEX idx_payments_stripe_provider_unique ON payments (provider_id) WHERE provider_id GLOB 'cs_*' OR provider_id GLOB 'refund:*'"],
+ ['idx_fire_job_estimate_links_number','fire_job_estimate_links',
+  'CREATE INDEX idx_fire_job_estimate_links_number ON fire_job_estimate_links(job_number)']
+]);
+function assertIndependentLive26CriticalSchema(db){
+ for(const [name,table,operation,message] of required26Triggers){
+  const found=db.prepare("SELECT tbl_name,sql FROM sqlite_master WHERE type='trigger' AND name=?").get(name);
+  const definition='CREATE TRIGGER '+name+' BEFORE '+operation+' ON '+table+
+   " BEGIN SELECT RAISE(ABORT,'"+message+"'); END";
+  if(!found||found.tbl_name!==table||schemaSql(found.sql)!==schemaSql(definition))
+   blocked('NEW LIVE immutable-number trigger DDL differs: '+name);
+ }
+ for(const [name,table,definition] of required26Indexes){
+  const found=db.prepare("SELECT tbl_name,sql FROM sqlite_master WHERE type='index' AND name=?").get(name);
+  if(!found||found.tbl_name!==table||schemaSql(found.sql)!==schemaSql(definition))
+   blocked('NEW LIVE payment/number index DDL differs: '+name);
+ }
+}
+
 /** Restore ONLY to an empty :memory: DB, with no attached database or unknown
  * tables. All writes and post-restore verification are inside ONE transaction.
  * A test-only interrupt can simulate a crash before COMMIT. It is never a
@@ -115,6 +163,7 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
   "'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete')"
  ).get()?.n;
  if(hasTriggers!==6)blocked('permanent identity immutability triggers missing');
+ if(profile==='independent-live-26')assertIndependentLive26CriticalSchema(db);
  const columns=new Map();
  for(const table of tables){
   if(db.prepare('SELECT COUNT(*) AS n FROM "'+table+'"').get().n!==0)
