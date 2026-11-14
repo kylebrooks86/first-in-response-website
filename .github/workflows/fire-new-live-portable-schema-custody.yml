@@ -63,3 +63,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 6
+      - name: Read retained actual 31-file source archive back from GitHub (NO PROVIDER)
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-NEW-LIVE-26-SQL-PINNED-NEVER-MIGRATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-new-live-sql-readback
+      - name: Verify RETAINED 26 reviewed Git-SQL blobs and fail-closed release receipt
+        run: |
+          test "$(find "$RUNNER_TEMP/fire-new-live-sql-readback" -type f | wc -l)" -eq 31
+          test "$(find "$RUNNER_TEMP/fire-new-live-sql-readback/new-live-schema-source/migrations" -type f -name '*.sql' | wc -l)" -eq 26
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {verifyNewLivePortableSchemaPacket} from './business-app-parity/prepare_new_live_portable_schema_packet.mjs';
+          const root=process.env.RUNNER_TEMP+'/fire-new-live-sql-readback';
+          const v=verifyNewLivePortableSchemaPacket(root);
+          assert.equal(v.status,'EXACT_26_REVIEWED_NEW_LIVE_SQL_SOURCE_CUSTODY_VERIFIED');
+          assert.equal(v.sqlFiles,26);
+          assert.equal(v.cloudflareContacted,false);
+          assert.equal(v.schemaMigrated,false);
+          assert.equal(v.firstJob0001Verified,false);
+          assert.equal(v.remoteWriteApproved,false);
+          console.log('PASS GitHub RETAINED actual 31-file archive; all 26 original SQL Git blobs exact, NO D1 migration.');
+          NODE
