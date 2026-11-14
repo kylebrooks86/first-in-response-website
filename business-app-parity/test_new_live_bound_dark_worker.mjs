@@ -46,6 +46,20 @@ try{
  assert.throws(()=>verifyFinalDarkWorkerPackage('new-live',corrupt),
    /FIRE final dark package BLOCKED:/);
  n++;
+
+ const smuggled=join(tmp,'new-live-extra-stripe-var');
+ cpSync(output,smuggled,{recursive:true});
+ const smuggledConfig=cfg(smuggled);
+ const modified=JSON.parse(readFileSync(smuggledConfig));
+ modified.vars.FIRE_STRIPE_MODE='live';
+ writeFileSync(smuggledConfig,JSON.stringify(modified,null,2)+'\n');
+ const smuggledReceipt=join(smuggled,'new-live-physical-dark-prehost-receipt.json');
+ const rewritten=JSON.parse(readFileSync(smuggledReceipt));
+ rewritten.resultingConfigSha256=sha(smuggledConfig);
+ writeFileSync(smuggledReceipt,JSON.stringify(rewritten,null,2)+'\n');
+ assert.throws(()=>verifyFinalDarkWorkerPackage('new-live',smuggled),
+  /extra or changed release variables/,'NEW LIVE final package must reject unauthorized payment variable');
+ n++;
  assert.throws(()=>verifyFinalDarkWorkerPackage('dr',output),
    /FIRE final dark package BLOCKED:/);
  n++;
