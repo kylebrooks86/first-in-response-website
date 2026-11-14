@@ -68,7 +68,7 @@ try{
     'NEW LIVE final sealed package replaces old unsafe runtime with reviewed first-request lock');
  const realRuntime=(await import(pathToFileURL(finalRuntime).href)).wrapInertDRWorker({
   fetch(){throw Error('locked NEW LIVE SSR executed unexpectedly');}
- },{'/favicon.svg':{data:new TextEncoder().encode('synthetic asset'),type:'image/svg+xml'}});
+ },{'/favicon.svg':{data:new TextEncoder().encode('synthetic asset'),type:'image/svg+xml'}},'new-live-prelaunch');
  for(const env of [
   {FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_AUTH_ENABLED:'blocked'},
   {FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'owner-approved'},
