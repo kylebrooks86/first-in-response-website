@@ -167,3 +167,40 @@ Screenshot accepted November 13: `npm.cmd` successfully installed pinned Wrangle
     }
 
 The safe categories are triage hints only. A boolean `True` does not prove the error pertains to the latest `d1 list` request if log is mixed. If no log exists, do not retry the failed network command by default. Existing owner provider screenshots/UUIDs remain accepted historical evidence, but freshness of D1 authentication remains unproven. DR migration pending, 4/10 accepted, NEW LIVE NO-GO.
+
+## Fifth accepted Acer screenshot — 7:33:55 PM Wrangler local log found; five broad patterns all FALSE
+
+Owner's fifth photo confirms a saved Wrangler log timestamp 11/13/2026 7:33:55 PM, and ALL of Authentication, Permissions, AccountSelection, ConnectionProblem, InvalidCommand printed False. This proves only that the regex patterns used in the previous local-only scan did not occur in the most recently selected log. It does NOT prove authenticated session, correct account, successful D1 inventory, API access or a provider health state. Do not infer an auth cause or ask owner for Cloudflare Work login. No remote D1 schema migration has occurred; runner was stopped before writing the one-shot lock. The screenshot is accepted and must not be re-requested.
+
+Official Cloudflare D1 CLI docs list d1 list --json as supported; the failure may be in account/CLI context or elsewhere; the actual stderr was swallowed by the existing pinned runner. We need only the previously saved log, not another provider API request. Do NOT repeat the owner-approved migration yet.
+
+### Current local-only PowerShell: sanitized last error-context lines from already-saved Wrangler log
+
+    & {
+      $roots = @(
+        (Join-Path $env:USERPROFILE '.config\.wrangler\logs'),
+        (Join-Path $env:APPDATA '.config\.wrangler\logs'),
+        (Join-Path $env:LOCALAPPDATA '.config\.wrangler\logs'),
+        (Join-Path $env:USERPROFILE '.wrangler\logs')
+      )
+      $logs = @($roots | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-ChildItem -LiteralPath $_ -Filter 'wrangler-*.log' -File -ErrorAction SilentlyContinue })
+      $last = $logs | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      if (!$last) { Write-Host 'No saved log. No cloud command performed.'; return }
+      $lines = @(Get-Content -LiteralPath $last.FullName -Tail 120 -ErrorAction Stop)
+      Write-Host ('Local log timestamp: '+$last.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))
+      Write-Host ('Available tail lines: '+$lines.Count)
+      $suspects = @($lines | Where-Object { $_ -match '(?i)\berror\b|\bfailed\b|\bfatal\b|\bexception\b|\bwarn\b|unknown|invalid|unauthorized|forbidden|code:|d1 list|✘|X \[ERROR\]' })
+      Write-Host ('Potential diagnostic lines found: '+$suspects.Count)
+      $suspects | Select-Object -Last 8 | ForEach-Object {
+        $line = [string]$_
+        $line = $line -replace '(?i)\b(Bearer|token|api[_ -]?key|authorization|password|secret|cookie|refresh[_ -]?token|client[_ -]?secret)\b[^\s,;]*', '[SECRET-REDACTED]'
+        $line = $line -replace 'https?://\S+', '[URL-REDACTED]'
+        $line = $line -replace '[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}', '[UUID-REDACTED]'
+        $line = $line -replace '[A-Fa-f0-9]{32,}', '[HEX-REDACTED]'
+        $line = $line -replace '[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}', '[EMAIL-REDACTED]'
+        $line = $line -replace '(?i)(C:\\Users\\)[^\\\s]+', '$1[USER]'
+        Write-Host ($line.Substring(0,[Math]::Min(240,$line.Length)))
+      }
+    }
+
+This script reads local text ONLY. It does not log in, call D1, use paid Cloudflare, change security settings, or apply SQL. Redaction is best effort: do not paste a full original Wrangler log or any credential. If nothing diagnostic prints, avoid retrying same read-only network call blindly; investigate the pinned runner's swallowed stdout/stderr behavior in source first. Gates 1/2/3/8 remain 4/10 accepted, others open, NEW LIVE NO-GO.
