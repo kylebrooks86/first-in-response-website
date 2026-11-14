@@ -147,7 +147,7 @@ try{
 
  skipUpdate=true;
  await expect(503,{name:'Not Actually Written'},'Nonthrowing zero-change D1 update rejected');
- assert.equal(customer().name,'Updated Name');
+ assert.equal(customer().name,'Newer Tab Contact','Synthetic no-op must retain the latest competing owner edit');
  distortReadback=true;
  await expect(503,{address:'Real DB New Address'},'Misleading stale D1 SELECT blocked');
  assert.equal(customer().address,'Real DB New Address');
