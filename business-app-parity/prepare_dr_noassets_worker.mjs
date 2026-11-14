@@ -150,6 +150,10 @@ export function prepareNoAssetsDRWorker(distDir,receiptFile,sourceSha,newOutput)
  };
  delete alternative.assets;
  delete alternative.build;
+ // Current Wrangler 4.162 refuses legacy_env; omitting it has the same
+ // independent-worker naming semantics as the old legacy_env=true default.
+ // Do not change the accepted original compiled QA-master manifest.
+ delete alternative.legacy_env;
  safeWrite(join(dst,'wrangler.json'),JSON.stringify(alternative,null,2)+'\n');
  const receipt={
   kind:'FIRE_SOURCE_ONLY_ALTERNATIVE_DR_NO_ASSETS_UPLOAD_V1',
