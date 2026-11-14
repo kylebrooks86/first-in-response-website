@@ -90,7 +90,9 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
  const allowed=new Set([...tables,'auth_rate_limits',
   ...(profile==='independent-live-26'?['d1_migrations']:[])]);
  if(available.length!==allowed.size||available.some(name=>!allowed.has(name)))
-  blocked('reviewed exact '+profile+' schema and complete numbering tables required');
+  blocked(profile==='qa-25'
+   ? 'reviewed exact QA baseline plus numbering schema is required'
+   : 'reviewed exact NEW LIVE 26-migration schema and complete numbering tables required');
  if(profile==='independent-live-26'){
   // The ordered journal itself is provider/application operational metadata,
   // NOT part of the 23 customer/finance/photo records archive. It must
