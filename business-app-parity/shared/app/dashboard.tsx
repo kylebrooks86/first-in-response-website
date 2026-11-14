@@ -2305,6 +2305,8 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const bundleValue=bundle.value,setBundleValue=bundle.setValue;
   const saveLock=useRef(false);
   const initialEditSnapshot=useRef("");
+  // Frozen at open time; later parent refreshes must not silently change the source of a draft edit.
+  const openedSavedQuote=useRef<Record<string,unknown>|null>(null);
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [appreciationDiscount,setAppreciationDiscount]=useState(false);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
@@ -2327,6 +2329,18 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
       new Set(source.map(item=>item.id)).size===source.length&&
       source.reduce((sum,item)=>sum+Number(item.totalCents),0)===Number(estimate.subtotalCents);
     setSavedLinesVerified(verified);
+    openedSavedQuote.current=verified?{
+      status:estimate.status,
+      subtotalCents:Number(estimate.subtotalCents),
+      discountCents:Number(estimate.discountCents),
+      totalCents:Number(estimate.totalCents),
+      depositCents:Number(estimate.depositCents),
+      appreciationDiscount:Number(estimate.appreciationDiscount||0),
+      additionalDiscountType:estimate.additionalDiscountType||"percent",
+      additionalDiscountValue:Number(estimate.additionalDiscountValue||0),
+      items:source.map(item=>({id:item.id,name:item.name,description:item.description,
+        quantity:Number(item.quantity),unit:item.unit,totalCents:Number(item.totalCents)}))
+    }:null;
     const nextItems=verified?source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};}):[];
     setItems(nextItems);
     const appreciation=Boolean(Number(estimate.appreciationDiscount||0));setAppreciationDiscount(appreciation);
@@ -2356,7 +2370,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const addService=()=>{if(savedLinesVerified)setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);};
   const save=async()=>{
     if(saveLock.current||!bundle.ready)return;
-    if(!savedLinesVerified){setError("Saved service details are missing. Reopen this job in Estimates before editing.");return;}
+    if(!savedLinesVerified||!openedSavedQuote.current){setError("Saved service details are missing or their original version is unverified. Reopen this job in Estimates before editing.");return;}
     if(uncertain){setError("Check the saved estimate first; another Save could repeat a completed edit.");return;}
     if(!Number.isSafeInteger(subtotal)||!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!validEditablePrice(item))){setError("Every service needs a service, quantity, and valid price.");return;}
     if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
@@ -2366,7 +2380,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     let responseStatus=0;let responseUncertain=false;
     try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
-      const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,appreciationDiscount,additionalDiscountType:discountMode,additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents})});
+      const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,appreciationDiscount,additionalDiscountType:discountMode,additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents,expectedSaved:openedSavedQuote.current})});
       responseStatus=response.status;
       const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string;saveUncertain?:boolean};
       responseUncertain=result?.saveUncertain===true;
