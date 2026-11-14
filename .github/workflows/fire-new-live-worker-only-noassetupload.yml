@@ -162,18 +162,18 @@ jobs:
         run: |
           # Do not use historical PR267/268 ZIPs: those predate the current
           # invoice/financial source and cannot meet QA-master release parity.
-          node business-app-parity/prepare_current_dark_worker_package.mjs new-live \\
-            "$RUNNER_TEMP/fire-new-live-worker-only-alternative" \\
-            "$RUNNER_TEMP/fire-worker-only-original-seal.json" \\
-            "$FIRE_SOURCE_SHA" \\
+          node business-app-parity/prepare_current_dark_worker_package.mjs new-live \
+            "$RUNNER_TEMP/fire-new-live-worker-only-alternative" \
+            "$RUNNER_TEMP/fire-worker-only-original-seal.json" \
+            "$FIRE_SOURCE_SHA" \
             "$RUNNER_TEMP/fire-new-live-current-dark-first-create"
-          node business-app-parity/prepare_current_dark_worker_package.mjs verify new-live \\
+          node business-app-parity/prepare_current_dark_worker_package.mjs verify new-live \
             "$RUNNER_TEMP/fire-new-live-current-dark-first-create"
       - name: Check final DARK physical-D1 source package with Wrangler OFFLINE only
         run: |
-          node "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js" deploy \\
-            --dry-run --no-bundle \\
-            --config "$RUNNER_TEMP/fire-new-live-current-dark-first-create/server/wrangler.json" \\
+          node "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js" deploy \
+            --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-new-live-current-dark-first-create/server/wrangler.json" \
             --outdir "$RUNNER_TEMP/fire-new-live-current-dark-first-create-offline-package"
           echo 'PASS exact current-source dark first-create Worker-only package; no deploy, remote D1, subscription or auth.'
       - name: Retain current SHA DARK first-create release source for owner review only, NEVER DEPLOY
