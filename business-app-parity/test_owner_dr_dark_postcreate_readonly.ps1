@@ -79,7 +79,7 @@ try {
   Expected-Refusal $badAuth
   Save-Fake $badDb ($mock.Replace($dbId,'11111111-1111-4111-8111-111111111111'))
   Expected-Refusal $badDb
-  $default=& $script | Out-String
+  $default=& $script 6>&1 | Out-String
   if($default -notmatch 'No provider requests') {
     throw 'Default mode is not offline-only'
   }
