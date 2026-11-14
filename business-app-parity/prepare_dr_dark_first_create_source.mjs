@@ -100,10 +100,22 @@ export function prepareDarkFirstCreateDR(source,destination){
  if(existsSync(out)||out===original.root||
     out.startsWith(original.root+sep)||original.root.startsWith(out+sep))
   stop('choose a NEW absent, disjoint output directory');
- // Do not change the trusted SSR Worker or embedded 41 static binary modules.
+ // Preserve the exact sealed QA-master SSR and all 41 client Data modules.
+ // The historical PR268 archive PRECEDES the first-request security lock:
+ // refreshing only the small adapter runtime is mandatory before first create.
  mkdirSync(out,{recursive:false,mode:0o700});
  cpSync(join(original.root,'server'),join(out,'server'),
   {recursive:true,errorOnExist:true,force:false});
+ const runtimeRel='server/fire-inline-assets/runtime.mjs';
+ const originalRuntimeSha256=sha(readFileSync(join(original.root,runtimeRel)));
+ const guardedRuntime=readFileSync(new URL('./dr_noassets_runtime.mjs',import.meta.url));
+ const runtimeText=guardedRuntime.toString('utf8');
+ if(!runtimeText.includes('if(!approvedDR&&!approvedLive)')||
+    !runtimeText.includes("'Cache-Control':'private, no-store'")||
+    !runtimeText.includes('status:404'))
+  stop('current source lacks reviewed first-request locked runtime');
+ writeFileSync(join(out,runtimeRel),guardedRuntime);
+ const guardedRuntimeSha256=sha(guardedRuntime);
  const next=structuredClone(original.cfg);
  // A FIRST deploy still installs an active version. Disabling BOTH routes
  // prevents normal public workers.dev and version/preview URL exposure.
@@ -116,9 +128,12 @@ export function prepareDarkFirstCreateDR(source,destination){
   stop('unsafe output configuration');
  const conf=join(out,'server','wrangler.json');
  writeFileSync(conf,JSON.stringify(next,null,2)+'\n',{flag:'w'});
- const copied=original.serverHashes.map(x=>({path:x.path,
+ const copied=original.serverHashes.filter(x=>x.path!==runtimeRel).map(x=>({path:x.path,
   sha256:sha(readFileSync(join(out,x.path)))}));
- if(!same(copied,original.serverHashes))stop('immutable QA-master bytes changed');
+ if(!same(copied,original.serverHashes.filter(x=>x.path!==runtimeRel)))
+  stop('immutable QA-master SSR or client Data bytes changed');
+ if(sha(readFileSync(join(out,runtimeRel)))!==guardedRuntimeSha256)
+  stop('first-request release lock was not saved exactly');
  const receipt={
   kind:'FIRE_DR_FIRST_CREATE_DARK_ROUTES_DISABLED_SOURCE_ONLY_V1',
   parentPR:268,parentSourceSha:PARENT_SHA,
@@ -128,6 +143,10 @@ export function prepareDarkFirstCreateDR(source,destination){
    'dr-physical-prehost-source-receipt.json'))),
   originalPrehostConfigSha256:sha(readFileSync(join(original.root,'server','wrangler.json'))),
   originalCompiledServerModulesSha256:original.prehost.copiedServerModulesSha256,
+  originalArchiveRuntimeSha256:originalRuntimeSha256,
+  refreshedFirstRequestRuntimeSha256:guardedRuntimeSha256,
+  firstRequestLockCopiedIntoFinalSource:true,
+  originalSSRAnd41DataAssetsByteIdentical:true,
   finalWranglerConfigSha256:sha(readFileSync(conf)),
   worker:DR_NAME,drPhysicalD1:PHYSICAL_DR_D1,
   cloudflareWorkersDevRoute:false,cloudflareVersionPreviewUrls:false,
