@@ -169,6 +169,16 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
  if(drives.filter(d=>d.name==='main'&&d.file==='').length!==1||
     drives.some(d=>d.file!==''||!['main','temp'].includes(d.name)))
   blocked('only an unattached in-memory SQLite database is permitted');
+ // An empty SQLite TEMP schema is mandatory. Even with an unattached
+ // :memory: main, a TEMP customers/payments table or view shadows the real
+ // reviewed main table during unqualified INSERT/SELECT. sqlite_master does
+ // NOT enumerate TEMP objects; reject them before any recovery transaction.
+ // SQLite's internal transient temp schema is okay, user-defined objects are not.
+ const tempObjects=db.prepare(
+  "SELECT type,name FROM sqlite_temp_master WHERE type IN ('table','view','trigger','index')"
+ ).all();
+ if(tempObjects.length)
+  blocked('temporary SQLite schema objects can shadow reviewed customer/financial tables');
  // Validate all data before the first insertion or BEGIN. Do not trust a
  // self-declared manifest alone; actual record relationships are checked.
  const summary=validateNumberedCoreRecordsV2(archive);
