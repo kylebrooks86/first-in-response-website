@@ -114,7 +114,7 @@ export function prepareNewLivePortableSchemaPacket(destination){
   'Do not substitute QA, STAGING, TEST or DR D1 ('+DR.database_id+').',
   'The independent Worker no-R2 source is separately stored and NOT deployed.',
   'NO R2, NO paid Cloudflare, NO Stripe activation or customer import.',
-  'Job #0001 is an owner's required clean future LIVE start, NOT VERIFIED here.',
+  "Job #0001 is an owner-required clean future LIVE start, NOT VERIFIED here.",
   'No app login, public route, preview route or payment processing enabled.',
   'Do NOT run Wrangler migrations apply, remote execute, create, deploy,',
   'Stripe TEST/LIVE, Git merge or any live change from this packet alone.',
