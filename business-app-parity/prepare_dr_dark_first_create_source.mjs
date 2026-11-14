@@ -36,8 +36,9 @@ function exactOrdinaryPaths(root){
  function visit(folder){
   for(const entry of readdirSync(folder).sort()){
    const full=join(folder,entry),st=lstatSync(full);
-   if(st.isSymbolicLink()||st.nlink!==1)stop('linked source is not accepted');
+   if(st.isSymbolicLink())stop('linked source is not accepted');
    if(st.isDirectory()){visit(full);continue;}
+   if(st.nlink!==1)stop('hardlinked source is not accepted');
    if(!st.isFile())stop('not a normal release source file');
    paths.push(relative(root,full).replaceAll('\\','/'));
   }
@@ -84,10 +85,10 @@ export function reviewBoundPrehost(input){
     !same(cfg.d1_databases,[{binding:'DB',database_name:'fire-fullapp-dr-db',database_id:PHYSICAL_DR_D1}])||
     !same(cfg.r2_buckets,[])||
     !same(cfg.secrets?.required,['FIRE_DR_PASSWORD_HASH','FIRE_DR_SESSION_SECRET'])||
-    !same(cfg.vars,{
+    !same(Object.entries(cfg.vars||{}).sort(),Object.entries({
       FIRE_ENV:'isolated-dr',SITE_ORIGIN:DR_ORIGIN,
       FIRE_DR_AUTH_ENABLED:'blocked',FIRE_PHOTO_STORAGE_MODE:'owner-device-zip'
-    })||
+    }).sort())||
     !empty(cfg.kv_namespaces)||!empty(cfg.services)||!empty(cfg.durable_objects)||
     !empty(cfg.queues)||!empty(cfg.triggers)||!empty(cfg.unsafe)||
     !empty(cfg.workflows)||!empty(cfg.dispatch_namespaces)||
