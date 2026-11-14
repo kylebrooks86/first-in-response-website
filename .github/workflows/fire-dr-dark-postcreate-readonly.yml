@@ -1,0 +1,30 @@
+name: FIRE DR hosted dark version binding evidence parser (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/capture_new_dr_dark_version_read_only.py'
+      - 'business-app-parity/test_capture_new_dr_dark_version_read_only.py'
+      - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-dr-postcreate-mock-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  new-dr-version-binding-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test only sanitized provider version + D1 identity and negative controls without credentials
+        run: python -m unittest discover -s business-app-parity -p 'test_capture_new_dr_dark_version_read_only.py' -v
+      - name: Verify the owner helper's default mode makes zero provider requests
+        run: python business-app-parity/capture_new_dr_dark_version_read_only.py
