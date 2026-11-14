@@ -63,8 +63,9 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
     recordsArchive:opened.core
    }
   );
-  if(!photo.matchingCustomerRecordsVerified)
-   stop('photo/customer relationship proof is absent');
+  if(!photo.matchingCustomerRecordsVerified||photo.savedRecoveryZipReadBackVerified!==true||
+     photo.savedRecoveredZipSha256!==photo.verifiedZipSha256)
+   stop('saved recovered photo ZIP bytes or customer relationship were not independently verified');
   return Object.freeze({
    pairedEncryptedInputsReadBack:true,
    exactPairReceiptVerified:pairReceiptPath!==undefined,
@@ -75,6 +76,8 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
    supplementalBusinessRowsRestored:result.supplementalRowsRestored,
    recoveredPhotoCount:photo.photoCount,
    verifiedPhotoZipSha256:photo.verifiedZipSha256,
+   savedRecoveredPhotoZipReadBackVerified:true,
+   savedRecoveredPhotoZipSha256:photo.savedRecoveredZipSha256,
    encryptedRecordsSha256:opened.protectedFileSha256,
    plaintextJsonIntermediatesWritten:false,
    originalProtectedInputsUnmodified:true,
