@@ -113,6 +113,19 @@ export function prepareNewLiveBoundDarkWorker(source,destination){
  cpSync(join(before.root,'server'),join(out,'server'),
    {recursive:true,errorOnExist:true,force:false});
  copyFileSync(join(before.root,'alternative-receipt.json'),join(out,'alternative-receipt.json'));
+ // Original PR267 binary archive precedes the first-request security lock.
+ // Refresh ONLY its tiny Worker adapter; never rewrite the compiled QA-master
+ // SSR modules, embedded 41 client Data assets, or original saved receipt.
+ const runtimeRel='server/fire-inline-assets/runtime.mjs';
+ const originalRuntimeSha256=sha(readFileSync(join(before.root,runtimeRel)));
+ const guardedRuntime=readFileSync(new URL('./dr_noassets_runtime.mjs',import.meta.url));
+ const runtimeText=guardedRuntime.toString('utf8');
+ if(!runtimeText.includes('if(!approvedDR&&!approvedLive)')||
+    !runtimeText.includes("'Cache-Control':'private, no-store'")||
+    !runtimeText.includes('status:404'))
+  stop('current source lacks reviewed first-request locked runtime');
+ writeFileSync(join(out,runtimeRel),guardedRuntime);
+ const guardedRuntimeSha256=sha(guardedRuntime);
  const config=structuredClone(before.config);
  config.d1_databases=[{binding:'DB',database_name:'fire-fullapp-new-live-db',
    database_id:LIVE_UUID}];
@@ -128,19 +141,25 @@ export function prepareNewLiveBoundDarkWorker(source,destination){
  writeFileSync(cfgFile,JSON.stringify(config,null,2)+'\n');
  let sameFiles=0;
  for(const p of before.paths){
-  if(p==='server/wrangler.json')continue;
+  if(p==='server/wrangler.json'||p===runtimeRel)continue;
   if(sha(readFileSync(join(before.root,p)))!==sha(readFileSync(join(out,p))))
    stop('original SSR/static/receipt bytes unexpectedly changed');
   sameFiles++;
  }
- if(sameFiles!==241)stop('not every source file preserved');
+ if(sameFiles!==240)stop('not every original non-adapter file preserved');
+ if(sha(readFileSync(join(out,runtimeRel)))!==guardedRuntimeSha256)
+  stop('first-request release lock was not saved exactly');
  const proof={
   kind:'FIRE_NEW_LIVE_PHYSICAL_D1_DARK_PREHOST_SOURCE_ONLY_V1',
   sourceSha:SOURCE_SHA,originalGitHubArtifactId:SOURCE_ARTIFACT,
   originalGitHubZipSha256:ZIP_SHA,originalCompleteFileTreeSha256:TREE_SHA,
   originalReceiptSha256:RECEIPT_SHA,originalConfigSha256:CONFIG_SHA,
   resultingConfigSha256:sha(readFileSync(cfgFile)),
-  originalUnchangedFileCount:241,originalUnchangedClientAssets:41,
+  originalUnchangedFileCount:240,originalUnchangedClientAssets:41,
+  originalArchiveRuntimeSha256:originalRuntimeSha256,
+  refreshedFirstRequestRuntimeSha256:guardedRuntimeSha256,
+  firstRequestLockCopiedIntoFinalSource:true,
+  originalSSRAnd41DataAssetsByteIdentical:true,
   worker:'fire-fullapp-new-live',existingPhysicalNewLiveD1:LIVE_UUID,
   distinctDRD1:DR_UUID,photoStorageMode:'owner-device-zip',
   workersDevPublicRoute:false,versionPreviewUrls:false,
