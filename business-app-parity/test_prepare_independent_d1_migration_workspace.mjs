@@ -104,6 +104,7 @@ try{
  for(const contaminated of [
   [{type:'table',name:'customers',sql:'CREATE TABLE customers(id TEXT)'}],
   [{type:'table',name:'d1_migrations',sql:'CREATE TABLE d1_migrations(id INTEGER)'}],
+  [{type:'table',name:'sqlite_sequence',sql:'CREATE TABLE sqlite_sequence(name,seq)'}],
   [{type:'view',name:'unsafe',sql:'CREATE VIEW unsafe AS SELECT 1'}],
   [{type:'index',name:'ix_extra',sql:'CREATE INDEX ix_extra ON customers(id)'}],
   [{type:'table',name:'_cf_KV',sql:'CREATE TABLE _cf_KV (secret TEXT)'}],
