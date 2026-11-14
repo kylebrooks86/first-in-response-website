@@ -283,13 +283,18 @@ export async function PATCH(request: Request) {
     // separately before telling the owner that the edit succeeded.
     // If the UPDATE committed but the network acknowledgement was lost, the
     // readback can still confirm success without repeating the write.
+    // Only an acknowledged zero-row UPDATE proves the original snapshot guard
+    // refused to write. A successful write followed by an inconsistent D1
+    // SELECT is an uncertain save, NOT proof another tab won the race.
+    let guardedWriteRejected=false;
     try {
       const previousGuard=expected?
         " AND name=? AND COALESCE(email,'')=? AND COALESCE(phone,'')=? AND COALESCE(address,'')=? AND COALESCE(lead_source,'Unknown')=?":"";
-      await env.DB.prepare(`UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=?
+      const writeResult=await env.DB.prepare(`UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=?
         WHERE id=? AND NOT EXISTS(SELECT 1 FROM customers WHERE id<>? AND ${match.sql})${previousGuard}`)
         .bind(name,email||null,phone||null,address||null,leadSource,id,
           id,...match.values,...(expected?[expected.name,expected.email,expected.phone,expected.address,expected.leadSource]:[])).run();
+      guardedWriteRejected=writeResult?.success===true&&writeResult.meta?.changes===0;
     } catch {
       // Do not automatically retry a possibly committed UPDATE.
       // A separate authoritative SELECT below decides the result.
@@ -309,7 +314,7 @@ export async function PATCH(request: Request) {
       // authoritative readback proves someone else has replaced one or more
       // saved fields. Preserve that other editor's current data, never retry
       // the stale UPDATE and never silently claim success.
-      if(expected&&customer&&
+      if(expected&&guardedWriteRejected&&customer&&
         (customer.name!==expected.name||customer.email!==expected.email||
          customer.phone!==expected.phone||customer.address!==expected.address||
          customer.leadSource!==expected.leadSource))
