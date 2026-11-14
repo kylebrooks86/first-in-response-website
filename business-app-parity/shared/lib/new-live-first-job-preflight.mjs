@@ -12,6 +12,7 @@ import {CUSTOMER_NUMBER_FLAG,customerNumberingReady} from './customer-numbering.
 import {immutableNumberingTriggersReady} from './numbered-immutable-trigger-contract.mjs';
 import {immutableDepositHistoryTriggersReady,REQUIRED_DEPOSIT_IMMUTABILITY_TRIGGER_NAMES} from './deposit-immutability-contract.mjs';
 import {verifyNewLiveFinancialIndexes} from './new-live-financial-index-contract.mjs';
+import {verifyNewLiveNamedIndexAndViewInventory} from './new-live-index-view-contract.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS,assertNewLiveMigrationJournal} from './new-live-migration-journal.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
 
@@ -123,6 +124,12 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  // missing, non-unique, scoped to the wrong table or implemented as no-ops.
  try{await verifyNewLiveFinancialIndexes(db);}
  catch{stop('bound D1 financial refund/payment/index contract is incomplete or altered');}
+ // Extra named indexes can add unreviewed UNIQUE constraints and reject a
+ // real owner customer/estimate save despite a valid 26-row migration journal.
+ // A foreign VIEW likewise is not created by any of the reviewed 26 files.
+ // SQLite's automatic primary-key indexes have null SQL and are ignored.
+ try{await verifyNewLiveNamedIndexAndViewInventory(db);}
+ catch{stop('unreviewed SQLite index or view detected; first LIVE activation blocked');}
  // AUTOINCREMENT can retain a high-water even after deleting all rows. That
  // would make a visibly empty NEW LIVE start at #0002 or higher. Do not use
  // DELETE FROM sqlite_sequence; the owner requires untouched inspection.
@@ -140,6 +147,7 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   immutableDepositHistoryTriggersVerified:true,
   exactSourceMigrationJournalMatched:true,
   physicalFinancialIndexesMatched:true,
+  reviewedNamedIndexesAndNoViewsVerified:true,
   physicalD1IdentityVerified:false,orderedMigrationsVerified:false,
   isolatedRestoreVerified:false,ownerApprovedRelease:false,
   gate4Accepted:false,gate5Accepted:false,gate7Accepted:false,
