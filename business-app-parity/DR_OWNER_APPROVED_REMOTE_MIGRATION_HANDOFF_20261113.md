@@ -1,3 +1,37 @@
+> **NOV 13 ACER SQL-BLOB STOP — LATEST HANDOFF SUPERSEDES ALL OLDER POWERHELL BLOCKS BELOW.** The owner successfully fetched prior source `37deeee...` but the pinned SQL hash check refused first migration `0000_wise_namora.sql` BEFORE **any** Cloudflare D1 command, remote-write attempt lock, or database schema change. The GitHub blob for that SQL is exactly the reviewed pin; Windows Git may have converted canonical LF into CRLF, but Acer byte identity is not independently shown. Preserve all old worktree/workspace evidence; do NOT delete, hand-edit SQL, repin hashes, retry the old command, or repeat Cloudflare login.
+
+> **FRESH FIXED SOURCE** DRAFT PR264 `9a5099c089331df66a000894904cc8cf9332f2f8` now canonicalizes ONLY CRLF line endings, then enforces all original frozen 26 Git blob SHA-1 pins unchanged, and builds a NEW `pinned-26-migrations-canonical-v2` isolated workspace. The old workspace remains unchanged. Targeted [DR/LIVE source CI #43551095522](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43551095522) both jobs SUCCESS, with **289/289** source/Windows-line-ending/tamper/physical prewrite negative tests PASS. Overall exact-source staging workflow still running at this record; use the below new command ONLY after current exact-head staging checks complete SUCCESS.
+
+```powershell
+& {
+  $ErrorActionPreference = 'Stop'
+  $source = Join-Path $env:USERPROFILE 'FIRE-DR-GATE5-44fbefe6'
+  $pin = '9a5099c089331df66a000894904cc8cf9332f2f8'
+  $wrangler = Join-Path $env:USERPROFILE 'FIRE-DR-WRANGLER-4.92.0\node_modules\wrangler\bin\wrangler.js'
+  $attempt = Join-Path $env:USERPROFILE 'FIRE-DR-APPROVED-MIGRATION-20261113\remote-one-shot-attempt.json'
+  if (!(Test-Path -LiteralPath $source)) { throw 'Existing prepared FIRE DR worktree missing. STOP.' }
+  if (!(Test-Path -LiteralPath $wrangler)) { throw 'Previously installed reviewed Wrangler missing. STOP.' }
+  if (Test-Path -LiteralPath $attempt) { throw 'DR remote attempt already recorded. STOP; no retry.' }
+  $dirty = @(& git -C $source status --porcelain)
+  if ($LASTEXITCODE -ne 0 -or $dirty.Count -gt 0) { throw 'Prepared worktree changed; STOP without deleting evidence.' }
+  & git -C $source fetch --no-tags origin work/fire-app-main-candidate-unified-20261113
+  if ($LASTEXITCODE -ne 0) { throw 'Git fetch failed; no provider operation.' }
+  $fetched = (& git -C $source rev-parse FETCH_HEAD).Trim()
+  if ($LASTEXITCODE -ne 0 -or $fetched -ne $pin) { throw 'Reviewed source moved. STOP.' }
+  & git -C $source checkout --detach $pin
+  if ($LASTEXITCODE -ne 0) { throw 'Reviewed local checkout failed; STOP.' }
+  $version = & node $wrangler --version
+  if ($LASTEXITCODE -ne 0 -or $version -notmatch '4\.92\.0') { throw 'Reviewed Wrangler mismatch; STOP.' }
+  $runner = Join-Path $source 'business-app-parity\owner_approved_dr_d1_migration.mjs'
+  if (!(Test-Path -LiteralPath $runner)) { throw 'DR only runner missing; STOP.' }
+  & node $runner $wrangler --execute-approved-dr-only
+  if ($LASTEXITCODE -ne 0) { throw 'DR-only procedure STOPPED or UNCERTAIN: DO NOT RETRY.' }
+}
+```
+
+**Prior owner authorization remains narrow:** existing `fire-fullapp-dr-db` FIRST install of 26 reviewed SQL migrations, strictly after actual provider identity/UUID and physically empty first-use schema. The runner performs two read-only database-specific info checks (existing NEW LIVE is READ-ONLY), and read-only DR `sqlite_master` before writing a permanent one-shot attempt marker. It never modifies QA/STAGING/NEW LIVE, enables R2, charges payments, creates a Worker, merges or deploys. If it reaches remote `migrations apply` and fails, **do not replay**; only read-only physical DR inspection can establish the resulting state. No further setup, Cloudflare browser sign-ins, or old Acer QA evidence required.
+
+---
 > **SOURCE-VERIFIED DR-ONLY HANDOFF (Nov 13, exact candidate `37deeee2731180d330ce1ce5b1c55284a19eb014`; ALL 15/15 exact-source CI groups SUCCESS, including [staging workflow #43548592796](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43548592796)).** This block uses the owner's ALREADY PREPARED isolated Git worktree and ALREADY INSTALLED free pinned Wrangler 4.92.0. It neither recreates a worktree nor reinstalls Node/npm/Wrangler nor repeats `d1 list` or any Cloudflare Work browser login. The previously approved one-time DR-only migration remains conditional on fresh, matching actual DR/NEW LIVE UUID read-only `d1 info` responses and a genuinely empty physical DR schema. The command NEVER touches or migrates NEW LIVE. A physical mutation starts only after those guards and a one-shot local attempt lock. The earlier six Acer screenshots remain accepted; never ask for them again.
 
 ```powershell
