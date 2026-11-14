@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
+import {requirePinnedDRProviderIdentity,requirePhysicallyEmptyDRSchema,readOnlyWranglerRows,readOnlyPreparedSql} from './owner_approved_dr_d1_migration.mjs';
 import {assertReviewedIndependentD1SqlBlobs,gitSqlBlobSha1,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
  from './reviewed_independent_d1_sql_blobs.mjs';
 
@@ -80,6 +81,49 @@ try{
  checks++;
  check(existsSync(join(outputs[0],'migrations','0025_independent_permanent_numbers.sql')),
   'permanent #0001 numbering migration must be included');
+ // The owner-approved remote runner has no cloud access in this fixture:
+ // test the ACTUAL write-boundary predicates, not another mock executor.
+ const realDR=[
+  {name:'fire-fullapp-dr-db',uuid:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'},
+  {name:'fire-fullapp-new-live-db',uuid:'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662'}
+ ];
+ check(requirePinnedDRProviderIdentity(realDR).readOnlyIdentityVerified,
+  'remote runner permits only the exact owner-created physical DR with distinct LIVE');
+ for(const altered of [
+  realDR.slice(1),
+  [{...realDR[0],uuid:realDR[1].uuid},realDR[1]],
+  [{...realDR[0],name:'fire-fullapp-qa-20261016'},realDR[1]],
+  [realDR[0],{...realDR[1],uuid:realDR[0].uuid}],
+  [...realDR,realDR[0]]
+ ]){assert.throws(()=>requirePinnedDRProviderIdentity(altered),/STOP/);checks++;}
+ check(requirePhysicallyEmptyDRSchema([]).noApplicationTables===true,
+  'physically empty D1 is eligible for initial installation');
+ check(requirePhysicallyEmptyDRSchema([{type:'table',name:'_cf_KV',
+   sql:'CREATE TABLE "_cf_KV" ("key" TEXT PRIMARY KEY,"value" BLOB) WITHOUT ROWID'}])
+   .noApplicationTables===true,'known provider metadata only may exist');
+ for(const contaminated of [
+  [{type:'table',name:'customers',sql:'CREATE TABLE customers(id TEXT)'}],
+  [{type:'table',name:'d1_migrations',sql:'CREATE TABLE d1_migrations(id INTEGER)'}],
+  [{type:'view',name:'unsafe',sql:'CREATE VIEW unsafe AS SELECT 1'}],
+  [{type:'index',name:'ix_extra',sql:'CREATE INDEX ix_extra ON customers(id)'}],
+  [{type:'table',name:'_cf_KV',sql:'CREATE TABLE _cf_KV (secret TEXT)'}],
+  [{type:'table',name:'_cf_OTHER',sql:'CREATE TABLE _cf_OTHER (value TEXT)'}]
+ ]){assert.throws(()=>requirePhysicallyEmptyDRSchema(contaminated),/STOP/);checks++;}
+ check(readOnlyWranglerRows([{success:true,results:[]}]).length===0,
+  'preflight accepts one confirmed Wrangler JSON empty result');
+ for(const invalid of [[],{results:[]},[{success:false,results:[]}],
+   [{success:true,results:[]},{success:true,results:[]}]]){
+  assert.throws(()=>readOnlyWranglerRows(invalid),/STOP/);checks++;
+ }
+ check(readOnlyPreparedSql("SELECT id FROM customers WHERE id=? AND name=?",["id-1","O'Neil"])
+   ==="SELECT id FROM customers WHERE id='id-1' AND name='O''Neil'",
+   'post-install remote D1 queries safely bind read-only values');
+ for(const sql of ["DELETE FROM customers","DROP TABLE customers",
+   "SELECT 1; DROP TABLE customers","WITH x AS (DELETE FROM customers) SELECT 1",
+   "SELECT 1 -- uncomment"]) {
+  assert.throws(()=>readOnlyPreparedSql(sql),/STOP/);checks++;
+ }
  console.log('PASS '+checks+'/'+checks+
-  ' independent DR/LIVE D1 migration workspace safety and exact 26-file hashes; local files only, zero remote/provider calls.');
+  ' reviewed local migration workspaces plus OWNER DR one-shot physical identity/empty-schema/read-only boundary negatives. No remote operation.');
+
 }finally{rmSync(temp,{recursive:true,force:true});}
