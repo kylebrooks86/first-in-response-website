@@ -144,8 +144,9 @@ export function prepareNoAssetsDRWorker(distDir,receiptFile,sourceSha,newOutput)
  safeWrite(join(dst,'fire-noassets-entry.mjs'),entry);
  const alternative={...config,main:'fire-noassets-entry.mjs',
   no_bundle:true,find_additional_modules:true,preserve_file_names:true,
-  rules:[{type:'ESModule',globs:['**/*.js','**/*.mjs']},
-         {type:'Data',globs:['fire-inline-assets/*.bin']}]
+  // Wrangler 4.92 already has a built-in Data: **/*.bin rule. Adding a
+  // second overlapping Data rule causes dry-run to refuse module uploads.
+  rules:[{type:'ESModule',globs:['**/*.js','**/*.mjs']}]
  };
  delete alternative.assets;
  delete alternative.build;
