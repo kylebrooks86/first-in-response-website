@@ -8,7 +8,7 @@
  * node recover_saved_protected_photo_zip.mjs BACKUP.firephotos OUTPUT.zip --allow-plaintext-recovery
  * Output must not already exist; permissions are owner-only (0600).
  */
-import {readFile,open,unlink} from 'node:fs/promises';
+import {readFile,open,unlink,lstat} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {recoverProtectedOfflinePhotoZip,isProtectedOfflinePhotoArchive} from './shared/lib/protected-offline-photo-archive.mjs';
@@ -16,6 +16,37 @@ import {inspectStoredFirePhotoZip} from './verify_saved_protected_photo_backup.m
 import {validateNumberedCoreRecordsV2} from './shared/lib/numbered-records-v2-preflight.mjs';
 
 const MAX_FILE=161*1024*1024+4096;
+/**
+ * Reopen the actual *saved* recovery ZIP. Encryption authentication and
+ * in-memory CRC/SHA verification do not establish disk write completeness.
+ * This is READ-ONLY; the caller owns deletion of its newly-created output
+ * when the post-write check fails. No Cloudflare/provider access.
+ */
+export async function verifySavedRecoveredPhotoZip(path,sourceProof){
+ if(typeof path!=='string'||!path||
+    !sourceProof||sourceProof.allFilesCryptographicallyVerified!==true||
+    !/^[a-f0-9]{64}$/.test(sourceProof.verifiedZipSha256))
+  throw Error('FIRE private photo ZIP recovery BLOCKED: authenticated source proof required');
+ let saved;
+ try{
+  const stat=await lstat(resolve(path));
+  if(!stat.isFile()||stat.isSymbolicLink()||stat.size<23||stat.size>MAX_FILE)
+   throw Error('recovered file not regular or exceeds limit');
+  saved=await readFile(resolve(path));
+  if(saved.length!==stat.size)throw Error('recovered ZIP size changed during readback');
+ }catch{throw Error('FIRE private photo ZIP recovery BLOCKED: saved recovery ZIP is unavailable or incomplete');}
+ // Revalidate central directory, CRC32 and EACH original photograph SHA-256
+ // from the file on disk, not from the earlier decrypted in-memory buffer.
+ const checked=inspectStoredFirePhotoZip(saved);
+ if(checked.verifiedZipSha256!==sourceProof.verifiedZipSha256||
+    checked.photoCount!==sourceProof.photoCount||
+    checked.distinctCustomerIds!==sourceProof.distinctCustomerIds||
+    checked.totalOriginalPhotoBytes!==sourceProof.totalOriginalPhotoBytes)
+  throw Error('FIRE private photo ZIP recovery BLOCKED: saved recovery ZIP differs from the verified protected original');
+ return Object.freeze({savedRecoveryZipReadBackVerified:true,
+  savedRecoveredZipSha256:checked.verifiedZipSha256,
+  savedRecoveryPhotoCount:checked.photoCount});
+}
 const stop=message=>{throw Error('FIRE private photo ZIP recovery BLOCKED: '+message);};
 export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPlaintextRecovery=false,recordsPath,recordsArchive}={}){
  if(!allowPlaintextRecovery)stop('explicit plaintext-recovery consent required');
@@ -57,19 +88,26 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
    stop('a photo references a customer absent from the records snapshot');
   matchingRecordsVerified=true;
  }
- let handle;
+ let handle,created=false,readback;
  try{
-  handle=await open(resolve(output),'wx',0o600);
+  handle=await open(resolve(output),'wx',0o600);created=true;
   await handle.writeFile(plain);
   await handle.sync();
   await handle.close();handle=undefined;
+  readback=await verifySavedRecoveredPhotoZip(output,proof);
  }catch(error){
-  if(handle){await handle.close().catch(()=>{});await unlink(resolve(output)).catch(()=>{});}
-  stop(error?.code==='EEXIST'?'output already exists; overwrite forbidden':'private ZIP output could not be saved');
+  // Never leave a truncated, damaged or unverified plaintext photo ZIP
+  // presenting itself as a successful restore. Never delete an output that
+  // already existed before this invocation.
+  if(handle)await handle.close().catch(()=>{});
+  if(created)await unlink(resolve(output)).catch(()=>{});
+  if(error?.code==='EEXIST')stop('output already exists; overwrite forbidden');
+  if(error instanceof Error&&error.message.startsWith('FIRE private photo ZIP recovery BLOCKED:'))throw error;
+  stop('private ZIP output could not be saved and independently verified');
  }
  return Object.freeze({
   photoCount:proof.photoCount,distinctCustomerIds:proof.distinctCustomerIds,
-  verifiedZipSha256:proof.verifiedZipSha256,
+  verifiedZipSha256:proof.verifiedZipSha256,...readback,
   originalGalleryZipRecovered:true,matchingCustomerRecordsVerified:matchingRecordsVerified,
   customerRecordsRestored:false,independentD1Restored:false,
   providerWriteAttempted:false,gate7Accepted:false
