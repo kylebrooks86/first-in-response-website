@@ -61,6 +61,11 @@ try{
     'never enables owner login or changes secret names');
  const runtimeRel='server/fire-inline-assets/runtime.mjs';
  const originalRuntime=join(original,runtimeRel),finalRuntime=join(destination,runtimeRel);
+ const entryRel='server/fire-noassets-entry.mjs';
+ const priorEntry=join(original,entryRel),finalEntry=join(destination,entryRel);
+ ok(readFileSync(finalEntry,'utf8').includes('wrapInertDRWorker(server,manifest,"isolated-dr");')&&
+    hash(priorEntry)!==hash(finalEntry),
+    'DR sealed entry must pin isolated-dr instead of an unbound two-argument wrapper');
  ok(hash(finalRuntime)===hash(new URL('./dr_noassets_runtime.mjs',import.meta.url))&&
     hash(finalRuntime)!==hash(originalRuntime),
     'new private DR source must contain current guarded runtime, never the old PR268 adapter');
@@ -88,7 +93,10 @@ try{
     proof.finalWranglerConfigSha256===hash(join(destination,'server','wrangler.json'))&&
     proof.originalArchiveRuntimeSha256===hash(originalRuntime)&&
     proof.refreshedFirstRequestRuntimeSha256===hash(finalRuntime)&&
-    proof.firstRequestLockCopiedIntoFinalSource===true,
+    proof.firstRequestLockCopiedIntoFinalSource===true&&
+    proof.immutableExpectedWorkerTarget==='isolated-dr'&&
+    proof.originalArchiveEntrySha256===hash(priorEntry)&&
+    proof.refreshedTargetBoundEntrySha256===hash(finalEntry),
     'source and new configuration hashes are bound to original saved artifact');
  ok(proof.newFirstWorkerCreateAuthorized===false&&proof.firstProviderDeployPerformed===false&&
     proof.providerAccountIdentityVerified===false&&
@@ -97,7 +105,7 @@ try{
  let unchanged=0;
  traverse(join(original,'server'),(path)=>{
   const rel=relative(join(original,'server'),path);
-  if(rel==='wrangler.json'||rel==='fire-inline-assets/runtime.mjs')return;
+  if(rel==='wrangler.json'||rel==='fire-inline-assets/runtime.mjs'||rel==='fire-noassets-entry.mjs')return;
   assert.equal(hash(path),hash(join(destination,'server',rel)),'immutable changed: '+rel);
   unchanged++;
  });
