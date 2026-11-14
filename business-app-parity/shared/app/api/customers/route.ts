@@ -5,7 +5,7 @@ import {verifyNewLiveFirstJobState} from "../../../lib/new-live-clean-start.mjs"
 import { env } from "cloudflare:workers";
 import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import {CUSTOMER_PHONE_SQL,customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
+import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 import {customerNumberingReady,customerNumberForCustomer,newCustomerNumberStatement} from '../../../lib/customer-numbering.mjs';
 import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
@@ -235,19 +235,29 @@ export async function PATCH(request: Request) {
     // Call/Text handoff and customer creation. Raw digit strings would treat
     // 9185550101 and +1 9185550101 as two unrelated customers.
     const normalizedPhone = phone?usableCustomerPhone(phone):null;
-    const others = await env.DB.prepare("SELECT id,email,phone FROM customers WHERE id<>?").bind(id).all<{id:string;email:string|null;phone:string|null}>();
+    const others = await env.DB.prepare("SELECT id,name,email,phone,address FROM customers WHERE id<>?").bind(id)
+      .all<{id:string;name:string;email:string|null;phone:string|null;address:string|null}>();
     const duplicateEmail=Boolean(normalizedEmail)&&others.results.some(customer=>String(customer.email??"").trim().toLowerCase()===normalizedEmail);
     const duplicatePhone=Boolean(normalizedPhone)&&others.results.some(customer=>usableCustomerPhone(String(customer.phone??""))===normalizedPhone);
-    if(duplicateEmail||duplicatePhone)return Response.json({error:duplicateEmail&&duplicatePhone?
-      "Another customer already has this email and phone number. Nothing was changed.":
+    // The create route already refuses duplicate name+address when both are
+    // supplied. Editing must preserve this SAME identity rule, including
+    // names/addresses with harmless case or surrounding-space differences.
+    // Otherwise editing an old customer could silently merge two identities.
+    const normalizedName=name.toLowerCase(),normalizedAddress=address.toLowerCase();
+    const duplicateNameAddress=Boolean(normalizedName&&normalizedAddress)&&
+      others.results.some(customer=>String(customer.name??"").trim().toLowerCase()===normalizedName&&
+        String(customer.address??"").trim().toLowerCase()===normalizedAddress);
+    if(duplicateEmail||duplicatePhone||duplicateNameAddress)return Response.json({error:
+      duplicateEmail&&duplicatePhone?"Another customer already has this email and phone number. Nothing was changed.":
       duplicateEmail?"This email is already on another customer. Nothing was changed.":
-      "This phone number is already on another customer. Nothing was changed."},{status:409});
+      duplicatePhone?"This phone number is already on another customer. Nothing was changed.":
+      "Another customer already has this name and service address. Nothing was changed."},
+      {status:409,headers:{"Cache-Control":"no-store, private"}});
 
-    // Duplicate contacts must be checked AT THE SQL WRITE boundary, too.
-    // A second editor can change another customer after our initial SELECT;
-    // SQLite's conditional UPDATE prevents two saved records claiming the
-    // same email or equivalent 10/11-digit U.S. contact during that race.
-    const phoneDigits=normalizedPhone?.slice(2)??'';
+    // Reuse the identical creation predicate at the SQL WRITE boundary.
+    // A second editor could claim the same email, phone or name+address
+    // after our preflight; the conditional UPDATE prevents that race.
+    const match=customerIdentityPredicate({name,email,phone,address});
     // A nonthrowing D1 write, including an ambiguous/zero-change ACK, does
     // NOT prove the new contact details were saved. Read back the exact row
     // separately before telling the owner that the edit succeeded.
@@ -255,11 +265,9 @@ export async function PATCH(request: Request) {
     // readback can still confirm success without repeating the write.
     try {
       await env.DB.prepare(`UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=?
-        WHERE id=? AND NOT EXISTS(SELECT 1 FROM customers WHERE id<>?
-          AND ((?<>'' AND lower(trim(COALESCE(email,'')))=?)
-          OR (?<>'' AND ${CUSTOMER_PHONE_SQL}=?)))`)
+        WHERE id=? AND NOT EXISTS(SELECT 1 FROM customers WHERE id<>? AND ${match.sql})`)
         .bind(name,email||null,phone||null,address||null,leadSource,id,
-          id,normalizedEmail,normalizedEmail,phoneDigits,phoneDigits).run();
+          id,...match.values).run();
     } catch {
       // Do not automatically retry a possibly committed UPDATE.
       // A separate authoritative SELECT below decides the result.
@@ -280,10 +288,9 @@ export async function PATCH(request: Request) {
       // If conflict inspection fails, retain the existing uncertain status.
       try{
         const conflict=await env.DB.prepare(`SELECT id FROM customers WHERE id<>?
-          AND ((?<>'' AND lower(trim(COALESCE(email,'')))=?)
-          OR (?<>'' AND ${CUSTOMER_PHONE_SQL}=?)) LIMIT 1`)
-          .bind(id,normalizedEmail,normalizedEmail,phoneDigits,phoneDigits).first();
-        if(conflict)return Response.json({error:"Another customer now uses this email or phone number. No edit was confirmed; reopen the customer record before retrying.",saveUncertain:true},
+          AND ${match.sql} LIMIT 1`)
+          .bind(id,...match.values).first();
+        if(conflict)return Response.json({error:"Another customer now uses this email, phone number, or name and service address. No edit was confirmed; reopen the customer record before retrying.",saveUncertain:true},
           {status:409,headers:{"Cache-Control":"no-store, private"}});
       }catch{}
       return Response.json({error:"Customer changes could not be confirmed. Reopen this record to check before retrying.",saveUncertain:true},
