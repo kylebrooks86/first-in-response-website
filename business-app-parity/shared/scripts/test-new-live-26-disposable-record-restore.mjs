@@ -162,13 +162,13 @@ try{
  // Journal names may match while critical DDL was modified.
  denied('refund cents type changed despite original indexes',db=>
   alterEmptyReviewedTable(db,'payment_refunds',ddl=>
-   ddl.replace(/(amount_cents`?\\s+)integer\\b/i,'$1TEXT')));
+   ddl.replace(/(amount_cents`?\s+)integer\b/i,'$1TEXT')));
  denied('refund payment foreign key silently removed',db=>
   alterEmptyReviewedTable(db,'payment_refunds',ddl=>
-   ddl.replace(/,\\s*FOREIGN KEY\\s*\\(`payment_id`\\)\\s+REFERENCES\\s+`payments`\\(`id`\\)\\s+ON UPDATE no action ON DELETE no action/i,'')));
+   ddl.replace(/,\s*FOREIGN KEY\s*\(`payment_id`\)\s+REFERENCES\s+`payments`\(`id`\)\s+ON UPDATE no action ON DELETE no action/i,'')));
  denied('permanent customer sequence loses AUTOINCREMENT',db=>
   alterEmptyReviewedTable(db,'fire_customer_numbers',ddl=>
-   ddl.replace(/\\bAUTOINCREMENT\\b/i,'')));
+   ddl.replace(/\bAUTOINCREMENT\b/i,'')));
  denied('same-name inert Job # trigger',db=>db.exec(
   'DROP TRIGGER fire_job_numbers_no_update; CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT 1; END;'));
  denied('same-name inert customer # trigger',db=>db.exec(
