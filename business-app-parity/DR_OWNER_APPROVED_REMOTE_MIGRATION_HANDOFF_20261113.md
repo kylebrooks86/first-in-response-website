@@ -88,3 +88,22 @@ Run the following in PowerShell. Earlier lines only read local files and install
     if ($LASTEXITCODE -ne 0) { Write-Host 'DR STOPPED. Do NOT repeat migration. Share safe error text.' }
 
 If local npm installation fails, the remote DR command has not been reached. If the runner reaches remote D1 but fails physical UUID or empty-schema checks, no write has occurred. A failed/uncertain remote migrations apply must NOT be retried: the runner writes a unique local attempt marker before it. Never run the old first-command wrapper again. This refinement makes NO source code change, no paid service and no broader permission request.
+
+## Second Acer screenshot (Nov 13) — supersedes immediate remote-retry instructions
+
+The owner ran the prior isolated Wrangler command and supplied another screenshot: MODULE_NOT_FOUND / Node v24.22.0 / empty requireStack; the version check threw `Wrong Wrangler version. STOP.`. As a separately pasted PowerShell line continued into the runner, the runner immediately threw `FIRE DR Gate5 STOP: pinned local Wrangler installation missing; no network installation authorized`. BOTH are local guards BEFORE any D1 call or migration attempt marker. No Cloudflare D1 was contacted or altered. The screenshot crop omits the exact missing module path and npm installation output: do not invent the root cause. Both Acer screenshots are accepted evidence; no repeated git worktree, Cloudflare Work sign-in or old QA.
+
+CURRENT NEXT STEP IS LOCAL-ONLY FILE/PACKAGE DIAGNOSIS, NO MIGRATION:
+
+    $tool = Join-Path $env:USERPROFILE 'FIRE-DR-WRANGLER-4.92.0'
+    $package = Join-Path $tool 'node_modules\wrangler\package.json'
+    $script = Join-Path $tool 'node_modules\wrangler\bin\wrangler.js'
+    Write-Host "Tool directory exists: $(Test-Path -LiteralPath $tool)"
+    Write-Host "Package JSON exists: $(Test-Path -LiteralPath $package)"
+    Write-Host "Wrangler script exists: $(Test-Path -LiteralPath $script)"
+    if (Test-Path -LiteralPath $package) {
+        Write-Host "Installed version: $((Get-Content -LiteralPath $package -Raw | ConvertFrom-Json).version)"
+    }
+    npm ls --prefix $tool wrangler --depth=0
+
+These commands only read local npm/package state; they cannot reach Cloudflare D1. DO NOT run the old combined npm+remote migration command until we identify the actual missing path/package and fix it. Owner DR-only approval remains valid because no remote migration attempt was made; Gate5 physical DR remains pending.
