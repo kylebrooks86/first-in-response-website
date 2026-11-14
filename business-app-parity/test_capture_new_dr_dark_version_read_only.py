@@ -3,8 +3,10 @@
 All responses are synthetic. Never invokes Cloudflare, real npx or D1 SQL.
 Existing accepted DR D1 26/26 evidence is NOT rerun.
 """
-import copy
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 import capture_new_dr_dark_version_read_only as m
 
@@ -126,6 +128,24 @@ class DarkNewDrIdentity(unittest.TestCase):
             m.read_only_cli("FAKE_NPX", ["deploy", "--name", m.WORKER])
         with self.assertRaises(ValueError):
             m.read_only_cli("FAKE_NPX", ["d1", "execute", m.DR_DB])
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows-only fake npx.cmd subprocess regression")
+    def test_windows_npx_cmd_args_and_exit_code_are_captured_without_provider(self):
+        """Use a temp mock .cmd; NEVER call real Wrangler or a network endpoint."""
+        with tempfile.TemporaryDirectory(prefix="fire-dr-npx-offline-") as folder:
+            cmd = Path(folder) / "npx.cmd"
+            cmd.write_text(
+                '@echo off\n'
+                'if not "%~1"=="--yes" exit /b 77\n'
+                'if not "%~2"=="wrangler@4.162.0" exit /b 78\n'
+                'if not "%~3"=="deployments" exit /b 79\n'
+                'echo {"versions":[{"version_id":"'+m.VERSION+'","percentage":100}]}\n',
+                encoding="ascii",
+            )
+            result = m.read_only_cli(str(cmd), list(m.SAFE_COMMANDS[0]))
+            self.assertEqual(m.current_version(result), m.VERSION)
+            with self.assertRaises(ValueError):
+                m.read_only_cli(str(cmd), list(m.SAFE_COMMANDS[2]))
 
     def test_default_main_does_not_contact_cloudflare(self):
         with patch("sys.argv", ["script"]), patch.object(m.shutil, "which",
