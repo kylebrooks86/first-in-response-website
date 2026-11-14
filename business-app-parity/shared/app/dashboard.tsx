@@ -2490,6 +2490,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const [dueMode,setDueMode]=useState<"receipt"|"date">("receipt");
   const [dueDate,setDueDate]=useState("");
   type InvoiceRevisionRow={id:string;subtotalCents:number;discountCents:number;discountType:DiscountMode;discountValue:number;totalCents:number;status:string;dueAt?:string|null;createdAt:string;items:EstimateItemRow[]};
+  type OriginalInvoiceSource={estimateId:string;customerId:string;subtotalCents:number;discountCents:number;discountType:DiscountMode;discountValue:number;totalCents:number;dueAt:string|null;storedStatus:string;items:Array<{id:string;name:string;description:string|null;quantity:number;unit:string|null;totalCents:number}>};
   const [revisions,setRevisions]=useState<InvoiceRevisionRow[]>([]);
   const [expandedRevisionId,setExpandedRevisionId]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
@@ -2499,8 +2500,9 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const invoiceKey=JSON.stringify([estimate.id,estimate.invoiceId,estimate.customerId||null]);
   const currentInvoice=useRef(invoiceKey);currentInvoice.current=invoiceKey;
   const loadedInvoiceRevisionCount=useRef<number|null>(null);
+  const loadedOriginalInvoice=useRef<OriginalInvoiceSource|null>(null);
   const [loadError,setLoadError]=useState("");
-  useEffect(()=>{currentInvoice.current=invoiceKey;loadedInvoice.current=null;loadedInvoiceRevisionCount.current=null;setOpen(false);setItems([]);setRateDrafts({});setRevisions([]);setLoadError("");setLoading(false);setUncertain(false);return()=>{loadRequest.current++;loadedInvoice.current=null;if(currentInvoice.current===invoiceKey)currentInvoice.current="";};},[invoiceKey]);
+  useEffect(()=>{currentInvoice.current=invoiceKey;loadedInvoice.current=null;loadedInvoiceRevisionCount.current=null;loadedOriginalInvoice.current=null;setOpen(false);setItems([]);setRateDrafts({});setRevisions([]);setLoadError("");setLoading(false);setUncertain(false);return()=>{loadRequest.current++;loadedInvoice.current=null;if(currentInvoice.current===invoiceKey)currentInvoice.current="";};},[invoiceKey]);
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const invoiceDiscountInputCents=parseDiscountCents(discountValue,discountMode);
   const invoiceDiscountInvalid=invoiceDiscountInputCents===null||(discountMode==="dollar"&&invoiceDiscountInputCents>subtotal);
@@ -2510,26 +2512,31 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0,draftKey:crypto.randomUUID()}]);
   const hydrate=async()=>{
     const request=++loadRequest.current;const key=invoiceKey;
-    loadedInvoice.current=null;loadedInvoiceRevisionCount.current=null;initialInvoiceEditSnapshot.current="";setItems([]);setRateDrafts({});setRevisions([]);setExpandedRevisionId(null);setLoadError("");
+    loadedInvoice.current=null;loadedInvoiceRevisionCount.current=null;loadedOriginalInvoice.current=null;initialInvoiceEditSnapshot.current="";setItems([]);setRateDrafts({});setRevisions([]);setExpandedRevisionId(null);setLoadError("");
     if(!estimate.invoiceId){setLoadError("This job does not have an invoice to edit.");return;}
     setLoading(true);setError("");
     try{
-      const response=await fetch(`/api/invoices/${encodeURIComponent(estimate.invoiceId)}`,{cache:"no-store"});const result=await response.json() as {invoice?:{id?:string;estimateId?:string;customerId?:string;discountType?:DiscountMode;discountValue?:number;dueAt?:string|null;createdAt?:string;revisionCount?:number;items?:EstimateItemRow[];revisions?:InvoiceRevisionRow[]};error?:string};
+      const response=await fetch(`/api/invoices/${encodeURIComponent(estimate.invoiceId)}`,{cache:"no-store"});const result=await response.json() as {invoice?:{id?:string;estimateId?:string;customerId?:string;discountType?:DiscountMode;discountValue?:number;subtotalCents?:number;discountCents?:number;totalCents?:number;storedStatus?:string;dueAt?:string|null;createdAt?:string;revisionCount?:number;items?:EstimateItemRow[];revisions?:InvoiceRevisionRow[]};error?:string};
       if(request!==loadRequest.current||currentInvoice.current!==key)return;
       if(!response.ok||!result?.invoice||result.invoice.id!==estimate.invoiceId||result.invoice.estimateId!==estimate.id||(estimate.customerId&&result.invoice.customerId!==estimate.customerId))throw new Error("Saved invoice identity could not be verified.");
       const source=result.invoice.items;
       const revisionCount=result.invoice.revisionCount;
       if(typeof revisionCount!=="number"||!Number.isSafeInteger(revisionCount)||revisionCount<0)
         throw new Error("Saved invoice revision identity could not be verified.");
-      if(!Array.isArray(source)||!source.length||source.some((item)=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))throw new Error("Saved invoice services could not be verified.");
+      if(!Array.isArray(source)||!source.length||source.some((item)=>!item||typeof item.id!=="string"||!item.id||typeof item.name!=="string"||!item.name.trim()||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))throw new Error("Saved invoice services could not be verified.");
+      const persisted=result.invoice;
+      if(!persisted.customerId||!persisted.storedStatus||!["draft","sent","partial","paid"].includes(persisted.storedStatus)||
+         ![persisted.subtotalCents,persisted.discountCents,persisted.discountValue,persisted.totalCents].every(value=>typeof value==="number"&&Number.isSafeInteger(value)&&value>=0))
+        throw new Error("Saved original invoice totals or status could not be verified.");
+      const exactOriginal:OriginalInvoiceSource={estimateId:estimate.id,customerId:persisted.customerId,subtotalCents:persisted.subtotalCents!,discountCents:persisted.discountCents!,discountType:persisted.discountType==="percent"?"percent":"dollar",discountValue:persisted.discountValue!,totalCents:persisted.totalCents!,dueAt:persisted.dueAt??null,storedStatus:persisted.storedStatus,items:source.map(item=>({id:item.id!,name:item.name,description:item.description??null,quantity:item.quantity,unit:item.unit??null,totalCents:item.totalCents}))};
       const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};});
       setItems(nextItems);
       const mode=result.invoice.discountType==="percent"?"percent":"dollar";setDiscountMode(mode);const stored=Number(result.invoice.discountValue||0);const nextDiscount=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";setDiscountValue(nextDiscount);
       const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);const nextDueMode=!rawDue||(createdDay&&dueDay===createdDay)?"receipt":"date";const nextDueDate=nextDueMode==="receipt"?"":dueDay;setDueMode(nextDueMode);setDueDate(nextDueDate);
       initialInvoiceEditSnapshot.current=JSON.stringify({items:nextItems,rateDrafts:{},discountMode:mode,discountValue:nextDiscount,dueMode:nextDueMode,dueDate:nextDueDate});
       setRevisions((result.invoice.revisions??[]).map((revision)=>({...revision,subtotalCents:Number(revision.subtotalCents||0),totalCents:Number(revision.totalCents||0),discountCents:Number(revision.discountCents||0),discountValue:Number(revision.discountValue||0),discountType:revision.discountType==="percent"?"percent":"dollar",items:Array.isArray(revision.items)?revision.items:[]})));
-      setExpandedRevisionId(null);loadedInvoiceRevisionCount.current=revisionCount;loadedInvoice.current=key;setUncertain(false);setError("");
-    }catch{if(request===loadRequest.current&&currentInvoice.current===key){loadedInvoice.current=null;setItems([]);setLoadError("The saved invoice could not be loaded. Reconnect and try again. No invoice changes were submitted.");}}finally{if(request===loadRequest.current&&currentInvoice.current===key)setLoading(false);}
+      setExpandedRevisionId(null);loadedInvoiceRevisionCount.current=revisionCount;loadedOriginalInvoice.current=exactOriginal;loadedInvoice.current=key;setUncertain(false);setError("");
+    }catch{if(request===loadRequest.current&&currentInvoice.current===key){loadedInvoice.current=null;loadedOriginalInvoice.current=null;setItems([]);setLoadError("The saved invoice could not be loaded. Reconnect and try again. No invoice changes were submitted.");}}finally{if(request===loadRequest.current&&currentInvoice.current===key)setLoading(false);}
   };
   const currentInvoiceEditSnapshot=JSON.stringify({items,rateDrafts,discountMode,discountValue,dueMode,dueDate});
   const invoiceHasUnsavedChanges=Boolean(initialInvoiceEditSnapshot.current&&loadedInvoice.current===invoiceKey&&initialInvoiceEditSnapshot.current!==currentInvoiceEditSnapshot);
@@ -2538,7 +2545,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     if(!value&&(invoiceHasUnsavedChanges||uncertain)&&!window.confirm(uncertain
       ?"The last invoice save may already have committed. Closing discards only these local entries; reopen and check the saved invoice before another edit. Close?"
       :"Discard unsaved invoice changes? The current saved invoice and recorded payments will stay unchanged."))return;
-    if(!value){loadRequest.current++;loadedInvoice.current=null;initialInvoiceEditSnapshot.current="";setLoading(false);}
+    if(!value){loadRequest.current++;loadedInvoice.current=null;loadedOriginalInvoice.current=null;initialInvoiceEditSnapshot.current="";setLoading(false);}
     setOpen(value);if(value)void hydrate();
   };
   const save=async()=>{
@@ -2546,7 +2553,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     if(uncertain){setError("Check the saved invoice from the server before trying another update. No second save was sent.");return;}
     if(!estimate.invoiceId)return;
     if(loadedInvoice.current!==invoiceKey||currentInvoice.current!==invoiceKey||
-       loadedInvoiceRevisionCount.current===null){setError("Load the latest saved invoice before making changes.");return;}
+       loadedInvoiceRevisionCount.current===null||!loadedOriginalInvoice.current){setError("Load the latest saved invoice before making changes.");return;}
     if(invoiceRateInvalid){setError("Correct the highlighted unit price. FIRE accepts whole cents only; no price was rounded or saved.");return;}
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.unitRateCents)||item.unitRateCents<0)){setError("Every invoice service needs a service, quantity, and valid price.");return;}
     if(invoiceDiscountInputCents===null){setError("Enter a valid nonnegative invoice discount with at most two decimals and no more than 50%.");return;}
@@ -2556,7 +2563,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       if(dueMode==="date"&&!dueDate){setError("Choose an invoice due date or select Due on receipt.");setSaving(false);return;}
-      const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:invoiceDiscountInputCents,dueAt:dueMode==="receipt"?"receipt":dueDate,expectedRevisionCount:loadedInvoiceRevisionCount.current})});
+      const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:invoiceDiscountInputCents,dueAt:dueMode==="receipt"?"receipt":dueDate,expectedRevisionCount:loadedInvoiceRevisionCount.current,expectedOriginalInvoice:loadedOriginalInvoice.current})});
       responseStatus=response.status;
       const result=await response.json() as {invoice?:{id?:string;totalCents?:number};error?:string};
       if(currentInvoice.current!==key)return;
