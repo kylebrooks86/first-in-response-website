@@ -64,7 +64,8 @@ const patch=fields=>PATCH(request(fields)),checks=[];
 async function expect(status,fields,label){
  const response=await patch(fields);
  assert.equal(response.status,status,label);
- if(status===503){const payload=await response.json();assert.equal(payload.saveUncertain,true,label+' uncertainty indicator');}
+ if(status===503){const payload=await response.json();assert.equal(payload.saveUncertain,true,label+' uncertainty indicator');
+  assert.equal(payload.staleCustomer,undefined,label+' must not falsely claim a competing owner edit');}
  checks.push(label);return response;
 }
 try{
@@ -151,6 +152,14 @@ try{
  distortReadback=true;
  await expect(503,{address:'Real DB New Address'},'Misleading stale D1 SELECT blocked');
  assert.equal(customer().address,'Real DB New Address');
+ // After an acknowledged real write or lost acknowledgement, a corrupt/stale
+ // SELECT does NOT establish that the previous-value predicate rejected it.
+ // Only a confirmed zero-row UPDATE plus an authoritative different saved
+ // contact may safely report a 409 stale editor conflict.
+ distortReadback=true;
+ throwAfterCommit=true;
+ await expect(503,{name:'Committed With Untrusted Readback'},'Lost write ACK plus misleading D1 readback stays uncertain');
+ assert.equal(customer().name,'Committed With Untrusted Readback');
  const readCount=readbacks;
  throwAfterCommit=true;
  const confirmed=await expect(200,{name:'Confirmed Despite Lost ACK'},'Post-commit lost ACK recovered from actual SQLite');
