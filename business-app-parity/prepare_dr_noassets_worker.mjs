@@ -36,8 +36,8 @@ function collectFiles(root){
    if(stat.isSymbolicLink())stop('symlink source entries are forbidden');
    if(stat.isDirectory()){visit(full);continue;}
    if(!stat.isFile())stop('unexpected file type in source');
-   const name=relative(root,full).replaceAll('\\','/');
-   files.push({name,full,bytes:stat.size});
+   const pathName=relative(root,full).replaceAll('\\','/');
+   files.push({name:pathName,full,bytes:stat.size});
   }
  }
  visit(root);
