@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
-import {requirePinnedDRProviderIdentity,requirePhysicallyEmptyDRSchema,readOnlyWranglerRows,readOnlyPreparedSql,classifyWranglerFailure} from './owner_approved_dr_d1_migration.mjs';
+import {requirePinnedDRProviderIdentity,requirePinnedDRInfo,pinnedDRCloudflareEnv,requirePhysicallyEmptyDRSchema,readOnlyWranglerRows,readOnlyPreparedSql,classifyWranglerFailure} from './owner_approved_dr_d1_migration.mjs';
 import {assertReviewedIndependentD1SqlBlobs,gitSqlBlobSha1,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
  from './reviewed_independent_d1_sql_blobs.mjs';
 
@@ -89,6 +89,45 @@ try{
  ];
  check(requirePinnedDRProviderIdentity(realDR).readOnlyIdentityVerified,
   'remote runner permits only the exact owner-created physical DR with distinct LIVE');
+ // Regression for physical Gate5 blocker: Cloudflare-wide D1 inventory failed
+ // on Acer. Target-specific d1 info is read-only; a forged, swapped, absent,
+ // or same-account mismatch must stop before attempting remote migrations.
+ const info=requirePinnedDRInfo(realDR[0],realDR[1]);
+ check(info.readOnlyIdentityVerified===true&&
+   info.method==='two-independent-d1-info'&&
+   info.uuid===realDR[0].uuid,'two exact per-target info receipts confirm physical DR UUID');
+ for(const pair of [
+  [realDR[1],realDR[0]],
+  [{...realDR[0],uuid:realDR[1].uuid},realDR[1]],
+  [realDR[0],{...realDR[1],uuid:realDR[0].uuid}],
+  [realDR[0],{...realDR[1],name:'fire-fullapp-qa-20261016'}],
+  [null,realDR[1]],
+  [realDR[0],[]],
+  [{name:realDR[0].name},realDR[1]],
+  [realDR[0],{name:realDR[1].name}],
+  [{...realDR[0],uuid:'wrong-account-uuid'},realDR[1]]
+ ]){
+  assert.throws(()=>requirePinnedDRInfo(...pair),/STOP/);
+  checks++;
+ }
+ const ownerEnv=pinnedDRCloudflareEnv({NODE_ENV:'test',WRANGLER_SEND_METRICS:'true'});
+ check(ownerEnv.CLOUDFLARE_ACCOUNT_ID==='bfc00939cfb2f8dfd8581a7a7f5f1307'&&
+    ownerEnv.WRANGLER_SEND_METRICS==='false'&&ownerEnv.NODE_ENV==='test',
+    'D1 source toolpins accepted owner account with metrics disabled');
+ for(const inherited of [
+  {CLOUDFLARE_ACCOUNT_ID:'different-cloudflare-account'},
+  {CF_ACCOUNT_ID:'different-cloudflare-account'}
+ ]){
+  assert.throws(()=>pinnedDRCloudflareEnv(inherited),/STOP/);
+  checks++;
+ }
+ const infoFailure=classifyWranglerFailure({status:1,stderr:'HTTP 401 auth error'},[
+  'd1','info','fire-fullapp-dr-db','--json'
+ ]);
+ check(infoFailure.step==='read-only targeted D1 identity'&&
+       infoFailure.remoteWriteCouldHaveStarted===false&&
+       infoFailure.diagnosticCategories.includes('authentication'),
+   'D1 info auth failure is non-mutating and safely classified');
  for(const altered of [
   realDR.slice(1),
   [{...realDR[0],uuid:realDR[1].uuid},realDR[1]],
