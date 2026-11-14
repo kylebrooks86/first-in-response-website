@@ -1,6 +1,7 @@
 /**
  * Exercise the EXACT independently reviewed FIRE 26-file D1 migration workspace
- * with the real pinned Wrangler CLI on a DISPOSABLE LOCAL D1 only.
+ * with the real pinned Wrangler CLI on two SEPARATELY DISPOSABLE LOCAL D1s.
+ * Exact target argument is required; a DR rehearsal is never a LIVE migration.
  *
  * Security: fixed '--local', separate temporary --persist-to path, no CLI shell,
  * no credentials, no provider network, no --remote option from caller.
@@ -13,13 +14,13 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {DatabaseSync} from 'node:sqlite';
-import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
+import {prepareIndependentD1MigrationWorkspace,REVIEWED_RELEASE_D1_TARGETS} from './prepare_independent_d1_migration_workspace.mjs';
 import {verifySavedIndependentD1MigrationWorkspace} from './verify_saved_independent_d1_migration_workspace.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
 import {inspectNewLiveFirstJobCleanStart} from './shared/lib/new-live-first-job-preflight.mjs';
 
 const fail=message=>{throw Error('FIRE actual Wrangler LOCAL D1 migration rehearsal BLOCKED: '+message);};
-const target='independent-live',database='fire-fullapp-new-live-db';
+const allowedTargets=Object.freeze(['independent-dr','independent-live']);
 function findLocalSqlite(dir){
  const found=[];
  const visit=(folder)=>{
@@ -68,7 +69,9 @@ function adaptSqlite(db){
   };
  }};
 }
-export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary){
+export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary,target){
+ if(!allowedTargets.includes(target))fail('only exact independent-dr or independent-live target is allowed');
+ const database=REVIEWED_RELEASE_D1_TARGETS[target].database_name;
  if(typeof wranglerBinary!=='string'||!wranglerBinary.trim()||
     !existsSync(wranglerBinary)||!lstatSync(wranglerBinary).isFile())
   fail('explicit installed pinned Wrangler CLI file required');
@@ -80,6 +83,8 @@ export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary){
   const check=verifySavedIndependentD1MigrationWorkspace(target,workspace);
   assert.equal(check.savedWorkspaceVerified,true);
   assert.equal(check.remoteMigrationAuthorized,false);
+  assert.equal(check.database_name,database);
+  assert.equal(check.database_id,REVIEWED_RELEASE_D1_TARGETS[target].database_id);
   const config=join(workspace,'wrangler.json');
   const args=[
    resolve(wranglerBinary),'d1','migrations','apply',database,
@@ -105,8 +110,9 @@ export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary){
    const rows=db.prepare('SELECT id,name FROM d1_migrations ORDER BY id').all();
    assert.equal(rows.length,26);
    assert.deepEqual(rows.map(r=>String(r.name)),EXPECTED_NEW_LIVE_D1_MIGRATIONS);
-   // The D1 owner-login/financial/immutable-numbering pre-activation verifier
-   // reads the ACTUAL Wrangler-migrated SQLite, not a hand-crafted mock.
+   // Exercise identical source schema on DR and NEW LIVE. The new-LIVE clean
+   // start verifier runs in a purely local synthetic environment for both;
+   // it does not assert a DR release decision or hosted database inspection.
    const proof=await inspectNewLiveFirstJobCleanStart(adaptSqlite(db),{
     FIRE_ENV:'new-live-prelaunch',
     FIRE_JOB_NUMBERS_CANDIDATE:'owner-approved-schema-v1',
@@ -122,9 +128,11 @@ export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary){
    const integrity=db.prepare('PRAGMA integrity_check').get();
    assert.equal(integrity.integrity_check,'ok');
    return Object.freeze({
+    target,databaseName:database,databaseId:check.database_id,
     migrationCount:rows.length,
     all26ReviewedNames:true,
     immutableNumberingAndFinancialIndexesVerified:true,
+    freshLocalNumberingSimulationOnly:true,
     freshFirstJobNumberExpected:'0001',
     sqliteIntegrity:'ok',
     actualWranglerLocalApply:true,
@@ -138,7 +146,7 @@ export async function rehearseRealWranglerLocalD1Migrations(wranglerBinary){
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
-  if(process.argv.length!==3)fail('usage: node --experimental-sqlite test_real_wrangler_independent_d1_local.mjs INSTALLED_WRANGLER_CLI_JS');
-  console.log(JSON.stringify(await rehearseRealWranglerLocalD1Migrations(process.argv[2])));
+  if(process.argv.length!==4)fail('usage: node --experimental-sqlite test_real_wrangler_independent_d1_local.mjs INSTALLED_WRANGLER_CLI_JS independent-dr|independent-live');
+  console.log(JSON.stringify(await rehearseRealWranglerLocalD1Migrations(process.argv[2],process.argv[3])));
  }catch(error){console.error(error.stack??String(error));process.exitCode=1;}
 }
