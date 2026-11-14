@@ -58,6 +58,11 @@ try{
    'only exact D1/photo/preview/public-route config differences');
  const runtimeRel='server/fire-inline-assets/runtime.mjs';
  const originalRuntime=join(root,runtimeRel),finalRuntime=join(output,runtimeRel);
+ const entryRel='server/fire-noassets-entry.mjs';
+ const priorEntry=join(root,entryRel),finalEntry=join(output,entryRel);
+ ok(readFileSync(finalEntry,'utf8').includes('wrapInertDRWorker(server,manifest,"new-live-prelaunch");')&&
+    sha(priorEntry)!==sha(finalEntry),
+    'NEW LIVE sealed entry must pin new-live-prelaunch rather than accept the other Worker flag');
  ok(sha(finalRuntime)===sha(new URL('./dr_noassets_runtime.mjs',import.meta.url))&&
     sha(finalRuntime)!==sha(originalRuntime),
     'NEW LIVE final sealed package replaces old unsafe runtime with reviewed first-request lock');
@@ -79,12 +84,15 @@ try{
  ok(approvedAsset.status===200&&(await approvedAsset.text())==='synthetic asset',
   'synthetic exact-target approval retains static QA-master assets');
  for(const p of old.paths){
-  if(p==='server/wrangler.json'||p===runtimeRel)continue;
+  if(p==='server/wrangler.json'||p===runtimeRel||p===entryRel)continue;
   assert.equal(sha(join(root,p)),sha(join(output,p)),'changed original app bytes: '+p);
  }
  ok(true,'every other original compiled SSR and binary file byte identical');
  const receipt=JSON.parse(readFileSync(join(output,'new-live-physical-dark-prehost-receipt.json')));
- ok(receipt.originalUnchangedFileCount===240&&receipt.originalUnchangedClientAssets===41&&
+ ok(receipt.originalUnchangedFileCount===239&&receipt.originalUnchangedClientAssets===41&&
+    receipt.originalArchiveEntrySha256===sha(priorEntry)&&
+    receipt.refreshedTargetBoundEntrySha256===sha(finalEntry)&&
+    receipt.immutableExpectedWorkerTarget==='new-live-prelaunch'&&
     receipt.originalArchiveRuntimeSha256===sha(originalRuntime)&&
     receipt.refreshedFirstRequestRuntimeSha256===sha(finalRuntime)&&
     receipt.firstRequestLockCopiedIntoFinalSource===true&&
