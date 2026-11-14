@@ -2,7 +2,7 @@
  * A claimed 26-row migration journal is NOT evidence that refund, Stripe,
  * invoice or one-open-checkout uniqueness actually exists on the bound D1.
  * SELECT-only, deterministic, no network, customer data, payments or writes.
- * Matches the specific reviewed doomsday migrations 0015/0017/0018/0019/0022.
+ * Matches the specific reviewed doomsday migrations 0015/0017/0018/0019/0020/0022.
  */
 const stop=why=>{throw Error('FIRE NEW LIVE financial indexes BLOCKED: '+why);};
 const EXPECTED=Object.freeze({
@@ -19,7 +19,11 @@ const EXPECTED=Object.freeze({
  idx_payments_stripe_provider_unique:
   "CREATE UNIQUE INDEX idx_payments_stripe_provider_unique ON payments(provider_id) WHERE provider_id GLOB 'cs_*' OR provider_id GLOB 'refund:*'",
  idx_payments_unique_refund_provider:
-  "CREATE UNIQUE INDEX idx_payments_unique_refund_provider ON payments(provider_id) WHERE provider_id LIKE 'refund:%'"
+  "CREATE UNIQUE INDEX idx_payments_unique_refund_provider ON payments(provider_id) WHERE provider_id LIKE 'refund:%'",
+ // 0020's lifecycle uniqueness matters to estimate/invoice notifications.
+ // A same-named non-unique replacement must not pass first-use release.
+ idx_notifications_unique_lifecycle:
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_unique_lifecycle ON notifications(type,estimate_id) WHERE estimate_id IS NOT NULL AND type IN ('estimate_viewed','invoice_viewed','estimate_accepted')"
 });
 export const REQUIRED_NEW_LIVE_FINANCIAL_INDEX_NAMES=Object.freeze(Object.keys(EXPECTED));
 const canonical=sql=>{
@@ -40,16 +44,16 @@ export async function verifyNewLiveFinancialIndexes(db){
  if(!statement||typeof statement.all!=='function')stop('D1 index inventory reader missing');
  const response=await statement.all();
  if(!response||!Array.isArray(response.results)||response.results.length!==names.length)
-  stop('missing refund, payment, checkout or invoice indexes');
+  stop('missing refund, payment, checkout, invoice or lifecycle notification indexes');
  const found=new Set();
  for(const row of response.results){
   if(!row||typeof row!=='object'||Array.isArray(row)||
      typeof row.name!=='string'||!Object.hasOwn(expected,row.name)||
      found.has(row.name))
-   stop('unexpected or duplicate financial index metadata');
+   stop('unexpected or duplicate protected index metadata');
   found.add(row.name);
   if(canonical(row.sql)!==expected[row.name])
-   stop('physical unique/partial financial index SQL differs from reviewed migration');
+   stop('physical protected unique/partial index SQL differs from reviewed migration');
  }
  if(found.size!==names.length)stop('financial index inventory incomplete');
  return true;
