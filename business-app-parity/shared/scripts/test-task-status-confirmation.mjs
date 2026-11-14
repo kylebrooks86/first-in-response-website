@@ -17,7 +17,9 @@ const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){ret
   if(sql.startsWith('UPDATE tasks SET status=')){
    const mode=toggleBehavior;toggleBehavior='normal';
    if(mode==='no-write')return {meta:{changes:0}};
+   if(mode==='prewrite-fail')throw Error('Synthetic D1 task write failed before commit');
    const changed=Number(stmt.run(...args).changes);
+   if(mode==='commit-lost')throw Error('Synthetic committed task status, but response lost');
    if(mode==='false-ack')return {success:false,meta:{changes:changed}};
    if(mode==='zero-ack')return {meta:{changes:0}};
    return {meta:{changes:changed}};
@@ -224,6 +226,33 @@ eq(state().status,'open','Bad requests preserve saved status');
  eq(normal.data.id,id,'Normal status toggle identifies saved task ID');
  eq(normal.data.completedAt,state().completedAt,'Normal success echoes actual persisted timestamp');
 }
+// D1 can commit the exact task STATUS update and lose its transport ACK.
+// This executes the ACTUAL route and SQLite UPDATE with no second mutation.
+{
+ const startOpen=()=>db.prepare("UPDATE tasks SET status='open',completed_at=NULL WHERE id=?").run(id);
+ startOpen();
+ toggleBehavior='commit-lost';
+ const completed=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(completed.status,200,'Committed completion with lost ACK returns recovered readback');
+ eq(completed.data.recoveredAfterUncertainWrite,true,'Response distinguishes confirmed saved state from the lost transport ACK');
+ eq(completed.data.completedAt,state().completedAt,'Recovered completion returns exact persisted SQLite timestamp');
+ const originalTimestamp=state().completedAt;
+ const replay=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(replay.status,200,'Replaying already completed task is safe after lost ACK');
+ eq(state().completedAt,originalTimestamp,'Replay never changes completion history');
+ toggleBehavior='commit-lost';
+ const reopened=await patch({id,status:'open',expectedStatus:'completed'});
+ eq(reopened.status,200,'Committed reopening with lost ACK returns the saved open state');
+ eq(reopened.data.recoveredAfterUncertainWrite,true,'Reopened status identifies the uncertain transport');
+ eq(state().status,'open','Reopen state is physically saved without retry');
+ eq(state().completedAt,null,'Reopening clears historical completion timestamp once');
+ toggleBehavior='prewrite-fail';
+ const blocked=await patch({id,status:'completed',expectedStatus:'open'});
+ eq(blocked.status,503,'Failed-before-commit status update refuses a false success');
+ eq(blocked.data.saveUncertain,true,'Failed-before-commit route requests read-only refresh');
+ eq(state().status,'open','Failed-before-commit leaves task open without a phantom completion');
+}
+
 // A redundant completion request must not overwrite the historical completion timestamp.
 {
  const fixed='2025-01-02T03:04:05.000Z';
