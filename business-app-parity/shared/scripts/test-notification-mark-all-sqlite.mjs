@@ -98,9 +98,98 @@ try{
  rt.env.DB.prepare=function(sql){if(sql.includes('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))throw Error('Synthetic SQLite unavailable');return originalPrepare(sql);};
  put(5);
  const failure=await patch({all:true});
- check(failure.status===500&&rows().find(x=>x.id===id(5)).read_at===null,
-   'Failed storage update never returns false success or clears unread');
+ check(failure.status===503&&failure.data.saveUncertain===true&&
+       rows().find(x=>x.id===id(5)).read_at===null,
+   'Failed storage update returns actionable uncertainty and never clears unread falsely');
  rt.env.DB.prepare=originalPrepare;
+
+ // Test real SQLite COMMIT followed by a deliberately lost transport ACK.
+ // The route must recover from a SECOND SELECT and must not write again.
+ put(9);
+ let savedReadAllWrites=0;
+ rt.env.DB.prepare=function(sql){
+   const prepared=originalPrepare(sql);
+   if(!sql.startsWith('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))return prepared;
+   return {bind(...args){
+     const q=prepared.bind(...args);
+     return {run:async()=>{
+       savedReadAllWrites++;
+       await q.run();
+       throw Error('Synthetic lost ACK after committed Mark All');
+     }};
+   }};
+ };
+ const allLost=await patch({all:true});
+ rt.env.DB.prepare=originalPrepare;
+ check(allLost.status===200&&allLost.data.ok===true&&allLost.data.unread===0&&
+       savedReadAllWrites===1&&rows().every(x=>x.read_at!==null),
+   'After committed mark-all loses its reply, a physical unread SELECT confirms all read without another write');
+
+ // A successful-looking UPDATE ACK with no actual SQLite write must NOT
+ // clear activity or report Mark All succeeded.
+ put(10);
+ rt.env.DB.prepare=function(sql){
+   if(sql.startsWith('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))
+     return {bind:()=>({run:async()=>({success:true,meta:{changes:1}})})};
+   return originalPrepare(sql);
+ };
+ const fakeAll=await patch({all:true});
+ rt.env.DB.prepare=originalPrepare;
+ check(fakeAll.status===503&&fakeAll.data.saveUncertain===true&&
+       rows().find(x=>x.id===id(10)).read_at===null,
+   'Fabricated successful Mark All receipt cannot hide an unread row');
+
+ // A single notification read/resolve may commit then lose the RETURNING
+ // acknowledgement; recover each via the exact saved SQLite row instead.
+ let readAckLostWrites=0;
+ rt.env.DB.prepare=function(sql){
+   const prepared=originalPrepare(sql);
+   if(!sql.startsWith('UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? RETURNING'))return prepared;
+   return {bind(...args){
+     const q=prepared.bind(...args);
+     return {first:async()=>{
+       readAckLostWrites++;
+       await q.first();
+       throw Error('Synthetic lost ACK after committed individual read');
+     }};
+   }};
+ };
+ const singleLost=await patch({id:id(10)});
+ rt.env.DB.prepare=originalPrepare;
+ check(singleLost.status===200&&Boolean(singleLost.data.readAt)&&readAckLostWrites===1&&
+       rows().find(x=>x.id===id(10)).read_at===singleLost.data.readAt,
+   'Committed individual read recovers from lost ACK with exactly one persisted read state');
+
+ put(11);
+ let resolveAckLostWrites=0;
+ rt.env.DB.prepare=function(sql){
+   const prepared=originalPrepare(sql);
+   if(!sql.startsWith('UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?)'))return prepared;
+   return {bind(...args){
+     const q=prepared.bind(...args);
+     return {first:async()=>{
+       resolveAckLostWrites++;
+       await q.first();
+       throw Error('Synthetic lost ACK after committed notification resolve');
+     }};
+   }};
+ };
+ const resolveLost=await patch({id:id(11),resolve:true});
+ rt.env.DB.prepare=originalPrepare;
+ const savedResolve=rows().find(x=>x.id===id(11));
+ check(resolveLost.status===200&&resolveLost.data.resolvedAt===savedResolve.resolved_at&&
+       resolveLost.data.readAt===savedResolve.read_at&&resolveAckLostWrites===1,
+   'Committed notification resolution recovers only its stored read/resolved times after lost ACK');
+
+ // An entirely malformed payload must be rejected before the owner route
+ // touches D1, not returned as an opaque 500 by JSON parsing.
+ for(const body of ['null','[]','"not a notification action"','{invalid']){
+   const resp=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+     method:'PATCH',headers:{'content-type':'application/json'},body
+   }));
+   check(resp.status===400,'Malformed action '+body+' returns 400, no write');
+ }
+
  const recovered=await read();
  const remainingUnread=rows().filter(row=>row.read_at===null).length;
  check(recovered.status===200&&remainingUnread===3&&recovered.data.unread===remainingUnread,
