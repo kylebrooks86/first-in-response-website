@@ -86,8 +86,10 @@ try{
   v.workerDeployed=true;writeFileSync(p,JSON.stringify(v));
  });
  tamper('tampered-client-binary',s=>{
-  const a=JSON.parse(readFileSync(join(s,'alternative-receipt.json'))).clientAssets[0];
-  writeFileSync(join(s,'server',a.module),'WRONG BYTES');
+  const folder=join(s,'server','fire-inline-assets');
+  const bin=readdirSync(folder).find(name=>name.endsWith('.bin'));
+  assert.ok(bin,'real source must contain embedded QA-master asset bytes');
+  writeFileSync(join(folder,bin),'WRONG BYTES');
  });
  console.log('PASS '+count+'/'+count+
   ' exact PR268 archive -> first-create-no-public-route QA-master source;'+
