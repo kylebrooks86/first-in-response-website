@@ -256,7 +256,7 @@ eq(state().status,'open','Bad requests preserve saved status');
 // A redundant completion request must not overwrite the historical completion timestamp.
 {
  const fixed='2025-01-02T03:04:05.000Z';
- db.prepare('UPDATE tasks SET completed_at=? WHERE id=?').run(fixed,id);
+ db.prepare("UPDATE tasks SET status='completed',completed_at=? WHERE id=?").run(fixed,id);
  const already=await patch({id,status:'completed',expectedStatus:'completed'});
  eq(already.status,200,'Already-completed compare-and-swap is safely acknowledged');
  eq(already.data.completedAt,fixed,'Already-completed request echoes original completion time');
