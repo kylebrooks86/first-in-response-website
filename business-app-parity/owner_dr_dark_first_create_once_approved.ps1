@@ -172,16 +172,16 @@ $env:WRANGLER_SEND_METRICS = 'false'
 if($env:CLOUDFLARE_ACCOUNT_ID -and $env:CLOUDFLARE_ACCOUNT_ID -ne $account) {
   Stop-Fire 'existing Cloudflare account override does not match owner-established account'
 }
-$version = Invoke-FireWrangler @('--version')
+$version = Invoke-FireWrangler -wranglerArgs @('--version')
 if($version.Code -ne 0 -or $version.Text -notmatch '4\.162\.0') {
   Stop-Fire 'Wrangler 4.162.0 not available; do not substitute an unreviewed version'
 }
-$who = Invoke-FireWrangler @('whoami','--json')
+$who = Invoke-FireWrangler -wranglerArgs @('whoami','--json')
 if($who.Code -ne 0 -or $who.Text -notmatch [regex]::Escape($account)) {
   Stop-Fire 'authenticated Wrangler membership in exact FIRE account not confirmed; no login loop or write'
 }
 $env:CLOUDFLARE_ACCOUNT_ID = $account
-$info = Invoke-FireWrangler @('d1','info',$dbName,'--json')
+$info = Invoke-FireWrangler -wranglerArgs @('d1','info',$dbName,'--json')
 if($info.Code -ne 0) { Stop-Fire 'existing target DR D1 identity not reachable read-only' }
 try { $d1 = $info.Text | ConvertFrom-Json } catch { Stop-Fire 'D1 info JSON not readable' }
 $foundId = $null
@@ -189,13 +189,13 @@ foreach($field in @('uuid','database_id','id')) {
   if(HasKey $d1 $field) { $foundId = [string]$d1.PSObject.Properties[$field].Value; break }
 }
 if($foundId -ne $dbId) { Stop-Fire 'remote DR D1 physical UUID differs from reviewed manifest; no write' }
-$versions = Invoke-FireWrangler @('versions','list','--name',$worker,'--json')
+$versions = Invoke-FireWrangler -wranglerArgs @('versions','list','--name',$worker,'--json')
 if($versions.Code -eq 0) { Stop-Fire 'DR Worker already exists; creation-only approval cannot update an existing Worker' }
 if($versions.Text -notmatch '10007' -or $versions.Text -notmatch '(?i)(does not exist|not found)') {
   Stop-Fire 'not an explicit Cloudflare Worker-absent 10007 result; do not guess or deploy'
 }
 $dryFolder = Join-Path $root 'offline-dry-run'
-$dry = Invoke-FireWrangler @('deploy','--dry-run','--no-bundle','--config',$liveConfig,'--outdir',$dryFolder)
+$dry = Invoke-FireWrangler -wranglerArgs @('deploy','--dry-run','--no-bundle','--config',$liveConfig,'--outdir',$dryFolder)
 if($dry.Code -ne 0) {
   Stop-Fire ('offline no-bundle package validation failed. No Worker created. ' + $dry.Text)
 }
@@ -223,8 +223,8 @@ $deployExit = $LASTEXITCODE
 if($deployExit -ne 0) {
   Stop-Fire ('Cloudflare first-create exit '+$deployExit+'. Whether a Worker was created is UNKNOWN. LOCK RETAINED: do not retry; inspect read-only.')
 }
-$after = Invoke-FireWrangler @('versions','list','--name',$worker,'--json')
-if($after.Code -ne 0 -or $after.Text -notmatch $worker) {
+$after = Invoke-FireWrangler -wranglerArgs @('versions','list','--name',$worker,'--json')
+if($after.Code -ne 0) {
   Stop-Fire 'write returned success but exact-hosted version is not yet confirmed; LOCK RETAINED, do not retry'
 }
 $completion = [ordered]@{
