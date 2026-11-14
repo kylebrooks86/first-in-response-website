@@ -28,7 +28,12 @@ const EXPECTED=Object.freeze({
 export const REQUIRED_NEW_LIVE_FINANCIAL_INDEX_NAMES=Object.freeze(Object.keys(EXPECTED));
 const canonical=sql=>{
  if(typeof sql!=='string'||sql.length>4096||!sql.trim())stop('missing or oversized index SQL');
+ // SQLite sqlite_master.sql intentionally strips "IF NOT EXISTS" from
+ // stored CREATE INDEX DDL, even when approved migration 0020 used it.
+ // That clause changes only install behavior; never erase UNIQUE, the
+ // indexed columns, partial WHERE clause or the index's identity.
  return sql.trim().replace(/;+\s*$/,'').replace(/[`"]/g,'')
+  .replace(/\bif\s+not\s+exists\s+/gi,'')
   .replace(/\s+/g,' ').replace(/\s*\(\s*/g,'(')
   .replace(/\s*\)\s*/g,')').replace(/\s*,\s*/g,',')
   .replace(/\s*=\s*/g,'=').toLowerCase();
