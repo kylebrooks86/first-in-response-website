@@ -71,7 +71,7 @@ try{
     'new private DR source must contain current guarded runtime, never the old PR268 adapter');
  const protectedWorker=(await import(pathToFileURL(finalRuntime).href)).wrapInertDRWorker({
   fetch(){throw Error('locked DR SSR must never execute');}
- },{'/favicon.svg':{data:new TextEncoder().encode('synthetic asset'),type:'image/svg+xml'}});
+ },{'/favicon.svg':{data:new TextEncoder().encode('synthetic asset'),type:'image/svg+xml'}},'isolated-dr');
  for(const e of [
   {FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'blocked'},
   {FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'},
