@@ -187,3 +187,9 @@ try{
 
  console.log('PASS '+checks+'/'+checks+': immutable estimate UUIDs, safe numbered Job # save/replay/recovery, no-ID refusal, discounts, deposit and legacy compatibility.');
 }finally{db.close();}
+
+// The same staging suite already runs this source-only entrypoint. Verify
+// changed real quote-editor SQL and owner handler, not merely the CREATE path.
+// Separate disposable SQLite connections; no hosted D1, Cloudflare or Stripe.
+await import('./test-estimate-edit-confirmed-lines-sqlite.mjs');
+await import('./test-estimate-editor-uncertain-save.mjs');
