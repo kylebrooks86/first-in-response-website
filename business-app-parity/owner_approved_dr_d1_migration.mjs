@@ -25,7 +25,10 @@ const LIVE=REVIEWED_RELEASE_D1_TARGETS['independent-live'];
 // Keep DR/LIVE inventory in the SAME approved account; never select default.
 const FIRE_CF_ACCOUNT_ID='bfc00939cfb2f8dfd8581a7a7f5f1307';
 const OUT=join(homedir(),'FIRE-DR-APPROVED-MIGRATION-20261113');
-const WORK=join(OUT,'pinned-26-migrations');
+// Keep the previous Acer's source-mismatch workspace untouched as evidence.
+ // Use a NEW isolated, canonical-LF verified 26-file directory. Never repair
+ // or overwrite any previous attempt artifact in-place.
+const WORK=join(OUT,'pinned-26-migrations-canonical-v2');
 const LOCK=join(OUT,'remote-one-shot-attempt.json');
 const RECEIPT=join(OUT,'dr-physical-schema-receipt.json');
 const stop=why=>{throw Error('FIRE DR Gate5 STOP: '+why);};
