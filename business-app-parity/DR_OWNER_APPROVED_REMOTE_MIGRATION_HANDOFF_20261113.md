@@ -139,3 +139,31 @@ Corrected, self-contained owner PowerShell. This single scriptblock aborts BEFOR
 CRITICAL: Even if some lines are pasted separately, the enclosing `& { ... }` forces fail-fast execution as one PowerShell statement. The runner independently checks the existing physical DR UUID, separate NEW LIVE UUID, truly empty DR schema, 26 reviewed SQL blob IDs, and one-shot attempt receipt. A physical D1 schema mutation is *not* authorized on any other target. If the runner reaches migration apply and returns an uncertain result, do not rerun this block. Report the safe error line without secrets.
 
 State: physical DR 26 migration still PENDING as of third screenshot. No Git source edits, no accepted QA retests, no hosted Worker/Stripe/R2/paid Cloudflare actions. 4/10 gates accepted, NEW LIVE NO-GO.
+
+## Fourth accepted Acer screenshot — Wrangler installed; remote READ-ONLY `d1 list` STOPPED
+
+Screenshot accepted November 13: `npm.cmd` successfully installed pinned Wrangler 4.92.0 locally, and the reviewed owner-approved runner started. It then printed `FIRE DR Gate5 STOP: Wrangler d1 list --json stopped or result is uncertain; do not retry a remote write`. Inspection of actual pinned runner source proves `d1 list --json --config` is a read-only provider inventory request executed BEFORE its physical empty-schema SELECT, BEFORE creating the one-shot remote migration attempt lock, and BEFORE `d1 migrations apply`. Thus NO DR remote schema migration was executed. This is a new provider inventory/auth/CLI blocker, NOT the previous missing Wrangler installation issue. The runner's `stdio:'pipe'` suppresses the underlying Wrangler stderr on nonzero exit; this screenshot does not establish why `d1 list` failed. DO NOT infer an auth cause, do not initiate Cloudflare Work browser re-login, do not run the broad migration block again and do not ask owner for previously provided screenshots.
+
+**Next step: local-only Wrangler existing log classification, no account login, no new provider call.** Wrangler writes debug logs under `.config/.wrangler/logs` by default; search both Windows profile and AppData paths. This block prints only non-sensitive yes/no error *categories*, never the raw log, full account ID, or secrets.
+
+    & {
+      $roots = @(
+        (Join-Path $env:USERPROFILE '.config\.wrangler\logs'),
+        (Join-Path $env:APPDATA '.config\.wrangler\logs'),
+        (Join-Path $env:LOCALAPPDATA '.config\.wrangler\logs'),
+        (Join-Path $env:USERPROFILE '.wrangler\logs')
+      )
+      $logs = @($roots | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-ChildItem -LiteralPath $_ -Filter 'wrangler-*.log' -File -ErrorAction SilentlyContinue })
+      $last = $logs | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      if (!$last) { Write-Host 'Wrangler log not found in standard locations. No remote operation attempted.'; return }
+      $text = Get-Content -LiteralPath $last.FullName -Raw
+      Write-Host ('Latest saved log timestamp: ' + $last.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))
+      Write-Host ('Missing/expired login indication: ' + [bool]($text -match 'not logged in|not authenticated|login required|authentication expired|authorization required|no authentication|unable to authenticate'))
+      Write-Host ('Account selection/ID indication: ' + [bool]($text -match 'account.id|account_id|multiple accounts|account selection'))
+      Write-Host ('Permission/forbidden indication: ' + [bool]($text -match 'forbidden|permission denied|insufficient permissions|unauthorized|error\s*(10000|403)'))
+      Write-Host ('Connectivity/TLS indication: ' + [bool]($text -match 'ECONNRESET|ENOTFOUND|ETIMEDOUT|fetch failed|certificate|TLS'))
+      Write-Host ('Invalid argument/config indication: ' + [bool]($text -match 'unknown argument|unexpected argument|invalid config|invalid argument|missing required argument'))
+      Write-Host 'No full log or authentication tokens were printed.'
+    }
+
+The safe categories are triage hints only. A boolean `True` does not prove the error pertains to the latest `d1 list` request if log is mixed. If no log exists, do not retry the failed network command by default. Existing owner provider screenshots/UUIDs remain accepted historical evidence, but freshness of D1 authentication remains unproven. DR migration pending, 4/10 accepted, NEW LIVE NO-GO.
