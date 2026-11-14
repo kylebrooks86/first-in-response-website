@@ -41,6 +41,77 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if(Array.isArray(body.items)){
       if(existing.signedAt||existing.acceptedAt||["approved","scheduled","completed"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
         return Response.json({error:"This estimate is already approved or financially active. Keep the accepted estimate unchanged and make any final service or price changes on the invoice."},{status:409});
+
+      // Current QA owner quote editors submit the exact persisted source they
+      // opened. Reject an outdated editor BEFORE prices or service lines change.
+      // A preflight check is useful for 409, but the first statement of the
+      // atomic D1 batch is the authoritative concurrent-write guard.
+      if(body.expectedSaved!==undefined){
+        const raw=body.expectedSaved;
+        const source=raw as Record<string,any>;
+        const fields=['status','subtotalCents','discountCents','totalCents','depositCents',
+          'appreciationDiscount','additionalDiscountType','additionalDiscountValue','items'];
+        const money=['subtotalCents','discountCents','totalCents','depositCents',
+          'appreciationDiscount','additionalDiscountValue'];
+        const sourceLines=source?.items;
+        if(!raw||typeof raw!=='object'||Array.isArray(raw)||
+          Object.keys(source).sort().join('|')!==[...fields].sort().join('|')||
+          typeof source.status!=='string'||typeof source.additionalDiscountType!=='string'||
+          money.some(key=>typeof source[key]!=='number'||!Number.isSafeInteger(source[key])||source[key]<0)||
+          !Array.isArray(sourceLines)||sourceLines.length<1||sourceLines.length>50||
+          sourceLines.some(line=>!line||typeof line!=='object'||Array.isArray(line)||
+            Object.keys(line).sort().join('|')!==['id','name','description','quantity','unit','totalCents'].sort().join('|')||
+            ['id','name','description','unit'].some(key=>typeof line[key]!=='string')||
+            !line.id||!line.name||!line.unit||line.id.length>128||line.description.length>5000||
+            typeof line.quantity!=='number'||!Number.isFinite(line.quantity)||line.quantity<=0||
+            typeof line.totalCents!=='number'||!Number.isSafeInteger(line.totalCents)||line.totalCents<0)||
+          new Set(sourceLines.map(line=>line.id)).size!==sourceLines.length)
+          return Response.json({error:'Original saved quote details are invalid. Reopen the estimate before editing.'},
+            {status:400,headers:{'Cache-Control':'no-store, private'}});
+        const initial=source as {
+          status:string;subtotalCents:number;discountCents:number;totalCents:number;depositCents:number;
+          appreciationDiscount:number;additionalDiscountType:string;additionalDiscountValue:number;
+          items:Required<EditItem>[];
+        };
+        const priorLines=await env.DB.prepare("SELECT id,name,COALESCE(description,'') AS description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC")
+          .bind(id).all<Required<EditItem>>();
+        const sameHeader=initial.status===existing.status&&
+          initial.subtotalCents===Number(existing.subtotalCents)&&
+          initial.discountCents===Number(existing.discountCents)&&
+          initial.totalCents===Number(existing.totalCents)&&
+          initial.depositCents===Number(existing.depositCents)&&
+          initial.appreciationDiscount===Number(existing.appreciationDiscount)&&
+          initial.additionalDiscountType===existing.additionalDiscountType&&
+          initial.additionalDiscountValue===Number(existing.additionalDiscountValue);
+        const sameLine=(line:Required<EditItem>,i:number)=>{
+          const saved=priorLines.results[i];
+          return Boolean(saved&&saved.id===line.id&&saved.name===line.name&&
+            saved.description===line.description&&Number(saved.quantity)===line.quantity&&
+            saved.unit===line.unit&&Number(saved.totalCents)===line.totalCents);
+        };
+        if(!sameHeader||priorLines.results.length!==initial.items.length||!initial.items.every(sameLine))
+          return Response.json({error:'This quote changed in another tab. Your earlier version was not saved. Keep your entries and reopen the latest quote before editing.',staleEstimate:true},
+            {status:409,headers:{'Cache-Control':'no-store, private'}});
+        // SQL's existing NOT NULL total_cents constraint ABORTS the batch if
+        // any original persisted field or original line changed between
+        // preflight and write. This update is a no-op when the guard succeeds.
+        // D1.batch rolls back on the constraint error, before DELETE/INSERT.
+        const linePredicates=initial.items.map(()=>" (id=? AND name=? AND COALESCE(description,'')=? AND quantity=? AND unit=? AND total_cents=?) ").join(' OR ');
+        const sourceParams=initial.items.flatMap(line=>[line.id,line.name,line.description,line.quantity,line.unit,line.totalCents]);
+        statements.push(env.DB.prepare(`UPDATE estimates SET total_cents=CASE WHEN
+          status=? AND subtotal_cents=? AND discount_cents=? AND total_cents=?
+          AND deposit_cents=? AND appreciation_discount=? AND additional_discount_type=?
+          AND additional_discount_value=? AND accepted_at IS NULL AND signed_at IS NULL
+          AND status NOT IN ('approved','scheduled','completed')
+          AND NOT EXISTS(SELECT 1 FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund'))
+          AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=?)
+          AND (SELECT COUNT(*) FROM estimate_items WHERE estimate_id=?)=?
+          AND (SELECT COUNT(*) FROM estimate_items WHERE estimate_id=? AND (${linePredicates}))=?
+          THEN total_cents ELSE NULL END WHERE id=?`)
+          .bind(initial.status,initial.subtotalCents,initial.discountCents,initial.totalCents,
+            initial.depositCents,initial.appreciationDiscount,initial.additionalDiscountType,
+            initial.additionalDiscountValue,id,id,id,initial.items.length,id,...sourceParams,initial.items.length,id));
+      }
       if(Object.prototype.hasOwnProperty.call(body,'promotionEvidence'))return Response.json({error:'Automatic promotion attribution is available on new estimates only. Refresh saved terms and explicitly review draft repricing.'},{status:409});
       const savedDiscount=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+id).first<{body:string}>();
       try{verifiedSavedDiscounts(id,savedDiscount?.body??null,existing);}catch{return Response.json({error:'Saved discount breakdown requires review. Refresh before editing.'},{status:409});}
