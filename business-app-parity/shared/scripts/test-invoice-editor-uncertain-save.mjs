@@ -132,29 +132,50 @@ const paid=api.match(/const actualPaid = `([\s\S]*?)`;/)?.[1];
 const versionMatch=api.match(/" AND \(SELECT COUNT\(\*\) FROM invoice_revisions version WHERE version.invoice_id=guard.id\)=\?"/)?.[0];
 const gate=api.match(/const revisionGate = env\.DB\.prepare\(`([\s\S]*?)`\)\s*\.bind\(/)?.[1];
 assert.ok(paid&&versionMatch&&gate,'Actual versioned D1 batch revision INSERT source is required');
-const sql=gate.replaceAll('${actualPaid}',paid).replace('${revisionVersionGuard}',JSON.parse(versionMatch));
+const original=normalizeOriginalInvoiceSnapshot({estimateId:'estimate-one',customerId:'customer-one',subtotalCents:10000,discountCents:0,discountType:'dollar',discountValue:0,totalCents:10000,dueAt:null,storedStatus:'sent',items:[{id:'line-one',name:'Synthetic wash',description:'Original job scope',quantity:1,unit:'job',totalCents:10000}]});
+assert.ok(original,'Saved original invoice fixture is valid');
+const source=invoiceOriginalSQLGuard(original);
+const sql=gate.replaceAll('${actualPaid}',paid).replace('${originalGuard.sql}',source.sql).replace('${revisionVersionGuard}',JSON.parse(versionMatch));
 assert.ok(!sql.includes('${'),'No unbound template values in actual revision gate SQL');
 const db=new DatabaseSync(':memory:');
 try{
  db.exec(`CREATE TABLE estimates(id TEXT PRIMARY KEY, customer_id TEXT);
- CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT);
+ CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT,subtotal_cents INTEGER,discount_cents INTEGER,discount_type TEXT,discount_value INTEGER,total_cents INTEGER,due_at TEXT,status TEXT);
+ CREATE TABLE invoice_items(id TEXT PRIMARY KEY,invoice_id TEXT,name TEXT,description TEXT,quantity REAL,unit TEXT,total_cents INTEGER);
  CREATE TABLE payments(estimate_id TEXT,status TEXT,type TEXT,amount_cents INTEGER);
  CREATE TABLE payment_refunds(estimate_id TEXT,status TEXT);
  CREATE TABLE invoice_revisions(id TEXT PRIMARY KEY,invoice_id TEXT,subtotal_cents INTEGER,discount_cents INTEGER,discount_type TEXT,discount_value INTEGER,total_cents INTEGER,due_at TEXT,status TEXT,items_json TEXT,created_at TEXT);
  INSERT INTO estimates VALUES('estimate-one','customer-one');
- INSERT INTO invoices VALUES('invoice-one','estimate-one','customer-one');`);
+ INSERT INTO invoices VALUES('invoice-one','estimate-one','customer-one',10000,0,'dollar',0,10000,NULL,'sent');
+ INSERT INTO invoice_items VALUES('line-one','invoice-one','Synthetic wash','Original job scope',1,'job',10000);`);
  const insert=db.prepare(sql);
  const save=(version,id)=>insert.run(id,'invoice-one',10000,0,'dollar',0,10000,null,'sent','[]',
-   '2026-11-14T18:00:00.000Z','invoice-one',0,15000,version).changes;
+   '2026-11-14T18:00:00.000Z','invoice-one',0,15000,...source.args,version).changes;
  eq(save(0,'first-edit'),1,'First version-0 editor revision is permitted');
  eq(save(0,'stale-tab'),0,'Competing stale version-0 owner tab is refused by REAL SQL');
  eq(db.prepare('SELECT COUNT(*) AS count FROM invoice_revisions').get().count,1,'Stale edit created no second revision');
  eq(save(1,'newly-loaded'),1,'Refreshed owner version-1 editor may create next revision');
+ eq(matchesOriginalInvoiceSnapshot(db.prepare('SELECT estimate_id AS estimateId,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices').get(),
+    db.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items').all(),original),true,
+    'Original stored invoice header and lines match the frozen owner snapshot');
+ db.exec("UPDATE invoice_items SET description='Changed in other tab' WHERE id='line-one'");
+ eq(save(2,'changed-line-no-revision'),0,'Old owner tab cannot overwrite changed service description with no revision');
+ db.exec("UPDATE invoice_items SET description='Original job scope' WHERE id='line-one'");
+ db.exec("UPDATE invoices SET due_at='2026-11-15T12:00:00Z'");
+ eq(save(2,'changed-date-no-revision'),0,'Old owner tab cannot replace changed due date with no revision');
+ db.exec('UPDATE invoices SET due_at=NULL');
+ db.exec("UPDATE invoices SET status='paid'");
+ eq(save(2,'changed-status-no-revision'),0,'Payment status change without revision blocks stale invoice save');
+ db.exec("UPDATE invoices SET status='sent'");
+ db.exec("INSERT INTO invoice_items VALUES('line-extra','invoice-one','Extra service','Later added',1,'job',500)");
+ eq(save(2,'extra-service-no-revision'),0,'Added service without revision blocks stale edit');
+ db.exec("DELETE FROM invoice_items WHERE id='line-extra'");
+ eq(save(2,'refreshed-original'),1,'Exact source can save again after deliberate review');
  db.exec("INSERT INTO payments VALUES('estimate-one','paid','deposit',16000)");
- eq(save(2,'paid-race'),0,'New payment blocks concurrent invoice revision even with fresh version');
+ eq(save(3,'paid-race'),0,'New payment blocks concurrent invoice revision even with fresh version');
  db.exec("DELETE FROM payments; INSERT INTO payment_refunds VALUES('estimate-one','pending')");
- eq(save(2,'refund-pending'),0,'Pending refund blocks invoice revision irrespective of version');
+ eq(save(3,'refund-pending'),0,'Pending refund blocks invoice revision irrespective of version');
  db.exec("DELETE FROM payment_refunds; UPDATE invoices SET customer_id='other-homeowner'");
- eq(save(2,'foreign-customer'),0,'Cross-customer invoice ownership cannot pass revision insert');
+ eq(save(3,'foreign-customer'),0,'Cross-customer invoice ownership cannot pass revision insert');
 }finally{db.close();}
 console.log('PASS '+checks+'/'+checks+': actual invoice editor version handoff + transactional SQLite CAS, no real invoice, provider, checkout or Stripe calls.');
