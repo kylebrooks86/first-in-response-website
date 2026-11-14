@@ -7,7 +7,7 @@ import {join} from 'node:path';
 import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
 import {requirePinnedDRProviderIdentity,requirePinnedDRInfo,pinnedDRCloudflareEnv,requirePhysicallyEmptyDRSchema,readOnlyWranglerRows,readOnlyPreparedSql,classifyWranglerFailure} from './owner_approved_dr_d1_migration.mjs';
-import {assertReviewedIndependentD1SqlBlobs,gitSqlBlobSha1,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
+import {assertReviewedIndependentD1SqlBlobs,canonicalReviewedSqlBytes,gitSqlBlobSha1,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
  from './reviewed_independent_d1_sql_blobs.mjs';
 
 const temp=mkdtempSync(join(tmpdir(),'fire-independent-d1-migrations-'));
@@ -43,6 +43,31 @@ try{
   const actual=names.map(name=>({name,bytes:readFileSync(join(out,'migrations',name))}));
   check(assertReviewedIndependentD1SqlBlobs(actual)===true,
    'both targets must contain all 26 fixed reviewed SQL identities');
+  // A real owner's Acer can check out Git's canonical LF SQL as Windows CRLF.
+  // Must NEVER refuse the same pinned Git blob merely due to line endings,
+  // but no changed SQL/extra statements/invalid bytes may be canonicalized.
+  for(const file of actual){
+   const original=Buffer.from(file.bytes);
+   const windows=Buffer.from(original.toString('utf8').replaceAll('\n','\r\n'),'utf8');
+   const canonical=canonicalReviewedSqlBytes(file.name,windows);
+   check(canonical.equals(original)&&
+      gitSqlBlobSha1(canonical)===REVIEWED_INDEPENDENT_D1_SQL_BLOBS.find(p=>p.name===file.name).gitBlobSha1,
+     'actual Windows CRLF checkout preserves only the exact reviewed Git blob: '+file.name);
+   check(windows.equals(Buffer.from(original.toString('utf8').replaceAll('\n','\r\n'))),
+     'line-ending canonicalization cannot modify the original worktree file bytes');
+  }
+  const first=actual[0],last=actual.at(-1);
+  for(const file of [first,last]){
+   check(canonicalReviewedSqlBytes(file.name,file.bytes).equals(file.bytes),
+     'Linux LF SQL remains exactly byte-for-byte pinned: '+file.name);
+   for(const modified of [
+     Buffer.concat([file.bytes,Buffer.from('-- UNREVIEWED SQL\n')]),
+     Buffer.from(file.bytes.toString('utf8').replaceAll('\n','\r\n')+'-- UNREVIEWED SQL\r\n'),
+     Buffer.from(file.bytes.toString('utf8').replace('\n','\r')),
+     Buffer.concat([file.bytes,Buffer.from([0xff])])
+   ]){assert.throws(()=>canonicalReviewedSqlBytes(file.name,modified),/BLOCKED/);checks++;}
+  }
+  assert.throws(()=>canonicalReviewedSqlBytes('0000_unreviewed_sql.sql',first.bytes),/BLOCKED/);checks++;
   for(let i=0;i<names.length;i++){
    const data=actual[i].bytes;
    check(hex(data)===audit.migrations[i].sha256&&
