@@ -138,7 +138,7 @@ export function prepareNoAssetsDRWorker(distDir,receiptFile,sourceSha,newOutput)
   'import server from "./index.js";',
   'import manifest from "./fire-inline-assets/manifest.mjs";',
   'import {wrapInertDRWorker} from "./fire-inline-assets/runtime.mjs";',
-  'export default wrapInertDRWorker(server,manifest);',
+  'export default wrapInertDRWorker(server,manifest,"isolated-dr");',
   ''
  ].join('\n');
  safeWrite(join(dst,'fire-noassets-entry.mjs'),entry);
