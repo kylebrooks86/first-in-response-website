@@ -10,6 +10,7 @@
  */
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,
  validateNumberedCoreRecordsV2} from './numbered-records-v2-preflight.mjs';
+import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './new-live-migration-journal.mjs';
 
 const tables=Object.freeze([
  'customers','estimates','estimate_items','customer_notes','invoices',
@@ -61,8 +62,15 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
  if(!db||typeof db.prepare!=='function'||typeof db.exec!=='function')
   blocked('a Node in-memory SQLite connection is required');
  if(options==null||typeof options!=='object'||Array.isArray(options)||
-    Object.keys(options).some(k=>k!=='testInterruptAfterRows'))
+    Object.keys(options).some(k=>!['testInterruptAfterRows','schemaProfile'].includes(k)))
   blocked('unreviewed restore options');
+ // The actual independent NEW LIVE 26-migration schema contains an ordered
+ // d1_migrations journal, unlike the existing standalone QA-25 prototype.
+ // Keep QA-25 as the default: selecting NEW LIVE must be explicit and cannot
+ // auto-trust a same-named journal or silently delete it during a restore.
+ const profile=options.schemaProfile??'qa-25';
+ if(!['qa-25','independent-live-26'].includes(profile))
+  blocked('unreviewed SQLite schema profile');
  const interruption=options.testInterruptAfterRows;
  if(interruption!==undefined&&(!Number.isSafeInteger(interruption)||interruption<1))
   blocked('invalid synthetic interruption');
@@ -79,9 +87,25 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
  const available=db.prepare(
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
  ).all().map(r=>r.name);
- const allowed=new Set([...tables,'auth_rate_limits']);
+ const allowed=new Set([...tables,'auth_rate_limits',
+  ...(profile==='independent-live-26'?['d1_migrations']:[])]);
  if(available.length!==allowed.size||available.some(name=>!allowed.has(name)))
-  blocked('reviewed exact QA baseline plus numbering schema is required');
+  blocked('reviewed exact '+profile+' schema and complete numbering tables required');
+ if(profile==='independent-live-26'){
+  // The ordered journal itself is provider/application operational metadata,
+  // NOT part of the 23 customer/finance/photo records archive. It must
+  // already exist from the 26 reviewed migrations, unchanged and in order;
+  // source record restoration never inserts, rewrites or upgrades it.
+  const columns=db.prepare('PRAGMA table_info("d1_migrations")').all();
+  if(columns.length!==2||columns[0].name!=='id'||columns[1].name!=='name'||
+     columns[0].pk!==1||columns[1].notnull!==1)
+    blocked('NEW LIVE migration journal column structure differs');
+  const journal=db.prepare('SELECT id,name FROM "d1_migrations" ORDER BY id').all();
+  if(journal.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length||
+     journal.some((row,i)=>row.id!==i+1||
+       row.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]))
+    blocked('NEW LIVE exact 26-migration journal missing, reordered or forged');
+ }
  const hasTriggers=db.prepare(
   "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='trigger' AND name IN ("+
   "'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',"+
@@ -127,8 +151,11 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
   verifyRows(db,archive,columns);
   db.exec('COMMIT');
   return Object.freeze({...summary,disposableOnly:true,
+    schemaProfile:profile,
+    reviewed26MigrationJournalPreserved:profile==='independent-live-26',
     completedAtomicInMemoryRestore:true,hostedWritesPerformed:false,
-    completeAppAndPhotoRecoveryVerified:false});
+    completeAppAndPhotoRecoveryVerified:false,
+    actualHostedRestorePerformed:false,gate7Accepted:false});
  }catch(err){
   try{db.exec('ROLLBACK');}catch{blocked('rollback failed; discard disposable test database');}
   throw err;
