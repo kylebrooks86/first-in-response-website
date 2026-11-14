@@ -114,7 +114,7 @@ try{
  let seen=0;
  const wrapped=wrapInertDRWorker({fetch:async(req,env)=>{seen++;
   const inner=await env.ASSETS.fetch(new Request('https://fire.example/fire-offline/app.css'));
-  return new Response('SSR '+inner.status+' '+Boolean(env.DB));}},manifest);
+  return new Response('SSR '+inner.status+' '+Boolean(env.DB));}},manifest,'isolated-dr');
  // Even if Cloudflare supplies an alternate Worker deployment URL,
  // a DARK first-creation package must reveal neither compiled files nor SSR.
  const lockedEnv={DB:{},FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'blocked'};
