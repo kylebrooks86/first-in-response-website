@@ -52,8 +52,13 @@ export function serveBundledAsset(request,manifest){
  });
  return new Response(request.method==='HEAD'?null:asset.data,{status:200,headers});
 }
-export function wrapInertDRWorker(server,manifest){
+export function wrapInertDRWorker(server,manifest,expectedTarget){
  if(!server||typeof server.fetch!=='function')throw Error('FIRE DR assetless BLOCKED: SSR Worker missing');
+ // The immutable entry point pins ONE target. An opposite-environment flag
+ // can never activate this package, even if the Cloudflare variables drift.
+ // Older two-argument entry points deliberately fail closed.
+ if(expectedTarget!=='isolated-dr'&&expectedTarget!=='new-live-prelaunch')
+  throw Error('FIRE DR assetless BLOCKED: packaged environment identity missing');
  return Object.freeze({
   async fetch(request,env,ctx){
    // A newly created Worker can have provider version/deployment addresses
@@ -61,10 +66,10 @@ export function wrapInertDRWorker(server,manifest){
    // owner activation, deny EVERY request (including compiled public static
    // files) before exposing assets, SSR, DB, login or any application route.
    // Do not treat a valid D1 binding or source-only preview as approval.
-   const approvedDR=env?.FIRE_ENV==='isolated-dr'&&
+   const approvedDR=expectedTarget==='isolated-dr'&&env?.FIRE_ENV==='isolated-dr'&&
      env.FIRE_DR_AUTH_ENABLED==='owner-approved'&&
      env.FIRE_NEW_LIVE_AUTH_ENABLED===undefined;
-   const approvedLive=env?.FIRE_ENV==='new-live-prelaunch'&&
+   const approvedLive=expectedTarget==='new-live-prelaunch'&&env?.FIRE_ENV==='new-live-prelaunch'&&
      env.FIRE_NEW_LIVE_AUTH_ENABLED==='owner-approved'&&
      env.FIRE_DR_AUTH_ENABLED===undefined;
    if(!approvedDR&&!approvedLive)
