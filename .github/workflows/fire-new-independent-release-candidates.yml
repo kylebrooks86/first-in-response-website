@@ -35,6 +35,8 @@ on:
       - 'business-app-parity/test_real_wrangler_independent_d1_local.mjs'
       - 'business-app-parity/review_owner_dr_postinstall_worker_candidate.mjs'
       - 'business-app-parity/test_owner_dr_postinstall_worker_candidate.mjs'
+      - 'business-app-parity/verify_inert_dr_ci_artifact.mjs'
+      - 'business-app-parity/test_verify_inert_dr_ci_artifact.mjs'
       - 'business-app-parity/owner_approved_dr_d1_migrate_20261113.mjs'
       - 'business-app-parity/test_owner_approved_dr_d1_migrate_20261113.mjs'
       - 'business-app-parity/shared/lib/deposit-immutability-contract.mjs'
@@ -234,6 +236,16 @@ jobs:
           writeFileSync(process.env.FIRE_DR_SEAL,JSON.stringify(seal,null,2)+'\n',{flag:'wx',mode:0o600});
           console.log('SEALED source-only inert independent DR candidate: '+inventory.length+' compiled files; NO provider calls or deployment.');
           NODE
+      - name: Change-specific offline tests of sealed inert DR compiled bundle (NO provider)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_verify_inert_dr_ci_artifact.mjs
+      - name: Independently verify this ACTUAL compiled DR Worker and SHA seal before retention
+        if: matrix.target == 'independent-dr'
+        env:
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          FIRE_BUILT_DIST: ${{ runner.temp }}/fire-release-candidate/dist
+          FIRE_DR_SEAL: ${{ runner.temp }}/fire-dr-offline-seal.json
+        run: node business-app-parity/verify_inert_dr_ci_artifact.mjs "$FIRE_BUILT_DIST" "$FIRE_DR_SEAL" "$FIRE_REVIEWED_SHA"
       - name: Retain exact-HEAD inert DR Worker build and member digests for owner-only review (NO Cloudflare)
         if: matrix.target == 'independent-dr'
         uses: actions/upload-artifact@v4
