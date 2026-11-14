@@ -72,7 +72,8 @@ try{
  verify(result.assetCount===6&&result.providerContacted===false&&result.r2Required===false,
   'Only six public assets and no R2/provider');
  const config=JSON.parse(readFileSync(join(f.out,'server','wrangler.json'),'utf8'));
- verify(config.assets===undefined&&config.main==='fire-noassets-entry.mjs'&&
+ verify(config.assets===undefined&&config.legacy_env===undefined&&
+  config.main==='fire-noassets-entry.mjs'&&
   config.no_bundle===true&&config.find_additional_modules===true,
   'Real client asset upload configuration removed entirely');
  verify(config.rules.every(r=>r.type!=='Data')&&config.rules.some(r=>r.type==='ESModule'),
