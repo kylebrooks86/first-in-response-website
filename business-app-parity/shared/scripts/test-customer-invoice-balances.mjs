@@ -56,6 +56,41 @@ try{
   const summary=summarizeCustomerBalances([e]);
   equal(summary.collectibleCents,balance);equal(summary.netPrincipalPaidCents,principal);equal(summary.depositRemainingCents,fixture.status==='scheduled'?3000:0);
  }
+
+ // Quote revisions preserve the original approved/signed work and its agreed
+ // price as HISTORY, but must not double-count a superseded original in the
+ // current customer directory value/active estimate count. A revised invoice
+ // overrides only the active replacement and unrelated quotes stay visible.
+ seed({total:25000,status:'approved'});
+ db.exec("UPDATE estimates SET status='superseded' WHERE id='e'");
+ db.exec("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('revision','c','approved',30000,30000,15000,'now')");
+ db.exec("INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at) VALUES('revision-invoice','revision','c','sent',27500,'now')");
+ let revised=await body(customers);
+ let directory=revised.customers.find(row=>row.id==='c');
+ equal(directory.estimateCount,1);
+ equal(directory.estimateTotal,27500);
+ equal(directory.paidTotal,0);
+ equal(revised.estimates.find(row=>row.id==='e').totalCents,25000);
+ equal(revised.estimates.find(row=>row.id==='e').status,'superseded');
+ equal(revised.estimates.find(row=>row.id==='revision').totalCents,30000);
+ equal(revised.invoices.find(row=>row.id==='revision-invoice').totalCents,27500);
+ const revisionBalance=summarizeCustomerBalances(revised.estimates.filter(row=>row.customerId==='c'));
+ equal(revisionBalance.collectibleCents,27500);
+ db.exec("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('separate-quote','c','sent',10000,10000,5000,'now')");
+ revised=await body(customers);
+ directory=revised.customers.find(row=>row.id==='c');
+ equal(directory.estimateCount,2);
+ equal(directory.estimateTotal,37500);
+ equal(revised.estimates.filter(row=>row.customerId==='c').length,3);
+ // Even a customer with ONLY a superseded original must display no current
+ // quote value, not a misleading $250 historical source estimate.
+ db.exec("DELETE FROM estimates WHERE id='separate-quote'; DELETE FROM invoices WHERE id='revision-invoice'; DELETE FROM estimates WHERE id='revision'");
+ revised=await body(customers);
+ directory=revised.customers.find(row=>row.id==='c');
+ equal(directory.estimateCount,0);
+ equal(directory.estimateTotal,0);
+ equal(revised.estimates[0].totalCents,25000);
+ equal(revised.estimates[0].status,'superseded');
  // One overpaid job must not hide another job's open balance; unrelated customers stay isolated.
  seed({invoice:8000,payments:[['balance',12000]]});
  db.exec("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('e2','c','completed',10000,10000,5000,'now'); INSERT INTO customers(id,name,created_at) VALUES('other','Other synthetic','now'); INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('other-e','other','completed',99000,99000,49500,'now'); INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('other-p','other-e','balance',99000,'paid','now');");
