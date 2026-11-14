@@ -4,8 +4,6 @@ on:
     paths:
       - 'business-app-parity/prepare_dr_noassets_worker.mjs'
       - 'business-app-parity/dr_noassets_runtime.mjs'
-      - 'business-app-parity/prepare_current_dark_worker_package.mjs'
-      - 'business-app-parity/test_current_dark_worker_package.mjs'
       - 'business-app-parity/test_dr_noassets_worker.mjs'
       - 'business-app-parity/smoke_dr_noassets_local_runtime.mjs'
       - '.github/workflows/fire-dr-worker-only-noassetupload.yml'
@@ -32,13 +30,10 @@ jobs:
           node-version: '22'
       - run: |
           node --check business-app-parity/dr_noassets_runtime.mjs
-          node --check business-app-parity/prepare_current_dark_worker_package.mjs
-          node --check business-app-parity/test_current_dark_worker_package.mjs
           node --check business-app-parity/prepare_dr_noassets_worker.mjs
           node --check business-app-parity/test_dr_noassets_worker.mjs
           node --check business-app-parity/smoke_dr_noassets_local_runtime.mjs
           node business-app-parity/test_dr_noassets_worker.mjs
-          node business-app-parity/test_current_dark_worker_package.mjs
   actual-built-worker-only:
     name: Build exact shared QA-master DR and dry-run alternative Worker Data modules, NO upload
     needs: changed-logic
@@ -150,33 +145,6 @@ jobs:
           node business-app-parity/smoke_dr_noassets_local_runtime.mjs \
             "$RUNNER_TEMP/fire-dr-worker-only-alternative" \
             "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js"
-      - name: Prepare NEW exact-head DARK first-create from current QA-master SSR/clients, NO PROVIDER
-        run: |
-          # Do not use historical PR267/268 ZIPs: those predate the current
-          # invoice/financial source and cannot meet QA-master release parity.
-          node business-app-parity/prepare_current_dark_worker_package.mjs dr \
-            "$RUNNER_TEMP/fire-dr-worker-only-alternative" \
-            "$RUNNER_TEMP/fire-worker-only-original-seal.json" \
-            "$FIRE_SOURCE_SHA" \
-            "$RUNNER_TEMP/fire-dr-current-dark-first-create"
-          node business-app-parity/prepare_current_dark_worker_package.mjs verify dr \
-            "$RUNNER_TEMP/fire-dr-current-dark-first-create"
-      - name: Check final DARK physical-D1 source package with Wrangler OFFLINE only
-        run: |
-          node "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js" deploy \
-            --dry-run --no-bundle \
-            --config "$RUNNER_TEMP/fire-dr-current-dark-first-create/server/wrangler.json" \
-            --outdir "$RUNNER_TEMP/fire-dr-current-dark-first-create-offline-package"
-          echo 'PASS exact current-source dark first-create Worker-only package; no deploy, remote D1, subscription or auth.'
-      - name: Retain current SHA DARK first-create release source for owner review only, NEVER DEPLOY
-        uses: actions/upload-artifact@v4
-        with:
-          name: FIRE-DR-CURRENT-SHA-DARK-FIRST-CREATE-REVIEW-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/fire-dr-current-dark-first-create
-          if-no-files-found: error
-          include-hidden-files: true
-          compression-level: 6
-          retention-days: 7
       - name: Retain actual source-built no-asset-upload candidate for owner review, not deployment
         uses: actions/upload-artifact@v4
         with:
