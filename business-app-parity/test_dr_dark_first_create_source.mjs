@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {cpSync,mkdtempSync,readFileSync,writeFileSync,rmSync,readdirSync} from 'node:fs';
 import {join,relative,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
+import {pathToFileURL} from 'node:url';
 import {prepareDarkFirstCreateDR,reviewBoundPrehost}
  from './prepare_dr_dark_first_create_source.mjs';
 
@@ -58,11 +59,36 @@ try{
     cfg.vars.FIRE_PHOTO_STORAGE_MODE==='owner-device-zip'&&
     cfg.secrets.required.join(',')==='FIRE_DR_PASSWORD_HASH,FIRE_DR_SESSION_SECRET',
     'never enables owner login or changes secret names');
+ const runtimeRel='server/fire-inline-assets/runtime.mjs';
+ const originalRuntime=join(original,runtimeRel),finalRuntime=join(destination,runtimeRel);
+ ok(hash(finalRuntime)===hash(new URL('./dr_noassets_runtime.mjs',import.meta.url))&&
+    hash(finalRuntime)!==hash(originalRuntime),
+    'new private DR source must contain current guarded runtime, never the old PR268 adapter');
+ const protectedWorker=(await import(pathToFileURL(finalRuntime).href)).wrapInertDRWorker({
+  fetch(){throw Error('locked DR SSR must never execute');}
+ },{'/favicon.svg':{data:new TextEncoder().encode('synthetic asset'),type:'image/svg+xml'}});
+ for(const e of [
+  {FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'blocked'},
+  {FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'},
+  {FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'owner-approved',FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'}
+ ]){
+  const response=await protectedWorker.fetch(new Request('https://fire.invalid/favicon.svg'),e);
+  ok(response.status===404&&(await response.arrayBuffer()).byteLength===0&&
+      response.headers.get('cache-control')==='private, no-store',
+      'archived runtime denies static requests before SSR for locked/mismatched target');
+ }
+ const approvedAsset=await protectedWorker.fetch(new Request('https://fire.invalid/favicon.svg'),
+  {FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'owner-approved'});
+ ok(approvedAsset.status===200&&(await approvedAsset.text())==='synthetic asset',
+  'synthetic matching approval retains original asset serving');
  const proof=JSON.parse(readFileSync(join(destination,'dark-first-create-source-receipt.json')));
  ok(proof.parentPR===268&&
     proof.independentlyRequiredParentZipSha256==='ae3f0078b15376ed861d7c0c47e4943f88b700f528e5c65c2e8f5ae9de7761d4'&&
     proof.originalPrehostConfigSha256===hash(join(original,'server','wrangler.json'))&&
-    proof.finalWranglerConfigSha256===hash(join(destination,'server','wrangler.json')),
+    proof.finalWranglerConfigSha256===hash(join(destination,'server','wrangler.json'))&&
+    proof.originalArchiveRuntimeSha256===hash(originalRuntime)&&
+    proof.refreshedFirstRequestRuntimeSha256===hash(finalRuntime)&&
+    proof.firstRequestLockCopiedIntoFinalSource===true,
     'source and new configuration hashes are bound to original saved artifact');
  ok(proof.newFirstWorkerCreateAuthorized===false&&proof.firstProviderDeployPerformed===false&&
     proof.providerAccountIdentityVerified===false&&
@@ -71,7 +97,7 @@ try{
  let unchanged=0;
  traverse(join(original,'server'),(path)=>{
   const rel=relative(join(original,'server'),path);
-  if(rel==='wrangler.json')return;
+  if(rel==='wrangler.json'||rel==='fire-inline-assets/runtime.mjs')return;
   assert.equal(hash(path),hash(join(destination,'server',rel)),'immutable changed: '+rel);
   unchanged++;
  });
