@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions,validPromotions} from '../../../lib/saved-promotions';
+import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){const user=await getChatGPTUser();return user?.email.toLowerCase()===OWNER;}
@@ -28,10 +29,12 @@ export async function PUT(request:Request){
     if(current.revision!==body.expectedRevision)return json({error:'Saved promotions changed on another device. Refresh before saving.'},409);
     const catalog={revision:crypto.randomUUID(),promotions:body.promotions};
     const encoded=JSON.stringify(catalog),stamp=new Date().toISOString();
-    const result=stored
-      ?await env.DB.prepare('UPDATE message_templates SET body=?,updated_at=? WHERE key=? AND body=?').bind(encoded,stamp,SAVED_PROMOTIONS_KEY,stored.body).run()
-      :await env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO NOTHING").bind(SAVED_PROMOTIONS_KEY,encoded,stamp).run();
-    if(result.meta.changes!==1)return json({error:'Another device saved promotions first. Refresh before trying again.'},409);
-    return json({catalog});
-  }catch{return json({error:'Save could not be confirmed. Read current promotions before retrying.'},503);}
+    const result=await confirmedSettingCAS(env.DB,{
+      key:SAVED_PROMOTIONS_KEY,previousBody:stored?.body??null,encoded,updatedAt:stamp
+    });
+    if(result.status==='conflict')return json({error:'Another device saved promotions first. Refresh before trying again.'},409);
+    if(result.status!=='confirmed')
+      return json({error:'Save could not be confirmed. Read current promotions before retrying.',saveUncertain:true},503);
+    return json({catalog,...(result.recoveredAfterUncertainSave?{recoveredAfterUncertainSave:true}:{})});
+  }catch{return json({error:'Save could not be confirmed. Read current promotions before retrying.',saveUncertain:true},503);}
 }
