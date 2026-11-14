@@ -22,19 +22,19 @@ const financialNames=[
  'idx_payment_checkout_sessions_one_open_per_estimate',
  'idx_payment_refunds_estimate_status','idx_payment_refunds_payment_status',
  'idx_payment_refunds_provider','idx_payments_stripe_provider_unique',
- 'idx_payments_unique_refund_provider'
+ 'idx_payments_unique_refund_provider','idx_notifications_unique_lifecycle'
 ];
 const financialSource=['0015_single_open_checkout.sql','0017_one_invoice_per_estimate.sql',
  '0018_payment_refunds.sql','0019_refund_ledger_unique.sql',
- '0022_stripe_provider_uniqueness.sql'].map(name=>
+ '0020_notification_lifecycle_unique.sql','0022_stripe_provider_uniqueness.sql'].map(name=>
   readFileSync(new URL('../../adapters/doomsday/drizzle/'+name,import.meta.url),'utf8')).join('\n');
 const actualFinancialIndexes=[...financialSource.matchAll(
- /CREATE\s+(?:UNIQUE\s+)?INDEX\s+[`"]?(idx_[a-z0-9_]+)[`"]?\s+[\s\S]*?;/gi)]
+ /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(idx_[a-z0-9_]+)[`"]?\s+[\s\S]*?;/gi)]
  .map(match=>({name:match[1],sql:match[0]}))
  .filter(item=>financialNames.includes(item.name))
  .sort((a,b)=>a.name.localeCompare(b.name));
 assert.deepEqual(actualFinancialIndexes.map(item=>item.name),[...financialNames].sort(),
- 'all required financial indexes must be grounded in the actual 25 release SQL files');
+ 'all required protected financial and lifecycle indexes must be grounded in the actual reviewed migrations');
 const trustedTriggerSql=new Map([
  ...[...readFileSync(new URL('../../customer-numbering/customer_numbers_v1.sql',import.meta.url),'utf8').matchAll(
   /CREATE TRIGGER\s+([a-z_]+)[\s\S]*?\bEND\s*;/gi)],
@@ -231,6 +231,17 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
  financialIndexes:actualFinancialIndexes.map(row=>row.name==='idx_payments_stripe_provider_unique'?
   {...row,sql:row.sql.replace(/WHERE[\s\S]*;/,';')}:row)
 }).db,env),'Stripe provider index lacking correct partial scope blocks');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ financialIndexes:actualFinancialIndexes.map(row=>row.name==='idx_notifications_unique_lifecycle'?
+  {...row,sql:row.sql.replace('CREATE UNIQUE INDEX','CREATE INDEX')}:row)
+}).db,env),'a named but NONUNIQUE estimate/invoice lifecycle index must block NEW LIVE first-use');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ financialIndexes:actualFinancialIndexes.map(row=>row.name==='idx_notifications_unique_lifecycle'?
+  {...row,sql:row.sql.replace("('estimate_viewed','invoice_viewed','estimate_accepted')","('estimate_viewed')")}:row)
+}).db,env),'lifecycle uniqueness cannot silently omit invoice-viewed or acceptance events');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ financialIndexes:actualFinancialIndexes.filter(row=>row.name!=='idx_notifications_unique_lifecycle')
+}).db,env),'source-named missing notification unique index cannot pass merely because financial indexes match');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
  financialIndexes:[...actualFinancialIndexes,actualFinancialIndexes[0]]
 }).db,env),'duplicate financial index metadata blocks');
