@@ -37,6 +37,7 @@ function prep(sql){
      const type=concurrentContactClaim;concurrentContactClaim=null;
      if(type==='email')db.prepare("UPDATE customers SET email=? WHERE id='other'").run(this.params[1]);
      if(type==='phone')db.prepare("UPDATE customers SET phone=? WHERE id='other'").run('9185550198');
+     if(type==='name-address')db.prepare("UPDATE customers SET name='Concurrent Home',address='750 Shared Street' WHERE id='other'").run();
    }
    const changes=db.prepare(sql).run(...this.params).changes;
    if(deleteAfterUpdate){deleteAfterUpdate=false;db.prepare('DELETE FROM customers WHERE id=?').run(this.params[5]);}
@@ -66,6 +67,8 @@ try{
  await expect(400,{email:'not an email'},'Invalid email blocked');
  await expect(409,{email:'other@example.invalid'},'Duplicate email blocked');
  await expect(409,{phone:'9185550101'},'Duplicate phone blocked');
+ await expect(409,{name:'  other ',address:'  555 Synthetic  '},'Duplicate name and address blocked with whitespace/case normalized');
+ assert.equal(customer().name,'Original','Blocked identity edit preserved original customer');
  // Two customers can edit different records concurrently. Duplicate preflight
  // sees the older contact, then another edit claims the same email/phone before
  // the guarded SQL UPDATE. The actual SQLite write must atomically refuse it.
@@ -85,6 +88,14 @@ try{
  assert.equal(db.prepare("SELECT phone FROM customers WHERE id='other'").get().phone,'9185550198');
  db.prepare("UPDATE customers SET phone='9185550101' WHERE id='other'").run();
  checks.push('Atomic conflict on concurrent +1/10-digit phone claim');
+ concurrentContactClaim='name-address';
+ const nameAddressRace=await patch({name:'Concurrent Home',address:'750 Shared Street'});
+ assert.equal(nameAddressRace.status,409,'Concurrent name/address claim blocked at SQLite UPDATE boundary');
+ assert.equal((await nameAddressRace.json()).saveUncertain,true,'Concurrent identity conflict asks for authoritative refresh');
+ assert.equal(customer().name,'Original','Race must not overwrite original customer identity');
+ assert.equal(db.prepare("SELECT name FROM customers WHERE id='other'").get().name,'Concurrent Home');
+ db.prepare("UPDATE customers SET name='Other',address='555 Synthetic' WHERE id='other'").run();
+ checks.push('Atomic conflict on concurrent name and address claim');
  const saved=await expect(200,{name:'Updated Name',address:'New Synthetic Address'},'Exact persisted edit confirmed');
  assert.equal((await saved.json()).customer.name,'Updated Name');
  assert.equal(customer().address,'New Synthetic Address');
