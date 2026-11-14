@@ -10,6 +10,7 @@
 import {JOB_NUMBER_FLAG,jobNumberingReady} from './job-numbering.mjs';
 import {CUSTOMER_NUMBER_FLAG,customerNumberingReady} from './customer-numbering.mjs';
 import {immutableNumberingTriggersReady} from './numbered-immutable-trigger-contract.mjs';
+import {immutableDepositHistoryTriggersReady,REQUIRED_DEPOSIT_IMMUTABILITY_TRIGGER_NAMES} from './deposit-immutability-contract.mjs';
 import {verifyNewLiveFinancialIndexes} from './new-live-financial-index-contract.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS,assertNewLiveMigrationJournal} from './new-live-migration-journal.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
@@ -19,7 +20,8 @@ const expected=Object.freeze([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLE
 const REQUIRED_TRIGGERS=Object.freeze([
  'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',
  'fire_job_numbers_no_update','fire_job_numbers_no_delete',
- 'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete'
+ 'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete',
+ ...REQUIRED_DEPOSIT_IMMUTABILITY_TRIGGER_NAMES
 ]);
 // D1's documented provider-owned metadata tables are not customer records.
 // Only these exact definitions are exempt; unknown _cf_* or sqliteX tables
@@ -85,12 +87,19 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   "SELECT GROUP_CONCAT(name, ',') AS names FROM sqlite_master WHERE type='trigger'");
  if(!trig||typeof trig.names!=='string')stop('immutable trigger inventory unavailable');
  const triggers=trig.names.split(',').filter(Boolean);
- if(REQUIRED_TRIGGERS.some(name=>!triggers.includes(name)))
-  stop('required immutable customer/job numbering trigger missing');
+ if(triggers.length!==REQUIRED_TRIGGERS.length ||
+    new Set(triggers).size!==triggers.length ||
+    REQUIRED_TRIGGERS.some(name=>!triggers.includes(name)))
+  stop('unknown, missing or duplicated immutable numbering/deposit trigger');
  // A trigger with the correct name could still do nothing or run AFTER a
  // modification. Require exact reviewed aborting SQL on the bound D1.
  try{await immutableNumberingTriggersReady(db);}
  catch{stop('immutable customer/job trigger SQL does not match approved schema');}
+ // Signed agreements and deposit-policy exceptions are evidence: a physical
+ // database cannot be considered ready if their append-only barriers are
+ // absent, AFTER instead of BEFORE, or replaced by named no-op triggers.
+ try{await immutableDepositHistoryTriggersReady(db);}
+ catch{stop('append-only deposit audit/signed agreement SQL differs from reviewed migration');}
  // A brand-new production DB cannot contain synthetic customers, saved
  // estimates, payments, tasks, photos, notifications, previous jobs, etc.
  // Fail closed on any nonempty table. One query per known safe hard-coded name,
@@ -128,6 +137,7 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
   target:'independent-live',firstJobNumberExpected:'0001',
   expectedOperationalTables:expected.length,tableRecordsAllEmpty:true,
   jobAndCustomerSequencesEmpty:true,requiredImmutabilityTriggersPresent:true,
+  immutableDepositHistoryTriggersVerified:true,
   exactSourceMigrationJournalMatched:true,
   physicalFinancialIndexesMatched:true,
   physicalD1IdentityVerified:false,orderedMigrationsVerified:false,
