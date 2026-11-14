@@ -8,6 +8,7 @@ import {Label} from './ui/label';
 import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import {requiresAllCustomerPhotoReview} from '../lib/photo-restore-interruption-scope.mjs';
+import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT} from '../lib/photo-comparison-layout.mjs';
 import {readOfflinePhotoBackup,type OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
@@ -266,10 +267,20 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
     const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('Photo cannot be decoded by this browser.'));image.src=url;
    });
    const [a,b]=await Promise.all([load(selectedBefore.url),load(selectedAfter.url)]);
-   const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=980;
+   const canvas=document.createElement('canvas');canvas.width=FIRE_PHOTO_COMPARISON_LAYOUT.canvasWidth;canvas.height=FIRE_PHOTO_COMPARISON_LAYOUT.canvasHeight;
    const context=canvas.getContext('2d');if(!context)throw Error('Image comparison is unavailable.');
-   const draw=(img:HTMLImageElement,x:number)=>{const ratio=Math.max(796/img.naturalWidth,870/img.naturalHeight),w=img.naturalWidth*ratio,h=img.naturalHeight*ratio;context.drawImage(img,x+(796-w)/2,(870-h)/2,w,h);};
-   context.fillStyle='#10213a';context.fillRect(0,0,1600,980);draw(a,0);draw(b,804);
+   // Show the ENTIRE original before/after photos (never crop out damage,
+   // cleaning edges or existing dirt) and clip every draw to its own panel.
+   // Without clipping, a wide AFTER image can overwrite the BEFORE half.
+   const draw=(img:HTMLImageElement,x:number)=>{
+    const place=photoComparisonPlacement(img.naturalWidth,img.naturalHeight,x);
+    context.save();context.beginPath();
+    context.rect(place.panelX,place.panelY,place.panelWidth,place.panelHeight);
+    context.clip();context.drawImage(img,place.x,place.y,place.width,place.height);
+    context.restore();
+   };
+   context.fillStyle='#10213a';context.fillRect(0,0,canvas.width,canvas.height);
+   draw(a,0);draw(b,804);
    context.fillStyle='#10213a';context.fillRect(0,0,796,70);context.fillRect(804,0,796,70);
    context.fillStyle='white';context.textAlign='center';context.font='bold 30px sans-serif';context.fillText('BEFORE',398,46);context.fillText('AFTER',1202,46);
    context.textAlign='left';context.font='bold 27px sans-serif';context.fillText('FIRST IN RESPONSE EXTERIORS',35,930);

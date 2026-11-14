@@ -5,6 +5,10 @@ on:
       - 'business-app-parity/verify_saved_protected_photo_backup.mjs'
       - 'business-app-parity/test_saved_protected_photo_backup.mjs'
       - 'business-app-parity/shared/lib/protected-offline-photo-archive.mjs'
+      - 'business-app-parity/shared/lib/photo-comparison-layout.mjs'
+      - 'business-app-parity/shared/lib/photo-comparison-layout.d.mts'
+      - 'business-app-parity/shared/components/offline-customer-photos.tsx'
+      - 'business-app-parity/test_photo_comparison_layout.mjs'
       - '.github/workflows/fire-gate7-saved-photo-offline-proof.yml'
 permissions:
   contents: read
@@ -27,3 +31,5 @@ jobs:
           node-version: '22'
       - name: Offline synthetic saved protected backup + CLI negatives
         run: node business-app-parity/test_saved_protected_photo_backup.mjs
+      - name: Uncropped independent before/after comparison panels (no device or provider)
+        run: node business-app-parity/test_photo_comparison_layout.mjs
