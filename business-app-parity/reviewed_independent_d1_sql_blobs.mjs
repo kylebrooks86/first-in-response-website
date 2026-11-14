@@ -49,6 +49,30 @@ export function gitSqlBlobSha1(bytes){
   .digest('hex');
 }
 
+/**
+ * Windows Git commonly checks source .sql out with CRLF despite its
+ * reviewed repository blob being LF. A *raw* Windows worktree byte hash
+ * consequently differs from the reviewed Git blob without any SQL edit.
+ *
+ * Permit ONLY the reversible CRLF->LF newline conversion, then compare
+ * against the independently frozen Git content-addressed SHA-1 pin.
+ * Never rewrite the source file; write canonical verified bytes solely into
+ * a brand-new isolated migration workspace. Every non-newline change still
+ * fails before any provider call or remote migration attempt marker.
+ */
+export function canonicalReviewedSqlBytes(name,raw){
+ const pinned=REVIEWED_INDEPENDENT_D1_SQL_BLOBS.find(row=>row.name===name);
+ if(!pinned||!Buffer.isBuffer(raw))fail('unreviewed SQL name or non-byte SQL input');
+ const decoded=raw.toString('utf8');
+ if(!Buffer.from(decoded,'utf8').equals(raw))
+  fail('reviewed SQL contains invalid UTF-8 byte sequence');
+ if(/\r(?!\n)/.test(decoded))
+  fail('non-CRLF carriage return in reviewed SQL source: '+name);
+ const canonical=Buffer.from(decoded.replaceAll('\r\n','\n'),'utf8');
+ if(gitSqlBlobSha1(canonical)!==pinned.gitBlobSha1)
+  fail('reviewed SQL identity changed at migration '+name);
+ return canonical;
+}
 export function assertReviewedIndependentD1SqlBlobs(files){
  if(!Array.isArray(files)||files.length!==REVIEWED_INDEPENDENT_D1_SQL_BLOBS.length)
   fail('exact 26 reviewed SQL blobs required');
