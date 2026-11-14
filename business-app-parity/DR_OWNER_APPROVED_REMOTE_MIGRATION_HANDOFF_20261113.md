@@ -1,3 +1,35 @@
+> **FINAL REVIEWED GATE 5 ACER HANDOFF (Nov 13, candidate `37deeee2731180d330ce1ce5b1c55284a19eb014`) — DO NOT EXECUTE UNTIL THE LATEST EXACT-SHA STAGING JOB FINISHES SUCCESS.** This block uses the owner's ALREADY PREPARED isolated Git worktree and ALREADY INSTALLED free pinned Wrangler 4.92.0. It neither recreates a worktree nor reinstalls Node/npm/Wrangler nor repeats `d1 list` or any Cloudflare Work browser login. The previously approved one-time DR-only migration remains conditional on fresh, matching actual DR/NEW LIVE UUID read-only `d1 info` responses and a genuinely empty physical DR schema. The command NEVER touches or migrates NEW LIVE. A physical mutation starts only after those guards and a one-shot local attempt lock. The earlier six Acer screenshots remain accepted; never ask for them again.
+
+```powershell
+& {
+  $ErrorActionPreference = 'Stop'
+  $source = Join-Path $env:USERPROFILE 'FIRE-DR-GATE5-44fbefe6'
+  $pin = '37deeee2731180d330ce1ce5b1c55284a19eb014'
+  $wrangler = Join-Path $env:USERPROFILE 'FIRE-DR-WRANGLER-4.92.0\node_modules\wrangler\bin\wrangler.js'
+  $lock = Join-Path $env:USERPROFILE 'FIRE-DR-APPROVED-MIGRATION-20261113\remote-one-shot-attempt.json'
+  if (!(Test-Path -LiteralPath $source)) { throw 'Previously prepared FIRE DR source missing. STOP.' }
+  if (!(Test-Path -LiteralPath $wrangler)) { throw 'Previously installed pinned Wrangler missing. STOP; no npm/reinstall.' }
+  if (Test-Path -LiteralPath $lock) { throw 'A DR remote migration attempt is already recorded. STOP; read-only investigation only.' }
+  $dirty = @(& git -C $source status --porcelain)
+  if ($LASTEXITCODE -ne 0 -or $dirty.Count -gt 0) { throw 'Prepared DR source has local changes. STOP; preserve them.' }
+  & git -C $source fetch --no-tags origin work/fire-app-main-candidate-unified-20261113
+  if ($LASTEXITCODE -ne 0) { throw 'Git source fetch failed; no cloud operation.' }
+  $fetched = (& git -C $source rev-parse FETCH_HEAD).Trim()
+  if ($LASTEXITCODE -ne 0 -or $fetched -ne $pin) { throw 'Reviewed PR source changed. STOP; do not migrate an unreviewed SHA.' }
+  & git -C $source checkout --detach $pin
+  if ($LASTEXITCODE -ne 0) { throw 'Pinned local checkout failed; no cloud operation.' }
+  $v = & node $wrangler --version
+  if ($LASTEXITCODE -ne 0 -or ($v -notmatch '4\.92\.0')) { throw 'Pinned Wrangler version mismatch; STOP.' }
+  $runner = Join-Path $source 'business-app-parity\owner_approved_dr_d1_migration.mjs'
+  if (!(Test-Path -LiteralPath $runner)) { throw 'Reviewed DR runner missing; STOP.' }
+  & node $runner $wrangler --execute-approved-dr-only
+  if ($LASTEXITCODE -ne 0) { throw 'Guarded DR-only procedure STOPPED or UNCERTAIN; DO NOT RETRY.' }
+}
+```
+
+**One-shot boundary:** The only potential mutating provider command is the reviewed `wrangler d1 migrations apply fire-fullapp-dr-db --remote` after two exact identity proofs and a physically empty DR check. Wrangler may ask for confirmation; confirm ONLY if the target is exactly `fire-fullapp-dr-db`. Do not enable R2 or a paid Cloudflare plan, deploy a Worker, log into Cloudflare Work, run NEW LIVE migration, or run a Stripe operation. After the first remote migration attempt lock exists, no automatic retry is ever allowed, even if the command times out. The runner gives only safe error categories, never raw sensitive provider outputs. Even a DR-only migration success does NOT close Gate 5 until all independent environment bindings and physical evidence are accepted.
+
+---
 > **CURRENT RELEASE HANDOFF — NOV 13, PR264 SHA `daaf32c39380ea452d2e649b3e84a1a03da6d063`:** All historical Acer PowerShell blocks below are **superseded**; do not rerun old worktree/pinned Wrangler commands, the failed `d1 list`, browser logins or screenshots. The updated owner-approved DR-only runner now uses TWO supported read-only named-target `d1 info --json` commands, exact DR+NEW LIVE UUID checks, the owner-attested account ID and still requires a freshly empty physical DR before one separately locked apply of the same 26 reviewed migrations. It preserves no-R2/no-paid/no-deploy scope. [Both independent DR/LIVE offline source jobs #43547470372](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43547470372) **SUCCESS**; DR job 163/163 guarded safety tests PASS. **Nothing has yet been run in Cloudflare under this new source.** A new exact-SHA handoff is required before any owner Acer provider execution; no action requested now. Prior six Acer screenshots/QA remain accepted, 4/10 formal gates accepted, NEW LIVE NO-GO.
 
 # FIRE — DR-only initial D1 migration: exact owner-approved handoff
