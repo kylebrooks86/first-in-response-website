@@ -69,10 +69,12 @@ export function ownerGate9Candidate({sourceSha,expectedDigest,buildDir,
   const clientDir=join(build,'dist','client');
   const out=compileGate9ApprovalCandidate({serverDir,clientDir,sourceSha});
   need(out.candidateDigest===expectedDigest,'APPROVAL_DIGEST_CHANGED');
-  // Exact 2026-11-13 consolidated QA-master candidate: the newly added
-  // full-app modules were verified by the offline module inventory/digest.
-  // Keep this a reviewed exact pin, not an open range or auto-approval.
-  need(out.counts.compiledModules===191&&out.counts.staticAssets===41,
+  // Reviewed 2026-11-13 consolidated QA-master now includes the one
+  // additional compiled shared owner-setting CAS helper. Exact-head local
+  // Gate9 module inventory and fake-token in-memory approval envelope
+  // observed 192 modules / 41 assets. Preserve an EXACT count (no range)
+  // plus SHA256 candidate digest; this is NOT provider upload approval.
+  need(out.counts.compiledModules===192&&out.counts.staticAssets===41,
     'FULL_APP_COMPILED_COUNT');
   return {out,serverDir,clientDir};
 }
