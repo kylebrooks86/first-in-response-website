@@ -758,3 +758,18 @@ The owner expense POST formerly allowed date-only `2026-12-31` to be parsed as *
 ### Verification coverage corrected — consolidated PR264 HEAD `4301070d40e87a475d41dda2efd25a7e79af73b2`
 
 The existing offline staging workflow already executed the real expense SQLite test, but did **not** execute the note and template SQLite tests. Added a focused `FIRE note and Settings template committed-write recovery (native SQLite only)` CI step in `.github/workflows/fire-staging-offline-rehearsal.yml`, invoking both actual targeted scripts against the isolated synthetic staging candidate. This workflow is permitted by the main-only website/calculator protection guard and preserves previously pinned Gate9/backup workflow blobs, no site changes and no hosted deploy. The new exact-head Actions run is in flight; **only a completed PASS proves these two changed routes**. This additional CI step is not repeated owner-device/cloud authentication/testing. NEW LIVE still NO-GO; 4/10 accepted until physical gates close.
+
+
+---
+
+## Nov 13 — specific owner authorization to apply 26 reviewed migrations to the EXISTING EMPTY DR only
+
+Owner explicitly replied **"approve"** to the immediately preceding exact request to apply the 26 reviewed initial schema migrations to **fire-fullapp-dr-db** only, **after confirming it is empty**. This is a scoped permission for **one** DR remote migration attempt, not NEW LIVE, QA, STAGING, Cloudflare Worker creation/binding/upload/deployment, Stripe, Access, R2/paid service, Git merge, public website or legacy retirement. The owner has their authenticated Acer available. This approval is documented, not yet executed.
+
+**Actual source work:** Consolidated main-based draft PR #264 SHA **1d76039bcdf109b356054d7b3264ecd7c1d74acd** now has a one-shot physical DR migration runner (owner_approved_dr_d1_migrate_20261113.mjs), exact 26 reviewed SQL pins, physical D1 list identity checks (DR UUID 5e55c5b7-cd67-4c8f-a52e-40f71b5d3145; distinct NEW LIVE 0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662), real sqlite_master no-app-object guard, one-shot local attempt receipt to prevent blind retry, and post-apply read-only full numbering/refund/financial/index/trigger/schema/journal verification. Any uncertainty is a STOP. No remote action was performed via connected GitHub tools.
+
+**Exact-head changed-code CI:** [independent DR+NEW LIVE run #43538916969](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43538916969) **both jobs SUCCESS**, including new DR runner wrong UUID/nonempty/unsafe SQL negatives and both separately existing real Wrangler 26 migrations LOCAL. Main-only website/calculator preservation PASS; latest overall source CI 14/15 groups SUCCESS, one long staging/browser group in progress at recorded moment. These tests are NOT physical D1 migrations.
+
+**Permanent approved Acer execution handoff:** [OWNER_DR_GATE5_APPROVED_EXECUTION_20261113.md](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-main-candidate-continuity-20261113/business-app-parity/OWNER_DR_GATE5_APPROVED_EXECUTION_20261113.md), docs commit 249a3efd66cf38977a6e73abf65477465e125fb3. Command is pinned to exact candidate SHA. Do not run on Work or repeat failed Cloudflare login attempts. Until the owner runs the single Acer block and shares the nonsecret final status, physical DR schema remains NOT MIGRATED/NOT VERIFIED; no gate accepted from this permission alone. If remote apply starts then stops, never re-run without separately inspecting actual state and fresh decision.
+
+G1/2/3/8 accepted 4/10, G4/5/6/7/9/10 OPEN, NEW LIVE NO-GO.
