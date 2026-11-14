@@ -5,16 +5,16 @@ Owner approval: November 13, 2026 CST. The owner said APPROVE twice for the spec
 Existing physical DR database: fire-fullapp-dr-db, UUID 5e55c5b7-cd67-4c8f-a52e-40f71b5d3145.
 Existing separate NEW LIVE database (never touch): fire-fullapp-new-live-db, UUID 0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662.
 
-Exact frozen source for this execution: main-based DRAFT PR #264 commit 5495631fd3bc39e83afe9ea4145fc0f2cd81ca8f.
+Exact frozen source for this execution: main-based DRAFT PR #264 commit 44fbefe6c1308cba54a591471247c978884a0b0f.
 New runner source: business-app-parity/owner_approved_dr_d1_migration.mjs.
-Exact independent DR/LIVE local migration and new runner safeguards: GitHub Actions run 43539145899 SUCCESS, DR log includes 135/135 local migration + owner DR one-shot safety checks PASS. This is offline-only proof, not Cloudflare physical execution.
+Exact independent DR/LIVE local migration and new runner safeguards: GitHub Actions run 43539145899 SUCCESS, Earlier DR source run logged 135/135 safety PASS at prior exact source SHA. The new exact source additionally refuses stale sqlite_sequence history; check its newly triggered focused CI result before execution. None of this is Cloudflare physical proof.
 
 ## Owner Acer PowerShell command (one time; do not repeat after a remote attempt)
 
     $ErrorActionPreference = 'Stop'
     $repo = Join-Path $env:USERPROFILE 'FIREQA-PR172'
-    $sha = '5495631fd3bc39e83afe9ea4145fc0f2cd81ca8f'
-    $work = Join-Path $env:USERPROFILE 'FIRE-DR-GATE5-5495631f'
+    $sha = '44fbefe6c1308cba54a591471247c978884a0b0f'
+    $work = Join-Path $env:USERPROFILE 'FIRE-DR-GATE5-44fbefe6'
     if (!(Test-Path $repo)) { throw 'Existing FIRE Git repo not found. STOP, no cloud writes.' }
     if (Test-Path $work) { throw 'Detached DR worktree already exists. STOP; do not repeat this command.' }
     git -C $repo fetch origin work/fire-app-main-candidate-unified-20261113
@@ -41,7 +41,7 @@ The downloaded source is pinned to the actual reviewed SHA. A changed branch fai
 - Requires existing pinned Wrangler 4.92.0, never installs a package, signs in to Cloudflare Work or requests billing.
 - Generates exact 26 reviewed Git-blob-pinned SQL migrations and a single D1 DR-only config in a new private local folder. Independently verifies every saved SQL file and D1 UUID before any remote operation.
 - Authenticated read-only Wrangler D1 list verifies the DR UUID AND the separate NEW LIVE UUID; wrong account, swapped resource or missing database STOP.
-- Authenticated read-only remote SQLite schema inventory verifies no application table, migration journal, unexpected index, trigger or view; only exact approved provider metadata can exist. Any nonempty/unexpected schema STOP without any remote SQL write.
+- Authenticated read-only remote SQLite schema inventory verifies no application table, prior sqlite_sequence high-water history, migration journal, unexpected index, trigger or view; only exact approved provider metadata can exist. Any nonempty/unexpected schema STOP without any remote SQL write.
 - Saves an owner-only unique local one-shot attempt marker BEFORE any remote migration command. It will never automatically retry uncertain or interrupted writes.
 - Runs Wrangler migrations apply --remote against fire-fullapp-dr-db ONLY, using the single-target pinned config. Wrangler may prompt the owner to confirm. Confirm only if displayed target is exactly fire-fullapp-dr-db.
 - After command SUCCESS, independently queries physical DR D1 read-only: 26 named and ordered migrations, permanent Customer # and Job # and immutability triggers, deposit agreement safeguards, refund/payment/notification exact SQL indexes, all application records and permanent serials empty. The NEW LIVE source schema inspector is reused as an SQL contract only; the code queries DR exclusively.
