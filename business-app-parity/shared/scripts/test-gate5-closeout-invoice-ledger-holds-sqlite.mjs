@@ -7,6 +7,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
+import * as invoiceSourceGuard from '../lib/invoice-editor-source-guard.mjs';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
 const compile=code=>ts.transpileModule(code,{compilerOptions:{
@@ -49,7 +50,8 @@ function load(path,DB,count,owner=true){
   '../../../../lib/refund-ledger-readiness':finance,
   '../../../lib/payment-closeout-actions':{buildPaymentCloseoutActions:()=>[]},
   '../../../../lib/discount-input':{submittedDiscountCents:()=>0},
-  '../../../../lib/invoice-state.mjs':{currentInvoice:()=>null}
+  '../../../../lib/invoice-state.mjs':{currentInvoice:()=>null},
+  '../../../../lib/invoice-editor-source-guard.mjs':invoiceSourceGuard
  };
  vm.runInNewContext(compile(readFileSync(path,'utf8')),{exports,
   require:name=>{if(!(name in deps))throw Error('Unexpected import: '+name);return deps[name]},
@@ -63,7 +65,11 @@ const invoicePath='app/api/invoices/[id]/route.ts';
 const params={params:Promise.resolve({id:'synthetic-invoice'})};
 const read=()=>new Request('https://offline.invalid/api/invoices/synthetic-invoice');
 const edit=()=>new Request('https://offline.invalid/api/invoices/synthetic-invoice',{
- method:'PATCH',headers:{'content-type':'application/json'},body:'{}'});
+ method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({
+  expectedRevisionCount:0,
+  expectedOriginalInvoice:{estimateId:'synthetic-estimate',customerId:'synthetic-customer',subtotalCents:1000,discountCents:0,discountType:'dollar',discountValue:0,totalCents:1000,dueAt:null,storedStatus:'sent',items:[{id:'synthetic-line',name:'Synthetic service',description:'Only local',quantity:1,unit:'job',totalCents:1000}]},
+  items:[{name:'Synthetic service',description:'Only local',quantity:1,unit:'job',totalCents:1000}],discountType:'dollar',discountValue:0
+ })});
 for(const scenario of [
  {label:'missing ledger table'},
  {label:'missing ledger indexes',table:true},
