@@ -255,5 +255,26 @@ jobs:
             ${{ runner.temp }}/fire-release-candidate/dist/
             ${{ runner.temp }}/fire-dr-offline-seal.json
           if-no-files-found: error
+          # The sealed dist contains reviewed hidden members: .assetsignore
+          # and .vite/manifest.json. upload-artifact v4 omits them by default,
+          # leaving a genuinely incomplete archive despite pre-upload PASS.
+          include-hidden-files: true
           retention-days: 3
           compression-level: 6
+      - name: Download the RETAINED GitHub artifact and verify all sealed bytes again (NO provider)
+        if: matrix.target == 'independent-dr'
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-INERT-DR-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-dr-archive-roundtrip
+      - name: Refuse any ZIP upload that lost hidden files or changed the reviewed Worker (NO provider)
+        if: matrix.target == 'independent-dr'
+        env:
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          FIRE_RETAINED_DR: ${{ runner.temp }}/fire-dr-archive-roundtrip
+        run: |
+          node business-app-parity/verify_inert_dr_ci_artifact.mjs "$FIRE_RETAINED_DR/fire-release-candidate/dist" "$FIRE_RETAINED_DR/fire-dr-offline-seal.json" "$FIRE_REVIEWED_SHA"
+          test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/client/.assetsignore"
+          test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/client/.vite/manifest.json"
+          test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/server/.vite/manifest.json"
+          echo 'PASS actual DOWNLOAD of retained DR artifact preserves all sealed bytes and 3 hidden build files; no provider action.'
