@@ -1,0 +1,95 @@
+name: FIRE DR existing-physical-D1 no-R2 prehost candidate (NEVER DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/prepare_dr_bound_noassets_worker.mjs'
+      - 'business-app-parity/test_dr_bound_noassets_worker.mjs'
+      - '.github/workflows/fire-dr-existing-d1-prehost.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fire-dr-existing-d1-prehost-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-prehost-from-accepted-artifact:
+    name: Original 41-byte asset identities + DR physical D1 binding + blocked login (NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout only reviewed source, no saved credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check changed code syntax, no repeated app QA
+        run: |
+          node --check business-app-parity/prepare_dr_bound_noassets_worker.mjs
+          node --check business-app-parity/test_dr_bound_noassets_worker.mjs
+      - name: Download actual preserved DR local-runtime PASS artifact from GitHub only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: '14101337096'
+          EXPECTED_SOURCE_ZIP_SHA256: 'f61b28b6b0f8e669f9863be995cf7d56d527a51d012ee9e77083fb260c059719'
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-dr-accepted-noassets"
+          curl --fail --location --silent --show-error \
+            --retry 2 --retry-delay 2 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
+            --output "$RUNNER_TEMP/fire-dr-source-accepted.zip"
+          echo "$EXPECTED_SOURCE_ZIP_SHA256  $RUNNER_TEMP/fire-dr-source-accepted.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/fire-dr-source-accepted.zip" \
+            -d "$RUNNER_TEMP/fire-dr-accepted-noassets"
+          echo 'PASS artifact ZIP independent Github digest, not an untrusted newly rebuilt QA source.'
+      - name: Create NEW immutable output against accepted owner 26/26 DR UUID only
+        run: |
+          node business-app-parity/test_dr_bound_noassets_worker.mjs \
+            "$RUNNER_TEMP/fire-dr-accepted-noassets"
+          node business-app-parity/prepare_dr_bound_noassets_worker.mjs \
+            "$RUNNER_TEMP/fire-dr-accepted-noassets" \
+            "$RUNNER_TEMP/fire-dr-existing-d1-prehost"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const root=process.env.RUNNER_TEMP+'/fire-dr-existing-d1-prehost';
+          const c=JSON.parse(readFileSync(root+'/server/wrangler.json'));
+          const r=JSON.parse(readFileSync(root+'/dr-physical-prehost-source-receipt.json'));
+          assert.equal(c.main,'fire-noassets-entry.mjs');
+          assert.equal(Object.hasOwn(c,'assets'),false);
+          assert.equal(c.d1_databases[0].database_id,'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145');
+          assert.equal(c.vars.FIRE_DR_AUTH_ENABLED,'blocked');
+          assert.equal(c.vars.FIRE_PHOTO_STORAGE_MODE,'owner-device-zip');
+          assert.deepEqual(c.r2_buckets,[]);
+          assert.equal(r.cloudflareWorkerExistsIndependentlyVerified,false);
+          assert.equal(r.cloudflareFirstWorkerCreationAuthorized,false);
+          assert.equal(r.workerUploaded,false);
+          assert.equal(r.workerDeployed,false);
+          assert.equal(r.physicalD1BindingDeployed,false);
+          console.log('PASS exact owner DR physical database config PREPARED, no Worker created/deployed/auth/paid Cloudflare.');
+          NODE
+      - name: Check ONLY newly bound Worker configuration using current Wrangler dry-run, never upload
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fire-modern-wrangler" --no-save \
+            --ignore-scripts --no-audit --no-fund wrangler@4.162.0
+          node "$RUNNER_TEMP/fire-modern-wrangler/node_modules/wrangler/bin/wrangler.js" deploy \
+            --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-dr-existing-d1-prehost/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/fire-dr-existing-d1-wrangler-ONLY-OFFLINE"
+          echo 'PASS source-only Wrangler package with actual owner DR UUID; NO provider contact.'
+      - name: Preserve source-only PHYSICAL DR D1-bound candidate, NOT a deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-DR-EXISTING-D1-PREHOST-NEVER-DEPLOY-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-dr-existing-d1-prehost
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 3
+          compression-level: 6

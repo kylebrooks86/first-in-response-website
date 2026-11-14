@@ -1,0 +1,30 @@
+{
+  "baseCommit": "1d56dd48c1addda25cf61d1534bd600d8dd4fd67",
+  "releaseFocus": "Fix a confirmed core-online search defect exposed while verifying payment stabilization",
+  "releaseReadiness": {"acceptedGates": 3, "totalGates": 10, "percent": 30},
+  "discovery": {
+    "initialCiRun": "https://github.com/kylebrooks86/first-in-response-website/actions/runs/39202147623",
+    "failure": "Property search returned additional records when digits from a full text address matched an unrelated customer phone",
+    "deterministicBaselineReproduction": "No such location 10 Lane returned 17 unrelated records instead of zero against the previous actual search route",
+    "scope": "The same contact predicate could broaden customer, estimate, invoice, job, payment, note and property searches"
+  },
+  "implemented": [
+    "Only normalize a phone query when input contains digits and phone punctuation/whitespace without address, email or identifier letters",
+    "Preserve literal text/identifier matching, case-insensitive searches, formatted phone input and partial numeric phone searches",
+    "Add mixed-text false-match regression cases for all search filters",
+    "Seed a deliberate unrelated phone collision in native property search; keep strict two-result identity assertions",
+    "Wait for selected Properties filter results rather than a customer-email match from the preceding All request"
+  ],
+  "verification": {
+    "actualSearchRouteChecksPerCandidate": 135,
+    "targets": ["qa", "live", "doomsday", "staging"],
+    "nativeQaCustomerPropertyBrowserChecks": 125,
+    "viewportWidths": [320, 390, 768, 1366],
+    "typescript": "4/4 passed",
+    "builds": "4/4 passed",
+    "dataIntegrity": "Native search navigation, missing/archived target recovery and association rejection preserve complete backup tables",
+    "externalRequests": 0
+  },
+  "limitations": ["Local synthetic evidence; hosted/iPhone acceptance is pending", "Hosted unresolved payment outcome remains unknown"],
+  "deployment": "None; no protected deployment, provider database, credential, customer or payment changed"
+}

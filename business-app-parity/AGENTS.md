@@ -1,0 +1,46 @@
+# FIRE Business App parity requirement
+
+## CURRENT OWNER CONTINUITY LOCK — 2026-11-13 (supersedes historical status and procedures below)
+
+**Mandatory first read for any regular ChatGPT, Work, GitHub agent or release audit:** [FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md), [NO_PAID_CLOUDFLARE_PHOTO_RELEASE_20261113.md](NO_PAID_CLOUDFLARE_PHOTO_RELEASE_20261113.md), latest [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) comments and current [draft PR #244](https://github.com/kylebrooks86/first-in-response-website/pull/244). These are not optional; do not restart checks or solicit already-accepted screenshots.
+
+- **NEW QA is the sole visual/functional master**; STAGING, DR and NEW LIVE must match it. Legacy Sites LIVE is not the master, contains no established real operational user records, and is never retired without approved cutover. User has no real customers/photos in app. First real NEW LIVE Job # is **0001** on a physically verified independent clean D1.
+- **Release status 4/10 production gates accepted: 1, 2, 3 and 8.** Gates 4, 5, 6, 7, 9 and 10 OPEN; LIVE NO-GO. This replaces any "3/10", legacy-Sites-migration-to-LIVE or blanket "run all eight tests" instruction below. Source-only CI success does not close a hosted gate.
+- **ZERO paid Cloudflare / R2 subscription / billing activation / paid upgrades. No exceptions without a new, explicit owner direction.** The owner explicitly refused even $0-due-now R2 subscription. The empty `fire-fullapp-dr-db` was owner-created, not to be re-created; D1 UUID is not yet evidenced. `fire-fullapp-dr-photos` NOT created. Proposed DR and NEW LIVE Workers were absent under planned names in the selected account. Do not send owner back to R2.
+- **NO Cloudflare auth retry loop:** Work Google login, direct password (HTTP403) and GitHub sign-in have failed or redirected; browser sessions do not transfer. Owner iPhone Safari session and prior QA/STAGING/TEST screenshots/version/bindings/real QA iPhone, Acer and QA backup checks are already documented in the continuity register. Never repeat them without a *new precise* missing datum.
+- **Current source chain:** #242 immutable 13/13 CI SHA `09ca47cb1cfb651e12ed961d5285ecd6f381f847` -> #243 `cf1843e7c46f85720fb461a0b479db5384c4b250` -> #244 no-paid-R2 source-only draft (inspect its latest SHA before editing). Respect frozen source/branch and exact-head tests. PR #244 main-only guard rejects the intentionally stacked PR; do not weaken the guard or indiscriminately rerun passing suites.
+- **Current edit location:** if continuing approved source-only draft work, use the specific latest reviewed PR branch or a fresh non-protected draft branch; do **not** blindly overwrite the historical `work/fire-business-app-parity-2026-10-08` shared branch. Preserve newer changes. Do not merge, deploy, migrate, bind, enable Access, upload Stripe, or retire legacy without fresh narrow target-scoped approval.
+- **Owner interaction style:** consolidate multiple phone navigation taps when safe; ask only for missing, one-off exact identity or explicit permission. Respect all previous approvals but never treat one action as permission for another. Do not suggest new paid services. No repeated screenshots, source checks or synthetic QA runs absent changed code.
+- **Photo limitation:** QA's offline device-local photos + verified ZIP are real candidate functionality, not synchronized across iPhone/Acer and not a proven off-device recovery. Hosted `env.BUCKET` R2 endpoints fail closed without BUCKET. Never claim Gate7, hosted photo parity or full restore proof from source-only no-R2 manifest.
+
+---
+
+All active LIVE, Doomsday, staging, and disaster-recovery Business App versions must use identical shared business logic and presentation. Business Command Center, calculators, and marketing sites are outside this requirement.
+
+Apply every approved feature and fix to isolated candidates for every active target. Maintain a complete target inventory. Run the shared-source parity gate and financial regression tests before release. Do not claim deployed parity from source parity alone: record authenticated browser evidence, mobile light/dark review, and deployed release identity for every target.
+
+Never overwrite independent databases, customer/financial records, Stripe configuration, authentication, or migration history to achieve parity. Authentication, environment labels, hosting bindings, and target-specific migration histories are explicit deployment adapters; they must preserve existing security and reach an equivalent final schema. Preserve historical rollback copies unchanged. Do not purchase, subscribe to, or activate paid services.
+
+Production publication requires the owner’s explicit approval of exact candidate commits, database migrations, test results, and rollback plan. Staging must use synthetic records and sandbox Stripe only. Do not process real test payments. A release is blocked while any deployed identity, schema compatibility, security adapter, storage capability, or mobile workflow remains unverified.
+
+## Development batches — permanent workflow
+
+Target approximately 10–15 minutes per self-contained batch, focusing on one meaningful task. This is a planning target, not a reason to pad small work or abandon a safe checkpoint. Choose one bounded outcome and reserve time for verification, saving, and handoff. At the start, check the remote development branch and local changes; resume the latest verified checkpoint without repeating completed audits or unchanged passing tests unnecessarily.
+
+Prioritize functional parity, Stripe sandbox integration, database safety, and mobile visual matching across isolated LIVE, Doomsday and staging candidates. Work chat alone modifies shared branches/staging candidates; the separate regular chat performs independent read-only quality control.
+
+During active work, provide brief progress updates approximately every 3–5 minutes whenever tools allow. State the verified finding, current task and next check; do not treat a progress update as the end of the batch. Avoid long blocking operations that prevent communication.
+
+At every batch end:
+
+1. Run relevant tests for the changed behavior, inspect results, and distinguish local/mock results from deployed integration or iPhone evidence. Documentation-only changes require content/diff checks, not unrelated application test reruns.
+2. Save changes only to the current explicitly scoped reviewed draft PR branch; verify its latest head first. Do not overwrite older shared branches or frozen PRs.
+3. Preserve unfinished work separately and document its exact location, blockers, and pending checks; never represent unverified work as release-ready.
+4. Report concise status bars with numerators, denominators, accurate percentages, and clearly defined scopes. Keep source parity, tests, deployed functionality, mobile parity, and production readiness separate. Every user-facing progress and final update must include overall verified readiness as passed production release gates divided by total gates (currently 4/10, 40%). This is evidence-based release readiness, not a percentage of effort or time remaining; do not invent an overall estimate or increase it for candidate-only work.
+5. State the next bounded batch and any necessary owner intervention. Stop cleanly after the handoff; do not automatically begin another long operation or imply background work continues.
+
+If an interactive approval expires, preserve the checkpoint and report the exact blocked action. Do not wait repeatedly or infer authorization. Existing LIVE and Doomsday deployments, independent databases, Stripe settings/secrets, records and rollback copies remain untouched. No paid resources, production deployment, or database migration without explicit owner authorization.
+
+## Offline-first owner requirement
+
+The Business App must progressively support everyday work from an installed iPhone Home Screen app in airplane mode, preserving newer features and the original app's scrolling/polish. Connected services may require internet. Home Screen installation, source guards and mocked storage tests alone do not prove offline support. Follow OFFLINE_FIRST_IMPLEMENTATION_PLAN.md; current source findings are recorded in OFFLINE_FIRST_AUDIT_EVIDENCE.json. Preserve account/target isolation, owner-controlled records/photo backups, financial integrity and safe conflict/recovery handling. Never queue automatic Stripe charges/refunds. Additional spending remains USD 0. Do not claim permanent independence from hosting or browser-storage loss without clean-device recovery evidence. Apply approved shared improvements to every isolated target before release. No deployed app or database change is authorized by this requirement alone.

@@ -1,0 +1,44 @@
+name: FIRE isolated full SQLite records recovery (OFFLINE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/export_complete_isolated_sqlite_snapshot.mjs'
+      - 'business-app-parity/fingerprint_isolated_sqlite_schema.mjs'
+      - 'business-app-parity/restore_numbered_records_to_isolated_sqlite.mjs'
+      - 'business-app-parity/validate_supplemental_recovery_archive.mjs'
+      - 'business-app-parity/test_isolated_sqlite_recovery.mjs'
+      - 'business-app-parity/test_migrated_d1_journal_recovery.mjs'
+      - 'business-app-parity/protected_complete_isolated_sqlite_recovery.mjs'
+      - 'business-app-parity/rehearse_protected_complete_records_and_photos.mjs'
+      - 'business-app-parity/protected_recovery_pair_receipt.mjs'
+      - 'business-app-parity/recover_saved_protected_photo_zip.mjs'
+      - 'business-app-parity/adapters/independent-live/drizzle/0025_independent_permanent_numbers.sql'
+      - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
+      - '.github/workflows/fire-isolated-sqlite-full-recovery.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  offline-complete-sqlite-recovery:
+    name: Full local schema/records+high-water export and isolated restore, no provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout reviewed source without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22 SQLite from standard library
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rehearse full supplemental records and sqlitex-prefix omission guard
+        run: node --experimental-sqlite business-app-parity/test_isolated_sqlite_recovery.mjs
+      - name: Prove real 26-migration DR/LIVE release schema can recover without rewriting applied D1 journal
+        run: node --experimental-sqlite business-app-parity/test_migrated_d1_journal_recovery.mjs

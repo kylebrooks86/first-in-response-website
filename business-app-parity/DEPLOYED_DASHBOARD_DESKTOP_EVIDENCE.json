@@ -1,0 +1,98 @@
+{
+  "scope": "FIRE Business App deployed owner dashboard desktop observation only",
+  "asOf": "2026-10-09",
+  "parent": "ecc8f378f75d2a3e92296472ef26ad81e495db4e",
+  "captureTimeUTC": "2026-10-09T12:41:00Z",
+  "captureTimePrecision": "minute; shared screenshot save time",
+  "method": "Supported cloud browser; authenticated through secure sign-in forms; viewport measured from DOM; viewport resizing unavailable",
+  "captures": [
+    {
+      "target": "staging",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "screenshot": "business-app-parity/evidence/fire-stage-dashboard-light-20261009.jpg",
+      "sha256": "7c5a13cc821b24420411e67325f2a8631e581011c3c75178d2356fcc4af204d5",
+      "bytes": 98098,
+      "imageDimensions": [
+        1348,
+        926
+      ],
+      "imageFormat": "JPEG",
+      "browserViewport": {
+        "width": 1363,
+        "height": 936
+      },
+      "theme": "light",
+      "authenticated": true
+    },
+    {
+      "target": "doomsday",
+      "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
+      "screenshot": "business-app-parity/evidence/fire-doomsday-dashboard-light-20261009.jpg",
+      "sha256": "b698f83ac7783112b64d4b5f22b5f15e5cc1c278c16b0b371b3629296e41633a",
+      "bytes": 80619,
+      "imageDimensions": [
+        1363,
+        936
+      ],
+      "imageFormat": "JPEG",
+      "browserViewport": {
+        "width": 1363,
+        "height": 936
+      },
+      "theme": "light",
+      "authenticated": true
+    }
+  ],
+  "observations": [
+    {
+      "feature": "Insights sidebar navigation",
+      "staging": "visible",
+      "doomsday": "absent in captured dashboard",
+      "classification": "DIFFERENT"
+    },
+    {
+      "feature": "Dashboard weather panel",
+      "staging": "visible",
+      "doomsday": "absent in captured dashboard",
+      "classification": "DIFFERENT"
+    },
+    {
+      "feature": "Staging environment banner",
+      "staging": "visible synthetic records / Stripe sandbox label",
+      "doomsday": "no dashboard environment banner visible",
+      "classification": "adapter observation; not a shared-feature failure"
+    },
+    {
+      "feature": "Financial metrics and records",
+      "classification": "independent data; not comparable fixtures; do not copy or overwrite"
+    },
+    {
+      "feature": "Sites editing toolbar",
+      "classification": "hosting adapter; excluded from app parity"
+    }
+  ],
+  "candidateSource": {
+    "InsightsNavigationAndViewPresent": true,
+    "dashboardScheduleWeatherPresent": true,
+    "path": "business-app-parity/shared/app/dashboard.tsx",
+    "meaning": "candidate already contains both features; deployed Doomsday source/build identity not established; no speculative duplicate fix"
+  },
+  "limits": [
+    "Desktop light theme only; no mobile emulation or dark capture",
+    "Same measured browser viewport but screenshot API delivered different image dimensions; cause not established; no image resizing performed",
+    "No matching synthetic fixtures across deployments",
+    "Doomsday build identity unverified; staging known hosted v3 does not establish latest candidate publication",
+    "LIVE production not compared in this batch",
+    "Visual presence observed; Insights interaction and weather API behavior not tested"
+  ],
+  "strictParityComparisonsPassed": 0,
+  "strictParityComparisonsRequired": 32,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "runtimeFilesChanged": false,
+  "deploymentsChanged": false,
+  "databaseOrStripeWrites": false,
+  "applicationTestsRerun": false,
+  "verification": "JSON parsing, screenshot decoding/dimensions/hash/size, source presence, scoped diff check"
+}

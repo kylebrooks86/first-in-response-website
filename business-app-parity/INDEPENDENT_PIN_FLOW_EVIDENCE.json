@@ -1,0 +1,64 @@
+{
+  "scope": "isolated independent Doomsday PIN login adapter only",
+  "asOf": "2026-10-09",
+  "parent": "7d57ab602262a1e40468ae0ee55e20a7436af497",
+  "candidateSnapshotCommits": {
+    "live": "cf047c42e74918011699f196c53272f724255fe5",
+    "doomsday": "7b331886313f736bee704a0b04d4e7782cdc4539",
+    "staging": "c9ca5d5b2350db607e1ef031745d44b96f6713d5"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/pin-login-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/pin-login-final",
+    "staging": "/workspace/scratch/a307f8c9f987/pin-login-staging"
+  },
+  "changes": [
+    "Four-digit PIN input/label, numeric keyboard, masked entry, autocomplete off and valid-length submit guard",
+    "Server requires four-digit string; retains password JSON field and configured credential hash",
+    "Client return path normalized with same-origin check, including backslash external-path rejection",
+    "Full 30-minute lock respected independently of 15-minute attempt window",
+    "Atomic SQL upsert/returning increments failure count without lost updates"
+  ],
+  "verification": {
+    "pinFlowAssertionsPassed": 48,
+    "pinFlowAssertionsTotal": 48,
+    "priorSessionAssertionsPassed": 21,
+    "priorSessionAssertionsTotal": 21,
+    "negativeControls": [
+      "old lock-window status fails regression",
+      "old read/write failure counter fails concurrent regression with asynchronous D1-like response timing"
+    ],
+    "database": "Node in-memory SQLite using the existing independent auth_rate_limits migration; no remote D1",
+    "pinUI": "React server-rendered input inspected; not browser/mobile rendering",
+    "typescriptTargetsPassed": 1,
+    "typescriptTargetsChecked": 1,
+    "buildTargetsPassed": 1,
+    "buildTargetsChecked": 1,
+    "generatedLocalConfigGuardPassed": true,
+    "sharedFilesMatched": 118,
+    "sharedFilesChecked": 118,
+    "secondBuildReason": "Final candidate rematerialized after asynchronous regression fixture was corrected; final source manifest and build checked together"
+  },
+  "changedFilesSha256": {
+    "business-app-parity/adapters/doomsday/app/login/page.tsx": "fe1678c96b42c1237eccc993ed4f5267ec55237e27e066c703f1c5a243b2962c",
+    "business-app-parity/adapters/doomsday/app/api/auth/login/route.ts": "f051aaa094f75af1e9d5a41e6a667acf85c67849b6d36b465f410d826772021c",
+    "business-app-parity/shared/scripts/test-independent-pin-login.mjs": "3aa4eac5e019290afedf673a5bbdbc88f12deabf793c78bafe8b501d6a62d2d5"
+  },
+  "credentialMaterial": "synthetic fixtures only; no deployed PIN/hash copied or changed",
+  "limits": [
+    "Remote PIN/hash/session configuration and auth table schema unverified",
+    "Atomic query behavior checked in SQLite; actual D1 concurrency not verified",
+    "Deployed identity remains unverified",
+    "No matching mobile/light/dark browser capture or deployed login attempt",
+    "LIVE/staging sign-in remain separate hosting adapters"
+  ],
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "remoteSchemasVerified": 0,
+  "remoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "remoteDatabaseOrStripeWrites": false
+}

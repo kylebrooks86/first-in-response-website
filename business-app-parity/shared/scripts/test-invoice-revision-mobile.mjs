@@ -1,0 +1,72 @@
+import {editableLineTotalCents,editMoneyLine} from '../lib/editable-line-totals.ts';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import vm from 'node:vm';
+import ts from 'typescript';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+const require=createRequire(import.meta.url);
+const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
+const source=readFileSync('app/dashboard.tsx','utf8');
+const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EditInvoiceDialog');
+assert.ok(fn);
+const discountParser=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseDiscountCents');assert.ok(discountParser);
+const revisions=Array.from({length:6},(_,i)=>({id:`synthetic-revision-${i}`,subtotalCents:20000,discountCents:2000,discountType:'percent',discountValue:1000,totalCents:18000,status:'sent',dueAt:null,createdAt:'2026-10-09T00:00:00Z',items:[{id:'synthetic-service',name:'LongService'.repeat(30),description:'LongDescription'.repeat(30),quantity:2,unit:'sq ft',totalCents:20000}]}));
+const state=[];state[6]=revisions;state[7]=null;let cursor=0,requests=0,savedTotal;
+const refs=[];let refCursor=0;
+const fragment=({children})=>React.createElement(React.Fragment,null,children);
+const context={exports:{},require,editableLineTotalCents,editMoneyLine,useRef:initial=>{const i=refCursor++;return refs[i]??(refs[i]={current:i===2?JSON.stringify([undefined,'synthetic-invoice',null]):initial});},useEffect(){},services:[],useServicePricing:()=>({services:[],rates:[],loading:false,error:""}),money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),dateTime:value=>value,useState(initial){const index=cursor++;if(!(index in state))state[index]=initial;return [state[index],value=>state[index]=typeof value==='function'?value(state[index]):value];},fetch(){requests++;throw Error('No request allowed in revision review test');},Dialog:fragment,DialogTrigger:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Select:fragment,SelectTrigger:fragment,SelectValue:fragment,SelectContent:fragment,SelectItem:fragment,Input:props=>React.createElement('input',props),Textarea:props=>React.createElement('textarea',props),Button:({children,variant,...props})=>React.createElement('button',props,children),PenLine:()=>null,Trash2:()=>null,Plus:()=>null,ChevronRight:()=>null};
+vm.runInNewContext(ts.transpileModule(discountParser.getText(ast)+'\n'+fn.getText(ast)+'\nexports.EditInvoiceDialog=EditInvoiceDialog;',{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
+const render=()=>{cursor=0;refCursor=0;return context.exports.EditInvoiceDialog({estimate:{invoiceId:'synthetic-invoice',paidCents:5000},onSaved(total){savedTotal=total;}});};
+function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
+const summaries=()=>nodes(render()).filter(n=>n.props?.className==='invoice-revision-summary');
+let checks=0;const check=(label,run)=>{run();checks++;console.log('PASS: '+label);};
+check('History retains the existing five-revision limit and collapsed state',()=>{assert.equal(summaries().length,5);assert.ok(summaries().every(n=>n.props['aria-expanded']===false));assert.ok(!renderToStaticMarkup(render()).includes('revision-item-list'));});
+check('Actual revision handler opens long service text, original money and discount details',()=>{summaries()[0].props.onClick();assert.equal(summaries()[0].props['aria-expanded'],true);const html=renderToStaticMarkup(render());for(const text of [revisions[0].items[0].name,revisions[0].items[0].description,'$200.00','$20.00','$180.00','10%','Due on receipt'])assert.ok(html.includes(text));});
+check('Opening another revision collapses the previous revision',()=>{summaries()[1].props.onClick();assert.equal(summaries()[0].props['aria-expanded'],false);assert.equal(summaries()[1].props['aria-expanded'],true);assert.equal(nodes(render()).filter(n=>n.props?.className==='invoice-revision-details').length,1);});
+check('Same revision closes without network or save operations',()=>{summaries()[1].props.onClick();assert.ok(summaries().every(n=>!n.props['aria-expanded']));assert.equal(requests,0);});
+const rules=[];postcss.parse(readFileSync('app/globals.css','utf8')).walkRules(r=>rules.push(r));
+function value(selector,property,width){let found;for(const rule of rules){if(!rule.selector.split(',').map(s=>s.trim()).includes(selector))continue;if(rule.parent.type==='atrule'){const m=rule.parent.params.match(/^\(max-width:(\d+)px\)$/);if(!m||width>Number(m[1]))continue;}for(const node of rule.nodes)if(node.prop===property)found=node.value;}return found;}
+check('320/375/390/430/760px revision rows stack long labels and keep summary controls accessible',()=>{for(const width of [320,375,390,430,760]){assert.equal(value('.revision-item-list>div','grid-template-columns',width),'minmax(0,1fr)');assert.equal(value('.invoice-revision-summary','flex-wrap',width),'wrap');assert.equal(value('.invoice-revision-summary','min-height',width),'44px');}});
+check('Desktop retains separate service and quantity/amount columns',()=>{for(const width of [761,1363])assert.equal(value('.revision-item-list>div','grid-template-columns',width),'minmax(0,1fr) auto');});
+check('Long details can shrink and wrap while totals and chevrons remain unbroken',()=>{for(const width of [320,1363]){assert.equal(value('.invoice-revision-summary>span','min-width',width),'0');assert.equal(value('.revision-item-list>div>span','overflow-wrap',width),'anywhere');assert.equal(value('.revision-item-list>div>small','min-width',width),'0');assert.equal(value('.revision-totals strong','white-space',width),'nowrap');assert.equal(value('.revision-chevron','flex-shrink',width),'0');}});
+state[1]=[{id:'first',serviceId:'custom',name:'Synthetic service',description:'Original',quantity:2,unit:'job',unitRateCents:10000},{id:'second',serviceId:'custom',name:'Synthetic second',description:'Second',quantity:1,unit:'job',unitRateCents:10000}];
+const findId=id=>nodes(render()).find(n=>n.props?.id===id);
+const modeButton=text=>nodes(render()).find(n=>n.type===context.Button&&n.props.children===text);
+check('Each repeated service field has a unique control ID and visible associated label',()=>{const tree=nodes(render());const labels=tree.filter(n=>n.type===context.Label&&n.props.htmlFor);assert.equal(labels.length,9);const ids=labels.map(n=>n.props.htmlFor);assert.equal(new Set(ids).size,9);for(const id of ids)assert.equal(tree.filter(n=>n.props?.id===id).length,1);});
+check('Actual description, quantity and rate input callbacks update only the selected line',()=>{findId('invoice-synthetic-invoice-0-description').props.onChange({target:{value:'Changed'}});findId('invoice-synthetic-invoice-0-quantity').props.onChange({target:{value:'3'}});findId('invoice-synthetic-invoice-0-rate').props.onChange({target:{value:'80.25'}});assert.equal(state[1][0].description,'Changed');assert.equal(state[1][0].quantity,3);assert.equal(state[1][0].unitRateCents,8025);assert.equal(state[1][1].description,'Second');assert.equal(state[1][1].unitRateCents,10000);});
+check('Due mode buttons expose selected state and date field references its visible label',()=>{assert.equal(modeButton('Due on receipt').props['aria-pressed'],true);modeButton('Specific date').props.onClick();assert.equal(modeButton('Specific date').props['aria-pressed'],true);const field=nodes(render()).find(n=>n.props?.type==='date');assert.equal(field.props['aria-labelledby'],'invoice-synthetic-invoice-due-label');assert.ok(findId(field.props['aria-labelledby']));field.props.onChange({target:{value:'2026-11-20'}});assert.equal(state[5],'2026-11-20');});
+check('Discount mode selection and amount input retain actual callbacks and expose selection',()=>{assert.equal(modeButton('$ Dollar amount').props['aria-pressed'],true);modeButton('% Percentage').props.onClick();assert.equal(modeButton('% Percentage').props['aria-pressed'],true);findId('invoice-synthetic-invoice-discount').props.onChange({target:{value:'10'}});assert.equal(state[3],'10');});
+check('Mobile controls declare usable touch heights and 16px text with the actual Radix selector',()=>{for(const width of [320,375,390,430,760]){for(const selector of ['.invoice-edit-fields input','.invoice-edit-fields textarea','.invoice-edit-fields [data-slot="select-trigger"]','.invoice-edit-fields .discount-mode-row button','.invoice-edit-fields .estimate-edit-service>header>button'])assert.equal(value(selector,'min-height',width),'44px');assert.equal(value('.invoice-edit-fields input','font-size',width),'16px');assert.equal(value('.invoice-edit-fields textarea','font-size',width),'16px');assert.equal(value('.invoice-edit-fields .estimate-edit-service>header>button','min-width',width),'44px');}assert.equal(value('.invoice-edit-fields input','font-size',761),undefined);assert.equal(value('.invoice-edit-fields [data-slot="select-trigger"]','width',1363),'100%');});
+check('Dialog keeps existing bounded scroll behavior and marks only invoice editor for new sizing',()=>{assert.ok(nodes(render()).some(n=>n.props?.className==='estimate-edit-dialog invoice-edit-fields sm:max-w-[650px]'));assert.equal(value('.estimate-edit-dialog','overflow-y',390),'auto');});
+let sent;
+refs[2].current=JSON.stringify([undefined,'synthetic-invoice',null]);context.fetch=async(url,options)=>{requests++;sent={url,method:options.method,body:JSON.parse(options.body)};return {ok:true,json:async()=>({invoice:{id:'synthetic-invoice',totalCents:30668}})};};
+const saveButton=nodes(render()).find(n=>n.type===context.Button&&n.props.children==='Save invoice changes');
+saveButton.props.onClick();await new Promise(resolve=>setImmediate(resolve));
+check('Actual save callback preserves invoice PATCH payload, due date, discount and line arithmetic',()=>{assert.equal(requests,1);assert.equal(sent.url,'/api/invoices/synthetic-invoice');assert.equal(sent.method,'PATCH');assert.equal(sent.body.items[0].totalCents,24075);assert.equal(sent.body.items[1].totalCents,10000);assert.equal(sent.body.discountType,'percent');assert.equal(sent.body.discountValue,1000);assert.equal(sent.body.dueAt,'2026-11-20');assert.equal(savedTotal,30668);assert.equal(state[0],false);});
+console.log(`PASS: ${checks}/${checks} actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.`);
+
+// Invoice list controls are presentation-only; exercise the actual attention predicate.
+{
+ const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='InvoicesView');assert.ok(view);
+ const declaration=view.body.statements.filter(ts.isVariableStatement).flatMap(n=>n.declarationList.declarations).find(n=>n.name.getText(ast)==='needsInvoiceAttention');assert.ok(declaration);
+ const ctx={exports:{}};vm.runInNewContext(ts.transpileModule('exports.action='+declaration.initializer.getText(ast)+';', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,ctx);
+ const due=ctx.exports.action;
+ check('Open invoices and payment exceptions remain visible; settled invoices are not overdue',()=>{
+  assert.equal(due({totalCents:20000,paidCents:10000}),true);
+  assert.equal(due({totalCents:20000,paidCents:20000}),false);
+  assert.equal(due({totalCents:20000,paidCents:20000,paymentReviewPending:true}),true);
+  assert.equal(due({totalCents:20000,paidCents:20000,paymentOverageOpen:1}),true);
+  assert.equal(due({totalCents:20000,paidCents:20000,pendingRefundCount:1}),true);
+ });
+ check('Invoice search and incremental results preserve all payment and direct-navigation handlers',()=>{
+  const code=view.getText(ast);
+  assert.ok(code.includes('visible.slice(0,invoiceLimit)'));
+  assert.ok(code.includes('setInvoiceLimit(n=>Math.min(n+40,visible.length))'));
+  assert.ok(code.includes('setInvoiceLimit(rows.length)'));
+  assert.ok(code.includes('onRecorded={()=>void load()}'));
+  assert.ok(code.includes('onFocusHandled?.(focusInvoiceId)'));
+ });
+}
