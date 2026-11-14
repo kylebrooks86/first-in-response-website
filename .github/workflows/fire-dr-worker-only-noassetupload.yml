@@ -5,6 +5,7 @@ on:
       - 'business-app-parity/prepare_dr_noassets_worker.mjs'
       - 'business-app-parity/dr_noassets_runtime.mjs'
       - 'business-app-parity/test_dr_noassets_worker.mjs'
+      - 'business-app-parity/smoke_dr_noassets_local_runtime.mjs'
       - '.github/workflows/fire-dr-worker-only-noassetupload.yml'
 permissions:
   contents: read
@@ -31,6 +32,7 @@ jobs:
           node --check business-app-parity/dr_noassets_runtime.mjs
           node --check business-app-parity/prepare_dr_noassets_worker.mjs
           node --check business-app-parity/test_dr_noassets_worker.mjs
+          node --check business-app-parity/smoke_dr_noassets_local_runtime.mjs
           node business-app-parity/test_dr_noassets_worker.mjs
   actual-built-worker-only:
     name: Build exact shared QA-master DR and dry-run alternative Worker Data modules, NO upload
@@ -129,6 +131,12 @@ jobs:
             --config "$RUNNER_TEMP/fire-dr-worker-only-alternative/server/wrangler.json" \
             --outdir "$RUNNER_TEMP/fire-dr-worker-only-wrangler-preview"
           echo 'PASS offline Wrangler packaging inspection; NOT deployed or provider-attested.'
+      - name: Boot ACTUAL alternative in isolated local workerd and prove source bytes plus auth refusal (NO Cloudflare)
+        timeout-minutes: 3
+        run: |
+          node business-app-parity/smoke_dr_noassets_local_runtime.mjs \
+            "$RUNNER_TEMP/fire-dr-worker-only-alternative" \
+            "$RUNNER_TEMP/fire-original-dr/node_modules/wrangler/bin/wrangler.js"
       - name: Retain actual source-built no-asset-upload candidate for owner review, not deployment
         uses: actions/upload-artifact@v4
         with:
