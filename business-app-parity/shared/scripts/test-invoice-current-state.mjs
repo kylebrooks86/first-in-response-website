@@ -1,6 +1,7 @@
 /** Actual invoice/customer GET routes; native SQLite; no status repair writes. */
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
+import vm from 'node:vm';
 import {readFileSync,readdirSync} from 'node:fs';
 import {createRouteFixtureLoader} from './route-test-loader.mjs';
 import {invoicePaymentState,currentInvoice,invoicePaymentMessage} from '../lib/invoice-state.mjs';
@@ -18,15 +19,35 @@ async function state(id,status,paid,balance,review=false){
  for(const row of [a,one.invoice,c]){eq(row.status,status);eq(row.paidCents,paid);eq(row.balanceCents,balance);eq(row.paymentReviewPending,review);}
 }
 try{
- seed('invoice');seed('other',50000);seed('zero',0);eq((await list.GET()).headers.get('cache-control'),'no-store, private');eq((await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:'invoice'})})).headers.get('cache-control'),'no-store, private');eq((await customers.GET()).headers.get('cache-control'),'no-store, private');await state('invoice','sent',0,24000);await state('zero','paid',0,0);
+ seed('invoice');seed('other',50000);seed('zero',0);seed('zero-draft',0,'draft');seed('zero-historical',0,'paid');eq((await list.GET()).headers.get('cache-control'),'no-store, private');eq((await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:'invoice'})})).headers.get('cache-control'),'no-store, private');eq((await customers.GET()).headers.get('cache-control'),'no-store, private');await state('invoice','sent',0,24000);await state('zero','sent',0,0);await state('zero-draft','draft',0,0);await state('zero-historical','draft',0,0);
  payment('invoice','deposit','Cash',12000);await state('invoice','partial',12000,12000);
  payment('invoice','tip','Tip',1200);payment('invoice','tip-refund','Tip Refund',-200);payment('invoice','pending','Cash',500,'pending');payment('invoice','failed','Cash',500,'failed');await state('invoice','partial',12000,12000);
+ payment('other','excess','Cash',60000);await state('other','review',60000,0,true);
  payment('invoice','final','Venmo',12000);await state('invoice','paid',24000,0);eq(db.prepare('SELECT status FROM invoices WHERE id=?').get('invoice').status,'sent');eq(writes,0);
  payment('invoice','refund','Refund',-5000);await state('invoice','partial',19000,5000);payment('invoice','rest-refund','Refund',-19000);await state('invoice','sent',0,24000);
  db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES('pending-refund','final','e-invoice',1000,'manual','pending','2026-10-18')").run();await state('invoice','sent',0,24000,true);
  db.prepare("UPDATE payment_refunds SET status='failed' WHERE id='pending-refund'").run();await state('invoice','sent',0,24000);
  db.prepare("INSERT INTO notifications(id,type,title,body,estimate_id,created_at) VALUES('overage','payment_overage','Review','Synthetic review','e-invoice','2026-10-18')").run();await state('invoice','sent',0,24000,true);await state('other','sent',0,50000);
  const base={status:'paid',totalCents:24000,paidCents:24000};eq(invoicePaymentState(base).status,'paid');assert.match(invoicePaymentMessage(invoicePaymentState(base)),/paid in full\. No additional invoice payment is due/);checks++;
+ for(const status of ['draft','sent','paid']){
+  const zero=invoicePaymentState({status,totalCents:0,paidCents:0});
+  eq(zero.status,status==='paid'?'draft':status,'Zero dollars collected never proves a paid invoice, even with stale stored paid status');
+  eq(invoicePaymentMessage(zero),'No payment is due for this invoice.','Zero invoice customer wording must not claim payment received');
+ }
+ const excess=invoicePaymentState({status:'paid',totalCents:24000,paidCents:24001});
+ eq(excess.review,true,'Principal overpayment without notification still requires review');
+ eq(excess.status,'review','Overpaid invoice may not show settled paid status');
+ assert.match(invoicePaymentMessage(excess),/being reviewed/);checks++;
+ // Initial invoice CREATE is a distinct path from revised invoice PATCH.
+ // Evaluate the real source expression so zero-total invoices never start paid.
+ const createSource=readFileSync('app/api/invoices/route.ts','utf8');
+ const createStatusExpression=createSource.match(/const invoiceStatus\\s*=\\s*([^;]+);/)?.[1];
+ assert.ok(createStatusExpression,'Actual invoice CREATE payment-status expression required');
+ const createStatus=(estimateTotalCents,paidCents)=>vm.runInNewContext(createStatusExpression,{estimateTotalCents,paidCents});
+ eq(createStatus(0,0),'draft','Initial complimentary invoice has no paid receipt');
+ eq(createStatus(2500,0),'draft','New unpaid invoice stays draft');
+ eq(createStatus(2500,500),'partial','Previously recorded partial payment preserved');
+ eq(createStatus(2500,2500),'paid','Real fully settled positive invoice remains paid');
  for(const field of ['totalCents','paidCents'])for(const value of [-1,NaN,Infinity,1.5,Number.MAX_SAFE_INTEGER+1,'24000']){const s=invoicePaymentState({...base,[field]:value});eq(s.safe,false);eq(s.review,true);eq(s.balanceCents,null);assert.match(invoicePaymentMessage(s),/do not send another payment/);checks++;}
  eq(invoicePaymentMessage(invoicePaymentState({...base,paidCents:12000})),null);
  eq(currentInvoice({...base,status:'draft'}).storedStatus,'draft');eq(invoicePaymentState({...base,status:'void'}).review,true);
