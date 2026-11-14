@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from '../lib/new-live-migration-journal.mjs';
 import {inspectNewLiveFirstJobCleanStart} from '../lib/new-live-first-job-preflight.mjs';
+import {REVIEWED_INDEPENDENT_D1_NAMED_INDEXES} from '../lib/new-live-index-view-contract.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from '../lib/numbered-records-v2-preflight.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','d1_migrations'];
 const applied=EXPECTED_NEW_LIVE_D1_MIGRATIONS.map((name,i)=>({id:i+1,name}));
@@ -51,13 +52,15 @@ const create=(override={})=>{
  const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:26},
   journalRows:applied.map(row=>({...row})),serialRows:0,
   financialIndexes:actualFinancialIndexes.map(row=>({...row})),
+  namedSchemaObjects:reviewedNamedIndexRows.map(row=>({...row})),
   validSchema:true,validCoverage:true,validCustomerSchema:true,validCustomerCoverage:true,...override};
  const statements=[];
  const db={prepare(sql){
   statements.push(sql);
   if(!/^SELECT\b/i.test(sql.trim()))throw Error('Unexpected write SQL!');
   const count=/^SELECT COUNT\(\*\) AS n FROM "([a-z0-9_]+)"$/.exec(sql);
-  return {all:async()=>sql.includes("FROM sqlite_master WHERE type='index'")?
+  return {all:async()=>sql.includes("type='view' OR (type='index'")?
+   ({results:v.namedSchemaObjects.map(row=>({...row}))}):sql.includes("FROM sqlite_master WHERE type='index'")?
    ({results:v.financialIndexes.map(row=>({...row}))}):sql==='SELECT id, name FROM "d1_migrations" ORDER BY id'?
    ({results:v.journalRows}):sql.includes('SELECT name,sql FROM sqlite_master')?
    ({results:v.triggers.filter(name=>[...sql.matchAll(/'([a-z_]+)'/g)]
@@ -100,12 +103,32 @@ assert.equal(readFileSync(new URL('../../adapters/independent-dr/drizzle/0025_in
  readFileSync(new URL('../../adapters/independent-live/drizzle/0025_independent_permanent_numbers.sql',import.meta.url),'utf8'),
  'DR and NEW LIVE numbered migration bytes must match');
 checks++;
+// The source SQL, NOT the new validator's literal allowlist, is the test oracle.
+// Every named index must exist in a reviewed 0000..0025 SQL migration, and
+// those reviewed migrations must never create any VIEW.
+const reviewedSql=baseSql.map(name=>readFileSync(
+ new URL('../../adapters/doomsday/drizzle/'+name,import.meta.url),'utf8')).concat(
+ isolatedSql.map(name=>readFileSync(
+  new URL('../../adapters/independent-live/drizzle/'+name,import.meta.url),'utf8')));
+assert.ok(reviewedSql.every(sql=>!/^\\s*CREATE\\s+VIEW\\b/im.test(sql)),
+ 'Reviewed independent migrations do not create SQL views');
+const migrationIndexNames=reviewedSql.flatMap(sql=>[...sql.matchAll(
+ /^\\s*CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+[`"]?([a-z0-9_]+)/gim)].map(match=>match[1]));
+assert.equal(new Set(migrationIndexNames).size,migrationIndexNames.length,
+ 'Reviewed migrations may not define duplicate named indexes');
+assert.deepEqual([...migrationIndexNames].sort(),
+ [...REVIEWED_INDEPENDENT_D1_NAMED_INDEXES].sort(),
+ 'Named-index activation allowlist must match all 26 actual reviewed SQL files');
+const reviewedNamedIndexRows=migrationIndexNames.map(name=>({type:'index',name}));
+checks++;
 const base=create();const proof=await inspectNewLiveFirstJobCleanStart(base.db,env);
 ok(proof.firstJobNumberExpected==='0001','clean schema predicts first permanent Job #0001');
 ok(proof.tableRecordsAllEmpty===true&&proof.jobAndCustomerSequencesEmpty===true,
  'all known operational tables and sequences inspected');
 ok(proof.physicalFinancialIndexesMatched===true,
  'bound D1 refund, provider uniqueness and invoice indexes must match actual reviewed SQL');
+ok(proof.reviewedNamedIndexesAndNoViewsVerified===true,
+ 'all 26 reviewed SQL named indexes exist and no unapproved VIEW is installed');
 ok(proof.exactSourceMigrationJournalMatched===true,
  'actual NEW LIVE source check now requires all 26 ordered D1 migrations');
 ok(proof.requiredImmutabilityTriggersPresent===true,
@@ -171,6 +194,18 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:triggers.sli
  'missing immutable customer-number trigger stops');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:triggers.filter(name=>name!=='deposit_agreement_snapshots_no_delete')}).db,env),
  'missing signed agreement delete barrier prevents first use');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ namedSchemaObjects:[...reviewedNamedIndexRows,{type:'index',name:'unexpected_unique_customer_index'}]
+}).db,env),'unexpected UNIQUE index can block real owner saves; refuse first LIVE activation');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ namedSchemaObjects:[...reviewedNamedIndexRows,{type:'view',name:'unreviewed_customer_view'}]
+}).db,env),'unknown SQL view is not part of the reviewed 26-migration schema');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ namedSchemaObjects:reviewedNamedIndexRows.slice(1)
+}).db,env),'missing nonfinancial customer/job index cannot pass reviewed schema inventory');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ namedSchemaObjects:reviewedNamedIndexRows.map((row,i)=>i===0?{...row,name:'forged_index'}:row)
+}).db,env),'renaming a reviewed index to a foreign name stops activation');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggers:[...triggers,'unknown_payment_trigger']}).db,env),
  'unknown trigger may alter business rows and must not pass reviewed clean-start');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({triggerSqlOverride:{
