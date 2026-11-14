@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOVEMBER 14 — OWNER NEW LIVE ACER PREEXISTING ONE-SHOT LOCK CHECKPOINT (NOT MIGRATION SUCCESS)
+
+- New owner Acer screenshot shows the approved, pinned `owner_new_live_initial_schema_one_shot.mjs` run with the exact typed confirmation for **only** `fire-fullapp-new-live-db` physical UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, then **`FIRE NEW LIVE remote migration BLOCKED: prior NEW LIVE attempt or completion exists; never reapply migrations`**. This invocation failed before another migration write. The wrapper prints installer non-completion. The manually executed `Write-Host` ending line is not a receipt.
+- The earlier Acer photo reached the real Cloudflare `About to apply 26 migration(s)` confirmation; its subsequent outcome is **unverified**. The current guard proves a prior attempt lock **or** successful receipt is already present; it cannot establish whether the original remote application completed. The user must NOT restart or reapply, erase/rename the local lock, or use another migration path. Existing accepted DR 26/26 and DR dark hosted identity remain untouched.
+- Next minimal step: owner-local, **offline read-only** check of the existence and selected safe receipt fields at `$HOME\\FIRE-NEW-LIVE-ONE-SHOT-SCHEMA-20261114\\new-live-remote-attempt-lock.json` and `new-live-physical-schema-receipt.json`. If a reviewed receipt exists, preserve it; if only the attempt lock exists, use targeted NEW LIVE-only read-only provider journal/schema inspection after reviewing original attempt outcome, **never** a migration retry. No customer data or credentials in chat/GitHub.
+- Exact contemporaneous issue log: [Issue #19 owner screenshot checkpoint](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6886193606). Formal G1/G2/G3/G8 **4/10 accepted**; G4/G5/G6/G7/G9/G10 **OPEN**, NEW LIVE **NO-GO**. No owner authorization for Worker deploy, Stripe, R2, paid Cloudflare, migration retry, merge or release.
+
+---
+
+
 ## NOVEMBER 14 — OWNER AUTHORIZED **NEW LIVE ONLY** PHYSICAL 26-MIGRATION ONE-SHOT; EXECUTION STILL PENDING
 
 - **New exact owner approval recorded:** On Nov 14, owner replied **"approve"** to applying the 26 source-reviewed migrations **ONLY** to the previously created NEW LIVE D1 `fire-fullapp-new-live-db` UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, conditional on confirming that same actual physical database is clean and independently distinct from DR immediately before any write. Canonical [Issue #19 consent/evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6886050061). No need to seek the same narrow consent again before its first guarded local attempt.
