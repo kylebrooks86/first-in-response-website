@@ -122,10 +122,22 @@ export function prepareNewLiveBoundDarkWorker(source,destination){
  const runtimeText=guardedRuntime.toString('utf8');
  if(!runtimeText.includes('if(!approvedDR&&!approvedLive)')||
     !runtimeText.includes("'Cache-Control':'private, no-store'")||
-    !runtimeText.includes('status:404'))
+    !runtimeText.includes('status:404')||
+    !runtimeText.includes('packaged environment identity missing')||
+    !runtimeText.includes("expectedTarget==='new-live-prelaunch'"))
   stop('current source lacks reviewed first-request locked runtime');
  writeFileSync(join(out,runtimeRel),guardedRuntime);
  const guardedRuntimeSha256=sha(guardedRuntime);
+ const entryRel='server/fire-noassets-entry.mjs';
+ const priorEntry=readFileSync(join(before.root,entryRel),'utf8');
+ const oldCall='wrapInertDRWorker(server,manifest);';
+ if(!priorEntry.includes(oldCall)||priorEntry.split(oldCall).length!==2)
+  stop('sealed original entry is not the reviewed unbound source');
+ const nextEntry=priorEntry.replace(oldCall,
+  'wrapInertDRWorker(server,manifest,"new-live-prelaunch");');
+ writeFileSync(join(out,entryRel),nextEntry);
+ const priorEntrySha256=sha(Buffer.from(priorEntry));
+ const lockedEntrySha256=sha(Buffer.from(nextEntry));
  const config=structuredClone(before.config);
  config.d1_databases=[{binding:'DB',database_name:'fire-fullapp-new-live-db',
    database_id:LIVE_UUID}];
@@ -141,23 +153,27 @@ export function prepareNewLiveBoundDarkWorker(source,destination){
  writeFileSync(cfgFile,JSON.stringify(config,null,2)+'\n');
  let sameFiles=0;
  for(const p of before.paths){
-  if(p==='server/wrangler.json'||p===runtimeRel)continue;
+  if(p==='server/wrangler.json'||p===runtimeRel||p===entryRel)continue;
   if(sha(readFileSync(join(before.root,p)))!==sha(readFileSync(join(out,p))))
    stop('original SSR/static/receipt bytes unexpectedly changed');
   sameFiles++;
  }
- if(sameFiles!==240)stop('not every original non-adapter file preserved');
- if(sha(readFileSync(join(out,runtimeRel)))!==guardedRuntimeSha256)
-  stop('first-request release lock was not saved exactly');
+ if(sameFiles!==239)stop('not every original non-adapter file preserved');
+ if(sha(readFileSync(join(out,runtimeRel)))!==guardedRuntimeSha256||
+    sha(readFileSync(join(out,entryRel)))!==lockedEntrySha256)
+  stop('target-bound first-request release lock/entry was not saved exactly');
  const proof={
   kind:'FIRE_NEW_LIVE_PHYSICAL_D1_DARK_PREHOST_SOURCE_ONLY_V1',
   sourceSha:SOURCE_SHA,originalGitHubArtifactId:SOURCE_ARTIFACT,
   originalGitHubZipSha256:ZIP_SHA,originalCompleteFileTreeSha256:TREE_SHA,
   originalReceiptSha256:RECEIPT_SHA,originalConfigSha256:CONFIG_SHA,
   resultingConfigSha256:sha(readFileSync(cfgFile)),
-  originalUnchangedFileCount:240,originalUnchangedClientAssets:41,
+  originalUnchangedFileCount:239,originalUnchangedClientAssets:41,
   originalArchiveRuntimeSha256:originalRuntimeSha256,
   refreshedFirstRequestRuntimeSha256:guardedRuntimeSha256,
+  originalArchiveEntrySha256:priorEntrySha256,
+  refreshedTargetBoundEntrySha256:lockedEntrySha256,
+  immutableExpectedWorkerTarget:'new-live-prelaunch',
   firstRequestLockCopiedIntoFinalSource:true,
   originalSSRAnd41DataAssetsByteIdentical:true,
   worker:'fire-fullapp-new-live',existingPhysicalNewLiveD1:LIVE_UUID,
