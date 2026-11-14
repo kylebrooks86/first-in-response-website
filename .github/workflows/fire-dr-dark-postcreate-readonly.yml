@@ -28,3 +28,19 @@ jobs:
         run: python -m unittest discover -s business-app-parity -p 'test_capture_new_dr_dark_version_read_only.py' -v
       - name: Verify the owner helper's default mode makes zero provider requests
         run: python business-app-parity/capture_new_dr_dark_version_read_only.py
+  windows-npx-command-mock:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Windows npx.cmd argument and exit capture with fake local command ONLY
+        shell: pwsh
+        run: python -m unittest discover -s business-app-parity -p 'test_capture_new_dr_dark_version_read_only.py' -v
