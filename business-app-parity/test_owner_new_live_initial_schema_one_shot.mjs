@@ -4,7 +4,8 @@ import {mkdtempSync,readFileSync,rmSync,statSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {
- requireNewLiveApprovalSentinel,pinnedNewLiveAccountEnvironment,
+ requireNewLiveApprovalSentinel,requireLocalOwnerInteractiveNewLiveSession,
+ requireTypedNewLiveMigrationConfirmation,pinnedNewLiveAccountEnvironment,
  requireIndependentNewLiveInfo,requireEmptyPhysicalNewLive,
  newLiveResultRows,bindReadOnlyNewLiveSelect,
  createOneShotNewLiveAttemptLock,safeNewLiveCommandError,
@@ -28,6 +29,32 @@ try{
   'only exact future owner-authorized operation flag recognized');
  await blockAsync(()=>applyNewLiveInitialSchemaAfterSeparateApproval('/fake/path',undefined),
   'public exported executor without explicit owner scope never opens Wrangler');
+ const ownerTTY={stdinTTY:true,stdoutTTY:true};
+ ok(requireLocalOwnerInteractiveNewLiveSession({},ownerTTY),
+  'only an actual interactive terminal with no CI flags is eligible for owner approval');
+ for(const raw of [
+  {CI:'true'},{CI:'1'},{GITHUB_ACTIONS:'true'},
+  {GITLAB_CI:'true'},{TF_BUILD:'1'},{BUILDKITE:'true'},
+  {CIRCLECI:'true'},{JENKINS_URL:'https://jenkins.local'},
+  {TEAMCITY_VERSION:'2026'}
+ ])block(()=>requireLocalOwnerInteractiveNewLiveSession(raw,ownerTTY),
+  'CI, Work automations and non-owner hosted execution cannot reach Cloudflare');
+ for(const io of [
+  {stdinTTY:false,stdoutTTY:true},{stdinTTY:true,stdoutTTY:false},
+  {stdinTTY:false,stdoutTTY:false},{},null
+ ])block(()=>requireLocalOwnerInteractiveNewLiveSession({},io),
+  'piped or missing interactive owner terminal refuses migration');
+ const typed='FIRE NEW LIVE APPLY 26 '+live;
+ ok(requireTypedNewLiveMigrationConfirmation(typed),
+  'exact NEW LIVE database UUID and exact 26 migration phrase accepted only as additional owner safeguard');
+ for(const wrong of [
+  typed+' ',typed.toLowerCase(),typed.replace('26','25'),
+  typed.replace(live,dr),typed.replace('LIVE','DR'),undefined,'yes',''
+ ])block(()=>requireTypedNewLiveMigrationConfirmation(wrong),
+  'wrong database/number/target/blank/case/padded one-shot approval rejected');
+ await blockAsync(()=>applyNewLiveInitialSchemaAfterSeparateApproval('/fake/path',
+  '--exact-new-live-26-migrations-separately-authorized'),
+  'public exported executor cannot reach Wrangler from a headless CI test even with the correct flag');
  const pinned=pinnedNewLiveAccountEnvironment({SAFE:'yes'});
  ok(pinned.CLOUDFLARE_ACCOUNT_ID==='bfc00939cfb2f8dfd8581a7a7f5f1307'&&
     pinned.SAFE==='yes'&&pinned.WRANGLER_SEND_METRICS==='false'&&

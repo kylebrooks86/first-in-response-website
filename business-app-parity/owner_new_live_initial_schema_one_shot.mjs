@@ -13,6 +13,7 @@
 import {spawnSync} from 'node:child_process';
 import {closeSync,existsSync,fsyncSync,lstatSync,mkdirSync,openSync,writeFileSync,writeSync} from 'node:fs';
 import {homedir} from 'node:os';
+import {createInterface} from 'node:readline/promises';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {prepareIndependentD1MigrationWorkspace,REVIEWED_RELEASE_D1_TARGETS}
@@ -32,12 +33,54 @@ const WORK=join(OUT,'source-reviewed-26-migrations');
 const LOCK=join(OUT,'new-live-remote-attempt-lock.json');
 const RECEIPT=join(OUT,'new-live-physical-schema-receipt.json');
 const APPROVAL_SENTINEL='--exact-new-live-26-migrations-separately-authorized';
+const OWNER_TYPED_PHRASE='FIRE NEW LIVE APPLY 26 '+LIVE.database_id;
 const stop=s=>{throw Error('FIRE NEW LIVE remote migration BLOCKED: '+s);};
 
 export function requireNewLiveApprovalSentinel(actual){
  if(actual!==APPROVAL_SENTINEL)
   stop('exact future owner approval is required; code review is not Cloudflare authorization');
  return true;
+}
+/**
+ * The exact CLI flag alone is NOT owner authorization. An eventual approved
+ * one-shot MUST run from the owner's actual interactive terminal. Refuse
+ * CI/unattended process contexts before making even read-only provider calls.
+ * This is extra defense; the owner must still approve the specific remote
+ * change separately before executing the script at all.
+ */
+export function requireLocalOwnerInteractiveNewLiveSession(
+ raw=process.env,io={stdinTTY:process.stdin?.isTTY===true,stdoutTTY:process.stdout?.isTTY===true}
+){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw)||!io||typeof io!=='object')
+  stop('local owner interactive session evidence missing');
+ for(const key of ['CI','GITHUB_ACTIONS','GITLAB_CI','TF_BUILD','BUILDKITE','CIRCLECI','JENKINS_URL','TEAMCITY_VERSION']){
+  if(Object.hasOwn(raw,key)&&raw[key]!==undefined&&raw[key]!==''&&raw[key]!==false&&raw[key]!=='false')
+   stop('automated job execution is prohibited for NEW LIVE remote migration');
+ }
+ if(io.stdinTTY!==true||io.stdoutTTY!==true)
+  stop('owner-controlled interactive terminal required; piped/headless execution prohibited');
+ return true;
+}
+export function requireTypedNewLiveMigrationConfirmation(actual){
+ if(actual!==OWNER_TYPED_PHRASE)
+  stop('exact one-shot target and database UUID must be typed by owner');
+ return true;
+}
+async function demandLocalOwnerConfirmation(){
+ requireLocalOwnerInteractiveNewLiveSession();
+ const rl=createInterface({input:process.stdin,output:process.stdout});
+ try{
+  const challenge=[
+   'STOP: This would apply 26 SQL migrations to ONE physical NEW LIVE D1.',
+   'This is NOT permission to deploy the Worker, use Stripe, or enable R2.',
+   'Only proceed if you have already separately authorized this exact',
+   'Cloudflare account and NEW LIVE database migration action.',
+   'Target '+LIVE.database_name+' / '+LIVE.database_id,
+   'Type exactly: '+OWNER_TYPED_PHRASE,
+   '> '
+  ].join('\n');
+  requireTypedNewLiveMigrationConfirmation(await rl.question(challenge));
+ }finally{rl.close();}
 }
 export function pinnedNewLiveAccountEnvironment(raw=process.env){
  if(raw.CLOUDFLARE_ACCOUNT_ID&&raw.CLOUDFLARE_ACCOUNT_ID!==ACCOUNT)
@@ -175,6 +218,10 @@ function wrangler(js,args,{cwd=WORK,write=false}={}){
 }
 export async function applyNewLiveInitialSchemaAfterSeparateApproval(pinnedWrangler,approvalFlag){
  requireNewLiveApprovalSentinel(approvalFlag);
+ // Executed BEFORE Wrangler version checks, Cloudflare read-only preflight,
+ // attempt lock creation or any irreversible remote SQL.
+ requireLocalOwnerInteractiveNewLiveSession();
+ await demandLocalOwnerConfirmation();
  if(typeof pinnedWrangler!=='string'||!pinnedWrangler.trim())
   stop('exact locally installed reviewed Wrangler JS path required');
  const js=resolve(pinnedWrangler);
