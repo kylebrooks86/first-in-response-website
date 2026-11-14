@@ -1546,3 +1546,21 @@ Active consolidated main-target **DRAFT PR #270** source `77ee79229e92df05626214
 **Targeted actual changed-source CI confirmed:** [DR first-create run 43634069204](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43634069204) completed **SUCCESS**: `PASS 24/24` first-create archive, exact-source protected request checks, original bytes and offline Wrangler dry-run. New immutable review-only GitHub artifact ID **14129003971** (DR), NO deployment. [NEW LIVE physically D1-bound dark prehost run 43634069077](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43634069077) completed **SUCCESS**: `PASS 27/27` original 242-file archive, new locked target, 41 binary assets and Wrangler offline dry-run, immutable review-only GitHub artifact ID **14129103594**, NO deployment. Main-target website/calculator exact-tree verifier succeeded on this SHA. At this writing, 21/23 exact-head workflow groups SUCCESS, 2 running/pending; inspect full latest workflow results before asserting overall green. Intermediate source test failures from missing immutable target arguments were fixed in the actual code/tests and remain visible in CI history, not reclassified as passes.
 
 **Physical boundary preserved:** DR D1 26/26 owner-accepted; NEW LIVE physical D1 26 migrations still NOT APPLIED, Job #0001 clean start NOT physically proven. Neither new source-only artifact was used in Cloudflare, and original owner-private backups stay untouched. Hosted first Workers, Access/nonowner/cross-customer controls, future complete records+photos recoverability, signed Stripe TEST, complete multi-environment QA parity and owner cutover remain open. ZERO Cloudflare provider action, first Worker creation, D1 write, R2/paid plan, secrets, Stripe, phone/Acer/Work login repeat, Git merge, DNS/public website publish or legacy retirement. Formal G1/G2/G3/G8 = **4/10 ACCEPTED**; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE NO-GO. Fresh exact owner approval is required before any provider write or deployment.
+
+
+---
+
+## November 14 — off-Acer private custody of PR270 hardened DR + NEW LIVE release source archives
+
+Following actual modified PR270 code HEAD `0321b404560829b8e9bce33c2d64704b9ed730b3`, the corrected first-create **source-only** archives were exported from GitHub Actions and written directly to the owner's existing **FIRE Business App Backups** private Google Drive folder, without Acer or Cloudflare. Unlike the original PR267/PR268 sealed ZIPs, these saved final candidate archives contain the updated target-bound first-request 404 lock. They remain review-only and **MUST NOT be deployed without fresh owner authorization**.
+
+| Target | New GitHub artifact | Original ZIP SHA-256 (downloaded and locally ZIP CRC-verified) | File size / entries | Owner-private Drive ID | GitHub expiration UTC |
+| --- | --- | --- | --- | --- | --- |
+| DR first-create locked | `14129003971` | `3dfc6686053c3daa958a1d6917f01d0ab7bb6c3c1889afce7bff31abf8aeea5e` | 3,076,735 / 241 | `169PRlcChjgpz9_9zeh7dbrq3O0fol0FS` | Nov 17, 2026 19:48:48 |
+| NEW LIVE D1-bound locked | `14129103594` | `b86810a4590f895a99986d853e5f2bcdda570a1d4921f9c9e1e1f720c7335d00` | 3,088,454 / 243 | `1PlI0hWiSUqavqqjDR4DLi7AWmU2Pfx1O` | Nov 21, 2026 19:48:35 |
+
+Owner-private Drive links:
+- DR https://drive.google.com/file/d/169PRlcChjgpz9_9zeh7dbrq3O0fol0FS/view?usp=drivesdk
+- NEW LIVE https://drive.google.com/file/d/1PlI0hWiSUqavqqjDR4DLi7AWmU2Pfx1O/view?usp=drivesdk
+
+**Direct Google Drive readback:** Both files are `application/zip`, correct exact byte size and filename, in existing owner folder `1x9ocIiI9mQMtwf0YP0Q9HqxBWn1qyIjt`, `shared:false` with user-owner-only permissions. Source ZIPs are locally CRC verified and inspected to confirm correct target-pinned entry, auth blocked, no R2, both public-route modes disabled. This verifies *metadata* custody, not an independent Drive-hosted raw-byte SHA readback or actual deployed Worker. It is *not* backed-up future customer records/photos or Gate7 acceptance. Keep earlier 32 encrypted DR evidence backups without overwrite. No Cloudflare paid/Worker/D1 or Stripe action, phone/Acer/Work login, Git merge, site publish or release gate closure. The exact original source SHA and source-only status govern the ZIPs.
