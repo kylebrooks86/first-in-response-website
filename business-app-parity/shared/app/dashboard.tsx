@@ -1700,14 +1700,20 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
     if(email.trim()&&!usableCustomerEmail(email)){setError("Enter a valid email address or leave it blank.");return;}
     if(phone.trim()&&!usableCustomerPhone(phone)){setError("Enter a valid 10-digit U.S. phone number or leave it blank.");return;}
     const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    // Freeze the original contact fields from THIS editor session. The D1
+    // write compares these exact original bytes under the same UPDATE;
+    // a stale tab cannot overwrite a newer customer edit. Nothing sensitive
+    // is stored in localStorage or included in the durable save receipt.
+    const expected={name:customer.name??"",email:customer.email??"",phone:customer.phone??"",
+      address:customer.address??"",leadSource:customer.leadSource||"Unknown"};
     attempted.current=payload;
     saveLock.current=true;setSaving(true);setError("");
     let responseStatus=0;
     const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
     try {
-      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
+      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,expected}),signal:controller.signal});
       responseStatus=response.status;
-      const result=await response.json() as {customer?:CustomerRow;error?:string};
+      const result=await response.json() as {customer?:CustomerRow;error?:string;staleCustomer?:boolean};
       if(currentCustomer.current!==id)return;
       if(!response.ok)throw new Error(result?.error||"The customer could not be updated.");
       if(!matchesSaved(result?.customer,payload))throw new Error("The save response did not match these customer details.");

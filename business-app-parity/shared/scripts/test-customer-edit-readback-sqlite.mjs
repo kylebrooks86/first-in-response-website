@@ -15,6 +15,7 @@ INSERT INTO customers VALUES
 let user={email:'kylebrooks8605@gmail.com'},writes=0,readbacks=0;
 let skipUpdate=false,throwAfterCommit=false,loseReadback=false,distortReadback=false,deleteAfterUpdate=false;
 let concurrentContactClaim=null; // Inject another owner's write between preflight and UPDATE.
+let concurrentSameCustomerEdit=false; // Another tab updates this SAME customer immediately before guarded write.
 function prep(sql){
  return {sql,params:[],bind(...params){return {...this,params}},
   async first(){
@@ -39,6 +40,10 @@ function prep(sql){
      if(type==='phone')db.prepare("UPDATE customers SET phone=? WHERE id='other'").run('9185550198');
      if(type==='name-address')db.prepare("UPDATE customers SET name='Concurrent Home',address='750 Shared Street' WHERE id='other'").run();
    }
+   if(concurrentSameCustomerEdit){
+     concurrentSameCustomerEdit=false;
+     db.prepare("UPDATE customers SET name='Newer Tab Contact' WHERE id='first'").run();
+   }
    const changes=db.prepare(sql).run(...this.params).changes;
    if(deleteAfterUpdate){deleteAfterUpdate=false;db.prepare('DELETE FROM customers WHERE id=?').run(this.params[5]);}
    if(throwAfterCommit){throwAfterCommit=false;throw Error('Synthetic D1 post-commit ACK lost');}
@@ -51,7 +56,9 @@ const {PATCH}=load('app/api/customers/route.ts');
 const customer=()=>db.prepare('SELECT id,name,email,phone,address,lead_source AS leadSource,created_at AS createdAt FROM customers WHERE id=?').get('first');
 const request=(fields)=>new Request('https://synthetic.invalid/api/customers',{
  method:'PATCH',headers:{'content-type':'application/json'},
- body:JSON.stringify({id:'first',...customer(),...fields})
+ body:JSON.stringify({id:'first',...customer(),...fields,
+   expected:Object.fromEntries(['name','email','phone','address','leadSource']
+     .map(key=>[key,customer()[key]??'']))})
 });
 const patch=fields=>PATCH(request(fields)),checks=[];
 async function expect(status,fields,label){
@@ -100,6 +107,44 @@ try{
  assert.equal((await saved.json()).customer.name,'Updated Name');
  assert.equal(customer().address,'New Synthetic Address');
  await expect(200,{name:'Updated Name'},'No-op save remains safe');
+ // A saved contact opened in two different owner tabs must be compared at
+ // the actual SQLite UPDATE boundary. An earlier tab may not overwrite the
+ // newer owner's contact, even when no duplicate customer ID is involved.
+ const staleRequest=request({address:'Stale Tab Address'});
+ const fresh=await patch({name:'Latest Owner Contact'});
+ assert.equal(fresh.status,200,'More recent owner contact edit committed');
+ const stale=await PATCH(staleRequest);
+ assert.equal(stale.status,409,'Stale original snapshot rejects overwrite');
+ const staleBody=await stale.json();
+ assert.equal(staleBody.staleCustomer,true,'Stale owner gets explicit conflict response');
+ assert.equal(staleBody.saveUncertain,true,'No blind retry on an unconfirmed old edit');
+ assert.equal(customer().name,'Latest Owner Contact','Fresh contact survives older-tab save');
+ assert.equal(customer().address,'New Synthetic Address','Stale tab address did not overwrite saved value');
+ checks.push('Original customer snapshot prevents stale two-tab contact overwrite');
+ // A TOCTOU edit between initial identity preflight and UPDATE is blocked by
+ // the SQL WHERE condition, not only by comparing two earlier GET results.
+ concurrentSameCustomerEdit=true;
+ const raced=await patch({address:'Attempted Racing Address'});
+ assert.equal(raced.status,409,'Concurrent edit before SQL UPDATE is refused');
+ assert.equal((await raced.json()).staleCustomer,true,'Actual race detected from D1 readback');
+ assert.equal(customer().name,'Newer Tab Contact','Concurrent owner name preserved');
+ assert.equal(customer().address,'New Synthetic Address','Other tab cannot overwrite address');
+ checks.push('Actual concurrent same-customer race at SQLite write boundary');
+ // Later explicitly refreshed snapshot may safely save a different field.
+ const refreshed=await patch({address:'Reviewed New Address'});
+ assert.equal(refreshed.status,200,'Latest-source deliberate new save is allowed');
+ assert.equal(customer().name,'Newer Tab Contact','Updated contact stays intact after refreshed edit');
+ assert.equal(customer().address,'Reviewed New Address');
+ checks.push('Refreshed source can save without dropping another tab changes');
+ const malformed=await PATCH(new Request('https://synthetic.invalid/api/customers',{
+  method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({
+    id:'first',name:'Bad Snapshot',expected:{name:'Only the Name'}
+  })
+ }));
+ assert.equal(malformed.status,400,'Incomplete original contact snapshot refused');
+ assert.equal(customer().name,'Newer Tab Contact','Invalid snapshot did not modify customer');
+ checks.push('Malformed optimistic original snapshot refused without writes');
+
  skipUpdate=true;
  await expect(503,{name:'Not Actually Written'},'Nonthrowing zero-change D1 update rejected');
  assert.equal(customer().name,'Updated Name');

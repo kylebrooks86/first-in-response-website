@@ -229,6 +229,23 @@ export async function PATCH(request: Request) {
     if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
     if(email&&!usableCustomerEmail(email))return Response.json({error:"Enter a valid email address or leave it blank."},{status:400});
     if(phone&&!usableCustomerPhone(phone))return Response.json({error:"Enter a valid 10-digit U.S. phone number or leave it blank."},{status:400});
+    // New QA-master editor sends the original saved values it actually
+    // displayed. Compare them INSIDE the guarded SQL UPDATE, not just with
+    // a preflight GET: two open iPhone/desktop tabs must not overwrite each
+    // other's newer customer contact details. Older callers remain readable.
+    type ExpectedContact={name:string;email:string;phone:string;address:string;leadSource:string};
+    let expected:ExpectedContact|null=null;
+    if(body.expected!==undefined){
+      const candidate=body.expected;
+      const keys=['name','email','phone','address','leadSource'];
+      if(!candidate||typeof candidate!=='object'||Array.isArray(candidate)||
+         Object.keys(candidate).sort().join('|')!==[...keys].sort().join('|')||
+         keys.some(key=>typeof (candidate as Record<string,unknown>)[key]!=='string'||
+           String((candidate as Record<string,unknown>)[key]).length>5000))
+        return Response.json({error:'Original customer contact details are invalid. Reopen the saved customer before editing.'},
+          {status:400,headers:{'Cache-Control':'no-store, private'}});
+      expected=candidate as ExpectedContact;
+    }
 
     const existing = await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(id).first<{id:string}>();
     if (!existing) return Response.json({ error: "That customer record could not be found." }, { status: 404 });
@@ -267,10 +284,12 @@ export async function PATCH(request: Request) {
     // If the UPDATE committed but the network acknowledgement was lost, the
     // readback can still confirm success without repeating the write.
     try {
+      const previousGuard=expected?
+        " AND name=? AND COALESCE(email,'')=? AND COALESCE(phone,'')=? AND COALESCE(address,'')=? AND COALESCE(lead_source,'Unknown')=?":"";
       await env.DB.prepare(`UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=?
-        WHERE id=? AND NOT EXISTS(SELECT 1 FROM customers WHERE id<>? AND ${match.sql})`)
+        WHERE id=? AND NOT EXISTS(SELECT 1 FROM customers WHERE id<>? AND ${match.sql})${previousGuard}`)
         .bind(name,email||null,phone||null,address||null,leadSource,id,
-          id,...match.values).run();
+          id,...match.values,...(expected?[expected.name,expected.email,expected.phone,expected.address,expected.leadSource]:[])).run();
     } catch {
       // Do not automatically retry a possibly committed UPDATE.
       // A separate authoritative SELECT below decides the result.
@@ -286,6 +305,16 @@ export async function PATCH(request: Request) {
     if(!customer || customer.id!==id || customer.name!==name ||
       customer.email!==email || customer.phone!==phone ||
       customer.address!==address || customer.leadSource!==leadSource) {
+      // A stale tab can lose a race even AFTER the original preflight: the
+      // authoritative readback proves someone else has replaced one or more
+      // saved fields. Preserve that other editor's current data, never retry
+      // the stale UPDATE and never silently claim success.
+      if(expected&&customer&&
+        (customer.name!==expected.name||customer.email!==expected.email||
+         customer.phone!==expected.phone||customer.address!==expected.address||
+         customer.leadSource!==expected.leadSource))
+        return Response.json({error:'This customer was changed in another tab or session. Your old edit was not confirmed. Keep your entries, refresh the saved customer and review before saving again.',saveUncertain:true,staleCustomer:true},
+          {status:409,headers:{'Cache-Control':'no-store, private'}});
       // If the guarded UPDATE lost a contact race, report an actionable
       // conflict instead of inviting blind retry after a possible commit.
       // If conflict inspection fails, retain the existing uncertain status.
