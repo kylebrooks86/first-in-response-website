@@ -175,8 +175,11 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     // D1 batch is transactional. If another tab saves AFTER the preflight,
     // only one of the two competing revision inserts may pass this condition;
     // all service and header writes require its exact newly created ID.
-    const revisionVersionGuard=expectedRevisionCount===null?"":
-      " AND (SELECT COUNT(*) FROM invoice_revisions version WHERE version.invoice_id=guard.id)=?";
+    const revisionVersionGuard=" AND (SELECT COUNT(*) FROM invoice_revisions version WHERE version.invoice_id=guard.id)=?";
+    // An older tab cannot overwrite even a change that creates no revision.
+    // The first D1.batch statement must match every original durable line
+    // and header value, not merely a preflight count or payment total.
+    const originalGuard=invoiceOriginalSQLGuard(expectedOriginalInvoice);
     const revisionGate = env.DB.prepare(`INSERT INTO invoice_revisions
       (id,invoice_id,subtotal_cents,discount_cents,discount_type,discount_value,
         total_cents,due_at,status,items_json,created_at)
@@ -185,13 +188,14 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
         AND EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=guard.estimate_id AND parent.customer_id=guard.customer_id)
         AND ${actualPaid}=? AND ${actualPaid}<=?
         AND NOT EXISTS(SELECT 1 FROM payment_refunds pending
-          WHERE pending.estimate_id=guard.estimate_id AND pending.status='pending')${revisionVersionGuard})`)
+          WHERE pending.estimate_id=guard.estimate_id AND pending.status='pending')
+        AND ${originalGuard.sql}${revisionVersionGuard})`)
       .bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),
         Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),
         Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),
         currentInvoice?.dueAt?String(currentInvoice.dueAt):null,
         String(currentInvoice?.status||existing.status),JSON.stringify(currentItems.results),
-        revisionCreatedAt,id,latestPaidCents,totalCents,...(expectedRevisionCount===null?[]:[expectedRevisionCount]));
+        revisionCreatedAt,id,latestPaidCents,totalCents,...originalGuard.args,expectedRevisionCount);
     const statements=[revisionGate,
       env.DB.prepare(`DELETE FROM invoice_items WHERE invoice_id=?
         AND ${revisionGuard}`).bind(id,revisionId,id)];
