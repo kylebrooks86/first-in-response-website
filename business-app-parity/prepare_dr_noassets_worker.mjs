@@ -105,6 +105,9 @@ export function prepareNoAssetsDRWorker(distDir,receiptFile,sourceSha,newOutput)
  const dst=join(out,'server');
  mkdirSync(dst,{mode:0o700});
  for(const f of server){
+  // The generated no-assets manifest is new, never preserve the obsolete
+  // compiled assets-binding config in the alternate output.
+  if(f.name==='wrangler.json')continue;
   const destination=join(dst,...f.name.split('/'));
   mkdirSync(dirname(destination),{recursive:true,mode:0o700});
   // Source is separately sealed; binary-accurate copy only, never mutate.
