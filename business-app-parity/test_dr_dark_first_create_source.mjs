@@ -44,7 +44,9 @@ try{
   'generates source only, without any first Worker provider creation');
  const cfg=JSON.parse(readFileSync(join(destination,'server','wrangler.json')));
  ok(cfg.workers_dev===false&&cfg.preview_urls===false&&
-    cfg.route===undefined&&cfg.routes===undefined&&cfg.triggers===undefined,
+    cfg.route===undefined&&cfg.routes===undefined&&
+    (!cfg.triggers||Object.values(cfg.triggers).every(v=>
+      v==null||(Array.isArray(v)&&v.length===0))),
     'worker.dev, version URLs, routes and scheduled jobs disabled');
  ok(cfg.name==='fire-fullapp-dr'&&cfg.d1_databases.length===1&&
     cfg.d1_databases[0].database_id==='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145',
