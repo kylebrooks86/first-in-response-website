@@ -177,3 +177,71 @@ jobs:
           assert.equal(reviewed.config.vars[dr?'FIRE_DR_AUTH_ENABLED':'FIRE_NEW_LIVE_AUTH_ENABLED'],'blocked');
           console.log('PASS built '+target+' exact reviewed source, inert default config and separate simulated D1/no-R2 owner-device-ZIP manifest; 0 hosted changes.');
           NODE
+      - name: Seal exact-HEAD independently built DR Worker bytes for future OWNER-APPROVED release (NO provider)
+        if: matrix.target == 'independent-dr'
+        env:
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          FIRE_BUILT_DIST: ${{ runner.temp }}/fire-release-candidate/dist
+          FIRE_DR_SEAL: ${{ runner.temp }}/fire-dr-offline-seal.json
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {createHash} from 'node:crypto';
+          import {readFileSync,readdirSync,lstatSync,writeFileSync} from 'node:fs';
+          import {join,relative} from 'node:path';
+          const root=process.env.FIRE_BUILT_DIST;
+          const sha256=buf=>createHash('sha256').update(buf).digest('hex');
+          assert.match(process.env.FIRE_REVIEWED_SHA,/^[0-9a-f]{40}$/);
+          const wrangler=JSON.parse(readFileSync(join(root,'server','wrangler.json'),'utf8'));
+          assert.equal(wrangler.name,'fire-fullapp-dr');
+          assert.equal(wrangler.workers_dev,true);
+          assert.equal(wrangler.vars?.FIRE_ENV,'isolated-dr');
+          assert.equal(wrangler.vars?.FIRE_DR_AUTH_ENABLED,'blocked');
+          assert.equal(wrangler.d1_databases?.length,1);
+          assert.equal(wrangler.d1_databases[0]?.database_id,'00000000-0000-4000-8000-000000000000');
+          assert.deepEqual(wrangler.r2_buckets??[],[]);
+          const inventory=[];
+          function walk(folder){
+            for(const name of readdirSync(folder).sort()){
+              const abs=join(folder,name),stat=lstatSync(abs);
+              assert.equal(stat.isSymbolicLink(),false,'No symlinks in compiled release candidate');
+              if(stat.isDirectory()){walk(abs);continue;}
+              assert.equal(stat.isFile(),true,'Only regular files in compiled release candidate');
+              const path=relative(root,abs).replaceAll('\\','/');
+              const bytes=readFileSync(abs);
+              inventory.push({path,bytes:bytes.length,sha256:sha256(bytes)});
+            }
+          }
+          walk(root);
+          inventory.sort((a,b)=>a.path.localeCompare(b.path,'en'));
+          assert.ok(inventory.length>0,'Compiled Worker candidate cannot be empty');
+          const seal={
+            kind:'FIRE_SOURCE_ONLY_INERT_DR_COMPILED_ARTIFACT_V1',
+            reviewedPullRequest:264,
+            reviewedSourceSha:process.env.FIRE_REVIEWED_SHA,
+            target:'independent-dr',
+            drWorker:'fire-fullapp-dr',
+            physicalDatabaseBindingAttempted:false,
+            ownerAuthenticationEnabled:false,
+            cloudflareUploaded:false,
+            cloudflareDeployed:false,
+            stripeActivated:false,
+            ownerApprovedDeployment:false,
+            reviewedFileCount:inventory.length,
+            filesDigestSha256:sha256(Buffer.from(JSON.stringify(inventory))),
+            files:inventory
+          };
+          writeFileSync(process.env.FIRE_DR_SEAL,JSON.stringify(seal,null,2)+'\n',{flag:'wx',mode:0o600});
+          console.log('SEALED source-only inert independent DR candidate: '+inventory.length+' compiled files; NO provider calls or deployment.');
+          NODE
+      - name: Retain exact-HEAD inert DR Worker build and member digests for owner-only review (NO Cloudflare)
+        if: matrix.target == 'independent-dr'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-INERT-DR-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/fire-release-candidate/dist/
+            ${{ runner.temp }}/fire-dr-offline-seal.json
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 6
