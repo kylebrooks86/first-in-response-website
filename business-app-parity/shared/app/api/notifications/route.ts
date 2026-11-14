@@ -18,16 +18,28 @@ export async function GET(){
 export async function PATCH(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
-    const value=await request.json() as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"refund"|"keep";refundAmountCents?:number};
+    const parsed:unknown=await request.json();
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+      return Response.json({error:"A valid notification action is required."},{status:400});
+    const value=parsed as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"refund"|"keep";refundAmountCents?:number};
     const now=new Date().toISOString();
     if(value.all!==undefined&&value.all!==true)return Response.json({error:"Invalid mark-all request."},{status:400});
     if(value.all){
       if(Object.keys(value).some(key=>key!=="all"))return Response.json({error:"Choose one notification action."},{status:400});
-      const write=await env.DB.prepare("UPDATE notifications SET read_at=? WHERE read_at IS NULL").bind(now).run();
-      if((write as {success?:boolean}).success===false||!Number.isSafeInteger(write.meta?.changes)||write.meta.changes<0)throw Error("Read update not confirmed");
-      const saved=await env.DB.prepare("SELECT COUNT(*) AS unread FROM notifications WHERE read_at IS NULL").first<{unread:number}>();
-      if(!saved||!Number.isSafeInteger(saved.unread)||saved.unread<0)throw Error("Read state unavailable");
-      return Response.json({ok:true,readAt:now,resolvedAt:null,unread:saved.unread},{headers:{"Cache-Control":"no-store, private"}});
+      // A D1 UPDATE may commit and then lose its transport acknowledgement.
+      // Recover from the physical unread count, not from the WRITE return.
+      // A simultaneous new unread event must block a false "all read" result.
+      try{
+        await env.DB.prepare("UPDATE notifications SET read_at=? WHERE read_at IS NULL").bind(now).run();
+      }catch{/* A committed write can lose its ACK. Never blindly repeat. */}
+      let saved:{unread:number}|null=null;
+      try{
+        saved=await env.DB.prepare("SELECT COUNT(*) AS unread FROM notifications WHERE read_at IS NULL").first<{unread:number}>();
+      }catch{/* No authoritative read = no success. */}
+      if(!saved||!Number.isSafeInteger(saved.unread)||saved.unread!==0)
+        return Response.json({error:"Mark all as read could not be verified. Refresh saved notifications before another action.",saveUncertain:true},
+          {status:503,headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({ok:true,readAt:now,resolvedAt:null,unread:0},{headers:{"Cache-Control":"no-store, private"}});
     }
     else if(value.estimateId&&value.resolveOverpayment){
       if(value.reconciliationHandled!==true)return Response.json({error:"Confirm the refund or retained overpayment has been handled before resolving this billing exception."},{status:409});
@@ -123,17 +135,38 @@ export async function PATCH(request:Request){
       // A successful transport ACK is not a saved resolution. Return exactly
       // what SQLite persisted, preserving an earlier resolution on replay.
       // Recheck the type in the write predicate to fail closed on a race.
-      const saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?) WHERE id=? AND type<>'payment_overage' RETURNING read_at AS readAt,resolved_at AS resolvedAt")
-        .bind(now,now,value.id).first<{readAt:string|null;resolvedAt:string|null}>();
+      let saved:{readAt:string|null;resolvedAt:string|null}|null=null;
+      try{
+        saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?) WHERE id=? AND type<>'payment_overage' RETURNING read_at AS readAt,resolved_at AS resolvedAt")
+          .bind(now,now,value.id).first<{readAt:string|null;resolvedAt:string|null}>();
+      }catch{/* The resolution may be committed even if RETURNING loses its ACK. */}
+      if(!saved?.readAt||!saved.resolvedAt){
+        try{
+          const persisted=await env.DB.prepare("SELECT read_at AS readAt,resolved_at AS resolvedAt,type FROM notifications WHERE id=? LIMIT 1")
+            .bind(value.id).first<{readAt:string|null;resolvedAt:string|null;type:string}>();
+          if(persisted&&persisted.type!=="payment_overage")
+            saved={readAt:persisted.readAt,resolvedAt:persisted.resolvedAt};
+        }catch{/* No trustworthy readback: cannot claim resolution. */}
+      }
       if(!saved?.readAt||!saved.resolvedAt)
         return Response.json({error:"Notification resolution was not confirmed. Refresh the list before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
       return Response.json({ok:true,readAt:saved.readAt,resolvedAt:saved.resolvedAt},{headers:{"Cache-Control":"no-store, private"}});
     }
     else if(value.id){
-      const saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? RETURNING read_at AS readAt")
-        .bind(now,value.id).first<{readAt:string|null}>();
-      if(!saved)return Response.json({error:"Notification not found. Refresh the list."},{status:404});
-      if(!saved.readAt)
+      let saved:{readAt:string|null}|null=null;
+      let lostAck=false;
+      try{
+        saved=await env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? RETURNING read_at AS readAt")
+          .bind(now,value.id).first<{readAt:string|null}>();
+      }catch{lostAck=true;}
+      if(!saved?.readAt){
+        try{
+          saved=await env.DB.prepare("SELECT read_at AS readAt FROM notifications WHERE id=? LIMIT 1")
+            .bind(value.id).first<{readAt:string|null}>();
+        }catch{/* An unavailable database read cannot confirm an update. */}
+      }
+      if(!saved&&!lostAck)return Response.json({error:"Notification not found. Refresh the list."},{status:404});
+      if(!saved?.readAt)
         return Response.json({error:"Notification read status was not confirmed. Refresh the list before retrying.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
       return Response.json({ok:true,readAt:saved.readAt,resolvedAt:null},{headers:{"Cache-Control":"no-store, private"}});
     }
