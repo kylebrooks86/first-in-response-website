@@ -27,7 +27,7 @@ try{
  payment('invoice','refund','Refund',-5000);await state('invoice','partial',19000,5000);payment('invoice','rest-refund','Refund',-19000);await state('invoice','sent',0,24000);
  db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES('pending-refund','final','e-invoice',1000,'manual','pending','2026-10-18')").run();await state('invoice','sent',0,24000,true);
  db.prepare("UPDATE payment_refunds SET status='failed' WHERE id='pending-refund'").run();await state('invoice','sent',0,24000);
- db.prepare("INSERT INTO notifications(id,type,title,body,estimate_id,created_at) VALUES('overage','payment_overage','Review','Synthetic review','e-invoice','2026-10-18')").run();await state('invoice','sent',0,24000,true);await state('other','sent',0,50000);
+ db.prepare("INSERT INTO notifications(id,type,title,body,estimate_id,created_at) VALUES('overage','payment_overage','Review','Synthetic review','e-invoice','2026-10-18')").run();await state('invoice','sent',0,24000,true);await state('other','review',60000,0,true);
  const base={status:'paid',totalCents:24000,paidCents:24000};eq(invoicePaymentState(base).status,'paid');assert.match(invoicePaymentMessage(invoicePaymentState(base)),/paid in full\. No additional invoice payment is due/);checks++;
  for(const status of ['draft','sent','paid']){
   const zero=invoicePaymentState({status,totalCents:0,paidCents:0});
