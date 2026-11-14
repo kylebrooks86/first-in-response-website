@@ -127,7 +127,7 @@ try{
  // The physical D1 list failed on the Acer, and the earlier runner swallowed
  // stderr. Verify the repaired diagnostic against actual untrusted CLI text.
  const secret='Bearer secret_key_12345678901234567890';
- const cases=[
+ const diagnosticCases=[
   [{status:1,stderr:'Error: You must be logged in. '+secret},['d1','list','--json'],'authentication'],
   [{status:1,stdout:'Error 403 permission denied'},['d1','list','--json'],'authorization'],
   [{status:1,stderr:'Failed to fetch: ENOTFOUND api.cloudflare.com'},['d1','list','--json'],'connection'],
@@ -135,7 +135,7 @@ try{
   [{status:1,stderr:'Select an account to continue'},['d1','list','--json'],'accountSelection'],
   [{status:1,stderr:'What happened? '+secret},['d1','list','--json'],'unclassified']
  ];
- for(const [processResult,args,reason] of cases){
+ for(const [processResult,args,reason] of diagnosticCases){
   const reported=classifyWranglerFailure(processResult,args);
   check(reported.step==='read-only D1 inventory'&&
     reported.exitCode===1&&
