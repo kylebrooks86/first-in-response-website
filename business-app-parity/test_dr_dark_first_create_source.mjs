@@ -53,9 +53,9 @@ try{
  const corruptedAsset=join(corrupt,'server','fire-inline-assets',
   readdirSync(join(corrupt,'server','fire-inline-assets')).find(x=>x.endsWith('.bin')));
  writeFileSync(corruptedAsset,'tampered stored Data asset');
- ok(assert.throws(()=>verifyFinalDarkWorkerPackage('dr',corrupt),
-     /FIRE final dark package BLOCKED:/)!==undefined||true,
-    'saved DR package rejects altered original Data asset');
+ assert.throws(()=>verifyFinalDarkWorkerPackage('dr',corrupt),
+   /FIRE final dark package BLOCKED:/,'saved DR package rejects altered Data asset');
+ count++;
  const wrong=()=>verifyFinalDarkWorkerPackage('new-live',destination);
  assert.throws(wrong,/FIRE final dark package BLOCKED:/);
  count++;
