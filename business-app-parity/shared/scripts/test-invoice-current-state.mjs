@@ -60,3 +60,6 @@ try{
  owner=null;eq((await list.GET()).status,401);eq((await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:'invoice'})})).status,401);eq((await customers.GET()).status,401);eq(writes,0);
  console.log(`PASS ${checks}/${checks}: actual list/detail/customer invoice status derives from principal, zero totals, partial/final payments, tips, refunds, review holds and malformed amounts; current state does not rewrite stored invoice/audit status.`);
 }finally{db.close()}
+// Change-specific stale owner-invoice revision regression runs in the existing
+// offline invoice CI step; no workflow file or accepted public-site gate changes.
+await import('./test-invoice-editor-uncertain-save.mjs');
