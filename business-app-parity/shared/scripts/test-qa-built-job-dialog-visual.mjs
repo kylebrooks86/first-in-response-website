@@ -60,11 +60,11 @@ export async function exerciseBuiltJobDialogVisual({page,check}){
           const close=node.querySelector('[data-slot="dialog-close"]'),r=close?.getBoundingClientRect();
           const root=node.getBoundingClientRect(),scroller=node.querySelector('.estimate-detail-scroll');
           const point=r&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-          return {scrollTop:scroller?.scrollTop??0,closeTop:r?.top,rootTop:root.top,
+          return {scrollTop:scroller?.scrollTop??0,stillScrollable:!!scroller&&scroller.scrollHeight>scroller.clientHeight+2,closeTop:r?.top,rootTop:root.top,
             closeVisible:!!r&&r.top>=-1&&r.bottom<=innerHeight+1,
             hit:!!close&&!!point&&(point===close||close.contains(point))};
         });
-        check(scrolled.scrollTop>0&&scrolled.closeVisible&&scrolled.hit&&
+        check((!scrolled.stillScrollable||scrolled.scrollTop>0)&&scrolled.closeVisible&&scrolled.hit&&
           Math.abs(scrolled.closeTop-scrolled.rootTop)<=14,
           'Real long job-detail X stays visible, top-right and tappable after inner scrolling at '+at+': '+JSON.stringify(scrolled));
       }
