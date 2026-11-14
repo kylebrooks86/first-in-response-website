@@ -11,7 +11,7 @@ import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archi
 import {inspectOwnerSavedNumberedPhotoPair} from './verify_saved_numbered_photo_pair.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION} from './shared/lib/numbered-records-v2-preflight.mjs';
 import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
-import {recoverSavedProtectedPhotoZip} from './recover_saved_protected_photo_zip.mjs';
+import {recoverSavedProtectedPhotoZip,verifySavedRecoveredPhotoZip} from './recover_saved_protected_photo_zip.mjs';
 let n=0;const ok=(v,msg)=>{assert.ok(v,msg);n++;};
 const reject=async(fn,match)=>{await assert.rejects(fn,match);n++;};
 const sha=b=>createHash('sha256').update(b).digest('hex');
@@ -113,8 +113,26 @@ try{
   {allowPlaintextRecovery:true});
  ok(recovered.originalGalleryZipRecovered&&recovered.photoCount===1,
   'offline protected photo recovery writes original gallery ZIP');
+ ok(recovered.savedRecoveryZipReadBackVerified&&recovered.savedRecoveredZipSha256===sha(original)&&
+  recovered.savedRecoveryPhotoCount===1,
+  'real recovery independently reread saved ZIP and verified EACH original image byte');
  ok(sha(readFileSync(recoveredPath))===sha(original),
   'recovered original ZIP is byte-identical to protected source plaintext');
+ const savedProof=inspectStoredFirePhotoZip(original);
+ const reopened=await verifySavedRecoveredPhotoZip(recoveredPath,savedProof);
+ ok(reopened.savedRecoveryZipReadBackVerified&&reopened.savedRecoveredZipSha256===sha(original),
+  'independent verification accepts exact saved ZIP on disk');
+ await reject(verifySavedRecoveredPhotoZip(join(folder,'never-created.zip'),savedProof),
+  /saved recovery ZIP is unavailable or incomplete/i);
+ // A corrupt SAVED output is rejected even if the original protected source
+ // and pre-save in-memory source proof remain valid.
+ const corruptedSavedZip=Buffer.from(readFileSync(recoveredPath));
+ corruptedSavedZip[30+Buffer.byteLength('photos/'+photoId)+1]^=0x20;
+ writeFileSync(recoveredPath,corruptedSavedZip);
+ await reject(verifySavedRecoveredPhotoZip(recoveredPath,savedProof),/CRC checksum|SHA-256|saved recovery ZIP/i);
+ writeFileSync(recoveredPath,original);
+ ok(sha(readFileSync(recoveredPath))===sha(original),
+  'synthetic saved ZIP corruption test does not alter the protected source');
  await reject(recoverSavedProtectedPhotoZip(file,recoveredPath,phrase,
   {allowPlaintextRecovery:true}),/output already exists/i);
  ok(sha(readFileSync(recoveredPath))===sha(original),
