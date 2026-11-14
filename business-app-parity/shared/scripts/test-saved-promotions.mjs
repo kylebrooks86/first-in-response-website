@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
+import {confirmedSettingCAS} from '../lib/confirmed-setting-cas.mjs';
 import ts from 'typescript';
 let checks=0;
 const ok=(condition,label)=>{assert.ok(condition,label);checks++;};
@@ -19,7 +20,7 @@ function load(path,imports){
 const services=load('lib/fire-services.ts',{});
 const mod=load('lib/saved-promotions.ts',{'./fire-services':services,'./discount-input':load('lib/discount-input.ts',{})});
 const api=load('app/api/saved-promotions/route.ts',{
- 'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/saved-promotions':mod});
+ 'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/saved-promotions':mod,'../../../lib/confirmed-setting-cas.mjs':{confirmedSettingCAS}});
 const id=(n)=>'aaaaaaaa-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
 const rule=(n,name,type,valueCents,ids=[],dateBasis='estimate-created')=>({
  id:id(n),name,type,valueCents,enabled:true,autoApply:true,startOn:null,endOn:null,dateBasis,requiredServiceIds:ids});
