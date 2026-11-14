@@ -64,6 +64,15 @@ function strictConfig(config,target){
  const dbId=dr?drId:liveId;
  const secrets=dr?['FIRE_DR_PASSWORD_HASH','FIRE_DR_SESSION_SECRET']:
   ['FIRE_NEW_LIVE_PASSWORD_HASH','FIRE_NEW_LIVE_SESSION_SECRET'];
+ const expectedVars={FIRE_ENV:envName,SITE_ORIGIN:'https://'+worker+'.kyle-bfc.workers.dev',
+  [authName]:'blocked',FIRE_PHOTO_STORAGE_MODE:'owner-device-zip'};
+ // No extra activation or payment variable can be smuggled into a saved
+ // release package, even when its unsigned human-readable receipt is edited.
+ const vars=x=>Object.entries(x||{}).sort(([a],[b])=>a.localeCompare(b));
+ if(!equal(vars(config.vars),vars(expectedVars)))
+  stop('extra or changed release variables (including Stripe/owner authentication)');
+ if(!equal(config.rules,[{type:'ESModule',globs:['**/*.js','**/*.mjs']}]))
+  stop('Worker module upload rules are not the reviewed Data-module-only contract');
  if(config.name!==worker||config.main!=='fire-noassets-entry.mjs'||
     config.no_bundle!==true||config.find_additional_modules!==true||
     config.preserve_file_names!==true||
