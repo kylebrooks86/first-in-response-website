@@ -32,6 +32,8 @@ on:
       - 'business-app-parity/verify_saved_independent_d1_migration_workspace.mjs'
       - 'business-app-parity/test_verify_saved_independent_d1_migration_workspace.mjs'
       - 'business-app-parity/test_real_wrangler_independent_d1_local.mjs'
+      - 'business-app-parity/shared/lib/deposit-immutability-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-deposit-immutability-contract.mjs'
       - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
       - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
@@ -93,6 +95,9 @@ jobs:
       - name: Verify immutable customer/job trigger SQL from reviewed v1 migrations
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs
+      - name: Verify real deposit policy event and signed agreement triggers prevent changes
+        if: matrix.target == 'independent-dr'
+        run: node --experimental-sqlite business-app-parity/shared/scripts/test-deposit-immutability-contract.mjs
       - name: Prepare exact 26-migration DR/NEW LIVE Wrangler workspaces without provider writes
         if: matrix.target == 'independent-dr'
         run: node business-app-parity/test_prepare_independent_d1_migration_workspace.mjs
