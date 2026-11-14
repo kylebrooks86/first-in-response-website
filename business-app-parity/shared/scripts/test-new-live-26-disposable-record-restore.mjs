@@ -144,7 +144,31 @@ try{
   .run('must-keep-existing','Synthetic existing customer',now));
  denied('accidentally using old QA-25 profile',db=>{}, {schemaProfile:'qa-25'});
  denied('unknown schema profile',db=>{}, {schemaProfile:'production-anything'});
+ // Create an actually altered empty on-memory table, then restore original
+ // trigger/index names. This proves journal+index+trigger name checks ALONE
+ // would miss weaker financial or permanent-number table constraints.
+ const alterEmptyReviewedTable=(db,table,modify)=>{
+  const ddl=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table)?.sql;
+  assert.equal(typeof ddl,'string');
+  const indexes=db.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL").all(table).map(r=>r.sql);
+  const triggers=db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND tbl_name=?").all(table).map(r=>r.sql);
+  const altered=modify(ddl);
+  assert.notEqual(altered,ddl,'synthetic table tamper must change actual SQL');
+  db.exec('DROP TABLE "'+table+'"');
+  db.exec(altered);
+  for(const sql of indexes)db.exec(sql);
+  for(const sql of triggers)db.exec(sql);
+ };
  // Journal names may match while critical DDL was modified.
+ denied('refund cents type changed despite original indexes',db=>
+  alterEmptyReviewedTable(db,'payment_refunds',ddl=>
+   ddl.replace(/(amount_cents`?\\s+)integer\\b/i,'$1TEXT')));
+ denied('refund payment foreign key silently removed',db=>
+  alterEmptyReviewedTable(db,'payment_refunds',ddl=>
+   ddl.replace(/,\\s*FOREIGN KEY\\s*\\(`payment_id`\\)\\s+REFERENCES\\s+`payments`\\(`id`\\)\\s+ON UPDATE no action ON DELETE no action/i,'')));
+ denied('permanent customer sequence loses AUTOINCREMENT',db=>
+  alterEmptyReviewedTable(db,'fire_customer_numbers',ddl=>
+   ddl.replace(/\\bAUTOINCREMENT\\b/i,'')));
  denied('same-name inert Job # trigger',db=>db.exec(
   'DROP TRIGGER fire_job_numbers_no_update; CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT 1; END;'));
  denied('same-name inert customer # trigger',db=>db.exec(
