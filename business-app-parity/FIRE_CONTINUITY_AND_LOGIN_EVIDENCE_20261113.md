@@ -1,6 +1,16 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
-**Owner standard last confirmed November 13, 2026. Read THIS before requesting any more authentication, screenshots, tests, paid services or Cloudflare actions.** Also read [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) latest comments and the current MAIN-based [draft PR #264](https://github.com/kylebrooks86/first-in-response-website/pull/264). PR #244 remains historical source work, not the active release candidate. Historical files and older messages are not licenses to re-test or overrule owner decisions.
+**CURRENT POINTER — November 14, 2026:** Continue from the latest actual GitHub [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) and the CURRENT main-based [DRAFT PR #270](https://github.com/kylebrooks86/first-in-response-website/pull/270). At the last verified checkpoint its exact head is `85ae81b5b64997a0384ae83279ecfc7e69a8650a`; always fetch the actual PR head before modifying code. **PRs #244 and #264 are older source ancestry / completed review, NOT restart points.** Do not reconstruct old Cloudflare logins, owner phone/Acer evidence, or completed DR migration / protected source artifacts. Read this register's newest entries at the BOTTOM as well as the first page before deciding what remains open.
+
+## Current authoritative handoff — PR #270, NOT #244 / #264
+
+- **Active development:** PR #270 `work/fire-main-qa-dr-live-unified-source-20261114`, based on `main`, DRAFT, unmerged, undeployed. It combines QA-master parity, independent no-R2 DR/NEW LIVE Worker-only builds, protected DR receipts, no-assets Cloudflare workaround, original 26 NEW LIVE SQL source packets, and ONE-SHOT owner-authorized-only future LIVE schema migration source. Do not make a parallel duplicate candidate or move code backward to old PRs.
+- **Previously completed:** owner DR physical 26/26 migration/readback, original DR 242-file source/receipt bridge, 32 encrypted DR evidence files with private off-Acer Drive custody, local DR 11/11 and independent NEW LIVE 12/12 workerd runs, targeted source CI / byte-verified ZIP backups including the 31-file NEW LIVE migration packet. These are real historical evidence, but they do not mean any NEW LIVE hosted deployment exists. Refer to exact latest entries below.
+- **Physical blockers:** NEW LIVE 26 SQL migrations NOT executed; first Job #0001 not physically attested; no approved first Worker creation/deployment; hosted auth/nonowner denial, complete future record+photo isolated restore, signed Stripe TEST proof and final all-environment parity not accepted. Existing DR Worker selected-account GET indicated not present, so first `wrangler deploy` could actually create and deploy a 100% active version even with public URLs disabled.
+- **NO-GO:** formal Gate 1/2/3/8 accepted = 4/10; Gate 4/5/6/7/9/10 OPEN. No paid Cloudflare or R2 activation; no repeat failed Cloudflare Work login, screenshots, QA/Acer checks, D1 migration or TEST upload; no Cloudflare/Stripe/provider writes, Git merge or cutover without exact new owner authorization. Source CI/local workerd is not remotely hosted proof.
+- **Read order:** fetch current PR #270 head → latest Issue #19 comments → BOTTOM of this continuity register → inspect only genuinely unfinished feature/code changes. Later entries supersede historical source-status descriptions under the preservation section.
+
+**HISTORICAL SECTION BELOW** retains the original owner rules and evidence but old “current PR” statements in its dated entries are *not* operative after the PR #270 handoff.
 
 ## Nonnegotiable owner decisions
 
@@ -14,7 +24,7 @@
 
 ## Formal status — ACCEPTED 1, 2, 3 and 8 (4/10); OPEN 4, 5, 6, 7, 9 and 10. LIVE NO-GO.
 
-Current **source-only** chain (each is a separate unmerged draft, not a serving Cloudflare version):
+Historical **source-only** chain (each was separately reviewed and is not a serving Cloudflare version):
 - [PR #242](https://github.com/kylebrooks86/first-in-response-website/pull/242) SHA `09ca47cb1cfb651e12ed961d5285ecd6f381f847`, exact-head 13/13 workflow groups SUCCESS. Signed Cloudflare Access/PIN integration and actual D1 Job-numbering login preflight are source work, **not active hosted quick auth**.
 - [PR #243](https://github.com/kylebrooks86/first-in-response-website/pull/243) SHA `cf1843e7c46f85720fb461a0b479db5384c4b250`, DR permanent Job # parity gated behind real target-specific schema attestation; focused local 87/87 PASS, independent build/site checks PASS.
 - [PR #244](https://github.com/kylebrooks86/first-in-response-website/pull/244) source-only no-paid-R2 DR/NEW LIVE manifest, local owner-device photo/ZIP path; exact tested SHA `b1e09abc294633a9a23f378a8a332e4ddad3eca1` had independent DR+LIVE build SUCCESS [run 43461273757](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43461273757), 101/101 focused local config PASS and independent website verifier SUCCESS [run 43461273783](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43461273783). Main-only scope workflow failed its pre-existing `base=main` restriction because #244 is intentionally stacked on #243: **not a runtime test failure**. Do not waive, rerun blindly, or claim universal green.
