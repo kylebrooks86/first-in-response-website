@@ -115,10 +115,28 @@ try{
  const wrapped=wrapInertDRWorker({fetch:async(req,env)=>{seen++;
   const inner=await env.ASSETS.fetch(new Request('https://fire.example/fire-offline/app.css'));
   return new Response('SSR '+inner.status+' '+Boolean(env.DB));}},manifest);
- const dynamic=await wrapped.fetch(new Request('https://fire.example/api/customers'),{DB:{}},{});
+ // Even if Cloudflare supplies an alternate Worker deployment URL,
+ // a DARK first-creation package must reveal neither compiled files nor SSR.
+ const lockedEnv={DB:{},FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'blocked'};
+ const lockedInputs=[
+  [new Request('https://fire.example/_next/static/chunks/app.js'),lockedEnv,'static JS'],
+  [new Request('https://fire.example/fire-offline/app.css',{method:'HEAD'}),lockedEnv,'static HEAD'],
+  [new Request('https://fire.example/api/customers',{method:'POST'}),lockedEnv,'API mutation'],
+  [new Request('https://fire.example/api/customers'),{DB:{},FIRE_ENV:'isolated-dr'},'missing release flag'],
+  [new Request('https://fire.example/api/customers'),{DB:{}},'missing target'],
+  [new Request('https://fire.example/api/customers'),{DB:{},FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'owner-approved',FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'},'conflicting target flags']
+ ];
+ for(const [request,environment,label] of lockedInputs){
+  const blocked=await wrapped.fetch(request,environment,{});
+  verify(blocked.status===404&&blocked.headers.get('cache-control')==='private, no-store'&&
+    blocked.headers.get('x-content-type-options')==='nosniff'&&seen===0,
+    'DR prelaunch refuses '+label+' before assets or SSR dispatch');
+ }
+ const enabledEnv={DB:{},FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'owner-approved'};
+ const dynamic=await wrapped.fetch(new Request('https://fire.example/api/customers'),enabledEnv,{});
  verify(dynamic.status===200&&(await dynamic.text())==='SSR 200 true'&&seen===1,
-  'Original SSR receives isolated DB and compatible static asset fetcher');
- const bad=await wrapped.fetch(new Request('https://fire.example/api/customers'),{ASSETS:{}},{});
+  'Approved DR runtime restores original SSR and exact compiled assets');
+ const bad=await wrapped.fetch(new Request('https://fire.example/api/customers'),{...enabledEnv,ASSETS:{}},{});
  verify(bad.status===503&&seen===1,'Unexpected Cloudflare assets binding rejected');
  reject(()=>prepareNoAssetsDRWorker(f.dist,f.seal,SHA,f.out),'output overwrite');
  reject(()=>prepareNoAssetsDRWorker(f.dist,f.seal,'b'.repeat(40),join(f.root,'bad-sha')),
