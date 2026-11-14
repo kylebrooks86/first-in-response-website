@@ -131,12 +131,20 @@ jobs:
             --config "$RUNNER_TEMP/fire-dr-worker-only-alternative/server/wrangler.json" \
             --outdir "$RUNNER_TEMP/fire-dr-worker-only-wrangler-preview"
           echo 'PASS offline Wrangler packaging inspection; NOT deployed or provider-attested.'
-      - name: Boot ACTUAL alternative in isolated local workerd and prove source bytes plus auth refusal (NO Cloudflare)
-        timeout-minutes: 3
+      - name: Boot ACTUAL alternative in isolated current workerd and prove source bytes plus auth refusal (NO Cloudflare)
+        timeout-minutes: 4
         run: |
+          # The QA-master app is pinned at compatibility_date=2026-11-13.
+          # The original locked Wrangler 4.92 CLI can dry-run but ships a
+          # workerd that tops out at 2026-05-22 and cannot start this app.
+          # Only this LOCAL isolated simulator uses current pinned CLI;
+          # do not modify app lockfiles or authorize any provider deploy.
+          npm install --prefix "$RUNNER_TEMP/fire-current-workerd" --no-save \
+            --ignore-scripts --no-audit --no-fund wrangler@4.162.0
+          node "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js" --version
           node business-app-parity/smoke_dr_noassets_local_runtime.mjs \
             "$RUNNER_TEMP/fire-dr-worker-only-alternative" \
-            "$RUNNER_TEMP/fire-original-dr/node_modules/wrangler/bin/wrangler.js"
+            "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js"
       - name: Retain actual source-built no-asset-upload candidate for owner review, not deployment
         uses: actions/upload-artifact@v4
         with:
