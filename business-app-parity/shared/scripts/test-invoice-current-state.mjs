@@ -41,7 +41,7 @@ try{
  // Initial invoice CREATE is a distinct path from revised invoice PATCH.
  // Evaluate the real source expression so zero-total invoices never start paid.
  const createSource=readFileSync('app/api/invoices/route.ts','utf8');
- const createStatusExpression=createSource.match(/const invoiceStatus\\s*=\\s*([^;]+);/)?.[1];
+ const createStatusExpression=createSource.match(/const invoiceStatus\s*=\s*([^;]+);/)?.[1];
  assert.ok(createStatusExpression,'Actual invoice CREATE payment-status expression required');
  const createStatus=(estimateTotalCents,paidCents)=>vm.runInNewContext(createStatusExpression,{estimateTotalCents,paidCents});
  eq(createStatus(0,0),'draft','Initial complimentary invoice has no paid receipt');
