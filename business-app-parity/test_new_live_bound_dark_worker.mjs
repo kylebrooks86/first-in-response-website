@@ -8,6 +8,7 @@ import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {prepareNewLiveBoundDarkWorker,reviewOriginalNewLive,SOURCE_SHA,
  SOURCE_ARTIFACT,ZIP_SHA} from './prepare_new_live_bound_dark_worker.mjs';
+import {verifyFinalDarkWorkerPackage} from './verify_final_dark_worker_package.mjs';
 if(!process.argv[2])throw Error('verified real PR267 extracted ZIP required');
 const root=resolve(process.argv[2]);
 const tmp=mkdtempSync(join(tmpdir(),'fire-new-live-dark-prehost-'));
@@ -34,7 +35,21 @@ try{
  const result=prepareNewLiveBoundDarkWorker(root,output);
  ok(result.deployed===false&&result.providerContacted===false&&
    result.job0001PhysicallyVerified===false,'no provider write or fake clean Job #0001');
- const a=JSON.parse(readFileSync(cfg(root))),b=JSON.parse(readFileSync(cfg(output)));
+
+ const savedProof=verifyFinalDarkWorkerPackage('new-live',output);
+ ok(savedProof.compiledAssetsVerified===41&&savedProof.darkFirstRequestTargetPinned===true&&
+    savedProof.deployed===false,'independent verifier accepts the exact saved NEW LIVE private source');
+ const corrupt=join(tmp,'downloaded-live-corrupt');cpSync(output,corrupt,{recursive:true});
+ const corruptedAsset=join(corrupt,'server','fire-inline-assets',
+  readdirSync(join(corrupt,'server','fire-inline-assets')).find(x=>x.endsWith('.bin')));
+ writeFileSync(corruptedAsset,'damaged downloaded Data asset');
+ assert.throws(()=>verifyFinalDarkWorkerPackage('new-live',corrupt),
+   /FIRE final dark package BLOCKED:/);
+ n++;
+ assert.throws(()=>verifyFinalDarkWorkerPackage('dr',output),
+   /FIRE final dark package BLOCKED:/);
+ n++;
+  const a=JSON.parse(readFileSync(cfg(root))),b=JSON.parse(readFileSync(cfg(output)));
  ok(b.name==='fire-fullapp-new-live'&&b.main==='fire-noassets-entry.mjs'&&
    b.d1_databases[0].binding==='DB'&&
    b.d1_databases[0].database_name==='fire-fullapp-new-live-db'&&
