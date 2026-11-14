@@ -5,6 +5,7 @@ import {cpSync,mkdtempSync,readFileSync,readdirSync,writeFileSync,rmSync,symlink
  from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
+import {pathToFileURL} from 'node:url';
 import {prepareNewLiveBoundDarkWorker,reviewOriginalNewLive,SOURCE_SHA,
  SOURCE_ARTIFACT,ZIP_SHA} from './prepare_new_live_bound_dark_worker.mjs';
 if(!process.argv[2])throw Error('verified real PR267 extracted ZIP required');
@@ -55,13 +56,38 @@ try{
  expected.workers_dev=false;expected.preview_urls=false;
  ok(JSON.stringify(expected)===JSON.stringify(b),
    'only exact D1/photo/preview/public-route config differences');
+ const runtimeRel='server/fire-inline-assets/runtime.mjs';
+ const originalRuntime=join(root,runtimeRel),finalRuntime=join(output,runtimeRel);
+ ok(sha(finalRuntime)===sha(new URL('./dr_noassets_runtime.mjs',import.meta.url))&&
+    sha(finalRuntime)!==sha(originalRuntime),
+    'NEW LIVE final sealed package replaces old unsafe runtime with reviewed first-request lock');
+ const realRuntime=(await import(pathToFileURL(finalRuntime).href)).wrapInertDRWorker({
+  fetch(){throw Error('locked NEW LIVE SSR executed unexpectedly');}
+ },{'/favicon.svg':{data:new TextEncoder().encode('synthetic asset'),type:'image/svg+xml'}});
+ for(const env of [
+  {FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_AUTH_ENABLED:'blocked'},
+  {FIRE_ENV:'isolated-dr',FIRE_DR_AUTH_ENABLED:'owner-approved'},
+  {FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved',FIRE_DR_AUTH_ENABLED:'owner-approved'}
+ ]){
+  const response=await realRuntime.fetch(new Request('https://fire.invalid/favicon.svg'),env);
+  ok(response.status===404&&(await response.arrayBuffer()).byteLength===0&&
+    response.headers.get('cache-control')==='private, no-store',
+    'actual final NEW LIVE adapter must hide compiled static assets before SSR');
+ }
+ const approvedAsset=await realRuntime.fetch(new Request('https://fire.invalid/favicon.svg'),
+  {FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_AUTH_ENABLED:'owner-approved'});
+ ok(approvedAsset.status===200&&(await approvedAsset.text())==='synthetic asset',
+  'synthetic exact-target approval retains static QA-master assets');
  for(const p of old.paths){
-  if(p==='server/wrangler.json')continue;
+  if(p==='server/wrangler.json'||p===runtimeRel)continue;
   assert.equal(sha(join(root,p)),sha(join(output,p)),'changed original app bytes: '+p);
  }
  ok(true,'every other original compiled SSR and binary file byte identical');
  const receipt=JSON.parse(readFileSync(join(output,'new-live-physical-dark-prehost-receipt.json')));
- ok(receipt.originalUnchangedFileCount===241&&receipt.originalUnchangedClientAssets===41&&
+ ok(receipt.originalUnchangedFileCount===240&&receipt.originalUnchangedClientAssets===41&&
+    receipt.originalArchiveRuntimeSha256===sha(originalRuntime)&&
+    receipt.refreshedFirstRequestRuntimeSha256===sha(finalRuntime)&&
+    receipt.firstRequestLockCopiedIntoFinalSource===true&&
     receipt.originalConfigSha256===sha(cfg(root))&&
     receipt.resultingConfigSha256===sha(cfg(output)),
    'original and output manifest SHA integrity protected');
