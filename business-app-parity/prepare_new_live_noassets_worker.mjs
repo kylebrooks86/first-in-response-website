@@ -143,7 +143,7 @@ export function prepareNoAssetsNewLiveWorker(distDir,receiptFile,sourceSha,newOu
   'import server from "./index.js";',
   'import manifest from "./fire-inline-assets/manifest.mjs";',
   'import {wrapInertDRWorker} from "./fire-inline-assets/runtime.mjs";',
-  'export default wrapInertDRWorker(server,manifest);',
+  'export default wrapInertDRWorker(server,manifest,"new-live-prelaunch");',
   ''
  ].join('\n');
  safeWrite(join(dst,'fire-noassets-entry.mjs'),entry);
