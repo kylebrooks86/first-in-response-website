@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {QUOTE_PACKAGES_KEY,decodeQuotePackages,validQuotePackages} from '../../../lib/quote-packages';
+import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()===OWNER;}
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
@@ -28,10 +29,12 @@ export async function PUT(request:Request){
   if(current.revision!==body.expectedRevision)return json({error:'Packages changed on another device. Refresh before saving.'},409);
   const catalog={revision:crypto.randomUUID(),packages:body.packages};
   const encoded=JSON.stringify(catalog),now=new Date().toISOString();
-  const result=row
-   ?await env.DB.prepare('UPDATE message_templates SET body=?,updated_at=? WHERE key=? AND body=?').bind(encoded,now,QUOTE_PACKAGES_KEY,row.body).run()
-   :await env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO NOTHING").bind(QUOTE_PACKAGES_KEY,encoded,now).run();
-  if(result.meta.changes!==1)return json({error:'Another device saved packages first. Refresh before trying again.'},409);
-  return json({catalog});
- }catch{return json({error:'Package save was not confirmed. Refresh stored packages before another attempt.'},503);}
+  const result=await confirmedSettingCAS(env.DB,{
+   key:QUOTE_PACKAGES_KEY,previousBody:row?.body??null,encoded,updatedAt:now
+  });
+  if(result.status==='conflict')return json({error:'Another device saved packages first. Refresh before trying again.'},409);
+  if(result.status!=='confirmed')
+   return json({error:'Package save was not confirmed. Refresh stored packages before another attempt.',saveUncertain:true},503);
+  return json({catalog,...(result.recoveredAfterUncertainSave?{recoveredAfterUncertainSave:true}:{})});
+ }catch{return json({error:'Package save was not confirmed. Refresh stored packages before another attempt.',saveUncertain:true},503);}
 }
