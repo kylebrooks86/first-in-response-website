@@ -1,0 +1,103 @@
+name: FIRE NEW LIVE existing physical D1 no-R2 DARK prehost (SOURCE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/prepare_new_live_physical_prehost.mjs'
+      - 'business-app-parity/test_new_live_physical_prehost.mjs'
+      - '.github/workflows/fire-new-live-physical-d1-prehost.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fire-new-live-physical-d1-prehost-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-owner-new-live-prehost-source:
+    name: Original 242 compiled NEW LIVE bytes + independent owner D1 config (never deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - name: Checkout exact review source with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check ONLY change-specific JavaScript syntax
+        run: |
+          node --check business-app-parity/prepare_new_live_physical_prehost.mjs
+          node --check business-app-parity/test_new_live_physical_prehost.mjs
+      - name: Download read-only ORIGINAL NEW LIVE no-assets Worker artifact and verify ZIP digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: '14101058770'
+          EXACT_ZIP_SHA256: '7c701cc6401e3eba06f684db2dd5a770b4c137401224ef8aeb812d18faabaec3'
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-new-live-original-worker-only"
+          curl --fail --location --silent --show-error \
+            --retry 2 --retry-delay 2 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
+            --output "$RUNNER_TEMP/fire-new-live-original-pr267.zip"
+          echo "$EXACT_ZIP_SHA256  $RUNNER_TEMP/fire-new-live-original-pr267.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/fire-new-live-original-pr267.zip" \
+            -d "$RUNNER_TEMP/fire-new-live-original-worker-only"
+          echo 'PASS exact accepted original NEW LIVE binary archive; no app rebuild, no provider access.'
+      - name: Generate independent NEW LIVE bound config and verify actual source bytes
+        run: |
+          node business-app-parity/test_new_live_physical_prehost.mjs \
+            "$RUNNER_TEMP/fire-new-live-original-worker-only"
+          node business-app-parity/prepare_new_live_physical_prehost.mjs \
+            "$RUNNER_TEMP/fire-new-live-original-worker-only" \
+            "$RUNNER_TEMP/fire-new-live-existing-d1-prehost"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const root=process.env.RUNNER_TEMP+'/fire-new-live-existing-d1-prehost';
+          const c=JSON.parse(readFileSync(root+'/server/wrangler.json'));
+          const p=JSON.parse(readFileSync(root+'/new-live-physical-prehost-source-receipt.json'));
+          assert.equal(c.name,'fire-fullapp-new-live');
+          assert.equal(c.main,'fire-noassets-entry.mjs');
+          assert.equal(c.workers_dev,false);
+          assert.equal(c.preview_urls,false);
+          assert.equal(c.route,undefined);
+          assert.equal(c.routes,undefined);
+          assert.equal(c.assets,undefined);
+          assert.deepEqual(c.r2_buckets,[]);
+          assert.equal(c.vars.FIRE_NEW_LIVE_AUTH_ENABLED,'blocked');
+          assert.equal(c.vars.FIRE_PHOTO_STORAGE_MODE,'owner-device-zip');
+          assert.equal(c.d1_databases[0].database_name,'fire-fullapp-new-live-db');
+          assert.equal(c.d1_databases[0].database_id,'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662');
+          assert.equal(p.originalQAClientAssetsSHA256Matched,41);
+          assert.equal(p.physicalNewLive26MigrationsAppliedOrVerified,false);
+          assert.equal(p.firstRealJob0001PhysicallyVerified,false);
+          assert.equal(p.firstWorkerCreationAuthorized,false);
+          assert.equal(p.workerUploaded,false);
+          assert.equal(p.workerDeployed,false);
+          assert.equal(p.liveStripeEnabled,false);
+          console.log('PASS owner-created independently pinned NEW LIVE physical D1 SOURCE CONFIG, NO schema install, auth, Stripe or Worker creation.');
+          NODE
+      - name: Compile ONLY new target-bound config with modern Wrangler offline dry-run
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fire-modern-wrangler" --no-save \
+            --ignore-scripts --no-audit --no-fund wrangler@4.162.0
+          node "$RUNNER_TEMP/fire-modern-wrangler/node_modules/wrangler/bin/wrangler.js" deploy \
+            --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-new-live-existing-d1-prehost/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/fire-new-live-prehost-wrangler-OFFLINE-ONLY"
+          echo 'No Cloudflare Worker created, D1 migrated, public route enabled or paid R2.'
+      - name: Retain separately sealed prehost source for review; NEVER DEPLOY
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-NEW-LIVE-PHYSICAL-D1-PREHOST-NEVER-DEPLOY-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-new-live-existing-d1-prehost
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 3
+          compression-level: 6
