@@ -136,7 +136,7 @@ export async function ownerApprovedDRApply(pinnedWrangler){
   ]));
   const before=readOnlyWranglerRows(query([
     'd1','execute',DR.database_name,'--remote','--json','--config',conf,
-    '--command',"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','view','index','trigger') AND name NOT LIKE 'sqlite_%' ORDER BY type,name"
+    '--command',"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','view','index','trigger') AND (name NOT LIKE 'sqlite_%' OR name='sqlite_sequence') ORDER BY type,name"
   ]));
   const empty=requirePhysicallyEmptyDRSchema(before);
   // A write may succeed and its command response may be lost. This unique
