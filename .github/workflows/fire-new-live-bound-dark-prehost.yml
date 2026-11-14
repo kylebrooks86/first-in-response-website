@@ -84,11 +84,17 @@ jobs:
             --config "$RUNNER_TEMP/fire-new-live-bound-dark-prehost/server/wrangler.json" \
             --outdir "$RUNNER_TEMP/fire-new-live-offline-wrangler-ONLY"
           echo 'NO provider contact, LIVE D1 migration, auth, Stripe, paid services, Worker creation or release.'
+      - name: Fail closed if hidden original SSR file or ANY package file missing
+        run: |
+          test -f "$RUNNER_TEMP/fire-new-live-bound-dark-prehost/server/.vite/manifest.json"
+          test "$(find "$RUNNER_TEMP/fire-new-live-bound-dark-prehost" -type f | wc -l)" -eq 243
+          echo 'PASS all 241 original compiled server files, original receipt, new private prehost receipt.'
       - name: Retain immutable source-only candidate, NEVER a deployment
         uses: actions/upload-artifact@v4
         with:
           name: FIRE-NEW-LIVE-EXISTING-D1-DARK-PREHOST-NEVER-DEPLOY-${{ github.event.pull_request.head.sha }}
           path: ${{ runner.temp }}/fire-new-live-bound-dark-prehost
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 7
           compression-level: 6
