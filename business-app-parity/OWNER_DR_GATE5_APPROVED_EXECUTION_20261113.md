@@ -5,7 +5,7 @@ Owner explicitly replied "approve" on November 13, 2026 to applying the 26 revie
 Approved database: fire-fullapp-dr-db / 5e55c5b7-cd67-4c8f-a52e-40f71b5d3145.
 Explicitly excluded NEW LIVE database: fire-fullapp-new-live-db / 0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662.
 
-Current DRAFT PR264 source commitment: 1d76039bcdf109b356054d7b3264ecd7c1d74acd. The reviewed script is business-app-parity/owner_approved_dr_d1_migrate_20261113.mjs with focused offline-only negative tests in test_owner_approved_dr_d1_migrate_20261113.mjs. Do not change SQL blob pins or run an unreviewed newer version.
+Current DRAFT PR264 source commitment: 1d76039bcdf109b356054d7b3264ecd7c1d74acd. The reviewed script is business-app-parity/owner_approved_dr_d1_migrate_20261113.mjs with focused offline-only negative tests in test_owner_approved_dr_d1_migrate_20261113.mjs. Do not change SQL blob pins or run an unreviewed newer version. The shared PR264 branch may advance with other source work; this handoff intentionally uses the tested exact ancestor commit, never the moving branch tip.
 
 Normal ChatGPT cannot operate the owner's Acer or its Cloudflare authentication. **No remote D1 migration has been performed by ChatGPT at this checkpoint.** The owner can run the script once in PowerShell using their existing Acer session after latest exact-head focused CI passes. The script authenticates read-only D1 name+UUID including distinct NEW LIVE, verifies DR has no application SQL objects, validates all immutable 26 source SQL blobs, records a one-shot local execution marker, applies migration to DR alone, and performs real read-only schema/journal/financial/index/Job #0001 verification. No automatic retries.
 
@@ -23,8 +23,12 @@ if (-not (Test-Path $repo)) { throw 'Original Acer FIRE repository missing. STOP
 if (Test-Path $review) { throw 'DR Gate5 source already exists. STOP; check the previous attempt.' }
 git -C $repo fetch --no-tags origin $branch
 if ($LASTEXITCODE -ne 0) { throw 'Git fetch failed; no remote D1 touched.' }
-$actual = (git -C $repo rev-parse FETCH_HEAD).Trim()
-if ($actual -ne $sha) { throw "Unexpected source $actual. STOP." }
+# The shared PR branch can advance. Always use the exact previously
+# reviewed source SHA; refuse a force-rewritten/unrelated head.
+$sourceType = (git -C $repo cat-file -t $sha).Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceType -ne 'commit') { throw 'Exact reviewed Git commit unavailable. STOP.' }
+git -C $repo merge-base --is-ancestor $sha FETCH_HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Reviewed DR source is not an ancestor of fetched PR. STOP.' }
 git -C $repo worktree add --detach $review $sha
 if ($LASTEXITCODE -ne 0) { throw 'Local detached worktree failed; no D1 touched.' }
 Push-Location (Join-Path $review 'business-app-parity\shared')
