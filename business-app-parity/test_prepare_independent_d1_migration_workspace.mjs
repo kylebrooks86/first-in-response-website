@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {prepareIndependentD1MigrationWorkspace} from './prepare_independent_d1_migration_workspace.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
-import {requirePinnedDRProviderIdentity,requirePhysicallyEmptyDRSchema,readOnlyWranglerRows,readOnlyPreparedSql} from './owner_approved_dr_d1_migration.mjs';
+import {requirePinnedDRProviderIdentity,requirePhysicallyEmptyDRSchema,readOnlyWranglerRows,readOnlyPreparedSql,classifyWranglerFailure} from './owner_approved_dr_d1_migration.mjs';
 import {assertReviewedIndependentD1SqlBlobs,gitSqlBlobSha1,REVIEWED_INDEPENDENT_D1_SQL_BLOBS}
  from './reviewed_independent_d1_sql_blobs.mjs';
 
@@ -124,7 +124,36 @@ try{
    "SELECT 1 -- uncomment"]) {
   assert.throws(()=>readOnlyPreparedSql(sql),/STOP/);checks++;
  }
+ // The physical D1 list failed on the Acer, and the earlier runner swallowed
+ // stderr. Verify the repaired diagnostic against actual untrusted CLI text.
+ const secret='Bearer secret_key_12345678901234567890';
+ const cases=[
+  [{status:1,stderr:'Error: You must be logged in. '+secret},['d1','list','--json'],'authentication'],
+  [{status:1,stdout:'Error 403 permission denied'},['d1','list','--json'],'authorization'],
+  [{status:1,stderr:'Failed to fetch: ENOTFOUND api.cloudflare.com'},['d1','list','--json'],'connection'],
+  [{status:1,stderr:'Unknown argument --legacy'},['d1','list','--json'],'argumentOrConfig'],
+  [{status:1,stderr:'Select an account to continue'},['d1','list','--json'],'accountSelection'],
+  [{status:1,stderr:'What happened? '+secret},['d1','list','--json'],'unclassified']
+ ];
+ for(const [processResult,args,reason] of cases){
+  const reported=classifyWranglerFailure(processResult,args);
+  check(reported.step==='read-only D1 inventory'&&
+    reported.exitCode===1&&
+    reported.remoteWriteCouldHaveStarted===false&&
+    reported.diagnosticCategories.includes(reason),
+    'read-only provider failure must identify its safe category without claiming writes');
+  const emitted=JSON.stringify(reported);
+  check(!emitted.includes(secret)&&!emitted.includes('api.cloudflare.com')&&
+    !emitted.includes('--legacy'),
+    'secret-bearing Wrangler CLI output must never escape in diagnostics');
+ }
+ const uncertain=classifyWranglerFailure({status:1,stderr:'Network timeout '+secret},
+  ['d1','migrations','apply','fire-fullapp-dr-db']);
+ check(uncertain.remoteWriteCouldHaveStarted===true&&
+  uncertain.step==='one-shot DR remote migration'&&
+  !JSON.stringify(uncertain).includes(secret),
+  'ambiguous physical migration command must NEVER be presented as read-only');
  console.log('PASS '+checks+'/'+checks+
-  ' reviewed local migration workspaces plus OWNER DR one-shot physical identity/empty-schema/read-only boundary negatives. No remote operation.');
+  ' reviewed migrations and owner DR one-shot guards including safe classification of failed physical read-only inventory. No provider calls.');
 
 }finally{rmSync(temp,{recursive:true,force:true});}
