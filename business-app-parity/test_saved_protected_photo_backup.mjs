@@ -12,10 +12,29 @@ import {inspectOwnerSavedNumberedPhotoPair} from './verify_saved_numbered_photo_
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION} from './shared/lib/numbered-records-v2-preflight.mjs';
 import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
 import {recoverSavedProtectedPhotoZip,verifySavedRecoveredPhotoZip} from './recover_saved_protected_photo_zip.mjs';
+import {PHOTO_RESTORE_ALL_CUSTOMERS,photoMutationScope,requiresAllCustomerPhotoReview,mayReviewPhotoMutation} from './shared/lib/photo-restore-interruption-scope.mjs';
 let n=0;const ok=(v,msg)=>{assert.ok(v,msg);n++;};
 const reject=async(fn,match)=>{await assert.rejects(fn,match);n++;};
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const readFileSyncSafe=p=>{try{return readFileSync(p);}catch{return null;}};
+ok(photoMutationScope('restore','one-customer')===PHOTO_RESTORE_ALL_CUSTOMERS,
+ 'any multi-customer ZIP restore gets a durable all-customer review scope');
+ok(photoMutationScope('add','one-customer')==='one-customer'&&
+   photoMutationScope('delete','one-customer')==='one-customer',
+ 'normal customer photo add/delete interruption remains limited to that gallery');
+ok(requiresAllCustomerPhotoReview({kind:'restore',customerId:'one-customer'}),
+ 'old persisted single-gallery restore receipts also require whole-vault review');
+ok(requiresAllCustomerPhotoReview({kind:'restore',customerId:PHOTO_RESTORE_ALL_CUSTOMERS}),
+ 'new interrupted multi-gallery receipt requires whole-vault review');
+ok(!requiresAllCustomerPhotoReview({kind:'add',customerId:'one-customer'}),
+ 'ordinary saved-photo add never falsely claims multi-customer restore');
+ok(mayReviewPhotoMutation({kind:'restore',customerId:PHOTO_RESTORE_ALL_CUSTOMERS},'other-gallery'),
+ 'interrupted all-customer ZIP can be reviewed from any authenticated customer gallery');
+ok(mayReviewPhotoMutation({kind:'restore',customerId:'legacy-gallery'},'another-gallery'),
+ 'legacy interrupted restore can no longer be cleared by a one-gallery-only review');
+ok(!mayReviewPhotoMutation({kind:'delete',customerId:'one-customer'},'other-gallery')&&
+    mayReviewPhotoMutation({kind:'delete',customerId:'one-customer'},'one-customer'),
+ 'interrupted single-customer delete still cannot be acknowledged in wrong gallery');
 const crc32=b=>{
  let crc=0xffffffff;
  for(const byte of b){crc^=byte;for(let j=0;j<8;j++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}

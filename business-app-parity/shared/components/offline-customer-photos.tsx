@@ -7,6 +7,7 @@ import {Input} from './ui/input';
 import {Label} from './ui/label';
 import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
+import {requiresAllCustomerPhotoReview} from '../lib/photo-restore-interruption-scope.mjs';
 import {readOfflinePhotoBackup,type OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
@@ -24,6 +25,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const cameraRef=useRef<HTMLInputElement>(null),libraryRef=useRef<HTMLInputElement>(null),restoreRef=useRef<HTMLInputElement>(null),verifyRef=useRef<HTMLInputElement>(null);
  const active=useRef(false),reviewRequired=useRef(false);
  const [needsReview,setNeedsReview]=useState(false),[reviewLoaded,setReviewLoaded]=useState(false);
+ const [allCustomerRestoreReview,setAllCustomerRestoreReview]=useState(false);
  const [safetyReady,setSafetyReady]=useState(false);
  const reviewedAttempt=useRef<string|null>(null);
  const pauseForReview=()=>{reviewRequired.current=true;setNeedsReview(true);setReviewLoaded(false);setPreparedBackup(null);};
@@ -67,7 +69,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   let cancelled=false;
   const inspect=async()=>{
    try{const pending=await readPhotoMutationAttempt();if(cancelled)return;
-    if(pending){pauseForReview();}
+    if(pending){pauseForReview();setAllCustomerRestoreReview(requiresAllCustomerPhotoReview(pending));}
     setSafetyReady(true);
    }catch(err){if(!cancelled){pauseForReview();setError(err instanceof Error?err.message:'Photo safety storage unavailable.');setSafetyReady(false);}}
   };
@@ -79,7 +81,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const allowChanges=async()=>{
   if(active.current||!reviewLoaded)return;
   active.current=true;setBusy(true);
-  try{await acknowledgePhotoMutation(reviewedAttempt.current);reviewRequired.current=false;setNeedsReview(false);setReviewLoaded(false);setError('');setMessage('New deliberate photo changes are enabled. Previously selected files will not be retried.');}
+  try{await acknowledgePhotoMutation(reviewedAttempt.current);reviewRequired.current=false;setNeedsReview(false);setReviewLoaded(false);setAllCustomerRestoreReview(false);setError('');setMessage('New deliberate photo changes are enabled. Previously selected files will not be retried.');}
   catch(err){setReviewLoaded(false);setError(err instanceof Error?err.message:'Photo review could not be confirmed. Changes remain paused.');}
   finally{active.current=false;setBusy(false);}
  };
@@ -220,8 +222,36 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  };
  const refreshForReview=async()=>{
   if(active.current)return;active.current=true;setBusy(true);setReviewLoaded(false);
-  try{reviewedAttempt.current=await reviewPhotoMutation(customerId,async()=>{await listOfflinePhotos();await refresh();});setReviewLoaded(true);setMessage('Saved photo list refreshed without adding, deleting or restoring photos. Review it before allowing new changes.');}
-  catch(err){setError((err instanceof Error?err.message:'Could not refresh saved photos.')+' Changes remain paused.');}
+  try{
+   const pending=await readPhotoMutationAttempt();
+   let summary='';
+   reviewedAttempt.current=await reviewPhotoMutation(customerId,async()=>{
+    // A restore can write several customers before an iPhone/tab interruption.
+    // Read and hash ALL saved customer photo blobs before acknowledging it,
+    // never only this gallery. This checks readable bytes, NOT that every
+    // original ZIP image has been restored: the owner must retain the backup.
+    const stored=await listOfflinePhotos();
+    if(requiresAllCustomerPhotoReview(pending)){
+     const customerCounts=new Map<string,number>();
+     for(const row of stored){
+      if(!(row.blob instanceof Blob)||row.blob.size!==row.sizeBytes||
+         row.blob.type!==row.contentType)
+       throw Error('A saved customer photo cannot be read consistently. Preserve original backups and keep changes paused.');
+      await crypto.subtle.digest('SHA-256',await row.blob.arrayBuffer());
+      customerCounts.set(row.customerId,(customerCounts.get(row.customerId)||0)+1);
+     }
+     summary='All-customer interruption review: '+stored.length+
+      ' readable saved photo(s) across '+customerCounts.size+
+      ' customer gallery/galleries. Review every affected customer gallery before unlocking. This does NOT prove every original archive photo was restored. Keep the source ZIP and verify it again.';
+    }
+    await refresh();
+   });
+   if(pending&&reviewedAttempt.current!==pending.id)
+    throw Error('The interrupted photo attempt changed during review. Refresh the library again.');
+   setAllCustomerRestoreReview(requiresAllCustomerPhotoReview(pending));
+   setReviewLoaded(true);
+   setMessage(summary||'Saved photo list refreshed without adding, deleting or restoring photos. Review it before allowing new changes.');
+  }catch(err){setError((err instanceof Error?err.message:'Could not refresh saved photos.')+' Changes remain paused.');}
   finally{active.current=false;setBusy(false);}
  };
  const before=items.filter(item=>item.photo.category==='before');
@@ -287,6 +317,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   <input ref={verifyRef} className="photo-input" type="file" accept=".firephotos,.zip,application/zip,application/octet-stream" onChange={e=>void verifySavedArchive(e.target.files)}/>
   <input ref={restoreRef} className="photo-input" type="file" accept=".firephotos,.zip,application/zip,application/octet-stream" onChange={e=>void restore(e.target.files)}/>
   {needsReview&&<div role="alert" className="save-error"><p>Photo changes are paused because the last result was not confirmed. Keep original images and backup files.</p>
+   {allCustomerRestoreReview&&<p><strong>Interrupted multi-customer restore:</strong> Photos for OTHER customers may have been saved before the interruption. Refresh the whole library and review each customer gallery, not just this page. Do not repeat the restore automatically; keep and verify the original ZIP.</p>}
    <Button variant="outline" disabled={busy} onClick={()=>void refreshForReview()}>Refresh saved photos for review</Button>
    <Button variant="outline" disabled={busy||!reviewLoaded} onClick={()=>void allowChanges()}>I reviewed saved photos; allow new changes</Button>
   </div>}

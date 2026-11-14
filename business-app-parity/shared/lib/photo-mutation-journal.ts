@@ -1,4 +1,5 @@
 import {LOCAL_CUSTOMER_DEPLOYMENT} from '../app/local-customer-deployment';
+import {PHOTO_RESTORE_ALL_CUSTOMERS,photoMutationScope,mayReviewPhotoMutation} from './photo-restore-interruption-scope.mjs';
 
 // Device-only interruption receipt. Never contains photo bytes, names, phrases,
 // provider credentials or customer contact details. Separate from vault backups.
@@ -9,7 +10,9 @@ const paused='A previous photo change needs review. No photo action was retried.
 function valid(value:PhotoMutationAttempt){
  return value&&typeof value.id==='string'&&/^[0-9a-f-]{36}$/.test(value.id)
   &&['add','delete','restore'].includes(value.kind)&&typeof value.customerId==='string'
-  &&/^[a-zA-Z0-9_-]{1,120}$/.test(value.customerId)&&Number.isFinite(Date.parse(value.startedAt));
+  &&(value.kind==='restore'&&value.customerId===PHOTO_RESTORE_ALL_CUSTOMERS||
+      /^[a-zA-Z0-9_-]{1,120}$/.test(value.customerId))&&
+     Number.isFinite(Date.parse(value.startedAt));
 }
 async function database():Promise<IDBDatabase>{
  if(typeof indexedDB==='undefined')throw Error('Photo safety storage is unavailable. Photo changes remain paused.');
@@ -61,7 +64,8 @@ async function removeAttempt(id:string){
 }
 export async function runPhotoMutation<T>(kind:PhotoMutationAttempt['kind'],customerId:string,action:()=>Promise<T>):Promise<T>{
  return exclusive(async()=>{
-  const attempt:PhotoMutationAttempt={id:crypto.randomUUID(),kind,customerId,startedAt:new Date().toISOString()};
+  const attempt:PhotoMutationAttempt={id:crypto.randomUUID(),kind,
+   customerId:photoMutationScope(kind,customerId),startedAt:new Date().toISOString()};
   if(!valid(attempt))throw Error('Invalid photo mutation identity.');
   await transaction<void>('readwrite',(store,set)=>{
    const request=store.get('pending');
@@ -80,7 +84,8 @@ export async function runPhotoMutation<T>(kind:PhotoMutationAttempt['kind'],cust
 export async function reviewPhotoMutation(customerId:string,refresh:()=>Promise<unknown>):Promise<string|null>{
  return exclusive(async()=>{
   const attempt=await readPhotoMutationAttempt();
-  if(attempt&&attempt.customerId!==customerId)throw Error('Open the customer photo gallery where the interrupted change began before reviewing it.');
+  if(!mayReviewPhotoMutation(attempt,customerId))
+   throw Error('Open the customer photo gallery where the interrupted change began before reviewing it.');
   await refresh();
   return attempt?.id??null;
  });
