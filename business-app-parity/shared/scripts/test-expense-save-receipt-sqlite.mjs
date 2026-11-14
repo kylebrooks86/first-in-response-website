@@ -114,5 +114,29 @@ try{
  check((await call(base(6,{incurredAt:'not-an-instant'}))).status===400,'Invalid expense date rejected');
  check((await call(base(7,{estimateId:'not-a-job'}))).status===404,'Unknown job expense link rejected');
  check(count()===4,'Invalid inputs do not create expenses');
- console.log('PASS '+tests+'/'+tests+' actual owner expense POST and native SQLite: idempotent undated and dated replay, immutable receipt, lost ACK, stale result, tax-date and identity checks; synthetic-only.');
+ // Date-only input is a real older-client/API path. Midnight UTC becomes
+ // December 30 in Tulsa; this must persist the selected Dec 31 tax day.
+ const calendar=base(8,{description:'Year-end selected calendar purchase',incurredAt:'2026-12-31'});
+ response=await call(calendar);receipt=await response.json();
+ check(response.status===201&&receipt.expense.incurredAt==='2026-12-31T12:00:00.000Z',
+  'Date-only December 31 is normalized to stable Tulsa business day');
+ response=await call(calendar);
+ check(response.status===200&&count()===5,
+  'Canonical date-only expense replays without duplication or false conflict');
+ check(stored(calendar.requestId).incurred_at==='2026-12-31T12:00:00.000Z',
+  'Persisted date-only timestamp remains December 31 in Tulsa');
+ // Native Date parsing can roll over an impossible date; never put it on
+ // someone's financial report or return an apparently successful receipt.
+ const invalidDates=[
+  '2026-02-30','2026-04-31','2026-02-30T12:00:00.000Z',
+  '2026-12-31T23:30:00','2026-12-32','tomorrow'
+ ];
+ for(const [index,incurredAt]of invalidDates.entries()){
+  const invalid=base(index+9,{description:'Invalid calendar date',incurredAt});
+  response=await call(invalid);
+  check(response.status===400,'Invalid/ambiguous expense date '+incurredAt+' is rejected');
+  check(stored(invalid.requestId)===null,'No invalid-date financial record saved for '+incurredAt);
+ }
+ check(count()===5,'Invalid dates cannot add a financial expense');
+ console.log('PASS '+tests+'/'+tests+' actual owner expense POST and native SQLite: idempotent undated/date-only/explicit dates, stable Tulsa year-end tax dates, invalid rollover refusal, lost ACK, immutable receipt and identity; synthetic-only.');
 } finally{sql.close();}
