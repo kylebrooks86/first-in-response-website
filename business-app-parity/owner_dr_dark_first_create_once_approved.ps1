@@ -16,13 +16,16 @@ $worker = 'fire-fullapp-dr'
 $dbName = 'fire-fullapp-dr-db'
 $dbId = '5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'
 $earlierRoot = Join-Path $env:USERPROFILE 'Documents\FIRE-DR-FIRST-CREATE-PR270-9bbd3026'
-$root = Join-Path $env:USERPROFILE 'Documents\FIRE-DR-FIRST-CREATE-PR270-9bbd3026-V2'
+$v2Root = Join-Path $env:USERPROFILE 'Documents\FIRE-DR-FIRST-CREATE-PR270-9bbd3026-V2'
+$root = Join-Path $env:USERPROFILE 'Documents\FIRE-DR-FIRST-CREATE-PR270-9bbd3026-V3'
 function Stop-Fire([string]$reason) { throw ("FIRE DR first-create STOP: " + $reason) }
 # Preserve the owner's offline-only failed preflight folder (never delete it).
 # Every prior remote-attempt marker must block another provider write.
-foreach($marker in @('REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json','FIRST-CREATE-CLI-SUCCESS-READBACK.json')) {
-  if(Test-Path -LiteralPath (Join-Path $earlierRoot $marker)) {
-    Stop-Fire 'prior FIRST-CREATE attempt/completion marker exists; do not retry'
+foreach($prior in @($earlierRoot,$v2Root)) {
+  foreach($marker in @('REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json','FIRST-CREATE-CLI-SUCCESS-READBACK.json')) {
+    if(Test-Path -LiteralPath (Join-Path $prior $marker)) {
+      Stop-Fire 'prior FIRST-CREATE attempt/completion marker exists; do not retry'
+    }
   }
 }
 function ShaFile([string]$path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
@@ -45,8 +48,15 @@ function IsInert($value) {
   return $false
 }
 function Invoke-FireWrangler([string[]]$wranglerArgs) {
-  $output = (& $script:npxCmd --yes 'wrangler@4.162.0' @wranglerArgs 2>&1 | Out-String)
-  return [pscustomobject]@{ Code = $LASTEXITCODE; Text = $output }
+  $priorAction = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $output = (& $script:npxCmd --yes 'wrangler@4.162.0' @wranglerArgs 2>&1 | Out-String)
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $priorAction
+  }
+  return [pscustomobject]@{ Code = $exitCode; Text = $output }
 }
 if([Environment]::UserInteractive -ne $true) { Stop-Fire 'interactive owner workstation required' }
 if($env:CI -or $env:GITHUB_ACTIONS -or $env:TF_BUILD) { Stop-Fire 'CI or unattended execution refused' }
