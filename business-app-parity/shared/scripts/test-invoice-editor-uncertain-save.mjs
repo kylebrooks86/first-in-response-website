@@ -7,6 +7,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {normalizeOriginalInvoiceSnapshot,matchesOriginalInvoiceSnapshot,invoiceOriginalSQLGuard} from '../lib/invoice-editor-source-guard.mjs';
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),
   ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EditInvoiceDialog');
@@ -37,7 +38,9 @@ function setup(kind){
  const state={uncertain:false,errors:[],saving:[],closed:[],saved:[],requests:[]};
  const context={
   exports:{},saveLock:{current:false},currentInvoice:{current:'invoice/one'},invoiceKey:'invoice/one',
-  loadedInvoice:{current:'invoice/one'},loadedInvoiceRevisionCount:{current:3},uncertain:false,invoiceRateInvalid:false,
+  loadedInvoice:{current:'invoice/one'},loadedInvoiceRevisionCount:{current:3},
+  loadedOriginalInvoice:{current:{estimateId:'estimate-one',customerId:'customer-one',subtotalCents:2500,discountCents:0,discountType:'dollar',discountValue:0,totalCents:2500,dueAt:null,storedStatus:'sent',items:[{id:'item-one',name:'Synthetic concrete',description:'Only synthetic',quantity:1,unit:'job',totalCents:2500}]}},
+  uncertain:false,invoiceRateInvalid:false,
   estimate:{id:'estimate-one',invoiceId:'invoice-one'},
   items:[{id:'item-one',name:'Synthetic concrete',description:'Only synthetic',
     quantity:1,unit:'job',unitRateCents:2500}],
@@ -84,6 +87,8 @@ for(const kind of ['server-503','network','invalid-json','wrong-receipt']){
  eq(f.state.closed,[false],'Confirmed invoice closes editor');
  eq(f.state.requests.length,1,'One confirmed write only');
  eq(JSON.parse(f.state.requests[0].options.body).expectedRevisionCount,3,'Actual invoice owner PATCH carries exact loaded version');
+ eq(JSON.parse(f.state.requests[0].options.body).expectedOriginalInvoice.items[0].id,'item-one',
+ 'Actual editor passes original persisted D1 service identity');
 }
 {
  const f=setup('success');
@@ -91,6 +96,10 @@ for(const kind of ['server-503','network','invalid-json','wrong-receipt']){
  await f.save();
  eq(f.state.requests.length,0,'Owner editor refuses a PATCH without a verified loaded invoice revision');
  eq(f.state.saved.length,0,'A missing source version never claims an invoice change');
+}
+{
+ const f=setup('success');f.context.loadedOriginalInvoice.current=null;
+ await f.save();eq(f.state.requests.length,0,'Owner editor refuses PATCH without verified original header/lines');
 }
 
 // Invoice payment status is driven by the ACTUAL PATCH route expression.
@@ -116,7 +125,8 @@ eq(invoiceStatus(2500,3000),'paid','Existing full-payment status remains unchang
 // the stale second INSERT and every dependent invoice header/line mutation.
 const api=readFileSync('app/api/invoices/[id]/route.ts','utf8');
 assert.ok(api.includes('staleInvoice:true')&&api.includes('BEFORE expiring any Stripe checkout session.')&&
-  api.includes('expectedRevisionCount===null?[]:[expectedRevisionCount]'),
+  api.includes('expectedRevisionCount<0||!expectedOriginalInvoice')&&
+  api.includes('...originalGuard.args,expectedRevisionCount'),
   'Actual invoice route must deny a stale edit before Stripe and bind the CAS value');
 const paid=api.match(/const actualPaid = `([\s\S]*?)`;/)?.[1];
 const versionMatch=api.match(/" AND \(SELECT COUNT\(\*\) FROM invoice_revisions version WHERE version.invoice_id=guard.id\)=\?"/)?.[0];
