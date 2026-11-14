@@ -113,7 +113,7 @@ const reviewedSql=baseSql.map(name=>readFileSync(
 assert.ok(reviewedSql.every(sql=>!/^\s*CREATE\s+VIEW\b/im.test(sql)),
  'Reviewed independent migrations do not create SQL views');
 const migrationIndexNames=reviewedSql.flatMap(sql=>[...sql.matchAll(
- /^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+[`"]?([a-z0-9_]+)/gim)].map(match=>match[1]));
+ /^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([a-z0-9_]+)/gim)].map(match=>match[1]));
 assert.equal(new Set(migrationIndexNames).size,migrationIndexNames.length,
  'Reviewed migrations may not define duplicate named indexes');
 assert.deepEqual([...migrationIndexNames].sort(),
