@@ -127,12 +127,12 @@ jobs:
       - name: Execute only the independent 25-to-26 numbered-schema migration in disposable SQLite
         if: matrix.target == 'independent-live'
         run: node --experimental-sqlite business-app-parity/test_independent_numbered_release_migration.mjs
-      - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
       - name: Verify exact independent LIVE 26 SQL disposable restore and older QA-25 backwards compatibility
         if: matrix.target == 'independent-live'
         run: |
           node --experimental-sqlite business-app-parity/shared/scripts/test-new-live-26-disposable-record-restore.mjs
           (cd business-app-parity/shared && node --experimental-sqlite scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs)
+      - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
         if: matrix.target == 'independent-live'
         run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs
       - name: NEW LIVE Job #0001 and uncertain customer-save targeted regression
