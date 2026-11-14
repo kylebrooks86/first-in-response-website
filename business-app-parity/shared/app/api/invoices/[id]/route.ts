@@ -38,6 +38,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
   if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   const {id}=await params;
   const storedInvoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
+    (SELECT COUNT(*) FROM invoice_revisions rv WHERE rv.invoice_id=invoices.id) AS revisionCount,
     NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=invoices.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
     (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=invoices.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
@@ -58,7 +59,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
     const {itemsJson:_itemsJson,...rest}=record;void _itemsJson;
     return {...rest,items:revisionItems};
   });
-  return Response.json({invoice:{...invoice,items:items.results,revisions:normalizedRevisions}},{headers:{"Cache-Control":"no-store, private"}});
+  return Response.json({invoice:{...invoice,revisionCount:Number((storedInvoice as {revisionCount?:number}).revisionCount??0),items:items.results,revisions:normalizedRevisions}},{headers:{"Cache-Control":"no-store, private"}});
 }
 
 export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){
@@ -69,6 +70,14 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
   try{
     const {id}=await params;
     const body=await request.json() as Record<string,unknown>;
+    // The owner editor supplies the revision count observed when it loaded
+    // the original invoice. An older tab may not silently replace newer saved
+    // invoice services, discounts or due dates.
+    const expectedRevisionCount=body.expectedRevisionCount===undefined?null:body.expectedRevisionCount;
+    if(expectedRevisionCount!==null&&(typeof expectedRevisionCount!=="number"||
+       !Number.isSafeInteger(expectedRevisionCount)||expectedRevisionCount<0))
+      return Response.json({error:"Refresh the saved invoice before editing its revision history."},
+        {status:400,headers:{"Cache-Control":"no-store, private"}});
     const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt,NOT EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=invoices.estimate_id AND parent.customer_id=invoices.customer_id) AS invoiceOwnershipMismatch FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string;invoiceOwnershipMismatch:number}>();
     if(!existing)return Response.json({error:"Invoice not found."},{status:404});
     if(Number(existing.invoiceOwnershipMismatch)!==0)
@@ -124,6 +133,16 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     if(pendingRefund)return Response.json({
       error:"A refund is still processing. Reconcile it before changing the invoice or ending an active checkout."
     },{status:409,headers:{"Cache-Control":"no-store, private"}});
+    if(expectedRevisionCount!==null){
+      // Refuse a stale tab BEFORE expiring any Stripe checkout session.
+      const version=await env.DB.prepare("SELECT COUNT(*) AS revisionCount FROM invoice_revisions WHERE invoice_id=?")
+        .bind(id).first<{revisionCount:number}>();
+      if(Number(version?.revisionCount)!==expectedRevisionCount)
+        return Response.json({
+          error:"This invoice changed in another tab or device. Close and reopen it to review the latest services, prices and due date before editing.",
+          staleInvoice:true
+        },{status:409,headers:{"Cache-Control":"no-store, private"}});
+    }
     const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
     if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
     // Status and the transactional payment guard must use the same snapshot.
@@ -146,6 +165,11 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
         AND p.type NOT IN ('Tip','Tip Refund')),0)`;
     const revisionGuard = `EXISTS(SELECT 1 FROM invoice_revisions
       WHERE id=? AND invoice_id=?)`;
+    // D1 batch is transactional. If another tab saves AFTER the preflight,
+    // only one of the two competing revision inserts may pass this condition;
+    // all service and header writes require its exact newly created ID.
+    const revisionVersionGuard=expectedRevisionCount===null?"":
+      " AND (SELECT COUNT(*) FROM invoice_revisions version WHERE version.invoice_id=guard.id)=?";
     const revisionGate = env.DB.prepare(`INSERT INTO invoice_revisions
       (id,invoice_id,subtotal_cents,discount_cents,discount_type,discount_value,
         total_cents,due_at,status,items_json,created_at)
@@ -154,13 +178,13 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
         AND EXISTS(SELECT 1 FROM estimates parent WHERE parent.id=guard.estimate_id AND parent.customer_id=guard.customer_id)
         AND ${actualPaid}=? AND ${actualPaid}<=?
         AND NOT EXISTS(SELECT 1 FROM payment_refunds pending
-          WHERE pending.estimate_id=guard.estimate_id AND pending.status='pending'))`)
+          WHERE pending.estimate_id=guard.estimate_id AND pending.status='pending')${revisionVersionGuard})`)
       .bind(revisionId,id,Number(currentInvoice?.subtotalCents||0),
         Number(currentInvoice?.discountCents||0),String(currentInvoice?.discountType||"dollar"),
         Number(currentInvoice?.discountValue||0),Number(currentInvoice?.totalCents||0),
         currentInvoice?.dueAt?String(currentInvoice.dueAt):null,
         String(currentInvoice?.status||existing.status),JSON.stringify(currentItems.results),
-        revisionCreatedAt,id,latestPaidCents,totalCents);
+        revisionCreatedAt,id,latestPaidCents,totalCents,...(expectedRevisionCount===null?[]:[expectedRevisionCount]));
     const statements=[revisionGate,
       env.DB.prepare(`DELETE FROM invoice_items WHERE invoice_id=?
         AND ${revisionGuard}`).bind(id,revisionId,id)];
