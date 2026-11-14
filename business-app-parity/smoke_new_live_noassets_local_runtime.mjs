@@ -6,17 +6,15 @@
  * node business-app-parity/smoke_dr_noassets_local_runtime.mjs
  *   ABSOLUTE_BUILT_NEW_LIVE_CANDIDATE ABSOLUTE_INSTALLED_WRANGLER_SCRIPT
  *
- * Uses locally served byte-for-byte static assets, missing chunk negatives
- * and the original existing SSR/API routing, without re-running accepted QA.
+ * Verifies an AUTH BLOCKED first-create returns private no-store 404 for
+ * all static and SSR/API routes, without re-running accepted QA.
  */
 import {spawn} from 'node:child_process';
-import {createHash} from 'node:crypto';
 import {readFileSync,existsSync,mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 
 const fail=s=>{throw Error('FIRE NEW LIVE real local Worker runtime BLOCKED: '+s);};
-const hex=b=>createHash('sha256').update(b).digest('hex');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const port=18872;
 const origin='http://127.0.0.1:'+port;
@@ -80,50 +78,51 @@ async function main(){
   for(const stream of [child.stdout,child.stderr]){
    stream.on('data',buf=>{logs.push(String(buf));if(logs.length>200)logs.shift()});
   }
+  // A FIRST-created Worker may have a provider deployment address even
+  // with workers.dev and preview URLs disabled. This original candidate is
+  // deliberately auth-blocked: no static/SSR/API response may be exposed.
+  const isDark=response=>
+   response.status===404&&response.body.length===0&&
+   response.headers.get('cache-control')==='private, no-store'&&
+   response.headers.get('x-content-type-options')==='nosniff';
   let ready=false;
   for(let i=0;i<75;i++){
    if(child.exitCode!==null||child.signalCode!==null)
-    fail('local workerd stopped before it could serve the compiled Worker');
+    fail('local workerd stopped before serving the locked Worker');
    try{
     const probe=await req(origin+'/favicon.svg');
-    if(probe.status===200){ready=true;break;}
+    if(isDark(probe)){ready=true;break;}
    }catch{}
    await wait(500);
   }
-  if(!ready)fail('Wrangler local workerd failed to serve compiled asset within 38s');
+  if(!ready)fail('Wrangler local workerd did not return the deliberate first-request release lock within 38s');
   let count=0;
   for(const asset of selected(receipt)){
    const res=await req(origin+asset.path);
-   if(res.status!==200||res.body.length!==asset.bytes||
-      hex(res.body)!==asset.sha256||
-      !res.headers.get('content-type')?.startsWith(asset.type.split(';')[0])||
-      res.headers.get('x-content-type-options')!=='nosniff')
-    fail('actual workerd returned nonmatching compiled public resource: '+asset.path+
-     ' HTTP '+res.status);
+   if(!isDark(res))fail('dark Worker exposed compiled static asset: '+asset.path+
+    ' HTTP '+res.status);
    count++;
   }
   const chunk=selected(receipt)[0];
   const head=await req(origin+chunk.path,{method:'HEAD'});
-  if(head.status!==200||head.body.length!==0)
-   fail('local HEAD returned body or refused valid compiled route');
+  if(!isDark(head))fail('dark Worker exposed HEAD asset route');
   count++;
   const missing=await req(origin+'/_next/static/chunks/THIS-CHUNK-DOES-NOT-EXIST.js');
-  if(missing.status!==404)fail('missing hashed asset was not refused by real workerd');
+  if(!isDark(missing))fail('dark Worker did not uniformly refuse missing asset');
   count++;
   const post=await req(origin+'/fire-offline/app.js',{method:'POST'});
-  if(post.status!==405)fail('static asset accepted HTTP POST');
+  if(!isDark(post))fail('dark Worker exposed static POST route');
   count++;
-  for(const path of ['/','/api/customers','/api/release/new-live-clean-start']){
+  for(const path of ["/","/api/customers","/api/release/new-live-clean-start"]){
    const res=await req(origin+path);
-   if(res.status>=500||res.status===200&&path!=='/')
-    fail('original QA-master dynamic route failed or exposed customer or first-Job authorization while NEW LIVE auth blocked: '+
-     path+' status '+res.status);
+   if(!isDark(res))fail('dark Worker reached application or owner route '+path+
+    ' HTTP '+res.status);
    count++;
   }
   console.log('PASS '+count+'/'+count+
-   ' actual LOCAL workerd requests: exact six compiled QA-master asset hashes,'+
-   ' HEAD, missing asset 404, non-GET 405, home and protected customer + clean-start Job #0001 routes refuse unready authentication.'+
-   ' NO remote/provider calls; NO D1 migrations, R2, payments or deployment.');
+   ' actual LOCAL NEW LIVE workerd DARK first-create denial: six real compiled'+
+   ' asset paths, HEAD, missing chunk, POST, home and protected owner/API routes'+
+   ' all return private no-store 404 before SSR. No Cloudflare, D1, R2 or payment writes.');
  }catch(e){
   const tail=logs.join('').slice(-6000).replace(/\x1b\[[0-9;]*m/g,'');
   console.error('OFFLINE WORKER STARTUP/SMOKE DETAILS (no credentials):\n'+tail);
