@@ -56,3 +56,35 @@ If stopped, failed, timed out, or uncertain: DO NOT rerun the command. It may ha
 ## Honest progress boundary
 
 At document creation, GitHub code/tests are completed and approval recorded, but no actual physical Cloudflare DR migration has been run by ChatGPT. The owner's Acer has to execute this exact command once. Even a successful DR schema installation is only part of Gate 5; hosting and rollback, provider-bound Worker identities, Gate6 nonowner denial, Gate7 future-data recovery, Gate9 Stripe TEST and Gate10 cutover are not accepted. Gates 1/2/3/8 are still accepted (4/10), remaining G4/5/6/7/9/10 OPEN, NEW LIVE NO-GO.
+
+
+## Owner Acer screenshot, Nov 13 — expected local STOP before any Cloudflare call
+
+The owner executed the previously pinned detached worktree and observed exactly:
+
+    HEAD is now at 44fbefe6
+    FIRE DR Gate5 STOP: Wrangler version differs from reviewed 4.92.0; no remote operation
+
+Screenshot also shows a generic PowerShell wrapper raising "DR migration stopped or is uncertain. DO NOT RETRY." The code checks Wrangler version BEFORE any D1 provider call and BEFORE writing a local remote attempt lock. Thus this particular run is proven to have STOPPED locally; NO DR D1 read/write/migration was attempted. The worktree is ALREADY created. Do not repeat any Git fetch/worktree, owner screenshots, Cloudflare Work login or accepted QA tests. Keep the original first attempt error as accepted evidence.
+
+### Corrected self-contained Acer PowerShell, local pinned Wrangler install + same approved one-shot DR
+
+Run the following in PowerShell. Earlier lines only read local files and install exact free Wrangler npm CLI (no Cloudflare billing/R2/Worker/D1 changes). The final node command is the previously owner-approved DR-only action and still refuses incorrect physical identity, nonempty schema, prior attempt markers or uncertain writes.
+
+    $ErrorActionPreference = 'Stop'
+    $work = Join-Path $env:USERPROFILE 'FIRE-DR-GATE5-44fbefe6'
+    $tool = Join-Path $env:USERPROFILE 'FIRE-DR-WRANGLER-4.92.0'
+    $attempt = Join-Path $env:USERPROFILE 'FIRE-DR-APPROVED-MIGRATION-20261113\remote-one-shot-attempt.json'
+    $runner = Join-Path $work 'business-app-parity\owner_approved_dr_d1_migration.mjs'
+    if (!(Test-Path $runner)) { throw 'Pinned FIRE DR worktree missing. STOP.' }
+    if (Test-Path $attempt) { throw 'Prior remote attempt marker exists. STOP; read-only diagnosis required.' }
+    npm install --prefix $tool --no-save --no-audit --no-fund wrangler@4.92.0
+    if ($LASTEXITCODE -ne 0) { throw 'Exact local Wrangler installation failed. STOP.' }
+    $wrangler = Join-Path $tool 'node_modules\wrangler\bin\wrangler.js'
+    if (!(Test-Path $wrangler)) { throw 'Installed pinned Wrangler missing. STOP.' }
+    $ver = node $wrangler --version
+    if ($LASTEXITCODE -ne 0 -or ($ver -notmatch '4\.92\.0')) { throw 'Wrong pinned Wrangler version. STOP.' }
+    node $runner $wrangler --execute-approved-dr-only
+    if ($LASTEXITCODE -ne 0) { Write-Host 'DR STOPPED. Do NOT repeat migration. Share safe error text.' }
+
+If local npm installation fails, the remote DR command has not been reached. If the runner reaches remote D1 but fails physical UUID or empty-schema checks, no write has occurred. A failed/uncertain remote migrations apply must NOT be retried: the runner writes a unique local attempt marker before it. Never run the old first-command wrapper again. This refinement makes NO source code change, no paid service and no broader permission request.
