@@ -1,0 +1,260 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import vm from 'node:vm';
+import ts from 'typescript';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+const require=createRequire(import.meta.url);
+const postcss=createRequire(require.resolve("@tailwindcss/postcss"))("postcss");
+const source=readFileSync('app/dashboard.tsx','utf8');
+const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const names=['RefundPayment','ProcessingDetails','ProcessingReport','PaymentsView'];
+const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&names.includes(n.name?.text));
+assert.equal(functions.length,names.length);
+let cursor=0,state=[],posts=[];
+const hooks={useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},useRef:initial=>({current:initial}),useEffect(){}};
+const Button=({children,...props})=>React.createElement('button',props,children);
+const fragment=({children})=>React.createElement(React.Fragment,null,children);
+const sharedHelpers={};
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-balance-summary.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/refund-retry-state.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/exact-money-input.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+const browserRetry=new Map();
+const browserStorage={getItem:key=>browserRetry.get(key)??null,setItem:(key,value)=>browserRetry.set(key,value),removeItem:key=>browserRetry.delete(key)};
+const validRequestId='12345678-abcd-4def-8123-123456789abc';
+const context={exports:{},require,...sharedHelpers,useState:hooks.useState,useRef:hooks.useRef,useEffect:hooks.useEffect,Button,Dialog:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Input:props=>React.createElement('input',props),crypto:{randomUUID:()=>validRequestId},window:{localStorage:browserStorage,setTimeout(){}},money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),paymentTypeLabel:t=>t,fetch:async(url,options)=>{posts.push({url,...JSON.parse(options.body)});return {ok:true,json:async()=>({pending:true})};},CircleDollarSign:()=>null};
+const accounting={exports:{},require};
+vm.runInNewContext(ts.transpileModule(readFileSync('lib/processing-fees.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,accounting);
+context.summarizeProcessing=accounting.exports.summarizeProcessing;
+vm.runInNewContext(ts.transpileModule(functions.map(n=>n.getText(ast)).join('\n')+'\nexports.ui={RefundPayment,ProcessingDetails,ProcessingReport,PaymentsView};',{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
+const ui=context.exports.ui;
+const nodes=tree=>{const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;};
+let cases=0;
+const check=(label,fn)=>{fn();cases++;console.log('PASS: '+label);};
+const base={id:'synthetic-payment',amountCents:7500,refundableCents:7500,type:'Cash App',customer:'Synthetic customer',stripePayment:1};
+function refund(payment=base,reset=false){if(reset)state=[];cursor=0;return ui.RefundPayment({payment});}
+check('Refund and Check refund use the explicit action class',()=>{
+ for(const pending of [false,true]){const tree=refund({...base,...(pending?{pendingRefundId:validRequestId,pendingRefundAmountCents:2100}:{})},true);const button=nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action');assert.equal(button.props.children,pending?'Check refund':'Refund');}
+});
+check('Negative and fully refunded ledger entries have no refund action',()=>{for(const payment of [{...base,amountCents:-7500},{...base,refundableCents:0}])assert.equal(refund(payment,true),null);});
+check('Refund dialog remains scrollable within a mobile viewport',()=>{const node=nodes(refund(base,true)).find(n=>n.type===fragment&&n.props.className?.includes('sm:max-w-[520px]'));assert.ok(node.props.className.includes('max-h-[90dvh]'));assert.ok(node.props.className.includes('overflow-y-auto'));});
+// Execute the actual open/retry handlers, not a duplicated accounting implementation.
+let tree=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100},true);
+nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
+tree=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100});
+await nodes(tree).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();await new Promise(resolve=>setImmediate(resolve));
+check('Pending Stripe retry preserves payment ID, request ID and amount',()=>{assert.equal(posts.length,1);assert.deepEqual(posts[0],{url:'/api/payments/refund',paymentId:'synthetic-payment',requestId:validRequestId,amountCents:2100,externalRefundConfirmed:false,note:''});});
+check('Pending Stripe button is clearly an original request retry, not a new refund',()=>{
+ const view=refund({...base,pendingRefundId:validRequestId,pendingRefundAmountCents:2100});
+ const button=nodes(view).find(n=>n.type===Button&&n.props.className==='brand-button');
+ assert.equal(button.props.children,'Check / resume original Stripe refund');
+});
+{
+ const manualPending={...base,id:'synthetic-manual-recovery',stripePayment:0,pendingRefundId:validRequestId,pendingRefundAmountCents:2100};
+ nodes(refund(manualPending,true)).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
+ let view=refund(manualPending);
+ const checkbox=nodes(view).find(n=>n.type==='input'&&n.props.type==='checkbox');
+ assert.ok(checkbox,'Pending manual refund still shows the original returned-money confirmation');
+ assert.equal(checkbox.props.disabled,false,'Reopening manual pending request allows owner to re-confirm the outside refund');
+ const action=nodes(view).find(n=>n.type===Button&&n.props.className==='brand-button');
+ assert.equal(action.props.children,'Check / resume original manual refund','Pending manual refund is never labeled as a new refund');
+ const previous=posts.length;
+ await action.props.onClick();
+ assert.equal(posts.length,previous,'Manual retry cannot record refund until returned money is explicitly reconfirmed');
+ checkbox.props.onChange({target:{checked:true}});
+ view=refund(manualPending);
+ await nodes(view).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();
+ assert.equal(posts.length,previous+1,'Owner-confirmed retry sends exactly one original manual refund request');
+ assert.equal(posts.at(-1).paymentId,'synthetic-manual-recovery');
+ assert.equal(posts.at(-1).requestId,validRequestId,'No fresh refund ID minted on retry');
+ assert.equal(posts.at(-1).amountCents,2100,'Original saved refund amount cannot change');
+ assert.equal(posts.at(-1).externalRefundConfirmed,true,'Manual refund verification is explicit and never inferred');
+ cases++;console.log('PASS: pending manual refund owner checkbox, exact original receipt and truthful label');
+}
+const manual={...base,stripePayment:0};const beforeManual=posts.length;
+nodes(refund(manual,true)).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
+await nodes(refund(manual)).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();
+check('Manual refund submission without confirmation is blocked without a request',()=>{assert.equal(posts.length,beforeManual);assert.match(renderToStaticMarkup(refund(manual)),/Send the refund through/);});
+check('Fee details retain gross invoice credit, separate tips and actual net proceeds',()=>{
+ const html=renderToStaticMarkup(ui.ProcessingDetails({payment:{...base,amountCents:10000,grossReceivedCents:11000,bundledTipCents:1000,processingFeeCents:300,processingMethod:'Cash App'}}));for(const amount of ['$100.00','$10.00','$110.00','−$3.00','$107.00'])assert.ok(html.includes(amount));
+ assert.equal(ui.ProcessingDetails({payment:base}),null);
+});
+check('Fee report exposes a labeled four-column table without an unnecessary scroll focus stop',()=>{
+ const html=renderToStaticMarkup(ui.ProcessingReport({payments:[{...base,grossReceivedCents:7500,processingFeeCents:210,processingMethod:'Cash App'}]}));assert.match(html,/role="region" aria-label="Processing fees by payment method"/);assert.ok(!html.includes('tabindex="0"'));assert.equal((html.match(/scope="col"/g)||[]).length,4);assert.equal((html.match(/scope="row"/g)||[]).length,2);for(const amount of ['$75.00','$2.10','$72.90'])assert.ok(html.includes(amount));
+});
+check('Payment history amount is explicitly placed, not mixed with refund controls',()=>{
+ const n=functions.find(n=>n.name.text==='PaymentsView');let found=false;function walk(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='strong'&&node.openingElement.attributes.properties.some(a=>a.name?.text==='className'&&a.initializer?.text==='payment-history-amount')){assert.match(node.getText(ast),/money\(payment.amountCents\)/);found=true;}ts.forEachChild(node,walk);}walk(n);assert.ok(found);
+});
+check('Responsive stylesheet confines table overflow and places amount/action below mobile details',()=>{
+ const css=postcss.parse(readFileSync('app/globals.css','utf8'));const rules=[];css.walkRules(r=>rules.push(r));
+ const rule=(selector,mobile=false)=>rules.findLast(r=>r.selector===selector&&(r.parent.type==='atrule')===mobile);
+ const value=(r,key)=>r.nodes.find(n=>n.prop===key)?.value;
+ assert.equal(value(rule('.payment-history>article>.payment-refund-action'),'grid-column'),'2 / -1');
+ assert.equal(value(rule('.payment-history>article>.payment-refund-action'),'min-height'),'44px');
+ assert.equal(value(rule('.payment-history>article',true),'grid-template-columns'),'36px minmax(0,1fr)');
+ assert.equal(value(rule('.payment-history-amount',true),'grid-row'),'2');
+ assert.equal(value(rule('.payment-history>article>.payment-refund-action',true),'grid-row'),'3');
+ assert.equal(value(rule('.processing-report-scroll'),'overflow-x'),'visible','Processing fee table does not scroll sideways');
+ assert.equal(value(rule('.processing-report-table'),'min-width'),'0','Table fits available card width');
+ assert.equal(value(rule('.processing-report-table'),'table-layout'),'fixed','Four columns share viewport width');
+ assert.equal(value(rule('.processing-report-table th,.processing-report-table td'),'white-space'),'normal','Large amounts may wrap instead of clipping');
+ assert.equal(value(rule('.processing-report-table th,.processing-report-table td'),'overflow-wrap'),'anywhere');
+ assert.equal(value(rule('.payment-history>article>div'),'overflow-wrap'),'anywhere');
+});
+check('Customer-profile payment rows explicitly separate amount and retain refund callbacks',()=>{
+ const customer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+ const articles=[];function walk(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='article'&&node.openingElement.attributes.properties.some(a=>a.name?.text==='className'&&a.initializer?.text==='customer-record customer-payment-record'))articles.push(node);ts.forEachChild(node,walk);}walk(customer);
+ assert.equal(articles.length,1);
+ const row=articles[0].getText(ast);
+ assert.match(row,/<strong className="customer-payment-amount">\{money\(payment.amountCents\)\}<\/strong>/);
+ assert.match(row,/<RefundPayment payment=\{payment\} onRefunded=\{\(\)=>void load\(\)\}\/>/);
+ assert.match(row,/<ProcessingDetails payment=\{payment\}\/>/);
+ assert.match(row,/Copy full payment reference/);
+});
+check('Customer-profile payment layout wraps details and provides a full-row 44px refund control',()=>{
+ const rules=[];postcss.parse(readFileSync('app/globals.css','utf8')).walkRules(r=>rules.push(r));
+ const rule=(selector,mobile=false)=>rules.findLast(r=>r.selector===selector&&(r.parent.type==='atrule')===mobile);
+ const value=(r,key)=>r?.nodes.find(n=>n.prop===key)?.value;
+ assert.equal(value(rule('.customer-record.customer-payment-record'),'display'),'grid');
+ assert.equal(value(rule('.customer-record.customer-payment-record'),'grid-template-columns'),'minmax(0,1fr) auto');
+ assert.equal(value(rule('.customer-payment-record>div'),'min-width'),'0');
+ assert.equal(value(rule('.customer-payment-record>div'),'overflow-wrap'),'anywhere');
+ assert.equal(value(rule('.customer-payment-amount'),'white-space'),'nowrap');
+ assert.equal(value(rule('.customer-payment-record>.payment-refund-action'),'grid-column'),'1 / -1');
+ assert.equal(value(rule('.customer-payment-record>.payment-refund-action'),'min-height'),'44px');
+ assert.equal(value(rule('.customer-record.customer-payment-record',true),'grid-template-columns'),'minmax(0,1fr)');
+ assert.equal(value(rule('.customer-payment-amount',true),'grid-row'),'2');
+ assert.equal(value(rule('.customer-payment-record>.payment-refund-action',true),'grid-row'),'3');
+});
+check('Paid review queue controls preserve search, sort, filtered reset, and exact job navigation',()=>{
+ const payments=functions.find(n=>n.name.text==='PaymentsView');
+ const body=payments.getText(ast);
+ for(const expected of ['reviewCloseoutSearch.trim().toLowerCase()','reviewCloseoutFilter==="prepared"','reviewCloseoutOrder==="customer"','reviewCloseoutOrder==="newest"','setReviewCloseoutSearch("")','setReviewCloseoutFilter("all")','setReviewCloseoutOrder("priority")','setShowAllReviewCloseouts(false)','encodeURIComponent(item.estimateId)','reviewMoreAvailable?" · Older jobs not loaded"'])assert.ok(body.includes(expected),'Missing review queue behavior: '+expected);
+ let comparator;function find(node){if(ts.isCallExpression(node)&&ts.isPropertyAccessExpression(node.expression)&&node.expression.name.text==='sort'&&node.arguments[0]?.getText(ast).includes('reviewCloseoutOrder'))comparator=node.arguments[0].getText(ast);ts.forEachChild(node,find);}find(payments);assert.ok(comparator,'Actual paid-review comparator exists');
+ const rows=[{estimateId:'new-ready',customerName:'Ada',state:'ready',lastPaidAt:'2026-10-20T12:00:00Z'},{estimateId:'old-ready',customerName:'Zed',state:'ready',lastPaidAt:'2026-10-01T12:00:00Z'},{estimateId:'prepared',customerName:'Ben',state:'prepared',lastPaidAt:'2026-10-19T12:00:00Z'}];
+ for(const [order,expected] of [['priority',['prepared','old-ready','new-ready']],['newest',['new-ready','prepared','old-ready']],['customer',['new-ready','prepared','old-ready']]]){const context={exports:{},reviewCloseoutOrder:order};vm.runInNewContext(ts.transpileModule('exports.sort='+comparator,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,context);assert.deepEqual(rows.slice().sort(context.exports.sort).map(row=>row.estimateId),expected,order+' uses actual saved-record ordering');}
+ assert.match(body,/reviewCloseoutError\?<p role="alert"/);
+});
+check('Read-only collectible job finder preserves all jobs and exposes additional pages',()=>{
+ const payments=functions.find(n=>n.name.text==='PaymentsView'),body=payments.getText(ast);
+ const match=payments.body.statements.find(node=>ts.isVariableStatement(node)&&node.declarationList.declarations.some(d=>d.name.getText(ast)==='matchingOpen'));
+ const decl=match?.declarationList.declarations.find(d=>d.name.getText(ast)==='matchingOpen');
+ assert.ok(decl,'Real PaymentsView has a scoped local filter');
+ const expr=ts.transpileModule('exports.filter='+decl.initializer.getText(ast)+';',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+ const balances=[{id:'A',customer:'Tulsa One',service:'House Wash',status:'approved',address:'South Tulsa'},{id:'B',customer:'Owasso Two',service:'Gutter Cleanout',status:'scheduled',address:'Owasso'},{id:'C',customer:'Broken Arrow Three',service:'Window Cleaning',status:'approved',address:'Broken Arrow'}];
+ for(const [term,expected] of [['',3],['Owasso',1],['Window',1],['missing',0]]){
+  const state={exports:{},open:balances,balanceSearch:term};vm.runInNewContext(expr,state);
+  assert.equal(state.exports.filter.length,expected,term+' filters existing verified balances only');
+  assert.equal(balances.length,3,'Filtering never truncates verified source balances');
+ }
+ assert.match(body,/matchingOpen\.slice\(0,balanceLimit\)/,'Only displayed balance cards are limited');
+ assert.match(body,/matchingOpen\.length>balanceLimit/,'All remaining balances remain reachable');
+ assert.match(body,/open\.length\?<div className="record-empty">/,'A search miss never says all caught up');
+ assert.match(body,/setBalanceLimit\(20\)/,'Search changes reset pagination');
+});
+check('Invoice mobile cards retain payment-review warning, balance and accessible actions',()=>{
+ const src=readFileSync('app/dashboard.tsx','utf8');
+ assert.ok(src.includes('className="invoice-card"')&&src.includes('Payment review')&&src.includes('Billing exception open'));
+ const sheet=postcss.parse(readFileSync('app/globals.css','utf8'));
+ const mobile=(selector,width)=>{let found;sheet.walkRules(r=>{if(r.selector===selector&&r.parent.type==='atrule'&&r.parent.params.includes('max-width:'+width+'px'))found=r;});return found;};
+ const decl=(selector,width,property)=>mobile(selector,width)?.nodes.find(n=>n.prop===property)?.value;
+ assert.equal(decl('.invoice-card>.status-chip',980,'display'),'inline-flex','Mobile invoice status must remain visible');
+ assert.equal(decl('.invoice-card>.invoice-total',980,'display'),'grid','Mobile invoice totals and outstanding balance must remain visible');
+ assert.equal(decl('.invoice-card>.invoice-actions',980,'grid-row'),'3','Payment controls follow invoice details');
+ assert.equal(decl('.invoice-card>.invoice-actions>a,.invoice-card>.invoice-actions>button',980,'min-height'),'44px','Touch controls remain 44px high');
+ assert.equal(decl('.invoice-card>.invoice-icon',430,'display'),'none','Decorative receipt icon can collapse on compact phones');
+ assert.equal(decl('.invoice-card>.invoice-total',430,'grid-column'),'2','Amounts remain visible next to the customer');
+ assert.equal(decl('.invoice-card>.status-chip',430,'grid-row'),'2','Status remains visible below customer details');
+ assert.ok(sheet.toString().includes('.invoice-card>.status-chip.partial{background:'));
+});
+check('Owner payment history and checkout alerts cannot be served from stale browser cache',()=>{
+ const route=readFileSync('app/api/payments/route.ts','utf8');
+ assert.ok(route.includes('return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});'));
+});
+check('Manual payment close guard blocks live writes and preserves unresolved/edited forms',()=>{
+ const form=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='RecordPayment');
+ assert.ok(form,'Record Payment is an actual saved-record editor');
+ const closeSource=form.getText(ast);
+ assert.match(closeSource,/<Dialog open=\{open\} onOpenChange=\{setOpenSafe\}/,'Payment dialog must use its guarded close callback');
+ let callback;
+ function find(node){if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='setOpenSafe')callback=node.initializer;ts.forEachChild(node,find);}
+ find(form);
+ assert.ok(callback,'Real guarded close handler must exist');
+ const compiled=ts.transpileModule('exports.guard='+callback.getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const exercise=({busy=false,pending=false,edited=false,approve=false,open=false}={})=>{
+  const events=[];
+  const scope={exports:{},saving:busy,paymentLock:{current:busy},retryPending:pending,
+   amount:edited?'25.00':'75.00',balance:3500,initialPaymentAmount:{current:'75.00'},tip:'',fee:'',reference:'',method:'Wave',
+   setOpen:value=>events.push('set:'+value),
+   window:{alert:()=>events.push('alert'),confirm:()=>{events.push('confirm');return approve;}}};
+  vm.runInNewContext(compiled,scope);scope.exports.guard(open);return events;
+ };
+ assert.deepEqual(exercise({open:true}),['set:true'],'Opening is still immediate');
+ assert.deepEqual(exercise({busy:true,approve:true}),['alert'],'Saving cannot be dismissed by any Radix close route');
+ assert.deepEqual(exercise({pending:true,approve:false}),['confirm'],'Cancel retains uncertain receipt review');
+ assert.deepEqual(exercise({pending:true,approve:true}),['confirm','set:false'],'Owner can intentionally leave persisted pending receipt');
+ assert.deepEqual(exercise({edited:true,approve:false}),['confirm'],'Cancel retains unsaved financial entry');
+ assert.deepEqual(exercise({edited:true,approve:true}),['confirm','set:false'],'Owner can discard unsaved payment details');
+ assert.deepEqual(exercise(),['set:false'],'Untouched prefilled payment can close without needless confirmation');
+});
+
+check('Manual payment prefill survives open-editor balance refresh and clears prior reference on reopening',()=>{
+ const form=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='RecordPayment');
+ assert.ok(form);
+ const effects=[];function visit(node){if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'&&node.arguments[0]?.getText(ast).includes('loadManualPaymentRetry')&&node.arguments[0]?.getText(ast).includes('setAmount('))effects.push(node);ts.forEachChild(node,visit);}
+ visit(form);
+ assert.equal(effects.length,1,'One real payment-entry initializer');
+ const init=effects[0];
+ assert.equal(init.arguments[1].getText(ast),'[open,estimate.id]','Parent balance changes must not rerun and erase an open edit');
+ const source=ts.transpileModule('exports.initialize='+init.arguments[0].getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const events=[];
+ const scope={exports:{},open:true,balance:7500,estimate:{id:'synthetic-job'},initialPaymentAmount:{current:''},
+  manualRequestId:{current:null},activeManual:{current:null},storage:()=>null,loadManualPaymentRetry:()=>null};
+ for(const key of ['setRetryPending','setAmount','setTip','setTipChoice','setFee','setFeeMode','setFeeEstimate','setMethod','setReference','setError','setReviewedMissing','setRetryConfirmed'])
+  scope[key]=value=>events.push([key,value]);
+ vm.runInNewContext(source,scope);
+ scope.exports.initialize();
+ assert.equal(scope.initialPaymentAmount.current,'75.00');
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='75.00'));
+ assert.ok(events.some(([key,value])=>key==='setMethod'&&value==='Wave'),'New payment never inherits method');
+ assert.ok(events.some(([key,value])=>key==='setReference'&&value===''),'New payment never inherits an old reference');
+ assert.ok(events.some(([key,value])=>key==='setFeeMode'&&value==='fee'),'Prior net/fee mode resets');
+ events.length=0;scope.balance=2500;
+ assert.equal(events.length,0,'A parent data refresh cannot clear the open payment input');
+ scope.exports.initialize();
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='25.00'),'Reopening captures the latest confirmed balance');
+ assert.equal(scope.initialPaymentAmount.current,'25.00');
+ const receipt={requestId:'synthetic-unchanged',amountCents:1850,tipCents:0,method:'Cash App',reference:'receipt-1',processingFeeCents:50};
+ events.length=0;scope.activeManual.current=receipt;scope.exports.initialize();
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='18.50'),'Unresolved payment preserves original receipt amount');
+ assert.ok(events.some(([key,value])=>key==='setReference'&&value==='receipt-1'),'Unresolved payment retains original reference');
+});
+
+check('Refund close preserves active Stripe/manual request and unsaved refund details',()=>{
+ const refundFn=functions.find(n=>n.name?.text==='RefundPayment');
+ assert.ok(refundFn,'Actual RefundPayment component');
+ let initializer;
+ function visit(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='openChange')initializer=n.initializer;ts.forEachChild(n,visit);}
+ visit(refundFn);
+ assert.ok(initializer,'Actual RefundPayment close handler');
+ const compiled=ts.transpileModule('exports.close='+initializer.getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const exercise=({busy=false,pending=false,dirty=false,approve=false}={})=>{
+  const calls=[];
+  const scope={exports:{},refundLock:{current:busy},saving:busy,submitted:pending,
+   activeRefund:{current:pending?{requestId:'synthetic-refund-id',amountCents:7500}:null},
+   amount:dirty?'25.00':'75.00',refundable:7500,note:'',confirmed:false,
+   setOpen:v=>calls.push('open:'+v),
+   window:{alert:()=>calls.push('alert'),confirm:()=>{calls.push('confirm');return approve;}}};
+  vm.runInNewContext(compiled,scope);scope.exports.close(false);
+  return calls;
+ };
+ assert.deepEqual(exercise({busy:true,approve:true}),['alert'],'A pending write cannot hide even with consent');
+ assert.deepEqual(exercise({pending:true}),['confirm'],'Cancel retains pending refund context');
+ assert.deepEqual(exercise({pending:true,approve:true}),['confirm','open:false'],'Closing pending refund requires explicit owner acknowledgement');
+ assert.deepEqual(exercise({dirty:true}),['confirm'],'Cancel retains edited refund amount');
+ assert.deepEqual(exercise({dirty:true,approve:true}),['confirm','open:false'],'Unsaved refund details discarded only with confirmation');
+ assert.deepEqual(exercise(),['open:false'],'Untouched refund modal closes without unnecessary friction');
+});
+
+console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);

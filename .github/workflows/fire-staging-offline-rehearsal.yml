@@ -1,0 +1,580 @@
+name: FIRE Staging Migration and Shared-App Parity
+
+on:
+  push:
+    branches:
+      - work/fire-staging-safe-migration-rehearsal-2026-10-29
+    paths:
+      - 'business-app-parity/rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
+      - 'business-app-parity/test_job_numbering_qa25_candidate.py'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_offline_candidate.sql'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_d1_candidate.sql'
+      - 'business-app-parity/owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/gate9_staging_preflight.py'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - 'business-app-parity/adapters/independent-staging/**'
+      - 'business-app-parity/adapters/doomsday/**'
+      - 'business-app-parity/adapters/qa/**'
+      - 'business-app-parity/shared/**'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/**'
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/test_independent_staging_parity.py'
+      - 'business-app-parity/check_independent_staging_runtime_config.mjs'
+      - 'business-app-parity/test_independent_staging_runtime_config.mjs'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+  pull_request:
+    paths:
+      - 'fire-app-dr/**'
+      - 'business-app-parity/test_dr_customer_invoice_failclosed.py'
+      - 'business-app-parity/test_dr_checkout_webhook_reservation.py'
+      - 'business-app-parity/rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_job_numbering_qa_additive_rehearsal.py'
+      - 'business-app-parity/test_job_numbering_qa25_candidate.py'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_offline_candidate.sql'
+      - 'business-app-parity/job-numbering/qa25_job_numbers_seven_job_d1_candidate.sql'
+      - 'business-app-parity/owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1'
+      - 'business-app-parity/gate9_staging_preflight.py'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - 'business-app-parity/adapters/independent-staging/**'
+      - 'business-app-parity/adapters/doomsday/**'
+      - 'business-app-parity/adapters/qa/**'
+      - 'business-app-parity/shared/**'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/**'
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/test_independent_staging_parity.py'
+      - 'business-app-parity/check_independent_staging_runtime_config.mjs'
+      - 'business-app-parity/test_independent_staging_runtime_config.mjs'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  gate9-six-event-offline-contract:
+    name: Gate 9 exact six-event Stripe TEST contract (offline, NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fast fail on regression test JavaScript syntax (source only)
+        run: |
+          set -euo pipefail
+          # No remote credentials, app build or database required to parse.
+          for script in \
+            business-app-parity/shared/scripts/test-stripe-refunds.mjs \
+            business-app-parity/shared/scripts/test-overpayment-reconciliation-sqlite.mjs \
+            business-app-parity/shared/scripts/test-manual-payment-confirmation.mjs \
+            business-app-parity/shared/scripts/test-invoice-current-state.mjs \
+            business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs \
+            business-app-parity/shared/scripts/test-followup-exact-lookup.mjs \
+            business-app-parity/shared/scripts/test-followup-saved-service-lines-sqlite.mjs \
+            business-app-parity/shared/scripts/test-photo-upload-integrity.mjs \
+            business-app-parity/shared/scripts/test-photo-upload-sqlite-commit.mjs; do
+            node --check "$script"
+          done
+      - name: Fail closed on callback and subscription mismatches
+        run: |
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+
+  qa-http-owner-preview-local:
+    name: Gate 8 built QA Worker HTTPS Customer view and return (disposable, no deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Check out candidate without persistent token
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify checkout tree matches exact reviewed source head
+        shell: bash
+        env:
+          REVIEW_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REVIEW_HEAD" =~ ^[0-9a-f]{40}$ ]] || { echo "STOP: missing exact source SHA"; exit 1; }
+          actual="$(git rev-parse HEAD^{tree})"
+          reviewed="$(git rev-parse "$REVIEW_HEAD^{tree}")"
+          [[ "$actual" == "$reviewed" ]] || { echo "STOP: merge checkout differs from source head tree"; exit 1; }
+          echo "REVIEW_HEAD=$REVIEW_HEAD" >> "$GITHUB_ENV"
+          echo "PASS: checked out complete Git tree equals reviewed exact source SHA"
+      - name: Set up pinned runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Use pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Gate 6 DR checkout and public-document customer invoice isolation (source + native SQLite, OFFLINE)
+        run: |
+          python3 business-app-parity/test_dr_customer_invoice_failclosed.py
+          python3 business-app-parity/test_dr_checkout_webhook_reservation.py
+      - name: Gate 6 disaster recovery checkout TypeScript typecheck (no build upload or deploy)
+        run: |
+          pnpm --dir fire-app-dr install --frozen-lockfile --ignore-scripts
+          pnpm --dir fire-app-dr run typecheck
+      - name: Gate 6 independent DR login spoofed IP, parallel lockout and signed session TTL (new-case, SQLite only)
+        run: |
+          cd fire-app-dr
+          node --experimental-sqlite scripts/test-gate6-login-lockout.mjs
+      - name: Gate 6 owner-hosted evidence collector strict URL allowlist and leakage prevention (OFFLINE)
+        run: |
+          node --test business-app-parity/test_owner_gate6_hosted_readonly.mjs
+      - name: Materialize isolated QA source without remote access
+        run: |
+          python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-preview-candidate"
+          python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-preview-candidate"
+      - name: Install and compile full synthetic QA Worker locally
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit
+          pnpm run build
+      - name: Recheck built code and QA-only configuration
+        run: |
+          python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-preview-candidate" --built
+          node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-preview-candidate/dist/server/wrangler.json"
+      - name: Seal immutable QA code/assets review packet and verify its receipt
+        env:
+          REVIEW_PACKET: ${{ runner.temp }}/fire-qa-built-source-review
+        run: |
+          set -euo pipefail
+          python3 business-app-parity/prepare_device_review.py \
+            --target qa \
+            --candidate "$RUNNER_TEMP/fire-qa-preview-candidate" \
+            --output "$REVIEW_PACKET" \
+            --checkpoint "$REVIEW_HEAD"
+          python3 business-app-parity/verify_device_review_packet.py \
+            --packet "$REVIEW_PACKET" \
+            --target qa \
+            --checkpoint "$REVIEW_HEAD"
+          python3 - "$REVIEW_PACKET/DEVICE_REVIEW_RECEIPT.json" "$REVIEW_HEAD" <<'PY'
+          import json,sys
+          receipt=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert receipt["baseCheckpoint"]==sys.argv[2]
+          assert set(receipt["targets"])=={"qa"}
+          assert receipt["publicationAuthorized"] is False
+          assert receipt["physicalDeviceAcceptance"] is False
+          assert receipt["installableURL"] is None
+          assert receipt["targets"]["qa"]["recordsIncluded"] is False
+          assert receipt["targets"]["qa"]["hostingConfigIncluded"] is False
+          print("PASS: exact-head QA artifact sealed and byte-verified; no records, secrets, provider config or deploy approval")
+          PY
+      - name: Prepare pinned local browser without remote deployment
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-qa-preview-driver"
+          npm --prefix "$RUNNER_TEMP/fire-qa-preview-driver" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-qa-preview-driver/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME" || { echo "STOP: runner's preinstalled Chrome missing"; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Gate 7 changed protected photo UI actual Chrome export/verify/restore (synthetic only)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-offline-photo-ui-browser.mjs
+      - name: Gate 6 QA HMAC expiry, origin and cookie-negative controls (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-qa-auth-adapter.mjs
+      - name: Gate 6 source token-rotation approval CAS and lost-ACK readback (native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-public-accept-token-cas.mjs
+      - name: Gate 6 owner share-link actual SQLite ownership and race refusal (new coverage only)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-owner-share-links-ownership-sqlite.mjs
+      - name: Gate 6 public change-request receipt revoked-token and duplicate-notification denial (native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-public-change-request-token-revocation.mjs
+      - name: Gate 6 revised agreement signed-receipt share-token rotation (real route, native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-deposit-revised-signature.mjs
+      - name: Gate 6 wrong-customer invoice blocks public charge and atomic checkout reservation (native SQLite, no Stripe)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-checkout-invoice-owner-integrity.mjs
+      - name: Gate 9 actual public checkout bounded JSON, Stripe TEST session and HTTPS host guard (synthetic provider ONLY)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-checkout-atomic-reservation.mjs
+      - name: Gate 9 real owner checkout recovery respects TEST kill-switch (native SQLite, synthetic Stripe only)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-checkout-owner-reconciliation.mjs
+      - name: Gate 7 disaster recovery quote pricing parity and atomic save receipts (real DR routes, SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          # Run the actual independent DR quote create/edit routes with native
+          # disposable SQLite. $25 custom services, appreciation + percentage
+          # + bundle stacking, exact cents, signed quotes and acceptance races.
+          node --experimental-sqlite scripts/test-dr-estimate-pricing-sqlite.mjs
+      - name: Gate 7 bounded photo upload, safe viewing and verified deletion (no remote storage)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-photo-upload-integrity.mjs
+          node --experimental-sqlite scripts/test-photo-upload-sqlite-commit.mjs
+          # The actual owner route must independently verify no surviving D1
+          # object-key references BEFORE touching R2. Check simulated false ACK,
+          # shared-key drift, MIME/size mismatch and cleanup uncertainty.
+          node scripts/test-photo-delete-integrity.mjs
+      - name: Gate 5 missing refund table/indexes block all three public financial pages before private data lookup (new TSX SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-public-refund-ledger-holds-sqlite.mjs
+      - name: Gate 5 missing refund ledger blocks owner financial lists but preserves customer-save readback (new SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-owner-financial-list-refund-holds-sqlite.mjs
+      - name: Gate 5 invoice read/edit and paid-job review queue block missing refund ledger before private reads or Stripe (new SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-gate5-closeout-invoice-ledger-holds-sqlite.mjs
+      - name: Gate 5 actual notification overpayment refund/keep, cross-customer alert and SQL-time ownership races (synthetic SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-overpayment-reconciliation-sqlite.mjs
+          node --experimental-sqlite scripts/test-notification-mark-all-sqlite.mjs
+          # Owner Follow-ups must not attach a foreign homeowner's invoice
+          # token, price or service/notification link to a saved estimate.
+          node scripts/test-followup-exact-lookup.mjs
+          node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
+      - name: Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-strip-types scripts/test-manual-payment-confirmation.mjs
+      - name: Gate 5 actual invoice list, detail, editor, estimate history and customer billing ownership (native SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          # New Gate5: invalid invoice requests never expire Stripe checkout;
+          # unsettled refunds block repricing before and during D1.batch.
+          node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
+          # Actual invoice POST source must refuse a customer reassignment or
+          # reopened job between initial read and its atomic header+line writes.
+          node --experimental-sqlite scripts/test-invoice-create-confirmed-sqlite.mjs
+      - name: Gate 6 public estimate document/payment state ownership and refund guards (native local SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-public-document-guards.mjs
+      - name: Exercise actual built QA login, expired-session denial, synthetic estimate, Customer view, back/close, and restart
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-qa-worker-http-browser.mjs
+          node scripts/test-qa-worker-http-browser.mjs --customer-profile
+      - name: Gate 6 two-customer public share-token isolation (disposable local QA, never hosted)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-qa-worker-http-browser.mjs --gate6-share-isolation
+      - name: Retain verified QA code/assets packet only after all built-browser tests passed
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-qa-built-source-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/fire-qa-built-source-review/
+          if-no-files-found: error
+          retention-days: 7
+
+  gate8-declined-deposit-browser:
+    name: Gate 8 declined deposit and audit UI (synthetic Chrome only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install isolated source dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned browser driver outside repository (no browser download)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-deposit-browser"
+          npm --prefix "$RUNNER_TEMP/fire-deposit-browser" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-deposit-browser/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use preinstalled Chrome only
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME" || { echo "No preinstalled Chrome; STOP"; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Verify declined estimate never shows collectible deposit; test save/readback and geometry
+        env:
+          FIRE_DEPOSIT_UX_DIR: ${{ runner.temp }}/fire-deposit-only-ux
+        run: |
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-deposit-ux-browser.mjs
+          node scripts/test-deposit-policy.mjs
+          node scripts/test-owner-deposit-review.mjs
+          node scripts/test-customer-job-journey.mjs
+          node scripts/test-customer-invoice-balances.mjs
+          node scripts/test-public-invoice-due-central-time.mjs
+          node scripts/test-review-after-payment.mjs
+          node scripts/test-google-voice-text-safety.mjs
+          node scripts/test-pending-customer-messages.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-message-composer-handoff-browser.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-preview-theme-browser.mjs
+          node scripts/test-owner-account.mjs
+          node scripts/test-api-route-access-inventory.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-promotion-history-browser.mjs
+      - name: Gate 8 actual New Estimate service reuse and editor navigation (Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-reuse-estimate-editor-browser.mjs
+      - name: Gate 8 customer contact, callback, note and recovery browser sequence (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-write-browser.mjs
+      - name: Gate 8 complete section navigation and compact mobile menu (source/Chromium)
+        run: |
+          node scripts/test-section-navigation.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
+      - name: Gate 8 real MapLibre action footer and provider credits geometry (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-territory-browser.mjs
+      - name: Gate 8 financial-exception notification icons and read-state recovery (synthetic Chrome)
+        run: |
+          node scripts/test-notification-read-recovery.mjs
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-notification-persistence-browser.mjs
+      - name: Gate 8 consistent top-right small X, 44px tap and real Radix dismissal (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-iphone-popup-tap-browser.mjs
+      - name: Gate 8 app-wide card/navigation polish across Acer, tablet and phone widths (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-appwide-visual-browser.mjs
+      - name: Gate 8 neutral action polish, semantic color and 44px touch targets (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-control-finish-browser.mjs
+      - name: Gate 8 mobile topbar utility actions and record tabs at 320-667px (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-mobile-spacing-audit-browser.mjs
+      - name: Gate 8 New Estimate short-height keyboard and CSS zoom access (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-new-estimate-keyboard-zoom-browser.mjs
+      - name: Gate 8 owner job actions consistent at Acer, tablet and phone widths (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-job-action-consistency-browser.mjs
+      - name: Gate 8 customer contact and invoice controls aligned at phone tablet and Acer widths (synthetic Chrome)
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-invoice-visual-browser.mjs
+      - name: Retain synthetic-only diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-deposit-only-ui-fixture
+          path: ${{ runner.temp }}/fire-deposit-only-ux/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  qa-current-version-mock-windows:
+    name: Current QA code/D1 read-only mock negative controls (Windows only)
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout candidate without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exercise QA version, D1 isolation, no-R2 and fail-closed refusals (mock only)
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
+      - name: Verify QA Job numbering aggregate inventory defaults to no provider access
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_job_number_inventory_readonly.ps1
+      - name: Guard QA Job numbering private backup helper (dry-run only, no export)
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_job_number_prenumber_export.ps1
+
+  source-only-migration-rehearsal:
+    name: Synthetic 22-to-25 D1 migration rehearsal (NO Cloudflare writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate; never persist credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Six negative-control unit tests
+        run: python -m unittest discover -s business-app-parity -p 'test_rehearse_staging_22_to_25.py' -v
+      - name: Rehearse immutable Job numbers against full QA25 schema and synthetic financial rows
+        run: python -m unittest discover -s business-app-parity -p 'test_job_numbering_qa_additive_rehearsal.py' -v
+      - name: Verify seven-Job QA25 standalone SQL candidate (OFFLINE; no provider)
+        run: python -m unittest discover -s business-app-parity -p 'test_job_numbering_qa25_candidate.py' -v
+      - name: Reject six-event Stripe TEST webhook evidence missing refund.failed (no network)
+        run: python -m unittest discover -s business-app-parity -p 'test_gate9_staging_preflight.py' -v
+      - name: Rehearse actual 25-source migration files in memory (no customer export)
+        run: python business-app-parity/rehearse_staging_22_to_25.py
+
+  isolated-staging-source-parity:
+    name: QA/staging shared app source and isolated staging build (NO upload)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout reviewed FIRE development source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Staging versus QA source assembly parity, negative controls
+        run: python -m unittest discover -s business-app-parity -p 'test_independent_staging_parity.py' -v
+      - name: Reject unsafe Worker, D1, secrets, and route bindings
+        run: node business-app-parity/test_independent_staging_runtime_config.mjs
+      - name: Materialize isolated staging from same app source as QA
+        run: python business-app-parity/materialize.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate"
+      - name: Verify exact staging shared+adapter fingerprint
+        run: python business-app-parity/verify_materialized_candidate.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate"
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Build isolated staging release candidate, no Cloudflare connection or deploy
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-owner-settings-confirmed-cas-sqlite.mjs
+          node --experimental-sqlite scripts/test-custom-service-pricing.mjs
+          node --experimental-sqlite scripts/test-saved-promotions.mjs
+          node --experimental-sqlite scripts/test-quote-packages.mjs
+          node --experimental-sqlite scripts/test-business-preferences.mjs
+      - name: Gate 6 Doomsday PIN login and owner session hardening (new negative cases, disposable SQLite)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-independent-pin-login.mjs
+          node scripts/test-independent-auth-adapter.mjs
+      - name: Actual Wrangler LOCAL D1 Job # 0025 migration and rollback (no Cloudflare access)
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          node business-app-parity/shared/scripts/test-real-wrangler-local-job-number-qa25.mjs "$RUNNER_TEMP/fire-independent-staging-candidate"
+      - name: Gate 8 owner-preview and coarse-pointer navigation contracts (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-iphone-owner-preview-contracts.mjs .
+          node scripts/test-estimate-viewed-row-layout.mjs
+          node scripts/test-dashboard-visual-polish.mjs
+          node scripts/test-appwide-visual-system.mjs
+          node scripts/test-mobile-payment-shortcut.mjs
+          node scripts/test-estimate-payment-milestones.mjs
+          node scripts/test-estimate-attention-milestones.mjs
+          node scripts/test-message-composer-layout.mjs
+          node scripts/test-workflow-status-cues.mjs
+          node scripts/test-followups-simple-ui.mjs
+          node scripts/test-owner-preview-exit-states.mjs
+          node scripts/test-owner-invoice-job-number-render.mjs
+          node scripts/test-customer-job-number-views.mjs
+          # Verify real owner search history/global search with full immutable
+          # Job # mapping, exact/padded serials and unmigrated-feature denial.
+          node scripts/test-job-numbering.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
+      - name: Gate 8 saved estimate history, private preview and closed-quote regression (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-estimate-detail-recovery.mjs
+      - name: Gate 8 saved customer list failure and cache recovery (offline)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          # Actual POST/PATCH route + disposable SQLite customer regression:
+          # creation rejects unusable contacts; edit rejects +1/10-digit duplicates.
+          # No D1 provider, cloud customer records, SMS or customer messages.
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node --experimental-sqlite scripts/test-customer-message-evidence.mjs
+          node --experimental-sqlite scripts/test-customer-edit-route.mjs
+          # Actual SQL conditional UPDATE verifies email/+1 phone uniqueness
+          # even if another customer claims that contact during owner edit.
+          node --experimental-sqlite scripts/test-customer-edit-readback-sqlite.mjs
+          # New Estimate can create a new customer without Add Customer.
+          # Exercise REAL quote/inline-customer source and transactional D1
+          # with invalid contact inputs and immutable save replay.
+          node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
+          node scripts/test-inline-new-customer-contact-parity.mjs
+          node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
+      - name: FIRE note and Settings template committed-write recovery (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
+          node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
+      - name: Gate 8 owner expense save recovery and Wave financial record ID integrity (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-expense-save-receipt-sqlite.mjs
+      - name: Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
+      - name: FIRE owner task creation atomic customer/job ownership and lost ACK (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-task-create-ownership-recovery-sqlite.mjs
+      - name: FIRE task completion and due-date owner PATCH lost-ACK recovery (SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node --experimental-strip-types scripts/test-task-due.mjs
+      - name: FIRE Google Voice review invitation eligibility at atomic database save (synthetic only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-review-message-eligibility.mjs
+          node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
+      - name: Gate 9 signed refund lifecycle and webhook regressions (offline)
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node scripts/test-webhook-boundary.mjs .
+          node scripts/test-stripe-refunds.mjs .
+          node scripts/test-stripe-connection-inspection.mjs
+      - name: Verify compiled Worker can only target designated staging D1
+        run: node business-app-parity/check_independent_staging_runtime_config.mjs "$RUNNER_TEMP/fire-independent-staging-candidate/dist/server/wrangler.json"
+      - name: Verify compiled source exactly matches reviewed app and overlays
+        run: python business-app-parity/verify_materialized_candidate.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate" --built

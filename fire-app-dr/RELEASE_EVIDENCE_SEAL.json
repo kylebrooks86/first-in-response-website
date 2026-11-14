@@ -1,0 +1,165 @@
+{
+  "schema": "fire-release-evidence-seal-v1",
+  "fire_release": "v138",
+  "package_version": "1.0.0-rc.138",
+  "shared_core_fingerprint_sha256": "7a1889d5f9c07483536630ebb8ba3b18d9e6746f874c641c2d5e9a6633f20896",
+  "sealed_file_count": 31,
+  "sealed_files": [
+    {
+      "path": "CURRENT_PARITY_AUDIT.md",
+      "sha256": "b07ac86c01de2b9a95f0468d4facb539bb4d30a3094b1605ec87f4698b9db669",
+      "bytes": 975
+    },
+    {
+      "path": "CURRENT_VERSION.json",
+      "sha256": "aeec6cdd4b6fddbdc8311a6f394749f6d74dbd9d1ed63d7b31e25a8d35021165",
+      "bytes": 569
+    },
+    {
+      "path": "evidence/live/customer-facing-ap-customer-approval-signature-flow.jpeg",
+      "sha256": "9bda832a9af5bf33aae88a6ebc2ed10aeed6441d22d7746c01d835d06ed8c32a",
+      "bytes": 216917
+    },
+    {
+      "path": "evidence/live/customer-facing-ap-customer-invoice-view.jpeg",
+      "sha256": "8aec956c14a316632927fe635d22c6db359de94f008e73ba9ac171647bd33bcc",
+      "bytes": 221684
+    },
+    {
+      "path": "evidence/live/owner-app-50-deposit-scheduling-rule.png",
+      "sha256": "d2950a26d12c55ea531fb6c732efa53ae0e56455dce648eda3347d347419d848",
+      "bytes": 287474
+    },
+    {
+      "path": "evidence/live/owner-app-before-after-photos-workflow_IMG_0727.jpeg",
+      "sha256": "354716868df779d429cab0b3fff9d120d7ea913f8702f3c048ae103ff6d4f4be",
+      "bytes": 213194
+    },
+    {
+      "path": "evidence/live/owner-app-customer-invoices-tab_IMG_0725.jpeg",
+      "sha256": "3575380c877fba5424894a333ddeb08535132615b35b161fa7a9611e025d4f0e",
+      "bytes": 171260
+    },
+    {
+      "path": "evidence/live/owner-app-customer-invoices-tab_IMG_0725.jpeg",
+      "sha256": "3575380c877fba5424894a333ddeb08535132615b35b161fa7a9611e025d4f0e",
+      "bytes": 171260
+    },
+    {
+      "path": "evidence/live/owner-app-customer-payments-tab_IMG_0724.jpeg",
+      "sha256": "5363b1e78a3271be931cb3a37cfed704707d0576aaf70d43c87ede8ce1070810",
+      "bytes": 185526
+    },
+    {
+      "path": "evidence/live/owner-app-customer-payments-tab_IMG_0724.jpeg",
+      "sha256": "5363b1e78a3271be931cb3a37cfed704707d0576aaf70d43c87ede8ce1070810",
+      "bytes": 185526
+    },
+    {
+      "path": "evidence/live/owner-app-customer-photos-tab_IMG_0726.jpeg",
+      "sha256": "9e14539695e4435e468b70420e3e090b6348238ff08d009954a261f7749423c6",
+      "bytes": 190983
+    },
+    {
+      "path": "evidence/live/shared-business-be-50-deposit-requirement.png",
+      "sha256": "d2950a26d12c55ea531fb6c732efa53ae0e56455dce648eda3347d347419d848",
+      "bytes": 287474
+    },
+    {
+      "path": "evidence/live/shared-business-be-completion-before-final-balance-workflow.png",
+      "sha256": "b644aac5aa122cadfb346c2d72ad6ad5a0e9783e02a73c679b817a81a651149a",
+      "bytes": 264591
+    },
+    {
+      "path": "evidence/live/shared-business-be-service-catalog-pricing-rules.png",
+      "sha256": "4c3b21d59046ef0bcecdc633741b3cc60e9706173443e1095f025a2ddeb71894",
+      "bytes": 363836
+    },
+    {
+      "path": "FIRE_UNIFIED_RELEASE.json",
+      "sha256": "95412a044271028abc0dc19d9bfa1a74386fcb4de4ab47ab3a85769ed421b440",
+      "bytes": 11972
+    },
+    {
+      "path": "GO_NO_GO.md",
+      "sha256": "e5ad1f00c241b956a714024c02428f2bcd7d49eb89ec6ba09e1b427205b897d8",
+      "bytes": 1505
+    },
+    {
+      "path": "INDEPENDENT_DEPLOYMENT.md",
+      "sha256": "178bddbe2c7cfd91e803533cacc6eff63cd4b4319314b95efff72c653792372a",
+      "bytes": 10135
+    },
+    {
+      "path": "LIVE_MASTER_PARITY_CHECKLIST.md",
+      "sha256": "4f883907da000c31975cfd32a2484add5f8ec2f0cdb30e807ad3b3b9e9fc5bbb",
+      "bytes": 4136
+    },
+    {
+      "path": "PARITY_CAPTURE_QUEUE.md",
+      "sha256": "b4c9c425642be5a4c4a382b7d58958d52d1b24657348c6cd20e7a3670763f791",
+      "bytes": 20512
+    },
+    {
+      "path": "PARITY_COMPARISON_QUEUE.md",
+      "sha256": "c592256b7e7a803f086df7a7e5e0a89f743def7032e9f80ba9c824364ef1c3aa",
+      "bytes": 493
+    },
+    {
+      "path": "PARITY_EVIDENCE_MANIFEST.json",
+      "sha256": "aee6b47073b9cb81aee7778e697ba6fd0685f7c8bf6293ed6bbe96e45bfed22e",
+      "bytes": 36329
+    },
+    {
+      "path": "PARITY_PROGRESS.json",
+      "sha256": "01a209e4f47eefa74bd9d11b8f9819a195c6f20331a7f7c69e5aa0d25ce7659b",
+      "bytes": 317
+    },
+    {
+      "path": "README.md",
+      "sha256": "a7bccc1d324a3c3ff9ba41861ce2ac1d10d1f02ce47029d4a428eb663f5e2c54",
+      "bytes": 1976
+    },
+    {
+      "path": "RELEASE_PACKAGE_POLICY.json",
+      "sha256": "ff28d3b6096d7f84a01f254f06504bf0a61c14e729a316a818922128f7c7c986",
+      "bytes": 633
+    },
+    {
+      "path": "scripts/validate-current-recovery-docs.mjs",
+      "sha256": "23152b4ecfab3e9e00fc4b17a98ca87df4d23eeab9b1297c4daa233c240e5b84",
+      "bytes": 2636
+    },
+    {
+      "path": "scripts/validate-restore-verification.mjs",
+      "sha256": "2fc3d9638722ef65355133d38412fbf69f2bd779af795be8b81bc57580d10065",
+      "bytes": 3126
+    },
+    {
+      "path": "SECURITY_AND_RECOVERY_STATUS.md",
+      "sha256": "70ac821c1354d7983ff785bc8447e04471d5543dcfdfe4ee7901037f0eef8cb9",
+      "bytes": 1995
+    },
+    {
+      "path": "SHARED_CORE_MANIFEST.json",
+      "sha256": "cd136f5531f52afb674a7c3dbe41df69def0ecbab8c417b0625d7b3bec7a6154",
+      "bytes": 10887
+    },
+    {
+      "path": "STAGING_ACCEPTANCE_TEST.md",
+      "sha256": "109232e9335875d19ac0cdc07395d907e5a0913735856ce8515f7942d1816361",
+      "bytes": 7372
+    },
+    {
+      "path": "STRICT_PARITY_MATRIX.md",
+      "sha256": "15bab5074b3d891876057af83de8fa1219d3361c569029e45ec1c430b62cfe28",
+      "bytes": 10477
+    },
+    {
+      "path": "UNIFIED_RELEASE_PACKAGE.json",
+      "sha256": "7f90ac57dfa8a2c82aaada19be7dcde1775e69ab67cedf40e47b2c8cb2a06dd3",
+      "bytes": 843
+    }
+  ],
+  "seal_sha256": "412deadfb95e9be96d4607ded862ae6d4e67094fce7ac0c29550871dc3c2a415"
+}

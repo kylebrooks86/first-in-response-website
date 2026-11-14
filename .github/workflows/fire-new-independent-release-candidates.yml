@@ -1,0 +1,280 @@
+name: FIRE NEW independent DR and LIVE candidates (LOCAL ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/adapters/independent-dr/**'
+      - 'business-app-parity/adapters/independent-live/**'
+      - 'business-app-parity/prepare_new_independent_release_manifest.mjs'
+      - 'business-app-parity/test_new_independent_release_manifest.mjs'
+      - 'business-app-parity/test_new_independent_manifest_cli.mjs'
+      - 'business-app-parity/test_new_live_numbered_login_schema.mjs'
+      - 'business-app-parity/review_new_independent_release_pair.mjs'
+      - 'business-app-parity/test_new_independent_release_pair_cli.mjs'
+      - 'business-app-parity/shared/lib/protected-offline-photo-archive.mjs'
+      - 'business-app-parity/shared/lib/protected-offline-photo-archive.d.mts'
+      - 'business-app-parity/shared/components/offline-customer-photos.tsx'
+      - 'business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-protected-photo-zip.mjs'
+      - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/test_new_dr_numbered_login_schema.mjs'
+      - 'business-app-parity/shared/lib/new-live-clean-start.mjs'
+      - 'business-app-parity/shared/lib/new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/lib/new-live-index-view-contract.mjs'
+      - 'business-app-parity/shared/lib/new-live-financial-index-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
+      - 'business-app-parity/test_independent_numbered_release_migration.mjs'
+      - 'business-app-parity/prepare_independent_d1_migration_workspace.mjs'
+      - 'business-app-parity/reviewed_independent_d1_sql_blobs.mjs'
+      - 'business-app-parity/test_prepare_independent_d1_migration_workspace.mjs'
+      - 'business-app-parity/verify_saved_independent_d1_migration_workspace.mjs'
+      - 'business-app-parity/test_verify_saved_independent_d1_migration_workspace.mjs'
+      - 'business-app-parity/test_real_wrangler_independent_d1_local.mjs'
+      - 'business-app-parity/review_owner_dr_postinstall_worker_candidate.mjs'
+      - 'business-app-parity/test_owner_dr_postinstall_worker_candidate.mjs'
+      - 'business-app-parity/verify_inert_dr_ci_artifact.mjs'
+      - 'business-app-parity/test_verify_inert_dr_ci_artifact.mjs'
+      - 'business-app-parity/owner_approved_dr_d1_migrate_20261113.mjs'
+      - 'business-app-parity/test_owner_approved_dr_d1_migrate_20261113.mjs'
+      - 'business-app-parity/shared/lib/deposit-immutability-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-deposit-immutability-contract.mjs'
+      - 'business-app-parity/shared/lib/numbered-immutable-trigger-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs'
+      - 'business-app-parity/shared/scripts/test-new-live-first-job-route.mjs'
+      - 'business-app-parity/shared/app/api/release/new-live-clean-start/route.ts'
+      - 'business-app-parity/shared/app/api/estimates/route.ts'
+      - 'business-app-parity/shared/app/api/customers/route.ts'
+      - 'business-app-parity/shared/app/api/customer-messages/route.ts'
+      - 'business-app-parity/shared/scripts/test-new-live-clean-start.mjs'
+      - '.github/workflows/fire-new-independent-release-candidates.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build-local-candidate:
+    name: Source-identical independent ${{ matrix.target }} build and isolation guards (NO provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [independent-dr, independent-live]
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_TARGET: ${{ matrix.target }}
+    steps:
+      - name: Checkout reviewed code without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22 and Python 3
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check both targets refuse unsafe resource and auth combinations
+        run: node business-app-parity/test_new_independent_release_manifest.mjs
+      - name: Verify actual DR and NEW LIVE CLI requires target-bound Customer # approval
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_independent_manifest_cli.mjs
+      - name: Review DR plus NEW LIVE pair together, offline (synthetic only)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_independent_release_pair_cli.mjs
+      - name: Protected offline photo ZIP encryption/restore safety (no provider)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-protected-photo-zip.mjs
+      - name: Verify changed encrypted photo ZIP backup and legacy compatibility locally
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-protected-offline-photo-archive.mjs
+      - name: Pair numbered records and verified device photos without provider writes
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs
+      - name: Verify immutable customer/job trigger SQL from reviewed v1 migrations
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/shared/scripts/test-numbered-immutable-trigger-contract.mjs
+      - name: Verify real deposit policy event and signed agreement triggers prevent changes
+        if: matrix.target == 'independent-dr'
+        run: node --experimental-sqlite business-app-parity/shared/scripts/test-deposit-immutability-contract.mjs
+      - name: Prepare exact 26-migration DR/NEW LIVE Wrangler workspaces without provider writes
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_prepare_independent_d1_migration_workspace.mjs
+      - name: Verify actual saved DR/NEW LIVE migration workspaces reject tampering and swapped D1
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_verify_saved_independent_d1_migration_workspace.mjs
+      - name: DR owner-approved initial remote migration target and nonempty schema NEGATIVES (OFFLINE ONLY)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_owner_approved_dr_d1_migrate_20261113.mjs
+      - name: Validate accepted owner's completed physical DR schema receipt into inert no-R2 Worker manifest (OFFLINE ONLY)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_owner_dr_postinstall_worker_candidate.mjs
+      - name: Execute only the independent 25-to-26 numbered-schema migration in disposable SQLite
+        if: matrix.target == 'independent-live'
+        run: node --experimental-sqlite business-app-parity/test_independent_numbered_release_migration.mjs
+      - name: NEW LIVE pre-activation read-only full D1 inventory and serial history
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/shared/scripts/test-new-live-first-job-preflight.mjs
+      - name: NEW LIVE Job #0001 and uncertain customer-save targeted regression
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/shared/scripts/test-new-live-clean-start.mjs
+      - name: DR permanent Job # and Customer # sign-in safety (source only)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_new_dr_numbered_login_schema.mjs
+      - name: NEW LIVE permanent Job # and Customer # sign-in safety (source only)
+        if: matrix.target == 'independent-live'
+        run: node business-app-parity/test_new_live_numbered_login_schema.mjs
+      - name: Materialize exact QA-master shared source with isolated target overlay
+        run: python3 business-app-parity/materialize.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
+      - name: Prove complete overlay-source identity before build
+        run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate"
+      - name: Install pinned dependencies and build actual separate release candidate locally
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm build
+      - name: Rehearse 26 reviewed SQL migrations in real Wrangler for each exact independent target (LOCAL ONLY)
+        run: |
+          node --experimental-sqlite business-app-parity/test_real_wrangler_independent_d1_local.mjs "$RUNNER_TEMP/fire-release-candidate/node_modules/wrangler/bin/wrangler.js" "$FIRE_TARGET"
+      - name: NEW LIVE owner-only hosted evidence route denies unauthorized and uncertain D1
+        if: matrix.target == 'independent-live'
+        working-directory: ${{ runner.temp }}/fire-release-candidate
+        run: node scripts/test-new-live-first-job-route.mjs
+      - name: Prove built source remained identical to reviewed shared/target source
+        run: python3 business-app-parity/verify_materialized_candidate.py "$FIRE_TARGET" "$RUNNER_TEMP/fire-release-candidate" --built
+      - name: Inspect actual compiled Wrangler manifest and simulate independent only
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          import {prepareReviewedIndependentManifest} from './business-app-parity/prepare_new_independent_release_manifest.mjs';
+          const manifest=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/fire-release-candidate/dist/server/wrangler.json','utf8'));
+          const target=process.env.FIRE_TARGET;
+          const dr=target==='independent-dr';
+          // DR uses previously owner-recorded resource ID (not provider attestation).
+          // Both IDs are actual owner-created resources. This is still LOCAL-only review.
+          const reviewed=prepareReviewedIndependentManifest(target,manifest,{
+           databaseId:dr?'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145':'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662',
+           photoStorageMode:'owner-device-zip',
+           resourceAttestation:'owner-checked-'+target,
+           enableAuth:false
+          });
+          assert.equal(reviewed.evidence.remoteOperationAttempted,false);
+          assert.equal(reviewed.evidence.providerResourcesIndependentlyVerified,false);
+          assert.equal(reviewed.evidence.ownerApprovedDeployment,false);
+          assert.equal(reviewed.config.d1_databases.length,1);
+          assert.equal(reviewed.config.r2_buckets.length,0);
+          assert.equal(reviewed.config.vars.FIRE_PHOTO_STORAGE_MODE,'owner-device-zip');
+          assert.equal(reviewed.evidence.offDeviceZipVerified,false);
+          assert.equal(reviewed.evidence.isolatedPhotoRestoreVerified,false);
+          assert.equal(reviewed.config.vars[dr?'FIRE_DR_AUTH_ENABLED':'FIRE_NEW_LIVE_AUTH_ENABLED'],'blocked');
+          console.log('PASS built '+target+' exact reviewed source, inert default config and separate simulated D1/no-R2 owner-device-ZIP manifest; 0 hosted changes.');
+          NODE
+      - name: Seal exact-HEAD independently built DR Worker bytes for future OWNER-APPROVED release (NO provider)
+        if: matrix.target == 'independent-dr'
+        env:
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          FIRE_BUILT_DIST: ${{ runner.temp }}/fire-release-candidate/dist
+          FIRE_DR_SEAL: ${{ runner.temp }}/fire-dr-offline-seal.json
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {createHash} from 'node:crypto';
+          import {readFileSync,readdirSync,lstatSync,writeFileSync} from 'node:fs';
+          import {join,relative} from 'node:path';
+          const root=process.env.FIRE_BUILT_DIST;
+          const sha256=buf=>createHash('sha256').update(buf).digest('hex');
+          assert.match(process.env.FIRE_REVIEWED_SHA,/^[0-9a-f]{40}$/);
+          const wrangler=JSON.parse(readFileSync(join(root,'server','wrangler.json'),'utf8'));
+          assert.equal(wrangler.name,'fire-fullapp-dr');
+          assert.equal(wrangler.workers_dev,true);
+          assert.equal(wrangler.vars?.FIRE_ENV,'isolated-dr');
+          assert.equal(wrangler.vars?.FIRE_DR_AUTH_ENABLED,'blocked');
+          assert.equal(wrangler.d1_databases?.length,1);
+          assert.equal(wrangler.d1_databases[0]?.database_id,'00000000-0000-4000-8000-000000000000');
+          assert.deepEqual(wrangler.r2_buckets??[],[]);
+          const inventory=[];
+          function walk(folder){
+            for(const name of readdirSync(folder).sort()){
+              const abs=join(folder,name),stat=lstatSync(abs);
+              assert.equal(stat.isSymbolicLink(),false,'No symlinks in compiled release candidate');
+              if(stat.isDirectory()){walk(abs);continue;}
+              assert.equal(stat.isFile(),true,'Only regular files in compiled release candidate');
+              const path=relative(root,abs).replaceAll('\\','/');
+              const bytes=readFileSync(abs);
+              inventory.push({path,bytes:bytes.length,sha256:sha256(bytes)});
+            }
+          }
+          walk(root);
+          inventory.sort((a,b)=>a.path.localeCompare(b.path,'en'));
+          assert.ok(inventory.length>0,'Compiled Worker candidate cannot be empty');
+          const seal={
+            kind:'FIRE_SOURCE_ONLY_INERT_DR_COMPILED_ARTIFACT_V1',
+            reviewedPullRequest:264,
+            reviewedSourceSha:process.env.FIRE_REVIEWED_SHA,
+            target:'independent-dr',
+            drWorker:'fire-fullapp-dr',
+            physicalDatabaseBindingAttempted:false,
+            ownerAuthenticationEnabled:false,
+            cloudflareUploaded:false,
+            cloudflareDeployed:false,
+            stripeActivated:false,
+            ownerApprovedDeployment:false,
+            reviewedFileCount:inventory.length,
+            filesDigestSha256:sha256(Buffer.from(JSON.stringify(inventory))),
+            files:inventory
+          };
+          writeFileSync(process.env.FIRE_DR_SEAL,JSON.stringify(seal,null,2)+'\n',{flag:'wx',mode:0o600});
+          console.log('SEALED source-only inert independent DR candidate: '+inventory.length+' compiled files; NO provider calls or deployment.');
+          NODE
+      - name: Change-specific offline tests of sealed inert DR compiled bundle (NO provider)
+        if: matrix.target == 'independent-dr'
+        run: node business-app-parity/test_verify_inert_dr_ci_artifact.mjs
+      - name: Independently verify this ACTUAL compiled DR Worker and SHA seal before retention
+        if: matrix.target == 'independent-dr'
+        env:
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          FIRE_BUILT_DIST: ${{ runner.temp }}/fire-release-candidate/dist
+          FIRE_DR_SEAL: ${{ runner.temp }}/fire-dr-offline-seal.json
+        run: node business-app-parity/verify_inert_dr_ci_artifact.mjs "$FIRE_BUILT_DIST" "$FIRE_DR_SEAL" "$FIRE_REVIEWED_SHA"
+      - name: Retain exact-HEAD inert DR Worker build and member digests for owner-only review (NO Cloudflare)
+        if: matrix.target == 'independent-dr'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-INERT-DR-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/fire-release-candidate/dist/
+            ${{ runner.temp }}/fire-dr-offline-seal.json
+          if-no-files-found: error
+          # The sealed dist contains reviewed hidden members: .assetsignore
+          # and .vite/manifest.json. upload-artifact v4 omits them by default,
+          # leaving a genuinely incomplete archive despite pre-upload PASS.
+          include-hidden-files: true
+          retention-days: 3
+          compression-level: 6
+      - name: Download the RETAINED GitHub artifact and verify all sealed bytes again (NO provider)
+        if: matrix.target == 'independent-dr'
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-INERT-DR-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-dr-archive-roundtrip
+      - name: Refuse any ZIP upload that lost hidden files or changed the reviewed Worker (NO provider)
+        if: matrix.target == 'independent-dr'
+        env:
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          FIRE_RETAINED_DR: ${{ runner.temp }}/fire-dr-archive-roundtrip
+        run: |
+          node business-app-parity/verify_inert_dr_ci_artifact.mjs "$FIRE_RETAINED_DR/fire-release-candidate/dist" "$FIRE_RETAINED_DR/fire-dr-offline-seal.json" "$FIRE_REVIEWED_SHA"
+          test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/client/.assetsignore"
+          test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/client/.vite/manifest.json"
+          test -f "$FIRE_RETAINED_DR/fire-release-candidate/dist/server/.vite/manifest.json"
+          echo 'PASS actual DOWNLOAD of retained DR artifact preserves all sealed bytes and 3 hidden build files; no provider action.'
