@@ -24,7 +24,7 @@ foreach($guard in @('FIRE-DR-FIRST-CREATE-PR270-9bbd3026-V3',
                    'FIRE_DR_AUTH_ENABLED',
                    'preview_urls',
                    '10007',
-                   "if($versions.Code -eq 0)")) {
+                   'if($versions.Code -eq 0)')) {
   if(-not $raw.Contains($guard)) { throw ('FIRE launcher guard missing: '+$guard) }
 }
 if(([regex]::Matches($raw,'wrangler@4\.162\.0.*deploy --no-bundle')).Count -ne 1) {
