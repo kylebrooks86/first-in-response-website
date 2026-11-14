@@ -46,7 +46,12 @@ const put=async(spec,payload)=>{
 };
 const get=async(spec)=>{
  const response=await r.load('app/api/'+spec.route+'/route.ts').GET();
- return {status:response.status,data:await response.json()};
+ const data=await response.json();
+ // Standard service pricing GET returns the whole catalog, while PUT
+ // returns one rate. Only normalize this fixture's shape; inspect the actual
+ // saved house-wash rate that the owner sees on another device.
+ return {status:response.status,data:spec.route==='service-pricing'
+   ?{rate:data.rates?.find(item=>item.id==='house-wash')}:data};
 };
 async function withinFault(kind,fn){
  let interceptedWrites=0,writeOccurred=false;
