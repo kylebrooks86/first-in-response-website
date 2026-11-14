@@ -93,6 +93,24 @@ for(const kind of ['server-503','network','invalid-json','wrong-receipt']){
  eq(f.state.saved.length,0,'A missing source version never claims an invoice change');
 }
 
+// Invoice payment status is driven by the ACTUAL PATCH route expression.
+// A complimentary/no-charge invoice is not proof any cash was received.
+// Verify all three statuses without mocking a Stripe payment or customer.
+const invoiceRouteSource=readFileSync('app/api/invoices/[id]/route.ts','utf8');
+const statusExpression=invoiceRouteSource.match(/const status=([^;]+);/)?.[1];
+assert.ok(statusExpression,'Actual invoice PATCH payment status expression is required');
+const invoiceStatus=(totalCents,latestPaidCents,existingStatus='draft',firstViewedAt=null)=>
+ vm.runInNewContext(statusExpression,{
+  totalCents,latestPaidCents,existing:{status:existingStatus,firstViewedAt}
+ });
+eq(invoiceStatus(0,0),'draft','Unpaid zero-dollar draft cannot claim a paid invoice');
+eq(invoiceStatus(0,0,'sent'),'sent','Unpaid zero-dollar sent invoice retains sent status');
+eq(invoiceStatus(0,0,'draft','2026-11-14T18:00:00Z'),'sent','Previously viewed zero-dollar invoice stays sent, not paid');
+eq(invoiceStatus(2500,0),'draft','Unpaid positive invoice is draft');
+eq(invoiceStatus(2500,500),'partial','Positive partially received amount is partial');
+eq(invoiceStatus(2500,2500),'paid','Exactly settled positive invoice remains paid');
+eq(invoiceStatus(2500,3000),'paid','Existing full-payment status remains unchanged for overage (separate review required)');
+
 // Exercise the ACTUAL compiled invoice API revision gate SQL in disposable SQLite.
 // Both tabs can pass an initial read; the transactional count is what blocks
 // the stale second INSERT and every dependent invoice header/line mutation.
