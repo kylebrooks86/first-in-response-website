@@ -2,6 +2,9 @@
  * Nothing real is read or written; temporary files are discarded on exit.
  */
 import assert from 'node:assert/strict';
+// Also check new actual before/after canvas composition without modifying
+// the SHA-pinned Gate7 workflow or repeating any owner-device evidence.
+import './test_photo_comparison_layout.mjs';
 import {createHash} from 'node:crypto';
 import {mkdtempSync,writeFileSync,readFileSync,rmSync,truncateSync} from 'node:fs';
 import {tmpdir} from 'node:os';

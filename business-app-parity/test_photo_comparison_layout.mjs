@@ -8,7 +8,7 @@ let checked=0;
 function validate(sw,sh,panelX){
  const p=photoComparisonPlacement(sw,sh,panelX),eps=1e-7;
  assert.ok(p.x>=panelX-eps&&p.y>=L.panelY-eps,'No image can spill left/up beyond its own photo panel');
- assert.ok(p.x+p.width<=panelX+L.panelWidth+eps,'No image can overwrite the other customer's before/after panel');
+ assert.ok(p.x+p.width<=panelX+L.panelWidth+eps,'No image can overwrite the other before/after panel');
  assert.ok(p.y+p.height<=L.footerY+eps,'Photo never overwrites business footer');
  assert.ok(Math.abs(p.width/p.height-sw/sh)<1e-7,'Preserve original image aspect ratio');
  assert.ok(Math.abs(p.width-L.panelWidth)<eps||Math.abs(p.height-L.panelHeight)<eps,
