@@ -3,6 +3,7 @@
  * No browser/provider/customer account or hosted mutation.
  */
 import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
@@ -36,7 +37,7 @@ function setup(kind){
  const state={uncertain:false,errors:[],saving:[],closed:[],saved:[],requests:[]};
  const context={
   exports:{},saveLock:{current:false},currentInvoice:{current:'invoice/one'},invoiceKey:'invoice/one',
-  loadedInvoice:{current:'invoice/one'},uncertain:false,invoiceRateInvalid:false,
+  loadedInvoice:{current:'invoice/one'},loadedInvoiceRevisionCount:{current:3},uncertain:false,invoiceRateInvalid:false,
   estimate:{id:'estimate-one',invoiceId:'invoice-one'},
   items:[{id:'item-one',name:'Synthetic concrete',description:'Only synthetic',
     quantity:1,unit:'job',unitRateCents:2500}],
@@ -82,5 +83,50 @@ for(const kind of ['server-503','network','invalid-json','wrong-receipt']){
  eq(f.state.saved,[2500],'Only verified saved cents reported to parent');
  eq(f.state.closed,[false],'Confirmed invoice closes editor');
  eq(f.state.requests.length,1,'One confirmed write only');
+ eq(JSON.parse(f.state.requests[0].options.body).expectedRevisionCount,3,'Actual invoice owner PATCH carries exact loaded version');
 }
-console.log('PASS '+checks+'/'+checks+': exact invoice editor save code blocks all repeated PATCH after 503/network/malformed/false-200, retains explicit recovery, permits valid business rejection edit and confirmed success; no provider requests.');
+{
+ const f=setup('success');
+ f.context.loadedInvoiceRevisionCount.current=null;
+ await f.save();
+ eq(f.state.requests.length,0,'Owner editor refuses a PATCH without a verified loaded invoice revision');
+ eq(f.state.saved.length,0,'A missing source version never claims an invoice change');
+}
+
+// Exercise the ACTUAL compiled invoice API revision gate SQL in disposable SQLite.
+// Both tabs can pass an initial read; the transactional count is what blocks
+// the stale second INSERT and every dependent invoice header/line mutation.
+const api=readFileSync('app/api/invoices/[id]/route.ts','utf8');
+assert.ok(api.includes('staleInvoice:true')&&api.includes('BEFORE expiring any Stripe checkout session.')&&
+  api.includes('expectedRevisionCount===null?[]:[expectedRevisionCount]'),
+  'Actual invoice route must deny a stale edit before Stripe and bind the CAS value');
+const paid=api.match(/const actualPaid = `([\s\S]*?)`;/)?.[1];
+const versionMatch=api.match(/" AND \(SELECT COUNT\(\*\) FROM invoice_revisions version WHERE version.invoice_id=guard.id\)=\?"/)?.[0];
+const gate=api.match(/const revisionGate = env\.DB\.prepare\(`([\s\S]*?)`\)\s*\.bind\(/)?.[1];
+assert.ok(paid&&versionMatch&&gate,'Actual versioned D1 batch revision INSERT source is required');
+const sql=gate.replaceAll('${actualPaid}',paid).replace('${revisionVersionGuard}',JSON.parse(versionMatch));
+assert.ok(!sql.includes('${'),'No unbound template values in actual revision gate SQL');
+const db=new DatabaseSync(':memory:');
+try{
+ db.exec(`CREATE TABLE estimates(id TEXT PRIMARY KEY, customer_id TEXT);
+ CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT);
+ CREATE TABLE payments(estimate_id TEXT,status TEXT,type TEXT,amount_cents INTEGER);
+ CREATE TABLE payment_refunds(estimate_id TEXT,status TEXT);
+ CREATE TABLE invoice_revisions(id TEXT PRIMARY KEY,invoice_id TEXT,subtotal_cents INTEGER,discount_cents INTEGER,discount_type TEXT,discount_value INTEGER,total_cents INTEGER,due_at TEXT,status TEXT,items_json TEXT,created_at TEXT);
+ INSERT INTO estimates VALUES('estimate-one','customer-one');
+ INSERT INTO invoices VALUES('invoice-one','estimate-one','customer-one');`);
+ const insert=db.prepare(sql);
+ const save=(version,id)=>insert.run(id,'invoice-one',10000,0,'dollar',0,10000,null,'sent','[]',
+   '2026-11-14T18:00:00.000Z','invoice-one',0,15000,version).changes;
+ eq(save(0,'first-edit'),1,'First version-0 editor revision is permitted');
+ eq(save(0,'stale-tab'),0,'Competing stale version-0 owner tab is refused by REAL SQL');
+ eq(db.prepare('SELECT COUNT(*) AS count FROM invoice_revisions').get().count,1,'Stale edit created no second revision');
+ eq(save(1,'newly-loaded'),1,'Refreshed owner version-1 editor may create next revision');
+ db.exec("INSERT INTO payments VALUES('estimate-one','paid','deposit',16000)");
+ eq(save(2,'paid-race'),0,'New payment blocks concurrent invoice revision even with fresh version');
+ db.exec("DELETE FROM payments; INSERT INTO payment_refunds VALUES('estimate-one','pending')");
+ eq(save(2,'refund-pending'),0,'Pending refund blocks invoice revision irrespective of version');
+ db.exec("DELETE FROM payment_refunds; UPDATE invoices SET customer_id='other-homeowner'");
+ eq(save(2,'foreign-customer'),0,'Cross-customer invoice ownership cannot pass revision insert');
+}finally{db.close();}
+console.log('PASS '+checks+'/'+checks+': actual invoice editor version handoff + transactional SQLite CAS, no real invoice, provider, checkout or Stripe calls.');
