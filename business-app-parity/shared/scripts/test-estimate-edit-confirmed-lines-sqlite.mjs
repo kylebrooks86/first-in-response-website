@@ -64,6 +64,44 @@ try{
  response=await r.patch(id,request([{...payload.items[0],totalCents:15500}]));
  eq(response.status,503,'Incomplete D1 batch ACK refuses success: '+JSON.stringify(await response.clone().json()));
  eq((await response.json()).saveUncertain,true,'Incomplete ACK is not mistaken for saved success');
+ // Same quote opened in TWO owner tabs: the later save must not be undone
+ // by an older unsent editor (even when no payment/invoice yet exists).
+ const sourceSnapshot=()=>{
+   const header=r.db.prepare(`SELECT status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,
+     total_cents AS totalCents,deposit_cents AS depositCents,
+     appreciation_discount AS appreciationDiscount,additional_discount_type AS additionalDiscountType,
+     additional_discount_value AS additionalDiscountValue FROM estimates WHERE id=?`).get(id);
+   return {...header,items:lines(id)};
+ };
+ const opened=sourceSnapshot();
+ response=await r.patch(id,{...request([{...opened.items[0],description:'Newer owner reviewed service'}]),expectedSaved:opened});
+ eq(response.status,200,'Current quote editor source snapshot permits a real saved edit');
+ eq(lines(id)[0].description,'Newer owner reviewed service','Current owner service saved');
+ response=await r.patch(id,{...request([{...opened.items[0],description:'Older stale owner edit'}]),expectedSaved:opened});
+ eq(response.status,409,'Concurrent stale quote preflight rejects older owner editor');
+ eq((await response.json()).staleEstimate,true,'Stale quote error names a conflicting source');
+ eq(lines(id)[0].description,'Newer owner reviewed service','Older tab could not replace newer service');
+ const newest=sourceSnapshot();
+ // A race AFTER the source-read preflight must be defeated at the SQLite
+ // transaction boundary, not only by a read before the batch.
+ const priorBatch=r.env.DB.batch;
+ let injectCompetingLine=true;
+ r.env.DB.batch=async statements=>{
+   if(injectCompetingLine){
+     injectCompetingLine=false;
+     r.db.prepare('UPDATE estimate_items SET description=? WHERE id=?').run('Other tab won before write',newest.items[0].id);
+   }
+   return priorBatch(statements);
+ };
+ response=await r.patch(id,{...request([{...newest.items[0],description:'Old tab tries to replace winner'}]),expectedSaved:newest});
+ eq(response.status,503,'Atomic SQL guard aborts a write-boundary stale quote race');
+ eq((await response.json()).saveUncertain,true,'Rejected race never reports saved services');
+ eq(lines(id)[0].description,'Other tab won before write','Failed atomic quote batch preserved other tab service');
+ r.env.DB.batch=priorBatch;
+ const reviewed=sourceSnapshot();
+ response=await r.patch(id,{...request([{...reviewed.items[0],description:'Owner consciously reviewed newest'}]),expectedSaved:reviewed});
+ eq(response.status,200,'Fresh deliberate source version can save after stale edit');
+ eq(lines(id)[0].description,'Owner consciously reviewed newest','Refreshed owner edit saved without lost updates');
  r.setOwner(null);
  response=await r.patch(id,request([payload.items[0]]));
  eq(response.status,401,'Nonowner cannot edit estimate');
