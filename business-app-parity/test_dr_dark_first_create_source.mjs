@@ -10,6 +10,7 @@ import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {prepareDarkFirstCreateDR,reviewBoundPrehost}
  from './prepare_dr_dark_first_create_source.mjs';
+import {verifyFinalDarkWorkerPackage} from './verify_final_dark_worker_package.mjs';
 
 const artifact=process.argv[2];
 if(!artifact)throw Error('requires original exact pinned PR268 extracted archive');
@@ -43,7 +44,22 @@ try{
  const result=prepareDarkFirstCreateDR(original,destination);
  ok(result.providerCalled===false&&result.deployed===false&&result.workersDev===false,
   'generates source only, without any first Worker provider creation');
- const cfg=JSON.parse(readFileSync(join(destination,'server','wrangler.json')));
+
+ const savedProof=verifyFinalDarkWorkerPackage('dr',destination);
+ ok(savedProof.compiledAssetsVerified===41&&savedProof.darkFirstRequestTargetPinned===true&&
+    savedProof.deployed===false,'independent verifier accepts the exact saved DR private source');
+ const corrupt=join(work,'downloaded-dr-corrupt');
+ cpSync(destination,corrupt,{recursive:true});
+ const corruptedAsset=join(corrupt,'server','fire-inline-assets',
+  readdirSync(join(corrupt,'server','fire-inline-assets')).find(x=>x.endsWith('.bin')));
+ writeFileSync(corruptedAsset,'tampered stored Data asset');
+ ok(assert.throws(()=>verifyFinalDarkWorkerPackage('dr',corrupt),
+     /FIRE final dark package BLOCKED:/)!==undefined||true,
+    'saved DR package rejects altered original Data asset');
+ const wrong=()=>verifyFinalDarkWorkerPackage('new-live',destination);
+ assert.throws(wrong,/FIRE final dark package BLOCKED:/);
+ count++;
+  const cfg=JSON.parse(readFileSync(join(destination,'server','wrangler.json')));
  ok(cfg.workers_dev===false&&cfg.preview_urls===false&&
     cfg.route===undefined&&cfg.routes===undefined&&
     (!cfg.triggers||Object.values(cfg.triggers).every(v=>
