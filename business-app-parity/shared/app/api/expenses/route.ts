@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import {expenseBusinessDay} from "../../../lib/expense-date";
+import {expenseBusinessDay,expenseDateInstant} from "../../../lib/expense-date";
 import { getChatGPTUser } from "../../chatgpt-auth";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
@@ -60,7 +60,15 @@ export async function POST(request:Request){
  // that would falsely report an idempotency conflict after a lost reply.
  const explicitDate=body.incurredAt!==undefined&&body.incurredAt!==null;
  const rawIncurredAt=String(explicitDate?body.incurredAt:new Date().toISOString());
- const parsedIncurredAt=new Date(rawIncurredAt);
+ // Older/API clients can submit YYYY-MM-DD. JavaScript interprets that as
+ // midnight UTC: Tulsa displays the previous day and could shift tax years.
+ // Use the same noon UTC convention as the app's own date picker.
+ const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(rawIncurredAt);
+ const stableDate=dateOnly?expenseDateInstant(rawIncurredAt):null;
+ // Refuse impossible rollover dates and timestamps without a timezone.
+ if((dateOnly&&!stableDate)||(!dateOnly&&!expenseBusinessDay(rawIncurredAt)))
+   return Response.json({error:"Choose a valid expense date with a verified business day."},{status:400});
+ const parsedIncurredAt=new Date(stableDate??rawIncurredAt);
  if(!Number.isFinite(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400});
  const category=String(body.category??"Supplies");
  const incurredAt=parsedIncurredAt.toISOString();
