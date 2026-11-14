@@ -39,6 +39,8 @@ on:
       - 'business-app-parity/prepare_current_dark_worker_package.mjs'
       - 'business-app-parity/test_current_dark_worker_package.mjs'
       - 'business-app-parity/seal_current_new_live_compiled_source.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_noassets_dark_source.mjs'
       - 'business-app-parity/test_verify_inert_dr_ci_artifact.mjs'
       - 'business-app-parity/owner_approved_dr_d1_migrate_20261113.mjs'
       - 'business-app-parity/test_owner_approved_dr_d1_migrate_20261113.mjs'
@@ -364,3 +366,76 @@ jobs:
           node business-app-parity/prepare_current_dark_worker_package.mjs verify \
             "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded"
           echo "NO Cloudflare/Stripe provider, migration, auth enablement, paid service or release."
+
+
+  gate9-existing-test-worker-no-assets-upload-source:
+    name: Gate9 existing Stripe TEST full-app Worker Data-only alternative, dark and disabled (NO PROVIDER)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      REVIEWED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact reviewed PR source, with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Narrow source syntax checks for new TEST asset-upload bypass
+        run: |
+          node --check business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs
+          node --check business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_noassets_dark_source.mjs
+          test "$(git rev-parse HEAD)" = "$REVIEWED_SOURCE_SHA"
+      - name: Build actual isolated Stripe-disabled TEST app from current shared source, never provider
+        run: |
+          python3 business-app-parity/cloudflare-launch/materialize-stripe-test.py "$RUNNER_TEMP/fire-current-test-noassets-build"
+          cd "$RUNNER_TEMP/fire-current-test-noassets-build"
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm exec tsc --noEmit --incremental false
+          corepack pnpm build
+      - name: Produce one fully blocked exact-source TEST Worker-only review folder and byte-verify
+        run: |
+          node business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs \
+            build "$RUNNER_TEMP/fire-current-test-noassets-build/dist" \
+            "$REVIEWED_SOURCE_SHA" "$RUNNER_TEMP/fire-gate9-dark-noassets"
+          node business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs \
+            verify "$RUNNER_TEMP/fire-gate9-dark-noassets"
+          node business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_noassets_dark_source.mjs \
+            "$RUNNER_TEMP/fire-gate9-dark-noassets"
+      - name: Inspect real native Worker Data-module package with modern Wrangler OFFLINE only
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fire-gate9-modern-wrangler" \
+            --no-save --ignore-scripts --no-audit --no-fund wrangler@4.162.0
+          node "$RUNNER_TEMP/fire-gate9-modern-wrangler/node_modules/wrangler/bin/wrangler.js" deploy \
+            --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-gate9-dark-noassets/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/fire-gate9-noassets-only-offline"
+          echo 'PASSED ONLY LOCAL packaging: no TEST predecessor change, Worker version, assets API, Stripe mode, secret, R2, DB or Access write.'
+      - name: Retain exact SHA source-only TEST candidate for review, never deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-GATE9-EXISTING-TEST-NOASSETS-DARK-REVIEW-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-gate9-dark-noassets/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+          compression-level: 6
+      - name: Independently download saved TEST artifact and refuse changed code/assets
+        uses: actions/download-artifact@v4
+        with:
+          name: FIRE-GATE9-EXISTING-TEST-NOASSETS-DARK-REVIEW-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-gate9-noassets-archive-readback
+      - name: Final independent saved TEST package content verification
+        run: |
+          node business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs \
+            verify "$RUNNER_TEMP/fire-gate9-noassets-archive-readback"
+          echo 'SOURCE ONLY, EXISTING serving TEST Worker and all Stripe TEST settings UNCHANGED.'
