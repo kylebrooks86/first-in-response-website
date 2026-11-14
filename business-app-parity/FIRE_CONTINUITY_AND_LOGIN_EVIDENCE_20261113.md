@@ -1484,3 +1484,15 @@ Same exact source run passed the full-app source build [#43626422231](https://gi
 **Current exact-head changed-source CI:** [Staging #43629074593](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43629074593) was still in progress when last checked. The remaining *22/23* GitHub workflow groups on this exact source had completed SUCCESS with zero failures (including complete local build, site/calculator exact-tree preservation, source evidence and DR/NEW LIVE no-R2 candidates). **Do not report staging or newly linked estimate SQLite test as PASS until the full result and matching log appear.** Earlier interrupted/cancelled workflow groups do not transfer final acceptance to this source.
 
 **Permanent owner continuity:** DR D1 physical 26/26 previously accepted; 32 encrypted owner-private DR receipts on Google Drive retained; no repeated owner phone/Acer, DR migrations, Work Cloudflare login or old source tests. NEW LIVE first Worker/remote 26 SQL Job #0001, hosted nonowner proof, paired future database/photo recovery, Stripe TEST signed events and cutover still require separate exact approval and physical evidence. No paid Cloudflare, no R2 subscription, no Cloudflare/Stripe/DB provider write, merge, public-site edit or legacy retirement. **Formal gates 1/2/3/8 accepted = 4/10; 4/5/6/7/9/10 OPEN; NEW LIVE NO-GO.**
+
+---
+
+## November 14 — actual newly wired estimate stale-editor regression tests SUCCESS
+
+**Reviewed exact integrated app source PR270 `3b07530ffbabfb6a28802d563ef86ea6759ea46b`**, draft/unmerged/undeployed. Changed-source [GitHub staging run #43629074593](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43629074593), actual shared staging build job `132551493510` **SUCCESS**. Its full job log confirms the two newly connected real production-source regressions **EXECUTED and PASSED**:
+- `PASS 32/32: real estimate PATCH SQLite confirms persisted generated service IDs, existing IDs, exact pricing, replay, no-write ACK, post-commit line/header mismatch and owner-only access.` This now includes actual two-owner-tab stale quote and interleaved concurrent quote edit negative controls, plus a refreshed deliberate save.
+- `PASS 54/54 actual EditEstimateDialog Save/checkSaved handlers` with frozen original D1 estimate/item snapshot, uncertain/non-retry, readback and stale 409 controls.
+
+Same run synthetic built QA Worker browser job `132551493428` subsequently completed **SUCCESS** with the corrected transient tablet-size dialog scroll assertion, preserving all X hit/geometry/keyboard controls. The long declined-deposit/mobile browser job was still IN PROGRESS at this writing. All other exact-head workflow groups 22/23 were SUCCESS; do not claim complete total until the final group finishes. These are real **local CI** results, not hosted provider proof.
+
+No owner device replay, Work Cloudflare login, source merge, paid Cloudflare or R2, hosted worker, D1 remote migration, Stripe action, source target swap or legacy retirement. **Formal production gates 1,2,3,8 accepted = 4/10; G4/5/6/7/9/10 OPEN; NEW LIVE NO-GO.**
