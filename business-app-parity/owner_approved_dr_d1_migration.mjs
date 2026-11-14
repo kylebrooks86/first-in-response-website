@@ -101,14 +101,53 @@ function parseExactJson(output,description){
   try{return JSON.parse(output.trim());}
   catch{stop(description+' returned non-JSON output; refusing unsafe assumptions');}
 }
+/**
+ * Earlier Acer execution surfaced only "Wrangler d1 list --json stopped".
+ * Never print raw CLI stderr/stdout: they may contain API credentials, URLs,
+ * owner identities or account resource IDs. Give the operator a strict,
+ * no-secret classification and the specific step that failed, without
+ * weakening the one-shot migration lock or touching another environment.
+ */
+export function classifyWranglerFailure(run,args=[]){
+  const output=[run?.stdout,run?.stderr,run?.error?.message]
+    .filter(value=>typeof value==='string').join('\n');
+  const clues=Object.freeze({
+    authentication:/login required|must be logged in|not logged in|not authenticated|no authentication|invalid token|expired token|no credentials|authentication failed|401\b/i,
+    authorization:/forbidden|permission denied|insufficient permissions|not authorized|unauthorized|403\b|10000\b/i,
+    accountSelection:/multiple accounts|select an account|no account|account selection|account_id missing|account id is required/i,
+    connection:/ECONNRESET|ENOTFOUND|ETIMEDOUT|network error|fetch failed|certificate|TLS handshake|socket hang up/i,
+    argumentOrConfig:/unknown argument|unexpected argument|invalid config|invalid argument|unknown option|missing required argument|failed to parse.*config/i,
+    missingLocalRuntime:/MODULE_NOT_FOUND|cannot find module|ENOENT|command not found|spawn error/i
+  });
+  const categories=Object.entries(clues)
+    .filter(([,pattern])=>pattern.test(output)).map(([name])=>name);
+  const mutation=args[0]==='d1'&&args[1]==='migrations'&&args[2]==='apply';
+  const step=args[0]==='d1'&&args[1]==='list'?'read-only D1 inventory':
+    args[0]==='d1'&&args[1]==='execute'?'read-only DR SELECT':
+    mutation?'one-shot DR remote migration':'local Wrangler version';
+  const exit=Number.isInteger(run?.status)?run.status:'unknown';
+  const more=run?.signal?'SIGNAL':run?.error?'PROCESS_ERROR':'none';
+  return Object.freeze({
+    step,exitCode:exit,executionIssue:more,
+    diagnosticCategories:categories.length?categories:['unclassified'],
+    stderrPresent:typeof run?.stderr==='string'&&run.stderr.trim().length>0,
+    stdoutPresent:typeof run?.stdout==='string'&&run.stdout.trim().length>0,
+    remoteWriteCouldHaveStarted:mutation
+  });
+}
 function wrangler(js,args,{inherit=false,cwd=WORK}={}){
   const run=spawnSync(process.execPath,[js,...args],{
     cwd,stdio:inherit?'inherit':'pipe',encoding:inherit?undefined:'utf8',
     timeout:inherit?600000:90000,maxBuffer:8*1024*1024,
     env:{...process.env,WRANGLER_SEND_METRICS:'false'}
   });
-  if(run.error||run.signal||run.status!==0)
-    stop('Wrangler '+args.slice(0,3).join(' ')+' stopped or result is uncertain; do not retry a remote write');
+  if(run.error||run.signal||run.status!==0){
+    const safe=classifyWranglerFailure(run,args);
+    stop(safe.step+' stopped: '+JSON.stringify(safe)+
+      (safe.remoteWriteCouldHaveStarted?
+        '. Remote write status UNCERTAIN: do not retry.':
+        '. No remote schema write was attempted by this command.'));
+  }
   return inherit?'':run.stdout;
 }
 const save=(file,record)=>writeFileSync(file,JSON.stringify(record,null,2)+'\n',{flag:'wx',mode:0o600});
