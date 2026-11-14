@@ -81,7 +81,7 @@ export function verifyInertNewLiveCIBundle(distDirectory,sealFile,expectedSha){
     prepared.evidence.ownerApprovedDeployment!==false)
   fail('bundle contains unapproved auth, paid R2 or provider configuration');
  return Object.freeze({
-  status:'VERIFIED_INERT_DR_CI_BUILD',
+  status:'VERIFIED_INERT_NEW_LIVE_CI_BUILD',
   reviewedSourceSha:expectedSha,
   compiledFileCount:records.length,
   compiledFilesSha256:seal.filesDigestSha256,
