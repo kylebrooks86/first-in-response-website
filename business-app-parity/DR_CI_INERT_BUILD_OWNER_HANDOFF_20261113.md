@@ -1,4 +1,4 @@
-# FIRE — verified inert independent DR Worker package / Acer handoff
+> **OBSOLETE AFTER NOV 13/14 OWNER ACER STOP — DO NOT RUN THE OLD COMMAND BELOW.** The previous authentic ZIP omitted three hidden compiled files; the verifier correctly refused it, though CI verified the pre-upload directory. Fixed draft PR264 code commit `be2166cbf5b3b20fb1a33fc8bbf53dfc7f555db3` now includes hidden files and independently downloads + verifies the uploaded artifact. Corrected 242/242 ZIP is already stored in the owner's private Google Drive. Use only [the NEW pinned handoff](DR_CORRECTED_ZIP_OWNER_ACER_OFFLINE_HANDOFF_20261114.md). Preserve old Acer source worktrees, old ZIP and permanent physical DR migration receipts. NO DR migration replay, Cloudflare login, hosted upload or paid subscription.\n\n# FIRE — verified inert independent DR Worker package / Acer handoff
 
 ## CURRENT: NEW VERIFIED RELEASE-BUILD DEVELOPMENT (NOVEMBER 13, 2026 CST)
 
