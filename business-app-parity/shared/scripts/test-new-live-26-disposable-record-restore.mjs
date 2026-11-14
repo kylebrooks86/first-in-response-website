@@ -144,6 +144,23 @@ try{
   .run('must-keep-existing','Synthetic existing customer',now));
  denied('accidentally using old QA-25 profile',db=>{}, {schemaProfile:'qa-25'});
  denied('unknown schema profile',db=>{}, {schemaProfile:'production-anything'});
+ // Journal names may match while critical DDL was modified.
+ denied('same-name inert Job # trigger',db=>db.exec(
+  'DROP TRIGGER fire_job_numbers_no_update; CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT 1; END;'));
+ denied('same-name inert customer # trigger',db=>db.exec(
+  'DROP TRIGGER fire_customer_numbers_no_delete; CREATE TRIGGER fire_customer_numbers_no_delete BEFORE DELETE ON fire_customer_numbers BEGIN SELECT 1; END;'));
+ denied('same-name inert permanent job link',db=>db.exec(
+  'DROP TRIGGER fire_job_estimate_links_no_update; CREATE TRIGGER fire_job_estimate_links_no_update BEFORE UPDATE ON fire_job_estimate_links BEGIN SELECT 1; END;'));
+ denied('removed refund ledger unique index',db=>db.exec(
+  'DROP INDEX idx_payments_unique_refund_provider'));
+ denied('weakened partial refund uniqueness',db=>db.exec(
+  "DROP INDEX idx_payments_unique_refund_provider; CREATE UNIQUE INDEX idx_payments_unique_refund_provider ON payments(provider_id) WHERE provider_id LIKE 'manual:%'"));
+ denied('same name nonunique invoice index',db=>db.exec(
+  'DROP INDEX idx_invoices_one_per_estimate; CREATE INDEX idx_invoices_one_per_estimate ON invoices(estimate_id)'));
+ denied('missing provider refund index',db=>db.exec(
+  'DROP INDEX idx_payment_refunds_provider'));
+ denied('missing job link lookup index',db=>db.exec(
+  'DROP INDEX idx_fire_job_estimate_links_number'));
  const interrupted=fresh();
  try{
   stop(()=>restoreNumberedCoreV2ToDisposableMemory(interrupted,records,{
