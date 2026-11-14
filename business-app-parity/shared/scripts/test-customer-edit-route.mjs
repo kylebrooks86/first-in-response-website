@@ -112,18 +112,19 @@ eq(result.status,200,'Same name with no saved address is not falsely treated as 
 result=await patch({name:'Original',address:'123 Synthetic'});
 eq(result.status,200,'Restoring unique name and address remains supported');
 eq(writes,before+2,'Rejected identity edit was not written; two independent valid edits committed');
+const afterIdentityEdits=writes;
 result=await patch({phone:'9185550134'});eq(result.status,200,'Unique contact can be saved');
 eq((await result.json()).customer.phone,'9185550134','Response returns saved exact contact');
-eq(writes,before+1,'Exactly one update');
+eq(writes,afterIdentityEdits+1,'Exactly one update');
 result=await read('first');eq((await result.json()).customer.phone,'9185550134','Readback sees newest saved field');
-eq(writes,before+1,'Confirmation GET never writes');
+eq(writes,afterIdentityEdits+1,'Confirmation GET never writes');
 throwAfterWrite=true;
 result=await patch({name:'Already committed; reply lost'});eq(result.status,503,'Lost readback must NOT claim edit success');
 eq((await result.json()).saveUncertain,true,'Unconfirmed write has explicit recovery flag');
-eq(writes,before+2,'Update was already committed despite uncertain response');
+eq(writes,afterIdentityEdits+2,'Update was already committed despite uncertain response');
 result=await read('first');eq(result.status,200,'GET can recover committed edit');
 eq((await result.json()).customer.name,'Already committed; reply lost','Recovery reports authoritative saved fields');
-eq(writes,before+2,'Recovery does not resend update');
+eq(writes,afterIdentityEdits+2,'Recovery does not resend update');
 // A nonthrowing D1 result with zero changes must not convert the pre-edit
 // customer into a false successful save.
 skipNextUpdate=true;
