@@ -21,9 +21,9 @@ const EXPECTED=Object.freeze({
  idx_payments_unique_refund_provider:
   "CREATE UNIQUE INDEX idx_payments_unique_refund_provider ON payments(provider_id) WHERE provider_id LIKE 'refund:%'",
  // 0020's lifecycle uniqueness matters to estimate/invoice notifications.
- // A same-named non-unique replacement must not pass first-use release.
+ // SQLite strips IF NOT EXISTS from sqlite_master.sql even though 0020 uses it.\n // A same-named non-unique replacement must not pass first-use release.
  idx_notifications_unique_lifecycle:
-  "CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_unique_lifecycle ON notifications(type,estimate_id) WHERE estimate_id IS NOT NULL AND type IN ('estimate_viewed','invoice_viewed','estimate_accepted')"
+  "CREATE UNIQUE INDEX idx_notifications_unique_lifecycle ON notifications(type,estimate_id) WHERE estimate_id IS NOT NULL AND type IN ('estimate_viewed','invoice_viewed','estimate_accepted')"
 });
 export const REQUIRED_NEW_LIVE_FINANCIAL_INDEX_NAMES=Object.freeze(Object.keys(EXPECTED));
 const canonical=sql=>{
