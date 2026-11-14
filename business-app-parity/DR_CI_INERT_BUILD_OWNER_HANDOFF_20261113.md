@@ -18,7 +18,7 @@ This is tangible source release progress: the otherwise-discarded exact compiled
 This action uses only existing successful DR physical receipts and the new GitHub artifact. It does NOT publish or call any Cloudflare or Stripe endpoint. It is a NEW offline source→DR postinstall receipt handoff, not a redo of the previously accepted migration.
 
 1. In authenticated GitHub, open the exact Actions run URL above. Download its exact artifact FIRE-INERT-DR-4677b0ee366c4b4e8b6fefda44e7a11901b4c905 to Acer Downloads. Keep it private. Do not select a different source SHA or another run.
-2. On the Acer, execute the following single PowerShell block once. The script refuses preexisting output folders, missing original receipt or wrong SHA. It fetches reviewed GitHub code to a NEW source worktree and only reads the prior owner local receipt. It never invokes Wrangler or Cloudflare login.
+2. On the Acer, execute the following single PowerShell block once. The script refuses preexisting output folders, missing original receipt, wrong source SHA, or a downloaded archive whose bytes differ from the independently recorded GitHub artifact SHA-256. It fetches reviewed GitHub code to a NEW source worktree and only reads the prior owner local receipt. It never invokes Wrangler or Cloudflare login.
 3. If the artifact expires, STOP rather than blindly rerun unrelated workflows, migration, TEST provider uploads or owner evidence. A new exact source artifact needs to be purposefully reissued and re-verified first.
 
 ~~~powershell
@@ -42,6 +42,13 @@ This action uses only existing successful DR physical receipts and the new GitHu
     if (!(Test-Path -LiteralPath (Join-Path $receipts $n))) {
       throw "Original accepted DR migration evidence missing. STOP: $n"
     }
+  }
+  # GitHub's independently recorded archive SHA-256 must match BEFORE unpacking.
+  # The seal JSON is inside the ZIP and is not an independent download trust anchor.
+  $expectedArchiveHash = '3c4970cf160a18e0cae9c0a5b740e7f0d81e59c719fc03d15d14c4df10abf45f'
+  $actualArchiveHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($actualArchiveHash -ne $expectedArchiveHash) {
+    throw 'GitHub DR artifact ZIP hash mismatch. STOP; do not extract or use this archive.'
   }
   & git -C $repo fetch --no-tags origin work/fire-app-main-candidate-unified-20261113
   if ($LASTEXITCODE -ne 0) { throw 'Source fetch stopped; no provider action.' }
@@ -71,3 +78,7 @@ This action uses only existing successful DR physical receipts and the new GitHu
 Result interpretation: the offline candidate is sealed against the exact source and previously successful physical DR D1 receipt. It is still not hosted or deployable without a distinct exact owner authorization. Its outputs are private; return only the final status lines, not original receipt JSON, logs, passwords, customer data or screenshots. The original owner one-shot marker and physical receipt must never be deleted or overwritten.
 
 **Important:** This handoff only prepares a reviewed, auth-BLOCKED no-R2 DR Worker. Before any actual provider write, separately evaluate the Cloudflare asset registration prior failure and require explicit target, exact source, intended traffic/auth state, rollback scope and new owner authorization. Do not reuse the already-consumed 26-migration consent for Worker deployment.
+
+## November 13 / 14 — independent downloaded-archive integrity hard stop
+
+The approved GitHub Actions artifact is separately recorded as ZIP SHA-256 `3c4970cf160a18e0cae9c0a5b740e7f0d81e59c719fc03d15d14c4df10abf45f` (artifact ID `14097690973`, workflow `43553801413`). The original PowerShell handoff validated the internal file seal but did **not** compare the downloaded ZIP to the independently recorded GitHub archive digest. An archive carrying both substituted code and a correspondingly substituted internal seal is not independently authenticated by its own embedded seal. This handoff now verifies the external ZIP digest **before any extraction**, then continues the original exact-source/per-file/physical-receipt checks. On hash mismatch, STOP, do not delete receipts or guess a different artifact. No hosted operations, no new source build or user retest were conducted by this documentation fix.
