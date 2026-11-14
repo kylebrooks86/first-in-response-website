@@ -56,6 +56,21 @@ try{
  assert.throws(()=>verifyFinalDarkWorkerPackage('dr',corrupt),
    /FIRE final dark package BLOCKED:/,'saved DR package rejects altered Data asset');
  count++;
+
+ const smuggled=join(work,'dr-extra-stripe-var');
+ cpSync(destination,smuggled,{recursive:true});
+ const smuggledConfig=join(smuggled,'server','wrangler.json');
+ const modified=JSON.parse(readFileSync(smuggledConfig));
+ modified.vars.FIRE_STRIPE_MODE='live';
+ writeFileSync(smuggledConfig,JSON.stringify(modified,null,2)+'\n');
+ // Assume an accidental editor also regenerates the unsigned receipt.
+ const smuggledReceipt=join(smuggled,'dark-first-create-source-receipt.json');
+ const rewritten=JSON.parse(readFileSync(smuggledReceipt));
+ rewritten.finalWranglerConfigSha256=hash(smuggledConfig);
+ writeFileSync(smuggledReceipt,JSON.stringify(rewritten,null,2)+'\n');
+ assert.throws(()=>verifyFinalDarkWorkerPackage('dr',smuggled),
+   /extra or changed release variables/,'saved DR must reject hidden payments activation');
+ count++;
  const wrong=()=>verifyFinalDarkWorkerPackage('new-live',destination);
  assert.throws(wrong,/FIRE final dark package BLOCKED:/);
  count++;
