@@ -18,7 +18,9 @@ export async function GET(){
 export async function PATCH(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
-    const parsed:unknown=await request.json();
+    let parsed:unknown;
+    try{parsed=await request.json();}
+    catch{return Response.json({error:"A valid notification action is required."},{status:400});}
     if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
       return Response.json({error:"A valid notification action is required."},{status:400});
     const value=parsed as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"refund"|"keep";refundAmountCents?:number};
