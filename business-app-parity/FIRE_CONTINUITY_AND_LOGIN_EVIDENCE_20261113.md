@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## CURRENT NOVEMBER 14, 2026 — PR #270 (OVERRIDES THE HISTORICAL #244/#264 CHECKPOINTS)
+
+- **Current active review:** main-based [draft PR #270](https://github.com/kylebrooks86/first-in-response-website/pull/270), branch `work/fire-main-qa-dr-live-unified-source-20261114`, current changed-CODE checkpoint `f498163d0fa482b65f92ecd98288e276ccf38c6e`. The #242–#269 notes below are preserved provenance only; do **not** restart from PR #244 or try past Cloudflare sign-ins.
+- **New real source work:** local, disposable independent NEW LIVE 26-migration restore now inspects actual executed SQLite DDL for all six permanent Customer/Job/link immutability triggers and nine critical payment, invoice, refund, notification and numbering indexes. Eight negative tamper cases reject inert same-name triggers, removed indexes, nonunique replacements and weakened refund uniqueness before any restored row. SQLite's catalog legitimately strips `IF NOT EXISTS`; the first changed run exposed this, and corrected code is in `f498163d`.
+- **Evidence boundary:** the corrected 26-migration + QA-backward-compatible local recovery step completed SUCCESS in GitHub's independent NEW LIVE job [run #43645702854](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43645702854); source-only public website/calculator, numbered-record and other workflow checks green. At writing, 22/23 exact-code-head groups completed SUCCESS; full staging/browser group remained in progress. Always check the final per-commit CI result before asserting 23/23. Any subsequent documentation-only head does not alter this reviewed application code.
+- **No provider action:** no Cloudflare Worker creation, update, auth, secrets, D1 migration/records, R2/subscription, Stripe payment, merge, DNS cutover, QA/STAGING/DR/LIVE rollout or legacy retirement. Existing private owner Drive DR/NEW LIVE/TEST ZIPs are snapshots of their *own earlier exact source SHA*, not the new code checkpoint; do not relabel them as freshly built `f498163d` artifacts.
+- **Formal production status unchanged:** Gates **1, 2, 3, 8 accepted = 4/10**; Gates **4, 5, 6, 7, 9, 10 OPEN**; NEW LIVE NO-GO. NEW QA remains the functional/visual master, independent LIVE must start at Job #0001, and no paid Cloudflare/R2. Next genuine progress requires hosted isolation/Access, full future-data/photo recovery and real signed Stripe TEST evidence, each with fresh narrowly scoped authorization for provider writes.
+
+---
+
 **Owner standard last confirmed November 13, 2026. Read THIS before requesting any more authentication, screenshots, tests, paid services or Cloudflare actions.** Also read [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) latest comments and the current DR/LIVE [draft PR #244](https://github.com/kylebrooks86/first-in-response-website/pull/244). Historical files and older messages are not licenses to re-test or overrule owner decisions.
 
 ## CURRENT NOVEMBER 13 CANONICAL SOURCE — MAIN-BASED DRAFT PR #264
