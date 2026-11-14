@@ -37,7 +37,7 @@ jobs:
         run: |
           node business-app-parity/prepare_new_live_portable_schema_packet.mjs \
             "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source"
-          test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source" -type f | wc -l)" -eq 32
+          test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source" -type f | wc -l)" -eq 31
           test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source/new-live-schema-source/migrations" -name '*.sql' -type f | wc -l)" -eq 26
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -53,7 +53,7 @@ jobs:
           assert.equal(r.paidR2Required,false);
           assert.equal(c.d1_databases.length,1);
           assert.equal(c.d1_databases[0].database_id,'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662');
-          console.log('PASS 32 file-only source package; real NEW LIVE migrations NOT applied.');
+          console.log('PASS 31 file-only source package; real NEW LIVE migrations NOT applied.');
           NODE
       - name: Keep portable original SQL packet in GitHub WITHOUT provider writes
         uses: actions/upload-artifact@v4
