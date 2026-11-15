@@ -1,5 +1,13 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — current PR270 source correction + real CI guard repair (NO DEPLOY)
+
+- Current application/test code head **`2fab1ea4b76dc80896118087fde7faf96de6f2be`**, then exact security-workflow pin repair **`d4a6377caaca6eeb7dd5fdf47c965a100389235e`**. The existing distinct Gate4 worker exposure GET-only checker now handles legitimately empty Cloudflare pagination and filtered total-count responses without silently accepting malformed, contradictory or incomplete pages. **21/21 targeted offline tests passed** in actual GitHub job [43734798181](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43734798181).
+- A real protective main-scope CI failure was traced to a stale hash of the already-reviewed NEW LIVE GitHub SQL artifact readback workflow; its precise original-to-current changes were compared (read-only Actions permission, same-run artifact ID instead of name-based download). Its pinned Git blob was corrected without changing the workflow itself, loosening allowed paths, or touching the real public website/calculator. [Public-site preservation job #43734950581](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43734950581) is **SUCCESS**. Broader exact-head workflows still require final result inspection; at the initial read 27/31 jobs succeeded, no failures, four pending.
+- **No newly captured physical route, preview, custom domain or Access provider evidence; no formal gate promotion.** Hosted NEW LIVE Worker/version and independent D1, already proven in issue #19, must NOT be recreated/rechecked as preflight. No provider deployment, SQL/Stripe/payment, R2, new login loops, merge, production cutover or paid plan. **4/10 accepted (G1/G2/G3/G8), G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO.** Keep this GitHub source-only change separate from frozen already-deployed DARK Worker byte claims.
+
+---
+
 ## NOV 15 — GATE4 NEW DISTINCT PUBLIC-EXPOSURE CHECKER ADDED TO PR270 (SOURCE ONLY)
 
 - **Actual new GitHub source, not another accepted D1/version readback:** `owner_current_dark_exposure_readonly.mjs` inspects previously UNVERIFIED public-facing exposure categories for `fire-fullapp-dr` or `fire-fullapp-new-live`: workers.dev production and Preview URL booleans, account custom-domain inventory, and every enumerated account-zone Worker route. Uses Cloudflare's documented GET-only endpoints and bounded pagination/strict target matching, never deploys, logs in, changes Access, installs packages, writes D1/Stripe, or creates paid R2. Source commit `86321635876bc12c7807aa9e3568fbad4ccdad35`; targeted tests commit `f912610f4a5ed25ee82b11cb27c939b431e805af`; existing OFFLINE workflow wiring `b2e7b99f2f04e49b521dc887e3eaa1cda064a588`.
