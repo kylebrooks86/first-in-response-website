@@ -89,11 +89,19 @@ export function classifyRemoteInventory(rows,journalCount){
  }
  if(!Number.isSafeInteger(journalCount)||journalCount<0)
   fail('provider migration journal count missing or invalid');
+ // The Wrangler migration journal uses AUTOINCREMENT. SQLite can create its
+ // internal sqlite_sequence catalog table as soon as the journal is created,
+ // before even one source SQL migration is recorded. This is an observed-name
+ // classification, NOT proof that the database is pristine or retryable.
+ const onlyInternalSequence=appObjects.length===1&&
+  appObjects[0].name==='sqlite_sequence'&&appObjects[0].type==='table';
  const state=journalCount===26?'COMPLETE_JOURNAL_FULL_SOURCE_PROOF_PENDING':
+  journalCount===0&&onlyInternalSequence?'ZERO_JOURNAL_SQLITE_SEQUENCE_ONLY_NO_RETRY':
   journalCount===0?'ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION':
   journalCount<26?'INCOMPLETE_JOURNAL_DO_NOT_RETRY':
    'UNEXPECTED_EXTRA_JOURNAL_ROWS_DO_NOT_RETRY';
  return Object.freeze({state,journalCount,applicationObjectCount:appObjects.length,
+  onlyInternalSqliteSequenceObserved:onlyInternalSequence,
   fullSchemaVerified:false});
 }
 function localPreflight(){
