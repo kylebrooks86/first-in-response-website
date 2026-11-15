@@ -1,4 +1,13 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
+## NOV 14 — OWNER LIVE PHYSICAL JOURNAL DDL + SQLITE SEQUENCE + EMPTY APP SCHEMA PASS (NEW HOSTED EVIDENCE)
+
+- **New distinct owner Acer target-only Cloudflare read-only capture ACCEPTED, DO NOT REPEAT:** Owner executed exact reviewed `owner_new_live_initialized_journal_readonly.mjs --capture` from pinned source `4342a4868735771424607e77e1a1ac9abbd39b5b` in a dedicated detached `FIRE-NEW-LIVE-JOURNAL-READ-4342` checkout, with existing authenticated Wrangler 4.92.0. Default offline check returned `FIRE_NEW_LIVE_INITIALIZED_JOURNAL_OFFLINE_ONLY_NO_PROVIDER`. Hosted capture returned exact `FIRE_NEW_LIVE_INITIALIZED_JOURNAL_EMPTY_READ_ONLY_MATCH_NO_RETRY`. This is **REAL owner-hosted D1 evidence**, not an offline mock.
+- **Actual inspected physical result:** `observedAppliedMigrationRows=0`, `observedSqliteSequenceRows=0`, `observedApplicationSchemaObjects=0`, `exactJournalDdlAndUniqueIndexMatched=true`, `physicalNewLiveIdentityMatched=true`, `originalAttemptLockPreserved=true`, `priorRemoteCommandAcknowledged=false`, `multipleProviderReadsNotAtomicSnapshot=true`, `noDatabaseWritePerformed=true`, `completionReceiptCreated=false`, `migrationRetryPermitted=false`, `ownerAuthorizedNewMutation=false`, `gate5Accepted=false`, `newLiveReady=false`. Specific target remains `fire-fullapp-new-live-db` UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`. `sqlite_sequence` is internal, not a FIRE app table. **No source SQL migrations have yet been physically demonstrated as applied in NEW LIVE.**
+- **Evidence boundary:** These separate read-only provider requests do not constitute an atomic snapshot or independently attest the original Cloudflare command ACK/rollback history. They do establish the required current observations for planning a NEW, deliberately separately approved one-time recovery. Absolutely NO automatic reapplication, original lock deletion/rename, fake completion receipt, DR/QA/STAGING operation, Worker/Access/Stripe, Git merge, billing/R2 or cutover.
+- **Prior release source unchanged:** PR #270, accepted DR 26/26 + dark hosted DR Worker binding and past owner QA/iPhone acceptance remain preserved. Original one-shot migration approval was consumed; "continue app" is not fresh permission. Need a distinct guard that preserves old lock and requires separate explicit owner consent before any new remote mutation. G1/G2/G3/G8 = **4/10 accepted**; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE **NO-GO**, first Job #0001 future expectation, not created.
+
+---
+
 
 ## NOV 14 — NEW LIVE POSTLOCK JOURNAL DDL / HIGH-WATER SOURCE READER BUILT, TARGETED CI PASS (NO PROVIDER EXECUTION)
 
