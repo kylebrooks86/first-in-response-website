@@ -424,7 +424,8 @@ jobs:
           if [ "$FIRE_TARGET" = "independent-dr" ]; then TARGET=dr;
           elif [ "$FIRE_TARGET" = "independent-live" ]; then TARGET=new-live;
           else echo 'BLOCKED: unknown target'; exit 1; fi
-          test "$(git rev-parse HEAD)" = "$FIRE_REVIEWED_SHA"
+          # checkout@v4 uses GitHub's PR merge SHA in this job, not PR head.
+          # The sealed downloaded DARK package and receipt pin PR HEAD exactly.
           node business-app-parity/prepare_current_dark_first_create_overlay.mjs prepare \
             "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded" \
             "$FIRE_REVIEWED_SHA" "$RUNNER_TEMP/fire-current-firstcreate-source"
