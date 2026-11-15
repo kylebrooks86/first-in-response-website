@@ -5,8 +5,7 @@
  * Those relationship/inventory checks still run at private recovery.
  */
 import {createHash} from 'node:crypto';
-import {createReadStream} from 'node:fs';
-import {open,readFile,lstat,unlink} from 'node:fs/promises';
+import {open,lstat,unlink} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const stop=x=>{throw Error('FIRE protected recovery pair BLOCKED: '+x);};
@@ -14,6 +13,13 @@ const MAX_RECORDS=112*1024*1024+8192;
 const MAX_PHOTOS=161*1024*1024+8192;
 const fmt='fire-saved-protected-record-photo-pair';
 const hex=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
+// The resolved path AND the descriptor must name the same unchanged inode.
+// Path-only pre/post checks around a separately opened filename leave a
+// substitution race; keep the actual read pinned to the verified descriptor.
+const sameFile=(reference,current)=>current?.isFile()&&!current.isSymbolicLink()&&
+ current.dev===reference.dev&&current.ino===reference.ino&&
+ current.size===reference.size&&current.mtimeMs===reference.mtimeMs&&
+ current.ctimeMs===reference.ctimeMs;
 async function fingerprint(file,sizeMax,magic){
  if(typeof file!=='string'||!file)stop('owner-saved encrypted file path required');
  const path=resolve(file);
@@ -22,30 +28,26 @@ async function fingerprint(file,sizeMax,magic){
  catch{stop('owner-saved encrypted file is inaccessible');}
  if(!info.isFile()||info.isSymbolicLink()||info.size<64||info.size>sizeMax)
   stop('saved file is missing, not regular or exceeds safe limits');
- const digest=createHash('sha256');let size=0,first=Buffer.alloc(0);
+ const digest=createHash('sha256');let size=0,first=Buffer.alloc(0),handle;
  try{
-  for await(const data of createReadStream(path)){
+  handle=await open(path,'r');
+  if(!sameFile(info,await handle.stat()))
+   stop('saved protected backup path changed before descriptor open');
+  // Read by descriptor, never reopen the filename during stream hashing.
+  for await(const data of handle.createReadStream({autoClose:false})){
    if(first.length<magic.length)first=Buffer.concat([first,data]).subarray(0,magic.length);
    size+=data.length;
    if(size>sizeMax)stop('saved file expanded during read');
    digest.update(data);
   }
+  if(!sameFile(info,await handle.stat())||
+     !sameFile(info,await lstat(path))||size!==info.size||
+     first.toString('ascii')!==magic)
+   stop('saved protected backup changed or has incorrect encrypted format');
  }catch(e){
   if(e instanceof Error&&e.message.includes('FIRE protected recovery pair BLOCKED:'))throw e;
   stop('saved protected backup could not be read safely');
- }
- // A same-length file can be replaced or modified between the first
- // lstat and the stream read. Fail closed unless the path still resolves
- // to the exact same regular inode and metadata after hashing.
- let final;
- try{final=await lstat(path);}
- catch{stop('saved protected backup disappeared during receipt read');}
- if(!final.isFile()||final.isSymbolicLink()||
-    final.dev!==info.dev||final.ino!==info.ino||
-    final.size!==info.size||size!==info.size||
-    final.mtimeMs!==info.mtimeMs||final.ctimeMs!==info.ctimeMs||
-    first.toString('ascii')!==magic)
-  stop('saved protected backup changed or has incorrect encrypted format');
+ }finally{if(handle)await handle.close().catch(()=>{});}
  return Object.freeze({sha256:digest.digest('hex'),bytes:size});
 }
 function checkReceipt(x){
@@ -63,20 +65,26 @@ function checkReceipt(x){
  return x;
 }
 export async function inspectSavedProtectedPairReceipt(receiptPath,records,photos){
- if(typeof receiptPath!=='string'||!receiptPath||
+ if([receiptPath,records,photos].some(x=>typeof x!=='string'||!x)||
     new Set([receiptPath,records,photos].map(x=>resolve(x))).size!==3)
   stop('three distinct receipt and encrypted backup paths required');
- let raw;
+ const path=resolve(receiptPath);
+ let raw,handle;
  try{
-  const st=await lstat(resolve(receiptPath));
+  const st=await lstat(path);
   if(!st.isFile()||st.isSymbolicLink()||st.size<20||st.size>2048)
    stop('saved receipt missing or overlong');
-  raw=await readFile(resolve(receiptPath));
-  if(raw.length!==st.size)stop('saved receipt size changed during read');
+  handle=await open(path,'r');
+  if(!sameFile(st,await handle.stat()))
+   stop('saved receipt changed before descriptor open');
+  raw=await handle.readFile();
+  if(raw.length!==st.size||!sameFile(st,await handle.stat())||
+     !sameFile(st,await lstat(path)))
+   stop('saved receipt changed during read');
  }catch(e){
   if(e instanceof Error&&e.message.includes('FIRE protected recovery pair BLOCKED:'))throw e;
   stop('saved receipt could not be opened');
- }
+ }finally{if(handle)await handle.close().catch(()=>{});}
  let receipt;
  try{receipt=checkReceipt(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw)));}
  catch{stop('saved receipt is malformed or unsupported');}
