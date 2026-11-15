@@ -46,6 +46,18 @@ await rejected(await readBoundedRecordsRestoreText(request([
 await rejected(await readBoundedRecordsRestoreText(request([
  new Uint8Array(LIMIT+1)
  ],{'content-length':'2'})),413,'5 MB');
+// A claimed Content-Length is not proof of received bytes: reject BOTH
+// truncated and excess deliveries before any parsing or database writes.
+await rejected(await readBoundedRecordsRestoreText(request([
+ encoder.encode('{}')
+ ],{'content-length':'3'})),400,'length did not match');
+await rejected(await readBoundedRecordsRestoreText(request([
+ encoder.encode('{}')
+ ],{'content-length':'1'})),400,'length did not match');
+pass(await readBoundedRecordsRestoreText(request([
+ encoder.encode('{}')
+ ],{'content-length':'2'}))==='{}',
+ 'exact matching declared HTTP bytes remain accepted');
 pass((await readBoundedRecordsRestoreText(request([new Uint8Array(LIMIT)]))).length===LIMIT,
  'exact byte boundary is allowed without buffering over-budget bytes');
 await rejected(await readBoundedRecordsRestoreText(request([new Uint8Array([0xff])])),400,'invalid UTF-8');
