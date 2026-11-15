@@ -109,8 +109,8 @@ export async function compareNumberedRecordAndPhotoPairSeals(source,restored){
   fail('source/isolated-restore record or photo fingerprints differ');
  // This is the same domain-separated algorithm used to create the pair seal.
  // Never accept a supplied pairSha256 value without recomputing it locally.
- const actualPair=await sha(enc.encode('FIRE-RECOVERY-PAIR-V1\\n'+
-   source.recordsSha256+'\\n'+source.photosSha256));
+ const actualPair=await sha(enc.encode('FIRE-RECOVERY-PAIR-V1\n'+
+   source.recordsSha256+'\n'+source.photosSha256));
  if(source.pairSha256!==actualPair||restored.pairSha256!==actualPair)
   fail('record and photo digests do not match authenticated pair fingerprint');
  return Object.freeze({sourceAndDestinationMatch:true,
