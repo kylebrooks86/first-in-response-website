@@ -1,5 +1,16 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — NEW GATE7 STRICT NO-R2 PHOTO ZIP DIRECTORY INTEGRITY — SOURCE FIX, TARGETED CI RUNNING
+
+- **Real recovery-code fix** in `business-app-parity/shared/lib/offline-photo-backup.ts`, source commit `672ec383ad01e8802e5e12e21820e4708caddb1c`: FIRE's offline-photo ZIP import now demands exact single-disk, comment-free EOCD metadata; exact central ZIP writer versions, flags, no unknown extra/comment bytes, zero volume/disk/external attributes; local-header version and timestamps must agree with the central directory. Previously such metadata could be altered while leaving image bytes, CRC and SHA256 unchanged. Fail-closed before any IndexedDB restore.
+- **New specific byte-tamper regressions**, commit `146c280074d7305026565c1972fabd8f9e93779a`: manipulates a genuine FIRE-produced ZIP to forge EOCD disk identity, central version, central disk number, entry comment and local-vs-central timestamps. All original photo payloads and manifest checksums remain intact, so tests explicitly exercise the metadata gap.
+- **Wired actual test into the preexisting, isolated Gate7 QA synthetic workflow**, commit `9c93908b99ad2f2207b73a9dfe8abf8d5e7a4157`, with no new provider step: `node scripts/test-offline-photo-vault.mjs` after local candidate install. **The exact workflow is still pending/in progress at time of this note; do not claim the new targeted tests passed until actual GitHub result.**
+- **Separate CI artifact service issue observed** on earlier test commit `146c280`: `FIRE NEW LIVE reviewed 26-SQL source custody packet` generated original 31-file physical D1 source-only packet and successfully uploaded GitHub artifact **ID 14171467995**; immediate same-run `actions/download-artifact@v4` by that exact ID failed `Not Found` while GitHub's artifact listing subsequently showed the same ID existing/not expired. This was **not** a SQL or Cloudflare migration failure, and does not authorize migration, provider upload, gate promotion or relaxing immutable source verification. Current head's outcome not yet verified.
+- This strengthens **future on-device no-R2 customer photo backup restoration**; it does **not** establish a fully off-device backup, verified physical DR recovery, hosted QA parity or a launched app. Accepted owner screenshots for both DARK Workers, separate physical version/D1 readbacks, Job #0001 and prior tests remain untouched. **4/10 formal G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO.** No Workers, SQL, Stripe, R2, payment, photo data, deployment, merger or DNS changes.
+
+---
+
+
 ## NOVEMBER 15 — REAL DR DARK WORKER DOMAIN / PREVIEW OWNER DASHBOARD PROOF (G4 PARTIAL)
 
 - **New independent actual provider owner screenshot evidence** at 10:57 CST: `fire-fullapp-dr` **Production workers.dev OFF**, **Preview workers.dev OFF**, and the selected DR Worker **Custom Domains and Routes** table says `No custom domains` and has no entries. DR Deployments tab shows `b7c42773` at **100% traffic** and `Ready`, matching prior separately verified full DR hosted version `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` and physical DR D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145` (the screenshots themselves do not read the database).
