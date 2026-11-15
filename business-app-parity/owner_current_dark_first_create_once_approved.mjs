@@ -11,7 +11,7 @@
  * All failures after the durable attempt lock require READ-ONLY follow-up.
  */
 import {createHash} from 'node:crypto';
-import {existsSync,readFileSync,mkdirSync,writeFileSync,openSync,writeSync,fsyncSync,closeSync,readdirSync} from 'node:fs';
+import {existsSync,readFileSync,mkdirSync,writeFileSync,openSync,writeSync,fsyncSync,closeSync,readdirSync,rmSync} from 'node:fs';
 import {join,resolve,dirname,sep} from 'node:path';
 import {homedir} from 'node:os';
 import {spawnSync} from 'node:child_process';
@@ -156,7 +156,7 @@ function run(args,account){
   join(dirname(process.execPath),'..','lib','node_modules','npm','bin','npx-cli.js')
  ].find(existsSync);
  if(!npmCli)blocked('Node npm/npx CLI not available at reviewed location; no provider action');
- const result=spawnSync(process.execPath,[npmCli,'--yes','wrangler@4.162.0',...args],{
+ const result=spawnSync(process.execPath,[npmCli,'--no-install','wrangler@4.162.0',...args],{
   encoding:'utf8',timeout:90_000,maxBuffer:2_000_000,windowsHide:true,
   env:{...process.env,CLOUDFLARE_ACCOUNT_ID:account,WRANGLER_SEND_METRICS:'false'},
   shell:false});
@@ -183,10 +183,19 @@ async function createDark(target,archive){
  if(process.env.CLOUDFLARE_ACCOUNT_ID&&process.env.CLOUDFLARE_ACCOUNT_ID!==ACCOUNT)
   blocked('existing Cloudflare account override differs from the previously accepted owner account');
  ensureNoEarlierLocks(target);
+ // Do not leave a locked-out workspace after a harmless missing-session or D1 preflight failure.
+ // The pinned Wrangler must already be locally installed; never fetch npm code automatically.
+ const v=run(['--version'],ACCOUNT);
+ if(v.code!==0||v.stdout.trim()!=='4.162.0')blocked('pinned Wrangler version unavailable; no Worker write');
+ const who=run(['whoami','--json'],ACCOUNT);
+ verifyOwnerAccountReadback(who,ACCOUNT);
+ const db=run(['d1','info',spec.db,'--json'],ACCOUNT);
+ verifyPhysicalD1InfoReadback(db,spec.db,spec.uuid);
  const home=join(homedir(),'Documents');
  const workspace=join(home,'FIRE-FIRSTCREATE-'+target.toUpperCase()+'-'+SOURCE.slice(0,8));
  if(existsSync(workspace))blocked('workspace already exists; do NOT restart or override earlier first-create investigation');
  mkdirSync(workspace,{recursive:false,mode:0o700});
+ try{
  const dir=join(workspace,'first-create-worker');
  for(const [path,bytes] of verified.files){
   if(path==='first-create-source-only-receipt.json')continue;
@@ -197,14 +206,6 @@ async function createDark(target,archive){
  writeFileSync(join(workspace,'first-create-source-only-receipt.json'),
   verified.files.get('first-create-source-only-receipt.json'),{flag:'wx',mode:0o600});
  const cfg=join(dir,'server','wrangler.json');
- const v=run(['--version'],ACCOUNT);
- if(v.code!==0||v.stdout.trim()!=='4.162.0')blocked('pinned Wrangler version unavailable; no Worker write');
- const who=run(['whoami','--json'],ACCOUNT);
- verifyOwnerAccountReadback(who,ACCOUNT);
- const db=run(['d1','info',spec.db,'--json'],ACCOUNT);
- verifyPhysicalD1InfoReadback(db,spec.db,spec.uuid);
- const prior=run(['versions','list','--name',spec.worker,'--json'],ACCOUNT);
- verifyNewWorkerAbsentReadback(prior);
  const local=run(['deploy','--dry-run','--no-bundle','--config',cfg,
   '--outdir',join(workspace,'dry-run')],ACCOUNT);
  if(local.code!==0)blocked('local Wrangler compilation failed; no Worker write');
@@ -213,6 +214,9 @@ async function createDark(target,archive){
  let answer;try{answer=await rl.question('Type exactly '+required+' to authorize ONE provider first-creation: ')}
  finally{rl.close()}
  if(answer!==required)blocked('owner declined; no Worker creation');
+ // Check Worker nonexistence immediately before sealing the one-shot provider attempt.
+ const prior=run(['versions','list','--name',spec.worker,'--json'],ACCOUNT);
+ verifyNewWorkerAbsentReadback(prior);
  const lock=join(workspace,'REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json');
  const fd=openSync(lock,'wx',0o600);
  try{
@@ -233,6 +237,14 @@ async function createDark(target,archive){
   gate4Accepted:false,gate10Accepted:false,completedUtc:new Date().toISOString()
  },null,2)+'\n',{flag:'wx',mode:0o600});
  console.log('FIRE one-shot DARK first-create CLI succeeded; source routes/login blocked; preserve attempt lock and receipt. NO release gate accepted.');
+ }catch(error){
+  // Only delete THIS new, script-owned staging directory before a provider attempt lock exists.
+  // Once the attempt lock exists, NEVER delete or retry: a remote write may have occurred.
+  if(!existsSync(join(workspace,'REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json'))){
+   rmSync(workspace,{recursive:true,force:true});
+  }
+  throw error;
+ }
 }
 export {checkPackage};
 const invoked=process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href;
