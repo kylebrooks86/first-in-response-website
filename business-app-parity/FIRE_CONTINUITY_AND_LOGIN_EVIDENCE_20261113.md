@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — NEW Gate7 source change: bound owner records restore upload before allocation (CI PENDING)
+
+- **Distinct actual bug fixed on current main-based draft PR270:** `shared/app/api/backup/route.ts` formerly did `await request.text()` before comparing the in-memory string to 5 MB. A large HTTP upload could therefore be allocated before its claimed limit was enforced. The new source-only `shared/lib/bounded-records-restore.mjs` enforces a **5,000,000-byte streaming limit**, checks an untrusted Content-Length without relying upon it, refuses split-chunk oversize, malformed UTF-8, interrupted/empty input with 400/413 no-store and no restore writes, and only delivers bounded text to JSON parser. Includes TS declaration; existing owner/auth, numbered restore fail-closed, signed-deposit/refund/immutable record recovery logic retained.
+- **Exact code steps:** helper commit `cc67b56e4da43595ec2d17922b21252a9f9c4344`, production route `3c9d8583744e790ddf6fe2329a57ff65308321c5`, TS declaration `3168e703f07653f3a802e8c15026d08dc26cdd7a`, focused in-memory HTTP regression `c0d6e05d98c73578394fcd9488360dc14b2dc684`, existing Gate7 upload-safety CI step wiring via test import `ed3177205556a7689286e32d4ecb57bc5e2b0b06`. No existing CI workflow modification or pinned DR/NEW LIVE archived Worker bytes.
+- **Test status when recorded:** complete previous changed-code DR duplicate-create guard `74308b276f7e0c127abe44b204e60d69c0abad61` finished **26/26 GitHub workflows success**. New Gate7 code at `ed317720...` source CI **in progress**; do NOT call this fix tested until the focused Gate7 step and exact-head builds pass. No cloud/provider, D1 SQL migration, Stripe, R2/paid plan, accepted owner device testing, Worker redeploy, merge or LIVE cutover.
+- **Existing physical history unaffected:** Nov14 DR Worker created once and hosted D1/dark variable readback accepted; DR+NEW LIVE D1 26/26 and first NEW LIVE Job #0001 protected. Formal **4/10 gates accepted (1,2,3,8)**; G4/5/6/7/9/10 open; NEW LIVE NO-GO. This protects future restore input; DOES NOT itself prove full future-data + photo archive custody and isolated restore or close G7.
+
+---
+
+
 ## NOV 15 — CRITICAL CORRECTION: DR FIRST WORKER CREATION ALREADY COMPLETE NOVEMBER 14 — NEVER REPEAT
 
 - **Earlier verified PHYSICAL Cloudflare milestone OVERRIDES the contradictory newer Nov 15 "not yet executed" wording below.** On Nov 14, owner Acer V3 ONE-TIME creation of dark `fire-fullapp-dr` succeeded: actual Cloudflare CLI output `Uploaded fire-fullapp-dr`, `No targets deployed`, version **`b7c42773-5a93-4c6c-91d2-83cdb8e857d9`**, hosted D1 named `fire-fullapp-dr-db`. Exact source package at that time was PR270 `9bbd3026c9e636adad0d29cae6862694616308cb`, owner V3 ZIP SHA256 `2390b88f75162d7115aad043e963ee23524f202bd751a725877e273f69e61760`. Preserve the original local `Documents/FIRE-DR-FIRST-CREATE-PR270-9bbd3026-V3` lock and receipt permanently. [Actual owner evidence Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6885654676).
