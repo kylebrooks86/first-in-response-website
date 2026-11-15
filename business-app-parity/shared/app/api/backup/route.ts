@@ -7,6 +7,7 @@ import {propertyBackupError,hasPropertyBackup} from "../../../lib/property-backu
 import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
 import {DEPOSIT_AUDIT_COLUMNS,validateDepositAuditIntegrity,depositAuditRowsConflict} from "../../../lib/deposit-audit-backup.mjs";
 import {SIGNED_AGREEMENT_COLUMNS,validateSignedAgreementSnapshots,verifySignedAgreementDigests,signedAgreementRowsConflict} from "../../../lib/deposit-agreement-backup.mjs";
+import {readBoundedRecordsRestoreText} from '../../../lib/bounded-records-restore.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // The v1 JSON records format intentionally does not include permanent
@@ -315,9 +316,11 @@ export async function POST(request: Request) {
     restoreAudit,
   },{status:500});
   try {
-    const raw = await request.text();
-    if (raw.length > 5_000_000) return Response.json({ error: "That backup is larger than the 5 MB restore limit." }, { status: 413 });
-    const payload: unknown = JSON.parse(raw);
+    // Enforce the existing 5 MB limit while streaming. Never buffer unlimited
+    // HTTP bytes before deciding that a restore request is unsafe.
+    const bounded = await readBoundedRecordsRestoreText(request);
+    if (bounded instanceof Response) return bounded;
+    const payload: unknown = JSON.parse(bounded);
     if(isRecord(payload)&&isRecord(payload.tables)&&hasPropertyBackup(payload,payload.tables)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
