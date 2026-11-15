@@ -7,6 +7,7 @@ on:
       - '.github/workflows/fire-new-live-portable-schema-custody.yml'
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: fire-live-reviewed-sql-custody-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -56,6 +57,7 @@ jobs:
           console.log('PASS 31 file-only source package; real NEW LIVE migrations NOT applied.');
           NODE
       - name: Keep portable original SQL packet in GitHub WITHOUT provider writes
+        id: immutable_sql_packet_upload
         uses: actions/upload-artifact@v4
         with:
           name: FIRE-NEW-LIVE-26-SQL-PINNED-NEVER-MIGRATE-${{ github.event.pull_request.head.sha }}
@@ -66,7 +68,8 @@ jobs:
       - name: Read retained actual 31-file source archive back from GitHub (NO PROVIDER)
         uses: actions/download-artifact@v4
         with:
-          name: FIRE-NEW-LIVE-26-SQL-PINNED-NEVER-MIGRATE-${{ github.event.pull_request.head.sha }}
+          artifact-ids: ${{ steps.immutable_sql_packet_upload.outputs.artifact-id }}
+          github-token: ${{ github.token }}
           path: ${{ runner.temp }}/fire-new-live-sql-readback
       - name: Verify RETAINED 26 reviewed Git-SQL blobs and fail-closed release receipt
         run: |
