@@ -38,12 +38,16 @@ export async function verifySavedRecoveredPhotoZip(path,sourceProof){
  // Revalidate central directory, CRC32 and EACH original photograph SHA-256
  // from the file on disk, not from the earlier decrypted in-memory buffer.
  const checked=inspectStoredFirePhotoZip(saved);
- if(checked.verifiedZipSha256!==sourceProof.verifiedZipSha256||
+ // An explicit per-file CRC + SHA attestation from the REOPENED saved ZIP is
+ // mandatory; a matching count or envelope hash alone is not sufficient.
+ if(checked.allFilesCryptographicallyVerified!==true||
+    checked.verifiedZipSha256!==sourceProof.verifiedZipSha256||
     checked.photoCount!==sourceProof.photoCount||
     checked.distinctCustomerIds!==sourceProof.distinctCustomerIds||
     checked.totalOriginalPhotoBytes!==sourceProof.totalOriginalPhotoBytes)
   throw Error('FIRE private photo ZIP recovery BLOCKED: saved recovery ZIP differs from the verified protected original');
  return Object.freeze({savedRecoveryZipReadBackVerified:true,
+  allFilesCryptographicallyVerified:true,
   savedRecoveredZipSha256:checked.verifiedZipSha256,
   savedRecoveryPhotoCount:checked.photoCount});
 }
@@ -108,6 +112,9 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  return Object.freeze({
   photoCount:proof.photoCount,distinctCustomerIds:proof.distinctCustomerIds,
   verifiedZipSha256:proof.verifiedZipSha256,...readback,
+  allFilesCryptographicallyVerified:
+    proof.allFilesCryptographicallyVerified===true&&
+    readback.allFilesCryptographicallyVerified===true,
   originalGalleryZipRecovered:true,matchingCustomerRecordsVerified:matchingRecordsVerified,
   customerRecordsRestored:false,independentD1Restored:false,
   providerWriteAttempted:false,gate7Accepted:false
