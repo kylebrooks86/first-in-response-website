@@ -1,5 +1,16 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — REAL OWNER TEST ACCESS EDIT SCREEN: ALLOW POLICY, PREVIEW NO DESTINATIONS — NO MUTATION / NO GATE PROMOTION
+
+- Four new *owner authenticated Cloudflare dashboard* screenshots `IMG_4330.png`–`IMG_4333.png` prove the current TEST Access app **`fire-stripe-test-20261101 - Cloudflare Workers`** shows scope Worker `fire-stripe-test-20261101`, type **production and preview URLs**, one reusable **Allow** policy `FIRE Stripe TEST - Owner Only`, and session duration **1 week**; Cloudflare One Client auth and browser rendering both OFF. Crucially, the other **Destinations** selector is still `Select...` and the app **Preview explicitly says `No destinations assigned`**. UI preview source says `All authenticated users`, which is NOT actual proof of what identities the named Allow policy includes.
+- **Critical unresolved**: The screenshots do not establish whether this saved Access app actually binds to the TEST Worker host/path, whether any unsaved edit is displayed, or whether Stripe's machine-to-machine signed webhook deliveries pass any Access check. Nor do they display Include/Exclude/Require policy conditions. Do NOT claim 'owner-only protection working' based on a policy name, nor assume an absent effective policy based only on the edit-preview. Do NOT create bypass, enable DARK route, save, change Access or payment endpoints without separate authorization.
+- Original image files remain in owner chat; exact SHA-256 and sizes/screenshot scope preserved in [`evidence/FIRE_STRIPE_TEST_ACCESS_DESTINATIONS_POLICY_VIEW_20261115.md`](evidence/FIRE_STRIPE_TEST_ACCESS_DESTINATIONS_POLICY_VIEW_20261115.md), documentation-only `179288aa64dc79e5562e1fa4febbea5d19cf64ad`.
+- **Safe next uncompleted inspection**: from the existing TEST application's Access policies list, tap the linked blue `FIRE Stripe TEST - Owner Only` policy name and screenshot the actual Include/Exclude/Require selectors. The Cloudflare page can be an editable form; don't change fields or Save/Delete. If existing authentication expires, stop. Preserve the accepted DR/NEW LIVE dark URL OFF, D1/version and 4×404 evidence; no repeat.
+- **Formal gates unchanged** G1/G2/G3/G8 accepted (4/10), G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO. No provider writes, Stripe payment/endpoint, R2 plan, Cloudflare Access, D1/SQL, deployment, DNS or merge.
+
+---
+
+
 ## NOV 15 — REAL ZERO TRUST ACCESS INVENTORY: ONE STRIPE TEST APP LISTED — DR/NEW LIVE NOT LISTED IN OWNER VIEW
 
 - **New real authenticated Cloudflare Zero Trust > Access > Applications screenshot** from owner, `IMG_4329.png`, SHA-256 `1dbe9b10d21045b1c2a0dfc00670862183a09a51738f18b59dd50d7073f10e79`, 344,424 original bytes; the screen's blank search and table `Showing 1 - 1 of 1` has **one currently listed Access application** named `fire-stripe-test-20261101 - Cloudflare ...` (truncated) and a destination `fire-stripe-test-20261101`. **No named DR or NEW LIVE Access application appears in this current view.** See [`evidence/FIRE_CLOUDFLARE_ACCESS_APPLICATION_LIST_20261115.md`](evidence/FIRE_CLOUDFLARE_ACCESS_APPLICATION_LIST_20261115.md) for exact source and limits. Original screenshot remains in owner conversation, not GitHub.
