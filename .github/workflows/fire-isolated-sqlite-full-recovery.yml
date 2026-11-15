@@ -16,6 +16,7 @@ on:
       - 'business-app-parity/protected_complete_isolated_sqlite_recovery.mjs'
       - 'business-app-parity/rehearse_protected_complete_records_and_photos.mjs'
       - 'business-app-parity/protected_recovery_pair_receipt.mjs'
+      - 'business-app-parity/test_protected_recovery_pair_receipt.mjs'
       - 'business-app-parity/recover_saved_protected_photo_zip.mjs'
       - 'business-app-parity/adapters/independent-live/drizzle/0025_independent_permanent_numbers.sql'
       - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
@@ -43,6 +44,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Reject altered same-length encrypted receipts and unsafe backup aliases (SYNTHETIC ONLY)
+        run: node business-app-parity/test_protected_recovery_pair_receipt.mjs
       - name: Require immutable property and service-address relationships before full recovery (SOURCE ONLY)
         run: node business-app-parity/test_supplemental_customer_history.mjs
       - name: Rehearse real archived property and service-address native triggers in isolated SQLite
