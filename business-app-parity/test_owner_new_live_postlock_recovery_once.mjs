@@ -54,7 +54,7 @@ for(const patch of [
  'missing/altered old lock or existing original/new receipt/attempt blocks remote');
 ok(validateRecoveryLocalSqlPackage(reviewed),'only reviewed physical NEW LIVE 26 SQL package allowed');
 for(const patch of [
- {savedWorkspaceVerified:false},{target:'independent-dr'},
+ {savedWorkspaceVerified:false},{target:'independent-dr'},{target:undefined},
  {reviewedSqlFiles:25},{database_id:'wrong'},
  {remoteMigrationAttempted:true}
 ])block(()=>validateRecoveryLocalSqlPackage({...reviewed,...patch}),
