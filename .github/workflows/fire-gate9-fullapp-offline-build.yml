@@ -14,6 +14,7 @@ on:
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
 permissions:
   contents: read
+  actions: read
 jobs:
   fullapp-local-only:
     runs-on: ubuntu-latest
@@ -212,11 +213,29 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 6
-      - name: Download same immutable CI candidate and independently revalidate
-        uses: actions/download-artifact@v4
-        with:
-          name: FIRE-GATE9-CANDIDATE-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/FIRE-GATE9-REHYDRATED/dist
+      # GitHub artifact visibility can lag a successfully finalized upload.
+      # Read only THIS run's exact immutable SHA name; never fetch another run.
+      - name: Download same immutable CI candidate with bounded exact-run read-only retry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRE_EXACT_ARTIFACT: FIRE-GATE9-CANDIDATE-${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          destination="${RUNNER_TEMP:?}/FIRE-GATE9-REHYDRATED/dist"
+          for attempt in 1 2 3 4 5; do
+            rm -rf -- "$destination"
+            mkdir -p -- "$destination"
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$FIRE_EXACT_ARTIFACT" --dir "$destination"; then
+              echo 'PASS exact-run retained TEST Worker archive downloaded; independent source/digest verification follows.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo 'BLOCKED: exact-run retained TEST archive unavailable after bounded read-only retries.'
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
       - name: Require uploaded ZIP delivery to reproduce exact source/digest, no network to providers
         shell: bash
         env:
