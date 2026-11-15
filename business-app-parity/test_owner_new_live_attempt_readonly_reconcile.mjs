@@ -108,4 +108,53 @@ pass(!source.includes("['d1','create'"),
  'script has no D1 create invocation');
 pass(!source.includes("['deploy'"),
  'script has no Worker deploy invocation');
+
+const {assessNewLiveInitializedJournalRecoveryEvidence}=
+ await import('./new_live_initialized_journal_recovery_guard.mjs');
+const journalTable={
+ type:'table',name:'d1_migrations',
+ sql:'CREATE TABLE "d1_migrations"( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL )'
+};
+const internalSequence={
+ type:'table',name:'sqlite_sequence',sql:'CREATE TABLE sqlite_sequence(name,seq)'
+};
+const journalUnique={
+ type:'index',name:'sqlite_autoindex_d1_migrations_1',sql:null
+};
+const baseRecovery={
+ originalAttemptLock:goodLock,dedicatedD1Config:goodConfig,
+ liveD1Info:{name:'fire-fullapp-new-live-db',uuid:live},
+ originalLockPreserved:true,completionReceiptPresent:false,
+ ownerApprovedNewWrite:false,sourceReviewSqlCount:26,
+ sqliteMasterRows:[journalTable,internalSequence,journalUnique],
+ journalRows:[],sequenceRows:[]
+};
+const judge=x=>assessNewLiveInitializedJournalRecoveryEvidence(x);
+const accepted=judge(baseRecovery);
+pass(accepted.observedAppliedMigrationRows===0&&
+ accepted.observedSqliteSequenceRows===0&&
+ accepted.originalLockPreserved===true&&
+ accepted.newWriteAuthorized===false&&
+ accepted.secondMigrationExecutionPermitted===false&&
+ accepted.gate5Accepted===false,
+ 'initialized but empty journal can ONLY become a separately reviewed prewrite candidate');
+for(const patch of [
+ {originalAttemptLock:{...goodLock,state:'COMPLETE'}},
+ {dedicatedD1Config:{d1_databases:[{...goodConfig.d1_databases[0],database_id:'wrong'}]}},
+ {liveD1Info:{name:'fire-fullapp-dr-db',uuid:live}},
+ {completionReceiptPresent:true},{ownerApprovedNewWrite:true},
+ {originalLockPreserved:false},{sourceReviewSqlCount:25},
+ {journalRows:[{id:1,name:'0000_wise_namora.sql'}]},
+ {sequenceRows:[{name:'d1_migrations',seq:26}]},
+ {sqliteMasterRows:[journalTable,internalSequence]},
+ {sqliteMasterRows:[journalTable,journalUnique]},
+ {sqliteMasterRows:[journalTable,internalSequence,journalUnique,{type:'table',name:'customers',sql:'CREATE TABLE customers(id TEXT)'}]},
+ {sqliteMasterRows:[{...journalTable,sql:'CREATE TABLE d1_migrations(id INTEGER,name TEXT)'},internalSequence,journalUnique]},
+ {sqliteMasterRows:[journalTable,{...internalSequence,type:'view'},journalUnique]},
+ {sqliteMasterRows:[journalTable,internalSequence,{...journalUnique,sql:'CREATE INDEX fake ON d1_migrations(name)'}]},
+ {sqliteMasterRows:[journalTable,internalSequence,journalUnique,journalUnique]},
+ {sqliteMasterRows:[journalTable,internalSequence,journalUnique,{type:'trigger',name:'audit',sql:'CREATE TRIGGER audit AFTER INSERT ON d1_migrations BEGIN SELECT 1; END'}]}
+])reject(()=>judge({...baseRecovery,...patch}),
+ 'wrong account/lock/source, hidden data, sequence history, malformed journal or extra object blocks reauthorization readiness');
+
 console.log('PASS '+checks+'/'+checks+' NEW LIVE locked-attempt READ-ONLY offline tamper checks. NO CLOUD PROVIDER USED.');
