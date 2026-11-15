@@ -164,8 +164,8 @@ ok(code.indexOf('inspectNewLiveFirstJobCleanStart(')<
 ok(code.indexOf("wrangler(js,['d1','migrations','apply'")<
    code.indexOf('const postWriteInfo=')&&
    code.indexOf('const postWriteInfo=')<
-   code.indexOf('verifyPostlockReceiptEvidence({')&&
-   code.indexOf('verifyPostlockReceiptEvidence({')<
+   code.indexOf('const finalCustody=verifyPostlockReceiptEvidence({')&&
+   code.indexOf('const finalCustody=verifyPostlockReceiptEvidence({')<
    code.indexOf('writeFileSync(NEW_RECEIPT,'),
    'POST-write physical identity and BOTH locks must be rechecked before receipt');
 console.log('PASS '+n+'/'+n+' NEW LIVE distinct post-lock one-shot SOURCE offline guards. NO PROVIDER/WRITE.');
