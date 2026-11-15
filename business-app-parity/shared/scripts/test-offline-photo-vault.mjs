@@ -126,7 +126,7 @@ check(prepareFlow.includes('protectOfflinePhotoZip(zip,backupPassphrase)')&&comp
  'Current QA photo backup defaults to passphrase-protected archive with explicit recovery controls');
 check(component.includes('openOwnerOfflinePhotoArchive(files[0],backupPassphrase)')&&component.includes("verifyRef.current?.click()"),
  'Saved protected archive must be opened and checked before any restore or success claim');
-check(component.includes("prepareArchive('customer')")&&component.includes("prepareArchive('all')"),'Owner can export photos for one customer or all customers to handle large archives');
+check(component.includes('prepareArchive("customer",true)')&&component.includes('prepareArchive("all",true)')&&component.includes('prepareArchive("customer",false)')&&component.includes('prepareArchive("all",false)'),'Owner retains protected all/customer backups plus explicit legacy ZIP choices without implicit R2');
 check(vault.includes('listOfflinePhotos(customerId)')&&vault.includes('invalid customer identifier'),'Scoped backup filters the actual on-device photo vault and validates customer IDs');
 check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
 check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
