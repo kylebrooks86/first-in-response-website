@@ -1,5 +1,13 @@
 # FIRE Business App parity requirement
 
+## November 15, 2026 — latest PR270 owner first-create safety repair
+
+- **Changed-code head `bb1508021f645a2be377d28449129749d690a84b`**, two reviewed source commits on existing main-based DRAFT PR270; continuity-only [skip ci] docs afterward. Fixed future owner DARK first-create runtime: **no Wrangler auto-install (`npx --no-install`)**, authenticated exact account/physical target D1/version prerequisites **before** materializing a durable Acer staging workspace, final read-only Worker-absent 10007 check **after typed consent directly before the immutable one-shot attempt lock**, cleanup of only newly created lock-free staging on preflight failure, **NEVER delete lock or retry after provider attempt**. Six focused change-specific tests added and wired into existing DR/NEW LIVE workflow.
+- [Exact-source independent DR/LIVE workflow #43721726813](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43721726813) SUCCESS all three jobs including changed launcher tests; at this checkpoint 25/26 exact-code workflow groups SUCCESS, zero FAIL, staging/browser still PENDING. Fetch its final conclusion before claiming 26/26. No owner Acer, login, deploy, SQL, Stripe or merge.
+- Keep prior DR/NEW LIVE physically accepted D1 26/26, new LIVE first future Job #0001, original protected private first-create ZIPs pinned to source `e27b39df06c1ed4ff63cd437e39fd3e314142eec`, prior encrypted migration proofs, and QA/iPhone tests unchanged. **Gates1/2/3/8 accepted 4/10; Gates4/5/6/7/9/10 OPEN, LIVE NO-GO.** First DR Worker creation still requires new exact target-scoped owner approval; `continue` is never authorization.
+
+---
+
 ## November 15, 2026 — CURRENT PR270 dual-target hosted read-only evidence (newest checkpoint)
 
 - Integrated main-based **DRAFT PR270** changed-code SHA **b5c436a4b6a974c42c8493e22488ff64b91ffd08**, source-only and **NO DEPLOY**. Current DR + NEW LIVE post-create hosted version/D1 read-only checker is business-app-parity/owner_current_dark_postcreate_readonly.mjs; exact-source independent DR/LIVE workflow #43720430048 SUCCESS, new **40/40** synthetic cross-target negative/positive tests PASS. Previous old DR postcreate PowerShell pinned an obsolete version; use the current dual-target tool only AFTER a separately approved current Worker creation. Default command is OFFLINE dry-run. Future --capture uses six owner-existing-session read-only provider metadata commands; it CANNOT authorize first-create or close a hosted gate by itself.
