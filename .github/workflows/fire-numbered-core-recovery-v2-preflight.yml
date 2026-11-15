@@ -9,6 +9,10 @@ on:
       - 'business-app-parity/shared/scripts/test-protected-numbered-v2-records.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-owner-file-custody.mjs'
+      - 'business-app-parity/shared/components/numbered-core-records-review.tsx'
+      - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.d.mts'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-owner-review-gate.mjs'
+      - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
       - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
@@ -31,6 +35,10 @@ on:
       - 'business-app-parity/shared/scripts/test-protected-numbered-v2-records.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-owner-file-custody.mjs'
+      - 'business-app-parity/shared/components/numbered-core-records-review.tsx'
+      - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.d.mts'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-owner-review-gate.mjs'
+      - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
       - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
@@ -80,6 +88,8 @@ jobs:
         run: node scripts/test-protected-numbered-v2-records.mjs
       - name: Verify exact selected saved-file readback without claiming off-device custody (SOURCE ONLY)
         run: node scripts/test-numbered-v2-owner-file-custody.mjs
+      - name: Enforce owner review UI disabled across QA DR and LIVE (SOURCE ONLY)
+        run: node scripts/test-numbered-v2-owner-review-gate.mjs
       - name: Reject newly added durable QA tables not represented in recovery
         run: node scripts/test-numbered-v2-schema-coverage.mjs
       - name: Prove review export is disabled by default and only owner can capture core records
