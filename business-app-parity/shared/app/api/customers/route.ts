@@ -16,14 +16,44 @@ async function authorized() {
   return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
 }
 
+// Both owner customer CREATE and EDIT must have a bounded request before
+// JSON parsing. request.json()/request.text() buffer arbitrary bytes first,
+// which is unsafe for a lost-ACK retry or malformed upload. Keep the same
+// fail-closed 400 response for all malformed/oversized bodies, with no D1 write.
+const MAX_CUSTOMER_REQUEST_BYTES = 64_000;
 async function readCustomerRequest(request: Request): Promise<Record<string, unknown> | null> {
+  const declared = request.headers.get('content-length');
+  if (declared !== null &&
+      (!/^(0|[1-9][0-9]{0,5})$/.test(declared) || Number(declared) > MAX_CUSTOMER_REQUEST_BYTES))
+    return null;
+  if (!request.body) return null;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
-    const body: unknown = await request.json();
-    return body !== null && typeof body === "object" && !Array.isArray(body)
+    reader = request.body.getReader();
+    const decoder = new TextDecoder('utf-8', {fatal: true});
+    let bytes = 0;
+    let text = '';
+    while (true) {
+      const {done,value} = await reader.read();
+      if (done) break;
+      if (!(value instanceof Uint8Array)) return null;
+      bytes += value.byteLength;
+      if (bytes > MAX_CUSTOMER_REQUEST_BYTES) return null;
+      text += decoder.decode(value, {stream: true});
+    }
+    if (bytes === 0 || (declared !== null && bytes !== Number(declared))) return null;
+    text += decoder.decode();
+    const body: unknown = JSON.parse(text);
+    return body !== null && typeof body === 'object' && !Array.isArray(body)
       ? body as Record<string, unknown>
       : null;
   } catch {
     return null;
+  } finally {
+    if (reader) {
+      try { await reader.cancel(); } catch { /* Stream already finished. */ }
+      try { reader.releaseLock(); } catch { /* Stream already released. */ }
+    }
   }
 }
 
