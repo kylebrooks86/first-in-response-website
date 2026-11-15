@@ -71,6 +71,7 @@ jobs:
           artifact-ids: ${{ steps.immutable_sql_packet_upload.outputs.artifact-id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/fire-new-live-sql-readback
+          merge-multiple: true
       - name: Verify RETAINED 26 reviewed Git-SQL blobs and fail-closed release receipt
         run: |
           test "$(find "$RUNNER_TEMP/fire-new-live-sql-readback" -type f | wc -l)" -eq 31
