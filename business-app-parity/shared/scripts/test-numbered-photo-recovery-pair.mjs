@@ -33,7 +33,7 @@ ok(seal.physicallyStoredBackupVerified===false&&seal.gate7Accepted===false,'neve
 ok(/^[0-9a-f]{64}$/.test(seal.pairSha256),'cryptographic paired digest exists');
 const reordered=structuredClone(original);
 const matching=await sealNumberedRecordAndPhotoRecoveryPair(reordered,[one]);
-ok(compareNumberedRecordAndPhotoPairSeals(seal,matching).sourceAndDestinationMatch,'unchanged synthetic isolated copy agrees');
+ok((await compareNumberedRecordAndPhotoPairSeals(seal,matching)).sourceAndDestinationMatch,'unchanged synthetic isolated copy agrees');
 const altered=structuredClone(original);altered.tables.estimates[0].total_cents=200;
 const alteredSeal=await sealNumberedRecordAndPhotoRecoveryPair(altered,[one]);
 await blocked(Promise.resolve().then(()=>compareNumberedRecordAndPhotoPairSeals(seal,alteredSeal)),
@@ -42,6 +42,31 @@ const changedPhoto={...one,blob:new Blob([Uint8Array.from([1,8,3])],{type:'image
 const changedSeal=await sealNumberedRecordAndPhotoRecoveryPair(original,[changedPhoto]);
 await blocked(Promise.resolve().then(()=>compareNumberedRecordAndPhotoPairSeals(seal,changedSeal)),
  'changed original photo bytes invalidate the recovery pair');
+// Equal-looking seals are NOT enough: the domain-separated pair digest must
+// truly bind the records and photo digests. Reject forged identical headers.
+const forgedPair={...seal,pairSha256:'0'.repeat(64)};
+await blocked(compareNumberedRecordAndPhotoPairSeals(forgedPair,forgedPair),
+ 'identically forged pair fingerprints cannot be accepted');
+const forgedRecords={...seal,recordsSha256:'1'.repeat(64)};
+await blocked(compareNumberedRecordAndPhotoPairSeals(forgedRecords,forgedRecords),
+ 'identically altered records digest with stale pair is invalid');
+const forgedPhotos={...seal,photosSha256:'2'.repeat(64)};
+await blocked(compareNumberedRecordAndPhotoPairSeals(forgedPhotos,forgedPhotos),
+ 'identically altered photo digest with stale pair is invalid');
+for(const tamper of [
+ {...seal,pairSha256:'invalid'},
+ {...seal,recordsSha256:'invalid'},
+ {...seal,photosSha256:'invalid'},
+ {...seal,physicallyStoredBackupVerified:true},
+ {...seal,independentRestoreVerified:true},
+ {...seal,gate7Accepted:true},
+ {...seal,unapprovedProviderClaim:true},
+ {...seal,photoCount:-1},
+ {...seal,customerHighWater:1.5},
+]){
+ await blocked(compareNumberedRecordAndPhotoPairSeals(tamper,tamper),
+  'malformed or invented provider/custody evidence must fail before acceptance');
+}
 const changedHigh=structuredClone(original);changedHigh.highWater.job=2;
 const changedHighSeal=await sealNumberedRecordAndPhotoRecoveryPair(changedHigh,[one]);
 await blocked(Promise.resolve().then(()=>compareNumberedRecordAndPhotoPairSeals(seal,changedHighSeal)),
