@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/owner_new_live_attempt_readonly_reconcile.mjs'
+      - 'business-app-parity/owner_new_live_initialized_journal_readonly.mjs'
+      - 'business-app-parity/new_live_initialized_journal_recovery_guard.mjs'
       - 'business-app-parity/test_owner_new_live_attempt_readonly_reconcile.mjs'
       - '.github/workflows/fire-new-live-attempt-readonly-reconciliation.yml'
 permissions:
@@ -30,8 +32,11 @@ jobs:
       - name: Syntax-check only changed NEW LIVE read-only source and its test
         run: |
           node --check business-app-parity/owner_new_live_attempt_readonly_reconcile.mjs
+          node --check business-app-parity/new_live_initialized_journal_recovery_guard.mjs
+          node --check business-app-parity/owner_new_live_initialized_journal_readonly.mjs
           node --check business-app-parity/test_owner_new_live_attempt_readonly_reconcile.mjs
       - name: Offline lock/schema/journal tamper checks — no provider or D1 access
         run: |
           node business-app-parity/test_owner_new_live_attempt_readonly_reconcile.mjs
+          node business-app-parity/owner_new_live_initialized_journal_readonly.mjs
           echo 'PASS: source-only NEW LIVE recovery checks, no migration retry or remote access.'
