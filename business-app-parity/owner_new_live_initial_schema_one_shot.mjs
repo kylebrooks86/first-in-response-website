@@ -148,6 +148,18 @@ export function bindReadOnlyNewLiveSelect(sql,args=[]){
  if(i!==args.length)stop('unused read-only D1 bind arguments');
  return out;
 }
+/** The migration script neither creates nor deploys the EXISTING dark Worker.
+ * Never report that no Worker exists: the independent owner already created it.
+ * These flags describe this migration invocation, not the Cloudflare account.
+ */
+export function newLiveMigrationWorkerOperationScope(){
+ return Object.freeze({
+  workerCreationPerformedByThisMigration:false,
+  workerDeploymentPerformedByThisMigration:false,
+  ownerLoginChangedByThisMigration:false,
+  existingWorkerRuntimeIndependentlyRecheckedByThisMigration:false
+ });
+}
 export function createOneShotNewLiveAttemptLock(lockPath,preflight){
  // Must be durable BEFORE the first possible remote migration mutation. Once
  // written, even a transport failure or process crash cannot trigger retry.
@@ -160,7 +172,7 @@ export function createOneShotNewLiveAttemptLock(lockPath,preflight){
   createdAt:new Date().toISOString(),
   sourceMigrationCount:26,physicalIdentityConfirmed:true,
   initialApplicationTables:0,firstJobNumber0001NotYetVerified:true,
-  cloudflareWorkerDeployed:false,ownerLoginEnabled:false,
+  ...newLiveMigrationWorkerOperationScope(),
   stripeAndR2Untouched:true
  },null,2)+'\n','utf8');
  try{
@@ -303,14 +315,14 @@ export async function applyNewLiveInitialSchemaAfterSeparateApproval(pinnedWrang
   physicalNewLiveReadback:result,postMigrationReadOnlyStatements:reads,
   drDatabaseUntouched:true,qaAndStagingUntouched:true,
   noStripePaymentOrRefund:true,noR2OrPaidCloudflare:true,
-  workerCreated:false,workerDeployed:false,ownerLoginEnabled:false,
+  ...newLiveMigrationWorkerOperationScope(),
   liveActivationAuthorized:false,gate4FullyAccepted:false,
   gate5FullyAccepted:false,gate7Accepted:false,
   gate9Accepted:false,gate10Accepted:false
  };
  writeFileSync(RECEIPT,JSON.stringify(receipt,null,2)+'\n',
   {flag:'wx',mode:0o600});
- console.log('NEW LIVE physically verified 26/26 source schema; Job #0001 only EXPECTED, NO first job created, NO Worker deployed.');
+ console.log('NEW LIVE physically verified 26/26 source schema; Job #0001 only EXPECTED, NO first job created or Worker action performed by this migration.');
  return receipt;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
