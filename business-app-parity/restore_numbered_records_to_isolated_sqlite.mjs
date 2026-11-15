@@ -253,6 +253,10 @@ export async function restoreNumberedRecordsToIsolatedSqliteFromArchives(
     resolve(templatePath)===resolve(outputPath))
   stop('separate empty schema and recovered SQLite paths required');
  validateNumberedCoreRecordsV2(archive);
+ // Reject forged property/service-address associations before even creating
+ // a disposable recovered SQLite file. The in-transaction check remains a
+ // second defense after the actual destination schema has been verified.
+ validateCompleteSupplementalCustomerHistory(archive,supplemental);
  if(archive.tables.customer_photos.length)
   stop('object-backed customer photo rows require separate full-byte restore');
  let db,created=false;
