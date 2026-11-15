@@ -45,6 +45,32 @@ check(true,'Truncated ZIP is rejected before restore');
 // The ZIP entry payload can be unchanged even when an adversary damages
 // its signed descriptor or hides undeclared data outside central-directory entries.
 const originalZip=new Uint8Array(await file.arrayBuffer());
+// Actual exported file bytes are the baseline for these tamper cases. Photo
+// content, central CRC and manifest SHA stay unchanged: only hidden ZIP header
+// metadata is altered. No provider, R2 or customer records are involved.
+const originalView=new DataView(originalZip.buffer),archiveEnd=originalZip.length-22;
+check(originalView.getUint32(archiveEnd,true)===0x06054b50,
+ 'FIRE ZIP fixture ends with an unspanned end-of-central-directory record');
+const archiveCentral=originalView.getUint32(archiveEnd+16,true);
+check(originalView.getUint32(archiveCentral,true)===0x02014b50,
+ 'FIRE ZIP fixture contains expected central entry');
+const mutate=(at,size,value)=>{
+ const bytes=originalZip.slice(),view=new DataView(bytes.buffer);
+ if(size===2)view.setUint16(at,value,true);else view.setUint32(at,value,true);
+ return new Blob([bytes]);
+};
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveEnd+4,2,1)),/ZIP directory/);
+check(true,'A forged multi-disk ZIP cannot masquerade as a complete offline photo backup');
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveCentral+4,2,21)),/central entry/);
+check(true,'Unapproved ZIP creator version is rejected even with valid photo checksums');
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveCentral+34,2,1)),/central entry/);
+check(true,'A forged split-disk central entry is rejected before any photo restore');
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveCentral+32,2,1)),/central entry/);
+check(true,'Undeclared ZIP entry comments are refused rather than ignored');
+const originalLocal=originalView.getUint32(archiveCentral+42,true);
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(originalLocal+10,2,
+ originalView.getUint16(originalLocal+10,true)^1)),/ZIP local metadata/);
+check(true,'Contradictory central/local ZIP timestamps cannot be accepted');
 const descriptorZip=originalZip.slice(),descriptorView=new DataView(descriptorZip.buffer);
 let descriptorAt=-1;
 for(let i=0;i<descriptorZip.length-16;i++){
