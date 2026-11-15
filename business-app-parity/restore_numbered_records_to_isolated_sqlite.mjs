@@ -123,6 +123,19 @@ function restore(db,archive,supplemental){
  try{
   db.exec('PRAGMA defer_foreign_keys=ON');
   const preservedMigrationRows=assertExistingD1MigrationJournal(db,supplemental,found,extras);
+  // This guard is a built-in part of the reviewed synthetic property migration:
+  // its INSERT trigger requires the entire destination to be EMPTY. Insert
+  // the guard BEFORE any actual customer/estimate/ledger records are restored.
+  // Archived historical properties (active=0, revision=2) retain originally
+  // selected property_revision=1, and ordinary live triggers forbid replay
+  // without this guarded, empty-destination recovery mode.
+  const historicalPropertyLinks=extras.includes('estimate_property_links')&&
+   supplemental.tables.estimate_property_links.length>0;
+  if(historicalPropertyLinks){
+   if(!extras.includes('property_recovery_guard'))
+    stop('property history cannot be restored without native empty-destination guard');
+   db.prepare('INSERT INTO "property_recovery_guard"(id) VALUES(1)').run();
+  }
   let restored=0;
   for(const t of tables){
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
@@ -140,10 +153,17 @@ function restore(db,archive,supplemental){
   }
   // Restore all feature-specific tables in the same transaction. Their exact
   // schema inventory is required; no ignored or inferred supplemental tables.
-  for(const t of extras){
-   // Do not INSERT already-applied migrations or manufacture provider history.
-   // The source and destination rows were compared in full above.
-   if(t==='d1_migrations')continue;
+  // Parent properties and captured addresses must exist before immutable
+  // estimate_property_links INSERT triggers inspect them. Foreign-key defer
+  // alone cannot defer native BEFORE INSERT ownership triggers.
+  const supplementalOrder={customer_properties:1,estimate_service_locations:2,
+   estimate_property_links:3};
+  const orderedExtras=extras.slice().sort((a,b)=>
+   (supplementalOrder[a]??0)-(supplementalOrder[b]??0)||a.localeCompare(b));
+  for(const t of orderedExtras){
+   // Keep the real migration journal untouched and NEVER replay the temporary
+   // recovery guard as a historical business record.
+   if(t==='d1_migrations'||t==='property_recovery_guard')continue;
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
    for(const row of supplemental.tables[t]){
     const keys=Object.keys(row).sort();
@@ -156,6 +176,15 @@ function restore(db,archive,supplemental){
      keys.map(()=>'?').join(',')+')').run(...keys.map(k=>toSql(row[k])));
     restored++;
    }
+  }
+  if(historicalPropertyLinks){
+   // Remove the one-shot bypass marker IN THE SAME transaction, before any
+   // success receipt or FOREIGN KEY/SQL integrity check. It must never remain
+   // in the recovered database or be exported into a later owner backup.
+   const deleted=db.prepare('DELETE FROM "property_recovery_guard" WHERE id=1').run();
+   if(deleted.changes!==1||
+      db.prepare('SELECT COUNT(*) AS n FROM "property_recovery_guard"').get().n!==0)
+    stop('temporary property recovery guard could not be cleared');
   }
   // Preserve AUTOINCREMENT history for ALL supplemental feature tables too;
   // otherwise deleted high IDs could be silently reused after recovery.
