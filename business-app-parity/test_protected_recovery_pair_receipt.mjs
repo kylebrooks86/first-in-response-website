@@ -37,6 +37,19 @@ try{
   'independent reread binds both exact ciphertext byte streams');
  await reject(sealProtectedPairReceipt(records,photos,receipt),
   'existing receipt is never overwritten');
+ // The receipt itself is opened by a verified descriptor, not through an
+ // unchecked symlink or a pathname substituted between lstat and read.
+ const receiptLink=join(root,'receipt-link.firepair');
+ await symlink(receipt,receiptLink);
+ await reject(inspectSavedProtectedPairReceipt(receiptLink,records,photos),
+  'a symlink cannot impersonate an owner saved receipt');
+ await reject(inspectSavedProtectedPairReceipt(undefined,records,photos),
+  'missing paths are rejected by FIRE guard, not an unhandled resolve error');
+ await reject(inspectSavedProtectedPairReceipt(receipt,records,undefined),
+  'incomplete pair inputs fail closed before reading backup files');
+ const intactReceipt=await readFile(receipt,'utf8');
+ pass(intactReceipt.includes('"encryptedInputsOnly":true'),
+  'exclusive create denial leaves original receipt unchanged');
  let modified=Buffer.from(snapshotRecords);
  modified[modified.length-1]^=0x40;
  await writeFile(records,modified);
