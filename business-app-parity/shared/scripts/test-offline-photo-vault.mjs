@@ -114,14 +114,18 @@ const vault=readFileSync(new URL('../lib/local-photo-vault.ts',import.meta.url),
 check(page.includes('<OfflineCustomerPhotos')&&page.includes('knownCustomerIds={customers.map(item=>item.id)}'),'Actual FIRE customer profile renders the on-device vault');
 check(!page.includes('section === "photos"&&<CustomerPhotos'),'Original R2 photo panel no longer owns the customer tab');
 check(component.includes('exportLocalPhotos(')&&component.includes('restoreLocalPhotos('),'Actual photo screen exposes archive export and restore');
-check(component.includes('Prepare all local photos ZIP')&&component.includes('Save prepared ZIP to Files')&&component.includes('Download prepared ZIP'),'Owner has a separate, native iOS share action after ZIP verification');
-const prepareFlow=component.slice(component.indexOf("const prepareArchive=async(scope:'all'|'customer')=>{"),component.indexOf('const downloadPreparedArchive=()=>{'));
+check(component.includes('Prepare protected all-photos backup')&&component.includes('Save prepared backup to Files')&&component.includes('Download prepared backup'),'Owner has a separate native iOS share action after protected photo archive preparation');
+const prepareFlow=component.slice(component.indexOf("const prepareArchive=async(scope:'all'|'customer',protectedFile=true)=>{"),component.indexOf('const downloadPreparedArchive=()=>{'));
 const saveFlow=component.slice(component.indexOf('const savePreparedArchive=async()=>{'),component.indexOf('const restore=async('));
 const saveWithoutComments=saveFlow.replace(/\/\*[^]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
 check(prepareFlow.includes('exportLocalPhotos(scope===')&&!saveFlow.includes('exportLocalPhotos('),'The expensive photo ZIP export is done before the iOS share gesture');
 check(saveWithoutComments.includes('await navigator.share({files:[file]')&&!saveWithoutComments.slice(0,saveWithoutComments.indexOf('await navigator.share({files:[file]')).match(/\bawait\b/),'iOS share-sheet invocation runs before ANY await inside a fresh button click');
 check(saveFlow.includes('navigator.canShare')&&component.includes('downloadPreparedArchive'),'Owner retains a direct-tap download fallback if native sharing is unavailable');
 check(component.includes('setPreparedBackup(null)'),'Photo changes invalidate any staged ZIP, avoiding a false up-to-date backup');
+check(prepareFlow.includes('protectOfflinePhotoZip(zip,backupPassphrase)')&&component.includes('Private recovery passphrase (16–1024 characters)')&&component.includes('Confirm passphrase (only for a new protected backup)'),
+ 'Current QA photo backup defaults to passphrase-protected archive with explicit recovery controls');
+check(component.includes('openOwnerOfflinePhotoArchive(files[0],backupPassphrase)')&&component.includes("verifyRef.current?.click()"),
+ 'Saved protected archive must be opened and checked before any restore or success claim');
 check(component.includes("prepareArchive('customer')")&&component.includes("prepareArchive('all')"),'Owner can export photos for one customer or all customers to handle large archives');
 check(vault.includes('listOfflinePhotos(customerId)')&&vault.includes('invalid customer identifier'),'Scoped backup filters the actual on-device photo vault and validates customer IDs');
 check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
@@ -134,7 +138,7 @@ check(vault.includes('if(!additions.length){')&&
   'Actual restore checks final photo bytes for no-op replay and new images before reporting success');
 check(component.includes('result.alreadyPresent')&&component.includes('result.restored'),'Actual iPhone owner UI explains both added and skipped originals');
 const inspectionCode=readFileSync(new URL('../lib/offline-photo-inspection.ts',import.meta.url),'utf8');
-check(component.includes('Verify saved ZIP from Files')&&component.includes('verifySavedArchive=async')&&component.includes('verifyRef.current?.click()'),'Actual iPhone screen has a dedicated read-only saved Files ZIP verification action');
+check(component.includes('Verify saved photo backup')&&component.includes('verifySavedArchive=async')&&component.includes('verifyRef.current?.click()'),'Actual iPhone screen has a dedicated read-only saved Files ZIP verification action');
 check(inspectionCode.includes('readOfflinePhotoBackup(file)')&&inspectionCode.includes('exactSavedPhotoMatch(stored,photo)'),'Read-back verification checks archive hashes and exact on-device originals');
 check(inspectionCode.includes('localPhotosNotInArchive')&&component.includes('INCOMPLETE PHOTO BACKUP:')&&component.includes('are NOT in this saved ZIP'),'A stale or partial backup explicitly shows device photos missing from the saved file');
 
