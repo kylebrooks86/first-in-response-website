@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — REPAIRED GATE9 READ-ONLY GET FAILED CLOSED, API CREDENTIAL EXPOSED IN OWNER TERMINAL — REVOKE TEMPORARY TOKEN
+
+- **NEW owner Acer screenshot** `IMG_52F69556-1989-4E8C-9632-169A31F1313E.jpeg` original **382,011 bytes**, SHA256 `b432bf191fb67f7c899ba294751ca67bf7444dbea2366c5b156596606e75cc84`. The corrected ASCII-only `owner_gate9_access_readonly_preflight.ps1` downloaded and executed: it reached the hidden **Cloudflare Access READ token prompt** and then returned **`STOP at one authenticated GET for pinned TEST Access app - Access state was NOT accepted. No cloud change attempted.`** No `EXACT_SEVEN` or `EXACT_EIGHT` result. Existing prior parser errors visible higher in terminal are historical. The catcher suppresses exact API status/response; **no authorization, identity, saved override, or specific failure cause is confirmed**, and no provider mutation was performed.
+- **Credential risk**: owner screenshot visibly contains an apparent **Cloudflare Bearer API token in a subsequent terminal command**. Treat it as exposed: immediately **revoke/delete temporary `FIRE Gate9 Read Only` API token** using Cloudflare dashboard. **DO NOT put screenshot bytes, token, raw Authorization header, or a token screenshot in GitHub or conversation.** This note includes only sanitized provenance and result. Revoke is required to invalidate credential, not authority to edit worker, Access, Stripe or anything else.
+- Detailed sanitized [Issue #19 note](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6901303696). Do not retry the stopped checker with old or fresh tokens or run the Access override **ADD** helper. After credential revocation, prefer an already authenticated browser's read-only existing TEST Worker Access destination/path override inventory, then separate approval for genuine signed Stripe TEST event/ledger evidence. Previously accepted owner route 405 vs customer 302 Cloudflare login, attached Worker Access owner exact-email Allow, DR/NEW LIVE dark 4x404/versions/D1/photo/QA records remain valid.
+- Formal gate status still **4/10 G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO**. No Access policy, SQL/D1, Stripe, Cloudflare worker, payments, paid R2, deploy, DNS, merge or production change.
+
+---
+
+
 ## NOV 15 — WINDOWS POWERSHELL GATE9 SCRIPT UTF-8 PARSER BLOCK (NO API GET), ASCII-SAFE SOURCE FIX
 
 - **Real owner Acer screenshot** original `IMG_C5807555-09DB-4338-8405-1E714BECCB92.jpeg`, 336,252 bytes, SHA256 `2f6faede3d77442b35295097cceb9d8e8bbec4ee21886b5b54ded47cd8fdc035`. First local `& $file` execution stopped at Windows script policy; temporary `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` then stopped **before any token prompt or Cloudflare GET** with **line 89 missing string terminator** and cascading missing closing brace errors. No provider state or token was accessed; not a legitimate `EXACT_SEVEN`/`EXACT_EIGHT`/`STOP` result.
