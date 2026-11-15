@@ -1,3 +1,6 @@
+// Gate7 HTTP upload bounds: run focused records JSON streaming regression next to
+// existing photo upload size/memory guards without rewriting pinned workflows.
+import './test-bounded-records-restore.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
