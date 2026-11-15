@@ -1,5 +1,14 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — OWNER CLOUDFARE TEST D1 PRODUCTION BINDING DB TO FIRE STRIPE TEST DB (NAME, NOT UUID)
+
+- Real owner Cloudflare Worker **Settings > Bindings > Production** screenshot `IMG_4353.png` (**320,720 bytes**, SHA256 `adede46fee31ef33bd69bbe1f3fbabd6c4d787696cb639c4b9be57140746ddaa`) displays TEST Worker `fire-stripe-test-20261101` with a **D1 database** binding `DB` → `fire-stripe-test-db-20261101`. Exact scope/limitations saved in [`evidence/FIRE_STRIPE_TEST_PRODUCTION_D1_BINDING_20261115.md`](evidence/FIRE_STRIPE_TEST_PRODUCTION_D1_BINDING_20261115.md), docs-only commit `8caaf2513f8979f30f5a6a7c91184b98c93ddf01`. The source image remains in owner chat, not GitHub.
+- The **current provider binding name and target name** match previously accepted independently isolated TEST D1. The screenshot shows **no UUID**, so previous provider-verified TEST UUID `dba421ba-fc66-4cf8-9c31-51616f8249ba` stays historical; do NOT request redundant D1 checks absent a changed binding. No proof of the current active hosted source/version, D1 schema/migration journal, signed Stripe event or exact-cent ledger. Adjacent newly accepted screenshots show `FIRE_STRIPE_MODE=disabled`, and Stripe TEST destination Active with no deliveries. This is the concrete blocker: do not click Send test events or enable variables based solely on a binding screenshot.
+- No owner Cloudflare/Access, database, Stripe, SQL, DNS, R2, Worker deploy, paid subscription, refund/payment or merge change; **G1/G2/G3/G8 formally accepted 4/10, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO**.
+
+---
+
+
 ## NOV 15 — REAL HOSTED STRIPE TEST PRODUCTION RUNTIME FIRE_STRIPE_MODE DISABLED — SIGNED DELIVERY CANNOT YET BE ACCEPTED
 
 - **New real owner Cloudflare dashboard screenshots** of the existing isolated `fire-stripe-test-20261101` Worker **Settings > Runtime variables and secrets > Production**: `IMG_4351.png` (353,955 bytes SHA256 `a328af2dee5b5409ec2eb9224325cbdd2c3786445ec1fc033290def70fe13ca0`) and `IMG_4352.png` (331,183 bytes SHA256 `3c40b0fb77812c68d9a1a861a4e8cbc6027361349e96179a9c29f27a77d7ab90`). **Actual observed `FIRE_STRIPE_MODE=disabled`**, `FIRE_ENV=cloudflare-staging`, `FIRE_ACCESS_REQUIRED=enabled`. `STRIPE_WEBHOOK_SECRET` and Access credential names are listed as encrypted secrets, **values NOT shown or verified**. `SITE_ORIGIN` exists but the domain is visually truncated. D1 binding/UUID is NOT visible on these screenshots; reuse accepted historical exact isolated TEST D1 provider receipt rather than claiming fresh verification. Exact provenance/limits documented [`evidence/FIRE_STRIPE_TEST_HOSTED_RUNTIME_DISABLED_20261115.md`](evidence/FIRE_STRIPE_TEST_HOSTED_RUNTIME_DISABLED_20261115.md), docs-only source `217e350f2cca400cb535f889bc95ad08615dbcc2`.
