@@ -16,7 +16,9 @@
  * Supply two private phrases separated by a newline on NON-ECHOING stdin:
  * first records passphrase, second encrypted photos passphrase.
  */
-import {unlink} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {createReadStream} from 'node:fs';
+import {lstat,unlink} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {inspectSavedProtectedCompleteRecords}
@@ -49,6 +51,60 @@ export function assertPairedRecoveredPhotoEvidence(photo){
   stop('saved recovered photo ZIP, source customer relationship or no-provider proof incomplete');
  return true;
 }
+// A valid records/photo restore must use EXACTLY the same encrypted bytes
+// throughout the operation. Rechecking the saved input after the actual
+// recovery catches replacement/rotation between initial receipt validation
+// and final output receipt. This is NOT an atomic cross-device snapshot.
+export function assertProtectedRecoverySourceCustody({
+ openedRecordsSha256,usedPhotosSha256,finalRecordsSha256,finalPhotosSha256,
+ originalPairReceipt,finalPairReceipt
+}){
+ const valid=d=>typeof d==='string'&&/^[a-f0-9]{64}$/.test(d);
+ if(![openedRecordsSha256,usedPhotosSha256,finalRecordsSha256,finalPhotosSha256].every(valid)||
+    openedRecordsSha256!==finalRecordsSha256||
+    usedPhotosSha256!==finalPhotosSha256)
+  stop('encrypted records or photos changed during paired recovery');
+ if(originalPairReceipt!==undefined||finalPairReceipt!==undefined){
+  if(originalPairReceipt?.exactSavedEncryptedPairVerified!==true||
+     finalPairReceipt?.exactSavedEncryptedPairVerified!==true||
+     originalPairReceipt.protectedRecordsSha256!==openedRecordsSha256||
+     originalPairReceipt.protectedPhotosSha256!==usedPhotosSha256||
+     finalPairReceipt.protectedRecordsSha256!==openedRecordsSha256||
+     finalPairReceipt.protectedPhotosSha256!==usedPhotosSha256||
+     originalPairReceipt.gate7Accepted!==false||
+     finalPairReceipt.gate7Accepted!==false)
+    stop('saved paired backup receipt or source identity changed during recovery');
+ }
+ return Object.freeze({
+  encryptedRecordsAndPhotosUnchangedAfterRestore:true,
+  exactOptionalSavedPairUnchanged:originalPairReceipt!==undefined,
+  snapshotSameTimeVerified:false,
+  offDeviceCustodyVerified:false,gate7Accepted:false
+ });
+}
+async function hashUnchangedProtectedFile(file,maxBytes){
+ let before;
+ try{
+  before=await lstat(resolve(file));
+  if(!before.isFile()||before.isSymbolicLink()||
+     before.size<64||before.size>maxBytes)
+   stop('saved encrypted recovery source is not a supported regular file');
+ }catch{stop('saved encrypted recovery source metadata unavailable');}
+ let size=0,digest=createHash('sha256');
+ try{
+  for await(const bytes of createReadStream(resolve(file))){
+   size+=bytes.length;
+   if(size>maxBytes)stop('saved encrypted recovery source expanded');
+   digest.update(bytes);
+  }
+  const after=await lstat(resolve(file));
+  if(!after.isFile()||after.isSymbolicLink()||
+     size!==before.size||after.size!==before.size||
+     after.ino!==before.ino||after.dev!==before.dev)
+    stop('saved encrypted recovery source was replaced or changed');
+ }catch{stop('saved encrypted recovery source could not be verified after restore');}
+ return digest.digest('hex');
+}
 export async function rehearseProtectedCompleteRecordsAndPhotos(
  protectedRecords,emptySchema,protectedPhotos,outputDb,outputZip,
  recordsPhrase,photoPhrase,{approved=false,pairReceiptPath}={}
@@ -62,11 +118,13 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
  // Optional saved receipt binds the EXACT two encrypted files selected now.
  // Validate it before creating a plaintext database or photo ZIP. This
  // does NOT prove that every photo/record existed at receipt creation.
+ let originalPairReceipt;
  if(pairReceiptPath!==undefined){
   if(typeof pairReceiptPath!=='string'||!pairReceiptPath||
      paths.map(p=>resolve(p)).includes(resolve(pairReceiptPath)))
    stop('the protected pair receipt must be a distinct saved file');
-  await inspectSavedProtectedPairReceipt(pairReceiptPath,protectedRecords,protectedPhotos);
+  originalPairReceipt=await inspectSavedProtectedPairReceipt(
+   pairReceiptPath,protectedRecords,protectedPhotos);
  }
  // Authenticate complete business archives and their shared source schema
  // before creating either unencrypted recovery artifact.
@@ -86,6 +144,21 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
   // final paired proof fails. On EEXIST, preserve the owner's original ZIP.
   photoCreatedByThisRun=true;
   assertPairedRecoveredPhotoEvidence(photo);
+  // The saved protected inputs are checked AGAIN after actual restored SQLite
+  // and photo ZIP bytes are verified. No accepted output can refer to changed
+  // ciphertext or an old .firepair receipt (if the owner supplied one).
+  const finalPairReceipt=pairReceiptPath===undefined?undefined:
+   await inspectSavedProtectedPairReceipt(pairReceiptPath,protectedRecords,protectedPhotos);
+  const finalRecordsSha256=await hashUnchangedProtectedFile(
+   protectedRecords,112*1024*1024+8192);
+  const finalPhotosSha256=await hashUnchangedProtectedFile(
+   protectedPhotos,161*1024*1024+8192);
+  const sourceCustody=assertProtectedRecoverySourceCustody({
+   openedRecordsSha256:opened.protectedFileSha256,
+   usedPhotosSha256:photo.protectedPhotoSourceSha256,
+   finalRecordsSha256,finalPhotosSha256,
+   originalPairReceipt,finalPairReceipt
+  });
   return Object.freeze({
    pairedEncryptedInputsReadBack:true,
    exactPairReceiptVerified:pairReceiptPath!==undefined,
@@ -100,7 +173,9 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
    savedRecoveredPhotoZipSha256:photo.savedRecoveredZipSha256,
    encryptedRecordsSha256:opened.protectedFileSha256,
    plaintextJsonIntermediatesWritten:false,
-   originalProtectedInputsUnmodified:true,
+   originalProtectedInputsUnmodified:sourceCustody.encryptedRecordsAndPhotosUnchangedAfterRestore,
+   encryptedInputsUnchangedAfterRestore:sourceCustody.encryptedRecordsAndPhotosUnchangedAfterRestore,
+   exactOptionalSavedPairUnchanged:sourceCustody.exactOptionalSavedPairUnchanged,
    localSqliteAndPhotoZipRecovered:true,
    independentCloudflareD1Restored:false,
    hostedPhotoStorageRestored:false,
