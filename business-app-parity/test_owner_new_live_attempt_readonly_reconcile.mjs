@@ -161,4 +161,45 @@ for(const patch of [
  checks++;
 }
 
+
+const {summariseObservedJournalMetadata}=
+ await import('./owner_new_live_initialized_journal_readonly.mjs');
+const ownerMetadata={
+ objects:baseRecovery.sqliteMasterRows,
+ journal:[],sequence:[],
+ lock:goodLock,config:goodConfig,
+ info:{name:'fire-fullapp-new-live-db',uuid:live}
+};
+const summary=summariseObservedJournalMetadata(ownerMetadata);
+pass(summary.result==='FIRE_NEW_LIVE_INITIALIZED_JOURNAL_EMPTY_READ_ONLY_MATCH_NO_RETRY'&&
+ summary.exactJournalDdlAndUniqueIndexMatched===true&&
+ summary.migrationRetryPermitted===false&&
+ summary.gate5Accepted===false&&
+ summary.noDatabaseWritePerformed===true,
+ 'new owner capture pure summary cannot approve an additional migration or Gate5');
+for(const patched of [
+ {objects:[...ownerMetadata.objects,{name:'jobs',type:'table',sql:'CREATE TABLE jobs(id TEXT)'}]},
+ {journal:[{id:1,name:'0000_wise_namora.sql'}]},
+ {sequence:[{name:'d1_migrations',seq:1}]},
+ {config:{d1_databases:[{...goodConfig.d1_databases[0],database_id:'wrong'}]}},
+ {info:{name:'fire-fullapp-dr-db',uuid:live}}
+]){
+ assert.throws(()=>summariseObservedJournalMetadata({...ownerMetadata,...patched}),
+  /FIRE_NEW_LIVE_POSTLOCK_RECOVERY_GUARD_REFUSED/,
+  'physical owner data mutation / journal history / misbinding refuses');
+ checks++;
+}
+const readonlySource=readFileSync(fileURLToPath(new URL('./owner_new_live_initialized_journal_readonly.mjs',import.meta.url)),'utf8');
+for(const required of [
+ 'FIRE_NEW_LIVE_INITIALIZED_JOURNAL_OFFLINE_ONLY_NO_PROVIDER',
+ 'SELECT type,name,sql FROM sqlite_master',
+ 'SELECT name,seq FROM sqlite_sequence',
+ 'multipleProviderReadsNotAtomicSnapshot:true',
+ 'migrationRetryPermitted:false'
+])pass(readonlySource.includes(required),'owner read-only inventory capture pinned '+required);
+pass(!readonlySource.includes("['d1','migrations','apply'")&&
+ !readonlySource.includes("['d1','create'")&&
+ !readonlySource.includes("['deploy'"),
+ 'read-only owner helper has no provider write command');
+
 console.log('PASS '+checks+'/'+checks+' NEW LIVE locked-attempt READ-ONLY offline tamper checks. NO CLOUD PROVIDER USED.');
