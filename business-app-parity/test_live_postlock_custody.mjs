@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {verifyPhysicalLiveEvidence,encryptOwnerEvidence,decryptOwnerEvidence} from './owner_new_live_postlock_encrypted_custody.mjs';
+import {verifyPhysicalLiveEvidence,encryptOwnerEvidence,decryptOwnerEvidence,restoreOwnerEvidenceToNewFolder} from './owner_new_live_postlock_encrypted_custody.mjs';
+import {mkdtempSync,existsSync,readFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const LIVE='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
 const DB='fire-fullapp-new-live-db';
@@ -35,4 +38,14 @@ reject(()=>encryptOwnerEvidence(mutated(files[2].name,o=>({...o,gate5Accepted:tr
 reject(()=>encryptOwnerEvidence(mutated(files[1].name,o=>({...o,oldAttemptLockSha256:'0'.repeat(64)})),phrase),'wrong origin lock SHA');
 reject(()=>encryptOwnerEvidence(mutated(files[2].name,o=>({...o,physicalDatabaseId:'bad'})),phrase),'wrong D1');
 reject(()=>encryptOwnerEvidence(mutated(files[0].name,o=>({...o,database_id:'bad'})),phrase),'original lock mismatch');
+const root=mkdtempSync(join(tmpdir(),'fire-live-owner-custody-'));
+try{
+ const target=join(root,'restored-only-after-authentication');
+ reject(()=>restoreOwnerEvidenceToNewFolder(encrypted,'incorrect-passphrase-32-characters',target),'no output with wrong phrase');
+ ok(!existsSync(target),'no partial plaintext on authentication failure');
+ const result=restoreOwnerEvidenceToNewFolder(encrypted,phrase,target);
+ ok(result.fileCount===3&&result.providerContacted===false&&result.appRestored===false,'isolated restore into new folder, no app/provider action');
+ ok(files.every(f=>readFileSync(join(target,f.name)).equals(f.bytes)),'all three restored files exactly match original encrypted source bytes');
+ reject(()=>restoreOwnerEvidenceToNewFolder(encrypted,phrase,target),'must not overwrite previously restored files');
+}finally{rmSync(root,{recursive:true,force:true})}
 console.log('PASS '+n+'/'+n+' LIVE owner physical receipt ciphertext, 3/3 original byte restore, cross-lock SHA, prelaunch flags and tamper negatives. OFFLINE ONLY.');
