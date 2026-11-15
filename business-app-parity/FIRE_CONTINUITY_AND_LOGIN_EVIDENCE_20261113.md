@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+
+## NOV 15 — REAL OWNER NEW LIVE DARK DASHBOARD DOMAINS / PREVIEW EVIDENCE (GATE4 PARTIAL)
+
+- Owner iPhone Safari **actual authenticated Cloudflare Worker dashboard screenshots** show NEW LIVE **workers.dev Production OFF**, **Preview OFF**, and **no custom domains or zone routes listed for that Worker**; separate Deployments screenshot shows `adb5fd7c` 100% traffic, matching prior accepted full serving version `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09`. This is useful **NEW hosted Worker-level public-exposure evidence**, not a simulated source check. Snapshot at 10:48 CST Nov 15.
+- Permanent source-provenance description and exact owner screenshot SHA-256 values: [`evidence/FIRE_NEW_LIVE_DARK_DASHBOARD_DOMAIN_EVIDENCE_20261115.md`](evidence/FIRE_NEW_LIVE_DARK_DASHBOARD_DOMAIN_EVIDENCE_20261115.md). Image bytes remain in owner conversation; this Markdown is a text evidence register, not a screenshot upload.
+- **Do not ask owner to repeat these screenshots or rerun failed existing-Wrangler token helper**. No Cloudflare route toggles, Worker deployments, D1/SQL, Stripe, paid R2, new login or token were touched. Previously accepted NEW LIVE physical D1 and DR hosted provider readbacks remain intact.
+- **Scope limit:** Worker-level screenshot does not establish full account-wide routes/domains enumeration, Cloudflare Access policy, DR Worker exposure, hosted source-byte parity, hosted nonowner/customer denial, full future record/photo recovery, or signed Stripe TEST. Formal Gates G1/G2/G3/G8 **4/10 accepted**; G4/G5/G6/G7/G9/G10 **OPEN**, NEW LIVE **NO-GO**. Preserve first-create attempt locks and accepted evidence.
+
+---
+
 ## NOV 15 — GATE7 COMPLETE HTTP CONTENT-LENGTH MATCH BEFORE RESTORE
 
 - **New source/runtime safeguard (no provider):** `business-app-parity/shared/lib/bounded-records-restore.mjs` now checks the actual fully streamed byte count against any supplied HTTP `Content-Length`, after the existing before-allocation 5,000,000-byte maximum and strict UTF-8 checks, and refuses short or extra transfer with HTTP 400/no-store before JSON parse or D1 writes. Source commit `29f51c793067257c5a14a80f46c6ea9d8907f371`.
