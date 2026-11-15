@@ -317,7 +317,8 @@ try{
  // in-memory ZIP decrypt succeeded. No R2/provider proof may be invented.
  const validPairedPhotoProof={
   originalGalleryZipRecovered:true,matchingCustomerRecordsVerified:true,
-  savedRecoveryZipReadBackVerified:true,verifiedZipSha256:paired.verifiedPhotoZipSha256,
+  savedRecoveryZipReadBackVerified:true,allFilesCryptographicallyVerified:true,
+  verifiedZipSha256:paired.verifiedPhotoZipSha256,
   savedRecoveredZipSha256:paired.savedRecoveredPhotoZipSha256,
   savedRecoveryPhotoCount:paired.recoveredPhotoCount,
   photoCount:paired.recoveredPhotoCount,providerWriteAttempted:false,
@@ -326,6 +327,8 @@ try{
  okay(assertPairedRecoveredPhotoEvidence(validPairedPhotoProof)===true,
   'exact saved photo bytes, customer pairing and no-hosted-write fields accepted');
  for(const corruptedProof of [
+  {...validPairedPhotoProof,allFilesCryptographicallyVerified:undefined},
+  {...validPairedPhotoProof,allFilesCryptographicallyVerified:false},
   {...validPairedPhotoProof,matchingCustomerRecordsVerified:false},
   {...validPairedPhotoProof,savedRecoveryZipReadBackVerified:false},
   {...validPairedPhotoProof,savedRecoveredZipSha256:'0'.repeat(64)},
