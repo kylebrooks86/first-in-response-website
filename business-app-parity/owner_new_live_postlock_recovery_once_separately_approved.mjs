@@ -116,6 +116,41 @@ export function createDistinctRecoveryOneShotLock(path,preservedLockHash,preflig
   recoveryWriteAttemptedByThisFunction:false,
   oldAttemptLockPreserved:true,remoteRetryAllowed:false});
 }
+/**
+ * Final offline-only receipt gate. A successful migration journal is not enough:
+ * the AFTER-write D1 identity must still match the original physical NEW LIVE
+ * UUID, and neither permanent attempt lock may have been replaced or changed.
+ * No remote call, receipt, or file mutation occurs in this validator.
+ */
+export function verifyPostlockReceiptEvidence({
+ originalLockBefore,originalLockAfter,recoveryLockBefore,recoveryLockAfter,
+ recoveryLockRecord,physicalInfo,originalReceiptPresent,recoveryReceiptPresent
+}){
+ const validBytes=value=>Buffer.isBuffer(value)&&value.length>=2&&value.length<=20000;
+ if(!validBytes(originalLockBefore)||!validBytes(originalLockAfter)||
+    !validBytes(recoveryLockBefore)||!validBytes(recoveryLockAfter)||
+    !originalLockBefore.equals(originalLockAfter)||
+    !recoveryLockBefore.equals(recoveryLockAfter)||
+    originalReceiptPresent!==false||recoveryReceiptPresent!==false)fail();
+ const lock=recoveryLockRecord;
+ if(!lock||typeof lock!=='object'||Array.isArray(lock)||
+    lock.operation!=='NEW_POSTLOCK_26_SQL_RESCUE_ONE_SHOT'||
+    lock.target!=='independent-live'||lock.database_name!==DB||
+    lock.database_id!==LIVE.database_id||lock.sourceMigrationCount!==26||
+    lock.oldAttemptLockSha256!==hash(originalLockBefore)||
+    lock.oldAttemptLockPreserved!==true||
+    lock.state!=='NEW_REMOTE_COMMAND_RESULT_UNCONFIRMED_NO_RETRY'||
+    lock.priorCommandResultAttested!==false||
+    lock.newRemoteWriteResultAttested!==false||
+    lock.gate5Accepted!==false||lock.productionReady!==false)fail();
+ try{verifyPhysicalIdentity(physicalInfo);}catch{fail();}
+ return Object.freeze({
+  postWriteLivePhysicalIdentityRetested:true,
+  originalAndRecoveryLocksByteForBytePreserved:true,
+  initialRemoteCommandResultStillUnattested:true,
+  gate5Accepted:false,productionReady:false
+ });
+}
 function existingLocalJson(path){
  if(!existsSync(path))fail();
  const stat=lstatSync(path);
@@ -207,6 +242,10 @@ async function runPostlockOneShot(jsPath,flag){
  if(existsSync(OLD_RECEIPT)||existsSync(NEW_LOCK)||existsSync(NEW_RECEIPT)||
     hash(readFileSync(OLD_LOCK))!==hash(oldBytes))fail();
  createDistinctRecoveryOneShotLock(NEW_LOCK,hash(oldBytes),report);
+ // Capture exact new lock bytes BEFORE any remote mutation. An altered lock
+ // cannot back a success receipt, even if the schema/journal later match.
+ existingLocalJson(NEW_LOCK);
+ const newLockBytes=readFileSync(NEW_LOCK);
  // The newly created recovery lock MUST remain even if Wrangler times out,
  // fails, prompts cancel, or says success before post-write verification.
  wrangler(js,['d1','migrations','apply',DB,'--remote','--config',CONFIG],{write:true});
@@ -239,8 +278,16 @@ async function runPostlockOneShot(jsPath,flag){
     final.tableRecordsAllEmpty!==true||
     final.jobAndCustomerSequencesEmpty!==true||
     final.firstJobNumberExpected!=='0001')fail();
- if(hash(readFileSync(OLD_LOCK))!==hash(oldBytes)||!existsSync(NEW_LOCK)||
-    existsSync(OLD_RECEIPT)||existsSync(NEW_RECEIPT))fail();
+ // Re-attest the exact physical NEW LIVE UUID AFTER successful remote SQL
+ // validation, before issuing any positive receipt. Also reject changed locks.
+ const postWriteInfo=parseProviderInfo(wrangler(js,['d1','info',DB,'--json','--config',CONFIG]));
+ const finalCustody=verifyPostlockReceiptEvidence({
+  originalLockBefore:oldBytes,originalLockAfter:readFileSync(OLD_LOCK),
+  recoveryLockBefore:newLockBytes,recoveryLockAfter:readFileSync(NEW_LOCK),
+  recoveryLockRecord:existingLocalJson(NEW_LOCK),physicalInfo:postWriteInfo,
+  originalReceiptPresent:existsSync(OLD_RECEIPT),
+  recoveryReceiptPresent:existsSync(NEW_RECEIPT)
+ });
  const receipt={
   operation:'NEW_POSTLOCK_26_SQL_RESCUE_ONE_SHOT',
   originalFailedOrUnknownAttemptAcknowledged:false,
@@ -256,6 +303,8 @@ async function runPostlockOneShot(jsPath,flag){
   ownerAuthActivated:false,workerCreatedOrDeployed:false,
   noStripePaymentChanges:true,noR2OrPaidCloudflare:true,
   recoveryLockPreserved:true,
+  postWriteLivePhysicalIdentityRetested:finalCustody.postWriteLivePhysicalIdentityRetested,
+  bothOriginalAndRecoveryLocksUnchanged:finalCustody.originalAndRecoveryLocksByteForBytePreserved,
   gate4Accepted:false,gate5Accepted:false,gate7Accepted:false,
   productionReady:false,liveActivationAuthorized:false,
   checkedAt:new Date().toISOString()
