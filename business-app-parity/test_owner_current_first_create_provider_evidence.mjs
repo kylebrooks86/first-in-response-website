@@ -41,6 +41,27 @@ deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10007: in
 deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10000: Worker not found'}),'Worker not found without 10007 refused');
 deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Permission denied'}),'auth failure is not absence');
 
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'Worker not found',stderr:'Error 10007: unrelated failure'}),
+ 'stdout cannot supply a missing-Worker claim');
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'Error 10007',stderr:'Worker not found'}),
+ 'stdout cannot supply Cloudflare error identity');
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10007: local file not found'}),
+ 'missing local file is not missing remote Worker');
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10007: unrelated failure\n'+
+ 'x'.repeat(400)+'\nWorker not found'}),
+ 'remote absence cannot be borrowed from distant unrelated diagnostic');
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10007: Worker not found\nError 10000: permission denied'}),
+ 'mixed different provider codes must not establish absence');
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10007: Worker not found; unauthorized account'}),
+ 'contradictory unauthorized diagnostic must not establish absence');
+deny(()=>verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'Error 10007: Worker not found\nError 10007: again'}),
+ 'duplicate 10007 provider diagnostics must not establish absence');
+deny(()=>verifyNewWorkerAbsentReadback({code:null,stdout:'',stderr:'Error 10007: Worker not found'}),
+ 'missing process exit status cannot establish absence');
+pass(verifyNewWorkerAbsentReadback({code:1,stdout:'',stderr:'[ERROR] Script does not exist [code: 10007]'})
+ .exactWorkerAbsenceReported,'single structured script absence accepted');
+
+
 pass(verifyCreatedWorkerListReadback(wrap([{id:ver}])).hostedVersionListReadback,'JSON version array confirms version listing');
 pass(verifyCreatedWorkerListReadback(wrap({versions:[{version_id:ver}]})).hostedVersionListReadback,'named versions array accepted');
 deny(()=>verifyCreatedWorkerListReadback(wrap([])),'empty version listing refused');
