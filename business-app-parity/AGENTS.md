@@ -1,5 +1,14 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — GATE7 ENCRYPTED PAIR RECEIPT DESCRIPTOR-BOUND READS (NO PROVIDER)
+
+- Real source patch on **DRAFT PR270**: `protected_recovery_pair_receipt.mjs` no longer checks a pathname, reopens it through an independent stream/readFile, and relies solely on final path lstat. It now opens a single owner-saved encrypted backup or receipt descriptor, verifies its dev/inode/size/mtime/ctime against the original lstat **before** reading, hashes or reads through that very same held file handle, then verifies the descriptor AND resolved pathname still match the original identity. This narrows an actual local rename/symlink/substitution race between initial stat and content read. It does not promise an atomic source snapshot.
+- Changes are SOURCE ONLY: implementation commit `9b0f60d1ff7935b39d1bda3c928497ccf13737bf`; focused synthetic regression commit `94c5972cde0696addfe2cdac5950b295e913852c`, which also refuses symlink receipt impersonation and missing backup inputs and checks exclusive-create denial preserves original receipt. Existing in-branch `fire-isolated-sqlite-full-recovery.yml` already runs the changed regression; no CI workflow source was edited.
+- **REAL exact-head CI on `94c5972c`**: isolated SQLite recovery [run 43776161889](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43776161889) **SUCCESS**, including the new targeted receipt test; [app-only website/calculator guard #43776161959](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43776161959) **SUCCESS**; [website verifier #43776161968](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43776161968) **SUCCESS**. Other 26-workflow matrix groups were still running at documentation time; check final statuses before declaring whole suite PASS.
+- Real owner device/customer photo bytes were **NOT** read, moved, rewritten, or retested. No Cloudflare, Stripe, D1/SQL, Access, Worker, paid Cloudflare/R2, source merge, production release, or DNS operation. Does NOT prove an actual off-device complete records+photos backup, isolated physical restore or Gate7 closure. Formal **G1/G2/G3/G8 = 4/10 accepted**, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE remains DARK and NO-GO. Previously accepted DARK Worker, TEST Stripe, iPhone/Acer and Gate8 evidence remain accepted; DO NOT repeat.
+
+---
+
 ## NOV 15 — GATE7 ENCRYPTED PAIR RECEIPT SAVED FILE IDENTITY GUARD — ACTUAL CODE + SYNTHETIC CI
 
 - `protected_recovery_pair_receipt.mjs` now fails closed unless each owner's saved encrypted `.firerecords` and `.firephotos` remains the **same regular file/inode/dev, same size, mtime and ctime after stream hashing** as before; no symlink substitution. This prevents the prior source-only lack of post-read file-identity verification, but cannot guarantee atomic snapshots against every race or prove off-device backup custody.
