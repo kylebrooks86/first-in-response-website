@@ -1,5 +1,14 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — ENCRYPTED NUMBERED-V2 CORE CUSTODY SOURCE VERIFIED — NO PROVIDER WRITE
+
+- Current **actual app/source/test** commit `2714d0666f78688877e9c450a9d1d0ed6d1246df` in DRAFT PR270: **26/26 GitHub source-only workflows SUCCESS**, full staging/QA synthetic [run 43745009622](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43745009622) PASS and actual native encryption numbered-core [run 43745009808](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43745009808) PASS. New `protected-numbered-v2-records.mjs` implements **strict domain-separated AES-256-GCM encrypted in-memory owner records Blob** for exact 20 core + 3 numbered tables; wrong key, changed header/IV, truncated or counterfeit files, missing financial tables/high-water are refused. Dedicated real native WebCrypto test suite and existing source-only CI wired.
+- **NOT A COMPLETE BACKUP**: no photo bytes, optional feature tables, off-device saved-file custody, full isolated D1+photo restore or hosted deployment proven. The v2 review endpoint stays DISABLED except explicit owner-review feature; no UI activation or provider write. No paid R2, Cloudflare or payment change. Do not treat signed/validated encrypted record Blob as proof of actual records+photos recoverability.
+- Both DARK Workers' real owner dashboard production/preview OFF screenshots, exact serving version/physical D1 identity and one-shot creation locks are accepted history; no repeat login, Acer, iPhone, 26 migrations or worker creation. Formal **G1/G2/G3/G8 4/10 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO**. Keep app/test code SHA distinct from later documentation-only `[skip ci]` commits. No merge/deploy/migrate/cutover without exact owner authorization.
+
+---
+
+
 ## NOV 15 — CURRENT VERIFIED CUSTOMER CREATE/EDIT BODY BOUND + DARK WORKER EVIDENCE (DRAFT SOURCE; NO DEPLOY)
 
 - **Latest actual app/test code SHA `46ed303af721c34cb72a838f8364563bc6fceda3` on PR270**, **26/26 GitHub workflows SUCCESS** including complete staging/QA synthetic [run #43743633825](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43743633825). New customer-create/EDIT API now streams and rejects JSON beyond **64,000 bytes before parsing**, mismatched Content-Length, invalid UTF-8 or malformed objects, before any D1 write; correctly preserves lost-ACK replay, duplicate-contact 409, customer numbers and all approved UI. Real source + fixture specifics in the continuity register. **Unmerged, undeployed**; do not confuse CI with hosted proof.
