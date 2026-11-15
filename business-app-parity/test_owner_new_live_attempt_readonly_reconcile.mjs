@@ -154,7 +154,11 @@ for(const patch of [
  {sqliteMasterRows:[journalTable,postLockInternalSequence,{...journalUnique,sql:'CREATE INDEX fake ON d1_migrations(name)'}]},
  {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,journalUnique]},
  {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,{type:'trigger',name:'audit',sql:'CREATE TRIGGER audit AFTER INSERT ON d1_migrations BEGIN SELECT 1; END'}]}
-])reject(()=>judge({...baseRecovery,...patch}),
- 'wrong account/lock/source, hidden data, sequence history, malformed journal or extra object blocks reauthorization readiness');
+]){
+ assert.throws(()=>judge({...baseRecovery,...patch}),
+  /FIRE_NEW_LIVE_POSTLOCK_RECOVERY_GUARD_REFUSED/,
+  'wrong account/lock/source, hidden data, sequence history, malformed journal or extra object blocks reauthorization readiness');
+ checks++;
+}
 
 console.log('PASS '+checks+'/'+checks+' NEW LIVE locked-attempt READ-ONLY offline tamper checks. NO CLOUD PROVIDER USED.');
