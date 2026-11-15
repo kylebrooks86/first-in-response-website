@@ -34,7 +34,17 @@ async function fingerprint(file,sizeMax,magic){
   if(e instanceof Error&&e.message.includes('FIRE protected recovery pair BLOCKED:'))throw e;
   stop('saved protected backup could not be read safely');
  }
- if(size!==info.size||first.toString('ascii')!==magic)
+ // A same-length file can be replaced or modified between the first
+ // lstat and the stream read. Fail closed unless the path still resolves
+ // to the exact same regular inode and metadata after hashing.
+ let final;
+ try{final=await lstat(path);}
+ catch{stop('saved protected backup disappeared during receipt read');}
+ if(!final.isFile()||final.isSymbolicLink()||
+    final.dev!==info.dev||final.ino!==info.ino||
+    final.size!==info.size||size!==info.size||
+    final.mtimeMs!==info.mtimeMs||final.ctimeMs!==info.ctimeMs||
+    first.toString('ascii')!==magic)
   stop('saved protected backup changed or has incorrect encrypted format');
  return Object.freeze({sha256:digest.digest('hex'),bytes:size});
 }
