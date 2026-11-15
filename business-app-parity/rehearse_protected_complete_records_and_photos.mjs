@@ -242,6 +242,10 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
  );
  let photoCreatedByThisRun=false;
  try{
+  // Keep the exact post-restore on-disk SQLite bytes as a local custody
+  // baseline. The separate read-only row/schema verification occurs only
+  // AFTER the photo ZIP has been completely saved and checked.
+  const initialSqliteSha256=await hashUnchangedProtectedFile(outputDb,512*1024*1024);
   const photo=await recoverSavedProtectedPhotoZip(
    protectedPhotos,outputZip,photoPhrase,{
     allowPlaintextRecovery:true,
@@ -257,6 +261,9 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
   // journal identities, schema, serial high-water, FK and file integrity.
   const savedSqlite=await verifySavedPairedRecoveredSqlite(
    outputDb,opened.core,opened.supplemental);
+  const finalSqliteSha256=await hashUnchangedProtectedFile(outputDb,512*1024*1024);
+  if(initialSqliteSha256!==finalSqliteSha256)
+   stop('recovered SQLite bytes changed during paired photo restore');
   // The saved protected inputs are checked AGAIN after actual restored SQLite
   // and photo ZIP bytes are verified. No accepted output can refer to changed
   // ciphertext or an old .firepair receipt (if the owner supplied one).
@@ -285,6 +292,7 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
    savedRecoveredPhotoZipReadBackVerified:true,
    savedRecoveredPhotoZipSha256:photo.savedRecoveredZipSha256,
    savedRecoveredSqliteReadBackVerified:savedSqlite.savedRecoveredSqliteReadBackVerified,
+   savedRecoveredSqliteUnchangedAfterPhotoRestore:true,
    allRecoveredSqliteRowsCompared:savedSqlite.allRecoveredSqliteRowsCompared,
    savedSqliteRowsIndependentlyChecked:savedSqlite.persistedRowsChecked,
    finalSqliteMigrationHistoryVerified:savedSqlite.d1MigrationHistoryRevalidated,
