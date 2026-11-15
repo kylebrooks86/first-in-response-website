@@ -6,12 +6,13 @@
  *
  * node owner_new_live_postlock_encrypted_custody.mjs backup NEW.fireliveproof
  * node owner_new_live_postlock_encrypted_custody.mjs verify EXISTING.fireliveproof
+ * node owner_new_live_postlock_encrypted_custody.mjs restore EXISTING.fireliveproof NEW_FOLDER
  * Passphrase is prompted without echo and must not be placed in shell arguments.
  */
 import {createCipheriv,createDecipheriv,createHash,pbkdf2Sync,randomBytes} from 'node:crypto';
-import {existsSync,lstatSync,readFileSync,writeFileSync} from 'node:fs';
+import {existsSync,lstatSync,readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {homedir} from 'node:os';
-import {dirname,join,resolve} from 'node:path';
+import {dirname,join,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const MAGIC=Buffer.from('FIRELV01','ascii');
@@ -122,6 +123,24 @@ export function decryptOwnerEvidence(archive,phrase){
  verifyPhysicalLiveEvidence(entries);
  return entries;
 }
+/** Explicit disaster-only recovery. Authenticate ALL original bytes before creating
+ * a new private folder. Never touch live owner evidence files or existing paths. */
+export function restoreOwnerEvidenceToNewFolder(archive,phrase,newFolder){
+ if(typeof newFolder!=='string'||!newFolder.trim())fail('explicit new private restore folder required');
+ const target=resolve(newFolder),parent=dirname(target);
+ if(target===folder||target.startsWith(folder+sep)||existsSync(target)||
+  !existsSync(parent)||!lstatSync(parent).isDirectory()||lstatSync(parent).isSymbolicLink())
+  fail('restore requires a new folder OUTSIDE the original LIVE receipt directory');
+ const files=decryptOwnerEvidence(archive,phrase); // full authentication before any write
+ mkdirSync(target,{mode:0o700}); // refuses an existing target; originals never overwritten
+ for(const entry of files){
+  writeFileSync(join(target,entry.name),entry.bytes,{flag:'wx',mode:0o600});
+  if(!readFileSync(join(target,entry.name)).equals(entry.bytes))
+   fail('restored file differs; keep private folder isolated and investigate');
+ }
+ return Object.freeze({fileCount:files.length,privateFolder:target,providerContacted:false,
+  ownerOriginalFilesChanged:false,appRestored:false,productionReady:false});
+}
 function hiddenPhrase(prompt){
  if(!process.stdin.isTTY||typeof process.stdin.setRawMode!=='function')
   fail('run from owner interactive PowerShell, never pipe/pass a password');
@@ -141,8 +160,9 @@ function hiddenPhrase(prompt){
 }
 async function main(){
  const [mode,name,...extra]=process.argv.slice(2);
- if(extra.length||!['backup','verify'].includes(mode)||typeof name!=='string')
-  fail('use: backup NEW.fireliveproof | verify EXISTING.fireliveproof');
+ if(!['backup','verify','restore'].includes(mode)||typeof name!=='string'||
+   (mode==='restore'?(extra.length!==1):(extra.length!==0)))
+  fail('use: backup NEW.fireliveproof | verify EXISTING.fireliveproof | restore EXISTING.fireliveproof NEW_EMPTY_DIR');
  const path=resolve(name);
  if(!path.endsWith('.fireliveproof'))fail('protected output must have .fireliveproof extension');
  if(mode==='backup'){
@@ -167,7 +187,13 @@ async function main(){
    fail('existing private backup not found or unsafe file type');
   const pass=await hiddenPhrase('NEW LIVE private backup passphrase (hidden): ');
   const recovered=decryptOwnerEvidence(readFileSync(path),pass);
-  console.log('FIRE LIVE EVIDENCE VERIFIED: '+recovered.length+'/3 protected files intact, no plaintext restored.');
+  if(mode==='verify'){
+   console.log('FIRE LIVE EVIDENCE VERIFIED: '+recovered.length+'/3 protected files intact, no plaintext restored.');
+  }else{
+   const result=restoreOwnerEvidenceToNewFolder(readFileSync(path),pass,extra[0]);
+   console.log('FIRE LIVE EVIDENCE RESTORED: '+result.fileCount+'/3 files into a NEW PRIVATE folder.');
+   console.log('These are PLAINTEXT receipt/lock copies; protect the destination and never substitute them into the original working folder.');
+  }
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
