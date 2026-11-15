@@ -1,5 +1,13 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — GATE4 CUSTOM-DOMAIN INVENTORY CANNOT FALSELY CLEAR ON INCOMPLETE COUNTS (SOURCE ONLY)
+
+- **New code fix on PR270:** `owner_current_dark_exposure_readonly.mjs` now requires an unfiltered Cloudflare custom-domain inventory's `result_info.total_count` to remain unchanged across pagination and to equal the sum of all returned domain entries before classifying DARK DR/NEW LIVE public exposure as absent. This closes a missed-attachment false-negative path if Cloudflare returns a truncated single/empty page or inconsistent page totals. Filtered zone inventory is intentionally excluded from this extra total-count equality rule because Cloudflare documents different unfiltered count semantics for filtered results.
+- Application source fix commit `4b5cb38002646461e4467c798711d3fe22b2c7ea`; three actual negative regression cases commit `86ae4a2cf0894a48287af8810fd2c371dc3b52e0`. Exact tested commit `86ae4a2...`, targeted offline GitHub workflow **FIRE DR hosted dark version binding evidence parser** run [43735364243](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43735364243) **SUCCESS**, including the Worker route/domain/preview exposure test job. No provider requests were issued by the tests.
+- Existing accepted hosted DR and NEW LIVE version/physical D1 readbacks are retained unchanged. There is **no real provider route/preview inventory capture** from this source fix, no deployed code, no Cloudflare / D1 / Stripe / Access modification, and no new Gate4 or Gate10 acceptance. Four formal gates remain G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; **NEW LIVE NO-GO**. Do not repeat either Worker first-create, accepted version+D1 verification, migration readbacks, Job #0001 guard, or iPhone tests.
+
+---
+
 ## NOV 15 — current PR270 source correction + real CI guard repair (NO DEPLOY)
 
 - Current application/test code head **`2fab1ea4b76dc80896118087fde7faf96de6f2be`**, then exact security-workflow pin repair **`d4a6377caaca6eeb7dd5fdf47c965a100389235e`**. The existing distinct Gate4 worker exposure GET-only checker now handles legitimately empty Cloudflare pagination and filtered total-count responses without silently accepting malformed, contradictory or incomplete pages. **21/21 targeted offline tests passed** in actual GitHub job [43734798181](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43734798181).
