@@ -249,6 +249,10 @@ jobs:
           # object-key references BEFORE touching R2. Check simulated false ACK,
           # shared-key drift, MIME/size mismatch and cleanup uncertainty.
           node scripts/test-photo-delete-integrity.mjs
+      - name: Gate 7 strict offline photo ZIP restore rejects forged directory metadata (no provider)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-offline-photo-vault.mjs
       - name: Gate 5 missing refund table/indexes block all three public financial pages before private data lookup (new TSX SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
