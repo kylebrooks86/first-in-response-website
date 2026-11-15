@@ -91,6 +91,8 @@ jobs:
           # The Gate7 legacy workflow pin below is the exact separately-tested
           # 2026-11-12 immutable blob including private-file negative checks;
           # all other verifier and protected website blobs remain unchanged.
+          # Gate9's former artifact-download race was repaired in an exact-scope
+          # read-only same-run 5-attempt retry; update ONLY that workflow blob pin.
           # Real public pages, assets, calculator and unrelated paths remain protected.
           reviewed_paths=(
             verify-site.mjs verify-site-ci.mjs ci/test-site-verifier-scope.mjs
@@ -115,7 +117,7 @@ jobs:
             ccf96985afb7949af8999792708ab4761fa308b3
             5c4c28a43de2d6be5c1e6de0ba0cfd2b4c6e784e
             6c9aab68423963fa85a5b295ce4c1a16f676a7da
-            0be8fac63f391d5526f54823f0e641951b134116
+            96b4d803080113a94db0c4d32507c3c95f944489
             0e9f192d377226d65639324c09b037b5080cbea6
             b290edbc2ae4d2134d5eecb5dc79b04b92235ae8
             39815146129c81a48cdc5631eff4370ae0116a58
