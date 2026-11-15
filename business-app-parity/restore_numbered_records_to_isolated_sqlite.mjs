@@ -14,6 +14,7 @@ import {fileURLToPath} from 'node:url';
 import {validateNumberedCoreRecordsV2,NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './shared/lib/numbered-records-v2-preflight.mjs';
 
 import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
+import {validateCompleteSupplementalCustomerHistory} from './validate_supplemental_customer_history.mjs';
 import {fingerprintIsolatedSqliteSchema,requireSameIsolatedSchema} from './fingerprint_isolated_sqlite_schema.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './shared/lib/new-live-migration-journal.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
@@ -111,6 +112,7 @@ function restore(db,archive,supplemental){
  requireSameIsolatedSchema(archive.schemaIdentity,actualSchema);
  requireSameIsolatedSchema(supplemental.schemaIdentity,actualSchema);
  const supplementalState=validateSupplementalRecoveryArchive(supplemental,extras);
+ validateCompleteSupplementalCustomerHistory(archive,supplemental);
  // Restore requires AUTOINCREMENT number history to survive deleted rows.
  for(const t of ['fire_customer_numbers','fire_job_numbers'])
   if(!/\bAUTOINCREMENT\b/i.test(found.get(t)||''))
