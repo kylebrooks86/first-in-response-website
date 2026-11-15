@@ -9,7 +9,7 @@
  * Stripe webhook endpoint metadata is returned by the test-mode API.
  */
 import {
-  REQUIRED_PUBLIC_ACCESS_PATHS, OWNER_ONLY_PATH_SAMPLES,
+  OWNER_ONLY_PATH_SAMPLES,
   accessPathPatternMatches,
 } from '../public-access-contract.mjs';
 import {
@@ -24,6 +24,16 @@ export const GATE9_TEST_ORIGIN='https://fire-stripe-test-20261101.kyle-bfc.worke
 export const GATE9_TEST_CALLBACK=GATE9_TEST_ORIGIN+STRIPE_TEST_WEBHOOK_PATH;
 // This legacy endpoint is forbidden as the new refund-test callback.
 export const LEGACY_SITES_CALLBACK='https://fire-app.kylebrooks8605.chatgpt.site/api/payments/webhook';
+/**
+ * Actual accepted TEST Worker public paths at the last owner-approved Access
+ * checkpoint: EXACTLY seven. The separate global customer-link policy permits
+ * eleven paths for a different deployment, so it must not silently expand
+ * TEST Worker exceptions on an isolated Stripe test host.
+ */
+export const GATE9_TEST_ACCEPTED_PUBLIC_PATHS=Object.freeze([
+  '/estimate/*','/invoice/*','/pay/*',
+  '/_next/static/*','/assets/*','/fire-app-logo.png','/favicon.ico',
+]);
 
 function stop(reason){throw Error('FIRE GATE9 PROVIDER ISOLATION BLOCKED: '+reason);}
 function obj(v){return v!==null&&typeof v==='object'&&!Array.isArray(v);}
@@ -34,11 +44,14 @@ function reviewedOverrides(overrides){
   for(const p of overrides){
     if(!exactKeys(p,['behavior','path_pattern'])||p.behavior!=='public'||typeof p.path_pattern!=='string')
       stop('Unreviewed Access override shape or behavior');
-    if(!REQUIRED_PUBLIC_ACCESS_PATHS.includes(p.path_pattern))
+    if(!GATE9_TEST_ACCEPTED_PUBLIC_PATHS.includes(p.path_pattern))
       stop('Unapproved existing public path: '+p.path_pattern);
     paths.push(p.path_pattern);
   }
   if(new Set(paths).size!==paths.length)stop('Duplicate public Access path');
+  if(paths.length!==GATE9_TEST_ACCEPTED_PUBLIC_PATHS.length||
+     GATE9_TEST_ACCEPTED_PUBLIC_PATHS.some(path=>!paths.includes(path)))
+    stop('Missing or unexpected existing TEST Worker public exception');
   for(const privatePath of OWNER_ONLY_PATH_SAMPLES){
     if(paths.some(p=>accessPathPatternMatches(p,privatePath)))
       stop('Existing Access override exposes owner/private route');
@@ -91,12 +104,16 @@ export function reviewWebhookAccessDelta({expectedWorkerId,before,after}={}){
 
 /**
  * Read-only review of a NEW, provider-returned Stripe TEST endpoint and
- * preserved legacy endpoint. No secrets, events or customer data emitted.
- * Never treats a proposed endpoint's presence as successful signed delivery.
+ * preserved legacy endpoint. The legacy Sites endpoint can be enabled or
+ * disabled as seen at the start of the review (owner's Nov 15 provider GET
+ * showed disabled); its exact before/after state MUST remain unchanged.
+ * No secrets, events or customer data emitted. Never treats a proposed
+ * endpoint's presence as successful signed delivery.
  */
 export function reviewStripeTestEndpointMetadata({legacyBefore,legacyAfter,newTestEndpoint}={}){
   const goodLegacy=(e)=>obj(e)&&typeof e.id==='string'&&/^we_[a-zA-Z0-9]+$/.test(e.id)&&
-    e.url===LEGACY_SITES_CALLBACK&&e.livemode===false&&e.status==='enabled'&&
+    e.url===LEGACY_SITES_CALLBACK&&e.livemode===false&&
+    (e.status==='disabled'||e.status==='enabled')&&
     Array.isArray(e.enabled_events)&&e.enabled_events.every(x=>typeof x==='string');
   if(!goodLegacy(legacyBefore)||!goodLegacy(legacyAfter))
     stop('Verified original legacy TEST webhook inventory required');
