@@ -81,16 +81,38 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
   providerSourceIdentityVerified:false,ownerApprovedRelease:false,gate7Accepted:false
  });
 }
-export function compareNumberedRecordAndPhotoPairSeals(source,restored){
- const required=['recordsSha256','photosSha256','pairSha256','customerCount','photoCount',
-  'coreRecordRows','numberedJobCount','customerHighWater','jobHighWater'];
- if(!source||!restored||source.format!=='fire-records-device-photo-pair-seal'||
-    restored.format!==source.format||source.version!==1||restored.version!==1||
-    required.some(k=>source[k]!==restored[k])||
-    !/^[0-9a-f]{64}$/.test(source.pairSha256)||
-    source.sourceOnly!==true||restored.sourceOnly!==true||
-    source.gate7Accepted!==false||restored.gate7Accepted!==false)
+/**
+ * Independently recompute the pair digest from BOTH component fingerprints
+ * before declaring two owner/recovery seals equivalent. Equal JSON objects
+ * alone are NOT a cryptographic validation: two identically corrupted pair
+ * headers previously passed comparison. These files are still source-only
+ * integrity checks, not a real physical/photo restore.
+ */
+export async function compareNumberedRecordAndPhotoPairSeals(source,restored){
+ const digestFields=['recordsSha256','photosSha256','pairSha256'];
+ const counts=['customerCount','photoCount','coreRecordRows',
+  'numberedJobCount','customerHighWater','jobHighWater'];
+ const frozenFlags=['sourceOnly','physicallyStoredBackupVerified',
+  'independentRestoreVerified','supplementalTableCoverageVerified',
+  'hostedPhotoCoverageVerified','providerSourceIdentityVerified',
+  'ownerApprovedRelease','gate7Accepted'];
+ const expectedKeys=['format','version',...digestFields,...counts,...frozenFlags].sort();
+ const validSeal=value=>value&&typeof value==='object'&&!Array.isArray(value)&&
+  Object.keys(value).sort().join(',')===expectedKeys.join(',')&&
+  value.format==='fire-records-device-photo-pair-seal'&&value.version===1&&
+  digestFields.every(k=>typeof value[k]==='string'&&/^[0-9a-f]{64}$/.test(value[k]))&&
+  counts.every(k=>Number.isSafeInteger(value[k])&&value[k]>=0)&&
+  value.sourceOnly===true&&frozenFlags.filter(k=>k!=='sourceOnly')
+   .every(k=>value[k]===false);
+ if(!validSeal(source)||!validSeal(restored)||
+    [...digestFields,...counts].some(k=>source[k]!==restored[k]))
   fail('source/isolated-restore record or photo fingerprints differ');
+ // This is the same domain-separated algorithm used to create the pair seal.
+ // Never accept a supplied pairSha256 value without recomputing it locally.
+ const actualPair=await sha(enc.encode('FIRE-RECOVERY-PAIR-V1\\n'+
+   source.recordsSha256+'\\n'+source.photosSha256));
+ if(source.pairSha256!==actualPair||restored.pairSha256!==actualPair)
+  fail('record and photo digests do not match authenticated pair fingerprint');
  return Object.freeze({sourceAndDestinationMatch:true,
   physicalRecoveryProven:false,gate7Accepted:false,remoteWritesPerformed:false});
 }
