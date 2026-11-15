@@ -1,5 +1,14 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — CURRENT VERIFIED CUSTOMER CREATE/EDIT BODY BOUND + DARK WORKER EVIDENCE (DRAFT SOURCE; NO DEPLOY)
+
+- **Latest actual app/test code SHA `46ed303af721c34cb72a838f8364563bc6fceda3` on PR270**, **26/26 GitHub workflows SUCCESS** including complete staging/QA synthetic [run #43743633825](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43743633825). New customer-create/EDIT API now streams and rejects JSON beyond **64,000 bytes before parsing**, mismatched Content-Length, invalid UTF-8 or malformed objects, before any D1 write; correctly preserves lost-ACK replay, duplicate-contact 409, customer numbers and all approved UI. Real source + fixture specifics in the continuity register. **Unmerged, undeployed**; do not confuse CI with hosted proof.
+- **Both DARK Workers already have REAL owner provider dashboard screenshot evidence** (NEW LIVE 10:48 CST; DR 10:57 CST Nov15) that production workers.dev and preview workers.dev toggles are OFF and each Worker's custom domain/route table is empty; original screenshot SHA-256 custody in `evidence/FIRE_*_DARK_DASHBOARD_DOMAIN_EVIDENCE_20261115.md` and Issue #19. Existing physical DR and NEW LIVE serving-version+D1 bindings remain independently accepted. **DO NOT repeat their first creates, same readbacks, Acer/iPhone evidence, or stopped existing-Wrangler token attempt**.
+- **Formal gates remain 4/10 accepted G1/G2/G3/G8**; G4/G5/G6/G7/G9/G10 OPEN. Worker dashboard screenshots are **not** exhaustive account-zone route/Access, hosted nonowner denial, hosted QA-master parity, future off-device records+photos recovery or signed Stripe TEST. NEW LIVE DARK, **NO-GO**. No deploy, SQL, Stripe, paid Cloudflare or R2, new login, merge, DNS or cutover without exact authorization. Continue *actual missing source work* only, test changed behavior, document precise CI/hosted distinction.
+
+---
+
+
 ## NOV 15 — OPTIONAL OWNER EXISTING WRANGLER SESSION GATE4 GET EVIDENCE (SOURCE ONLY)
 
 - `owner_current_dark_exposure_existing_session.mjs` adds a practical existing-Wrangler-auth bridge for the **distinct still-unverified** public route/preview/custom-domain evidence. Reuses installed pinned `wrangler@4.162.0 auth token --json` via local offline `npx-cli.js --no-install`; accepts ONLY preexisting OAuth/API token, keeps token in process memory, never prints/stores it, never invokes login or deployment, and fails closed without retry. Wrangler can refresh existing OAuth credentials automatically; following credential retrieval all Cloudflare inventory requests are GET-only.
