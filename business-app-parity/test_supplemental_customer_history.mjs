@@ -32,7 +32,7 @@ const without={tables:{}};
 const service={tables:{estimate_service_locations:[location]}};
 const propertyTriple={tables:{
  estimate_service_locations:[location],customer_properties:[property],
- estimate_property_links:[link]
+ estimate_property_links:[link],property_recovery_guard:[]
 }};
 const base=validateCompleteSupplementalCustomerHistory(core,without);
 yes(base.candidateFeatureTablesPresent===false&&base.gate7Accepted===false&&
@@ -48,6 +48,10 @@ yes(complete.knownLocationRows===1&&complete.knownProperties===1&&
 const previous=JSON.stringify({core,propertyTriple});
 const negatives=[
  ['Missing all service addresses',{tables:{customer_properties:[property],estimate_property_links:[link]}}],
+ ['Missing native property recovery guard',{tables:{estimate_service_locations:[location],
+  customer_properties:[property],estimate_property_links:[link]}}],
+ ['Temporary property recovery guard was left occupied',{tables:{...propertyTriple.tables,
+  property_recovery_guard:[{id:1}]}}],
  ['Orphan property table',{tables:{estimate_service_locations:[location],customer_properties:[property]}}],
  ['Orphan property link table',{tables:{estimate_service_locations:[location],estimate_property_links:[link]}}],
  ['Wrong customer service address', {tables:{...propertyTriple.tables,
