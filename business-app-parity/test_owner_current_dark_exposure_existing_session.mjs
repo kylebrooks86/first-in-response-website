@@ -23,7 +23,7 @@ for(const [name,raw] of [
  ['reject API key and email mode',JSON.stringify({type:'api_key',key:secret,email:'owner@example.org'})],
  ['reject empty secret',JSON.stringify({type:'oauth',token:''})],
  ['reject short secret',JSON.stringify({type:'oauth',token:'abc'})],
- ['reject whitespace secret',JSON.stringify({type:'oauth',token:secret+'\\nBAD'})],
+ ['reject whitespace secret',JSON.stringify({type:'oauth',token:secret+String.fromCharCode(10)+'BAD'})],
  ['reject unknown token type',JSON.stringify({type:'new-login',token:secret})],
  ['reject null/array',JSON.stringify([])]
 ]){
