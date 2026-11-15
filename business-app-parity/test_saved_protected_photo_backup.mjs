@@ -15,6 +15,7 @@ import {inspectOwnerSavedNumberedPhotoPair} from './verify_saved_numbered_photo_
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION} from './shared/lib/numbered-records-v2-preflight.mjs';
 import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
 import {recoverSavedProtectedPhotoZip,verifySavedRecoveredPhotoZip} from './recover_saved_protected_photo_zip.mjs';
+import {assertPairedRecoveredPhotoEvidence} from './rehearse_protected_complete_records_and_photos.mjs';
 import {PHOTO_RESTORE_ALL_CUSTOMERS,photoMutationScope,requiresAllCustomerPhotoReview,mayReviewPhotoMutation} from './shared/lib/photo-restore-interruption-scope.mjs';
 let n=0;const ok=(v,msg)=>{assert.ok(v,msg);n++;};
 const reject=async(fn,match)=>{await assert.rejects(fn,match);n++;};
@@ -138,6 +139,31 @@ try{
  ok(recovered.savedRecoveryZipReadBackVerified&&recovered.savedRecoveredZipSha256===sha(original)&&
   recovered.savedRecoveryPhotoCount===1,
   'real recovery independently reread saved ZIP and verified EACH original image byte');
+
+ // The COMPLETE paired encrypted restore may only return a receipt if EVERY
+ // original image passed CRC + SHA from the SAVED plaintext ZIP. Previously
+ // a missing proof flag passed because only explicit false was rejected.
+ ok(recovered.allFilesCryptographicallyVerified===true,
+  'saved recovered gallery explicitly attests every original photo byte');
+ const pairedPhotoProof={...recovered,matchingCustomerRecordsVerified:true};
+ ok(assertPairedRecoveredPhotoEvidence(pairedPhotoProof)===true,
+  'complete saved-photo proof is accepted for an authenticated records pair');
+ for(const patch of [
+  {allFilesCryptographicallyVerified:undefined},
+  {allFilesCryptographicallyVerified:null},
+  {allFilesCryptographicallyVerified:false},
+  {allFilesCryptographicallyVerified:'true'},
+  {savedRecoveryZipReadBackVerified:false},
+  {savedRecoveredZipSha256:'0'.repeat(64)},
+  {savedRecoveryPhotoCount:0},
+  {matchingCustomerRecordsVerified:false},
+  {providerWriteAttempted:true},
+  {gate7Accepted:true}
+ ]){
+  await reject(Promise.resolve().then(()=>assertPairedRecoveredPhotoEvidence(
+   {...pairedPhotoProof,...patch})),/saved recovered photo ZIP/i);
+ }
+
  ok(sha(readFileSync(recoveredPath))===sha(original),
   'recovered original ZIP is byte-identical to protected source plaintext');
  const savedProof=inspectStoredFirePhotoZip(original);
