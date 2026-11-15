@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {assetContentType} from './dr_noassets_runtime.mjs';
 import {prepareCurrentDarkWorkerPackage,verifyCurrentDarkWorkerPackage} from './prepare_current_dark_worker_package.mjs';
+import {prepareCurrentDarkFirstCreateOverlay,verifyCurrentDarkFirstCreateOverlay} from './prepare_current_dark_first_create_overlay.mjs';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const SHA='b'.repeat(40);
 const DR='5e55c5b7-cd67-4c8f-a52e-40f71b5d3145';
@@ -121,6 +122,49 @@ try{
     target+' exact latest compiled SSR bytes preserved');
   ok(verifyCurrentDarkWorkerPackage(target,out).filesVerified>40,
     target+' standalone extracted-package verifier accepts saved source');
+
+  // NEW real first-create packaging: leave original saved Worker untouched,
+  // remove ONLY Cloudflare's future-login secret requirement in an out-of-place
+  // DARK copy. No Wrangler, provider, migration or authentication operations.
+  const firstCreate=join(f.root,'first-create-only-copy');
+  const overlay=prepareCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate);
+  ok(overlay.firstRequestDenied===true&&overlay.noProviderCalls===true&&
+     overlay.deployed===false&&overlay.firstCreationAuthorized===false,
+     target+' creates private first-create overlay without provider action');
+  const firstCfg=join(firstCreate,'server/wrangler.json');
+  const copied=JSON.parse(readFileSync(firstCfg,'utf8'));
+  ok(!Object.hasOwn(copied,'secrets')&&copied.vars[f.spec.prefix+'_AUTH_ENABLED']==='blocked'&&
+     copied.workers_dev===false&&copied.preview_urls===false&&
+     copied.d1_databases[0].database_id===f.spec.id&&copied.r2_buckets.length===0,
+     target+' removes only future login-secret declaration, preserves physical D1 and route lock');
+  ok(verifyCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate).filesVerified>40,
+     target+' privately saved overlay independently verified');
+  denied(()=>verifyCurrentDarkFirstCreateOverlay(target==='dr'?'new-live':'dr',out,SHA,firstCreate),
+     target+' wrong-target overlay');
+  denied(()=>verifyCurrentDarkFirstCreateOverlay(target,out,'a'.repeat(40),firstCreate),
+     target+' wrong source SHA overlay');
+  denied(()=>prepareCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate),
+     target+' existing overlay cannot be overwritten');
+  const originalFirstCfg=readFileSync(firstCfg);
+  copied.vars[f.spec.prefix+'_AUTH_ENABLED']='owner-approved';
+  put(firstCfg,JSON.stringify(copied));
+  denied(()=>verifyCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate),
+     target+' overlay login must remain blocked');
+  put(firstCfg,originalFirstCfg);
+  copied.vars[f.spec.prefix+'_AUTH_ENABLED']='blocked';
+  copied.r2_buckets=[{binding:'BUCKET',bucket_name:'unapproved'}];
+  put(firstCfg,JSON.stringify(copied));
+  denied(()=>verifyCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate),
+     target+' overlay cannot add paid photo storage');
+  put(firstCfg,originalFirstCfg);
+  const originalCopiedAsset=join(firstCreate,'server',f.metadata[0].module);
+  const savedCopiedAsset=readFileSync(originalCopiedAsset);
+  put(originalCopiedAsset,Buffer.from('tampered-once-copied'));
+  denied(()=>verifyCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate),
+     target+' original Data asset cannot change after copy');
+  put(originalCopiedAsset,savedCopiedAsset);
+  ok(verifyCurrentDarkFirstCreateOverlay(target,out,SHA,firstCreate).deployed===false,
+     target+' original source and overlay remain verifiable after negative controls');
   denied(()=>verifyCurrentDarkWorkerPackage(target==='dr'?'new-live':'dr',out),
     target+' wrong-target release verifier');
 
