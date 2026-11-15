@@ -85,7 +85,7 @@ const exactKeys=[
  'futureSecretDeclarationOnlyRemoved','originalCompiledModulesUnchanged',
  'allRequestsDeniedBeforeActivation','publicRoutesDisabled','paidStorageDisabled',
  'ownerAuthenticationEnabled','firstCreateAuthorized','providerContacted',
- 'workerCreated','workerDeployed','physicalD1Queried','databaseMigrated',
+ 'workerCreatedByOverlay','workerDeployedByOverlay','physicalD1Queried','migrationPerformedByOverlay',
  'stripeModified','hostedParityAccepted','gate4Accepted','gate5Accepted',
  'gate6Accepted','gate7Accepted','gate9Accepted','gate10Accepted'
 ].sort();
@@ -134,7 +134,7 @@ export function verifyCurrentDarkFirstCreateOverlay(target,sourceFolder,expected
   blocked('overlay receipt identity/source-byte custody not exact');
  for(const key of [
   'ownerAuthenticationEnabled','firstCreateAuthorized','providerContacted',
-  'workerCreated','workerDeployed','physicalD1Queried','databaseMigrated',
+  'workerCreatedByOverlay','workerDeployedByOverlay','physicalD1Queried','migrationPerformedByOverlay',
   'stripeModified','hostedParityAccepted','gate4Accepted','gate5Accepted',
   'gate6Accepted','gate7Accepted','gate9Accepted','gate10Accepted'
  ])if(receipt[key]!==false)blocked('overlay receipt falsely asserts provider/acceptance');
@@ -176,8 +176,8 @@ export function prepareCurrentDarkFirstCreateOverlay(target,sourceFolder,expecte
   allRequestsDeniedBeforeActivation:true,
   publicRoutesDisabled:true,paidStorageDisabled:true,
   ownerAuthenticationEnabled:false,firstCreateAuthorized:false,
-  providerContacted:false,workerCreated:false,workerDeployed:false,
-  physicalD1Queried:false,databaseMigrated:false,stripeModified:false,
+  providerContacted:false,workerCreatedByOverlay:false,workerDeployedByOverlay:false,
+  physicalD1Queried:false,migrationPerformedByOverlay:false,stripeModified:false,
   hostedParityAccepted:false,
   gate4Accepted:false,gate5Accepted:false,gate6Accepted:false,
   gate7Accepted:false,gate9Accepted:false,gate10Accepted:false
