@@ -69,6 +69,30 @@ check((await call()).status===409,'Cross-customer invoice blocks a paid owner St
 check(status()==='open'&&paymentCount()===0,'Wrong-customer invoice leaves the reservation and ledger untouched');
 check(network===net+1,'Rejected owner reconciliation makes only its single verifying Stripe GET');
 sql.prepare("UPDATE invoices SET customer_id='cust-owner' WHERE id='inv-owner'").run();
+// The real paid-event reconciler must not fill in missing Stripe-created
+// financial metadata. Each negative case starts from a fresh valid session,
+// and must preserve the original open reservation and the unpaid invoice.
+const missingPaidIdentity=[
+ ['missing FIRE job reference',s=>{delete s.client_reference_id;},'reference_mismatch'],
+ ['null FIRE job reference',s=>{s.client_reference_id=null;},'reference_mismatch'],
+ ['missing payment kind',s=>{delete s.metadata.payment_type;},'invalid_payment_type_metadata'],
+ ['unknown payment kind',s=>{s.metadata.payment_type='deposit-extra';},'invalid_payment_type_metadata'],
+ ['missing principal cents',s=>{delete s.metadata.expected_amount_cents;},'missing_or_invalid_checkout_amount_metadata'],
+ ['missing tip cents',s=>{delete s.metadata.tip_amount_cents;},'missing_or_invalid_checkout_amount_metadata'],
+ ['missing total-charge cents',s=>{delete s.metadata.expected_charge_cents;},'missing_or_invalid_checkout_amount_metadata'],
+ ['nondecimal principal cents',s=>{s.metadata.expected_amount_cents='1e4';},'missing_or_invalid_checkout_amount_metadata'],
+ ['fractional tip cents',s=>{s.metadata.tip_amount_cents='0.0';},'missing_or_invalid_checkout_amount_metadata'],
+ ['sign-prefixed total-charge cents',s=>{s.metadata.expected_charge_cents='+10000';},'missing_or_invalid_checkout_amount_metadata'],
+];
+for(const [name,mutate,reason] of missingPaidIdentity){
+ const candidate=structuredClone(session());
+ mutate(candidate);
+ const decision=await stripe.reconcileStripeCheckout(DB,candidate);
+ check(decision.ok===false&&decision.reason===reason,'Reject paid Stripe event: '+name);
+ check(status()==='open'&&paymentCount()===0&&
+   sql.prepare("SELECT status FROM invoices WHERE id='inv-owner'").get().status==='sent',
+   'Invalid metadata leaves reservation, invoice and payment ledger untouched: '+name);
+}
 check((await call('bad','cs_test_ownerfix')).status===400,'Malformed reservation rejected');
 remote=session();remote.metadata.estimate_id='wrong-job';
 check((await call()).status===409,'Cross-job Stripe session rejected');check(status()==='open'&&paymentCount()===0,'Cross-job rejection does not change the D1 reservation or ledger');
