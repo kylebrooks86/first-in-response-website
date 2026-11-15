@@ -12,12 +12,30 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkPackage} from './owner_current_dark_first_create_once_approved.mjs';
 const script=fileURLToPath(new URL('./owner_current_dark_first_create_once_approved.mjs',import.meta.url));
+const launcherSource=readFileSync(script,'utf8');
+const createBody=launcherSource.slice(launcherSource.indexOf('async function createDark('));
+const at=needle=>createBody.indexOf(needle);
 let done=0;
 const pass=(v,label)=>{assert.ok(v,label);done++;};
 const deny=(fn,label)=>{assert.throws(fn,/FIRE ONE-SHOT DARK FIRST-CREATE STOP/,label);done++;};
 const run=(mode,target,archive)=>spawnSync(process.execPath,[script,mode,target,archive],{
  encoding:'utf8',env:{...process.env,CI:'true',GITHUB_ACTIONS:'true'}
 });
+pass(launcherSource.includes("[npmCli,'--no-install','wrangler@4.162.0',...args]")&&
+ !launcherSource.includes("[npmCli,'--yes'"),'pinned Wrangler cannot auto-install npm code');
+const workspaceAt=at('mkdirSync(workspace,{recursive:false');
+pass(workspaceAt>0&&at("const v=run(['--version'],ACCOUNT)")<workspaceAt,
+ 'installed Wrangler check precedes durable workspace creation');
+pass(at('verifyOwnerAccountReadback(who,ACCOUNT)')<workspaceAt,
+ 'authenticated owner membership precedes durable workspace creation');
+pass(at('verifyPhysicalD1InfoReadback(db,spec.db,spec.uuid)')<workspaceAt,
+ 'physical target D1 check precedes durable workspace creation');
+pass(at('if(answer!==required)')<at('verifyNewWorkerAbsentReadback(prior)')&&
+ at('verifyNewWorkerAbsentReadback(prior)')<at("const lock=join(workspace,'REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json')"),
+ 'final absent-Worker read occurs after consent and immediately before one-shot lock');
+pass(createBody.includes("if(!existsSync(join(workspace,'REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json')))")&&
+ createBody.includes('rmSync(workspace,{recursive:true,force:true});'),
+ 'only lock-free script-owned staging workspace is cleaned up after preflight failure');
 deny(()=>checkPackage('not-a-target','irrelevant.zip'),'invalid environment denied');
 for(const target of ['dr','new-live']){
  deny(()=>checkPackage(target,join(tmpdir(),'fire-owner-firstcreate-ABSENT.zip')),
