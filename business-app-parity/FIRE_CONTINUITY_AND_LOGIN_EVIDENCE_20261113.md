@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — OWNER EXPLICIT DR-ONLY DARK FIRST-CREATE APPROVAL (AUTHORIZATION ONLY)
+
+- On November 15, 2026, owner **explicitly replied "approve"** to creating the **ONE brand-new private `fire-fullapp-dr` Worker**, using the reviewed current QA-master DR first-create ZIP against the EXISTING independent physical DR D1 `fire-fullapp-dr-db`, UUID `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145`. Consent captured exactly in [Issue #19 comment 6895797790](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6895797790).
+- Authorized **only** the initial DARK DR Worker creation with `workers_dev:false`, `preview_urls:false`, no public routes/owner login, photo mode `owner-device-zip`, no R2/paid Cloudflare, no Stripe/payments, no schema or data writes, no Access/secret change, no QA/STAGING/TEST/NEW LIVE/LIVE Worker change, no Git merge, DNS or cutover. **NEW LIVE has NOT been approved.**
+- Execution has **NOT** occurred in this chat; Cloudflare has NOT created the Worker as a result of this approval. The intended execution method remains the **reviewed current PR270 interactive owner-Acer** `node business-app-parity/owner_current_dark_first_create_once_approved.mjs create dr EXACT_REVIEWED_DR_ZIP` with ZIP SHA256 `f0f307bca99d44c796e3d966c2de424c47173deb70168da73c3c87a63ad21ef4`, 3,100,484 bytes, source parent `e27b39df06c1ed4ff63cd437e39fd3e314142eec`, the previously accepted original private Drive ZIP, installed Wrangler 4.162.0, owner account + physical DR D1 read-only identity, exact typed local owner confirmation, last-moment absent Worker proof, durable no-retry attempt lock before any first provider write. A prior failed/uncertain one-shot must NEVER be retried; first collect read-only evidence. Do not use obsolete scripts or repeat unsuccessful Cloudflare Work-browser login sequences.
+- Consent recorded against current PR270 documentation-inclusive head `5a8348d5fd5bc63bb4f2a0e059a151e2b54a3c69` at read and reviewed changed-code SHA `bb1508021f645a2be377d28449129749d690a84b`. Documentation-only recording does NOT mutate tested worker source. Production Gates 1/2/3/8 accepted = **4/10**; G4/G5/G6/G7/G9/G10 remain OPEN, NEW LIVE NO-GO. After owner local attempt, attach sanitized one-shot outcome and only read-only postcreation provider metadata before any further authorization.
+
+---
+
+
 ## NOV 15 — OWNER FIRST-CREATE RELEASE LAUNCHER FIXED BEFORE HOSTED ATTEMPT (CURRENT SOURCE)
 
 - **Active main-based draft PR270** code commits `0488c87bc8aa9a4e48b2424ab4deafdc714c86e7` and **`bb1508021f645a2be377d28449129749d690a84b`** (focused tests). DRAFT/UNMERGED/UNDEPLOYED. These are owner release-engineering changes, **not** changes to the frozen exact-source DR or NEW LIVE reviewed first-create compiled ZIP files. Prior exact-source parent `e27b39df06c1ed4ff63cd437e39fd3e314142eec` and its owner-private SHA256-verified archives remain accepted, without re-download or repackaging.
