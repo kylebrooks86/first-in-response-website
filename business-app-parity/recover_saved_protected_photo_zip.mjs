@@ -8,6 +8,7 @@
  * node recover_saved_protected_photo_zip.mjs BACKUP.firephotos OUTPUT.zip --allow-plaintext-recovery
  * Output must not already exist; permissions are owner-only (0600).
  */
+import {createHash} from 'node:crypto';
 import {readFile,open,unlink,lstat} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -63,6 +64,7 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  catch{stop('encrypted source file is unreadable');}
  if(protectedBytes.length<=64||protectedBytes.length>MAX_FILE)
   stop('unsupported encrypted source size');
+ const protectedPhotoSourceSha256=createHash('sha256').update(protectedBytes).digest('hex');
  const source=new Blob([protectedBytes]);
  if(!await isProtectedOfflinePhotoArchive(source))
   stop('source is not an encrypted FIRE photo backup');
@@ -111,6 +113,7 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
  }
  return Object.freeze({
   photoCount:proof.photoCount,distinctCustomerIds:proof.distinctCustomerIds,
+  protectedPhotoSourceSha256,
   verifiedZipSha256:proof.verifiedZipSha256,...readback,
   allFilesCryptographicallyVerified:
     proof.allFilesCryptographicallyVerified===true&&
