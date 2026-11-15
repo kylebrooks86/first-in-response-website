@@ -176,6 +176,13 @@ function ensureNoEarlierLocks(target){
  }
 }
 async function createDark(target,archive){
+ // G4 physical evidence on 2026-11-14 proves DR was already created once:
+ // Worker fire-fullapp-dr, version b7c42773-5a93-4c6c-91d2-83cdb8e857d9,
+ // followed by owner read-only D1 UUID/dark-variable binding verification.
+ // A newer handoff incorrectly labeled it absent. This source must never offer
+ // a second DR FIRST CREATE, even on a different Acer with no historical lock.
+ // Keep INSPECT read-only available; NEW LIVE remains independently gated.
+ if(target==='dr')blocked('DR fire-fullapp-dr was ALREADY created on 2026-11-14 (version b7c42773-5a93-4c6c-91d2-83cdb8e857d9); never repeat first-create. Preserve V3 attempt lock; use existing Worker read-only verification.');
  if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
     process.env.CI||process.env.GITHUB_ACTIONS||process.env.TF_BUILD)
   blocked('first creation requires interactive owner Acer Windows, never CI/browser/automation');
