@@ -1,5 +1,12 @@
 # FIRE Business App parity requirement
 
+## November 15, 2026 — MANDATORY correction: DR first-create was COMPLETED November 14
+
+**STOP: NEVER run DR first-create again.** GitHub Issue #19 [actual owner Cloudflare first-create evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6885654676) records `fire-fullapp-dr` successfully created via Acer V3 with version `b7c42773-5a93-4c6c-91d2-83cdb8e857d9`, no public deployment targets, then [physical D1/dark-variable binding proof PASSED](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6885900789). Preserve the V3 attempt lock. This prior physical event supersedes Nov 15 misleading "not yet created" handoff and repeat-creation approval. Do not redeploy/recreate/overwrite DR. Code on PR270 now hard-blocks `create dr` even if owner Acer lacks the V3 lock (commits `c334b0b` + `74308b2`). `inspect dr` remains offline; NEW LIVE is separate and not provider-approved. Accepted DR migrations 26/26, hosted identity proof, new LIVE migrations 26/26 and Job #0001 protection, QA tests preserved, not repeated. Formal 4/10 Gates 1/2/3/8 accepted; other six OPEN; NEW LIVE NO-GO. Use latest continuity top for current truth.
+
+---
+
+
 ## November 15, 2026 — latest PR270 owner first-create safety repair
 
 - **Changed-code head `bb1508021f645a2be377d28449129749d690a84b`**, two reviewed source commits on existing main-based DRAFT PR270; continuity-only [skip ci] docs afterward. Fixed future owner DARK first-create runtime: **no Wrangler auto-install (`npx --no-install`)**, authenticated exact account/physical target D1/version prerequisites **before** materializing a durable Acer staging workspace, final read-only Worker-absent 10007 check **after typed consent directly before the immutable one-shot attempt lock**, cleanup of only newly created lock-free staging on preflight failure, **NEVER delete lock or retry after provider attempt**. Six focused change-specific tests added and wired into existing DR/NEW LIVE workflow.
