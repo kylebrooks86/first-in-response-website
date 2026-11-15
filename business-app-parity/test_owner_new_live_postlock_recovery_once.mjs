@@ -3,13 +3,15 @@
  * No Wrangler, Cloudflare, D1, Worker, paid R2 or Stripe calls, ever in CI.
  */
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {mkdtempSync,readFileSync,rmSync,existsSync,statSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {
  requireNewPostlockConsent,validateRecoveryPreservation,
- validateRecoveryLocalSqlPackage,createDistinctRecoveryOneShotLock
+ validateRecoveryLocalSqlPackage,createDistinctRecoveryOneShotLock,
+ verifyPostlockReceiptEvidence
 } from './owner_new_live_postlock_recovery_once_separately_approved.mjs';
 const live='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
 const orig={
@@ -88,6 +90,49 @@ try{
  block(()=>createDistinctRecoveryOneShotLock(attempt,original,proof),
    'lost remote ACK or prior local attempt forbids SECOND run');
  ok(bytes.equals(readFileSync(attempt)),'old created recovery lock never overwritten');
+
+ // Exact NEW recovery receipt cannot be issued on stale physical D1 identity,
+ // damaged original attempt provenance, or edited NEW recovery attempt lock.
+ const oldLockBytes=Buffer.from(JSON.stringify(orig));
+ const oldLockHash=createHash('sha256').update(oldLockBytes).digest('hex');
+ const finalAttempt=join(folder,'validated-final-custody-lock.json');
+ createDistinctRecoveryOneShotLock(finalAttempt,oldLockHash,proof);
+ const newLockBytes=readFileSync(finalAttempt);
+ const newLockRecord=JSON.parse(newLockBytes.toString('utf8'));
+ const physicalInfo={name:'fire-fullapp-new-live-db',uuid:live};
+ const custody={
+  originalLockBefore:oldLockBytes,originalLockAfter:Buffer.from(oldLockBytes),
+  recoveryLockBefore:newLockBytes,recoveryLockAfter:Buffer.from(newLockBytes),
+  recoveryLockRecord:newLockRecord,physicalInfo,
+  originalReceiptPresent:false,recoveryReceiptPresent:false
+ };
+ const accepted=verifyPostlockReceiptEvidence(custody);
+ ok(accepted.postWriteLivePhysicalIdentityRetested===true&&
+    accepted.originalAndRecoveryLocksByteForBytePreserved===true&&
+    accepted.gate5Accepted===false,
+    'final success receipt is guarded by fresh D1 UUID and BOTH original lock bytes');
+ for(const mutation of [
+  {originalLockAfter:Buffer.from('tampered-original-lock')},
+  {originalLockBefore:Buffer.from('not-the-preserved-lock')},
+  {recoveryLockAfter:Buffer.from('tampered-recovery-lock')},
+  {recoveryLockBefore:Buffer.from('not-the-preserved-recovery-lock')},
+  {originalReceiptPresent:true},{recoveryReceiptPresent:true},
+  {physicalInfo:{name:'fire-fullapp-dr-db',uuid:live}},
+  {physicalInfo:{name:'fire-fullapp-new-live-db',uuid:'wrong-uuid'}},
+  {physicalInfo:null},{originalLockAfter:'fake-buffer'},
+  {recoveryLockRecord:null},
+  {recoveryLockRecord:{...newLockRecord,oldAttemptLockSha256:'0'.repeat(64)}},
+  {recoveryLockRecord:{...newLockRecord,target:'independent-dr'}},
+  {recoveryLockRecord:{...newLockRecord,database_id:'wrong-uuid'}},
+  {recoveryLockRecord:{...newLockRecord,state:'COMPLETE'}},
+  {recoveryLockRecord:{...newLockRecord,sourceMigrationCount:25}},
+  {recoveryLockRecord:{...newLockRecord,priorCommandResultAttested:true}},
+  {recoveryLockRecord:{...newLockRecord,newRemoteWriteResultAttested:true}},
+  {recoveryLockRecord:{...newLockRecord,gate5Accepted:true}},
+  {recoveryLockRecord:{...newLockRecord,productionReady:true}}
+ ])block(()=>verifyPostlockReceiptEvidence({...custody,...mutation}),
+   'changed physical target, old/new lock, receipt or forged ready claim blocks success receipt');
+
  block(()=>createDistinctRecoveryOneShotLock(join(folder,'bad-hash.json'),'invalid',proof),
    'unknown old lock provenance must fail');
 }finally{rmSync(folder,{recursive:true,force:true});}
@@ -103,7 +148,9 @@ for(const required of [
  'gate5Accepted:false',
  'pinnedNewLiveAccountEnvironment(',
  'verifySavedIndependentD1MigrationWorkspace(',
- 'oldAttemptLockSha256'
+ 'oldAttemptLockSha256',
+ 'verifyPostlockReceiptEvidence({',
+ 'postWriteLivePhysicalIdentityRetested'
 ])ok(code.includes(required),'reviewed guard/receipt/source marker present '+required);
 ok(!code.includes('unlinkSync(')&&!code.includes('renameSync(')&&
    !code.includes('rmSync(')&&!code.includes('rmdirSync('),
@@ -114,4 +161,11 @@ ok(code.indexOf('createDistinctRecoveryOneShotLock(NEW_LOCK')<
 ok(code.indexOf('inspectNewLiveFirstJobCleanStart(')<
    code.indexOf('writeFileSync(NEW_RECEIPT,'),
    'new SUCCESS receipt only after full source pinned postwrite readback');
+ok(code.indexOf("wrangler(js,['d1','migrations','apply'")<
+   code.indexOf('const postWriteInfo=')&&
+   code.indexOf('const postWriteInfo=')<
+   code.indexOf('verifyPostlockReceiptEvidence({')&&
+   code.indexOf('verifyPostlockReceiptEvidence({')<
+   code.indexOf('writeFileSync(NEW_RECEIPT,'),
+   'POST-write physical identity and BOTH locks must be rechecked before receipt');
 console.log('PASS '+n+'/'+n+' NEW LIVE distinct post-lock one-shot SOURCE offline guards. NO PROVIDER/WRITE.');
