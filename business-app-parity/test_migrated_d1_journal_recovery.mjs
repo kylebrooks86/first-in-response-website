@@ -19,7 +19,7 @@ import {sealCompleteIsolatedSqliteSnapshot,restoreSavedProtectedCompleteRecords,
  from './protected_complete_isolated_sqlite_recovery.mjs';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
 import {rehearseProtectedCompleteRecordsAndPhotos,assertPairedRecoveredPhotoEvidence,
- assertProtectedRecoverySourceCustody}
+ assertProtectedRecoverySourceCustody,verifySavedPairedRecoveredSqlite}
  from './rehearse_protected_complete_records_and_photos.mjs';
 import {sealProtectedPairReceipt,inspectSavedProtectedPairReceipt}
  from './protected_recovery_pair_receipt.mjs';
@@ -283,6 +283,41 @@ try{
  okay(receiptRecovery.encryptedInputsUnchangedAfterRestore===true&&
       receiptRecovery.exactOptionalSavedPairUnchanged===true,
   'successful real SQLite + photo restore rehashes BOTH saved encrypted inputs and its .firepair');
+ okay(receiptRecovery.savedRecoveredSqliteReadBackVerified===true&&
+      receiptRecovery.savedRecoveredSqliteUnchangedAfterPhotoRestore===true&&
+      receiptRecovery.allRecoveredSqliteRowsCompared===true&&
+      receiptRecovery.finalSqliteMigrationHistoryVerified===26,
+  'paired recovery must reopen FINAL saved SQLite after photo ZIP recovery and verify rows, migrations and byte custody');
+ const savedDbReadBack=await verifySavedPairedRecoveredSqlite(
+  receiptBackedDb,unlocked.core,unlocked.supplemental);
+ okay(savedDbReadBack.savedRecoveredSqliteReadBackVerified===true&&
+      savedDbReadBack.d1MigrationHistoryRevalidated===26&&
+      savedDbReadBack.persistedRowsChecked>26&&
+      savedDbReadBack.providerD1Restored===false&&
+      savedDbReadBack.gate7Accepted===false,
+  'independent saved SQLite readback validates actual rows without claiming hosted acceptance');
+ const modifiedSqlite=join(folder,'tampered-after-recovery.sqlite');
+ await copyFile(receiptBackedDb,modifiedSqlite);
+ const tamperedDb=new DatabaseSync(modifiedSqlite);
+ tamperedDb.prepare("UPDATE customers SET name='Altered after recovery' WHERE id='synthetic-first-customer'").run();
+ tamperedDb.close();
+ await assert.rejects(verifySavedPairedRecoveredSqlite(
+  modifiedSqlite,unlocked.core,unlocked.supplemental),/BLOCKED/i,
+  'same-schema altered customer details must never count as successful saved recovery');
+ checks++;
+ await copyFile(receiptBackedDb,modifiedSqlite);
+ const forgedJournal=new DatabaseSync(modifiedSqlite);
+ forgedJournal.prepare("UPDATE d1_migrations SET name='0025_unauthorized.sql' WHERE id=26").run();
+ forgedJournal.close();
+ await assert.rejects(verifySavedPairedRecoveredSqlite(
+  modifiedSqlite,unlocked.core,unlocked.supplemental),/BLOCKED/i,
+  'altered persisted 26th migration cannot count as final recovery');
+ checks++;
+ await writeFile(modifiedSqlite,Buffer.from('not a SQLite database'));
+ await assert.rejects(verifySavedPairedRecoveredSqlite(
+  modifiedSqlite,unlocked.core,unlocked.supplemental),/BLOCKED/i,
+  'truncated final SQLite cannot count as successful paired recovery');
+ checks++;
  const rHash=receiptProof.protectedRecordsSha256,pHash=receiptProof.protectedPhotosSha256;
  const goodSourceCustody={
   openedRecordsSha256:rHash,usedPhotosSha256:pHash,
