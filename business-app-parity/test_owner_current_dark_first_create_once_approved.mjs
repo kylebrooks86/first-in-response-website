@@ -23,6 +23,10 @@ const run=(mode,target,archive)=>spawnSync(process.execPath,[script,mode,target,
 });
 pass(launcherSource.includes("[npmCli,'--no-install','wrangler@4.162.0',...args]")&&
  !launcherSource.includes("[npmCli,'--yes'"),'pinned Wrangler cannot auto-install npm code');
+pass(at("if(target==='dr')blocked('DR fire-fullapp-dr was ALREADY created")>=0&&
+ at("if(target==='dr')blocked('DR fire-fullapp-dr was ALREADY created")<
+ at("const verified=checkPackage(target,archive)"),
+ 'already-created physical DR first-create is permanently blocked before any provider or workspace action');
 const workspaceAt=at('mkdirSync(workspace,{recursive:false');
 pass(workspaceAt>0&&at("const v=run(['--version'],ACCOUNT)")<workspaceAt,
  'installed Wrangler check precedes durable workspace creation');
@@ -42,8 +46,9 @@ for(const target of ['dr','new-live']){
   target+' nonexistent ZIP refused before provider');
  const create=run('create',target,'invalid.zip');
  pass(create.status!==0&&
-      /requires interactive owner Acer Windows/.test(create.stderr),
-      target+' provider creation refused unconditionally in CI');
+      (target==='dr'?/ALREADY created on 2026-11-14/.test(create.stderr):
+       /requires interactive owner Acer Windows/.test(create.stderr)),
+      target+' unsafe first creation refused without provider (DR physically already created)');
 }
 const unknown=run('inspect','unknown','x.zip');
 pass(unknown.status!==0&&/usage:/.test(unknown.stderr),'CLI requires exact target');
