@@ -1,5 +1,14 @@
 # FIRE Business App parity requirement
 
+## November 15, 2026 — CURRENT PR270 dual-target hosted read-only evidence (newest checkpoint)
+
+- Integrated main-based **DRAFT PR270** changed-code SHA **b5c436a4b6a974c42c8493e22488ff64b91ffd08**, source-only and **NO DEPLOY**. Current DR + NEW LIVE post-create hosted version/D1 read-only checker is business-app-parity/owner_current_dark_postcreate_readonly.mjs; exact-source independent DR/LIVE workflow #43720430048 SUCCESS, new **40/40** synthetic cross-target negative/positive tests PASS. Previous old DR postcreate PowerShell pinned an obsolete version; use the current dual-target tool only AFTER a separately approved current Worker creation. Default command is OFFLINE dry-run. Future --capture uses six owner-existing-session read-only provider metadata commands; it CANNOT authorize first-create or close a hosted gate by itself.
+- Already accepted DR and NEW LIVE physical D1 **26/26** migrations, clean NEW LIVE future Job #0001, frozen exact source first-create ZIPs in private Drive (source parent e27b39df06c1ed4ff63cd437e39fd3e314142eec), private migration receipt evidence, QA/iPhone/Acer. **Do not repeat** earlier owner testing, sign-ins, backups, SQL or source builds.
+- Formal production Gates1/2/3/8 **4/10 accepted**; **G4/G5/G6/G7/G9/G10 OPEN** and **NEW LIVE NO-GO**. Current new code is a future provider evidence capture path; **no hosted verification or release authorization occurred**. No R2/paid Cloudflare, Cloudflare provider writes, Stripe, auth activation, merge or cutover. A real new DR/NEW LIVE dark Worker first-create still needs fresh exact owner approval, never inferred from continue. Prior changed-code all-CI checkpoint was 26/26; current newly changed code last observed 25/26, staging/browser remaining—verify updated status before claiming 26/26.
+
+---
+
+
 ## November 15, 2026 — live current handoff (read before historical notes)
 
 - **Active PR: #270**, current integrated source checkpoint `f4889389144a83844eafc990e96fa0244a6e91ad` before this documentation commit. Fetch actual PR HEAD for newer updates. QA remains sole functional/visual master; **do not restart at #244**.
