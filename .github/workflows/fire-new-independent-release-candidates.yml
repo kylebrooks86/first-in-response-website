@@ -67,6 +67,9 @@ jobs:
   build-local-candidate:
     name: Source-identical independent ${{ matrix.target }} build and isolation guards (NO provider)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -273,12 +276,30 @@ jobs:
           include-hidden-files: true
           retention-days: 3
           compression-level: 6
-      - name: Download the RETAINED GitHub artifact and verify all sealed bytes again (NO provider)
+      # GitHub can delay artifact API visibility after completed upload.
+      # Only read the identical artifact from this exact run, then verify its bytes.
+      - name: Download retained inert DR artifact with bounded exact-run retry (NO provider)
         if: matrix.target == 'independent-dr'
-        uses: actions/download-artifact@v4
-        with:
-          name: FIRE-INERT-DR-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/fire-dr-archive-roundtrip
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRE_EXACT_ARTIFACT: FIRE-INERT-DR-${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          destination="${RUNNER_TEMP:?}/fire-dr-archive-roundtrip"
+          for attempt in 1 2 3 4 5; do
+            rm -rf -- "$destination"
+            mkdir -p -- "$destination"
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$FIRE_EXACT_ARTIFACT" --dir "$destination"; then
+              echo 'PASS exact-run inert DR artifact downloaded; independent byte review follows.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo 'BLOCKED: exact-run inert DR archive unavailable after bounded read-only retries.'
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
       - name: Refuse any ZIP upload that lost hidden files or changed the reviewed Worker (NO provider)
         if: matrix.target == 'independent-dr'
         env:
@@ -360,11 +381,27 @@ jobs:
           retention-days: 7
           compression-level: 6
 
-      - name: Independently read back retained current SHA DARK review artifact (NO PROVIDER)
-        uses: actions/download-artifact@v4
-        with:
-          name: FIRE-CURRENT-DARK-${{ matrix.target }}-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/fire-current-dark-downloaded
+      - name: Independently read back exact current SHA DARK artifact with bounded same-run retry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRE_EXACT_ARTIFACT: FIRE-CURRENT-DARK-${{ matrix.target }}-${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          destination="${RUNNER_TEMP:?}/fire-current-dark-downloaded"
+          for attempt in 1 2 3 4 5; do
+            rm -rf -- "$destination"
+            mkdir -p -- "$destination"
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$FIRE_EXACT_ARTIFACT" --dir "$destination"; then
+              echo 'PASS current exact-source DARK artifact read back; integrity verifier follows.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo 'BLOCKED: current exact-source DARK archive unavailable after bounded read-only retries.'
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
 
       - name: Verify every archived current QA-master SSR, client Data, dark route, physical-D1 source byte
         run: |
