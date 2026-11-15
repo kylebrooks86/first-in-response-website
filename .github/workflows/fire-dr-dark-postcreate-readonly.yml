@@ -7,6 +7,8 @@ on:
       - 'business-app-parity/owner_dr_dark_postcreate_readonly.ps1'
       - 'business-app-parity/owner_current_dark_exposure_readonly.mjs'
       - 'business-app-parity/test_owner_current_dark_exposure_readonly.mjs'
+      - 'business-app-parity/owner_current_dark_exposure_existing_session.mjs'
+      - 'business-app-parity/test_owner_current_dark_exposure_existing_session.mjs'
       - 'business-app-parity/test_owner_dr_dark_postcreate_readonly.ps1'
       - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
 permissions:
@@ -37,6 +39,8 @@ jobs:
           node-version: '22'
       - name: Test distinct DR/NEW LIVE Worker route, domain and preview exposure evidence (OFFLINE ONLY)
         run: node business-app-parity/test_owner_current_dark_exposure_readonly.mjs
+      - name: Reuse existing Wrangler owner-session token safely (MOCK ONLY, NO PROVIDER)
+        run: node business-app-parity/test_owner_current_dark_exposure_existing_session.mjs
   windows-npx-command-mock:
     runs-on: windows-latest
     timeout-minutes: 5
