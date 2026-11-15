@@ -5,6 +5,8 @@ on:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/lib/protected-numbered-v2-records.mjs'
+      - 'business-app-parity/shared/scripts/test-protected-numbered-v2-records.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
       - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
@@ -23,6 +25,8 @@ on:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
+      - 'business-app-parity/shared/lib/protected-numbered-v2-records.mjs'
+      - 'business-app-parity/shared/scripts/test-protected-numbered-v2-records.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-d1-snapshot.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.d.mts'
       - 'business-app-parity/shared/app/api/backup/numbered-v2/route.ts'
@@ -68,6 +72,8 @@ jobs:
         run: node --version
       - name: Test candidate v2 numbered records and 20 ordinary core tables
         run: node --experimental-sqlite scripts/test-numbered-records-v2-preflight.mjs
+      - name: Encrypt and authenticate exact 23-table v2 core with native AES-GCM (SOURCE ONLY)
+        run: node scripts/test-protected-numbered-v2-records.mjs
       - name: Reject newly added durable QA tables not represented in recovery
         run: node scripts/test-numbered-v2-schema-coverage.mjs
       - name: Prove review export is disabled by default and only owner can capture core records
