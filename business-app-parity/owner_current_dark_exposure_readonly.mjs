@@ -96,7 +96,7 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
   const get=(path)=>request(token,path);
   const subdomain=await get('/client/v4/accounts/'+FIRE_DARK_ACCOUNT+'/workers/scripts/'+FIRE_DARK_WORKERS[target]+'/subdomain');
   const pages=async(path,label)=>{
-    let all=[],total=null;
+    let all=[],total=null,reportedDomainCount=null;
     for(let p=1;p<=20;p++){
       const r=await get(path+(path.includes('?')?'&':'?')+'page='+p+'&per_page=50');
       const items=apiResult(r,label);
@@ -104,11 +104,22 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
       const info=pageInfo(r,label,p);
       if(total!==null&&total!==info.total_pages)fail(label+' changed between pages');
       if(info.count!==items.length)fail(label+' page item-count mismatch');
+      // The domains endpoint is queried WITHOUT filters, so total_count
+      // must equal all returned domains; an incomplete listing must not
+      // be accepted as proof that the target Worker has no public domain.
+      // The account-filtered zones endpoint has different total_count
+      // semantics, so apply this additional invariant only to domains.
+      if(label==='domains'){
+        if(reportedDomainCount!==null&&reportedDomainCount!==info.total_count)
+          fail('domains total_count changed between pages');
+        reportedDomainCount=info.total_count;
+      }
       total=info.total_pages;all.push(...items);
-      // For filtered zones, Cloudflare describes total_count as the
-      // unfiltered count. Only page/count agreement and exhausting every
-      // reported page can establish a complete filtered inventory.
-      if(p===total)return all;
+      if(p===total){
+        if(label==='domains'&&info.total_count!==all.length)
+          fail('domains total_count does not match exhausted pages');
+        return all;
+      }
       if(info.count===0)fail(label+' unexpectedly empty intermediate page');
     }
     fail(label+' exceeds page bound');
