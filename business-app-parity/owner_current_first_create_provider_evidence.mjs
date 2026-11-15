@@ -40,11 +40,25 @@ export function verifyPhysicalD1InfoReadback(reply,expectedName,expectedUUID){
  return Object.freeze({physicalD1Confirmed:true,databaseName:expectedName,databaseUUID:expectedUUID});
 }
 export function verifyNewWorkerAbsentReadback(reply){
- if(!reply||reply.code===0||typeof reply.stderr!=='string')
-  stop('worker absence requires an explicit failed read-only listing');
- const source=reply.stderr+'\n'+String(reply.stdout||'');
- if(!/\b10007\b/.test(source)||!/does not exist|not found/i.test(source))
-  stop('worker is not conclusively absent: wrong provider error');
+ // An unrelated 10007, a missing local file, or text mixed between stdout
+ // and stderr must NEVER turn a failed read into permission to first-create.
+ if(!reply||!Number.isInteger(reply.code)||reply.code===0||
+    typeof reply.stderr!=='string'||typeof reply.stdout!=='string'||
+    reply.stdout.trim()!=='')
+  stop('worker absence requires a failed read-only listing with stderr-only evidence');
+ const diagnostic=reply.stderr.replace(/\x1b\[[0-9;]*m/g,'').trim();
+ if(!diagnostic||diagnostic.length>4096||
+    (diagnostic.match(/\b10007\b/g)||[]).length!==1||
+    /\b(?:unauthorized|unauthenticated|forbidden|permission denied|access denied|invalid credentials|expired token)\b/i.test(diagnostic))
+  stop('worker absence has missing, mixed, or contradictory provider diagnostics');
+ // Require the absent WORKER/SCRIPT/SERVICE indication to belong to the
+ // 10007 diagnostic, not a separate "not found" line elsewhere in the log.
+ const at=diagnostic.search(/\b10007\b/);
+ const region=diagnostic.slice(Math.max(0,at-180),Math.min(diagnostic.length,at+180));
+ if(!/(?:\bworker\b|\bscript\b|\bservice\b)[^\r\n]{0,90}\b(?:does not exist|not found)\b/i.test(region)&&
+    !/\b(?:does not exist|not found)\b[^\r\n]{0,90}(?:\bworker\b|\bscript\b|\bservice\b)/i.test(region)||
+    /\b(?:error|code)\s*[:=#-]?\s*(?!10007\b)\d{4,6}\b/i.test(diagnostic))
+  stop('worker is not conclusively absent: wrong or unrelated provider error');
  return Object.freeze({exactWorkerAbsenceReported:true,onlyFirstCreateAllowed:true});
 }
 export function verifyCreatedWorkerListReadback(reply){
