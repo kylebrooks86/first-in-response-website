@@ -4,6 +4,8 @@ on:
     branches: [work/fire-mobile-contact-consolidation-2026-10-31]
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
       - 'business-app-parity/shared/lib/protected-numbered-v2-records.mjs'
       - 'business-app-parity/shared/scripts/test-protected-numbered-v2-records.mjs'
@@ -33,6 +35,8 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-photo-recovery-pair.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-d1-snapshot.mjs'
       - 'business-app-parity/shared/lib/protected-numbered-v2-records.mjs'
       - 'business-app-parity/shared/scripts/test-protected-numbered-v2-records.mjs'
@@ -102,6 +106,8 @@ jobs:
         run: node scripts/test-numbered-v2-schema-coverage.mjs
       - name: Prove review export is disabled by default and only owner can capture core records
         run: node scripts/test-numbered-v2-review-export.mjs
+      - name: Reject identical forged numbered-record plus photo recovery seals (offline, no provider)
+        run: node scripts/test-numbered-photo-recovery-pair.mjs
       - name: Rehearse one-transaction read-only D1 v2 snapshot and disposable restore
         run: node --experimental-sqlite scripts/test-numbered-v2-d1-snapshot.mjs
       - name: Prove full 25-SQL SQLite recovery, interruption rollback, and original serial high-water
