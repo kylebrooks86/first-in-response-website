@@ -1,5 +1,13 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — OWNER NEW LIVE DARK FIRST-CREATE STOPPED AT TYPED CONSENT; NO WORKER CREATION
+
+- **Actual owner Acer PowerShell screenshot** after earlier OFFLINE 242-file/size/SHA256 package PASS: `create new-live "$zip"` reached exact interactive prompt `Type exactly CREATE FIRE DARK NEW-LIVE 0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662 to authorize ONE provider first-creation:`, then emitted **`FIRE ONE-SHOT DARK FIRST-CREATE STOP: owner declined; no Worker creation`**, returning to PowerShell. No matching typed phrase shown. **Actual Cloudflare Worker creation NOT performed or demonstrated; G4 OPEN.** Accepted prior frozen ZIP inspection remains PASS; do not redownload/rehash/reinspect needlessly. [Issue #19 evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6897078778).
+- Source control-flow checked on exact existing guarded launcher: the exact-phrase mismatch throws **before** remote Worker absence query, before `REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json`, before `wrangler deploy`. The handler removes only its own newly-created unlocked staging workspace; after a genuine lock it never removes/retries. The preflight may have performed READ-ONLY whoami/remote D1 info and a local Wrangler dry-run; don't mistake that for first-create.
+- **Do not automatically rerun** after the owner's in-terminal decline. Ask whether unintentional, then check **only** exact local `Documents/FIRE-FIRSTCREATE-NEW-LIVE-e27b39df/REMOTE-FIRST-CREATE-ATTEMPT-LOCK.json` existence; do not remove/alter it. Any existing lock/uncertainty means STOP, read-only reconciliation only. Owner's exact earlier one-create approval is recorded, but actual typed confirmation was refused. Existing Nov14 DR Worker remains created/verified; NEVER recreate DR. Formal 4/10 accepted, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE NO-GO.
+
+---
+
 ## NOV 15 — FRESH OWNER NEW LIVE-ONLY ONE-SHOT DARK WORKER APPROVAL — NO EXECUTION YET
 
 - **Owner explicitly authorized EXACTLY ONE first creation** of `fire-fullapp-new-live` dark private Worker bound ONLY to existing physical `fire-fullapp-new-live-db` UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, with public routes, version previews, owner login, Stripe, paid Cloudflare/R2, SQL, other Workers, merge, DNS and production activation all EXCLUDED. Full verbatim owner scope recorded in [Issue #19 #6896803966](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6896803966). **Permission recorded; no first-create attempt made in this chat.**
