@@ -1,5 +1,13 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — OPTIONAL OWNER EXISTING WRANGLER SESSION GATE4 GET EVIDENCE (SOURCE ONLY)
+
+- `owner_current_dark_exposure_existing_session.mjs` adds a practical existing-Wrangler-auth bridge for the **distinct still-unverified** public route/preview/custom-domain evidence. Reuses installed pinned `wrangler@4.162.0 auth token --json` via local offline `npx-cli.js --no-install`; accepts ONLY preexisting OAuth/API token, keeps token in process memory, never prints/stores it, never invokes login or deployment, and fails closed without retry. Wrangler can refresh existing OAuth credentials automatically; following credential retrieval all Cloudflare inventory requests are GET-only.
+- Implementation `aea976fadce6aee04a5aa2c2c1cd788f8b88fc54`, mock tests `79215b3bd2589783e3f16ae9954f26896c607122` plus newline negative fixture `53295e3409440d9fb5ff094e54f6deb3efed61cc`, existing offline workflow registration `144186aa71049dc5690358e0d7192a341ccf0cd3`. GitHub [focused offline mock run #43736061342](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43736061342) existing-token test step SUCCESS. No real owner token accessed or hosted route/preview GET captured, no new G4 acceptance.
+- Helper's default is offline zero-credential; owner-triggered `--capture new-live` or `--capture dr` requires existing interactive Windows session, no sign-in retries. Preserve existing DR / NEW LIVE first-create locks, hosted version/D1 evidence and previous accepted tests. G1/G2/G3/G8 accepted 4/10; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE NO-GO.
+
+---
+
 ## NOV 15 — GATE4 CUSTOM-DOMAIN INVENTORY CANNOT FALSELY CLEAR ON INCOMPLETE COUNTS (SOURCE ONLY)
 
 - **New code fix on PR270:** `owner_current_dark_exposure_readonly.mjs` now requires an unfiltered Cloudflare custom-domain inventory's `result_info.total_count` to remain unchanged across pagination and to equal the sum of all returned domain entries before classifying DARK DR/NEW LIVE public exposure as absent. This closes a missed-attachment false-negative path if Cloudflare returns a truncated single/empty page or inconsistent page totals. Filtered zone inventory is intentionally excluded from this extra total-count equality rule because Cloudflare documents different unfiltered count semantics for filtered results.
