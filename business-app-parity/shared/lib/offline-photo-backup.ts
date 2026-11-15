@@ -49,7 +49,11 @@ export async function readOfflinePhotoBackup(file:Blob):Promise<OfflinePhoto[]>{
  let end=-1;for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--){if(view.getUint32(i,true)===0x06054b50&&i+22+view.getUint16(i+20,true)===bytes.length){end=i;break;}}
  guard(end>=0,'ZIP directory is missing or incomplete');
  const count=view.getUint16(end+10,true),dirSize=view.getUint32(end+12,true),dirOffset=view.getUint32(end+16,true);
- guard(count<=MAX_PHOTOS+1&&count===view.getUint16(end+8,true)&&dirOffset+dirSize===end,'ZIP directory is inconsistent');
+ // FIRE writes a single-disk, comment-free archive. Multi-volume or appended
+ // ZIP metadata cannot be trusted as evidence of a recoverable photo backup.
+ guard(count<=MAX_PHOTOS+1&&count===view.getUint16(end+8,true)&&dirOffset+dirSize===end&&
+   view.getUint16(end+4,true)===0&&view.getUint16(end+6,true)===0&&view.getUint16(end+20,true)===0,
+   'ZIP directory is inconsistent or contains unsupported disk/comment metadata');
  let offset=dirOffset,total=0,expectedLocalOffset=0;const parts=new Map<string,Uint8Array>();
  for(let index=0;index<count;index++){
   guard(offset+46<=end&&view.getUint32(offset,true)===0x02014b50,'invalid ZIP directory entry');
@@ -58,6 +62,15 @@ export async function readOfflinePhotoBackup(file:Blob):Promise<OfflinePhoto[]>{
   const extra=view.getUint16(offset+30,true),comment=view.getUint16(offset+32,true),local=view.getUint32(offset+42,true);
   guard((flags&1)===0&&method===0&&packed===size&&size<=MAX_ARCHIVE,'ZIP entries must be unencrypted and uncompressed');
   guard(offset+46+nameLen+extra+comment<=end,'ZIP filename is truncated');
+  // Unlike generic ZIP readers, this restore accepts ONLY bytes emitted by
+  // createStoredZip. Otherwise central headers can claim another disk, carry
+  // undeclared file comments/extra fields, or contradict the local header
+  // while CRC/SHA of the photo payload itself remains unchanged.
+  guard(view.getUint16(offset+4,true)===20&&view.getUint16(offset+6,true)===20&&
+    flags===0x0808&&extra===0&&comment===0&&
+    view.getUint16(offset+34,true)===0&&view.getUint16(offset+36,true)===0&&
+    view.getUint32(offset+38,true)===0,
+    'ZIP central entry carries unsupported or contradictory metadata');
   const name=decoder.decode(bytes.subarray(offset+46,offset+46+nameLen));
   guard(name==='manifest.json'||/^photos\/[a-zA-Z0-9_-]{1,90}$/.test(name),'unrecognized or unsafe archive path');
   guard(!parts.has(name),'duplicate ZIP entry');
@@ -69,6 +82,9 @@ export async function readOfflinePhotoBackup(file:Blob):Promise<OfflinePhoto[]>{
   const localFlags=view.getUint16(local+6,true),localMethod=view.getUint16(local+8,true);
   const localNameLen=view.getUint16(local+26,true),localExtra=view.getUint16(local+28,true),start=local+30+localNameLen+localExtra;
   guard(flags===0x0808&&localFlags===flags&&localMethod===0&&localExtra===0&&
+    view.getUint16(local+4,true)===20&&
+    view.getUint16(local+10,true)===view.getUint16(offset+12,true)&&
+    view.getUint16(local+12,true)===view.getUint16(offset+14,true)&&
     view.getUint32(local+14,true)===0&&view.getUint32(local+18,true)===0&&view.getUint32(local+22,true)===0,
     'ZIP local metadata does not match the supported FIRE archive format');
   guard(localNameLen===nameLen&&start+size+16<=dirOffset&&decoder.decode(bytes.subarray(local+30,local+30+nameLen))===name,
