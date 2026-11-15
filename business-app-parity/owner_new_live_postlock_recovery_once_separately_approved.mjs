@@ -70,7 +70,7 @@ export function validateRecoveryPreservation({oldLock,oldReceipt,newLock,newRece
 }
 export function validateRecoveryLocalSqlPackage(review){
  if(!review||review.savedWorkspaceVerified!==true||
-    review.target!=='independent-live'&&review.target!==undefined||
+    review.target!=='independent-live'||
     review.reviewedSqlFiles!==26||
     review.database_id!==LIVE.database_id||
     review.remoteMigrationAttempted!==false)fail();
@@ -178,8 +178,9 @@ async function runPostlockOneShot(jsPath,flag){
  if(typeof jsPath!=='string'||!jsPath.trim())fail();
  const js=resolve(jsPath);
  if(!existsSync(js)||!lstatSync(js).isFile()||lstatSync(js).isSymbolicLink())fail();
- const oldBytes=readFileSync(OLD_LOCK);
+ // Reject symlink/malformed preserved original lock BEFORE reading raw bytes.
  const oldLock=existingLocalJson(OLD_LOCK);
+ const oldBytes=readFileSync(OLD_LOCK);
  validateRecoveryPreservation({
   oldLock,oldReceipt:existsSync(OLD_RECEIPT),
   newLock:existsSync(NEW_LOCK),newReceipt:existsSync(NEW_RECEIPT)
