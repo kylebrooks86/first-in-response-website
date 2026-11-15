@@ -9,48 +9,11 @@ import {useRef,useState} from 'react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
+import {readOwnerNumberedCoreReviewResponse} from '../lib/numbered-v2-review-response.mjs';
 import {prepareNumberedV2OwnerFile,verifySavedNumberedV2OwnerFile,
- type NumberedCoreSnapshot,type PreparedNumberedCoreOwnerFile}
+ type PreparedNumberedCoreOwnerFile}
  from '../lib/numbered-v2-owner-file-custody.mjs';
 
-const MAX_REVIEW_RESPONSE=5_500_000;
-async function boundedReviewResponse(response:Response):Promise<unknown>{
- const declared=response.headers.get('content-length');
- if(declared!==null&&(!/^(0|[1-9][0-9]{0,7})$/.test(declared)||
-    Number(declared)>MAX_REVIEW_RESPONSE))
-  throw Error('The numbered core review exceeds its bounded response size.');
- const reader=response.body?.getReader();
- if(!reader)throw Error('No complete numbered core records response was received.');
- let bytes=0,text='';
- const decoder=new TextDecoder('utf-8',{fatal:true});
- try{
-  while(true){
-   const chunk=await reader.read();
-   if(chunk.done)break;
-   bytes+=chunk.value.byteLength;
-   if(bytes>MAX_REVIEW_RESPONSE)throw Error('Core review exceeded its safe size; no file was prepared.');
-   text+=decoder.decode(chunk.value,{stream:true});
-  }
-  if(bytes===0||(declared!==null&&bytes!==Number(declared)))
-   throw Error('Core review was truncated; no file was prepared.');
-  text+=decoder.decode();
-  return JSON.parse(text) as unknown;
- }finally{
-  try{await reader.cancel();}catch{/* Reader completed. */}
-  try{reader.releaseLock();}catch{/* Already closed. */}
- }
-}
-function authorizedReviewPayload(value:unknown):NumberedCoreSnapshot{
- if(!value||typeof value!=='object'||Array.isArray(value))
-  throw Error('Numbered core review is unavailable; no file was prepared.');
- const payload=value as Record<string,unknown>;
- if(payload.format!=='fire-numbered-core-export-review'||payload.version!==1||
-    payload.completeBackup!==false||payload.recoveryAuthorized!==false||
-    payload.photoBytesIncluded!==false||payload.offDeviceCustodyVerified!==false||
-    !payload.coreSnapshot||typeof payload.coreSnapshot!=='object'||Array.isArray(payload.coreSnapshot))
-  throw Error('Incomplete or unapproved records review response; no file was prepared.');
- return payload.coreSnapshot as NumberedCoreSnapshot;
-}
 type Props={reviewEnabled?:boolean};
 
 /** Intentionally disabled in the QA-master Business page by default.
@@ -75,7 +38,7 @@ export function NumberedCoreRecordsReview({reviewEnabled=false}:Props){
     headers:{accept:'application/json'}
    });
    if(!response.ok)throw Error('Numbered core review has not been owner-enabled. No records file was prepared.');
-   const source=authorizedReviewPayload(await boundedReviewResponse(response));
+   const source=await readOwnerNumberedCoreReviewResponse(response);
    const result=await prepareNumberedV2OwnerFile(source,passphrase,confirmPassphrase);
    setPrepared(result);
    setMessage('Private CORE records file prepared in memory only. Deliberately save it, then select that SAVED file and re-enter the original passphrase to verify exact encrypted bytes. This is NOT a full backup.');
