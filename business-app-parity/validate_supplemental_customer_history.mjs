@@ -20,6 +20,7 @@ const own=(o,key)=>Object.prototype.hasOwnProperty.call(o,key);
 const record=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const names=new Set([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]);
 const service='estimate_service_locations',properties='customer_properties',links='estimate_property_links';
+const guard='property_recovery_guard';
 
 /** Independent, read-only preflight for the exact existing core+supplemental
  * snapshot. Known supplemental property/location tables must all be present
@@ -33,6 +34,14 @@ export function validateCompleteSupplementalCustomerHistory(core,supplemental){
  const c=core.tables,s=supplemental.tables;
  if(Object.keys(s).some(k=>names.has(k)))stop('core table duplicated in supplemental snapshot');
  const anyLocation=own(s,service),anyProperty=own(s,properties),anyLink=own(s,links);
+ // The real property migration supplies a one-row, EMPTY-DESTINATION-only
+ // native guard. Never archive or replay a live temporary guard row; doing
+ // so would bypass historical property triggers on the destination.
+ const hasGuard=own(s,guard);
+ if(hasGuard&&(!Array.isArray(s[guard])||s[guard].length!==0))
+  stop('a temporary property recovery guard cannot be backed up as business data');
+ if((anyProperty||anyLink)&&!hasGuard)
+  stop('property recovery requires its exact empty native one-shot guard table');
  if(anyProperty!==anyLink||((anyProperty||anyLink)&&!anyLocation))
   stop('property history requires property, immutable link, and service-address tables together');
  if(!anyLocation)
