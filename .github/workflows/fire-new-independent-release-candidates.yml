@@ -418,7 +418,7 @@ jobs:
       # This prepares ONLY a disjoint config copy, never a provider write.
       - name: Generate current QA-master private first-create overlay from SAVED DARK archive
         env:
-          FIRE_REVIEWED_SHA: ${ github.event.pull_request.head.sha }}
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [ "$FIRE_TARGET" = "independent-dr" ]; then TARGET=dr;
@@ -444,8 +444,8 @@ jobs:
       - name: Retain source-only PRIVATE first-create overlay for owner review, NEVER deploy
         uses: actions/upload-artifact@v4
         with:
-          name: FIRE-CURRENT-PRIVATE-FIRSTCREATE-${ matrix.target }}-${ github.event.pull_request.head.sha }}
-          path: ${ runner.temp }}/fire-current-firstcreate-source/
+          name: FIRE-CURRENT-PRIVATE-FIRSTCREATE-${{ matrix.target }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-current-firstcreate-source/
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 7
@@ -454,8 +454,8 @@ jobs:
       - name: Read back first-create overlay from THIS run with bounded read-only retries
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          FIRE_EXACT_ARTIFACT: FIRE-CURRENT-PRIVATE-FIRSTCREATE-${ matrix.target }}-${ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          FIRE_EXACT_ARTIFACT: FIRE-CURRENT-PRIVATE-FIRSTCREATE-${{ matrix.target }}-${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           destination="${RUNNER_TEMP:?}/fire-current-firstcreate-readback"
@@ -476,7 +476,7 @@ jobs:
 
       - name: Independently verify archived first-create asset bytes and blocked provider flags
         env:
-          FIRE_REVIEWED_SHA: ${ github.event.pull_request.head.sha }}
+          FIRE_REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [ "$FIRE_TARGET" = "independent-dr" ]; then TARGET=dr;
