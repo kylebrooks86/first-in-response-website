@@ -18,6 +18,9 @@ import {spawnSync} from 'node:child_process';
 import {inflateRawSync} from 'node:zlib';
 import {createInterface} from 'node:readline/promises';
 import {pathToFileURL} from 'node:url';
+import {verifyOwnerAccountReadback,verifyPhysicalD1InfoReadback,
+ verifyNewWorkerAbsentReadback,verifyCreatedWorkerListReadback}
+ from './owner_current_first_create_provider_evidence.mjs';
 const blocked=why=>{throw Error('FIRE ONE-SHOT DARK FIRST-CREATE STOP: '+why)};
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const SOURCE='e27b39df06c1ed4ff63cd437e39fd3e314142eec';
@@ -158,7 +161,7 @@ function run(args,account){
   env:{...process.env,CLOUDFLARE_ACCOUNT_ID:account,WRANGLER_SEND_METRICS:'false'},
   shell:false});
  if(result.error)blocked('Wrangler invocation failed; no repeat after attempt lock: '+result.error.message);
- return {code:result.status,output:String(result.stdout||'')+'\n'+String(result.stderr||'')};
+ return {code:result.status,stdout:String(result.stdout||''),stderr:String(result.stderr||'')};
 }
 function ensureNoEarlierLocks(target){
  const root=join(homedir(),'Documents');
@@ -195,17 +198,13 @@ async function createDark(target,archive){
   verified.files.get('first-create-source-only-receipt.json'),{flag:'wx',mode:0o600});
  const cfg=join(dir,'server','wrangler.json');
  const v=run(['--version'],ACCOUNT);
- if(v.code!==0||!v.output.includes('4.162.0'))blocked('pinned Wrangler version unavailable; no Worker write');
+ if(v.code!==0||v.stdout.trim()!=='4.162.0')blocked('pinned Wrangler version unavailable; no Worker write');
  const who=run(['whoami','--json'],ACCOUNT);
- if(who.code!==0||!who.output.includes(ACCOUNT))blocked('owner FIRE account Wrangler login not confirmed; no login retry');
+ verifyOwnerAccountReadback(who,ACCOUNT);
  const db=run(['d1','info',spec.db,'--json'],ACCOUNT);
- let info;try{info=JSON.parse(db.output.trim())}catch{blocked('existing physical D1 info not parseable; no write')}
- if(db.code!==0||![info.uuid,info.database_id,info.id].includes(spec.uuid))
-  blocked('Cloudflare provider D1 identity differs from accepted physical UUID');
+ verifyPhysicalD1InfoReadback(db,spec.db,spec.uuid);
  const prior=run(['versions','list','--name',spec.worker,'--json'],ACCOUNT);
- if(prior.code===0)blocked('Worker already exists; cannot re-create or update it');
- if(!/10007/.test(prior.output)||!/does not exist|not found/i.test(prior.output))
-  blocked('not explicit Cloudflare absence: refuse deployment');
+ verifyNewWorkerAbsentReadback(prior);
  const local=run(['deploy','--dry-run','--no-bundle','--config',cfg,
   '--outdir',join(workspace,'dry-run')],ACCOUNT);
  if(local.code!==0)blocked('local Wrangler compilation failed; no Worker write');
@@ -225,10 +224,11 @@ async function createDark(target,archive){
  const created=run(['deploy','--no-bundle','--config',cfg],ACCOUNT);
  if(created.code!==0)blocked('provider first-create outcome UNKNOWN; durable lock retained. READ ONLY follow-up; never rerun');
  const post=run(['versions','list','--name',spec.worker,'--json'],ACCOUNT);
- if(post.code!==0)blocked('deploy returned success but hosted version readback missing; LOCK RETAINED');
+ const hostedVersionEvidence=verifyCreatedWorkerListReadback(post);
  writeFileSync(join(workspace,'FIRST-CREATE-CLI-SUCCESS-READBACK.json'),JSON.stringify({
   sourceSha:SOURCE,worker:spec.worker,db:spec.uuid,zipSha256:spec.zipSha,
   darkWorkerDeployCliSucceeded:true,versionsListCliSucceeded:true,
+  hostedVersionCount:hostedVersionEvidence.versionCount,
   hostedAuthVerified:false,hostedPhysicalBindingReadbackVerified:false,
   gate4Accepted:false,gate10Accepted:false,completedUtc:new Date().toISOString()
  },null,2)+'\n',{flag:'wx',mode:0o600});
