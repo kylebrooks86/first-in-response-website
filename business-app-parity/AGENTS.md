@@ -1,5 +1,17 @@
 # FIRE Business App parity requirement
 
+## November 15, 2026 — live current handoff (read before historical notes)
+
+- **Active PR: #270**, current integrated source checkpoint `f4889389144a83844eafc990e96fa0244a6e91ad` before this documentation commit. Fetch actual PR HEAD for newer updates. QA remains sole functional/visual master; **do not restart at #244**.
+- Accepted physical DR and NEW LIVE D1 **26/26** independently applied/read back. NEW LIVE clean future Customer #0001 and Job #0001 state verified; do not repeat migration, attempt-lock investigation or prior owner device tests.
+- Encrypted owner NEW LIVE **3-file migration evidence** was successfully saved and independently copied/read back from private Google Drive; actual 32/32-tested backup/verify/emergency-only restore source and its test were copied BYTE-IDENTICALLY into integrated PR270. This is not future business-data/photo restore.
+- Existing **current-source** DARK prehost builder remains source-only; do not substitute obsolete PR267 historical wrappers for the latest QA-master compiled build. No NEW LIVE Worker hosted/deployed; no live Stripe or cross-environment hosted release acceptance. Formal **4/10 gates accepted (1,2,3,8)**; all six remaining OPEN, NEW LIVE **NO-GO**.
+- **No paid Cloudflare/R2, no repeated Work logins, no owner Acer/phone repeats, no Cloudflare/Stripe writes, no Git merge/cutover** without owner exact authorization.
+
+---
+
+
+
 ## CURRENT NOVEMBER 14, 2026 — PR #270 (OVERRIDES THE HISTORICAL #244/#264 CHECKPOINTS)
 
 - **Current active review:** main-based [draft PR #270](https://github.com/kylebrooks86/first-in-response-website/pull/270), branch `work/fire-main-qa-dr-live-unified-source-20261114`, current changed-CODE checkpoint `f498163d0fa482b65f92ecd98288e276ccf38c6e`. The #242–#269 notes below are preserved provenance only; do **not** restart from PR #244 or try past Cloudflare sign-ins.
