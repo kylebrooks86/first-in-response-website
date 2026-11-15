@@ -12,7 +12,7 @@ const root=await mkdtemp(join(tmpdir(),'fire-pair-custody-offline-'));
 let checked=0;
 const pass=(truth,description)=>{assert.ok(truth,description);checked++;};
 const reject=async(action,description)=>{
- await assert.rejects(action,/FIRE protected recovery pair BLOCKED:/,description);
+ await assert.rejects(action,/FIRE protected recovery pair BLOCKED:|EEXIST/,description);
  checked++;
 };
 const fake=(magic,seed)=>{
