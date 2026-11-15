@@ -39,6 +39,7 @@ on:
       - 'business-app-parity/test_owner_dr_postinstall_worker_candidate.mjs'
       - 'business-app-parity/verify_inert_dr_ci_artifact.mjs'
       - 'business-app-parity/prepare_current_dark_worker_package.mjs'
+      - 'business-app-parity/prepare_current_dark_first_create_overlay.mjs'
       - 'business-app-parity/test_current_dark_worker_package.mjs'
       - 'business-app-parity/seal_current_new_live_compiled_source.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs'
@@ -317,6 +318,7 @@ jobs:
         if: matrix.target == 'independent-dr'
         run: |
           node --check business-app-parity/prepare_current_dark_worker_package.mjs
+          node --check business-app-parity/prepare_current_dark_first_create_overlay.mjs
           node --check business-app-parity/test_current_dark_worker_package.mjs
           node --check business-app-parity/seal_current_new_live_compiled_source.mjs
           node business-app-parity/test_current_dark_worker_package.mjs
