@@ -29,6 +29,10 @@ export async function readBoundedRecordsRestoreText(request){
   }
   text+=decoder.decode();
   if(!total)return stopped('Backup upload was empty; no records changed.',400);
+  // Reject truncated or over-delivered uploads even when both lengths are under
+  // the 5 MB cap. Never hand a mismatched transfer to JSON/restore logic.
+  if(declared!==null&&total!==Number(declared))
+   return stopped('Backup upload length did not match the received bytes; no records changed.',400);
   return text;
  }catch{
   return stopped('Backup upload was incomplete or invalid UTF-8; no records changed.',400);
