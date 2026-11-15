@@ -6,6 +6,7 @@ import {createHmac} from 'node:crypto';
 import ts from 'typescript';
 import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
 import {serviceLocationManifest,serviceLocationBackupError} from '../lib/service-location-backup.mjs';
+import {readBoundedRecordsRestoreText} from '../lib/bounded-records-restore.mjs';
 const root=resolve(process.argv[2]||'.');
 // Synthetic key loss is scoped to this isolated real-route regression only.
 globalThis.__stripeTestKeyUnavailable=false;
@@ -14,6 +15,10 @@ for(const file of readdirSync(root+'/drizzle').filter(f=>f.endsWith('.sql')).sor
 const DB={prepare(query){return {args:[],bind(...args){this.args=args;return this;},async first(){return sql.prepare(query).get(...this.args)||null;},async all(){return {results:sql.prepare(query).all(...this.args)};},async run(){return {meta:{changes:Number(sql.prepare(query).run(...this.args).changes)}}},query};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements){const stmt=sql.prepare(s.query);results.push(/^\s*SELECT/i.test(s.query)?{results:stmt.all(...s.args)}:{meta:{changes:Number(stmt.run(...s.args).changes)}});}sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
 globalThis.__feeTestDB=DB;
 globalThis.__feeBackupHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError};
+// The real backup route imports the bounded body reader. This data-URL route
+// fixture strips imports, so inject the SAME production reader, never a mock
+// or fallback to unbounded request.text().
+globalThis.__feeBoundedRecordsRestoreText=readBoundedRecordsRestoreText;
 async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
   // The fixture strips route imports; inline the actual pure audit validator source.
   source=readFileSync(root+'/lib/deposit-audit-backup.mjs','utf8')+'\n'+readFileSync(root+'/lib/deposit-agreement-backup.mjs','utf8')+'\n'+source;
@@ -21,6 +26,7 @@ source=`const serviceLocationsEnabled=e=>e.FIRE_SERVICE_LOCATIONS_CANDIDATE==='s
 const customerPropertiesEnabled=e=>serviceLocationsEnabled(e)&&e.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
 const propertyRecoveryTestEnabled=e=>customerPropertiesEnabled(e)&&e.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
 const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError}=globalThis.__feeBackupHelpers;
+const readBoundedRecordsRestoreText=globalThis.__feeBoundedRecordsRestoreText;
 const exportPropertyRecords=()=>{throw Error('Unexpected property export in synthetic legacy backup')};
 const restorePropertyRecords=()=>{throw Error('Unexpected property restore in synthetic legacy backup')};
 `+source;}if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;const refundLedgerObjectsPresent=globalThis.__refundLedgerGuard.refundLedgerObjectsPresent;const refundLedgerNotReady=globalThis.__refundLedgerGuard.refundLedgerNotReady;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const LOCAL_CUSTOMER_DEPLOYMENT="'+(path.includes('webhook')?'doomsday':'live')+'";\n'+source;source='const env={DB:globalThis.__feeTestDB,SITE_ORIGIN:\"https://test\",STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",get STRIPE_RESTRICTED_KEY(){return globalThis.__stripeTestKeyUnavailable?undefined:"sk_test_fixture"},FIRE_STRIPE_MODE:"test"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
