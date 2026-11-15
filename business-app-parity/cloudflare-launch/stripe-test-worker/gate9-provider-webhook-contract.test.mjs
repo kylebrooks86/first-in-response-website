@@ -4,15 +4,16 @@ import {readFileSync} from 'node:fs';
 import {reviewedPublicAccessOverrides} from '../public-access-contract.mjs';
 import {STRIPE_TEST_PROPOSED_OVERRIDE,STRIPE_TEST_REQUIRED_EVENTS} from './webhook-path-contract.mjs';
 import {
-  GATE9_TEST_ORIGIN,GATE9_TEST_CALLBACK,LEGACY_SITES_CALLBACK,
+  GATE9_TEST_ORIGIN,GATE9_TEST_CALLBACK,LEGACY_SITES_CALLBACK,GATE9_TEST_ACCEPTED_PUBLIC_PATHS,
   reviewWebhookAccessDelta,reviewStripeTestEndpointMetadata,
 } from './gate9-provider-webhook-contract.mjs';
 
 const workerId='synthetic-access-worker-id-NOT-PROVIDER-EVIDENCE';
-const before=()=>({type:'worker',worker_id:workerId,overrides:reviewedPublicAccessOverrides()});
+const before=()=>({type:'worker',worker_id:workerId,
+  overrides:GATE9_TEST_ACCEPTED_PUBLIC_PATHS.map(path_pattern=>({behavior:'public',path_pattern}))});
 const after=()=>({...before(),overrides:[...before().overrides,{...STRIPE_TEST_PROPOSED_OVERRIDE}]});
 const original=()=>({
-  id:'we_legacySynthetic123',url:LEGACY_SITES_CALLBACK,livemode:false,status:'enabled',
+  id:'we_legacySynthetic123',url:LEGACY_SITES_CALLBACK,livemode:false,status:'disabled',
   enabled_events:['checkout.session.completed','checkout.session.async_payment_failed','checkout.session.async_payment_succeeded'],
 });
 const fresh=()=>({
@@ -29,7 +30,7 @@ test('correct TEST callback and provider metadata are required, but always remai
   const a=reviewWebhookAccessDelta(scope());
   const b=reviewStripeTestEndpointMetadata(endpoint());
   assert.equal(a.addedPublicPath,'/api/payments/webhook');
-  assert.equal(a.existingExceptionsPreserved,reviewedPublicAccessOverrides().length);
+  assert.equal(a.existingExceptionsPreserved,GATE9_TEST_ACCEPTED_PUBLIC_PATHS.length);
   assert.equal(b.events,6);
   assert.equal(b.originalLegacyEndpointPreserved,true);
   for(const result of [a,b])for(const k of Object.keys(result).filter(k=>/Verified|Applied|Created|Configured|Enabled|Authorized|Accepted/.test(k)))
@@ -40,10 +41,7 @@ test('preserves the EXACT seven already accepted TEST customer-view/asset paths,
   // Prior owner-verified Cloudflare Access OPEN/CLOSE finished with these
   // seven public view/asset exceptions, and the temporary signing POST
   // exception was REMOVED. This is an offline prior-evidence fixture only.
-  const acceptedSeven=[
-    '/estimate/*','/invoice/*','/pay/*',
-    '/_next/static/*','/assets/*','/fire-app-logo.png','/favicon.ico',
-  ];
+  const acceptedSeven=[...GATE9_TEST_ACCEPTED_PUBLIC_PATHS];
   const orig={type:'worker',worker_id:workerId,
     overrides:acceptedSeven.map(path_pattern=>({behavior:'public',path_pattern}))};
   const proposal={...orig,overrides:[...orig.overrides,{...STRIPE_TEST_PROPOSED_OVERRIDE}]};
@@ -56,6 +54,27 @@ test('preserves the EXACT seven already accepted TEST customer-view/asset paths,
   const reopens={...proposal,overrides:[...proposal.overrides,
     {behavior:'public',path_pattern:'/api/public/estimates/fake-test-only-token/accept'}]};
   blocked(()=>reviewWebhookAccessDelta({expectedWorkerId:workerId,before:orig,after:reopens}));
+});
+
+test('TEST Access must preserve ALL seven historically approved exceptions, not a subset or global eleven',()=>{
+  const accepted=[...GATE9_TEST_ACCEPTED_PUBLIC_PATHS];
+  assert.equal(accepted.length,7);
+  const global=reviewedPublicAccessOverrides();
+  assert.ok(global.length>accepted.length);
+  blocked(()=>reviewWebhookAccessDelta({expectedWorkerId:workerId,
+    before:{...before(),overrides:global},
+    after:{...after(),overrides:[...global,{...STRIPE_TEST_PROPOSED_OVERRIDE}]}
+  }));
+  for(const omitted of accepted){
+    const subset=before();
+    subset.overrides=subset.overrides.filter(p=>p.path_pattern!==omitted);
+    const afterSubset={...subset,overrides:[...subset.overrides,{...STRIPE_TEST_PROPOSED_OVERRIDE}]};
+    blocked(()=>reviewWebhookAccessDelta({expectedWorkerId:workerId,before:subset,after:afterSubset}));
+  }
+  const onlyWebhook={...before(),overrides:[]};
+  blocked(()=>reviewWebhookAccessDelta({expectedWorkerId:workerId,before:onlyWebhook,
+    after:{...onlyWebhook,overrides:[{...STRIPE_TEST_PROPOSED_OVERRIDE}]} }));
+  assert.equal(reviewWebhookAccessDelta(scope()).existingExceptionsPreserved,7);
 });
 
 test('Access changes fail closed on wrong Worker, missing/duplicated paths, broad or private bypass',()=>{
@@ -77,6 +96,28 @@ test('Access changes fail closed on wrong Worker, missing/duplicated paths, broa
     const x=scope();mutate(x);blocked(()=>reviewWebhookAccessDelta(x));
   }
   blocked(()=>reviewWebhookAccessDelta({...scope(),expectedWorkerId:'undocumented:worker'}));
+});
+
+test('legacy Sites webhook may be currently disabled, but its full state cannot change during review',()=>{
+  const current=endpoint();
+  assert.equal(current.legacyBefore.status,'disabled');
+  assert.equal(reviewStripeTestEndpointMetadata(current).originalLegacyEndpointPreserved,true);
+  const historical=endpoint();
+  historical.legacyBefore.status='enabled';
+  historical.legacyAfter.status='enabled';
+  assert.equal(reviewStripeTestEndpointMetadata(historical).originalLegacyEndpointPreserved,true);
+  const silentlyEnabled=endpoint();
+  silentlyEnabled.legacyAfter.status='enabled';
+  blocked(()=>reviewStripeTestEndpointMetadata(silentlyEnabled));
+  const silentlyDisabled=endpoint();
+  silentlyDisabled.legacyBefore.status='enabled';
+  blocked(()=>reviewStripeTestEndpointMetadata(silentlyDisabled));
+  for(const unsafeStatus of ['paused','deleted','',null]){
+    const x=endpoint();
+    x.legacyBefore.status=unsafeStatus;
+    x.legacyAfter.status=unsafeStatus;
+    blocked(()=>reviewStripeTestEndpointMetadata(x));
+  }
 });
 
 test('Stripe endpoint must be independent, TEST-only, exact callback and exactly six events',()=>{
