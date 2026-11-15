@@ -53,6 +53,27 @@ try{
    eq(writes,beforeWrites);
   }
  }
+
+ // The actual owner CREATE and EDIT route must reject unbounded, truncated,
+ // forged Content-Length and malformed UTF8 before any D1 customer mutation.
+ const customerRequest=(method,body,headers={})=>new Request('https://synthetic.invalid/api/customers',{
+  method,headers:{'content-type':'application/json',...headers},body,duplex:'half'
+ });
+ for(const method of ['POST','PATCH']){
+  const handler=customers[method],beforeWrites=writes;
+  for(const [raw,headers] of [
+   ['{"name":"'+('x'.repeat(64_100))+'"}',{}],
+   ['{"name":"Tiny"}',{'content-length':'64001'}],
+   ['{"name":"Tiny"}',{'content-length':'abc'}],
+   ['{"name":"Tiny"}',{'content-length':'999'}],
+   ['{"name":"Tiny"}',{'content-length':'1'}],
+  ]){
+   const result=await handler(customerRequest(method,raw,headers));
+   eq(result.status,400);eq(writes,beforeWrites);
+  }
+  const invalidUtf8=await handler(customerRequest(method,new Uint8Array([0xff,0xfe])));
+  eq(invalidUtf8.status,400);eq(writes,beforeWrites);
+ }
  failAfterInsert=true;const recovered=await post(original);
  eq(recovered.status,200);
  const recoveredBody=await recovered.json();
@@ -82,5 +103,21 @@ try{
  clearCustomerEstimateHandoff(storage,original.requestId);eq([...rows.values()],[]);
  eq(saveCustomerEstimateHandoff(undefined,original.requestId),false);
  eq(saveCustomerCreateRequest(undefined,original.requestId),false);eq(saveCustomerCreateRequest({getItem(){throw Error('denied')},setItem(){}},original.requestId),false);eq(saveCustomerCreateRequest(storage,'bad'),false);
+
+ // Valid customer names containing multibyte Unicode remain supported even
+ // when the JSON HTTP stream divides the emoji across separate chunks.
+ const emojiCustomer={requestId:randomUUID(),name:'Synthetic 🔥 Customer',email:'',phone:'',address:'',leadSource:'Referral'};
+ const emojiBytes=new TextEncoder().encode(JSON.stringify(emojiCustomer));
+ const emojiAt=emojiBytes.indexOf(0xf0);assert.ok(emojiAt>0);checks++;
+ const chunks=[emojiBytes.slice(0,emojiAt+2),emojiBytes.slice(emojiAt+2,emojiAt+3),emojiBytes.slice(emojiAt+3)];
+ let chunkIndex=0;
+ const stream=new ReadableStream({pull(controller){
+  if(chunkIndex===chunks.length)controller.close();else controller.enqueue(chunks[chunkIndex++]);
+ }});
+ const validSplit=await customers.POST(customerRequest('POST',stream,{'content-length':String(emojiBytes.length)}));
+ eq(validSplit.status,201);
+ eq((await validSplit.json()).customer.name,emojiCustomer.name);
+ eq(db.prepare('SELECT name FROM customers WHERE id=?').get(emojiCustomer.requestId).name,emojiCustomer.name);
+
  console.log(`PASS ${checks}/${checks}: real customer creation primary-key replay, name-only lost acknowledgement, atomic race, conflicting details, identity duplicate guards, current history totals, owner auth, read-only confirmation, strict receipts and ID-only recovery storage.`);
 }finally{db.close()}
