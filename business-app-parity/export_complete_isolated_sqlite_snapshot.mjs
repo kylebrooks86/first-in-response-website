@@ -13,6 +13,7 @@ import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,validateNumberedCoreRecord
  NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION}
  from './shared/lib/numbered-records-v2-preflight.mjs';
 import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
+import {validateCompleteSupplementalCustomerHistory} from './validate_supplemental_customer_history.mjs';
 import {fingerprintIsolatedSqliteSchema} from './fingerprint_isolated_sqlite_schema.mjs';
 const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
 const stop=why=>{throw Error('FIRE offline snapshot export BLOCKED: '+why);};
@@ -63,6 +64,7 @@ export function captureCompleteIsolatedSqliteSnapshot(db){
   };
   validateNumberedCoreRecordsV2(core);
   validateSupplementalRecoveryArchive(supplemental,extras);
+  validateCompleteSupplementalCustomerHistory(core,supplemental);
   db.exec('COMMIT');
   return {core,supplemental,tableCount:names.length,
    rowCount:Object.values(counts).reduce((a,b)=>a+b,0)};
