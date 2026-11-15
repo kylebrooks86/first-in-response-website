@@ -94,7 +94,10 @@ export async function reconcileStripeCheckout(db:Database,session:StripeCheckout
   if (!session.id || session.payment_status !== "paid" || !session.amount_total) return { ok:false, reason:"unpaid" };
   const estimateId = session.metadata?.estimate_id?.trim();
   if (!estimateId) return { ok:false, reason:"missing_estimate" };
-  if(session.client_reference_id && session.client_reference_id!==estimateId)return {ok:false,reason:"reference_mismatch"};
+  // FIRE always writes the customer/job reference into its Checkout session.
+  // A signed Stripe event is not proof of the intended FIRE job if that field
+  // is absent: do not infer ownership from another metadata field alone.
+  if(session.client_reference_id!==estimateId)return {ok:false,reason:"reference_mismatch"};
 
   const estimate = await db.prepare(`
     SELECT e.id,e.status,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.customer_id AS customerId,c.name AS customer,
@@ -110,10 +113,24 @@ export async function reconcileStripeCheckout(db:Database,session:StripeCheckout
     return {ok:false,reason:"invoice_customer_mismatch"};
 
   const sessionAmount=Number(session.amount_total);
-  const paymentType = session.metadata?.payment_type === "balance" ? "balance" : "deposit";
-  const expectedAmount = Number(session.metadata?.expected_amount_cents ?? sessionAmount);
-  const tipCents = Number(session.metadata?.tip_amount_cents ?? 0);
-  const expectedCharge = Number(session.metadata?.expected_charge_cents ?? (expectedAmount + tipCents));
+  // All three money fields and the exact payment kind are written when FIRE
+  // creates its Stripe Checkout session. Missing/malformed signed metadata must
+  // NOT silently become a deposit, zero tip or amount_total fallback: doing so
+  // could credit a different obligation before owner reconciliation.
+  const metadata=session.metadata;
+  const paymentType=metadata?.payment_type;
+  if(paymentType!=="deposit"&&paymentType!=="balance")return {ok:false,reason:"invalid_payment_type_metadata"};
+  const decimalCents=/^(?:0|[1-9][0-9]*)$/;
+  if(typeof metadata?.expected_amount_cents!=="string"||
+     typeof metadata.tip_amount_cents!=="string"||
+     typeof metadata.expected_charge_cents!=="string"||
+     !decimalCents.test(metadata.expected_amount_cents)||
+     !decimalCents.test(metadata.tip_amount_cents)||
+     !decimalCents.test(metadata.expected_charge_cents))
+    return {ok:false,reason:"missing_or_invalid_checkout_amount_metadata"};
+  const expectedAmount=Number(metadata.expected_amount_cents);
+  const tipCents=Number(metadata.tip_amount_cents);
+  const expectedCharge=Number(metadata.expected_charge_cents);
   if (!Number.isSafeInteger(sessionAmount) || sessionAmount<=0 || !Number.isSafeInteger(expectedAmount) || expectedAmount<=0 || !Number.isSafeInteger(tipCents) || tipCents<0 || !Number.isSafeInteger(expectedCharge) || expectedCharge!==sessionAmount || expectedAmount+tipCents!==sessionAmount) return { ok:false, reason:"amount_mismatch" };
   if (paymentType!=="balance" && tipCents>0) return {ok:false,reason:"tip_not_allowed_for_deposit"};
   const maxTipCents=Math.min(Number(estimate.totalCents),50000);
