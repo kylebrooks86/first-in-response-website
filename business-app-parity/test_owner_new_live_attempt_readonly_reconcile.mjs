@@ -64,6 +64,19 @@ pass(o.state==='APPLICATION_OBJECTS_WITHOUT_JOURNAL_NEEDS_INVESTIGATION',
 o=classifyRemoteInventory([...provider,...journal],0);
 pass(o.state==='ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION',
  'empty journal does NOT reauthorize a write');
+const internalSequence={type:'table',name:'sqlite_sequence'};
+o=classifyRemoteInventory([...provider,...journal,internalSequence],0);
+pass(o.state==='ZERO_JOURNAL_SQLITE_SEQUENCE_ONLY_NO_RETRY'&&
+ o.onlyInternalSqliteSequenceObserved===true&&o.fullSchemaVerified===false&&
+ o.applicationObjectCount===1,
+ 'only SQLite internal AUTOINCREMENT sequence plus empty journal is an unverified no-retry state');
+o=classifyRemoteInventory([...provider,...journal,internalSequence,{type:'table',name:'jobs'}],0);
+pass(o.state==='ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION'&&
+ o.onlyInternalSqliteSequenceObserved===false,
+ 'extra application table never passes internal-sequence-only classification');
+o=classifyRemoteInventory([...provider,...journal,{type:'index',name:'sqlite_sequence'}],0);
+pass(o.state==='ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION',
+ 'forged sqlite_sequence as index cannot be misclassified as legitimate internal table');
 o=classifyRemoteInventory([...provider,...journal],13);
 pass(o.state==='INCOMPLETE_JOURNAL_DO_NOT_RETRY',
  'partially applied journal blocks retry');
@@ -83,6 +96,7 @@ const source=readFileSync(fileURLToPath(new URL('./owner_new_live_attempt_readon
 for(const required of [
  'NO_JOURNAL_AND_NO_APPLICATION_OBJECTS_SEEN',
  'COMPLETE_JOURNAL_FULL_SOURCE_PROOF_PENDING',
+ 'ZERO_JOURNAL_SQLITE_SEQUENCE_ONLY_NO_RETRY',
  'inspectNewLiveFirstJobCleanStart',
  'oneShotAttemptLockPreserved:true',
  'migrationRetryAllowed:false',
