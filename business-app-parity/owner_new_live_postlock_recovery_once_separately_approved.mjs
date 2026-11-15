@@ -123,14 +123,20 @@ function existingLocalJson(path){
  try{return JSON.parse(readFileSync(path,'utf8'));}
  catch{fail();}
 }
-function wrangler(js,args,{write=false}={}){
+function wrangler(js,args,{write=false,postRead=false}={}){
+ if(write&&postRead)fail();
  const readonly=[['--version'],['d1','info',DB,'--json','--config',CONFIG],
    ...Object.values(SQL).map(sql=>
     ['d1','execute',DB,'--remote','--json','--config',CONFIG,'--command',sql])];
- const permitted=write?args.join('\u001f')===
-  ['d1','migrations','apply',DB,'--remote','--config',CONFIG].join('\u001f'):
-  readonly.some(row=>row.join('\u001f')===args.join('\u001f'));
- if(!permitted)fail();
+ const check=arr=>arr.join('\u001f')===args.join('\u001f');
+ const preRead=readonly.some(check);
+ const validPostRead=postRead&&args.length===9&&
+  args.slice(0,8).join('\u001f')===
+    ['d1','execute',DB,'--remote','--json','--config',CONFIG,'--command'].join('\u001f')&&
+  typeof args[8]==='string'&&
+  bindReadOnlyNewLiveSelect(args[8])===args[8];
+ const writeOnly=write&&check(['d1','migrations','apply',DB,'--remote','--config',CONFIG]);
+ if(!(writeOnly||!write&&(preRead||validPostRead)))fail();
  const result=spawnSync(process.execPath,[js,...args],{
   cwd:WORK,env:pinnedNewLiveAccountEnvironment(process.env),
   stdio:write?['inherit','inherit','inherit']:'pipe',
@@ -217,7 +223,7 @@ async function runPostlockOneShot(jsPath,flag){
   readCount++;
   const safe=bindReadOnlyNewLiveSelect(sql,args);
   return parseRows(wrangler(js,
-   ['d1','execute',DB,'--remote','--json','--config',CONFIG,'--command',safe]));
+   ['d1','execute',DB,'--remote','--json','--config',CONFIG,'--command',safe],{postRead:true}));
  };
  // For all source-reviewed migrations, deposits, refund/idempotency financial
  // indexes, immutable numbers and zero rows / first future Job #0001.
