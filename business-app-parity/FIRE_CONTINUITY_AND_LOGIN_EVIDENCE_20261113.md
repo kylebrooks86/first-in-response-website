@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — GATE4 NEW DISTINCT PUBLIC-EXPOSURE CHECKER ADDED TO PR270 (SOURCE ONLY)
+
+- **Actual new GitHub source, not another accepted D1/version readback:** `owner_current_dark_exposure_readonly.mjs` inspects previously UNVERIFIED public-facing exposure categories for `fire-fullapp-dr` or `fire-fullapp-new-live`: workers.dev production and Preview URL booleans, account custom-domain inventory, and every enumerated account-zone Worker route. Uses Cloudflare's documented GET-only endpoints and bounded pagination/strict target matching, never deploys, logs in, changes Access, installs packages, writes D1/Stripe, or creates paid R2. Source commit `86321635876bc12c7807aa9e3568fbad4ccdad35`; targeted tests commit `f912610f4a5ed25ee82b11cb27c939b431e805af`; existing OFFLINE workflow wiring `b2e7b99f2f04e49b521dc887e3eaa1cda064a588`.
+- **17/17 local focused Node tests PASS** on the authored files (real local Node execution with mocked Cloudflare GET; no external call). Cases include missing zone-route evidence, foreign-account zone, incomplete pagination, malformed API responses, exposure on each surface, and refusal to mark formal G4 accepted even with clean simulated data. **Exact-head GitHub CI status must be inspected before calling remote CI passed.**
+- The new owner capture is **OPTIONAL** and runs only from an existing authenticated Windows owner console with a **preexisting** appropriately scoped `CLOUDFLARE_API_TOKEN` in the environment; it never initiates a Cloudflare sign-in or asks the owner to create a token. Plain `node .../owner_current_dark_exposure_readonly.mjs` is provider-free offline mode. If no preexisting credential is available, **do not force login/token creation or run new sign-in loops**; use authenticated provider UI evidence in a separate approved session instead. No physical GET capture has yet occurred with this helper; it does not establish actual route/preview absence today.
+- **DO NOT conflate new source checks with a hosted Gate4 pass**. Already accepted serving NEW LIVE version `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09` bound physical D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662` remains untouched; DR accepted version `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` untouched. Neither Worker first-create/deploy may be repeated. Four formal gates (1/2/3/8) ACCEPTED; G4/G5/G6/G7/G9/G10 OPEN, LIVE NO-GO.
+
+---
+
+
 ## NOV 15 — NEW LIVE HOSTED VERSION + D1 PROVIDER READ-ONLY MATCH **COMPLETE** — NO REDEPLOY
 
 - **NEW REAL OWNER ACER EVIDENCE (09:58 CST Nov 15):** after successful authorized one-time NEW LIVE DARK creation, owner ran the existing reviewed `owner_current_dark_postcreate_readonly.mjs --capture new-live` in authenticated Windows PowerShell. Actual Cloudflare GET/metadata readback returned `FIRE_CURRENT_DARK_PROVIDER_VERSION_AND_D1_BOUND_READONLY_MATCH`. Evidence is preserved in [Issue #19 comment #6897281548](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6897281548).
