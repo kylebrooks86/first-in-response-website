@@ -5,6 +5,8 @@ on:
       - 'business-app-parity/capture_new_dr_dark_version_read_only.py'
       - 'business-app-parity/test_capture_new_dr_dark_version_read_only.py'
       - 'business-app-parity/owner_dr_dark_postcreate_readonly.ps1'
+      - 'business-app-parity/owner_current_dark_exposure_readonly.mjs'
+      - 'business-app-parity/test_owner_current_dark_exposure_readonly.mjs'
       - 'business-app-parity/test_owner_dr_dark_postcreate_readonly.ps1'
       - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
 permissions:
@@ -30,6 +32,11 @@ jobs:
         run: python -m unittest discover -s business-app-parity -p 'test_capture_new_dr_dark_version_read_only.py' -v
       - name: Verify the owner helper's default mode makes zero provider requests
         run: python business-app-parity/capture_new_dr_dark_version_read_only.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test distinct DR/NEW LIVE Worker route, domain and preview exposure evidence (OFFLINE ONLY)
+        run: node business-app-parity/test_owner_current_dark_exposure_readonly.mjs
   windows-npx-command-mock:
     runs-on: windows-latest
     timeout-minutes: 5
