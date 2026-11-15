@@ -1,5 +1,16 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — FRESH OWNER NEW LIVE-ONLY ONE-SHOT DARK WORKER APPROVAL — NO EXECUTION YET
+
+- **Owner explicitly authorized EXACTLY ONE first creation** of `fire-fullapp-new-live` dark private Worker bound ONLY to existing physical `fire-fullapp-new-live-db` UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, with public routes, version previews, owner login, Stripe, paid Cloudflare/R2, SQL, other Workers, merge, DNS and production activation all EXCLUDED. Full verbatim owner scope recorded in [Issue #19 #6896803966](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6896803966). **Permission recorded; no first-create attempt made in this chat.**
+- Use owner existing Acer Windows interactive terminal, guarded `owner_current_dark_first_create_once_approved.mjs` plus sibling `owner_current_first_create_provider_evidence.mjs`, pinned to fully CI-green **code SHA `78d50bc8bd79d312a754f0f77212289b081e576c`**. Original frozen owner-private NEW LIVE first-create ZIP in Google Drive (ID `1tjRBI2G9KjslsJ2I9QxAUA9H19BJBS9h`), 3,102,669 bytes, SHA256 `06cd1886806fd8cad4d0ed26fbac3005b6eeb4ac3012efa84bf5e0c4b1d23fac`; source package parent `e27b39df06c1ed4ff63cd437e39fd3e314142eec`. Drive metadata owner-only `shared:false` checked again. Do not rebuild or substitute package.
+- Must first execute `inspect new-live` OFFLINE against locally downloaded file. `create new-live` verifies exact owner account, existing physical NEW LIVE D1, installed pinned Wrangler without npm auto-install, local isolated dry-run and exact owner typed phrase. It confirms provider Worker absence immediately before writing a durable **single-attempt lock**. If provider command errors, hangs, is interrupted or outcome is uncertain, preserve lock/receipt, **NEVER RETRY**, conduct read-only owner-version reconciliation instead.
+- **Existing DR `fire-fullapp-dr` already created** Nov 14, version `b7c42773-5a93-4c6c-91d2-83cdb8e857d9`; existing hosted physical DB/dark state readback accepted. **NEVER recreate DR**. DR and NEW LIVE 26/26 migrations and clean future Job #0001 previously accepted; do not repeat.
+- Status: code source green 26/26 before this documentation-only update, PR270 DRAFT/unmerged/undeployed. **NEW LIVE Worker hosted outcome NOT yet observed**, Gate4 partial only. Formal gates accepted **4/10 (1/2/3/8)**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO; owner approval does not authorize login enable, Stripe, cutover or final gate closure.
+
+---
+
+
 ## NOV 15 — PR270 Gate7 bounded records restore FIX CI-ACCEPTED after real Stripe restore fixture repair
 
 - **CURRENT TESTED APPLICATION+TEST SOURCE SHA `78d50bc8bd79d312a754f0f77212289b081e576c`** (main-based DRAFT PR #270, unmerged, undeployed). Final exact-source **26/26 distinct GitHub workflows SUCCESS, zero failure/pending**, including long staging/browser [run #43728300748](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43728300748); independent QA built Worker browser job and QA/staging shared source job both PASSED. Actual owner records input bounded streaming regression **32/32 PASS** in previous targeted CI and retained in corrected exact source. The full synthetic Stripe refund/immutable-payment RESTORE regression now PASS on the corrected SHA.
