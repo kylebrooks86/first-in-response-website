@@ -115,7 +115,7 @@ const journalTable={
  type:'table',name:'d1_migrations',
  sql:'CREATE TABLE "d1_migrations"( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL )'
 };
-const internalSequence={
+const postLockInternalSequence={
  type:'table',name:'sqlite_sequence',sql:'CREATE TABLE sqlite_sequence(name,seq)'
 };
 const journalUnique={
@@ -126,7 +126,7 @@ const baseRecovery={
  liveD1Info:{name:'fire-fullapp-new-live-db',uuid:live},
  originalLockPreserved:true,completionReceiptPresent:false,
  ownerApprovedNewWrite:false,sourceReviewSqlCount:26,
- sqliteMasterRows:[journalTable,internalSequence,journalUnique],
+ sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique],
  journalRows:[],sequenceRows:[]
 };
 const judge=x=>assessNewLiveInitializedJournalRecoveryEvidence(x);
@@ -146,14 +146,14 @@ for(const patch of [
  {originalLockPreserved:false},{sourceReviewSqlCount:25},
  {journalRows:[{id:1,name:'0000_wise_namora.sql'}]},
  {sequenceRows:[{name:'d1_migrations',seq:26}]},
- {sqliteMasterRows:[journalTable,internalSequence]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence]},
  {sqliteMasterRows:[journalTable,journalUnique]},
- {sqliteMasterRows:[journalTable,internalSequence,journalUnique,{type:'table',name:'customers',sql:'CREATE TABLE customers(id TEXT)'}]},
- {sqliteMasterRows:[{...journalTable,sql:'CREATE TABLE d1_migrations(id INTEGER,name TEXT)'},internalSequence,journalUnique]},
- {sqliteMasterRows:[journalTable,{...internalSequence,type:'view'},journalUnique]},
- {sqliteMasterRows:[journalTable,internalSequence,{...journalUnique,sql:'CREATE INDEX fake ON d1_migrations(name)'}]},
- {sqliteMasterRows:[journalTable,internalSequence,journalUnique,journalUnique]},
- {sqliteMasterRows:[journalTable,internalSequence,journalUnique,{type:'trigger',name:'audit',sql:'CREATE TRIGGER audit AFTER INSERT ON d1_migrations BEGIN SELECT 1; END'}]}
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,{type:'table',name:'customers',sql:'CREATE TABLE customers(id TEXT)'}]},
+ {sqliteMasterRows:[{...journalTable,sql:'CREATE TABLE d1_migrations(id INTEGER,name TEXT)'},postLockInternalSequence,journalUnique]},
+ {sqliteMasterRows:[journalTable,{...postLockInternalSequence,type:'view'},journalUnique]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,{...journalUnique,sql:'CREATE INDEX fake ON d1_migrations(name)'}]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,journalUnique]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,{type:'trigger',name:'audit',sql:'CREATE TRIGGER audit AFTER INSERT ON d1_migrations BEGIN SELECT 1; END'}]}
 ])reject(()=>judge({...baseRecovery,...patch}),
  'wrong account/lock/source, hidden data, sequence history, malformed journal or extra object blocks reauthorization readiness');
 
