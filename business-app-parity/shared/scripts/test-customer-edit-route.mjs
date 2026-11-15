@@ -10,6 +10,7 @@ import {customerNumberingReady,customerNumberForCustomer} from '../lib/customer-
 const require=createRequire(import.meta.url);
 const source=ts.createSourceFile('customers-route.ts',readFileSync('app/api/customers/route.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const get=n=>source.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(source);
+const getRouteVar=n=>source.statements.find(s=>ts.isVariableStatement(s)&&s.declarationList.declarations.some(d=>d.name.getText(source)===n))?.getText(source);
 const contactSource=ts.createSourceFile('customer-contact-links.ts',readFileSync('lib/customer-contact-links.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const getContact=n=>contactSource.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(contactSource);
 const identitySource=ts.createSourceFile('customer-identity.ts',readFileSync('lib/customer-identity.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
@@ -19,7 +20,7 @@ const getIdentityFunction=n=>identitySource.statements.find(s=>ts.isFunctionDecl
 const code=['const OWNER_EMAIL="qa-owner@example.invalid";',
  getIdentityVar('digits'),getIdentityVar('CUSTOMER_PHONE_SQL'),getIdentityFunction('customerIdentityPredicate'),
  getContact('usableCustomerPhone'),getContact('usableCustomerEmail'),
- get('authorized'),get('readCustomerRequest'),get('GET'),get('PATCH'),'exports.run={GET,PATCH}'].join('\n');
+ getRouteVar('MAX_CUSTOMER_REQUEST_BYTES'),get('authorized'),get('readCustomerRequest'),get('GET'),get('PATCH'),'exports.run={GET,PATCH}'].join('\n');
 assert.ok(code.includes('GET(')&&code.includes('PATCH('),'Could not extract actual customer route source');
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
