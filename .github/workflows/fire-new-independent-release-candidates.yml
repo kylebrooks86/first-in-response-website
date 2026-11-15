@@ -413,6 +413,80 @@ jobs:
             "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded"
           echo "NO Cloudflare/Stripe provider, migration, auth enablement, paid service or release."
 
+      # The reviewed DARK source package carries names of future login secrets.
+      # A brand-new Worker cannot yet satisfy those secret requirements.
+      # This prepares ONLY a disjoint config copy, never a provider write.
+      - name: Generate current QA-master private first-create overlay from SAVED DARK archive
+        env:
+          FIRE_REVIEWED_SHA: ${ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$FIRE_TARGET" = "independent-dr" ]; then TARGET=dr;
+          elif [ "$FIRE_TARGET" = "independent-live" ]; then TARGET=new-live;
+          else echo 'BLOCKED: unknown target'; exit 1; fi
+          test "$(git rev-parse HEAD)" = "$FIRE_REVIEWED_SHA"
+          node business-app-parity/prepare_current_dark_first_create_overlay.mjs prepare \
+            "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded" \
+            "$FIRE_REVIEWED_SHA" "$RUNNER_TEMP/fire-current-firstcreate-source"
+          node business-app-parity/prepare_current_dark_first_create_overlay.mjs verify \
+            "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded" \
+            "$FIRE_REVIEWED_SHA" "$RUNNER_TEMP/fire-current-firstcreate-source"
+
+      - name: Compile actual first-create config OFFLINE with Wrangler dry-run only
+        run: |
+          set -euo pipefail
+          node "$RUNNER_TEMP/fire-modern-qa-workerd/node_modules/wrangler/bin/wrangler.js" deploy \
+            --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-current-firstcreate-source/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/fire-current-firstcreate-offline-review"
+          echo 'PASS current-source first-create package with future login secret requirement removed; no remote provider, payment, database, route or R2 action.'
+
+      - name: Retain source-only PRIVATE first-create overlay for owner review, NEVER deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-CURRENT-PRIVATE-FIRSTCREATE-${ matrix.target }}-${ github.event.pull_request.head.sha }}
+          path: ${ runner.temp }}/fire-current-firstcreate-source/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+          compression-level: 6
+
+      - name: Read back first-create overlay from THIS run with bounded read-only retries
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+          FIRE_EXACT_ARTIFACT: FIRE-CURRENT-PRIVATE-FIRSTCREATE-${ matrix.target }}-${ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          destination="${RUNNER_TEMP:?}/fire-current-firstcreate-readback"
+          for attempt in 1 2 3 4 5; do
+            rm -rf -- "$destination"
+            mkdir -p -- "$destination"
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "$FIRE_EXACT_ARTIFACT" --dir "$destination"; then
+              echo 'PASS exact same-run first-create archive downloaded; full original-byte verification follows.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo 'BLOCKED: exact-run first-create archive not available after bounded retries.'
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+
+      - name: Independently verify archived first-create asset bytes and blocked provider flags
+        env:
+          FIRE_REVIEWED_SHA: ${ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$FIRE_TARGET" = "independent-dr" ]; then TARGET=dr;
+          elif [ "$FIRE_TARGET" = "independent-live" ]; then TARGET=new-live;
+          else echo 'BLOCKED: wrong target'; exit 1; fi
+          node business-app-parity/prepare_current_dark_first_create_overlay.mjs verify \
+            "$TARGET" "$RUNNER_TEMP/fire-current-dark-downloaded" \
+            "$FIRE_REVIEWED_SHA" "$RUNNER_TEMP/fire-current-firstcreate-readback"
+          echo 'PASS archived SSR/Data, disabled login and URLs, physical target D1 source, no R2, no provider calls; never deployed.'
+
 
   gate9-existing-test-worker-no-assets-upload-source:
     name: Gate9 existing Stripe TEST full-app Worker Data-only alternative, dark and disabled (NO PROVIDER)
