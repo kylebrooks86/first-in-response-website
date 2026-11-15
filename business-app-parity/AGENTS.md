@@ -1,5 +1,16 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — NEW LIVE HOSTED VERSION + D1 PROVIDER READ-ONLY MATCH **COMPLETE** — NO REDEPLOY
+
+- **NEW REAL OWNER ACER EVIDENCE (09:58 CST Nov 15):** after successful authorized one-time NEW LIVE DARK creation, owner ran the existing reviewed `owner_current_dark_postcreate_readonly.mjs --capture new-live` in authenticated Windows PowerShell. Actual Cloudflare GET/metadata readback returned `FIRE_CURRENT_DARK_PROVIDER_VERSION_AND_D1_BOUND_READONLY_MATCH`. Evidence is preserved in [Issue #19 comment #6897281548](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6897281548).
+- **Physical currently serving target:** Worker `fire-fullapp-new-live`, **100%-serving exact hosted version `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09`**, independently bound **physical D1 `fire-fullapp-new-live-db` UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`**. This is newly established after first-create success. Read-only checker flags `identityAndPhysicalBindingProviderReadbackVerified:true`, `darkAuthDisabledInHostedVariables:true`, `deploymentModifiedByThisCheck:false` and `databaseModifiedByThisCheck:false`. Source-package SHA `e27b39df06c1ed4ff63cd437e39fd3e314142eec` is a pinned package reference, not independently verified remote serving bytes.
+- **NEVER rerun** `create new-live`, `wrangler deploy`, first-create ZIP inspection, same six-command NEW LIVE version/D1 readback, prior accepted DR hosted readback, 26/26 D1 migrations, iPhone QA, or first-job #0001 guard. Preserve all Acer/owner-private ZIP, fsynced first-create attempt lock and CLI success receipt. Existing DR version `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` remains unchanged.
+- **Not proven here:** provider public-route/preview absence, Access policy, hosted code bytes, distinct nonowner/customer-denial, full records+photo cloud recovery, signed Stripe TEST events, multi-environment active QA-master parity. The read-only program explicitly returns `gate4Accepted:false` and all other still-open gate flags false, `productionReady:false`. Next effort should address a **different missing physical safety proof**, not duplicate these accepted readbacks; no routes/auth/Stripe/provider writes without fresh exact owner approval.
+- **Formal release status: 4/10 gates accepted (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN; LIVE/NEW LIVE NO-GO.** This commit is documentation of real owner-provided evidence, not an app code change, provider mutation, Git merge, test pass or gate promotion.
+
+---
+
+
 ## NOV 15 — REAL OWNER NEW LIVE DARK WORKER FIRST-CREATION **SUCCESS** — DO NOT RECREATE
 
 - **ACTUAL PHYSICAL CLOUDFLARE HOSTED MILESTONE**: Owner Acer PowerShell screenshot of one-time `create new-live` with exact typed approval, following original private 242-file SHA256 verified ZIP. Exact launcher output: `FIRE one-shot DARK first-create CLI succeeded; source routes/login blocked; preserve attempt lock and receipt. NO release gate accepted.` CLI returned to terminal prompt. [Issue #19 newly accepted physical evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6897198133). This **supersedes ALL prior "Worker absent/not created" and two pre-consent aborts**. **NEVER RUN `create new-live` OR ANY FIRST-CREATE/DEPLOY AGAIN.**
