@@ -36,7 +36,9 @@ async function readCustomerRequest(request: Request): Promise<Record<string, unk
     while (true) {
       const {done,value} = await reader.read();
       if (done) break;
-      if (!(value instanceof Uint8Array)) return null;
+      // Streams can cross a test/runtime realm boundary; instanceof then
+      // fails for a genuine Uint8Array. Verify its actual byte-view brand.
+      if (!ArrayBuffer.isView(value) || Object.prototype.toString.call(value) !== '[object Uint8Array]') return null;
       bytes += value.byteLength;
       if (bytes > MAX_CUSTOMER_REQUEST_BYTES) return null;
       text += decoder.decode(value, {stream: true});
