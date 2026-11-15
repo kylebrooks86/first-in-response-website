@@ -17,6 +17,7 @@
  * first records passphrase, second encrypted photos passphrase.
  */
 import {createHash} from 'node:crypto';
+import {DatabaseSync} from 'node:sqlite';
 import {createReadStream} from 'node:fs';
 import {lstat,unlink} from 'node:fs/promises';
 import {resolve} from 'node:path';
@@ -29,6 +30,12 @@ import {recoverSavedProtectedPhotoZip}
  from './recover_saved_protected_photo_zip.mjs';
 import {inspectSavedProtectedPairReceipt}
  from './protected_recovery_pair_receipt.mjs';
+import {fingerprintIsolatedSqliteSchema,requireSameIsolatedSchema}
+ from './fingerprint_isolated_sqlite_schema.mjs';
+import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES}
+ from './shared/lib/numbered-records-v2-preflight.mjs';
+import {EXPECTED_NEW_LIVE_D1_MIGRATIONS}
+ from './shared/lib/new-live-migration-journal.mjs';
 
 const stop=why=>{throw Error('FIRE encrypted records + photos recovery BLOCKED: '+why);};
 const passValid=x=>typeof x==='string'&&x.length>=16&&x.length<=1024&&
@@ -105,6 +112,107 @@ async function hashUnchangedProtectedFile(file,maxBytes){
  }catch{stop('saved encrypted recovery source could not be verified after restore');}
  return digest.digest('hex');
 }
+/** After the photo ZIP is saved, reopen the FINAL on-disk SQLite in
+ * READ-ONLY mode. The first restore checked rows before close; this second
+ * inspection rejects a replaced, truncated, altered or uncheckpointed DB
+ * before paired success is reported. D1 migration applied_at timestamps stay
+ * target-local; every other journal field and all owner data must match.
+ * This remains strictly a LOCAL recovery proof, never hosted acceptance.
+ */
+export async function verifySavedPairedRecoveredSqlite(path,core,supplemental){
+ if(typeof path!=='string'||!path||!core?.tables||!supplemental?.tables||
+    !core.schemaIdentity||!supplemental.schemaIdentity)
+  stop('final saved SQLite source identity unavailable');
+ const stable=value=>Array.isArray(value)?'['+value.map(stable).join(',')+']':
+  value&&typeof value==='object'?'{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}':
+  JSON.stringify(typeof value==='boolean'?Number(value):value);
+ const eq=(a,b)=>stable(a)===stable(b);
+ const expected={...core.tables,...supplemental.tables};
+ const safeName=name=>/^[a-z][a-z0-9_]*$/.test(name);
+ const requiredCore=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
+ if(requiredCore.some(name=>!Array.isArray(core.tables[name]))||
+    Object.keys(expected).some(name=>!safeName(name)||!Array.isArray(expected[name])))
+  stop('saved SQLite recovery archive has missing or unsafe tables');
+ let before,db;
+ try{
+  before=await lstat(resolve(path));
+  if(!before.isFile()||before.isSymbolicLink()||before.size<512||
+     before.size>512*1024*1024)
+   stop('saved recovered SQLite is absent, unsafe or exceeds private recovery limit');
+  db=new DatabaseSync(resolve(path),{readOnly:true});
+  if(db.prepare('PRAGMA journal_mode').get()?.journal_mode==='wal')
+   stop('restored SQLite must be standalone, not an external WAL snapshot');
+  const actual=fingerprintIsolatedSqliteSchema(db);
+  requireSameIsolatedSchema(core.schemaIdentity,actual);
+  requireSameIsolatedSchema(supplemental.schemaIdentity,actual);
+  if(db.prepare('PRAGMA integrity_check').get()?.integrity_check!=='ok'||
+     db.prepare('PRAGMA foreign_key_check').all().length!==0)
+   stop('saved recovered SQLite fails its actual on-disk integrity constraints');
+  const tableNames=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+   .all().map(row=>row.name).sort();
+  if(!eq(tableNames,Object.keys(expected).sort()))
+   stop('saved recovered SQLite has missing or extra business tables');
+  let inspectedRows=0;
+  for(const [table,source] of Object.entries(expected)){
+   const actualRows=db.prepare('SELECT * FROM "'+table+'"').all();
+   if(actualRows.length!==source.length)
+    stop('saved recovered SQLite row count differs in '+table);
+   inspectedRows+=actualRows.length;
+   if(table==='d1_migrations'){
+    if(source.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
+     stop('saved recovered SQLite migration journal incomplete');
+    const byId=rows=>[...rows].sort((a,b)=>a.id-b.id);
+    const original=byId(source),saved=byId(actualRows);
+    for(let i=0;i<source.length;i++){
+     const left=original[i],right=saved[i];
+     if(left.id!==i+1||right.id!==i+1||
+        left.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]||
+        right.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]||
+        !eq(Object.keys(left).sort(),Object.keys(right).sort()))
+      stop('saved recovered SQLite migration lineage differs');
+     for(const key of Object.keys(left))
+      if(key!=='applied_at'&&!eq(left[key],right[key]))
+       stop('saved recovered SQLite migration identity differs');
+     if(Object.hasOwn(left,'applied_at')&&
+        (!Number.isFinite(Date.parse(String(left.applied_at)))||
+         !Number.isFinite(Date.parse(String(right.applied_at)))))
+      stop('saved recovered SQLite migration timestamps malformed');
+    }
+   }else{
+    const normalized=rows=>rows.map(stable).sort();
+    if(!eq(normalized(actualRows),normalized(source)))
+     stop('saved recovered SQLite row bytes or ownership fields differ in '+table);
+   }
+  }
+  const expectedSequences={...supplemental.sqliteSequence,
+   fire_customer_numbers:core.highWater?.customer,
+   fire_job_numbers:core.highWater?.job};
+  for(const [name,high] of Object.entries(expectedSequences)){
+   if(!safeName(name)||!Number.isSafeInteger(high)||high<0||
+      db.prepare('SELECT seq FROM sqlite_sequence WHERE name=?').get(name)?.seq!==high)
+    stop('saved recovered SQLite permanent/migration high-water changed: '+name);
+  }
+  db.close();db=undefined;
+  const after=await lstat(resolve(path));
+  if(!after.isFile()||after.isSymbolicLink()||after.ino!==before.ino||
+     after.dev!==before.dev||after.size!==before.size)
+   stop('saved recovered SQLite changed during independent readback');
+  return Object.freeze({
+   savedRecoveredSqliteReadBackVerified:true,
+   allRecoveredSqliteRowsCompared:true,
+   persistedRowsChecked:inspectedRows,
+   d1MigrationHistoryRevalidated:Array.isArray(expected.d1_migrations)?
+    expected.d1_migrations.length:0,
+   allForeignKeysAndIntegrityVerified:true,
+   providerD1Restored:false,gate7Accepted:false
+  });
+ }catch(e){
+  if(e instanceof Error&&e.message.startsWith('FIRE encrypted records + photos recovery BLOCKED:'))throw e;
+  stop('saved recovered SQLite failed independent read-only verification');
+ }finally{
+  if(db)try{db.close();}catch{}
+ }
+}
 export async function rehearseProtectedCompleteRecordsAndPhotos(
  protectedRecords,emptySchema,protectedPhotos,outputDb,outputZip,
  recordsPhrase,photoPhrase,{approved=false,pairReceiptPath}={}
@@ -144,6 +252,11 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
   // final paired proof fails. On EEXIST, preserve the owner's original ZIP.
   photoCreatedByThisRun=true;
   assertPairedRecoveredPhotoEvidence(photo);
+  // The photo work finished after the SQLite restore. Independently reopen
+  // the FINAL saved database now, recheck every archived row, 26 provider
+  // journal identities, schema, serial high-water, FK and file integrity.
+  const savedSqlite=await verifySavedPairedRecoveredSqlite(
+   outputDb,opened.core,opened.supplemental);
   // The saved protected inputs are checked AGAIN after actual restored SQLite
   // and photo ZIP bytes are verified. No accepted output can refer to changed
   // ciphertext or an old .firepair receipt (if the owner supplied one).
@@ -171,6 +284,10 @@ export async function rehearseProtectedCompleteRecordsAndPhotos(
    verifiedPhotoZipSha256:photo.verifiedZipSha256,
    savedRecoveredPhotoZipReadBackVerified:true,
    savedRecoveredPhotoZipSha256:photo.savedRecoveredZipSha256,
+   savedRecoveredSqliteReadBackVerified:savedSqlite.savedRecoveredSqliteReadBackVerified,
+   allRecoveredSqliteRowsCompared:savedSqlite.allRecoveredSqliteRowsCompared,
+   savedSqliteRowsIndependentlyChecked:savedSqlite.persistedRowsChecked,
+   finalSqliteMigrationHistoryVerified:savedSqlite.d1MigrationHistoryRevalidated,
    encryptedRecordsSha256:opened.protectedFileSha256,
    plaintextJsonIntermediatesWritten:false,
    originalProtectedInputsUnmodified:sourceCustody.encryptedRecordsAndPhotosUnchangedAfterRestore,
