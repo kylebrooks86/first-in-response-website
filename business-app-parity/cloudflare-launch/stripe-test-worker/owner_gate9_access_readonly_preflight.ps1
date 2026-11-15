@@ -1,4 +1,4 @@
-# FIRE Gate 9 — STRICT READ-ONLY Cloudflare Access inventory, TEST Worker ONLY.
+# FIRE Gate 9 - STRICT READ-ONLY Cloudflare Access inventory, TEST Worker ONLY.
 # No Access policy PUT/PATCH/POST/DELETE, no Stripe/D1/Worker writes, no deploy.
 # Safe to run before seeking a separately scoped webhook-path mutation approval.
 # Requires a short-lived Cloudflare API token authorized to READ Access apps.
@@ -80,13 +80,13 @@
     }
     Write-Host 'PASS: Correct isolated FIRE TEST Worker Access application and single reusable Allow policy.'
     if ($overrides.Count -eq 7) {
-      Write-Host 'READ_ONLY: EXACT_SEVEN — webhook still behind Access; no policy write attempted.'
+      Write-Host 'READ_ONLY: EXACT_SEVEN - webhook still behind Access; no policy write attempted.'
     } else {
-      Write-Host 'READ_ONLY: EXACT_EIGHT — exact webhook path public, other seven unchanged; separately test HMAC and private routes.'
+      Write-Host 'READ_ONLY: EXACT_EIGHT - exact webhook path public, other seven unchanged; separately test HMAC and private routes.'
     }
     Write-Host 'NO cloud change, Stripe event, TEST activation, backup or LIVE modification performed.'
   } catch {
-    Write-Host "STOP at $stage — Access state was NOT accepted. No cloud change attempted."
+    Write-Host "STOP at $stage - Access state was NOT accepted. No cloud change attempted."
     Write-Host 'Inspect the Access app independently; do not auto-repair or run the ADD helper.'
   } finally {
     if($ptr -ne [IntPtr]::Zero) {
