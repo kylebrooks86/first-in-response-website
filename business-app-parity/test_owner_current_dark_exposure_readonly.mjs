@@ -109,4 +109,45 @@ assert.equal(emptyZonesProof.zonesInspected,0);
 assert.equal(emptyZonesProof.publicEndpointsAbsentInSuppliedEvidence,true);
 assert.equal(emptyZonesProof.gate4Accepted,false);
 console.log('PASS no-zone account and no-domain inventory stay explicit, source-only and unaccepted');
-console.log('TOTAL',passed+5,'targeted Gate4 checks PASS');
+const falseEmptyDomainCount=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/workers/domains?'))
+  return {...result,result_info:{...result.result_info,total_count:1}};
+ return result;
+};
+await assert.rejects(
+ captureDarkExposure('new-live',{token:'synthetic-only',request:falseEmptyDomainCount}),
+ /domains total_count does not match exhausted pages/
+);
+console.log('PASS incomplete empty custom-domain page cannot certify absence');
+
+const incompleteSingleDomainPage=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/workers/domains?'))
+  return {...success([{service:'unrelated-worker',hostname:'safe.example'}]),
+   result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:2}};
+ return result;
+};
+await assert.rejects(
+ captureDarkExposure('new-live',{token:'synthetic-only',request:incompleteSingleDomainPage}),
+ /domains total_count does not match exhausted pages/
+);
+console.log('PASS a single incomplete nonempty custom-domain page cannot certify absence');
+
+const changingDomainTotals=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/workers/domains?')&&path.includes('page=1'))
+  return {...success([{service:'unrelated-worker',hostname:'safe-one.example'}]),
+   result_info:{page:1,per_page:50,count:1,total_pages:2,total_count:2}};
+ if(path.includes('/workers/domains?')&&path.includes('page=2'))
+  return {...success([{service:'unrelated-worker',hostname:'safe-two.example'}]),
+   result_info:{page:2,per_page:50,count:1,total_pages:2,total_count:3}};
+ return result;
+};
+await assert.rejects(
+ captureDarkExposure('new-live',{token:'synthetic-only',request:changingDomainTotals}),
+ /domains total_count changed between pages/
+);
+console.log('PASS changing custom-domain count across pages cannot certify absence');
+
+console.log('TOTAL',passed+8,'targeted Gate4 checks PASS');
