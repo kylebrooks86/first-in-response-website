@@ -25,7 +25,7 @@ const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
 let writes=0,reads=0,authorized=true,throwAfterWrite=false,skipNextUpdate=false,throwAfterUpdate=false,distortNextReadback=false,missingNextReadback=false,beforeUpdate=null;
 const ctxPhoneDigits=raw=>{const digits=String(raw??'').replace(/\D/g,'');return digits.length===11&&digits.startsWith('1')?digits.slice(1):digits;};
-const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,customerNumberForCustomer,
+const ctx={exports:{},require,Response,URL,Date,crypto,TextDecoder,customerNumberingReady,customerNumberForCustomer,
   getChatGPTUser:async()=>authorized?{email:'qa-owner@example.invalid'}:null,
   env:{DB:{prepare(sql){return {bind(...values){
     return {
