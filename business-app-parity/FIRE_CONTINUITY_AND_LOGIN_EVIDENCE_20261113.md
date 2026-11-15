@@ -1,5 +1,13 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — GATE7 COMPLETE HTTP CONTENT-LENGTH MATCH BEFORE RESTORE
+
+- **New source/runtime safeguard (no provider):** `business-app-parity/shared/lib/bounded-records-restore.mjs` now checks the actual fully streamed byte count against any supplied HTTP `Content-Length`, after the existing before-allocation 5,000,000-byte maximum and strict UTF-8 checks, and refuses short or extra transfer with HTTP 400/no-store before JSON parse or D1 writes. Source commit `29f51c793067257c5a14a80f46c6ea9d8907f371`.
+- **New focused negative/positive tests** in `shared/scripts/test-bounded-records-restore.mjs`: short upload, over-delivery and exact matching Content-Length, test commit `1621ceddf8fef7ded50f7e4c2f52047fe1bd44e8`. Existing Gate7 upload safety entry imports this test. On the exact test-source commit, staging/QA synthetic [workflow run #43736229987](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43736229987) step **Gate 7 bounded photo upload, safe viewing and verified deletion** completed **SUCCESS**. Other CI groups still pending when recorded, so do not overstate full CI acceptance. [Issue #19 evidence #6897750283](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6897750283).
+- **No accepted gate altered**: 4/10 formal G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO. Source-only, draft, unmerged, not deployed. Existing DR+NEW LIVE physical D1/serving-version evidence, first-create locks, 26 migrations, QA and iPhone tests remain accepted and must not be repeated. No Cloudflare/Stripe/SQL/payment/photos/provider operation. Future full off-device records+photos restore still missing.
+
+---
+
 ## NOV 15 — OPTIONAL OWNER EXISTING WRANGLER SESSION GATE4 GET EVIDENCE (SOURCE ONLY)
 
 - New `owner_current_dark_exposure_existing_session.mjs` allows genuine missing **route/preview/custom-domain** read-only evidence with existing owner Wrangler authentication, rather than demanding new Cloudflare credentials or repeating failed Work browser sign-ins. Uses pinned locally installed `wrangler@4.162.0 auth token --json`, npm offline `--no-install`, strict OAuth/API-token parser, memory-only credential with no display/storage, fail-closed one-shot behavior, and subsequent Cloudflare inventory **GET-only** requests. Wrangler may automatically refresh an existing OAuth credential; it never invokes `wrangler login`, browser login or deploy.
