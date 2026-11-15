@@ -9,6 +9,7 @@ import {
  requireIndependentNewLiveInfo,requireEmptyPhysicalNewLive,
  newLiveResultRows,bindReadOnlyNewLiveSelect,
  createOneShotNewLiveAttemptLock,safeNewLiveCommandError,newLiveWranglerStdio,
+ newLiveMigrationWorkerOperationScope,
  applyNewLiveInitialSchemaAfterSeparateApproval
 } from './owner_new_live_initial_schema_one_shot.mjs';
 
@@ -139,6 +140,17 @@ try{
     lockState.remoteOperationAttemptedByLock===false,
   'exclusive owner lock is fully written and fsynced before any simulated remote action');
  const firstLockBytes=readFileSync(lock);
+ const lockReceipt=JSON.parse(firstLockBytes);
+ const workerScope=newLiveMigrationWorkerOperationScope();
+ ok(workerScope.workerCreationPerformedByThisMigration===false&&
+    workerScope.workerDeploymentPerformedByThisMigration===false&&
+    workerScope.ownerLoginChangedByThisMigration===false&&
+    workerScope.existingWorkerRuntimeIndependentlyRecheckedByThisMigration===false,
+  'schema installer reports only its own non-worker operations, not that the already-created dark Worker does not exist');
+ ok(Object.keys(workerScope).every(k=>lockReceipt[k]===workerScope[k])&&
+    !Object.hasOwn(lockReceipt,'cloudflareWorkerDeployed')&&
+    !Object.hasOwn(lockReceipt,'ownerLoginEnabled'),
+  'durable one-shot lock cannot falsely attest global dark Worker deployment or owner login state');
  ok(existsSync(lock)&&JSON.parse(firstLockBytes).state===
   'REMOTE_COMMAND_RESULT_UNCONFIRMED_NO_AUTOMATIC_RETRY','lock records uncertain result');
  ok((statSync(lock).mode&0o777)===0o600,'owner-only lock file permissions on Linux');
