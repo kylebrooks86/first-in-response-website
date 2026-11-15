@@ -59,8 +59,8 @@ const calls=[];
 const mock=async(_token,path)=>{
  calls.push(path);
  if(path.endsWith('/subdomain'))return success({enabled:false,previews_enabled:false});
- if(path.includes('/workers/domains?'))return {...success([]),result_info:{page:1,total_pages:1,total_count:0}};
- if(path.includes('/zones?'))return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),result_info:{page:1,total_pages:1,total_count:1}};
+ if(path.includes('/workers/domains?'))return {...success([]),result_info:{page:1,per_page:50,count:0,total_pages:0,total_count:0}};
+ if(path.includes('/zones?'))return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:5}};
  if(path.endsWith('/workers/routes'))return success([]);
  throw Error('unexpected mock request '+path);
 };
@@ -71,4 +71,41 @@ assert.equal(proof.gate4Accepted,false);
 assert.equal(calls.length,4);
 assert.ok(calls.every(p=>p.startsWith('/client/v4/')&&!/\b(post|put|delete)\b/i.test(p)));
 console.log('PASS four exact read-only GET mock calls; no paid API, auth or remote state');
-console.log('TOTAL',passed+1,'targeted Gate4 checks PASS');
+const malformedCounts=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/zones?'))return {...result,result_info:{...result.result_info,count:0}};
+ return result;
+};
+await assert.rejects(captureDarkExposure('new-live',{token:'synthetic-only',request:malformedCounts}),/page item-count mismatch/);
+console.log('PASS mismatched provider page item count cannot certify absence');
+
+const inconsistentEmpty=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/workers/domains?'))return {...result,result_info:{...result.result_info,count:1}};
+ return result;
+};
+await assert.rejects(captureDarkExposure('new-live',{token:'synthetic-only',request:inconsistentEmpty}),/inconsistent zero-page inventory/);
+console.log('PASS impossible zero-page inventory cannot certify absence');
+
+const missingSecondPage=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/workers/domains?')&&path.includes('page=1'))
+  return {...result,result_info:{...result.result_info,total_pages:2,total_count:2,count:0}};
+ if(path.includes('/workers/domains?')&&path.includes('page=2'))
+  return {...result,result_info:{...result.result_info,page:2,total_pages:1,total_count:2,count:0}};
+ return result;
+};
+await assert.rejects(captureDarkExposure('new-live',{token:'synthetic-only',request:missingSecondPage}),/changed between pages/);
+console.log('PASS changing pagination cannot falsely certify absence');
+
+const zeroZones=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/zones?'))return {...success([]),result_info:{page:1,per_page:50,count:0,total_pages:0,total_count:0}};
+ return result;
+};
+const emptyZonesProof=await captureDarkExposure('new-live',{token:'synthetic-only',request:zeroZones});
+assert.equal(emptyZonesProof.zonesInspected,0);
+assert.equal(emptyZonesProof.publicEndpointsAbsentInSuppliedEvidence,true);
+assert.equal(emptyZonesProof.gate4Accepted,false);
+console.log('PASS no-zone account and no-domain inventory stay explicit, source-only and unaccepted');
+console.log('TOTAL',passed+5,'targeted Gate4 checks PASS');
