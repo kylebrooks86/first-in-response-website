@@ -90,7 +90,8 @@ console.log('PASS impossible zero-page inventory cannot certify absence');
 const missingSecondPage=async(_token,path)=>{
  const result=await mock(_token,path);
  if(path.includes('/workers/domains?')&&path.includes('page=1'))
-  return {...result,result_info:{...result.result_info,total_pages:2,total_count:2,count:0}};
+  return {...success([{service:'unrelated-worker',hostname:'safe.example'}]),
+   result_info:{...result.result_info,total_pages:2,total_count:2,count:1}};
  if(path.includes('/workers/domains?')&&path.includes('page=2'))
   return {...result,result_info:{...result.result_info,page:2,total_pages:1,total_count:2,count:0}};
  return result;
