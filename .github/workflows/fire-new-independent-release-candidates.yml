@@ -379,6 +379,9 @@ jobs:
     name: Gate9 existing Stripe TEST full-app Worker Data-only alternative, dark and disabled (NO PROVIDER)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
     env:
       CI: 'true'
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
@@ -436,11 +439,34 @@ jobs:
           include-hidden-files: true
           retention-days: 7
           compression-level: 6
-      - name: Independently download saved TEST artifact and refuse changed code/assets
-        uses: actions/download-artifact@v4
-        with:
-          name: FIRE-GATE9-EXISTING-TEST-NOASSETS-DARK-REVIEW-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/fire-gate9-noassets-archive-readback
+      # GitHub may finalize an upload before the artifact is visible to a
+      # same-run immediate download. Read-only, bounded exact-name/run retries
+      # prevent that propagation delay from masquerading as a Worker build
+      # failure. Never download from a different run or accept partial bytes.
+      - name: Independently download saved TEST artifact with bounded same-run read-only retry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRE_EXACT_ARTIFACT: FIRE-GATE9-EXISTING-TEST-NOASSETS-DARK-REVIEW-${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          destination="${RUNNER_TEMP:?}/fire-gate9-noassets-archive-readback"
+          for attempt in 1 2 3 4 5; do
+            rm -rf -- "$destination"
+            mkdir -p -- "$destination"
+            if gh run download "$GITHUB_RUN_ID" \
+              --repo "$GITHUB_REPOSITORY" \
+              --name "$FIRE_EXACT_ARTIFACT" \
+              --dir "$destination"; then
+              echo 'PASS: same-run exact-source TEST artifact downloaded; independent byte verification follows.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo 'BLOCKED: saved exact-source TEST artifact unavailable after bounded read-only retries.'
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
       - name: Final independent saved TEST package content verification
         run: |
           node business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs \
