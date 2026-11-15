@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOVEMBER 15 — REAL DR DARK WORKER DOMAIN / PREVIEW OWNER DASHBOARD PROOF (G4 PARTIAL)
+
+- **New independent actual provider owner screenshot evidence** at 10:57 CST: `fire-fullapp-dr` **Production workers.dev OFF**, **Preview workers.dev OFF**, and the selected DR Worker **Custom Domains and Routes** table says `No custom domains` and has no entries. DR Deployments tab shows `b7c42773` at **100% traffic** and `Ready`, matching prior separately verified full DR hosted version `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` and physical DR D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145` (the screenshots themselves do not read the database).
+- Saved the precise owner-uploaded **DR screenshot provenance and independently computed original SHA-256 hashes** to [`evidence/FIRE_DR_DARK_DASHBOARD_DOMAIN_EVIDENCE_20261115.md`](evidence/FIRE_DR_DARK_DASHBOARD_DOMAIN_EVIDENCE_20261115.md). Image bytes reside in owner's conversation, not GitHub. This **supplements prior NEW LIVE owner dashboard proof**, where production and preview URLs were also OFF and no Worker routes/custom domains were listed.
+- For the two selected Workers, the **specific Worker-level domain/URL dashboard screenshot collection is now complete**. Do not ask for those screenshots again, rerun the generic stopped Wrangler helper, repeat old device/DB checks, recreate Workers or perform any unnecessary authentication.
+- **Remaining G4 scope:** the screenshots are **not** full account-wide route inventory, Cloudflare Access policy validation, hosted source-byte equivalence, nonowner denial, or complete QA/STAGING/DR/NEW LIVE parity proof. No Cloudflare/provider or payment/SQL writes have been performed. **Formal 4/10 accepted (G1,G2,G3,G8), G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE remains DARK NO-GO.**
+
+---
+
+
 
 ## NOV 15 — REAL OWNER NEW LIVE DARK DASHBOARD DOMAINS / PREVIEW EVIDENCE (GATE4 PARTIAL)
 
