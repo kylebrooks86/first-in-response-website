@@ -18,7 +18,8 @@ import {restoreNumberedRecordsToIsolatedSqlite} from './restore_numbered_records
 import {sealCompleteIsolatedSqliteSnapshot,restoreSavedProtectedCompleteRecords,inspectSavedProtectedCompleteRecords}
  from './protected_complete_isolated_sqlite_recovery.mjs';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
-import {rehearseProtectedCompleteRecordsAndPhotos,assertPairedRecoveredPhotoEvidence}
+import {rehearseProtectedCompleteRecordsAndPhotos,assertPairedRecoveredPhotoEvidence,
+ assertProtectedRecoverySourceCustody}
  from './rehearse_protected_complete_records_and_photos.mjs';
 import {sealProtectedPairReceipt,inspectSavedProtectedPairReceipt}
  from './protected_recovery_pair_receipt.mjs';
@@ -278,6 +279,41 @@ try{
       receiptRecovery.recoveredJobNumberRows===1&&
       (await readFile(receiptBackedZip)).equals(galleryZip),
   'verified exact-record/photo receipt authorizes guarded local joint recovery');
+
+ okay(receiptRecovery.encryptedInputsUnchangedAfterRestore===true&&
+      receiptRecovery.exactOptionalSavedPairUnchanged===true,
+  'successful real SQLite + photo restore rehashes BOTH saved encrypted inputs and its .firepair');
+ const rHash=receiptProof.protectedRecordsSha256,pHash=receiptProof.protectedPhotosSha256;
+ const goodSourceCustody={
+  openedRecordsSha256:rHash,usedPhotosSha256:pHash,
+  finalRecordsSha256:rHash,finalPhotosSha256:pHash,
+  originalPairReceipt:receiptProof,finalPairReceipt:receiptProof
+ };
+ okay(assertProtectedRecoverySourceCustody(goodSourceCustody).
+   encryptedRecordsAndPhotosUnchangedAfterRestore===true,
+  'pair receipt still agrees with both read encrypted sources after the restore');
+ for(const mutated of [
+  {finalRecordsSha256:'a'.repeat(64)},
+  {finalPhotosSha256:'b'.repeat(64)},
+  {openedRecordsSha256:undefined},
+  {usedPhotosSha256:'not-a-sha256'},
+  {originalPairReceipt:undefined},
+  {finalPairReceipt:undefined},
+  {originalPairReceipt:{...receiptProof,protectedPhotosSha256:'c'.repeat(64)}},
+  {finalPairReceipt:{...receiptProof,protectedRecordsSha256:'d'.repeat(64)}},
+  {originalPairReceipt:{...receiptProof,exactSavedEncryptedPairVerified:false}},
+  {finalPairReceipt:{...receiptProof,gate7Accepted:true}}
+ ]){
+  assert.throws(()=>assertProtectedRecoverySourceCustody({...goodSourceCustody,...mutated}),
+   /BLOCKED/i,'changed encrypted source or re-read .firepair must refuse a recovery receipt');
+  checks++;
+ }
+ const noReceiptCustody={...goodSourceCustody,
+  originalPairReceipt:undefined,finalPairReceipt:undefined};
+ okay(assertProtectedRecoverySourceCustody(noReceiptCustody).
+      exactOptionalSavedPairUnchanged===false,
+  'pair receipt is optional but both encrypted inputs must ALWAYS match after restore');
+
  const receiptDb=new DatabaseSync(receiptBackedDb,{readOnly:true});
  okay(receiptDb.prepare('SELECT COUNT(*) AS n FROM d1_migrations').get().n===26,
   'receipt-protected local restore preserves all 26 native DR migrations');
