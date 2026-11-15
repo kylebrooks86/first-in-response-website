@@ -20,11 +20,20 @@ const apiResult=(x,label)=>{
   return x.result;
 };
 const pageInfo=(x,label,page)=>{
-  if(!isObj(x.result_info)||!Number.isSafeInteger(x.result_info.total_pages)||
-      !Number.isSafeInteger(x.result_info.total_count)||
-      x.result_info.total_pages<1||x.result_info.total_pages>20||
-      x.result_info.page!==page)fail(label+' pagination incomplete/ambiguous');
-  return x.result_info;
+  const info=x.result_info;
+  if(!isObj(info)||!Number.isSafeInteger(info.total_pages)||
+      !Number.isSafeInteger(info.total_count)||!Number.isSafeInteger(info.count)||
+      !Number.isSafeInteger(info.per_page)||info.per_page<1||info.per_page>50||
+      info.count<0||info.count>info.per_page||info.total_count<0||
+      info.total_pages<0||info.total_pages>20||info.page!==page)
+    fail(label+' pagination incomplete/ambiguous');
+  // Cloudflare may return total_pages:0 for an empty collection. Zero is
+  // still exactly one successfully checked (empty) first response.
+  if(info.total_pages===0){
+    if(page!==1||info.count!==0)fail(label+' inconsistent zero-page inventory');
+    return {...info,total_pages:1};
+  }
+  return info;
 };
 export function evaluateDarkExposureEvidence(target,evidence){
   const worker=FIRE_DARK_WORKERS[target];
@@ -94,8 +103,13 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
       if(!Array.isArray(items))fail(label+' not array');
       const info=pageInfo(r,label,p);
       if(total!==null&&total!==info.total_pages)fail(label+' changed between pages');
+      if(info.count!==items.length)fail(label+' page item-count mismatch');
       total=info.total_pages;all.push(...items);
-      if(p===total){if(all.length!==info.total_count)fail(label+' count mismatch');return all}
+      // For filtered zones, Cloudflare describes total_count as the
+      // unfiltered count. Only page/count agreement and exhausting every
+      // reported page can establish a complete filtered inventory.
+      if(p===total)return all;
+      if(info.count===0)fail(label+' unexpectedly empty intermediate page');
     }
     fail(label+' exceeds page bound');
   };
