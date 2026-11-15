@@ -1,5 +1,15 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — REAL ZERO TRUST ACCESS INVENTORY: ONE STRIPE TEST APP LISTED — DR/NEW LIVE NOT LISTED IN OWNER VIEW
+
+- **New real authenticated Cloudflare Zero Trust > Access > Applications screenshot** from owner, `IMG_4329.png`, SHA-256 `1dbe9b10d21045b1c2a0dfc00670862183a09a51738f18b59dd50d7073f10e79`, 344,424 original bytes; the screen's blank search and table `Showing 1 - 1 of 1` has **one currently listed Access application** named `fire-stripe-test-20261101 - Cloudflare ...` (truncated) and a destination `fire-stripe-test-20261101`. **No named DR or NEW LIVE Access application appears in this current view.** See [`evidence/FIRE_CLOUDFLARE_ACCESS_APPLICATION_LIST_20261115.md`](evidence/FIRE_CLOUDFLARE_ACCESS_APPLICATION_LIST_20261115.md) for exact source and limits. Original screenshot remains in owner conversation, not GitHub.
+- This is **current-view Access inventory evidence**, not policy inspection or proof that no Access/security rule exists elsewhere. It neither demonstrates authenticated owner/nonowner denial nor validates the TEST webhook route can receive Stripe signed events through any Access policy. DR/NEW LIVE separate owner workers.dev/Preview **OFF**, no selected-Worker custom route and four anonymous canonical host **404** remain accepted and must not be repeated. Do not create Access apps or enable DARK URLs.
+- **Next DIFFERENT read-only owner check**: inspect existing TEST Access application's policy/rules without changing login, settings, bypass, payment endpoints or provider state; if existing session expires stop, do not repeat failed login.
+- Formal G1/G2/G3/G8 accepted 4/10, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO. No deployment, D1/SQL, Access mutation, R2 plan, Stripe write, merge, DNS or other provider change.
+
+---
+
+
 ## NOV 15 — REAL OWNER ACER 4× ANONYMOUS HTTP 404 ON DARK DR/NEW LIVE — ACTUAL PINPOINT REACHABILITY EVIDENCE, NO GATE PROMOTION
 
 - **New original owner Acer PowerShell screenshot**, original `IMG_323C143C-8E48-4BF0-B694-A8A2E701EC6B.jpeg`, SHA-256 `bbecab0bd1528d709fdbaedcf838c6e47280bd5a0a8d4634a98d7300bb786d2a`, 403,498 bytes. All FOUR anonymous body-discarded no-redirect `curl.exe` GET probes returned **HTTP 404**: DR `/`, DR `/api/customers`, NEW LIVE `/`, NEW LIVE `/api/customers` on their respective `fire-fullapp-{dr,new-live}.kyle-bfc.workers.dev` hostnames. Exact URLs, invocation, result and scope/provenance are now preserved in [`evidence/FIRE_DR_NEWLIVE_ANONYMOUS_WORKERSDEV_HTTP_20261115.md`](evidence/FIRE_DR_NEWLIVE_ANONYMOUS_WORKERSDEV_HTTP_20261115.md). Original screenshot remains in owner chat; GitHub contains evidence metadata, not provider source bytes.
