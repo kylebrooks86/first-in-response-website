@@ -14,6 +14,9 @@ import {exportCompleteIsolatedSqliteSnapshot}
  from './export_complete_isolated_sqlite_snapshot.mjs';
 import {restoreNumberedRecordsToIsolatedSqlite}
  from './restore_numbered_records_to_isolated_sqlite.mjs';
+import {sealCompleteIsolatedSqliteSnapshot,inspectSavedProtectedCompleteRecords,
+ restoreSavedProtectedCompleteRecords}
+ from './protected_complete_isolated_sqlite_recovery.mjs';
 
 const folder=await mkdtemp(join(tmpdir(),'fire-property-history-'));
 const template=join(folder,'empty-migrated.sqlite'),source=join(folder,'synthetic-source.sqlite');
@@ -119,6 +122,69 @@ try{
   done.prepare('PRAGMA integrity_check').get().integrity_check==='ok',
   'Restored SQLite satisfies real foreign keys and integrity checks');
  done.close();
+ // Exercise the ACTUAL private encrypted complete-record owner file, not
+ // only the intermediate plaintext snapshot. Save, REOPEN, authenticate,
+ // then independently restore into a second empty isolated SQLite database.
+ const phrase='Synthetic FIRE encrypted property disaster recovery secret 2026';
+ const sealedPath=join(folder,'complete-property-history.firerecords');
+ const sealed=await sealCompleteIsolatedSqliteSnapshot(source,sealedPath,phrase);
+ check(sealed.savedEncryptedFileReadBack&&sealed.encryptedRecordsArchiveCreated&&
+  sealed.offDeviceCustodyVerified===false&&sealed.gate7Accepted===false,
+  'Complete protected records and property history were saved/read back with no hosted claims');
+ const sealedBytes=await readFile(sealedPath);
+ check(sealedBytes.subarray(0,8).toString('ascii')==='FIRERB01'&&
+  !sealedBytes.includes(Buffer.from('123 Example Road'))&&
+  !sealedBytes.includes(Buffer.from(cid)),
+  'Protected .firerecords ciphertext does not expose saved customer address or ID');
+ const opened=await inspectSavedProtectedCompleteRecords(sealedPath,phrase);
+ check(opened.core.tables.customers.length===1&&
+  opened.supplemental.tables.customer_properties[0].active===0&&
+  opened.supplemental.tables.estimate_property_links[0].property_revision===1,
+  'Authenticated encrypted file contains original archived property and estimate relationship');
+ await assert.rejects(inspectSavedProtectedCompleteRecords(
+  sealedPath,'Incorrect synthetic recovery phrase length 2026'));
+ checks++;
+ const tamperedBytes=Buffer.from(sealedBytes);tamperedBytes[50]^=1;
+ const tamperedPath=join(folder,'tampered.firerecords');
+ await writeFile(tamperedPath,tamperedBytes);
+ await assert.rejects(inspectSavedProtectedCompleteRecords(tamperedPath,phrase));
+ checks++;
+ const sealedRestored=join(folder,'encrypted-restored.sqlite');
+ const encryptedRecovery=await restoreSavedProtectedCompleteRecords(
+  sealedPath,template,sealedRestored,phrase);
+ check(encryptedRecovery.sqliteRestoreVerified&&
+  encryptedRecovery.supplementalRowsRestored===3&&encryptedRecovery.gate7Accepted===false,
+  'Encrypted saved complete snapshot restores all archived property rows without accepting Gate7');
+ const sealedDb=new DatabaseSync(sealedRestored,{readOnly:true});
+ const sealedProperty=sealedDb.prepare('SELECT active,revision FROM customer_properties WHERE id=?').get(pid);
+ const sealedLink=sealedDb.prepare('SELECT property_id,property_revision FROM estimate_property_links WHERE estimate_id=?').get(eid);
+ const sealedLocation=sealedDb.prepare('SELECT address FROM estimate_service_locations WHERE estimate_id=?').get(eid);
+ check(sealedProperty.active===0&&sealedProperty.revision===2&&
+  sealedLink.property_id===pid&&sealedLink.property_revision===1&&
+  sealedLocation.address==='123 Example Road · Rear gate'&&
+  sealedDb.prepare('SELECT COUNT(*) AS n FROM property_recovery_guard').get().n===0,
+  'Independent restored encrypted SQLite retained historic location and cleared native guard');
+ check(sealedDb.prepare('PRAGMA integrity_check').get().integrity_check==='ok'&&
+  sealedDb.prepare('PRAGMA foreign_key_check').all().length===0,
+  'Saved encrypted restore passes actual SQLite integrity and owner foreign keys');
+ sealedDb.close();
+ // A source whose native immutability trigger was maliciously removed and
+ // whose service address no longer matches its historical property cannot
+ // be encrypted as a plausible complete backup.
+ const forgedSource=join(folder,'corrupted-history.sqlite');
+ await copyFile(source,forgedSource);
+ const forgedDb=new DatabaseSync(forgedSource);
+ forgedDb.exec('DROP TRIGGER service_location_immutable_update');
+ forgedDb.prepare('UPDATE estimate_service_locations SET address=? WHERE estimate_id=?')
+  .run('Forged service address',eid);
+ forgedDb.close();
+ const forgedOutput=join(folder,'invalid-history.firerecords');
+ await assert.rejects(sealCompleteIsolatedSqliteSnapshot(forgedSource,forgedOutput,phrase),
+  /BLOCKED|property|address|backup/i,
+  'Changed service address cannot be sealed as complete encrypted FIRE history');
+ await assert.rejects(readFile(forgedOutput),undefined,
+  'Failed encrypted seal must leave no misleading complete backup file');
+ checks+=2;
  await assert.rejects(restoreNumberedRecordsToIsolatedSqlite(corePath,template,output,extraPath));
  checks++;
  console.log('PASS '+checks+'/'+checks+
