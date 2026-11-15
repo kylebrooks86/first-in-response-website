@@ -28,6 +28,7 @@ import {captureCompleteIsolatedSqliteSnapshot} from './export_complete_isolated_
 import {restoreNumberedRecordsToIsolatedSqliteFromArchives} from './restore_numbered_records_to_isolated_sqlite.mjs';
 import {validateNumberedCoreRecordsV2} from './shared/lib/numbered-records-v2-preflight.mjs';
 import {validateSupplementalRecoveryArchive} from './validate_supplemental_recovery_archive.mjs';
+import {validateCompleteSupplementalCustomerHistory} from './validate_supplemental_customer_history.mjs';
 const pbkdf2Async=promisify(pbkdf2);
 const MAGIC=Buffer.from('FIRERB01','ascii');
 const HEADER_BYTES=48,TAG_BYTES=16,KDF_ITERATIONS=600000;
@@ -46,6 +47,7 @@ function assertCompletePair(core,extra){
   stop('numbered and supplemental records do not share the same source schema identity');
  const extraTables=Object.keys(extra.tables||{});
  const checked=validateSupplementalRecoveryArchive(extra,extraTables);
+ validateCompleteSupplementalCustomerHistory(core,extra);
  return {customers:proof.customers,jobs:proof.jobNumbers,
   coreRows:proof.coreRows,extraRows:checked.rows,
   schemaSha256:core.schemaIdentity.sha256};
