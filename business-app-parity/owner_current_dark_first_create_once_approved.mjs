@@ -145,11 +145,18 @@ function checkPackage(target,filename){
  return {spec,files,receipt,bytes:spec.zipBytes,target,sourceSha:SOURCE};
 }
 function run(args,account){
- const executable=process.platform==='win32'?'npx.cmd':'npx';
- const result=spawnSync(executable,['--yes','wrangler@4.162.0',...args],{
-  encoding:'utf8',timeout:90_000,maxBuffer:2_000_000,
+ // Invoke the installed npm CLI through the exact Node binary, NOT cmd.exe.
+ // Windows shell:true around the owner's home path could interpret & or %;
+ // absence of npm is a hard stop, never a reason to weaken quoting or retry.
+ const npmCli=[
+  join(dirname(process.execPath),'node_modules','npm','bin','npx-cli.js'),
+  join(dirname(process.execPath),'..','lib','node_modules','npm','bin','npx-cli.js')
+ ].find(existsSync);
+ if(!npmCli)blocked('Node npm/npx CLI not available at reviewed location; no provider action');
+ const result=spawnSync(process.execPath,[npmCli,'--yes','wrangler@4.162.0',...args],{
+  encoding:'utf8',timeout:90_000,maxBuffer:2_000_000,windowsHide:true,
   env:{...process.env,CLOUDFLARE_ACCOUNT_ID:account,WRANGLER_SEND_METRICS:'false'},
-  shell:process.platform==='win32'});
+  shell:false});
  if(result.error)blocked('Wrangler invocation failed; no repeat after attempt lock: '+result.error.message);
  return {code:result.status,output:String(result.stdout||'')+'\n'+String(result.stderr||'')};
 }
