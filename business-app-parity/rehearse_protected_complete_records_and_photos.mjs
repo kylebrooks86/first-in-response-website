@@ -31,7 +31,8 @@ import {inspectSavedProtectedPairReceipt}
 const stop=why=>{throw Error('FIRE encrypted records + photos recovery BLOCKED: '+why);};
 const passValid=x=>typeof x==='string'&&x.length>=16&&x.length<=1024&&
  Buffer.byteLength(x,'utf8')<=4096;
-/** A photo ZIP must be SAVED, reopened, and cross-checked against exactly
+/** A photo ZIP must be SAVED, reopened, with explicit successful CRC and
+ * SHA-256 of EVERY original photo, and cross-checked against exactly
  * the authenticated records restored into this isolated SQLite. A saved
  * but unpaired photo ZIP is an incomplete and potentially sensitive restore.
  */
@@ -39,7 +40,7 @@ export function assertPairedRecoveredPhotoEvidence(photo){
  if(!photo||photo.originalGalleryZipRecovered!==true||
     photo.matchingCustomerRecordsVerified!==true||
     photo.savedRecoveryZipReadBackVerified!==true||
-    photo.allFilesCryptographicallyVerified===false||
+    photo.allFilesCryptographicallyVerified!==true||
     !/^[a-f0-9]{64}$/.test(photo.verifiedZipSha256||'')||
     photo.savedRecoveredZipSha256!==photo.verifiedZipSha256||
     photo.savedRecoveryPhotoCount!==photo.photoCount||
