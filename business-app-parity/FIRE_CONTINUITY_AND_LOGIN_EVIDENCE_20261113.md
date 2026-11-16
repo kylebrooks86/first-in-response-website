@@ -15,6 +15,16 @@
 
 
 
+## NOV 16 — EXACT QA-SOURCE DARK-UPDATE INPUT ZIPS RETAINED IN OWNER-PRIVATE GOOGLE DRIVE
+
+- The new existing-dark-Worker updater requires TWO precise 15bd first-create-INERT ZIPs, **not** the earlier 3 current DARK/TEST source-only archives. The saved exact release inputs are now permanently copied to the owner's EXISTING, not-shared `FIRE Business App Backups` folder, **new files, no replacement of old copies**:
+  - **DR first-create-format source ZIP:** [private Drive original](https://drive.google.com/file/d/1vFmAXqRXYmEJtDJbC-Hmq6NlHcMehn_B/view); 3,140,291 bytes; SHA-256 `eee57f2a5f98c4c9aa84c881818414094868bae5fef41d45c339073e269ecfb0`; original GitHub Actions artifact `14227017791` from successful source run `43870222603`.
+  - **NEW LIVE first-create-format source ZIP:** [private Drive original](https://drive.google.com/file/d/1LdtXA4zZDnwQbDfKvD6rIcuDCe67UUqS/view); 3,142,402 bytes; SHA-256 `8c19774e4e11f08c011c5e274d815ab341e287cdcf714cce1c647a782b75d67c`; original GitHub artifact `14227746782` from same exact current source.
+- **Actual provider readback:** Both Drive files have correct parent, exact sizes, `shared:false`, only owner permission; both were downloaded BACK from Google to local temporary files and their actual bytes SHA-256 hashed, EXACT MATCH to GitHub originals. These are trusted code **review/update inputs** for the future separately approved existing-DARK Worker update, not an authority to recreate Workers or upload code now. Existing D1/photo data is NOT in these source archives, and they do NOT establish Gate 7 protected records/photo backups.
+- This completes the archival precondition for the new owner script without requiring Acer, repeated CLI tests, new subscriptions or Cloudflare logins. Do not use older `e27b...` first-create ZIPs, the separate `15bd...` DARK source-review ZIPs or the disabled TEST archive in place of these specifically pinned first-create-format files. No Worker/SQL/Access/Stripe/payment/R2/paid, Git merge, DNS or LIVE operation. **Formal gate status unchanged: 4/10 accepted, NEW LIVE DARK NO-GO.**
+
+---
+
 ## NOV 16 — EXISTING DARK DR / NEW LIVE EXACT QA-MASTER CODE UPDATE GUARD PREPARED
 
 - **Actual new release-tool code** has been added to main-based draft PR270 at `business-app-parity/owner_existing_dark_code_update_once_approved.mjs`, with targeted `test_owner_existing_dark_code_update_once_approved.mjs`. It operates on the **ALREADY CREATED** DR and NEW LIVE Workers, not first-creation paths. It accepts only the exact previously validated QA application revision `15bd714c435a585f695ed7166cf06d2c31ea1a8e` from the owner-retained first-create inert ZIPs: DR GitHub ZIP SHA-256 `eee57f2a5f98c4c9aa84c881818414094868bae5fef41d45c339073e269ecfb0` (3,140,291 bytes); NEW LIVE ZIP SHA-256 `8c19774e4e11f08c011c5e274d815ab341e287cdcf714cce1c647a782b75d67c` (3,142,402 bytes). NOT the older built sources; NOT the three distinct current DARK review archives stored in Drive earlier today.
