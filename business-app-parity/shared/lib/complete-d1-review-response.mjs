@@ -55,8 +55,14 @@ export async function readOwnerCompleteD1ReviewResponse(response){
      typeof payload.warning!=='string'||payload.warning.length>1500||
      !payload.warning.includes('NOT A PROTECTED OR COMPLETE BACKUP'))
    stop('source review is not an explicit UNPROTECTED database-only review');
-  try{return Object.freeze(validateCompleteReviewedD1Archive(payload.reviewedRecords));}
-  catch{stop('complete source rows, schema, financial and migration integrity invalid');}
+  try{
+   // Keep the validated ORIGINAL envelope: the owner encryption function
+   // requires its format, version and every explicit fail-closed source flag.
+   // Returning the validator's reduced {core,extra,...} summary here would
+   // make the real GET -> encrypt button fail despite isolated crypto tests.
+   validateCompleteReviewedD1Archive(payload.reviewedRecords);
+   return Object.freeze(payload.reviewedRecords);
+  }catch{stop('complete source rows, schema, financial and migration integrity invalid');}
  }catch(e){
   if(e instanceof Error&&e.message.startsWith('FIRE complete D1 owner review blocked:'))
    throw e;
