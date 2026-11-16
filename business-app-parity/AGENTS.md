@@ -1,5 +1,14 @@
 # FIRE Business App parity requirement
 
+## NOV 15 — PUBLIC ESTIMATE SIGNATURE LOST-ACK RECEIPT FIX (UNMERGED, SOURCE ONLY)
+
+- PR270 now handles a thrown public D1 signature batch acknowledgment with one fresh SAME ID + CURRENT bearer-link readback. Only exact submitted time, signer, photo permission and approved status can prove the save; it never repeats a D1 write. Revoked, changed or missing readback fails closed as private 503 saveUncertain; successful receipts have no-store headers. Original service pricing, stacked discounts and share-token ownership protections remain unchanged. Code commit 5a07ca7a96bbfac525edd7750ef34cace773245f; targeted native SQLite and actual helper negative regression commits 14819fae81332b20c4d6395fb1511198ae68ac38, 67bdb69cfd56635c331f82c94a510ceb598299c5.
+- Focused Gate6 token-CAS/approval lost-ACK test SUCCESS in real staging Actions run #43790584908 on exact tested source. DR and NEW LIVE local candidate builds success; at this checkpoint full 26 workflow matrix still settling, do not call it fully green until checked. Nothing deployed or merged.
+- Already completed real physical NEW LIVE 26/26 migration + future Job #0001, DARK DR/NEW LIVE first-creates, hosted version/D1 binding proof, URL-OFF screenshots and attempt locks must NOT be repeated. Formal release still 4/10 G1/G2/G3/G8 accepted, other six OPEN, NEW LIVE DARK NO-GO. No R2 subscription, paid Cloudflare, Stripe, Access, D1, Worker, payment or release changes.
+
+---
+
+
 
 ## NOV 15 — LATEST GATE6 PUBLIC APPROVAL FINANCIAL + SIGNATURE SOURCE PROTECTION
 
