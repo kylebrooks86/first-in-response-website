@@ -13,7 +13,8 @@ import {join} from 'node:path';
 import {readOwnerCompleteD1ReviewResponse,MAX_COMPLETE_D1_REVIEW_HTTP_BYTES}
  from '../lib/complete-d1-review-response.mjs';
 import {prepareCompleteD1OwnerFile,verifySelectedSavedCompleteD1OwnerFile,
- verifyProtectedCompleteReviewedD1Records,validateCompleteReviewedD1Archive}
+ verifyProtectedCompleteReviewedD1Records,validateCompleteReviewedD1Archive,
+ ownerSavedRecordsPassphraseReady}
  from '../lib/protected-complete-d1-records.mjs';
 import {inspectSavedProtectedCompleteRecords}
  from '../../protected_complete_isolated_sqlite_recovery.mjs';
@@ -171,6 +172,24 @@ try{
   new Date('2026-11-15T12:01:00.000Z'));
  equal(prepared.inMemoryEncryptionVerified,true,
   'complete source (core+supplemental) encrypted to private owner Blob');
+ // A prepared encrypted file deliberately clears the owner's first phrase
+ // in the browser. The readback picker must be unavailable until the owner
+ // re-enters the ORIGINAL phrase; never present empty-passphrase failure as
+ // a potentially corrupt valid backup.
+ equal(ownerSavedRecordsPassphraseReady(prepared,''),false,
+  'saved-file readback is blocked after the original phrase was cleared');
+ equal(ownerSavedRecordsPassphraseReady(prepared,'short'),false,
+  'saved-file readback refuses an incomplete re-entered phrase');
+ equal(ownerSavedRecordsPassphraseReady(prepared,phrase),true,
+  'original owner phrase re-entered allows the local saved-file readback');
+ equal(ownerSavedRecordsPassphraseReady({...prepared,gate7Accepted:true},phrase),false,
+  'a forged previously accepted Gate7 receipt cannot enable saved-file readback');
+ equal(ownerSavedRecordsPassphraseReady(null,phrase),false,
+  'unprepared archive cannot expose a saved-file verification path');
+ equal(ownerSavedRecordsPassphraseReady(prepared,'😀'.repeat(1024)),true,
+  'a valid 1024-character UTF-8 phrase stays within the 4096-byte crypto limit');
+ equal(ownerSavedRecordsPassphraseReady(prepared,'😀'.repeat(1025)),false,
+  'overlong character count is refused before selecting saved ciphertext');
  equal(prepared.gate7Accepted,false,
   'new file cannot claim live recovery or physical off-device custody');
  const temp=mkdtempSync(join(tmpdir(),'fire-browser-full-records-'));
