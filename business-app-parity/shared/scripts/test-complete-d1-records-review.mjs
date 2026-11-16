@@ -13,7 +13,7 @@ import {join} from 'node:path';
 import {readOwnerCompleteD1ReviewResponse,MAX_COMPLETE_D1_REVIEW_HTTP_BYTES}
  from '../lib/complete-d1-review-response.mjs';
 import {prepareCompleteD1OwnerFile,verifySelectedSavedCompleteD1OwnerFile,
- verifyProtectedCompleteReviewedD1Records}
+ verifyProtectedCompleteReviewedD1Records,validateCompleteReviewedD1Archive}
  from '../lib/protected-complete-d1-records.mjs';
 import {inspectSavedProtectedCompleteRecords}
  from '../../protected_complete_isolated_sqlite_recovery.mjs';
@@ -90,6 +90,25 @@ try{
  equal(original.core.highWater,{customer:1,job:1},'permanent job/customer sequence preserved');
  equal(original.supplemental.rowCounts.d1_migrations,25,'complete applied migration journal saved');
  equal(original.supplemental.tables.d1_migrations.at(-1).name,migrations.at(-1),'journal history is not reconstructed');
+ // Real Gate7 corruption regression: a perfectly shaped source archive must
+ // never encrypt under substituted, truncated, or fake future D1 history.
+ const wrongJournal=structuredClone(original);
+ wrongJournal.supplemental.tables.d1_migrations[8].name='0008_forged_unreviewed.sql';
+ assert.throws(()=>validateCompleteReviewedD1Archive(wrongJournal),
+  /FIRE protected complete D1 records blocked:/,
+  'otherwise valid record archive rejects substituted migration');checks++;
+ const missingJournal=structuredClone(original);
+ missingJournal.supplemental.tables.d1_migrations.pop();
+ missingJournal.supplemental.rowCounts.d1_migrations=24;
+ missingJournal.sourceRowCount--;
+ assert.throws(()=>validateCompleteReviewedD1Archive(missingJournal),
+  /FIRE protected complete D1 records blocked:/,
+  '24/25 reviewed migrations cannot be called a complete encrypted archive');checks++;
+ const fakeIndependentJournal=structuredClone(original);
+ fakeIndependentJournal.supplemental.tables.d1_migrations[24].name='0025_independent_permanent_numbers.sql';
+ assert.throws(()=>validateCompleteReviewedD1Archive(fakeIndependentJournal),
+  /FIRE protected complete D1 records blocked:/,
+  '25-step QA archive cannot impersonate the independent 26th SQL migration');checks++;
  equal(original.schemaIdentity.sha256,fingerprintIsolatedSqliteSchema(db).sha256,
   'D1 read-only schema fingerprint identical to existing isolated SQLite algorithm');
  equal(original.completeBackup,false,'review data never claims encrypted complete backup');
