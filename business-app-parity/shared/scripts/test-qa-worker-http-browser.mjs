@@ -44,8 +44,11 @@ const built=JSON.parse(readFileSync(join(root,'dist/server/wrangler.json'),'utf8
 assert.equal(built.name,'fire-fullapp-qa-20261016');
 assert.equal(built.vars.FIRE_ENV,'synthetic-qa');assert.equal(built.vars.FIRE_QA_SYNTHETIC_ONLY,'enabled');
 assert.equal(built.d1_databases.length,1);assert.equal(built.d1_databases[0].binding,'DB');
-assert.deepEqual(built.r2_buckets,[{binding:'BUCKET',bucket_name:'fire-fullapp-qa-photos-20261023'}],
- 'Built QA must never inherit a LIVE or existing photo-storage binding');
+// The ACTUAL deployable QA source is intentionally R2-FREE. The local
+// disposable workerd photo test below separately creates a RANDOM simulated
+// R2 bucket inside the fixture only; never require remote Cloudflare R2.
+assert.deepEqual(built.r2_buckets??[],[],
+ 'Built QA must have ZERO hosted photo R2 bindings or subscription dependency');
 for(const key of ['services','kv_namespaces','queues','hyperdrive']){
  const value=built[key];assert.ok(!value||(Array.isArray(value)?value.length===0:Object.values(value).every(x=>Array.isArray(x)&&x.length===0)),'Unexpected binding '+key);
 }
