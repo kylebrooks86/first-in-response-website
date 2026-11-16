@@ -1,3 +1,16 @@
+<!-- FIRE_NEW_LIVE_SQL_CUSTODY_RETIRED_MIGRATION_GUIDANCE_20261116 -->
+## Nov 16 — REAL NEW LIVE safety correction: portable SQL source package no longer invites already-consumed D1 migrations
+
+Existing [DRAFT PR270](https://github.com/kylebrooks86/first-in-response-website/pull/270) **source-only** correction: the self-contained NEW LIVE reviewed 26-SQL packet had a misleading old owner notice about a future first migration and empty-schema approval, even though the owner **already successfully applied all 26 physical NEW LIVE D1 migrations Nov 14**, preserved both attempt locks and backed up the receipt off-Acer ([accepted proof #6889484598](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6889484598), [off-Acer custody #6891448726](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6891448726)). Re-running those migrations or resetting a consumed lock is NOT authorized.
+
+**ACTUAL source change:** `business-app-parity/prepare_new_live_portable_schema_packet.mjs` at commit [`c6a5c428`](https://github.com/kylebrooks86/first-in-response-website/commit/c6a5c428aadfe5ccb3aa89693c205876c71db15b) now generates `OWNER_READ_ME_FIRST.txt` explicitly saying migrations already completed 26/26 Nov 14, exact evidence links, old installer CONSUMED, **NEVER reapply**, no remote command/Stripe/R2/public Worker change. It clarifies that `remoteMigrationAttempted:false` and `hostedNewLive26MigrationsVerified:false` refer **only to this source packet's own offline execution**, NOT an absence of historical provider migrations. The cryptographically hashed notice is checked on saved-package readback. Focused changed test [`8d3ffc12`](https://github.com/kylebrooks86/first-in-response-website/commit/8d3ffc12068f572c9091e374e21828f819916f8e) requires correct notice and refuses the previous stale first-migration wording.
+
+**Actual changed-head GitHub CI:** NEW LIVE portable 26-SQL custody [run #43959367197](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43959367197) SUCCESS, including sealed source-package upload/download-back verification; [Verify FIRE website #43959367275](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43959367275) SUCCESS; [app-only public-site/calculator protection #43959367300](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43959367300) SUCCESS. No physical provider query/write; the previous source archive remains historical, with separate provenance, and no customer records/photo backup is claimed by this source-only packet.
+
+Frozen deployed QA app source `15bd714c435a585f695ed7166cf06d2c31ea1a8e`, already accepted DR DARK serving version, original NEW LIVE DARK version and all remote DBs untouched. No Cloudflare deployments, SQL, payments, Access/routes, paid Cloudflare/R2, Git merge or cutover. **Formal G1/G2/G3/G8 = 4/10 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE NO-GO.** Do not request accepted Cloudflare/QA screenshots or repeat D1/DR publisher checks.
+
+---
+
 <!-- FIRE_G4_ESMODULE_URLS_AND_G7_SQL_ARTIFACT_READBACK_20261116 -->
 ## Nov 16 — Real source updates: stricter DR hosted-code proof and repaired NEW LIVE SQL custody readback (no provider writes)
 
