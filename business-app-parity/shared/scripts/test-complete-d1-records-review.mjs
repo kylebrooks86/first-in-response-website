@@ -22,6 +22,16 @@ const migrations=readdirSync(base).filter(x=>/^[0-9]{4}_.+\.sql$/.test(x)).sort(
 assert.equal(migrations.length,25);
 const db=new DatabaseSync(':memory:');
 let checks=0, batches=0,statements=0,writes=0;
+// Browser bundle must use the SAME validation code as existing Node restore,
+// with only the import-root adjustment needed by isolated Worker builds.
+const shared=readFileSync('lib/complete-supplemental-recovery-validation.mjs','utf8');
+const root=readFileSync('../validate_supplemental_recovery_archive.mjs','utf8');
+assert.equal(shared,root.replaceAll('./shared/lib/','./'),
+ 'Browser supplemental validator matches canonical existing offline recovery');
+const sharedHistory=readFileSync('lib/complete-supplemental-customer-history.mjs','utf8');
+const rootHistory=readFileSync('../validate_supplemental_customer_history.mjs','utf8');
+assert.equal(sharedHistory,rootHistory.replaceAll('./shared/lib/','./'),
+ 'Browser property/service-address checks match existing offline restore');
 const equal=(a,b,why)=>{assert.deepEqual(a,b,why);checks++;};
 const deny=async(promise,label)=>{
  await assert.rejects(promise,/FIRE full D1 review BLOCKED:|FIRE numbered records v2 blocked/ ,label);
