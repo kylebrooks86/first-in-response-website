@@ -1,3 +1,10 @@
+<!-- FIRE_NEW_LIVE_PORTABLE_SQL_NO_REPLAY_20261116 -->
+## NOV 16 — STOP stale NEW LIVE 26-SQL source packet advice; migrations already DONE
+
+The independently verified physical NEW LIVE D1 26/26 migration was completed Nov 14, 2026, with both old attempt locks and encrypted off-Acer receipt retained (Issue #19 comments #6889484598 and #6891448726). **Never reapply migrations, run consumed installer/recovery, reset locks, or interpret packet-only `remoteMigrationAttempted:false` as absence of physical provider migration.** New actual code commits `c6a5c428` / `8d3ffc12` correct `prepare_new_live_portable_schema_packet.mjs` owner's generated notice and require fail-closed notice verification. Changed-head offline CI [#43959367197](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43959367197) SUCCESS with real GitHub archive readback, and [website](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43959367275) + [public-site scope](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43959367300) SUCCESS. This source packet is **only original reviewed migration SQL custody**; no data/photo backup or hosted Gate5/7 acceptance. No provider writes, deploy, payment, Stripe, Cloudflare Access/routes, paid/R2, merge or public activation. Formal 4/10 gates accepted; six still OPEN. See canonical continuity latest top entry.
+
+---
+
 <!-- FIRE_NOV16_G4_MODULE_MIME_URLS_G7_SQL_ARTIFACT_FIX -->
 ## NOV 16 — Gate4 read-only verifier hardened; Gate7 NEW LIVE GitHub artifact readback repaired (NO HOSTED CHANGE)
 
