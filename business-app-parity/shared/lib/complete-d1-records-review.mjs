@@ -131,7 +131,9 @@ export async function captureCompleteReviewedD1RecordsReadOnly(db,
  // This is the exact canonical object/column payload format used by the
  // existing private isolated-SQLite schema fingerprint. Provider-only
  // metadata is intentionally excluded; its DDL was independently checked.
- const payload=JSON.stringify({objects:ownedObjects,columns});
+ const orderedColumns=Object.fromEntries(ownedObjects.filter(x=>x.type==='table')
+  .map(x=>[x.name,columns[x.name]]));
+ const payload=JSON.stringify({objects:ownedObjects,columns:orderedColumns});
  const schemaSha256=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload)));
  const schemaIdentity=Object.freeze({format:'fire-isolated-sqlite-schema',version:1,
   sha256:schemaSha256,tables:tables.length,objects:ownedObjects.length});
