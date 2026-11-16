@@ -23,8 +23,17 @@ export async function POST(request:Request,context:{params:Promise<{token:string
       const audit=await env.DB.prepare('SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1').bind(estimate.id).first();
       if(audit)return Response.json({error:'This estimate requires updated deposit terms and a new customer agreement before it can be approved. Contact First In Response Exteriors.'},{status:409});
     }
+    // One token-bound readback serves BOTH already-approved replies and
+    // lost-ACK/concurrent-submit recovery. A token can rotate after the first
+    // SELECT; never return a signed name on the strength of stale rows.
+    const confirmedAcceptance=()=>env.DB.prepare("SELECT accepted_at AS acceptedAt,status,signed_name AS signedName,signed_at AS signedAt,photo_release AS photoRelease FROM estimates WHERE id=? AND share_token=?")
+      .bind(estimate.id,token).first<{acceptedAt:string|null;status:string;signedName:string|null;signedAt:string|null;photoRelease:string|null}>();
     if(estimate.status==="superseded")return Response.json({error:"This quote was replaced. Please review and sign the latest quote."},{status:409});
-    if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
+    if(estimate.acceptedAt){
+      const current=await confirmedAcceptance();
+      if(!current?.acceptedAt)return Response.json({error:"This quote link changed or was revoked. Please refresh and review the current agreement."},{status:409,headers:{"Cache-Control":"no-store"}});
+      return Response.json({ok:true,acceptedAt:current.acceptedAt,signedName:current.signedName,signedAt:current.signedAt,photoRelease:current.photoRelease},{headers:{"Cache-Control":"no-store"}});
+    }
     if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     const now=new Date().toISOString();
     // Bearer-share revocation must remain effective if the token is changed
@@ -47,7 +56,7 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         .bind(crypto.randomUUID(),"estimate_accepted",`${estimate.customer} approved an estimate`,`${estimate.service} was approved. Contact the customer to schedule the job.`,estimate.customerId,estimate.id,now,estimate.id,now,now,estimate.id),
     ]);
     if(!accepted.meta.changes){
-      const current=await env.DB.prepare("SELECT accepted_at AS acceptedAt,status,signed_name AS signedName,signed_at AS signedAt,photo_release AS photoRelease FROM estimates WHERE id=? AND share_token=?").bind(estimate.id,token).first<{acceptedAt:string|null;status:string;signedName:string|null;signedAt:string|null;photoRelease:string|null}>();
+      const current=await confirmedAcceptance();
       if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt,signedName:current.signedName,signedAt:current.signedAt,photoRelease:current.photoRelease});
       if(current&&["draft","sent"].includes(current.status))return Response.json({error:"This estimate has a billing or service-line integrity issue and cannot be approved yet. Please contact First In Response Exteriors."},{status:409});
       return Response.json({error:"This estimate changed while you were approving it. Please refresh or contact First In Response Exteriors."},{status:409});
