@@ -123,14 +123,22 @@ export function compareImmutableModuleBytes(provider,inventory){
      !object(provider.result)||provider.result.id!==VERSION||
      provider.result.main_module!=='fire-noassets-entry.mjs')
     stop('wrong or incomplete immutable hosted version response');
+  // Cloudflare returns version-pinned routable URLs separately from aliases.
+  // Count only, NEVER print those URLs or equate an empty list with
+  // account-wide Access/route isolation or nonowner denial.
+  const urls=provider.result.urls;
+  if(!Array.isArray(urls)||urls.length>128||
+     urls.some(v=>typeof v!=='string'||v.length<8||v.length>2048||
+       /[\u0000-\u001f]/.test(v)))
+    stop('immutable version routable URL inventory absent or malformed');
   const modules=provider.result.modules;
   if(!Array.isArray(modules)||modules.length!==193)
     stop('hosted modules omitted, truncated or unexpected');
   const seen=new Set();
   for(const m of modules){
     if(!object(m)||!moduleName(m.name)||seen.has(m.name)||
-       typeof m.content_type!=='string'||m.content_type.length<4||
-       m.content_type.length>120||typeof m.content_base64!=='string'||
+       m.content_type!=='application/javascript+module'||
+       typeof m.content_base64!=='string'||
        m.content_base64.length>14_000_000||
        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(m.content_base64))
       stop('hosted module metadata or base64 malformed');
@@ -150,6 +158,9 @@ export function compareImmutableModuleBytes(provider,inventory){
     matchedModules:seen.size,unexpectedModules:0,mismatchedModules:0,
     auxiliaryNonRuntimeFilesNotProven:48,wranglerConfigNotRuntimeModule:1,
     moduleContentHashesCompared:true,wholeArchiveHostedBytesVerified:false,
+    versionPinnedRoutableUrlCount:urls.length,
+    versionPinnedRoutableUrlsRequireReview:urls.length>0,
+    accountWideAliasRouteOrAccessIsolationVerified:false,
     // This pure function CANNOT prove where the JSON came from.
     authenticatedProviderReadback:false,gate4Accepted:false,
     deploymentPerformed:false,sourceUploaded:false,productionReady:false
