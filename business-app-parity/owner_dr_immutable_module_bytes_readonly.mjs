@@ -3,7 +3,7 @@
  *
  * Does NOT repeat the already accepted DR deploy, D1, hosted version or QA tests.
  * Cloudflare beta Worker Version GET ?include=modules returns base64 module
- * content; compare it to the exact owner-private DR archive's 241 modules.
+ * content; compare it to the exact owner-private DR archive's 193 JS/MJS modules.
  *
  * Default/offline mode does NOT authenticate a provider. --capture requires
  * existing owner Windows TTY + already provisioned in-memory API token, and
@@ -85,25 +85,44 @@ export function readApprovedModuleInventory(zipPath){
 /** Strict, pure comparison; does not trust a file's alleged provider identity. */
 export function compareImmutableModuleBytes(provider,inventory){
   if(!Array.isArray(inventory)||inventory.length!==242)stop('complete reviewed inventory required');
-  const expected=new Map();
+  // The ORIGINAL archived wrangler.json strictly configures only ESModule
+  // globs **/*.js and **/*.mjs under find_additional_modules. The complete
+  // 242-file server inventory also includes 41 .bin assets, 2 CSS files,
+  // 4 non-Wrangler JSON files and BUILD_ID; those are NOT modules under
+  // this Worker upload rule. Never fake hosted proof of auxiliary bytes.
+  const expected=new Map(),allPaths=new Set();
   let configs=0;
+  const auxiliary={bin:0,css:0,json:0,buildId:0};
   for(const item of inventory){
     if(!object(item)||!moduleName(item.path)||!hex(item.sha256)||
-       !Number.isSafeInteger(item.bytes)||item.bytes<0||item.bytes>10_000_000)
-      stop('unsafe expected module inventory');
+       !Number.isSafeInteger(item.bytes)||item.bytes<0||item.bytes>10_000_000||
+       allPaths.has(item.path))
+      stop('unsafe or duplicate expected archive inventory');
+    allPaths.add(item.path);
     if(item.path==='wrangler.json'){configs++;continue}
-    if(expected.has(item.path))stop('duplicate expected module');
-    expected.set(item.path,item);
+    if(/\.(?:js|mjs)$/.test(item.path)){
+      expected.set(item.path,item);
+    }else if(/^fire-inline-assets\/asset-\d{3}-[a-f0-9]{16}\.bin$/.test(item.path)){
+      auxiliary.bin++;
+    }else if(item.path.endsWith('.css')){
+      auxiliary.css++;
+    }else if(item.path.endsWith('.json')){
+      auxiliary.json++;
+    }else if(item.path==='BUILD_ID'){
+      auxiliary.buildId++;
+    }else stop('unexpected file type in reviewed archive');
   }
-  if(configs!==1||expected.size!==241||!expected.has('fire-noassets-entry.mjs'))
-    stop('incomplete approved module inventory');
+  if(configs!==1||expected.size!==193||!expected.has('fire-noassets-entry.mjs')||
+     auxiliary.bin!==41||auxiliary.css!==2||auxiliary.json!==4||
+     auxiliary.buildId!==1)
+    stop('actual Wrangler ESModule configuration and reviewed ZIP inventory disagree');
   if(!object(provider)||provider.success!==true||
      !Array.isArray(provider.errors)||provider.errors.length||
      !object(provider.result)||provider.result.id!==VERSION||
      provider.result.main_module!=='fire-noassets-entry.mjs')
     stop('wrong or incomplete immutable hosted version response');
   const modules=provider.result.modules;
-  if(!Array.isArray(modules)||modules.length!==241)
+  if(!Array.isArray(modules)||modules.length!==193)
     stop('hosted modules omitted, truncated or unexpected');
   const seen=new Set();
   for(const m of modules){
@@ -127,7 +146,8 @@ export function compareImmutableModuleBytes(provider,inventory){
     target:'dr',worker:TARGETS.dr.name,newServingVersionPreviouslyVerified:VERSION,
     frozenQaMasterSourceCandidateSha:SOURCE,
     matchedModules:seen.size,unexpectedModules:0,mismatchedModules:0,
-    moduleContentHashesCompared:true,
+    auxiliaryNonRuntimeFilesNotProven:48,wranglerConfigNotRuntimeModule:1,
+    moduleContentHashesCompared:true,wholeArchiveHostedBytesVerified:false,
     // This pure function CANNOT prove where the JSON came from.
     authenticatedProviderReadback:false,gate4Accepted:false,
     deploymentPerformed:false,sourceUploaded:false,productionReady:false
@@ -178,8 +198,9 @@ async function captureFromExistingCredential(zipPath){
   }
   const match=compareImmutableModuleBytes(provider,inventory);
   console.log(JSON.stringify({...match,
-    result:'FIRE_DR_AUTHENTICATED_IMMUTABLE_MODULE_BYTES_PASS',
-    authenticatedProviderReadback:true,sourceByteContentReadOnlyVerified:true,
+    result:'FIRE_DR_AUTHENTICATED_IMMUTABLE_RUNTIME_MODULE_BYTES_PASS',
+    authenticatedProviderReadback:true,runtimeModuleBytesReadOnlyVerified:true,
+    wholeArchiveHostedBytesVerified:false,
     originalAttemptLockValidated:true,providerWritePerformed:false,
     gate4Accepted:false,productionReady:false},null,2));
 }
