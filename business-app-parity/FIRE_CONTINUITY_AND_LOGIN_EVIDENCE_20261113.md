@@ -1,3 +1,13 @@
+<!-- FIRE-ROLLBACK-RETENTION-GUARD-20261116 -->
+## NOV 16 — EXISTING DARK WORKER post-update now REQUIRES retained original immutable rollback version (SOURCE ONLY)
+
+- **Actual new code fix:** `business-app-parity/owner_existing_dark_code_update_postdeploy_readonly.mjs` now checks the authenticated Cloudflare `versions list` reply for exactly ONE preserved OLD immutable version alongside the NEW sole 100%-serving version before reporting post-update success. Previously it checked only the new version and D1; a disappeared original rollback could be mistaken for release readiness. It now fails closed on a missing/ambiguous old version. The result states `previousImmutableVersionListedForRollback:true` and **`rollbackExecutionVerified:false`**; list presence is NOT proof an actual rollback works or code bytes match.
+- **Committed code:** `037d85e1e6745cfda8f7693638ad13f36071a764`; focused new negative tests `0ab3268d818c58910c6976a9b6de6418e18a2978`. Exact current deployed QA app source `15bd714c435a585f695ed7166cf06d2c31ea1a8e` is FROZEN and unchanged.
+- **GitHub changed-code evidence actually read:** standalone existing DARK safety workflow [#43915598137](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43915598137) **SUCCESS**, actual log **11/11 existing Worker offline guards + 35/35 new-version/post-update offline and negative guards**, no provider calls. Main website/calculator source-protection workflow [#43915598086](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43915598086) **SUCCESS**. Previously owner-private exact DR and NEW LIVE current QA-source ZIPs remain preserved, no resaving or re-testing accepted owner checks.
+- **Strict gate boundary:** This source work adds legitimate G4/G10 future rollback-readiness safety, not Cloudflare proof or a closed gate. Existing DARK DR Worker `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` on D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145` and DARK NEW LIVE Worker `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09` on D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662` remain **unchanged and unactivated**. No Cloudflare/Stripe SQL, app code upload, Access, payments, secrets, route, Git merge, paid R2 or cutover. **4/10 gates accepted (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN.** Each provider update requires its own exact owner approval; generic `continue` is not deployment consent.
+
+---
+
 <!-- FIRE-GATE9-STRIPE-PROVIDER-NOV16 -->
 ## NOV 16 — DIRECT STRIPE TEST SANDBOX EVIDENCE: HISTORICAL PAYMENT/REFUND CONFIRMED; NEW WEBHOOK GATE NOT CLOSED
 
