@@ -1,3 +1,12 @@
+<!-- FIRE_DR_NEW_HOSTED_POSTUPDATE_PASS_20261116_F7B7E27C -->
+## CURRENT CANONICAL DR STATE — NOV 16: code-only DR update DONE, read-only physical proof PASS, not Gate4 closure
+
+**Never start over or repeat the DR publisher.** Owner separately approved exactly ONE existing DARK DR code-only update; the owner executed it using the original fixed-SHA DR ZIP in a separate Windows CMD console, Node accepted the exact typed authorization, and the reviewed publisher CLI reported success. The owner then ran the existing canonical post-update verifier with the original one-time attempt lock, obtaining **`FIRE_EXISTING_DARK_NEW_VERSION_PHYSICAL_READBACK_PASS`** and final PowerShell **`PASS: NEW DARK DR HOSTED READBACK COMPLETED`** on Nov 16. NEW DR immutable **100%-serving version** `f7b7e27c-986b-44b5-b0f9-5e8e4b623426` for `fire-fullapp-dr`, physically bound to independent DR D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145`; hosted login vars blocked; zero R2 and extra bindings; old immutable predecessor `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` still listed for rollback (**not actually rolled back**). Frozen QA source candidate `15bd714c435a585f695ed7166cf06d2c31ea1a8e`; **remote bytes/source SHA NOT attested**. QA existing hosted version `08d77fb1-9484-4014-bd5b-1bb1da066cdb` unchanged, accepted prior mobile/synthetic customer proof. NEW LIVE stays DARK `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09`, never updated under this DR-only approval.
+
+Original attempt lock and CLI success receipt on owner Acer MUST remain preserved. Do NOT run the now-consumed DR `--publish` again or recreate Worker/D1; no QA duplicate tests, Access/login loop, R2/paid, SQL, photo redo, Stripe/payment, route/DNS, merge or cutover. Still unverified: account-wide Access/route absence post-update, owner/nonowner and cross-environment functional parity, full record/photo recovery, signed Stripe TEST, hosted source bytes, actual rollback execution. `releaseOrGate4Accepted:false`; formal G1/G2/G3/G8 **4/10 accepted**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO. Detailed evidence in canonical continuity register and GitHub Issue #19. The older statements below describing DR as not yet updated are HISTORICAL and superseded for DR only.
+
+---
+
 <!-- FIRE-DARK-POSTUPDATE-ORIGINAL-LOCK-CANONICAL-20261116 -->
 ## Canonical next step — existing DARK Worker post-update lock identity safeguarded
 
