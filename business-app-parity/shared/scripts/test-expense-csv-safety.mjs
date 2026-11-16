@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 
 const database=new DatabaseSync(':memory:');
 database.exec('CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT); CREATE TABLE estimates(id TEXT PRIMARY KEY,customer_id TEXT); CREATE TABLE estimate_items(id TEXT PRIMARY KEY,estimate_id TEXT,name TEXT); CREATE TABLE expenses(id TEXT PRIMARY KEY,estimate_id TEXT,category TEXT,description TEXT,amount_cents INTEGER,incurred_at TEXT,created_at TEXT);');
@@ -28,7 +29,7 @@ const expenseDateCode=ts.transpileModule(readFileSync('lib/expense-date.ts','utf
 const expenseDates={exports:{},Intl,Date,Number};
 vm.runInNewContext(expenseDateCode,expenseDates);
 const context={exports:{},Response,Request,URL,Date,Number,String,JSON,
- require(id){if(id==='cloudflare:workers')return {env:{DB:backing}};if(id==='../../chatgpt-auth')return {getChatGPTUser:auth};if(id==='../../../lib/expense-date')return expenseDates.exports;throw Error('Unexpected import '+id);}
+ require(id){if(id==='cloudflare:workers')return {env:{DB:backing}};if(id==='../../chatgpt-auth')return {getChatGPTUser:auth};if(id==='../../../lib/expense-date')return expenseDates.exports;if(id==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};throw Error('Unexpected import '+id);}
 };
 vm.runInNewContext(compiled,context);
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
