@@ -1,3 +1,10 @@
+<!-- FIRE_GATE7_EXACT_JOURNAL_RECOVERY_FIX_NOV16 -->
+## NOV 16 — REAL Gate7 protected archive integrity fix, validated source-only
+
+New code on current draft PR270 now rejects non-reviewed migration journal in `.firerecords`: exact QA/STAGING 25 vs isolated DR/NEW LIVE 26 source SQL names/IDs/order, no partial 24/25 or forged name accepted. Direct negative tests in `shared/scripts/test-complete-d1-records-review.mjs`. Existing isolated-recovery CI [#43961065955](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43961065955) **SUCCESS**, protected public site/calculator CI [#43961065785](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43961065785) **SUCCESS**, exact original source changes `d4776c9d`, `14af43e2`, `3e7cfc9a`, `1946e807`. See [dedicated evidence](evidence/FIRE_GATE7_EXACT_25_26_MIGRATION_BACKUP_INTEGRITY_20261116.md) and [continuity register](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md). SOURCE ONLY—not hosted D1, backup/photo recovery, or gate acceptance. Preserve source master `15bd714c435a585f695ed7166cf06d2c31ea1a8e`, accepted DR/QA/provider evidence and original NEW LIVE 26/26 lock. No repeated accepted tests, Cloudflare login/deployment, D1 SQL, Stripe, R2 or other paid services. Formal **4/10** accepted (G1/G2/G3/G8), G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO.
+
+---
+
 <!-- FIRE_NEW_LIVE_PORTABLE_SQL_NO_REPLAY_20261116 -->
 ## NOV 16 — STOP stale NEW LIVE 26-SQL source packet advice; migrations already DONE
 
