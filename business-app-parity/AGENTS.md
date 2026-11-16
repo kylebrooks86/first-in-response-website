@@ -1,3 +1,12 @@
+<!-- FIRE-GUARDED-EXISTING-DARK-CODE-UPDATE-20261116 -->
+## Current release direction after QA hosted success — Nov 16
+
+Both DARK Workers `fire-fullapp-dr` and `fire-fullapp-new-live` ALREADY EXIST. Do **not** run any first-create routine again, remove earlier attempt locks, assume active QA code parity, or repeat accepted read-only Cloudflare D1/version evidence. Exact currently deployed QA code: `15bd714c435a585f695ed7166cf06d2c31ea1a8e`, hosted QA version `08d77fb1-9484-4014-bd5b-1bb1da066cdb`. Existing DARK predecessor versions DR `b7c42773-5a93-4c6c-91d2-83cdb8e857d9`, NEW LIVE `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09`, both bound independently to their accepted D1s. QA iPhone dashboard/customer saved-data observation is complete; do not request it again.
+
+The MAIN-BASED draft PR270 now includes new source-only `owner_existing_dark_code_update_once_approved.mjs` guarded **existing-Worker** code-update CLI and focused tests; local 21/21 with exact source ZIPs, GH focused workflow #43911480123 SUCCESS. Existing main/public site protection was updated by exact allowlist+blob pin commit `32a8e90530245c1028de395ff17deedfef0c8366`, [CI #43911479899](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43911479899) SUCCESS. Current private DR/NEW LIVE QA-source inert ZIPs are saved off-GitHub; details in continuity register. **No DR/NEW LIVE provider update has been authorized, run or verified.** Do not suggest generic source retests, duplicate backup archives, re-deploy QA, paid R2, Cloudflare login loops, migration, or first-create commands. Future Worker update must be separately and exactly owner-authorized per environment; no `--publish` until then. Formal gates **4/10 G1/G2/G3/G8**, G4/G5/G6/G7/G9/G10 OPEN, LIVE NO-GO.
+
+---
+
 # FIRE Business App parity requirement
 
 ## NOV 16 — NEW EXISTING DARK DR/NEW LIVE CODE-ONLY UPDATE PREPARATION (NOT EXECUTED)
