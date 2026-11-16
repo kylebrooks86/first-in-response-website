@@ -19,7 +19,7 @@ const fixture=()=>{
  // Only JS/MJS match the actual reviewed ESModule Wrangler globs.
  for(let i=0;i<193;i++){
   const name=i===0?'fire-noassets-entry.mjs':
-   i<190?'fire-inline-assets/module-'+String(i).padStart(3,'0')+'.js':
+   i<=190?'fire-inline-assets/module-'+String(i).padStart(3,'0')+'.js':
    'fire-inline-assets/module-'+String(i).padStart(3,'0')+'.mjs';
   const content=textFor(i);
   inventory.push({path:name,bytes:content.length,sha256:sha(content)});
