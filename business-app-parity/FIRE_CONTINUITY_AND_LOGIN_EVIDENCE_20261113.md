@@ -1,3 +1,14 @@
+<!-- FIRE_G4_POSTUPDATE_DR_DOMAINS_OWNER_SCREEN_20261116 -->
+## Nov 16 — NEW real post-code-update DARK DR Worker Domains screenshot verified; worker-level public-exposure subcheck captured
+
+**Owner-supplied original authenticated Cloudflare Safari screenshot `IMG_4380.png`** (submitted November 16): PNG 1320×2868, 490,076 bytes, **SHA256 `75fa0db5f2437d7870ba01925c73222f850aeba0fcf4c41465a8003b00e69293`**. The page is `dash.cloudflare.com`, selected **Domains** tab, Worker URL explicitly `fire-fullapp-dr.kyle-bfc.workers.dev`. The Production URL and Preview URL toggles each appear **OFF (left/gray)**; the Custom Domains and Routes listing is empty and displays **“No custom domains.”** This is *new* owner dashboard evidence **after** the approved DR code-only update, distinct from the old November 15 predecessor-version screenshot; no owner switch was changed. The independent accepted read-only hosted proof already identified new serving DR version `f7b7e27c-986b-44b5-b0f9-5e8e4b623426`, exact physical independent DR D1, no R2/extra bindings, blocked auth and predecessor retained for rollback. The screenshot itself does not display a version identifier, so don't claim the version came from its pixels.
+
+**Satisfies only the pending post-update WORKER-LEVEL screenshot subcheck** of production workers.dev OFF, preview OFF and no routes/domains associated with this Worker in its Domains tab. **Does not prove** all-zone account route inventory, separate Cloudflare Access policy, owner/nonowner denial, actual source-byte parity, cross-environment parity, complete records/photos recovery, signed Stripe TEST, or Gate4/formal readiness. No reason to ask for another copy of this particular screenshot.
+
+**Durable detailed evidence:** [FIRE_DR_POSTUPDATE_WORKER_DOMAIN_SURFACE_OWNER_20261116.md](evidence/FIRE_DR_POSTUPDATE_WORKER_DOMAIN_SURFACE_OWNER_20261116.md) (file SHA/image identity recorded; original PNG remains in owner ChatGPT project conversation). No DR/NEW LIVE/other Worker update, public route/Access toggle, paid Cloudflare/R2, SQL, Stripe, DNS, merge or cutover occurred. Old one-shot DR update consent remains irrevocably spent. **Formal 4/10 accepted G1/G2/G3/G8**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO.
+
+---
+
 <!-- FIRE_GATE4_REAL_ARCHIVE_ESMODULE_CORRECTION_20261116 -->
 ## NOV 16 — GATE4 REAL OWNER-PRIVATE ZIP READBACK CORRECTED ACTUAL MODULE COUNT; PREVIOUS 241-MODULE SOURCE CLAIM SUPERSEDED
 
