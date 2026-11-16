@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {TARGETS} from './owner_existing_dark_code_update_once_approved.mjs';
-import {verifyExistingDarkPostUpdate} from './owner_existing_dark_code_update_postdeploy_readonly.mjs';
+import {verifyExistingDarkPostUpdate,verifyOriginalDarkUpdateAttempt} from './owner_existing_dark_code_update_postdeploy_readonly.mjs';
 const newVersion='76f843d3-3e7d-4bee-9111-6fd701faf995';
 const old=TARGETS.dr.previousVersion;
 const ACCOUNT='bfc00939cfb2f8dfd8581a7a7f5f1307';
@@ -31,6 +31,23 @@ function fixture(target,modify=()=>{}){
  return Object.fromEntries(Object.entries(payload).map(([k,v])=>[k,json(v)]));
 }
 for(const target of ['dr','new-live']){
+ const originalAttempt={
+  action:'EXISTING_DARK_WORKER_CODE_UPDATE_ONLY',
+  target,worker:TARGETS[target].name,
+  predecessorVersion:TARGETS[target].previousVersion,
+  physicalD1:TARGETS[target].uuid,
+  sourceSha:'15bd714c435a585f695ed7166cf06d2c31ea1a8e',
+  reviewedZipSha256:TARGETS[target].sha,
+  status:'UNKNOWN_IF_INTERRUPTED_NO_RETRY',timeUtc:'2026-11-16T17:00:00Z'
+ };
+ pass(verifyOriginalDarkUpdateAttempt(target,originalAttempt).originalAttemptLockValidated,
+  target+' owner future update requires original unchanged durable attempt lock');
+ refuse(()=>verifyOriginalDarkUpdateAttempt(target,{...originalAttempt,
+  physicalD1:TARGETS[target==='dr'?'new-live':'dr'].uuid}),
+  target+' opposite D1 attempt lock refused');
+ refuse(()=>verifyOriginalDarkUpdateAttempt(target,{...originalAttempt,
+  status:'CLAIM_SUCCESS_WITHOUT_PROVIDER'}),
+  target+' fabricated success lock refused');
  const good=verifyExistingDarkPostUpdate(target,newVersion,fixture(target));
  pass(good.newServingVersion===newVersion&&good.oldPredecessorVersion===TARGETS[target].previousVersion&&
   good.physicalD1Uuid===TARGETS[target].uuid&&good.hostedDarkAuthenticationVariablesVerified&&
@@ -71,7 +88,9 @@ refuse(()=>verifyExistingDarkPostUpdate('dr','invalid',fixture('dr')),
  'unrecognized version rejected before parsing');
 const script=fileURLToPath(new URL('./owner_existing_dark_code_update_postdeploy_readonly.mjs',import.meta.url));
 const source=readFileSync(script,'utf8');
-pass(!source.includes("['deploy'")&&!source.includes("['d1','execute'")&&
+pass(source.includes('REMOTE-UPDATE-ATTEMPT-LOCK.json')&&
+  source.includes('requireOriginalAttemptLock(target)')&&
+  !source.includes("['deploy'")&&!source.includes("['d1','execute'")&&
   source.includes("['deployments','status'")&&source.includes("'--no-install','wrangler@4.162.0'"),
  'only named metadata calls and installed pinned Wrangler; no upload, SQL or auto-install');
 const unsafe=spawnSync(process.execPath,[script,'--capture','dr',newVersion],{
