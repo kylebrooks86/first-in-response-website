@@ -1,3 +1,12 @@
+<!-- FIRE_GATE4_OWNER_DR_ZIP_193_RUNTIME_CORRECTION -->
+## NOV 16 CANONICAL G4 UPDATE — REAL SEALED DR ZIP CONFIRMS 193 SCRIPT MODULES (NOT 241)
+
+Read the actual owner-private 3,140,291-byte exact DR ZIP directly from connected Google Drive, SHA-256 `eee57f2a5f98c4c9aa84c881818414094868bae5fef41d45c339073e269ecfb0`. Real 243 ZIP entries: 242 server files, each file length and SHA-256 matching the sealed receipt; **190 JS + 3 MJS = 193 runtime ESModules**, **41 BIN + 2 CSS + 4 auxiliary JSON + BUILD_ID = 48 not covered by JS module GET**, plus **one `wrangler.json`**. Original Wrangler `rules` include only `ESModule` `**/*.js`, `**/*.mjs` under `find_additional_modules`; therefore former 241-hosted-module assumption was a real **verification-tool defect**, not a deployed app defect. Previous top section about 241 module comparisons is historical **SUPERSEDED**.
+
+Corrected `owner_dr_immutable_module_bytes_readonly.mjs` and test fixture on ongoing draft PR270 to require 193 exact scripts, strict auxiliary composition, and never claim hosted 48 auxiliary bytes; original immutable DR deployed version and cloud-bound DB passed and must NOT be reverified. Actual private ZIP inventory SHA/length PASS (zero mismatches) and focused GitHub changed-code [#43946427743](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43946427743) SUCCESS, protected website/calculator [#43946427850](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43946427850) SUCCESS. **Authenticated actual Cloudflare GET ?include=modules NOT DONE; hosted source modules not yet proven.** Never rerun DR publisher/lock, migration, accepted QA tests or repeated Cloudflare logins. No new user action required for this source fix. Formal **4/10** gates accepted, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO, no provider writes/merge/paid Cloudflare/R2.
+
+---
+
 <!-- FIRE_GATE4_NEW_IMMUTABLE_BYTE_CHECK_20261116 -->
 ## CURRENT GATE4 SOURCE ADVANCE — immutable DR hosted modules can now be compared to exact approved archive
 
