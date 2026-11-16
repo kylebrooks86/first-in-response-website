@@ -1,0 +1,30 @@
+name: FIRE existing DARK Worker update guards (OFFLINE, no provider)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_existing_dark_code_update_once_approved.mjs'
+      - 'business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs'
+      - '.github/workflows/fire-existing-dark-code-update-source-only.yml'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  existing-dark-update-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CI: 'true'
+      GITHUB_ACTIONS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check changed source only
+        run: |
+          node --check business-app-parity/owner_existing_dark_code_update_once_approved.mjs
+          node --check business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs
+      - name: Focused offline, nonowner, non-Windows, no-provider safeguards
+        run: node business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs
