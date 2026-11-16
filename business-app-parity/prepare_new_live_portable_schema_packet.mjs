@@ -87,7 +87,10 @@ export function verifyNewLivePortableSchemaPacket(location){
     !notice.includes('26 original SQL')||
     !notice.includes('NO REMOTE COMMAND')||
     !notice.includes('Job #0001')||
-    !notice.includes('NO R2'))
+    !notice.includes('NO R2')||
+    !notice.includes('November 14, 2026')||
+    !notice.includes('NEVER reapply')||
+    !notice.includes('The old installer is CONSUMED.'))
   stop('operator remote-write safety notice missing');
  return {status:'EXACT_26_REVIEWED_NEW_LIVE_SQL_SOURCE_CUSTODY_VERIFIED',
    database_name:LIVE.database_name,database_id:LIVE.database_id,
@@ -118,10 +121,16 @@ export function prepareNewLivePortableSchemaPacket(destination){
   'No app login, public route, preview route or payment processing enabled.',
   'Do NOT run Wrangler migrations apply, remote execute, create, deploy,',
   'Stripe TEST/LIVE, Git merge or any live change from this packet alone.',
-  'A new exact owner authorization and immediate provider identity + empty',
-  'schema verification are mandatory before any remote one-shot migration.',
+  'CRITICAL: Owner-hosted NEW LIVE D1 already completed 26/26 reviewed',
+  'migrations on November 14, 2026 (Issue #19 #6889484598).',
+  'Both owner migration attempt locks and the receipt were saved encrypted',
+  'off-Acer (Issue #19 #6891448726). The old installer is CONSUMED.',
+  'NEVER reapply, reset locks, or retry original NEW LIVE D1 migrations.',
+  'Do NOT mistake the source-only receipt fields remoteMigrationAttempted=false',
+  'or hostedNewLive26MigrationsVerified=false for the ACTUAL provider state.',
+  'Those booleans mean this portable source packet made NO provider calls.',
   'A lost acknowledgement or timeout is NOT permission to retry a remote write.',
-  'See GitHub Issue #19 and the reviewed one-shot owner installer before action.',
+  'See GitHub Issue #19 and the latest continuity register before any action.',
   ''
  ].join('\n');
  writeFileSync(join(out,'OWNER_READ_ME_FIRST.txt'),note,{flag:'wx',mode:0o600});
