@@ -13,8 +13,19 @@ assert.equal(cfg.name,name,"Only the new QA Worker name is permitted");
 assert.deepEqual(cfg.d1_databases,[{binding:"DB",database_name:db,database_id:id}],
   "Built QA must bind exactly ONE newly created D1, via app's DB binding");
 assert.equal(cfg.workers_dev,true,"QA should not use existing custom routes");
-assert.deepEqual(cfg.r2_buckets,[{binding:"BUCKET",bucket_name:"fire-fullapp-qa-photos-20261023"}],
-  "QA must have exactly one separate dedicated photo R2 bucket; never inherit an existing bucket");
+// Legacy source builds may still declare the ONE historically reviewed
+// optional QA-only photo placeholder. The approved QA deploy preparer STRIPS
+// that declaration before Cloudflare; paid R2 is neither used nor required.
+// A new R2 bucket, alias, account or actual hosted bucket is NEVER permitted.
+const reviewedOptionalR2=[{binding:"BUCKET",bucket_name:"fire-fullapp-qa-photos-20261023"}];
+const hasCompiledLegacyR2=(cfg.r2_buckets?.length??0)>0;
+assert.ok(cfg.r2_buckets===undefined||Array.isArray(cfg.r2_buckets),
+  "Invalid compiled QA R2 declaration");
+if(hasCompiledLegacyR2)
+  assert.deepEqual(cfg.r2_buckets,reviewedOptionalR2,
+    "Only the reviewed optional QA-only legacy placeholder may be compiled; never deploy R2");
+else assert.deepEqual(cfg.r2_buckets??[],[],
+  "No unknown R2 binding permitted in R2-free QA source");
 assert.deepEqual(cfg.secrets?.required,
   ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"],
   "Hosted QA must declare BOTH private owner-login secrets as required for release");
@@ -46,6 +57,9 @@ assert.ok(!Object.keys(vars).some(k=>/(stripe|r2|live|staging|doomsday|password|
   "No credentials or privileged resource identities may be in published QA vars");
 assert.ok(!("site-creator"===cfg.name),"Not the default build");
 console.log(JSON.stringify({identityVerified:true,name:cfg.name,dbName:db,dbId:id,
-  originConfigured:Boolean(vars.SITE_ORIGIN),r2Configured:true,
-  r2Bucket:"fire-fullapp-qa-photos-20261023",r2RemoteVerified:false,stripeConfigured:false,
-  remoteD1WritesPerformed:false,publicationAuthorized:false,acceptedGateCount:3}));
+  originConfigured:Boolean(vars.SITE_ORIGIN),
+  legacyCompiledR2PlaceholderPresent:hasCompiledLegacyR2,
+  r2Required:false,r2Configured:false,r2RemoteVerified:false,
+  r2BindingRemovedBeforeApprovedDeploy:true,stripeConfigured:false,
+  remoteD1WritesPerformed:false,publicationAuthorized:false,
+  gateAcceptanceAsserted:false}));
