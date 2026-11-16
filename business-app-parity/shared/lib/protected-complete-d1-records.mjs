@@ -229,6 +229,20 @@ export async function prepareCompleteD1OwnerFile(review,phrase,confirmation,now=
   offDeviceCustodyVerified:false,photoBytesIncluded:false,
   isolatedD1RestoreVerified:false,gate7Accepted:false});
 }
+/** The browser clears the original encryption passphrase immediately after
+ * preparing a protected file. Do NOT let its saved-file picker run with an
+ * empty/invalid re-entry and misleadingly report a good archive as corrupt.
+ * Shape only: this never authenticates a passphrase or calls any provider.
+ */
+export function ownerSavedRecordsPassphraseReady(prepared,phrase){
+ if(!object(prepared)||prepared.format!=='fire-protected-complete-d1-owner-file'||
+    prepared.version!==1||prepared.inMemoryEncryptionVerified!==true||
+    prepared.savedFileReadBackVerified!==false||prepared.gate7Accepted!==false||
+    typeof phrase!=='string'||phrase.length<16||phrase.length>1024)
+  return false;
+ return enc.encode(phrase).byteLength<=4096;
+}
+
 /** Read back a deliberately selected SAVED owner file: never infer iCloud
  * custody or reuse a prior in-memory-only Blob as a physical saved file.
  */
