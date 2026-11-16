@@ -26,7 +26,7 @@ const replies=(target,version=NEW)=>{
  return {
   whoami:json({loggedIn:true,accounts:[{id:ACCOUNT}]}),
   d1Info:json({name:s.db,uuid:s.uuid}),
-  versionsList:json({versions:[{id:s.previousVersion},{id:version}]}),
+  versionsList:json({versions:version===s.previousVersion?[{id:version}]:[{id:s.previousVersion},{id:version}]}),
   deploymentStatus:json({name:s.name,versions:[{version_id:version,percentage:100}]}),
   versionDetail:json({id:version,name:s.name,resources:{bindings:[
    {name:'DB',type:'d1',id:s.uuid},
