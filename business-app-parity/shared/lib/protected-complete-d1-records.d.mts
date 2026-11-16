@@ -34,6 +34,10 @@ export declare function verifyProtectedCompleteReviewedD1Records(
 export declare function prepareCompleteD1OwnerFile(
  review:CompleteD1RecordsReview,phrase:string,confirmation:string,now?:Date
 ):Promise<PreparedCompleteD1OwnerFile>;
+/** Shape-only owner saved-file re-entry guard; never authenticates a phrase. */
+export declare function ownerSavedRecordsPassphraseReady(
+ prepared:PreparedCompleteD1OwnerFile|null,phrase:string
+):boolean;
 export declare function verifySelectedSavedCompleteD1OwnerFile(
  prepared:PreparedCompleteD1OwnerFile,saved:Blob,phrase:string
 ):Promise<{selectedCiphertextIdentical:true;
