@@ -46,6 +46,12 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         AND total_cents BETWEEN 0 AND 9007199254740991
         AND deposit_cents BETWEEN 0 AND 9007199254740991
         AND discount_cents<=subtotal_cents AND total_cents>=deposit_cents
+        -- A signed quote must reconcile to its exact current itemized price,
+        -- including stacked discounts; validate inside the same atomic UPDATE.
+        -- Bounds on individual money fields alone do not prove these totals.
+        AND total_cents=subtotal_cents-discount_cents
+        AND subtotal_cents=(SELECT COALESCE(SUM(ei.total_cents),-1)
+          FROM estimate_items ei WHERE ei.estimate_id=estimates.id)
         AND EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id)
         AND NOT EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id AND (ei.name IS NULL OR TRIM(ei.name)='' OR ei.quantity<=0 OR ei.total_cents<0 OR ei.total_cents>9007199254740991))
         ${exceptionPending?"AND NOT EXISTS(SELECT 1 FROM deposit_policy_events d WHERE d.estimate_id=estimates.id)":""}`)
