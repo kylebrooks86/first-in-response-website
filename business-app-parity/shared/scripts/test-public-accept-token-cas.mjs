@@ -85,7 +85,7 @@ assert.doesNotMatch(approvedBlock,/acceptedAt:estimate\.acceptedAt|signedName:es
 const helper=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='matchesCurrentSubmission');
 assert.ok(helper,'Lost D1 batch-ACK recovery uses an explicit exact-submission check');
 const sandbox={exports:{}};
-vm.runInNewContext(ts.transpileModule(helper.getText(ast)+'\\nexports.match=matchesCurrentSubmission;',
+vm.runInNewContext(ts.transpileModule(helper.getText(ast)+'\nexports.match=matchesCurrentSubmission;',
  {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,sandbox);
 const matchesCurrentSubmission=sandbox.exports.match;
 const batchStart=source.indexOf('const [accepted]=await env.DB.batch([');
@@ -94,13 +94,13 @@ const uncertainEnd=source.indexOf('if(!acceptedChanges)',batchCatch);
 assert.ok(batchStart>0&&batchCatch>batchStart&&uncertainEnd>batchCatch,
  'A thrown D1 batch ACK must have a dedicated fail-closed response path');
 const lostAckPath=source.slice(batchCatch,uncertainEnd);
-assert.equal((lostAckPath.match(/confirmedAcceptance\\(\\)/g)||[]).length,1,
+assert.equal((lostAckPath.match(/confirmedAcceptance\(\)/g)||[]).length,1,
  'Lost ACK may perform only one current-token readback');
-assert.match(lostAckPath,/matchesCurrentSubmission\\(current,now,signedName,photoRelease\\)/,
+assert.match(lostAckPath,/matchesCurrentSubmission\(current,now,signedName,photoRelease\)/,
  'Uncertain ACK cannot accept any older or different signature as this submission');
-assert.match(lostAckPath,/saveUncertain:true[\\s\\S]*?status:503/,
+assert.match(lostAckPath,/saveUncertain:true[\s\S]*?status:503/,
  'Unknown or revoked readback must return 503 saveUncertain, not false success');
-assert.doesNotMatch(lostAckPath,/env\\.DB\\.batch|UPDATE estimates|INSERT INTO notifications/,
+assert.doesNotMatch(lostAckPath,/env\.DB\.batch|UPDATE estimates|INSERT INTO notifications/,
  'Lost acknowledgment must not repeat either signed write or notification');
 assert.match(lostAckPath,/Cache-Control["']?:["']no-store["']/,
  'Signature readback must be private and uncacheable');
