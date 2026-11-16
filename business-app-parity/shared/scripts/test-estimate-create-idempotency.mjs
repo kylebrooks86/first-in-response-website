@@ -10,6 +10,36 @@ const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 const uuid=n=>'ccaa0000-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
 const runtime=stackedRuntime(),db=runtime.db;
 const proofKey='fire:estimate-create-request:v1:';
+// NEW scoped owner CREATE parsing negatives: do not redo previously accepted
+// hosted QA checks. Every refusal is before any D1 read/write, preserving
+// the old valid idempotent quote and invoice behavior below.
+const estimateHandler=runtime.load('app/api/estimates/route.ts').POST;
+const invoiceHandler=runtime.load('app/api/invoices/route.ts').POST;
+const ownerRequest=(path,body,headers={})=>new Request(
+ 'https://synthetic.invalid/api/'+path,{method:'POST',body,headers});
+const assertNoSql=async(label,handler,request,want)=>{
+ const before=runtime.counters();
+ const response=await handler(request);
+ eq(response.status,want,label+' returns '+want);
+ eq(runtime.counters(),before,label+' does not read or mutate D1');
+};
+await assertNoSql('oversized estimate POST body',estimateHandler,
+ ownerRequest('estimates','X'.repeat(128_001)),413);
+await assertNoSql('oversized final-invoice POST body',invoiceHandler,
+ ownerRequest('invoices','X'.repeat(16_001)),413);
+await assertNoSql('declared estimate size beyond limit',estimateHandler,
+ ownerRequest('estimates','{}',{'content-length':'128001'}),413);
+await assertNoSql('truncated invoice declared Content-Length',invoiceHandler,
+ ownerRequest('invoices','{}',{'content-length':'100'}),400);
+await assertNoSql('malformed estimate JSON',estimateHandler,
+ ownerRequest('estimates','{not json'),400);
+await assertNoSql('array instead of estimate object',estimateHandler,
+ ownerRequest('estimates','[]'),400);
+await assertNoSql('invalid estimate UTF-8',estimateHandler,
+ ownerRequest('estimates',new Uint8Array([0xc3,0x28])),400);
+await assertNoSql('array instead of invoice object',invoiceHandler,
+ ownerRequest('invoices','[]'),400);
+
 const statusEndpoint=runtime.load('app/api/estimates/create-status/route.ts').GET;
 const lookup=async requestId=>{const response=await statusEndpoint(new Request('https://synthetic.invalid/api/estimates/create-status?requestId='+encodeURIComponent(requestId)));return {status:response.status,body:await response.json(),cache:response.headers.get('cache-control')};};
 const post=async body=>{const response=await runtime.post(body);return {status:response.status,body:await response.json()};};
