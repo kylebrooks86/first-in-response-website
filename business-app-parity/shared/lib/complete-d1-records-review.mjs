@@ -75,7 +75,9 @@ export async function captureCompleteReviewedD1RecordsReadOnly(db,
  }
  // A SINGLE D1.batch is a transaction and counts as ONE D1 invocation query.
  // Do not replace it with per-table calls; those lose snapshot consistency.
- const returned=await db.batch(statements);
+ let returned;
+ try{returned=await db.batch(statements);}
+ catch{stop('reviewed transactional source tables are missing or unreadable');}
  if(!Array.isArray(returned)||returned.length!==statements.length)
   stop('truncated transactional D1 batch');
  const objects=resultRows(returned[0],'schema objects');
