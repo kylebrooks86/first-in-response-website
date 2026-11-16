@@ -50,7 +50,7 @@ for(const malformed of [{},[],4,true,null]){
   assert.equal(evalSql(signerExpression,{body:{signedName:malformed}}),'',
    'Non-text JSON cannot stringify into a valid legal signature');
 }
-assert.doesNotMatch(signerExpression,/String\\(/,
+assert.doesNotMatch(signerExpression,/String\(/,
  'No object-to-string coercion in customer signature evidence');
 const normal=evalSql(update[0].query,{exceptionPending:false});
 const guarded=evalSql(update[0].query,{exceptionPending:true});
@@ -60,7 +60,7 @@ for(const query of [normal,guarded]){
     'Approval update must check the same saved token inside the mutation');
   assert.match(query,/total_cents=subtotal_cents-discount_cents/,
     'Approval must reconcile its discount-adjusted total atomically');
-  assert.match(query,/subtotal_cents=.*COALESCE\\(SUM\\(ei\\.total_cents\\),-1\\)/s,
+  assert.match(query,/subtotal_cents=.*COALESCE\(SUM\(ei\.total_cents\),-1\)/s,
     'Approval must reconcile saved itemized service lines atomically');
 }
 assert.match(readback,/FROM estimates WHERE id=\? AND share_token=\?/,
