@@ -7,6 +7,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {readOwnerCompleteD1ReviewResponse,MAX_COMPLETE_D1_REVIEW_HTTP_BYTES}
+ from '../lib/complete-d1-review-response.mjs';
 import {prepareCompleteD1OwnerFile,verifySelectedSavedCompleteD1OwnerFile,
  verifyProtectedCompleteReviewedD1Records}
  from '../lib/protected-complete-d1-records.mjs';
@@ -94,6 +96,37 @@ try{
   res[0].results.find(x=>x.name==='_cf_METADATA').sql='CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB, secret TEXT)';
  })), 'provider table with invented durable field must fail closed');
  db.exec('DROP TABLE _cf_METADATA; DROP TABLE _cf_KV');
+ // Strict *actual route-envelope* reader refuses a malformed, cacheable,
+ // interrupted, nonowner/redirect or falsely complete source before encryption.
+ const ownerWrapper={format:'fire-complete-d1-records-owner-review',version:1,
+  completeBackup:false,recoveryAuthorized:false,offDeviceCustodyVerified:false,
+  photoBytesIncluded:false,warning:'ALL REVIEWED DATABASE RECORDS, NOT A PROTECTED OR COMPLETE BACKUP. Actual photo bytes are absent.',
+  reviewedRecords:original};
+ const fullResponse=(value=ownerWrapper,headers={})=>new Response(JSON.stringify(value),{
+  status:200,headers:{'content-type':'application/json','cache-control':'private, no-store',
+   'content-disposition':'attachment; filename="fire-complete-records-review-NOT-PROTECTED-BACKUP.json"',
+   ...headers}});
+ const browserSource=await readOwnerCompleteD1ReviewResponse(fullResponse());
+ equal(browserSource.core.tables.customers[0].id,'full-review-customer',
+  'strict HTTP full-response stream yields exact full customer archive');
+ equal(browserSource.extra.tables.d1_migrations.length,25,
+  'strict HTTP private review preserves full migration journal');
+ for(const [name,modified,headers] of [
+  ['falsely called backup',{...ownerWrapper,completeBackup:true},{}],
+  ['claimed photos',{...ownerWrapper,photoBytesIncluded:true},{}],
+  ['supplemental history missing',{...ownerWrapper,reviewedRecords:{...original,
+    supplemental:{...original.supplemental,tables:{auth_rate_limits:[]}}}},{}],
+  ['cacheable owner response',ownerWrapper,{'cache-control':'public, max-age=600'}],
+  ['unlabeled plaintext file',ownerWrapper,{'content-disposition':'attachment; filename="backup.json"'}],
+  ['HTML data substituted',ownerWrapper,{'content-type':'text/html'}]]) {
+  await assert.rejects(readOwnerCompleteD1ReviewResponse(fullResponse(modified,headers)),
+   /FIRE complete D1 owner review blocked:/,'deny '+name);checks++;
+ }
+ await assert.rejects(readOwnerCompleteD1ReviewResponse(new Response('x'.repeat(MAX_COMPLETE_D1_REVIEW_HTTP_BYTES+1),{
+  headers:{'content-type':'application/json','cache-control':'private, no-store',
+   'content-disposition':'attachment; filename="fire-complete-records-review-NOT-PROTECTED-BACKUP.json"'}})),
+   /FIRE complete D1 owner review blocked:/,
+   'full review source exceeding bounded response must be refused');checks++;
  // Browser WebCrypto MUST create the exact existing 48-byte FIRERB01
  // .firerecords format that the already-written Node offline recovery accepts.
  // A new incompatible browser-only backup format would NOT close Gate7.
