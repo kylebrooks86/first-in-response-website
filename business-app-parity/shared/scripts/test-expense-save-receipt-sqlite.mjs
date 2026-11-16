@@ -55,6 +55,30 @@ try{
  user={email:'stranger@example.invalid'};
  check((await call(base(1))).status===401,'Nonowner expense POST denied');
  user={email:'kylebrooks8605@gmail.com'};
+ // Changed-function security regression on the actual financial POST:
+ // an invalid/oversized stream must never reach SELECT or INSERT, and
+ // should never be mistaken for a lost-ACK business expense save.
+ const beforeBlockedReads=reads,beforeBlockedWrites=writes,beforeBlockedRows=count();
+ const rawExpense=async(bytes,declared)=>POST(new Request('https://synthetic.invalid/api/expenses',{
+  method:'POST',headers:{'content-type':'application/json',
+    ...(declared===undefined?{}:{'content-length':String(declared)})},body:bytes
+ }));
+ let blocked=await rawExpense(JSON.stringify(base(91,{description:'x'.repeat(32_100)})));
+ check(blocked.status===413,'Expense payload over 32000 bytes rejected before parsing');
+ check(blocked.headers.get('cache-control')==='private, no-store',
+  'Rejected oversized owner expense never cacheable');
+ blocked=await rawExpense(JSON.stringify(base(92)),32001);
+ check(blocked.status===413,'Oversize declared length stops before reading expense body');
+ blocked=await rawExpense(JSON.stringify(base(93)),5);
+ check(blocked.status===400,'Mismatched declared length refused before expense SQL');
+ blocked=await rawExpense('{"description":');
+ check(blocked.status===400,'Invalid expense JSON refused before SQL');
+ blocked=await rawExpense('["not an expense object"]');
+ check(blocked.status===400,'Array expense body refused before SQL');
+ blocked=await rawExpense(new Uint8Array([0xc3,0x28]));
+ check(blocked.status===400,'Malformed UTF-8 expense body refused before SQL');
+ check(reads===beforeBlockedReads&&writes===beforeBlockedWrites&&count()===beforeBlockedRows,
+  'All rejected expense bodies cause ZERO D1 reads/writes or financial changes');
 
  const firstRequest=base(1);
  let response=await call(firstRequest);
