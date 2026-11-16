@@ -51,12 +51,19 @@ for(const target of ['dr','new-live']){
  const good=verifyExistingDarkPostUpdate(target,newVersion,fixture(target));
  pass(good.newServingVersion===newVersion&&good.oldPredecessorVersion===TARGETS[target].previousVersion&&
   good.physicalD1Uuid===TARGETS[target].uuid&&good.hostedDarkAuthenticationVariablesVerified&&
-  good.hostedNoR2OrExtraResourceBindingsVerified,
-  target+' new 100-percent serving version correct independent D1 and dark bindings');
+  good.hostedNoR2OrExtraResourceBindingsVerified&&
+  good.previousImmutableVersionListedForRollback===true&&good.rollbackExecutionVerified===false,
+  target+' active new version and retained original rollback version verified from provider inventory');
  pass(good.hostedSourceBytesVerified===false&&good.actualWorkerSourceShaVerified===false&&
   good.productionReady===false&&good.releaseOrGate4Accepted===false&&
   good.providerWritePerformedByVerifier===false,
   target+' metadata readback NEVER claims immutable code-byte proof, release or writes');
+ refuse(()=>verifyExistingDarkPostUpdate(target,newVersion,fixture(target,p=>{
+  p.versionsList.versions=[{id:newVersion}];
+ })),target+' old rollback version missing from inventory refused');
+ refuse(()=>verifyExistingDarkPostUpdate(target,newVersion,fixture(target,p=>{
+  p.versionsList.versions.push({id:TARGETS[target].previousVersion});
+ })),target+' ambiguous duplicated predecessor rollback version refused');
  refuse(()=>verifyExistingDarkPostUpdate(target,TARGETS[target].previousVersion,
    fixture(target)),target+' old predecessor is never accepted as new source');
  refuse(()=>verifyExistingDarkPostUpdate(target,newVersion,fixture(target,p=>{
