@@ -1,6 +1,16 @@
 import { env } from "cloudflare:workers";
 import { readCustomerWriteJson } from "../../../../../../lib/customer-write-request-guard.mjs";
 
+// A thrown D1 batch acknowledgment can mean the customer's signature was
+// committed. Recover success ONLY for this exact current token-bound submission;
+// never report somebody else's or an older acceptance as this write's receipt.
+function matchesCurrentSubmission(current:{status:string;acceptedAt:string|null;signedAt:string|null;signedName:string|null;photoRelease:string|null}|null,
+  now:string,signedName:string,photoRelease:string){
+  return current?.status==="approved"&&current.acceptedAt===now&&
+    current.signedAt===now&&current.signedName===signedName&&
+    current.photoRelease===photoRelease;
+}
+
 export async function POST(request:Request,context:{params:Promise<{token:string}>}){
   try{
     const parsed=await readCustomerWriteJson(request,["signedName","photoRelease","acceptedTerms"],2048);
@@ -38,7 +48,9 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     const now=new Date().toISOString();
     // Bearer-share revocation must remain effective if the token is changed
     // after SELECT but before this D1 batch. Retry readback is token-bound too.
-    const [accepted]=await env.DB.batch([
+    let acceptedChanges=0;
+    try{
+      const [accepted]=await env.DB.batch([
       env.DB.prepare(`UPDATE estimates SET status='approved',accepted_at=?,signed_name=?,signed_at=?,photo_release=?,contract_version='2026-09-21'
         WHERE id=? AND share_token=? AND accepted_at IS NULL AND status IN ('draft','sent')
         AND subtotal_cents BETWEEN 0 AND 9007199254740991
@@ -60,13 +72,27 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         SELECT ?,?,?,?,?,?,?
         WHERE EXISTS (SELECT 1 FROM estimates WHERE id=? AND accepted_at=? AND signed_at=?) AND NOT EXISTS (SELECT 1 FROM notifications WHERE type='estimate_accepted' AND estimate_id=?)`)
         .bind(crypto.randomUUID(),"estimate_accepted",`${estimate.customer} approved an estimate`,`${estimate.service} was approved. Contact the customer to schedule the job.`,estimate.customerId,estimate.id,now,estimate.id,now,now,estimate.id),
-    ]);
-    if(!accepted.meta.changes){
+      ]);
+      acceptedChanges=accepted.meta.changes;
+    }catch{
+      // D1 can commit and lose the batch acknowledgment. Query exactly once
+      // using the STILL-current bearer token; never repeat the UPDATE/alert.
+      // An absent, revoked or conflicting receipt is uncertain, not rejected.
+      const current=await confirmedAcceptance().catch(()=>null);
+      if(matchesCurrentSubmission(current,now,signedName,photoRelease))
+        return Response.json({ok:true,acceptedAt:current!.acceptedAt,
+          signedName:current!.signedName,signedAt:current!.signedAt,
+          photoRelease:current!.photoRelease},
+          {headers:{"Cache-Control":"no-store"}});
+      return Response.json({error:"We could not confirm whether your agreement was saved. Refresh this estimate before trying again.",saveUncertain:true},
+        {status:503,headers:{"Cache-Control":"no-store"}});
+    }
+    if(!acceptedChanges){
       const current=await confirmedAcceptance();
-      if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt,signedName:current.signedName,signedAt:current.signedAt,photoRelease:current.photoRelease});
+      if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt,signedName:current.signedName,signedAt:current.signedAt,photoRelease:current.photoRelease},{headers:{"Cache-Control":"no-store"}});
       if(current&&["draft","sent"].includes(current.status))return Response.json({error:"This estimate has a billing or service-line integrity issue and cannot be approved yet. Please contact First In Response Exteriors."},{status:409});
       return Response.json({error:"This estimate changed while you were approving it. Please refresh or contact First In Response Exteriors."},{status:409});
     }
-    return Response.json({ok:true,acceptedAt:now,signedName,signedAt:now,photoRelease});
+    return Response.json({ok:true,acceptedAt:now,signedName,signedAt:now,photoRelease},{headers:{"Cache-Control":"no-store"}});
   }catch{return Response.json({error:"The estimate could not be approved. Please contact First In Response Exteriors."},{status:500});}
 }
