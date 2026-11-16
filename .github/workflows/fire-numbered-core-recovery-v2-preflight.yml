@@ -12,6 +12,10 @@ on:
       - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-owner-file-custody.mjs'
       - 'business-app-parity/shared/components/numbered-core-records-review.tsx'
+      - 'business-app-parity/shared/lib/complete-records-owner-availability.mjs'
+      - 'business-app-parity/shared/app/api/backup/review-capability/route.ts'
+      - 'business-app-parity/shared/components/owner-complete-recovery-availability.tsx'
+      - 'business-app-parity/shared/scripts/test-complete-records-owner-availability.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.d.mts'
       - 'business-app-parity/shared/scripts/test-numbered-v2-owner-review-gate.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-review-response.mjs'
@@ -43,6 +47,10 @@ on:
       - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-owner-file-custody.mjs'
       - 'business-app-parity/shared/components/numbered-core-records-review.tsx'
+      - 'business-app-parity/shared/lib/complete-records-owner-availability.mjs'
+      - 'business-app-parity/shared/app/api/backup/review-capability/route.ts'
+      - 'business-app-parity/shared/components/owner-complete-recovery-availability.tsx'
+      - 'business-app-parity/shared/scripts/test-complete-records-owner-availability.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-owner-file-custody.d.mts'
       - 'business-app-parity/shared/scripts/test-numbered-v2-owner-review-gate.mjs'
       - 'business-app-parity/shared/lib/numbered-v2-review-response.mjs'
@@ -100,6 +108,8 @@ jobs:
         run: node scripts/test-numbered-v2-owner-file-custody.mjs
       - name: Enforce owner review UI disabled across QA DR and LIVE (SOURCE ONLY)
         run: node scripts/test-numbered-v2-owner-review-gate.mjs
+      - name: Gate7 complete records/photo owner capability hidden until separately authorized (SOURCE ONLY)
+        run: node scripts/test-complete-records-owner-availability.mjs
       - name: Confirm real owner GET to encrypted selected-file readback and stream tamper denial (SOURCE ONLY)
         run: node scripts/test-numbered-v2-end-to-end-review.mjs
       - name: Reject newly added durable QA tables not represented in recovery
