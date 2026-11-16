@@ -1,3 +1,14 @@
+<!-- FIRE_GATE4_NEW_IMMUTABLE_BYTE_CHECK_20261116 -->
+## CURRENT GATE4 SOURCE ADVANCE — immutable DR hosted modules can now be compared to exact approved archive
+
+**Do not repeat DR update, original postdeploy readback, QA checks, 26 D1 migrations or paid/R2 setup.** Owner's DARK DR code-only update is fully done, hosted 100% as `f7b7e27c-986b-44b5-b0f9-5e8e4b623426`, correct D1, auth disabled, no R2/extra bindings, prior version retained. It did **not** attest hosted source bytes.
+
+New unmerged PR270 **actual read-only source implementation** `business-app-parity/owner_dr_immutable_module_bytes_readonly.mjs` pinning that exact immutable DR version plus owner-private 243-entry source ZIP, original immutable attempt-lock and publisher receipt. It can compare **all 241** hosted module names/lengths/SHA256 via official Cloudflare immutable-version `GET ...?include=modules` against complete sealed private archive inventory. It has an offline no-provider default, offline fixtures never authenticate provider, and optional owner-only one-GET capture accepts only a preexisting local in-memory token (NO token creation/reuse of revoked token, no Cloudflare Work sign-in/retry). It logs no raw modules, provider response, token or local owner path; on mismatch STOP, never redeploy or weaken checks.
+
+New changed-function CI [#43943963472](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43943963472) **SUCCESS 11/11 + 35/35 + 20/20**, and public website/calculator protector [#43943963886](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43943963886) **SUCCESS**. Source commits `0dada0f7`, `ee0ded74`, targeted workflow `b172d06d`, protector SHA pin `adb55f07`; canonical continuity has exact details. **Live hosted module-byte readback NOT yet executed**, so source-byte parity, account Access/public routes, G4 and full environment functionality remain **OPEN**. Do not infer permission for any new provider write. Formal **4/10 accepted** (G1/G2/G3/G8), G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO. Only new source code + GitHub CI ran, no deployment or payments/SQL/Access/R2/DNS change.
+
+---
+
 <!-- FIRE_DR_NEW_HOSTED_POSTUPDATE_PASS_20261116_F7B7E27C -->
 ## CURRENT CANONICAL DR STATE — NOV 16: code-only DR update DONE, read-only physical proof PASS, not Gate4 closure
 
