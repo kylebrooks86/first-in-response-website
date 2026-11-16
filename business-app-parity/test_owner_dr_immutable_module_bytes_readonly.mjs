@@ -33,7 +33,7 @@ const fixture=()=>{
   const content=Buffer.from('SYNTHETIC '+name);
   inventory.push({path:name,bytes:content.length,sha256:sha(content)});
  }
- return {inventory,provider:{success:true,errors:[],result:{id:VERSION,main_module:'fire-noassets-entry.mjs',modules}}};
+ return {inventory,provider:{success:true,errors:[],result:{id:VERSION,main_module:'fire-noassets-entry.mjs',urls:[],modules}}};
 };
 let passed=0;
 const test=(name,fn)=>{fn();passed++;console.log('PASS '+name)};
@@ -54,10 +54,28 @@ test('all 193 rule-matching synthetic runtime module bytes match (49 excluded ar
  assert.equal(r.auxiliaryNonRuntimeFilesNotProven,48);
  assert.equal(r.wholeArchiveHostedBytesVerified,false);
  assert.equal(r.moduleContentHashesCompared,true);
+ assert.equal(r.versionPinnedRoutableUrlCount,0);
+ assert.equal(r.versionPinnedRoutableUrlsRequireReview,false);
+ assert.equal(r.accountWideAliasRouteOrAccessIsolationVerified,false);
  assert.equal(r.authenticatedProviderReadback,false);
  assert.equal(r.gate4Accepted,false);
  assert.equal(r.deploymentPerformed,false);
 });
+test('version-pinned public URLs are recorded only as a count, never claimed secured',()=>{
+ const f=fixture();
+ f.provider.result.urls=['https://synthetic-version.example.invalid'];
+ const r=compareImmutableModuleBytes(f.provider,f.inventory);
+ assert.equal(r.versionPinnedRoutableUrlCount,1);
+ assert.equal(r.versionPinnedRoutableUrlsRequireReview,true);
+ assert.equal(r.accountWideAliasRouteOrAccessIsolationVerified,false);
+ assert.ok(!JSON.stringify(r).includes('synthetic-version.example.invalid'));
+ assert.equal(r.gate4Accepted,false);
+});
+denied('reject missing version-pinned URL inventory',f=>delete f.provider.result.urls);
+denied('reject malformed version routable URL entry',f=>f.provider.result.urls=['https://ok.example.invalid',23]);
+denied('reject control characters in version routable URL',f=>f.provider.result.urls=['https://ok.example.invalid\nX']);
+denied('reject script bytes mislabeled as plain text module',f=>f.provider.result.modules[4].content_type='text/plain');
+denied('reject script bytes mislabeled as commonjs module',f=>f.provider.result.modules[4].content_type='application/javascript');
 denied('reject one altered hosted byte, same decoded byte length',f=>{
  const m=f.provider.result.modules[8];
  const b=Buffer.from(m.content_base64,'base64');b[0]^=1;m.content_base64=b.toString('base64');
