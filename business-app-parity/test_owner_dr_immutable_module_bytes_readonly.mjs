@@ -14,11 +14,24 @@ const textFor=n=>Buffer.from('FIRE QA synthetic immutable module '+n+'\n','utf8'
 const fixture=()=>{
  const inventory=[{path:'wrangler.json',bytes:2,sha256:sha(Buffer.from('{}'))}];
  const modules=[];
- for(let i=0;i<241;i++){
-  const name=i===0?'fire-noassets-entry.mjs':'fire-inline-assets/module-'+String(i).padStart(3,'0')+'.mjs';
+ // Original frozen DR ZIP verified independently from owner-private Drive:
+ // 190 JS + 3 MJS, 41 BIN, 5 JSON (one Wrangler), 2 CSS, BUILD_ID.
+ // Only JS/MJS match the actual reviewed ESModule Wrangler globs.
+ for(let i=0;i<193;i++){
+  const name=i===0?'fire-noassets-entry.mjs':
+   i<190?'fire-inline-assets/module-'+String(i).padStart(3,'0')+'.js':
+   'fire-inline-assets/module-'+String(i).padStart(3,'0')+'.mjs';
   const content=textFor(i);
   inventory.push({path:name,bytes:content.length,sha256:sha(content)});
   modules.push({name,content_type:'application/javascript+module',content_base64:content.toString('base64')});
+ }
+ const aux=['BUILD_ID',
+  'next/styles.css','next/layout.css',
+  ...Array.from({length:41},(_,i)=>'fire-inline-assets/asset-'+String(i).padStart(3,'0')+'-1234567890abcdef.bin'),
+  '.vite/manifest.json','vinext-externals.json','vinext-server.json','other.json'];
+ for(const name of aux){
+  const content=Buffer.from('SYNTHETIC '+name);
+  inventory.push({path:name,bytes:content.length,sha256:sha(content)});
  }
  return {inventory,provider:{success:true,errors:[],result:{id:VERSION,main_module:'fire-noassets-entry.mjs',modules}}};
 };
@@ -35,9 +48,11 @@ test('default executable mode is truly offline and reports no provider proof',()
  assert.equal(output.providerContacted,false);
  assert.equal(output.gate4Accepted,false);
 });
-test('all 241 synthetic exact SHA256 module bytes match without pretending provider auth',()=>{
+test('all 193 rule-matching synthetic runtime module bytes match (49 excluded archive files)',()=>{
  const f=fixture(),r=compareImmutableModuleBytes(f.provider,f.inventory);
- assert.equal(r.matchedModules,241);
+ assert.equal(r.matchedModules,193);
+ assert.equal(r.auxiliaryNonRuntimeFilesNotProven,48);
+ assert.equal(r.wholeArchiveHostedBytesVerified,false);
  assert.equal(r.moduleContentHashesCompared,true);
  assert.equal(r.authenticatedProviderReadback,false);
  assert.equal(r.gate4Accepted,false);
@@ -70,4 +85,15 @@ denied('reject missing expected entrypoint',f=>f.inventory[1].path='main.mjs');
 denied('reject untrusted parent-directory source inventory',f=>f.inventory[3].path='../escape.mjs');
 denied('reject unexpected empty/unsupported module metadata',f=>f.provider.result.modules[2].content_type='');
 denied('reject source inventory size mismatches',f=>f.inventory.pop());
-console.log('TOTAL '+passed+'/'+passed+' DR immutable-module proof changed-function tests PASS; no external requests');
+denied('reject auxiliary binary file presented as a runtime module',f=>{
+ const want=f.inventory.find(x=>x.path.endsWith('.bin'));
+ f.provider.result.modules[10]={name:want.path,content_type:'application/octet-stream',
+  content_base64:Buffer.from('x').toString('base64')};
+});
+denied('reject previously excluded binary asset reclassified as JS in reviewed archive',f=>{
+ f.inventory.find(x=>x.path.endsWith('.bin')).path='fire-inline-assets/asset-000-1234567890abcdef.js';
+});
+denied('reject archive with missing binary asset despite unchanged 193 JS modules',f=>{
+ f.inventory.find(x=>x.path.endsWith('.bin')).path='fire-inline-assets/other.bin';
+});
+console.log('TOTAL '+passed+'/'+passed+' DR ESModule-matched hosted-byte negative cases PASS; no external requests');
