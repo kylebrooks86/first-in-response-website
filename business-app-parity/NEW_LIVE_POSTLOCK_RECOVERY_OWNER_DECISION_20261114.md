@@ -1,5 +1,8 @@
 # FIRE — NEW LIVE post-lock recovery, owner decision boundary (Nov 14, 2026)
 
+> **ARCHIVED HANDOFF — DO NOT EXECUTE.** The one approved NEW LIVE post-lock recovery **already physically applied 26/26 migrations** on Nov 14, 2026, verified by [actual owner provider success evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6889484598). Both attempt locks and the success receipt were [encrypted and saved off-Acer](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6891448726). Historical PowerShell below was valid only for its prior incomplete stage and is **permanently spent**. Never rerun initial installer, separate recovery CLI, remote SQL, old lock analysis, or accepted owner screenshots. Latest [continuity register](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md) and [AGENTS instructions](AGENTS.md) supersede this historical handoff. NEW LIVE Worker remains DARK; formal Gate5 and release remain OPEN.
+
+
 ## Accepted current hosted state — do not recheck or repeat
 
 The owner ran the NEW `owner_new_live_initialized_journal_readonly.mjs --capture` against already authenticated Cloudflare on Acer. Actual validated result `FIRE_NEW_LIVE_INITIALIZED_JOURNAL_EMPTY_READ_ONLY_MATCH_NO_RETRY` (see exact owner-provided screenshot). Pinned physical NEW LIVE D1 is `fire-fullapp-new-live-db`, UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`. Physical `d1_migrations` has 0 rows; `sqlite_sequence` has 0 high-water records; zero FIRE schema objects; exact journal DDL and automatic UNIQUE index match; original 26-attempt lock exists, original completion receipt absent. Cloudflare readbacks were not atomic, the prior command's ACK remains unknown, and the original attempt must NEVER be repeated.
