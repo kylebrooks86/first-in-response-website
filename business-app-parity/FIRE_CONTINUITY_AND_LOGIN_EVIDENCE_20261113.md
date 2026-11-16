@@ -1,3 +1,10 @@
+<!-- FIRE-GATE9-STRIPE-PROVIDER-NOV16 -->
+## NOV 16 — DIRECT STRIPE TEST SANDBOX EVIDENCE: HISTORICAL PAYMENT/REFUND CONFIRMED; NEW WEBHOOK GATE NOT CLOSED
+
+Authenticated Stripe sandbox (`livemode=false`) read-only list operations returned 3 successful historical PaymentIntents/charges ($484 + $75 + $75), 5 checkout sessions (3 paid, 2 expired), 1 succeeded $100 partial refund, 0 returned `/v1/events` objects, and 2 configured webhooks: a dedicated isolated TEST Worker endpoint ENABLED for checkout+refund events, old Sites endpoint DISABLED. **All payment/refund events observed as provider objects date Sept 30–Oct 8, 2026; dedicated TEST Worker webhook was created Nov 3, 2026.** Historical succeeded provider transactions cannot attest *this newer endpoint's* actual signed delivery, TEST D1 ledger reconciliation, or current hosted code. Zero returned events is only a readback result, not proof of no historic deliveries. This was NO Stripe write or new test charge/refund. Complete sanitized record: [Gate9 Stripe provider evidence](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-main-qa-dr-live-unified-source-20261114/business-app-parity/evidence/FIRE_STRIPE_GATE9_PROVIDER_READONLY_20261116.md), code-and-evidence commit `d249740727a7c0cf57be66c14622a1d75029cace`. Do not redo accepted QA, DR/D1, or the already-consumed TEST Cloudflare upload. Gate9 still requires separately authorized physically hosted TEST source, signed current-endpoint delivery and ledger/partial-refund/replay verification. Formal G1/G2/G3/G8 accepted **4/10**; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO.
+
+---
+
 <!-- FIRE-POSTUPDATE-ORIGINAL-LOCK-CANONICAL-20261116 -->
 ## NOV 16, 2026 — NEW DARK POST-UPDATE ATTRIBUTION SAFETY CLOSED IN SOURCE (NOT PROVIDER)
 
