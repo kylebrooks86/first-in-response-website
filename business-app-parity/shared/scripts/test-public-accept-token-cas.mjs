@@ -36,6 +36,22 @@ assert.deepEqual(update[0].bindings,[
 assert.deepEqual(current[0].bindings,['estimate.id','token'],
   'Readback cannot disclose a newly rotated/revoked share token');
 const evalSql=(value,scope)=>vm.runInNewContext('('+value+')',scope,{timeout:1000});
+let signerExpression;
+function findSigner(node){
+  if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='signedName'&&node.initializer)
+    signerExpression=node.initializer.getText(ast);
+  ts.forEachChild(node,findSigner);
+}
+findSigner(ast);
+assert.ok(signerExpression,'The real public signature parser has a signedName expression');
+assert.equal(evalSql(signerExpression,{body:{signedName:'  Synthetic Signer  '}}),'Synthetic Signer',
+ 'Ordinary typed customer signature remains trimmed and valid');
+for(const malformed of [{},[],4,true,null]){
+  assert.equal(evalSql(signerExpression,{body:{signedName:malformed}}),'',
+   'Non-text JSON cannot stringify into a valid legal signature');
+}
+assert.doesNotMatch(signerExpression,/String\\(/,
+ 'No object-to-string coercion in customer signature evidence');
 const normal=evalSql(update[0].query,{exceptionPending:false});
 const guarded=evalSql(update[0].query,{exceptionPending:true});
 const readback=evalSql(current[0].query,{});
@@ -139,6 +155,6 @@ try{
     'Correctly discounted quote still signs and records agreement');
   assert.equal(db.prepare("SELECT accepted_at FROM estimates WHERE id='echo'").get().accepted_at,
     '2026-11-08T00:00:00.000Z','Correctly reconciled signature is committed');
-  checks+=6;
-  console.log('PASS '+checks+' actual source+native SQLite token-CAS, pricing and lost-ACK checks; no hosted traffic, credentials or records.');
+  checks+=13;
+  console.log('PASS '+checks+' actual source+native SQLite token-CAS, item pricing, discounts, signed-name types and lost-ACK checks; no hosted traffic, credentials or records.');
 }finally{db.close();}
