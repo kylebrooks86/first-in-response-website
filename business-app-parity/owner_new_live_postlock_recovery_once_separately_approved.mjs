@@ -204,7 +204,13 @@ async function demandSeparateOwnerConfirmation(){
   if((await rl.question(prompt))!==OWNER_PHRASE)fail();
  }finally{rl.close();}
 }
+// The separately authorized owner recovery fully APPLIED 26/26 NEW LIVE
+// migrations on Nov 14, 2026 (real Cloudflare receipt #6889484598).
+// Both attempt locks and the successful receipt were encrypted and saved
+// off-Acer (Issue #19 #6891448726). Do not allow this consumed remote
+// recovery entrypoint to run from a fresh machine with missing local locks.
 async function runPostlockOneShot(jsPath,flag){
+ fail(); // permanently retired: already applied; even exact old flag is spent
  requireNewPostlockConsent(flag,{
   stdinTTY:process.stdin?.isTTY===true,stdoutTTY:process.stdout?.isTTY===true
  },process.env);
