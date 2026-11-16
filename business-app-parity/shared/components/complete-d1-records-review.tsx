@@ -13,18 +13,20 @@ import {Input} from './ui/input';
 import {Label} from './ui/label';
 import {readOwnerCompleteD1ReviewResponse} from '../lib/complete-d1-review-response.mjs';
 import {prepareCompleteD1OwnerFile,verifySelectedSavedCompleteD1OwnerFile,
- type PreparedCompleteD1OwnerFile}
+ ownerSavedRecordsPassphraseReady,type PreparedCompleteD1OwnerFile}
  from '../lib/protected-complete-d1-records.mjs';
 
 type Props={reviewEnabled?:boolean};
 
 export function CompleteD1RecordsReview({reviewEnabled=false}:Props){
  const [phrase,setPhrase]=useState(''),[confirmation,setConfirmation]=useState('');
+ const [reentryPhrase,setReentryPhrase]=useState('');
  const [prepared,setPrepared]=useState<PreparedCompleteD1OwnerFile|null>(null);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
  const [verified,setVerified]=useState(false);
  const selected=useRef<HTMLInputElement>(null),locked=useRef(false);
- const clearSecrets=()=>{setPhrase('');setConfirmation('');};
+ // Never retain either the encryption or saved-file verification secret in UI state.
+ const clearSecrets=()=>{setPhrase('');setConfirmation('');setReentryPhrase('');};
  const prepare=async()=>{
   if(!reviewEnabled||locked.current)return;
   if(!window.confirm('Prepare PRIVATE encrypted complete DATABASE records for owner review? Original customer photos are NOT included. This does NOT confirm a full backup or permit LIVE release.'))return;
@@ -68,9 +70,13 @@ export function CompleteD1RecordsReview({reviewEnabled=false}:Props){
  };
  const verify=async(file:File|undefined)=>{
   if(!reviewEnabled||locked.current||!prepared||!file)return;
+  if(!ownerSavedRecordsPassphraseReady(prepared,reentryPhrase)){
+   setError('Re-enter the original 16–1024-character recovery passphrase before choosing the SAVED encrypted file.');
+   return;
+  }
   locked.current=true;setBusy(true);setError('');setMessage('');setVerified(false);
   try{
-   const receipt=await verifySelectedSavedCompleteD1OwnerFile(prepared,file,phrase);
+   const receipt=await verifySelectedSavedCompleteD1OwnerFile(prepared,file,reentryPhrase);
    if(!receipt.selectedCiphertextIdentical||
       !receipt.completeReviewedD1RecordsAuthenticated||receipt.gate7Accepted!==false)
     throw Error('The SAVED encrypted full-record file could not be verified.');
@@ -83,13 +89,22 @@ export function CompleteD1RecordsReview({reviewEnabled=false}:Props){
  return <section aria-label="Encrypted complete database records review" className="business-panel">
   <header><h2>Encrypted full database records — owner review only</h2></header>
   <p role="note">This records-only export is encrypted on this device using the EXISTING FIRE recovery format. It includes the reviewed database tables, migration journal and permanent Job # history. It does NOT contain original customer photo bytes, prove off-device custody, authorize database restoration or close Gate 7. DO NOT retire prior backups or activate LIVE.</p>
-  <Label htmlFor="complete-records-passphrase">Private recovery passphrase (16–1024 characters)</Label>
-  <Input id="complete-records-passphrase" type="password" value={phrase}
-   autoComplete="off" maxLength={1024} disabled={busy} onChange={e=>setPhrase(e.target.value)}/>
-  {!prepared&&<><Label htmlFor="complete-records-confirm">Confirm new recovery passphrase</Label>
+  {!prepared&&<>
+   <Label htmlFor="complete-records-passphrase">New private recovery passphrase (16–1024 characters)</Label>
+   <Input id="complete-records-passphrase" type="password" value={phrase}
+    autoComplete="off" maxLength={1024} disabled={busy} onChange={e=>setPhrase(e.target.value)}/>
+   <Label htmlFor="complete-records-confirm">Confirm new recovery passphrase</Label>
    <Input id="complete-records-confirm" type="password" value={confirmation}
     autoComplete="off" maxLength={1024} disabled={busy}
-    onChange={e=>setConfirmation(e.target.value)}/></>}
+    onChange={e=>setConfirmation(e.target.value)}/>
+  </>}
+  {prepared&&<>
+   <p role="note">Your passphrase was cleared after encryption. To verify the actual saved file, re-enter the SAME recovery passphrase; it is not stored in the app.</p>
+   <Label htmlFor="complete-records-reenter-passphrase">Re-enter the original passphrase to verify the SAVED file (16–1024 characters)</Label>
+   <Input id="complete-records-reenter-passphrase" type="password" value={reentryPhrase}
+    autoComplete="off" maxLength={1024} disabled={busy}
+    onChange={e=>setReentryPhrase(e.target.value)}/>
+  </>}
   {!prepared&&<Button type="button" variant="outline" disabled={busy}
    onClick={()=>void prepare()}>Prepare protected complete database records review</Button>}
   {prepared&&<div className="workspace-head-actions">
@@ -97,7 +112,8 @@ export function CompleteD1RecordsReview({reviewEnabled=false}:Props){
     onClick={()=>void share()}>Save encrypted database file to Files</Button>
    <Button type="button" variant="outline" disabled={busy}
     onClick={download}>Download encrypted database file</Button>
-   <Button type="button" variant="outline" disabled={busy}
+   <Button type="button" variant="outline"
+    disabled={busy||!ownerSavedRecordsPassphraseReady(prepared,reentryPhrase)}
     onClick={()=>selected.current?.click()}>Verify selected SAVED encrypted file</Button>
    <input type="file" hidden ref={selected} accept=".firerecords,application/octet-stream"
     onChange={e=>void verify(e.currentTarget.files?.[0])}/>
