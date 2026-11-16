@@ -1,3 +1,14 @@
+<!-- FIRE_DR_POSTUPDATE_ACCESS_NEGATIVE_SCREEN_20261116 -->
+## NOV 16 OWNER DR ACCESS TAB: NO WORKER-SPECIFIC ACCESS POLICY — CAPTURED, NOT PASSED
+
+New actual owner iPhone Safari post-code-update screenshot `IMG_4381.png`, sha256 `98d9fcc8f80f35516d6b124ea9b84b82bd9ea7a55dbf6d80845ef203f9d313c4`. On `dash.cloudflare.com` Worker **`fire-fullapp-dr`**, selected **Access** tab Cloudflare explicitly states **“This Worker is not protected by Access”**, **“No Worker-specific policy is configured. Traffic remains public unless a hostname or account policy applies.”**, orange **“Not protected yet”**. This establishes **negative** Worker-specific Access policy state, **NOT** a successful protective policy. Blue “Protect this Worker behind Access” button was NOT pressed, and must NOT be used without separate exact owner authorization. Screenshot does not show immutable version, nor check account-wide hostname/account policies, ingress reachability or nonowner denial.
+
+Previously accepted post-update owner **Domains** screenshot independently showed Production workers.dev and Preview URL OFF and zero Worker-listed domains/routes. The independently accepted owner Acer DR physical new-version readback still stands (`f7b7e27c-986b-44b5-b0f9-5e8e4b623426`, independent D1, blocked auth variables, no R2, predecessor retained). **These disabled URL settings are NOT equivalent to Worker-specific Access authentication**, but absence of Access on an unreachable DARK Worker does NOT establish internet exposure either. Document the distinction; do not falsely mark `accessPolicyVerified:true` / `ownerOrNonownerAccessVerified:true`, and do not force a new Access subscription or login.
+
+New screenshot evidence persisted [here](evidence/FIRE_DR_POSTUPDATE_OWNER_ACCESS_TAB_20261116.md), Issue #19, continuity. Do not request repeat Access screenshot, pre-update Domains screenshot, prior hosted DR version readback, QA/iPhone tests, or consumed DR publisher. Account all-zone routing, hostname/account policy, hosted code module bytes and remaining gates still open. Formal G1/G2/G3/G8 **4/10 accepted**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO. No provider/SQL/Stripe/Access/route/billing/R2/merge/cutover writes.
+
+---
+
 <!-- FIRE_DR_POSTUPDATE_DOMAINS_SCREEN_20261116 -->
 ## NOV 16 NEW OWNER CLOUDFARE DR POSTUPDATE DOMAINS PROOF — DO NOT REPEAT
 
