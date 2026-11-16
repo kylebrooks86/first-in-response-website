@@ -10,7 +10,7 @@ import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refu
 import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel,jobNumberingReady,JOB_NUMBER_FLAG} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import {readOwnerWriteObject} from '../../../lib/owner-write-object-guard.mjs';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 import {customerIdentityPredicate,duplicateCustomer,validInlineCustomerEmail,validInlineCustomerPhone} from '../../../lib/customer-identity';
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
