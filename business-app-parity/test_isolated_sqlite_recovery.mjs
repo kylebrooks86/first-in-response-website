@@ -10,6 +10,8 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {hashUnchangedProtectedFile}
  from './rehearse_protected_complete_records_and_photos.mjs';
+import {readUnchangedProtectedRecordsFile}
+ from './protected_complete_isolated_sqlite_recovery.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './shared/lib/numbered-records-v2-preflight.mjs';
 import {exportCompleteIsolatedSqliteSnapshot} from './export_complete_isolated_sqlite_snapshot.mjs';
 import {restoreNumberedRecordsToIsolatedSqlite} from './restore_numbered_records_to_isolated_sqlite.mjs';
@@ -23,6 +25,12 @@ try{
  const exactCipher=Buffer.alloc(256,0x51);
  exactCipher.write('FIRERB01',0,'ascii');
  await writeFile(sourceCipher,exactCipher);
+ // The complete-encrypted-records RESTORE reader must protect the exact
+ // owner-selected source file BEFORE decrypting, not trust a later open(path).
+ // These are fake opaque synthetic bytes, never owner backups.
+ const exactSavedRead=await readUnchangedProtectedRecordsFile(sourceCipher);
+ assert.deepEqual(exactSavedRead,exactCipher,
+  'saved full-record ciphertext is read via its single checked descriptor');
  const digest=await hashUnchangedProtectedFile(sourceCipher,1024);
  assert.equal(digest,createHash('sha256').update(exactCipher).digest('hex'),
   'final recovery verifier hashes exact original bytes by a verified descriptor');
@@ -40,6 +48,22 @@ try{
  const tamperedCipher=Buffer.from(exactCipher);
  tamperedCipher[192]^=0x01;
  await writeFile(sourceCipher,tamperedCipher);
+ const freshCipher=await readUnchangedProtectedRecordsFile(sourceCipher);
+ assert.deepEqual(freshCipher,tamperedCipher,
+  'same-length changed saved ciphertext must be freshly read, not cached');
+ assert.notDeepEqual(freshCipher,exactSavedRead,
+  'a previously inspected encrypted source cannot be reused after modification');
+ await assert.rejects(readUnchangedProtectedRecordsFile(fakeLink),
+  /saved protected records file missing, replaced or unsupported/,
+  'complete-record restore must refuse a symlink, even to genuine ciphertext');
+ await assert.rejects(readUnchangedProtectedRecordsFile(join(folder,'missing-private-records.bin')),
+  /saved protected records file missing, replaced or unsupported/,
+  'complete-record restore must fail closed for missing owner source');
+ const tooShort=join(folder,'invalid-records-short.bin');
+ await writeFile(tooShort,Buffer.alloc(48));
+ await assert.rejects(readUnchangedProtectedRecordsFile(tooShort),
+  /saved protected records file missing, replaced or unsupported/,
+  'truncated ciphertext must fail BEFORE the decryption path');
  const tamperedDigest=await hashUnchangedProtectedFile(sourceCipher,1024);
  assert.notEqual(tamperedDigest,digest,
   'same-length replacement after initial proof cannot reuse old source SHA');
