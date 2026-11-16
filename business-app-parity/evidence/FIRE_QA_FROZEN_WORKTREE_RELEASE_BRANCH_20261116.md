@@ -32,7 +32,7 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Could not prepare isolated review worktr
 $head = (& git -C $dest rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $head -cne $sha) { throw 'STOP: Exact code is not in isolated worktree.' }
 Write-Host ('PASS: EXACT approved QA source worktree isolated at ' + $dest)
-Write-Host 'NO build, provider sign-in, Worker, D1, payments, files outside worktree, merge or deployment.'
+Write-Host 'NO build, provider sign-in, Worker, D1, payments, customer files, merge or deployment.'
 ```
 
 **Do not run the publisher here.** Existing `business-app-parity/owner_windows_build_qa_candidate.ps1` can then do a separately authorized LOCAL candidate build by passing `-CandidateBranch $release -ExpectedCommit $sha -AllowDetachedWorktree -Build` from its own frozen worktree. Existing `owner_windows_qa_update_review.ps1` and default-read-only `owner_windows_qa_update_publish.ps1` likewise accept the exact detached worktree; their physical QA version, QA D1, protected staging identity, migration source and photo rules remain in effect. Preserve historic first-hosted QA source `f650d25b18d23bc9f71a4d55c9322bfd5870ef75` and existing release safety scripts; never delete old backups.
