@@ -1,3 +1,12 @@
+<!-- FIRE_DR_POSTUPDATE_DOMAINS_SCREEN_20261116 -->
+## NOV 16 NEW OWNER CLOUDFARE DR POSTUPDATE DOMAINS PROOF — DO NOT REPEAT
+
+Owner authenticated Safari `dash.cloudflare.com` uploaded `IMG_4380.png`, SHA256 `75fa0db5f2437d7870ba01925c73222f850aeba0fcf4c41465a8003b00e69293`, **new AFTER existing DR source update**. Worker URL identifies `fire-fullapp-dr`; **Production workers.dev OFF**, **Preview URL OFF**, **no custom domains/zone routes in Worker Domains tab**. Exact screenshot & scope in [dedicated evidence](evidence/FIRE_DR_POSTUPDATE_WORKER_DOMAIN_SURFACE_OWNER_20261116.md), persisted in Issue #19 and canonical continuity. Original provider readback independently already confirms immutable 100%-serving DR version `f7b7e27c-986b-44b5-b0f9-5e8e4b623426` with correct physical D1, no extra bindings/R2, disabled auth vars, old rollback listed. **Do not repeat DR deployed-version, domain screenshot, QA tests or one-time DR publisher.**
+
+**Only worker-level post-update exposure screenshot is accepted from this new image.** It does NOT prove all-account zone route enumeration, Access policies/nonowner denial, hosted module bytes, cross-environment full parity, recovery, Stripe signed TEST, or formal Gate4. Remain 4/10 accepted (G1/G2/G3/G8); other six gates open. NEW LIVE DARK/NO-GO; no new DNS, Access, database, Stripe, R2, subscriptions, merge, deployment or production activation.
+
+---
+
 <!-- FIRE_GATE4_OWNER_DR_ZIP_193_RUNTIME_CORRECTION -->
 ## NOV 16 CANONICAL G4 UPDATE — REAL SEALED DR ZIP CONFIRMS 193 SCRIPT MODULES (NOT 241)
 
