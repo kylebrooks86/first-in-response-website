@@ -35,6 +35,26 @@ export function verifyExistingDarkPostUpdate(target,expectedVersion,replies){
     checked.identityAndPhysicalBindingProviderReadbackVerified!==true||
     checked.darkAuthDisabledInHostedVariables!==true)
   fail('new active version, Worker, blocked authentication or physical D1 mismatch');
+ // A successful new version alone does not establish a retained rollback.
+ // Require the OLD immutable version in the authenticated provider inventory;
+ // no claim that an actual rollback was exercised or the old bytes inspected.
+ let inventory;
+ try {
+  if(!replies?.versionsList||replies.versionsList.code!==0||
+     typeof replies.versionsList.stdout!=='string'||
+     replies.versionsList.stdout.length>1_000_000)
+   fail('provider version inventory missing or oversized');
+  inventory=JSON.parse(replies.versionsList.stdout.trim());
+ }catch(e){
+  if(String(e?.message||'').startsWith('FIRE EXISTING DARK POSTUPDATE'))throw e;
+  fail('provider versions inventory is not valid JSON');
+ }
+ const items=Array.isArray(inventory)?inventory:
+  Array.isArray(inventory?.versions)?inventory.versions:inventory?.items;
+ if(!Array.isArray(items)||
+    items.filter(v=>v&&typeof v==='object'&&!Array.isArray(v)&&
+      [v.id,v.version_id,v.versionId].includes(spec.previousVersion)).length!==1)
+  fail('original immutable previous Worker version NOT retained; rollback unverified');
  // Deliberately do NOT propagate the original first-create validator's
  // older reviewedSourcePackageSha: its version check does not prove bytes.
  return Object.freeze({
@@ -44,6 +64,8 @@ export function verifyExistingDarkPostUpdate(target,expectedVersion,replies){
   physicalD1Uuid:spec.uuid,qaMasterSourceCandidateSha:SOURCE,
   singleServingVersionReadOnlyObserved:true,
   postUpdatePhysicalD1BindingVerified:true,
+  previousImmutableVersionListedForRollback:true,
+  rollbackExecutionVerified:false,
   hostedDarkAuthenticationVariablesVerified:true,
   hostedNoR2OrExtraResourceBindingsVerified:true,
   hostedSourceBytesVerified:false,
