@@ -1,3 +1,18 @@
+<!-- FIRE_DR_POSTUPDATE_HOSTED_PASS_F7B7E27C_20261116 -->
+## NOVEMBER 16, 2026 — EXISTING DARK DR CODE UPDATE **ACTUALLY HOSTED & PHYSICALLY READ BACK**; G4 STILL OPEN
+
+**Authoritative newest owner Acer evidence supersedes older source-only/DR-not-updated statements below for this exact target.** In a separate Windows cmd.exe console the owner successfully entered the EXACT one-time DR-only authorization, and the unchanged reviewed `owner_existing_dark_code_update_once_approved.mjs --publish dr` reported `CLI reports code-only update completed for existing DARK Worker.` That one-time remote update is **CONSUMED**; **NEVER invoke it again**, reset its original attempt lock, re-create the Worker, or reapply SQL.
+
+The owner then used the original reviewed **read-only** `business-app-parity/owner_existing_dark_code_update_postdeploy_readonly.mjs --capture dr f7b7e27c-986b-44b5-b0f9-5e8e4b623426` on the Acer, with the **original immutable attempt-lock identity enforced before provider reads**. The owner supplied the **complete** PowerShell terminal screenshot, showing both `FIRE_EXISTING_DARK_NEW_VERSION_PHYSICAL_READBACK_PASS` JSON and final `PASS: NEW DARK DR HOSTED READBACK COMPLETED` followed by the returned shell prompt.
+
+**Physically verified immutable DR version:** `f7b7e27c-986b-44b5-b0f9-5e8e4b623426` is the **single 100%-serving** Cloudflare version of existing `fire-fullapp-dr`; original immutable predecessor `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` remains **listed for rollback** (actual rollback execution **not** tested). New hosted version physically bound to DR's existing independent D1 `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145`. Provider-hosted DARK authentication variables still blocked and **zero R2/extra resource bindings**; verifier performed **no provider write**. Original frozen QA-master package/source candidate `15bd714c435a585f695ed7166cf06d2c31ea1a8e`, reviewed private DR ZIP SHA256 `eee57f2a5f98c4c9aa84c881818414094868bae5fef41d45c339073e269ecfb0`; QA deployed master stays `08d77fb1-9484-4014-bd5b-1bb1da066cdb` and was **not** redeployed. The source candidate SHA is **NOT** a hosted source-byte measurement: `hostedSourceBytesVerified:false`, `actualWorkerSourceShaVerified:false`.
+
+**Explicit still-OPEN evidence:** provider Access policy, owner/nonowner access, post-update absence of public routes, full QA/STAGING/DR/NEW LIVE functional parity, complete records/photo recovery, signed Stripe TEST and actual rollback execution. `releaseOrGate4Accepted:false`, `productionReady:false`. Previous accepted DARK NEW LIVE `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09` / D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662` **unchanged, blocked and NO-GO**, NEW LIVE Job #0001 not created. No QA/STAGING/TEST Worker changes; no Cloudflare paid/R2, secrets/Access, route/DNS, payment/Stripe, SQL, migration, Git merge or cutover.
+
+**Formal release unchanged: accepted G1/G2/G3/G8 = 4/10; G4/G5/G6/G7/G9/G10 remain OPEN.** This is genuinely new G4 DR-hosted-update evidence, not gate closure. Preserve the original owner screenshot in conversation, original owner Acer attempt lock and success receipt; avoid repeated prior QA, Acer, photo, Cloudflare login or source checks. Continue with only real outstanding release tasks. Exact source/current evidence is on the unmerged main-based DRAFT PR #270. Owner acceptance is not implied merely by an attestation.
+
+---
+
 <!-- FIRE-ROLLBACK-RETENTION-GUARD-20261116 -->
 ## NOV 16 — EXISTING DARK WORKER post-update now REQUIRES retained original immutable rollback version (SOURCE ONLY)
 
