@@ -6,14 +6,14 @@ import assert from 'node:assert/strict';
 // the SHA-pinned Gate7 workflow or repeating any owner-device evidence.
 import './test_photo_comparison_layout.mjs';
 import {createHash} from 'node:crypto';
-import {mkdtempSync,writeFileSync,readFileSync,rmSync,truncateSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,readFileSync,rmSync,truncateSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
 import {inspectOwnerSavedNumberedPhotoPair} from './verify_saved_numbered_photo_pair.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION} from './shared/lib/numbered-records-v2-preflight.mjs';
-import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
+import {inspectStoredFirePhotoZip,verifyOwnerSavedProtectedPhotoFile,readUnchangedSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
 import {recoverSavedProtectedPhotoZip,verifySavedRecoveredPhotoZip} from './recover_saved_protected_photo_zip.mjs';
 import {assertPairedRecoveredPhotoEvidence} from './rehearse_protected_complete_records_and_photos.mjs';
 import {PHOTO_RESTORE_ALL_CUSTOMERS,photoMutationScope,requiresAllCustomerPhotoReview,mayReviewPhotoMutation} from './shared/lib/photo-restore-interruption-scope.mjs';
@@ -85,6 +85,30 @@ try{
  const original=zip(),protectedBytes=await protectOfflinePhotoZip(new Blob([original]),phrase);
  writeFileSync(file,Buffer.from(await protectedBytes.arrayBuffer()));
  writeFileSync(legacy,original);
+ // Gate7 current encrypted input must be a BOUNDED, descriptor-verified
+ // owner-saved file BEFORE any AES decrypt/restore allocates its bytes.
+ // No real owner photographs, browser state or provider connection used.
+ const ciphertext=readFileSync(file);
+ ok((await readUnchangedSavedProtectedPhotoFile(file)).equals(ciphertext),
+  'saved original photo ciphertext is read by one verified stable descriptor');
+ const photoLink=join(folder,'fake-owner-backup-link.firephotos');
+ symlinkSync(file,photoLink);
+ await reject(readUnchangedSavedProtectedPhotoFile(photoLink),/missing, replaced or unsupported/i);
+ await reject(verifyOwnerSavedProtectedPhotoFile(photoLink,phrase),/missing, replaced or unsupported/i);
+ const deniedSymlinkOutput=join(folder,'reject-photo-link-output.zip');
+ await reject(recoverSavedProtectedPhotoZip(photoLink,deniedSymlinkOutput,phrase,
+  {allowPlaintextRecovery:true}),/missing, replaced or unsupported/i);
+ ok(!readFileSyncSafe(deniedSymlinkOutput),
+  'symlinked encrypted backup cannot create plaintext recovered output');
+ const excessive=join(folder,'synthetic-sparse-oversize.firephotos');
+ writeFileSync(excessive,Buffer.from('FIREPX01'));
+ truncateSync(excessive,161*1024*1024+4097); // sparse: no 161MB allocated
+ await reject(readUnchangedSavedProtectedPhotoFile(excessive),/missing, replaced or unsupported/i);
+ const oversizedTarget=join(folder,'reject-oversized-output.zip');
+ await reject(recoverSavedProtectedPhotoZip(excessive,oversizedTarget,phrase,
+  {allowPlaintextRecovery:true}),/missing, replaced or unsupported/i);
+ ok(!readFileSyncSafe(oversizedTarget),
+  'oversized encrypted photo input is refused before plaintext output exists');
  const originalHash=sha(readFileSync(file));
  const verified=await verifyOwnerSavedProtectedPhotoFile(file,phrase);
  ok(verified.savedFileReadBack&&verified.allFilesCryptographicallyVerified,'reads actual protected file');
