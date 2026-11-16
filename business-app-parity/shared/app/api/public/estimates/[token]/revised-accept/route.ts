@@ -1,4 +1,5 @@
 import {env} from 'cloudflare:workers';
+import {readCustomerWriteJson} from '../../../../../../lib/customer-write-request-guard.mjs';
 import {SERVICE_AGREEMENT} from '../../../../../../lib/fire-templates';
 import {agreementVersion,agreementScope,agreementDigest,validateAgreementItems} from '../../../../../../lib/deposit-agreement-commitment.mjs';
 import {describeRevisedDepositTerms} from '../../../../../../lib/deposit-agreement-revision.mjs';
@@ -14,14 +15,15 @@ const hex=/^[0-9a-f]{64}$/;
 
 export async function POST(request:Request,{params}:{params:Promise<{token:string}>}){
  if(!active(env))return reply({error:'Revised agreement signature is not enabled.'},404);
- if(request.headers.get('Origin')!==new URL(request.url).origin)return reply({error:'Invalid request origin.'},403);
- if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return reply({error:'JSON required.'},415);
- let body:{version?:unknown;documentDigest?:unknown;signedName?:unknown;photoRelease?:unknown;acceptedTerms?:unknown};
- try{
-  const raw=await request.text();if(raw.length>4096)return reply({error:'Request too large.'},413);
-  body=JSON.parse(raw);
-  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['version','documentDigest','signedName','photoRelease','acceptedTerms'].includes(k)))return reply({error:'Invalid signature request.'},400);
- }catch{return reply({error:'Invalid signature request.'},400);}
+ // Use the same bounded, origin-bound, strict UTF-8 STREAM parser as
+ // public quote acceptance and change requests. The previous request.text()
+ // buffered arbitrary bytes before checking the 4096-character limit.
+ // This is only a request-safety change; synthetic-only feature gates remain.
+ const parsed=await readCustomerWriteJson(request,
+  ['version','documentDigest','signedName','photoRelease','acceptedTerms'],4096);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as {version?:unknown;documentDigest?:unknown;
+  signedName?:unknown;photoRelease?:unknown;acceptedTerms?:unknown};
  const name=typeof body.signedName==='string'?body.signedName.trim():'';
  const photo=body.photoRelease;
  if(name.length<2||name.length>120||!['yes','no'].includes(String(photo))||body.acceptedTerms!==true||
