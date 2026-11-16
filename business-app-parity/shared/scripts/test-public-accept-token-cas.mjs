@@ -78,7 +78,33 @@ assert.match(approvedBlock,/if\(!current\?\.acceptedAt\)return Response\.json\(/
  'Revoked token must fail rather than exposing a stale signature');
 assert.doesNotMatch(approvedBlock,/acceptedAt:estimate\.acceptedAt|signedName:estimate\.signedName/,
  'Old initial estimate row must not supply already-approved signature details');
-let checks=9;
+// Execute the real production receipt-matching function, not a test clone.
+// A thrown D1.batch may happen AFTER the signature was saved; only the
+// exact same timestamp/name/permission and still-current bearer token can
+// turn that unknown ACK into a reliable customer-facing success receipt.
+const helper=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='matchesCurrentSubmission');
+assert.ok(helper,'Lost D1 batch-ACK recovery uses an explicit exact-submission check');
+const sandbox={exports:{}};
+vm.runInNewContext(ts.transpileModule(helper.getText(ast)+'\\nexports.match=matchesCurrentSubmission;',
+ {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,sandbox);
+const matchesCurrentSubmission=sandbox.exports.match;
+const batchStart=source.indexOf('const [accepted]=await env.DB.batch([');
+const batchCatch=source.indexOf('}catch{',batchStart);
+const uncertainEnd=source.indexOf('if(!acceptedChanges)',batchCatch);
+assert.ok(batchStart>0&&batchCatch>batchStart&&uncertainEnd>batchCatch,
+ 'A thrown D1 batch ACK must have a dedicated fail-closed response path');
+const lostAckPath=source.slice(batchCatch,uncertainEnd);
+assert.equal((lostAckPath.match(/confirmedAcceptance\\(\\)/g)||[]).length,1,
+ 'Lost ACK may perform only one current-token readback');
+assert.match(lostAckPath,/matchesCurrentSubmission\\(current,now,signedName,photoRelease\\)/,
+ 'Uncertain ACK cannot accept any older or different signature as this submission');
+assert.match(lostAckPath,/saveUncertain:true[\\s\\S]*?status:503/,
+ 'Unknown or revoked readback must return 503 saveUncertain, not false success');
+assert.doesNotMatch(lostAckPath,/env\\.DB\\.batch|UPDATE estimates|INSERT INTO notifications/,
+ 'Lost acknowledgment must not repeat either signed write or notification');
+assert.match(lostAckPath,/Cache-Control["']?:["']no-store["']/,
+ 'Signature readback must be private and uncacheable');
+let checks=14;
 const db=new DatabaseSync(':memory:');
 try{
   db.exec(`CREATE TABLE estimates(
@@ -156,5 +182,27 @@ try{
   assert.equal(db.prepare("SELECT accepted_at FROM estimates WHERE id='echo'").get().accepted_at,
     '2026-11-08T00:00:00.000Z','Correctly reconciled signature is committed');
   checks+=13;
+  // Actual persisted write, simulated thrown response: recover that exact
+  // write without running a second SQL UPDATE or revealing other signatures.
+  insert.run('foxtrot','foxtrot-original');
+  item.run('ifoxtrot','foxtrot','Synthetic Lost ACK Service');
+  assert.equal(attempt('foxtrot','foxtrot-original'),1);
+  const saved=read.get('foxtrot','foxtrot-original');
+  const moment='2026-11-08T00:00:00.000Z';
+  assert.equal(matchesCurrentSubmission(saved,moment,'Synthetic Signature','no'),true,
+   'Same saved signature is safe to confirm after a lost batch ACK');
+  for(const [modified,label] of [
+   [{status:'superseded'},'later superseded quote'],
+   [{acceptedAt:'2026-11-08T00:00:01.000Z'},'different acceptance time'],
+   [{signedAt:'2026-11-08T00:00:01.000Z'},'different signing time'],
+   [{signedName:'Other Signer'},'different signed customer'],
+   [{photoRelease:'yes'},'different photo permission']]){
+    assert.equal(matchesCurrentSubmission({...saved,...modified},moment,'Synthetic Signature','no'),false,
+      'Must not misidentify '+label+' as this submission');
+  }
+  db.prepare('UPDATE estimates SET share_token=? WHERE id=?').run('foxtrot-revoked','foxtrot');
+  assert.equal(matchesCurrentSubmission(read.get('foxtrot','foxtrot-original')??null,moment,'Synthetic Signature','no'),false,
+   'Token revoked before readback never yields a customer signature');
+  checks+=8;
   console.log('PASS '+checks+' actual source+native SQLite token-CAS, item pricing, discounts, signed-name types and lost-ACK checks; no hosted traffic, credentials or records.');
 }finally{db.close();}
