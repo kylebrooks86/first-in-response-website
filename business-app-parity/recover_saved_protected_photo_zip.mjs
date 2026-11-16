@@ -13,7 +13,7 @@ import {readFile,open,unlink,lstat} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {recoverProtectedOfflinePhotoZip,isProtectedOfflinePhotoArchive} from './shared/lib/protected-offline-photo-archive.mjs';
-import {inspectStoredFirePhotoZip} from './verify_saved_protected_photo_backup.mjs';
+import {inspectStoredFirePhotoZip,readUnchangedSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
 import {validateNumberedCoreRecordsV2} from './shared/lib/numbered-records-v2-preflight.mjs';
 
 const MAX_FILE=161*1024*1024+4096;
@@ -59,11 +59,10 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
     resolve(input)===resolve(output))stop('separate input and output files required');
  if(typeof phrase!=='string'||phrase.length<16||phrase.length>1024)
   stop('private passphrase required');
- let protectedBytes;
- try{protectedBytes=await readFile(resolve(input));}
- catch{stop('encrypted source file is unreadable');}
- if(protectedBytes.length<=64||protectedBytes.length>MAX_FILE)
-  stop('unsupported encrypted source size');
+ // Size and on-disk identity MUST be checked before allocating the
+ // encrypted photo archive; a pathname readFile() could follow a symlink or
+ // consume an arbitrarily large source before the former length test.
+ const protectedBytes=await readUnchangedSavedProtectedPhotoFile(input);
  const protectedPhotoSourceSha256=createHash('sha256').update(protectedBytes).digest('hex');
  const source=new Blob([protectedBytes]);
  if(!await isProtectedOfflinePhotoArchive(source))
