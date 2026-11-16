@@ -18,6 +18,8 @@ import {validateSupplementalRecoveryArchive}
  from './complete-supplemental-recovery-validation.mjs';
 import {validateCompleteSupplementalCustomerHistory}
  from './complete-supplemental-customer-history.mjs';
+import {EXPECTED_NEW_LIVE_D1_MIGRATIONS}
+ from './new-live-migration-journal.mjs';
 
 const enc=new TextEncoder(),dec=new TextDecoder('utf-8',{fatal:true});
 const MAGIC=enc.encode('FIRERB01');
@@ -99,17 +101,21 @@ export function validateCompleteReviewedD1Archive(review){
  if(new Set(extras).size!==expected.length||expected.some(x=>!extras.includes(x)))
   fail('unknown/missing supplemental table in source review');
  const journal=extra.tables.d1_migrations;
- if(!Array.isArray(journal)||journal.length<1||journal.length>64)
-  fail('physical D1 migration journal is absent or unsupported');
- const migrations=new Set();
- const sorted=journal.slice().sort((a,b)=>a.id-b.id);
+ // QA/STAGING have the original 25 reviewed D1 migrations; independently
+ // migrated DR/NEW LIVE have those SAME 25 plus the separately reviewed
+ // 0025 permanent-number schema. No invented/missing/reordered journal may
+ // enter an encrypted file advertised as a FULL reviewed record archive.
+ // This proves source file NAMES/ordering only, not hosted D1 execution.
+ if(!Array.isArray(journal)||!Array.isArray(EXPECTED_NEW_LIVE_D1_MIGRATIONS)||
+    ![EXPECTED_NEW_LIVE_D1_MIGRATIONS.length-1,
+      EXPECTED_NEW_LIVE_D1_MIGRATIONS.length].includes(journal.length))
+  fail('physical D1 migration journal must contain exactly 25 or 26 reviewed entries');
+ const sorted=journal.slice().sort((a,b)=>a?.id-b?.id);
  for(let i=0;i<sorted.length;i++){
   const row=sorted[i];
   if(!object(row)||!Number.isSafeInteger(row.id)||row.id!==i+1||
-     typeof row.name!=='string'||!/^00[0-9]{2}_[a-z0-9_]+\.sql$/.test(row.name)||
-     migrations.has(row.name))
-   fail('migration journal is not ordered, unique and contiguous');
-  migrations.add(row.name);
+     row.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i])
+   fail('migration journal has missing, substituted, or unordered reviewed source');
  }
  const coreTableCount=Object.keys(core.tables).length;
  if(coreTableCount!==23||review.sourceTables!==coreTableCount+extras.length||
