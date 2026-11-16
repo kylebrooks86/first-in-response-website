@@ -58,6 +58,18 @@ try {
     assert.equal(Object.hasOwn(JSON.parse(readFileSync(to)), "r2_buckets"), false);
     source(fixture());
   });
+  check("Accepts compiled empty R2 array and emits NO R2 binding", () => {
+    const noBucket = fixture();
+    noBucket.r2_buckets = [];
+    source(noBucket);
+    const to = dest();
+    const prepared = prepare(original, to);
+    assert.equal(prepared.r2Free, true);
+    assert.equal(Object.hasOwn(JSON.parse(readFileSync(to)), "r2_buckets"), false);
+    assert.deepEqual(JSON.parse(readFileSync(original)).r2_buckets, [],
+      "Preserve original compiled source, remove R2 only from disposable manifest");
+    source(fixture());
+  });
   check("Accepts harmless default empty queue, service and durable object settings", () => {
     const defaults = fixture();
     defaults.queues = { producers: [], consumers: [] };
