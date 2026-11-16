@@ -26,6 +26,21 @@ const migrations=readdirSync(base).filter(x=>/^[0-9]{4}_.+\.sql$/.test(x)).sort(
 assert.equal(migrations.length,25);
 const db=new DatabaseSync(':memory:');
 let checks=0, batches=0,statements=0,writes=0;
+// Keep the ACTUAL owner UI wired to the guard: a pure helper passing
+// tests does not fix the customer-facing file-picker if it is bypassed.
+const ownerReviewUi=readFileSync('components/complete-d1-records-review.tsx','utf8');
+assert.match(ownerReviewUi,
+ /disabled=\{busy\|\|!ownerSavedRecordsPassphraseReady\(prepared,reentryPhrase\)\}/,
+ 'owner cannot invoke saved-file picker until original recovery phrase is reentered');
+assert.match(ownerReviewUi,
+ /verifySelectedSavedCompleteD1OwnerFile\(prepared,file,reentryPhrase\)/,
+ 'owner saved-file readback must use reentered, not cleared creation secret');
+assert.match(ownerReviewUi,
+ /setPhrase\(''\);setConfirmation\(''\);setReentryPhrase\(''\)/,
+ 'saved-file verification clears both sensitive passphrase phases');
+assert.match(ownerReviewUi,
+ /Re-enter the original passphrase to verify the SAVED file/,
+ 'owner is explicitly told to re-enter same phrase after encryption');
 // Browser bundle must use the SAME validation code as existing Node restore,
 // with only the import-root adjustment needed by isolated Worker builds.
 const shared=readFileSync('lib/complete-supplemental-recovery-validation.mjs','utf8');
