@@ -1,3 +1,14 @@
+<!-- FIRE_OWNER_EXPENSE_BOUNDED_WRITE_27_GREEN_20261116 -->
+## Nov 16 — Actual FIRE financial expense-save input safety fix; scoped source CI 27/27 PASS
+
+Existing PR270 source, NOT a redeploy. **Actual defect:** Owner `POST /api/expenses` buffered unrestricted `request.json()` before validating whole cents, owner date/tax year, immutable requestId and linked job. [Changed app code 3cf8ebee](https://github.com/kylebrooks86/first-in-response-website/commit/3cf8ebee2cf02fba8e718f89242ac04bff052ded) uses preexisting `readOwnerWriteObject` with a 32,000-byte stream budget (no new module) before ANY expense D1 query/write. Valid request date/financial/idempotency/lost-ACK behavior unchanged. [Actual-route negative native SQLite tests 3638d58d](https://github.com/kylebrooks86/first-in-response-website/commit/3638d58dbd26082d105465aa64d900f21768d68c) assert malformed/overlong declared and actual byte lengths, invalid JSON, invalid UTF-8, nonobject input are rejected with **ZERO D1 reads/writes**; original legitimate write/replay checks remain. [Expense Wave CSV test import 77dd2de8](https://github.com/kylebrooks86/first-in-response-website/commit/77dd2de8a6f40309034202a4c7451b4291d1ed4e) retains original tax-year/CSV injection protections.
+
+**Validated code HEAD `77dd2de8a6f40309034202a4c7451b4291d1ed4e`: real GitHub Actions 27/27 SUCCESS; no failure/cancellation.** [Staging/shared-app workflow #43965511144](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511144) SUCCESS, including the exact `Gate 8 owner expense save recovery and Wave financial record ID integrity (native SQLite only)` actual-route step; [Gate9 full-app LOCAL compile #43965511196](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511196) SUCCESS; [public site/calculator guard #43965511073](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511073) and [website verify #43965511101](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511101) SUCCESS. [Dedicated evidence](evidence/FIRE_OWNER_EXPENSE_BOUNDED_WRITE_VERIFIED_20261116.md). Tests source/disposable SQLite only; NO NEW hosted QA/STAGING/DR/NEW LIVE provider attestation or deployment.
+
+**Release unchanged: accepted 4/10 = G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO; Job #0001 future clean start.** No payment/Stripe processing changed; no D1 SQL, R2, paid subscription, Cloudflare login, Worker publish, DNS/Access/routes, merge/cutover or reapplication of already completed independent NEW LIVE 26/26 migrations. Do not repeat accepted owner QA/iPhone/Acer or DR/NEW LIVE provider checks.
+
+---
+
 <!-- FIRE_GATE7_SAVED_FILE_REENTRY_UI_AND_TYPECHECK_20261116 -->
 ## Nov 16 — Gate7 saved encrypted records verification UX repaired, full-app TypeScript compile recovered
 
