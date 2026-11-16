@@ -1,48 +1,67 @@
 /**
- * Minimal, origin-bound JSON parser for unauthenticated customer-token writes.
- * This checks REQUEST SHAPE only: each route must still validate its share
- * token, authorization state, saved agreement and D1 business invariants.
- * Never widen Cloudflare Access or add payment/webhook endpoints here.
+ * Fail-closed, bounded, same-origin JSON parser for PUBLIC bearer-link writes.
+ * This checks request shape only; routes MUST still validate token ownership,
+ * accepted agreement/version and D1 business invariants.
+ * Never widen Cloudflare Access or authorize Stripe/webhook actions here.
  */
 const jsonReply=(error,status)=>Response.json(
-  {error},{status,headers:{"Cache-Control":"no-store"}}
+ {error},{status,headers:{"Cache-Control":"no-store"}}
 );
+const deny=(status,message)=>({response:jsonReply(message,status)});
 export async function readCustomerWriteJson(request,allowedFields,maxBytes=8192){
-  // A cross-origin HTML form or malicious site must not submit customer
-  // agreements using a browser that happens to know a share link.
-  let origin;
-  try{origin=new URL(request.url).origin;}
-  catch{return {response:jsonReply("Invalid request origin.",403)};}
-  if(request.headers.get("origin")!==origin)
-    return {response:jsonReply("This customer action must originate on the estimate page.",403)};
-  if(!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get("content-type")??""))
-    return {response:jsonReply("JSON request required.",415)};
-  const length=request.headers.get("content-length");
-  if(length!==null&&(!/^\d+$/.test(length)||Number(length)>maxBytes))
-    return {response:jsonReply("Customer request too large.",413)};
-  if(!request.body)return {response:jsonReply("Invalid customer request.",400)};
-  let raw="";
-  let received=0;
-  const reader=request.body.getReader();
+ if(!Array.isArray(allowedFields)||!allowedFields.every(x=>typeof x==='string')||
+    !Number.isSafeInteger(maxBytes)||maxBytes<1)
+  return deny(400,"Invalid customer request.");
+ // A browser cannot submit customer approvals on another website via a
+ // cross-origin form, and an absent/null Origin is never accepted.
+ let origin;
+ try{origin=new URL(request.url).origin;}
+ catch{return deny(403,"Invalid request origin.");}
+ if(request.headers.get("origin")!==origin)
+  return deny(403,"This customer action must originate on the estimate page.");
+ if(!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get("content-type")??""))
+  return deny(415,"JSON request required.");
+ const declared=request.headers.get("content-length");
+ if(declared!==null&&(!/^(0|[1-9][0-9]*)$/.test(declared)||
+    !Number.isSafeInteger(Number(declared))||Number(declared)>maxBytes))
+  return deny(413,"Customer request too large.");
+ if(!request.body)return deny(400,"Invalid customer request.");
+ let reader;
+ try{
+  reader=request.body.getReader();
   const decoder=new TextDecoder("utf-8",{fatal:true});
-  try{
-    for(;;){
-      const {value,done}=await reader.read();
-      if(done)break;
-      received+=value.byteLength;
-      if(received>maxBytes){
-        await reader.cancel().catch(()=>{});
-        return {response:jsonReply("Customer request too large.",413)};
-      }
-      raw+=decoder.decode(value,{stream:true});
-    }
-    raw+=decoder.decode();
-  }catch{return {response:jsonReply("Invalid customer request.",400)};}
+  let raw="",received=0;
+  while(true){
+   const {value,done}=await reader.read();
+   if(done)break;
+   // Some Streams originate in another JS realm: instanceof Uint8Array
+   // is not portable. Check the actual bytes-view brand before touching it.
+   if(!ArrayBuffer.isView(value)||
+      Object.prototype.toString.call(value)!=='[object Uint8Array]')
+    return deny(400,"Invalid customer request.");
+   received+=value.byteLength;
+   if(received>maxBytes)return deny(413,"Customer request too large.");
+   raw+=decoder.decode(value,{stream:true});
+  }
+  raw+=decoder.decode();
+  // Neither a short body nor extra bytes may silently contradict a declared
+  // Content-Length; a valid empty stream is never a signed agreement.
+  if(received===0||(declared!==null&&received!==Number(declared)))
+   return deny(400,"Invalid customer request.");
   let body;
   try{body=JSON.parse(raw);}
-  catch{return {response:jsonReply("Invalid customer request.",400)};}
-  if(!body||typeof body!=="object"||Array.isArray(body)
-    ||Object.keys(body).some(key=>!allowedFields.includes(key)))
-    return {response:jsonReply("Invalid customer request.",400)};
+  catch{return deny(400,"Invalid customer request.");}
+  if(!body||typeof body!=="object"||Array.isArray(body)||
+     Object.keys(body).some(key=>!allowedFields.includes(key)))
+   return deny(400,"Invalid customer request.");
   return {value:body};
+ }catch{
+  return deny(400,"Invalid customer request.");
+ }finally{
+  if(reader){
+   // A truncated/oversized request must not leave a dangling stream.
+   try{await reader.cancel();}catch{}
+   try{reader.releaseLock();}catch{}
+  }
+ }
 }
