@@ -1,3 +1,12 @@
+<!-- FIRE_NOV16_G4_MODULE_MIME_URLS_G7_SQL_ARTIFACT_FIX -->
+## NOV 16 — Gate4 read-only verifier hardened; Gate7 NEW LIVE GitHub artifact readback repaired (NO HOSTED CHANGE)
+
+Existing DRAFT PR270 source work on validated code HEAD `d5ad0d73365c4fff58d8a98731f8a1e8f54f5b50`: immutable DR Worker module proof now demands actual `application/javascript+module` MIME for all 193 exact SHA256-matched JS/MJS modules and accounts for Cloudflare version-pinned `urls` via sanitized count (no raw URL disclosure; never claim account-wide/alias-route/Access isolation). Changed-function test+CI [#43958627313](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43958627313) PASS. **Actual authenticated provider `include=modules` GET has NOT happened.** Frozen deployed QA/DR source and DR attempt lock untouched.
+
+A **real previously failing** NEW LIVE reviewed 26-SQL GitHub artifact workflow was fixed to wait via bounded exact-ID SAME-RUN GitHub GET after upload before actual download/readback; [#43958627430](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43958627430) SUCCESS. Public-site protection was re-pinned ONLY for this exact reviewed workflow blob; [#43958627116](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43958627116) SUCCESS. **No D1 SQL migrations, deployed app changes, Cloudflare writes, Access, login, Stripe, R2, paid services, merge or production cutover.** Detailed facts/exact commits in the canonical [continuity register](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md), latest top section. **Formal 4/10 accepted (G1/2/3/8); G4/5/6/7/9/10 OPEN; NEW LIVE DARK NO-GO.** Do not repeat prior QA/DR screenshots or consumed DR publisher.
+
+---
+
 <!-- FIRE_DR_POSTUPDATE_ACCESS_NEGATIVE_SCREEN_20261116 -->
 ## NOV 16 OWNER DR ACCESS TAB: NO WORKER-SPECIFIC ACCESS POLICY — CAPTURED, NOT PASSED
 
