@@ -1,5 +1,14 @@
 # FIRE Business App parity requirement
 
+
+## NOV 15 — LATEST GATE6 PUBLIC APPROVAL FINANCIAL + SIGNATURE SOURCE PROTECTION
+
+- Regular public estimate signing now atomically requires **current saved service-line cents sum = subtotal** and **subtotal minus discount = total** inside its existing share-token-constrained D1 approval UPDATE. This refuses corrupt line totals or discounts without changing any valid approved pricing, stacked promotions or payment terms. Its typed signature name must be a JSON string, not an object converted to "[object Object]". Implementation source commits `3f60c7a8f1077dcc254ba063d1492e91398f1c06` and `d27c150dcbca6fa9002e3f1c1d2e517a75e5ccd0` in unmerged Draft PR270. Targeted negative/positive real SQLite tests and strict name expression coverage at final TESTED CODE SHA `9db77e9aa20b69b1e4765a5cf97b59895844c2f2`.
+- Actual exact-code GitHub [staging #43788088737](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43788088737) focused public approval/token CAS test **SUCCESS**, [local TEST app full build #43788088980](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43788088980) SUCCESS, [public-site/calculator preservation #43788088913](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43788088913) SUCCESS and [website verification #43788088765](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43788088765) SUCCESS. Initially 24/26 workflows SUCCESS with two still running; do not claim 26/26 before final readback.
+- No provider, customer, photo or payment changes; no merge/deploy. Former physical NEW LIVE **26/26 migrated already**, both DARK Workers and their owner-dashboard OFF exposure evidence and immutable no-retry locks remain accepted; NEVER redo. Formal gates **G1/G2/G3/G8 accepted 4/10**, other six OPEN; NEW LIVE DARK NO-GO. Keep Cloudflare free/no-R2, QA as functional/visual master and require exact approval for any hosted change.
+
+---
+
 ## NOV 15 — FINAL CI FOR GATE6 REVOKED ALREADY-ACCEPTED TOKEN FIX: EXACT 26/26 SUCCESS
 
 - Verified actual GitHub Actions **26/26 completed SUCCESS** at exact changed-code commit `2798f32a741a0efe1bf19a56e0a4b754672092e6` on [Draft PR270](https://github.com/kylebrooks86/first-in-response-website/pull/270). The last long [staging migration and shared-app parity #43783860922](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43783860922) has now also completed SUCCESS, including the specifically modified Gate6 share-token rotation SQLite step, synthetic mobile-browser suite and isolated staged app build. The 25/26 pending counts written below are **historical intermediate checkpoints superseded by this completed same-code CI result**.
