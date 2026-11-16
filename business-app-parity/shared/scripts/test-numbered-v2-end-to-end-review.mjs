@@ -34,7 +34,7 @@ pass(!/export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE)\s*\(/.test(rawRoute
  'Core review endpoint cannot make provider writes');
 const js=rawRoute.slice(rawRoute.indexOf('const ownerEmail='))
  .replaceAll('status:number','status').replaceAll('message:string','message')
- .replace('env as typeof env & {FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE?:string}','env')
+ .replace('env as typeof env & {FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE?:string;FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE?:string}','env')
  .replace('export async function GET()','async function GET()');
 let owner=null,flag='',property=false,location=false;
 const ctx={Response,env:{DB:{testOnly:true},get FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE(){return flag;}},
