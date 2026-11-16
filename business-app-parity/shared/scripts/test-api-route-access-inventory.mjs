@@ -19,7 +19,11 @@ const files=walk(root).sort();
 // valid, but any OTHER added/removed route still fails closed.
 const legacyReviewPresent=files.some(file=>relative(root,file)===join('backup','legacy-review','route.ts'));
 const liveInspectionPresent=files.some(file=>relative(root,file)===join('release','new-live-clean-start','route.ts'));
-assert.equal(files.length,(legacyReviewPresent?70:69)+(liveInspectionPresent?1:0),
+// New reviewed Gate7 owner capability is READ-ONLY, DEFAULT-OFF, and contains
+// no D1 data. It is deliberately NOT listed as a public route.
+const completeCapability=files.some(file=>relative(root,file)===join('backup','review-capability','route.ts'));
+assert.equal(completeCapability,true,'Reviewed owner backup capability route unexpectedly missing');
+assert.equal(files.length,(legacyReviewPresent?70:69)+(liveInspectionPresent?1:0)+1,
  'The reviewed FIRE route inventory changed. Re-audit any added/removed API surface before release.');
 const publicMethods=new Map([
  ['app-version/route.ts','GET'],
@@ -75,6 +79,18 @@ for(const file of files){
   assert.match(content,/providerIdentityVerified:false/);
   assert.doesNotMatch(content,/export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)\s*\(/);
  }
+ if(rel==='backup/review-capability/route.ts'){
+  assert.deepEqual(declared,['GET'],'Full backup capability may only inspect the owner flag');
+  assert.match(content,/getChatGPTUser/,'Owner identity must be required before capability');
+  assert.match(content,/completeRecordsOwnerReviewAllowed/,'Exact helper must check owner AND full-review flag');
+  assert.match(content,/cache-control/,'Capability responses must prohibit caching');
+  assert.match(content,/private, no-store/,'No shared cache may expose capability');
+  assert.match(content,/status:404/,'No-owner or no-flag must hide feature existence');
+  assert.match(content,/completeBackup:false/,'Capability never claims an actual backup');
+  assert.match(content,/gate7Accepted:false/,'Owner UI eligibility is not Gate7 release');
+  assert.doesNotMatch(content,/env\\.DB|\\.prepare\\(|\\.batch\\(|(?:POST|PUT|PATCH|DELETE)\\s*\\(/,
+   'Capability cannot read customer D1 rows or include provider write path');
+ }
  if(rel==='backup/legacy-review/route.ts'){
   assert.deepEqual(declared,['GET'],'Legacy records review must never expose write methods');
   assert.match(content,/getChatGPTUser/);
@@ -91,7 +107,7 @@ for(const file of files){
   rel+': no visible owner denial or owner identity rule');
 }
 assert.equal(publicCount,6);
-assert.equal(owner,(legacyReviewPresent?64:63)+(liveInspectionPresent?1:0));
+assert.equal(owner,(legacyReviewPresent?64:63)+(liveInspectionPresent?1:0)+1);
 const publicEstimate=readFileSync('app/estimate/[token]/page.tsx','utf8');
 const publicPay=readFileSync('app/pay/[id]/page.tsx','utf8');
 assert.match(publicEstimate,/row\.status==="declined"/,'Withdrawn customer estimate may not expose stale approval/price');
