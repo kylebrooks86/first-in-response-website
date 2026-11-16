@@ -2,6 +2,8 @@
  * No providers, hosted database, photo ZIP, Stripe, customer or network data.
  */
 import assert from 'node:assert/strict';
+// In the existing Gate7 CI, also exercise the complete supplemental D1 review.
+import './test-complete-d1-records-review.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import {captureNumberedCoreV2ReadOnly} from '../lib/numbered-v2-d1-snapshot.mjs';
