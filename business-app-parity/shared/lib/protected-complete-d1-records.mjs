@@ -15,9 +15,9 @@
  */
 import {validateNumberedCoreRecordsV2} from './numbered-records-v2-preflight.mjs';
 import {validateSupplementalRecoveryArchive}
- from '../../validate_supplemental_recovery_archive.mjs';
+ from './complete-supplemental-recovery-validation.mjs';
 import {validateCompleteSupplementalCustomerHistory}
- from '../../validate_supplemental_customer_history.mjs';
+ from './complete-supplemental-customer-history.mjs';
 
 const enc=new TextEncoder(),dec=new TextDecoder('utf-8',{fatal:true});
 const MAGIC=enc.encode('FIRERB01');
