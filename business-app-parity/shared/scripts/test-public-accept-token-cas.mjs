@@ -45,7 +45,20 @@ for(const query of [normal,guarded]){
 }
 assert.match(readback,/FROM estimates WHERE id=\? AND share_token=\?/,
  'A stale token cannot recover an already accepted signature');
-let checks=5;
+// The already-approved fast path must NOT return stale signedName/signedAt
+// from its first SELECT after a bearer link has been revoked.
+const alreadyApproved=source.indexOf('if(estimate.acceptedAt){');
+const approvalExit=source.indexOf('if(!["draft","sent"].includes(estimate.status))',alreadyApproved);
+assert.ok(alreadyApproved>0&&approvalExit>alreadyApproved,
+ 'Already-approved token handling must have a dedicated branch');
+const approvedBlock=source.slice(alreadyApproved,approvalExit);
+assert.match(approvedBlock,/const current=await confirmedAcceptance\(\)/,
+ 'Already-approved receipt must issue a new token-bound query');
+assert.match(approvedBlock,/if\(!current\?\.acceptedAt\)return Response\.json\(/,
+ 'Revoked token must fail rather than exposing a stale signature');
+assert.doesNotMatch(approvedBlock,/acceptedAt:estimate\.acceptedAt|signedName:estimate\.signedName/,
+ 'Old initial estimate row must not supply already-approved signature details');
+let checks=9;
 const db=new DatabaseSync(':memory:');
 try{
   db.exec(`CREATE TABLE estimates(
@@ -63,9 +76,24 @@ try{
     (id,share_token,status,subtotal_cents,discount_cents,total_cents,deposit_cents)
     VALUES(?,?,'draft',20000,0,20000,10000)`);
   insert.run('alpha','alpha-original');insert.run('bravo','bravo-original');
+  // Real SQLite idempotent-signature scenario: a share link was valid at the
+  // initial SELECT, then got revoked before the already-approved response.
+  insert.run('charlie','charlie-original');
+  db.prepare("UPDATE estimates SET status='approved',accepted_at=?,signed_name=?,signed_at=?,photo_release=? WHERE id=?")
+    .run('2026-11-08T01:00:00.000Z','Synthetic Charlie','2026-11-08T01:00:00.000Z','no','charlie');
   const item=db.prepare('INSERT INTO estimate_items (id,estimate_id,name,quantity,total_cents) VALUES(?,?,?,1,20000)');
   item.run('ia','alpha','Synthetic Alpha');item.run('ib','bravo','Synthetic Bravo');
   const mutate=db.prepare(normal),read=db.prepare(readback);
+  const firstApprovedRead=read.get('charlie','charlie-original');
+  assert.equal(firstApprovedRead.signedName,'Synthetic Charlie',
+   'Initial already-approved read has fictional saved signature');
+  db.prepare('UPDATE estimates SET share_token=? WHERE id=?')
+    .run('charlie-rotated','charlie');
+  assert.equal(read.get('charlie','charlie-original'),undefined,
+   'Already-approved reply MUST recheck the token after revocation');
+  assert.equal(read.get('charlie','charlie-rotated').signedName,'Synthetic Charlie',
+   'Replacement link retains safe accepted-signature idempotence');
+  checks+=3;
   const attempt=(id,token)=>mutate.run('2026-11-08T00:00:00.000Z','Synthetic Signature',
     '2026-11-08T00:00:00.000Z','no',id,token).changes;
   // Simulate token revocation after an initial read but before the UPDATE.
