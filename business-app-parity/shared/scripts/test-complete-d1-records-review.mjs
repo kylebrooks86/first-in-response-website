@@ -4,7 +4,14 @@
  */
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync,readdirSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {prepareCompleteD1OwnerFile,verifySelectedSavedCompleteD1OwnerFile,
+ verifyProtectedCompleteReviewedD1Records}
+ from '../lib/protected-complete-d1-records.mjs';
+import {inspectSavedProtectedCompleteRecords}
+ from '../../protected_complete_isolated_sqlite_recovery.mjs';
 import {captureCompleteReviewedD1RecordsReadOnly} from '../lib/complete-d1-records-review.mjs';
 import {fingerprintIsolatedSqliteSchema} from '../../fingerprint_isolated_sqlite_schema.mjs';
 
@@ -87,6 +94,45 @@ try{
   res[0].results.find(x=>x.name==='_cf_METADATA').sql='CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB, secret TEXT)';
  })), 'provider table with invented durable field must fail closed');
  db.exec('DROP TABLE _cf_METADATA; DROP TABLE _cf_KV');
+ // Browser WebCrypto MUST create the exact existing 48-byte FIRERB01
+ // .firerecords format that the already-written Node offline recovery accepts.
+ // A new incompatible browser-only backup format would NOT close Gate7.
+ const phrase='synthetic-only FIRE complete records recovery phrase 2026';
+ const prepared=await prepareCompleteD1OwnerFile(original,phrase,phrase,
+  new Date('2026-11-15T12:01:00.000Z'));
+ equal(prepared.inMemoryEncryptionVerified,true,
+  'complete source (core+supplemental) encrypted to private owner Blob');
+ equal(prepared.gate7Accepted,false,
+  'new file cannot claim live recovery or physical off-device custody');
+ const temp=mkdtempSync(join(tmpdir(),'fire-browser-full-records-'));
+ try{
+  const privateFile=join(temp,prepared.filename);
+  writeFileSync(privateFile,Buffer.from(await prepared.blob.arrayBuffer()),{mode:0o600,flag:'wx'});
+  const actualSaved=new Blob([readFileSync(privateFile)]);
+  const browser=await verifySelectedSavedCompleteD1OwnerFile(prepared,actualSaved,phrase);
+  equal(browser.selectedCiphertextIdentical,true,
+   'deliberately reopened saved encrypted file matches exact prepared bytes');
+  equal(browser.originalPhotoBytesIncluded,false,
+   'complete database records do not pretend to carry the original customer photos');
+  equal(browser.sourceTables,25,'full protected record file includes migrations and auth table');
+  const node=await inspectSavedProtectedCompleteRecords(privateFile,phrase);
+  equal(node.savedEncryptedFileReadBack,true,
+   'actual existing OFFLINE Node FIRERB01 reader authenticates browser-produced file');
+  equal(node.core.tables.customers[0].id,'full-review-customer',
+   'Node recovery reads actual encrypted original customer records');
+  equal(node.supplemental.tables.d1_migrations.length,25,
+   'Node offline recovery reads all 25 original migrations from browser ciphertext');
+  equal(node.proof.schemaSha256,original.schemaIdentity.sha256,
+   'Node offline recovery preserves full SQLite source schema hash');
+  const forged=Buffer.from(readFileSync(privateFile));forged[50]^=1;
+  await deny(verifyProtectedCompleteReviewedD1Records(new Blob([forged]),phrase),
+   'tampered encrypted complete file must fail authentication before restore');
+  await deny(verifyProtectedCompleteReviewedD1Records(actualSaved,
+   'not the same 2026 synthetic FIRE private phrase'),
+   'wrong phrase cannot expose customer records');
+  equal(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1,
+   'encryption, file save and readback never mutate original data');
+ }finally{rmSync(temp,{recursive:true,force:true});}
  const originalRows=original.core.rowCounts.customers;
  await deny(captureCompleteReviewedD1RecordsReadOnly(makeD1(results=>{
   results[2].results.find(x=>x.table_name==='customers').count=0;
