@@ -1,3 +1,16 @@
+<!-- FIRE_GATE7_SAVED_FILE_REENTRY_UI_AND_TYPECHECK_20261116 -->
+## Nov 16 — Gate7 saved encrypted records verification UX repaired, full-app TypeScript compile recovered
+
+REAL source bug: the complete owner records-review UI cleared the AES-GCM creation phrase, then allowed saved-file readback with that now-empty phrase. This could misdiagnose a valid archive as tampered.
+
+Fixed owner UI: separate post-creation same-passphrase reentry and disabled saved-file picker until valid reentry; real file authentication still requires crypto verification, all secrets cleared again after readback. Pure source guard commit [0928246e](https://github.com/kylebrooks86/first-in-response-website/commit/0928246e02e2e1711caed14fc892cf7c889cec6d), UI [e0bf4c3a](https://github.com/kylebrooks86/first-in-response-website/commit/e0bf4c3a47db593fbe4c7b2e19d066bf8c849fc8), targeted negative/unit+UI wiring tests [a7bed192](https://github.com/kylebrooks86/first-in-response-website/commit/a7bed1922ed5faa6417defb7e641ba40dcac1b70); existing isolated-recovery workflow trigger updated [46ec734c](https://github.com/kylebrooks86/first-in-response-website/commit/46ec734c4ec0d4433c8bcef544f61a359604f73e), exact pinned public verifier blob [6efa800c](https://github.com/kylebrooks86/first-in-response-website/commit/6efa800cc6dc515ad37545d71a83cef1b266c21d).
+
+Actual first Gate9 full-app local build [#43963089007](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963089007) FAILED TS2305 because the declaration omitted the new export. Fixed declaration [cbba3287](https://github.com/kylebrooks86/first-in-response-website/commit/cbba328724e598e34888590960ffd872b10ee7fe); no checks suppressed. Exact corrected code HEAD cbba328724e598e34888590960ffd872b10ee7fe achieved [Gate9 local build #43963491869](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491869) SUCCESS (build and local no-provider packaging, not Stripe signed TEST), [isolated encrypted recovery #43963491846](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491846) SUCCESS, [public site/calculator protector #43963491883](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491883) SUCCESS and [website source verifier #43963491743](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491743) SUCCESS. Full detail: [Gate7 evidence](evidence/FIRE_GATE7_SAVED_ENCRYPTED_RECORDS_REENTRY_UI_20261116.md).
+
+Formal gates unchanged: G1/G2/G3/G8 accepted = 4/10; G4/G5/G6/G7/G9/G10 OPEN; DARK NEW LIVE NO-GO. Source-only owner backup interface default-off; no actual saved customer backup/photo restore, Cloudflare proof, payment or production release claimed. Preserve already accepted QA/DR/NEW LIVE provider evidence and original 26/26 migration/attempt locks; never reapply. NO R2, paid Cloudflare, deploy, SQL, Access/route/DNS, Stripe or payment, merge or cutover.
+
+---
+
 <!-- FIRE_OWNER_WRITE_GUARD_CONSOLIDATED_GATE9_193_PASS_20261116 -->
 ## Nov 16 — FOLLOW-UP / CORRECTION: bounded owner Estimate/Invoice writes retain original Gate9 module count (193, not 194)
 
