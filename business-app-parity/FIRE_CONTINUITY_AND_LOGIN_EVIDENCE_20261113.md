@@ -1,3 +1,14 @@
+<!-- FIRE_G4_OWNER_ACCOUNT_DOMAINS_EMPTY_20261116 -->
+## NOV 16 — Owner account Domains list EMPTY; do not request impossible zone-level route screenshots
+
+New existing-session owner Safari screenshots `IMG_4382.png` (SHA256 `c649029f9091de217e240553ed9c3acc1582ec02bdd8162ff9a2e0`) and `IMG_4383.png` (SHA256 `4f3f7a69cc1fb93cb08019a9b860320feaf50691093bf6a17ba57f0b4acd8319`) show `dash.cloudflare.com` **Domains → “No data available”** with no domain row to select, while the dashboard **Workers** list visibly contains FIRE DR, QA and NEW LIVE. These original screenshot bytes are in the private owner conversation, NOT GitHub. Dedicated exact scope evidence: [FIRE_ACCOUNT_DOMAINS_EMPTY_OWNER_20261116.md](evidence/FIRE_ACCOUNT_DOMAINS_EMPTY_OWNER_20261116.md).
+
+**Correction to prior owner guidance:** The zone-level Workers Routes screen cannot be reached via a domain selection on the currently displayed account's empty Domains list. Do NOT keep asking for it, tell the owner to add/buy a domain, repeat login, or change route/Access/subscriptions. This is a new **visible empty-domain-list observation**, NOT cryptographic account-wide absence of all accounts/zones/hostnames/routes nor proof of no Worker ingress or nonowner rejection. Preserve separately accepted post-update DR production/preview OFF and empty Worker-level domain listing; DR Access tab actually shows **no Worker-specific policy**. No repeated owner Cloudflare tab screenshots, DR publisher or QA/iPhone checks.
+
+**Formal gate status:** 4/10 accepted (G1/G2/G3/G8), G4/G5/G6/G7/G9/G10 OPEN; DARK NEW LIVE NO-GO. No cloud, DB, R2, payments, merge or release change in this evidence record. Next work must target a genuinely outstanding gated condition, not the inapplicable zone-navigation loop.
+
+---
+
 <!-- FIRE_DR_WORKER_ACCESS_ABSENT_OWNER_20261116 -->
 ## NOV 16 — New post-update DR owner Access-tab screenshot: **NO WORKER-SPECIFIC ACCESS POLICY CONFIGURED** (NOT security acceptance)
 
