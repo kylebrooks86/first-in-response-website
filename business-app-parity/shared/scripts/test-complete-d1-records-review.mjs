@@ -125,11 +125,13 @@ try{
   equal(node.proof.schemaSha256,original.schemaIdentity.sha256,
    'Node offline recovery preserves full SQLite source schema hash');
   const forged=Buffer.from(readFileSync(privateFile));forged[50]^=1;
-  await deny(verifyProtectedCompleteReviewedD1Records(new Blob([forged]),phrase),
-   'tampered encrypted complete file must fail authentication before restore');
-  await deny(verifyProtectedCompleteReviewedD1Records(actualSaved,
+  await assert.rejects(verifyProtectedCompleteReviewedD1Records(new Blob([forged]),phrase),
+   /FIRE protected complete D1 records blocked:/,
+   'tampered encrypted complete file must fail authentication before restore');checks++;
+  await assert.rejects(verifyProtectedCompleteReviewedD1Records(actualSaved,
    'not the same 2026 synthetic FIRE private phrase'),
-   'wrong phrase cannot expose customer records');
+   /FIRE protected complete D1 records blocked:/,
+   'wrong phrase cannot expose customer records');checks++;
   equal(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1,
    'encryption, file save and readback never mutate original data');
  }finally{rmSync(temp,{recursive:true,force:true});}
