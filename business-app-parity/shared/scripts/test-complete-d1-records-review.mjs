@@ -120,9 +120,11 @@ try{
    'content-disposition':'attachment; filename="fire-complete-records-review-NOT-PROTECTED-BACKUP.json"',
    ...headers}});
  const browserSource=await readOwnerCompleteD1ReviewResponse(fullResponse());
+ equal(browserSource.format,'fire-full-d1-records-review',
+  'validated HTTP source preserves exact full envelope needed by owner encryption');
  equal(browserSource.core.tables.customers[0].id,'full-review-customer',
   'strict HTTP full-response stream yields exact full customer archive');
- equal(browserSource.extra.tables.d1_migrations.length,25,
+ equal(browserSource.supplemental.tables.d1_migrations.length,25,
   'strict HTTP private review preserves full migration journal');
  for(const [name,modified,headers] of [
   ['falsely called backup',{...ownerWrapper,completeBackup:true},{}],
@@ -144,7 +146,9 @@ try{
  // .firerecords format that the already-written Node offline recovery accepts.
  // A new incompatible browser-only backup format would NOT close Gate7.
  const phrase='synthetic-only FIRE complete records recovery phrase 2026';
- const prepared=await prepareCompleteD1OwnerFile(original,phrase,phrase,
+ // Exercise the REAL owner UI: HTTP stream -> strict reader -> protected file.
+ // A reduced validation summary must never replace the full source envelope.
+ const prepared=await prepareCompleteD1OwnerFile(browserSource,phrase,phrase,
   new Date('2026-11-15T12:01:00.000Z'));
  equal(prepared.inMemoryEncryptionVerified,true,
   'complete source (core+supplemental) encrypted to private owner Blob');
