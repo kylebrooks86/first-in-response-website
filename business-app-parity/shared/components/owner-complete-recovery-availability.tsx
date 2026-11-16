@@ -24,8 +24,10 @@ export function OwnerCompleteRecoveryAvailability(){
        !/(?:^|,)\s*private\b/i.test(result.headers.get('cache-control')||'')||
        !/(?:^|,)\s*no-store\b/i.test(result.headers.get('cache-control')||''))
       return;
-    const payload=await result.json();
-    if(!controller.signal.aborted&&payload&&
+    const raw:unknown=await result.json();
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))return;
+    const payload=raw as Record<string,unknown>;
+    if(!controller.signal.aborted&&
        Object.keys(payload).length===5&&
        payload.format==='fire-complete-records-owner-review-capability'&&
        payload.version===1&&payload.reviewEnabled===true&&
