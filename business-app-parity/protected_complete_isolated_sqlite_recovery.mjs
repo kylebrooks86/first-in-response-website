@@ -21,7 +21,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {randomBytes,pbkdf2,createCipheriv,createDecipheriv,createHash} from 'node:crypto';
 import {promisify} from 'node:util';
-import {open,readFile,stat,unlink} from 'node:fs/promises';
+import {open,lstat,stat,unlink} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {captureCompleteIsolatedSqliteSnapshot} from './export_complete_isolated_sqlite_snapshot.mjs';
@@ -126,18 +126,40 @@ async function decryptSnapshot(buffer,phrase){
   if(key)key.fill(0);
  }
 }
-export async function inspectSavedProtectedCompleteRecords(path,phrase){
+// Physical saved-file proof must be descriptor-bound. A pathname checked
+// with stat() and later passed to readFile() can be swapped (or symlinked)
+// between calls. Keep ONE verified fd for the entire encrypted-byte read;
+// refuse changed inode, size, mtime, ctime or resolved source path.
+const sameSavedFile=(expected,actual)=>Boolean(actual?.isFile()&&!actual.isSymbolicLink()&&
+ expected.dev===actual.dev&&expected.ino===actual.ino&&
+ expected.size===actual.size&&expected.mtimeMs===actual.mtimeMs&&
+ expected.ctimeMs===actual.ctimeMs);
+export async function readUnchangedProtectedRecordsFile(path){
  if(!pathValue(path))stop('saved protected records file required');
- let file;
+ const filename=resolve(path);
+ let before,handle,file;
  try{
-  const st=await stat(resolve(path));
-  if(!st.isFile()||st.size<HEADER_BYTES+TAG_BYTES+2||st.size>MAX_ENCRYPTED)
+  before=await lstat(filename);
+  if(!before.isFile()||before.isSymbolicLink()||
+     before.size<HEADER_BYTES+TAG_BYTES+2||before.size>MAX_ENCRYPTED)
    stop('saved protected file size unsupported');
-  file=await readFile(resolve(path));
-  if(file.length!==st.size)stop('saved file changed while reading');
+  handle=await open(filename,'r');
+  if(!sameSavedFile(before,await handle.stat()))
+   stop('saved encrypted records changed before opening');
+  // This read uses the SAME verified descriptor, never reopens the path.
+  file=await handle.readFile();
+  if(file.length!==before.size||!sameSavedFile(before,await handle.stat())||
+     !sameSavedFile(before,await lstat(filename)))
+   stop('saved encrypted records changed during read');
  }catch{
-  stop('saved protected records file missing or unsupported');
+  stop('saved protected records file missing, replaced or unsupported');
+ }finally{
+  if(handle)await handle.close().catch(()=>{});
  }
+ return file;
+}
+export async function inspectSavedProtectedCompleteRecords(path,phrase){
+ const file=await readUnchangedProtectedRecordsFile(path);
  const opened=await decryptSnapshot(file,phrase);
  return {...opened,
   protectedFileSha256:sha(file),savedEncryptedFileReadBack:true};
