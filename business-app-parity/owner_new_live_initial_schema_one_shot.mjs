@@ -237,7 +237,13 @@ function wrangler(js,args,{cwd=WORK,write=false}={}){
  }
  return write?'':proc.stdout;
 }
+// Nov 14 owner physical Gate5 NEW LIVE 26/26 succeeded under the distinct
+// post-lock recovery. Issue #19 #6889484598; encrypted owner backup #6891448726.
+// This historical FIRST-ATTEMPT entrypoint is permanently retired in current
+// source, EVEN IF running on a new Acer without any of the original locks.
+// A future independently approved schema change requires a NEW source process.
 export async function applyNewLiveInitialSchemaAfterSeparateApproval(pinnedWrangler,approvalFlag){
+ stop('ALREADY_APPLIED_26_OF_26: owner physically verified NEW LIVE migrations; never repeat any first-attempt installer');
  requireNewLiveApprovalSentinel(approvalFlag);
  // Executed BEFORE Wrangler version checks, Cloudflare read-only preflight,
  // attempt lock creation or any irreversible remote SQL.
