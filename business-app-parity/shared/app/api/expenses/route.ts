@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import {expenseBusinessDay,expenseDateInstant} from "../../../lib/expense-date";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
@@ -37,12 +38,13 @@ export async function GET(request:Request){
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request:Request){
  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
- let body:Record<string,unknown>;
- try{
-  const parsed:unknown=await request.json();
-  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Invalid payload");
-  body=parsed as Record<string,unknown>;
- }catch{return Response.json({error:"A valid expense request is required."},{status:400});}
+ // Expenses affect owner financial records, so never buffer arbitrary JSON
+ // before validating the payload. Reuse the same owner-only bounded reader
+ // already used by Estimate/Invoice CREATE; no extra Worker module or changes
+ // to valid amounts, calendar dates, request IDs or persistence semantics.
+ const parsed=await readOwnerWriteObject(request,32_000);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as Record<string,unknown>;
  const description=String(body.description??"").trim();
  const rawAmount=body.amountCents;
  if((typeof rawAmount!=="number"&&typeof rawAmount!=="string")||(typeof rawAmount==="string"&&!rawAmount.trim())||!Number.isSafeInteger(Number(rawAmount))||Number(rawAmount)<=0||!description)
