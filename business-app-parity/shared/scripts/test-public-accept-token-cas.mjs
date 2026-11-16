@@ -42,6 +42,10 @@ const readback=evalSql(current[0].query,{});
 for(const query of [normal,guarded]){
   assert.match(query,/WHERE id=\? AND share_token=\? AND accepted_at IS NULL/,
     'Approval update must check the same saved token inside the mutation');
+  assert.match(query,/total_cents=subtotal_cents-discount_cents/,
+    'Approval must reconcile its discount-adjusted total atomically');
+  assert.match(query,/subtotal_cents=.*COALESCE\\(SUM\\(ei\\.total_cents\\),-1\\)/s,
+    'Approval must reconcile saved itemized service lines atomically');
 }
 assert.match(readback,/FROM estimates WHERE id=\? AND share_token=\?/,
  'A stale token cannot recover an already accepted signature');
@@ -114,5 +118,27 @@ try{
   assert.equal(attempt('alpha','alpha-rotated'),0,
     'Repeated signed update cannot modify an accepted estimate');
   checks+=8;
-  console.log('PASS '+checks+' actual source+native SQLite token-CAS and lost-ACK readback checks; no hosted traffic, credentials or records.');
+  // Use the actual signing UPDATE extracted above, not a duplicated mock.
+  // The same bearer token must not approve inconsistent saved quote math.
+  insert.run('delta','delta-original');
+  item.run('id','delta','Synthetic Line Mismatch');
+  db.prepare("UPDATE estimate_items SET total_cents=15000 WHERE id='id'").run();
+  assert.equal(attempt('delta','delta-original'),0,
+    'Current share token cannot sign a quote whose line sum differs from subtotal');
+  assert.equal(db.prepare("SELECT accepted_at FROM estimates WHERE id='delta'").get().accepted_at,null,
+    'Bad line-sum quote remains unsigned');
+  insert.run('echo','echo-original');
+  item.run('ie','echo','Synthetic Discounted Service');
+  db.prepare("UPDATE estimates SET discount_cents=3000 WHERE id='echo'").run();
+  assert.equal(attempt('echo','echo-original'),0,
+    'Discounted quote cannot retain the undiscounted original total');
+  assert.equal(db.prepare("SELECT accepted_at FROM estimates WHERE id='echo'").get().accepted_at,null,
+    'Bad discounted quote remains unsigned');
+  db.prepare("UPDATE estimates SET total_cents=17000,deposit_cents=8500 WHERE id='echo'").run();
+  assert.equal(attempt('echo','echo-original'),1,
+    'Correctly discounted quote still signs and records agreement');
+  assert.equal(db.prepare("SELECT accepted_at FROM estimates WHERE id='echo'").get().accepted_at,
+    '2026-11-08T00:00:00.000Z','Correctly reconciled signature is committed');
+  checks+=6;
+  console.log('PASS '+checks+' actual source+native SQLite token-CAS, pricing and lost-ACK checks; no hosted traffic, credentials or records.');
 }finally{db.close();}
