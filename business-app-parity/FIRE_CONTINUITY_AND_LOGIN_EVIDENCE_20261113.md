@@ -1,5 +1,14 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — GATE6 ACTUAL CUSTOMER ESTIMATE SIGNATURE LOST D1 BATCH ACK RECOVERY (SOURCE ONLY)
+
+- **Real customer workflow defect closed in unmerged QA-master PR270 source:** the normal public estimate POST could save a customer signature in D1 and lose the batch acknowledgment; its previous outer handler returned generic 500 despite a real saved signature. The source now catches only the signing UPDATE+notification batch error, makes ONE same-estimate-ID + still-current-share-token readback, and returns a private no-store 200 receipt ONLY for an approved signature matching this exact attempted acceptedAt, signedAt, signedName and photo release. Missing/revoked bearer links, conflicting signatures or unavailable readback return private 503 saveUncertain instead. NO second write or notification; no change to valid pricing/stacked promotions, live payments, or agreed terms. All ordinary successful and idempotent receipts now have no-store response headers.
+- **App code commit:** 5a07ca7a96bbfac525edd7750ef34cace773245f. **Focused production-helper plus native SQLite synthetic regression:** 14819fae81332b20c4d6395fb1511198ae68ac38; test AST escape correction 67bdb69cfd56635c331f82c94a510ceb598299c5. Tests reject revoked links, different signer, changed photo permission, mismatched timestamp or status and any second UPDATE; validate a saved same-submission readback. The actual existing GitHub Actions Staging Migration and Shared-App Parity run #43790584908 reports focused Gate6 token-rotation and lost-ACK source+SQLite step SUCCESS; independent DR/NEW LIVE local candidate builds also succeeded. Do not extrapolate to full 26/26 until the last still-running workflow completes.
+- **No provider/gate promotion:** 4/10 accepted G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO. The changes are unmerged and undeployed, not hosted nonowner/Stripe/recovery evidence. Preserve already completed physical NEW LIVE 26/26 SQL and Job #0001, both DARK Workers, exact D1 versions/URL-OFF original owner evidence and spent first-create locks. NEVER re-create/migrate/retest. No R2 or paid Cloudflare, Worker, SQL, Stripe, Access, owner login, payment, DNS, merge or cutover change.
+
+---
+
+
 
 ## NOV 15 — GATE6 ACTUAL PUBLIC QUOTE APPROVAL FINANCIAL AND SIGNATURE VALIDATION (DRAFT SOURCE; NO DEPLOY)
 
