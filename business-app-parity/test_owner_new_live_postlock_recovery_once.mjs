@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {mkdtempSync,readFileSync,rmSync,existsSync,statSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -32,6 +33,16 @@ const proof={
  exactPhysicalD1IdentityMatched:true
 };
 const flag='--execute-separately-approved-new-live-postlock-recovery-20261114';
+const retiredEntrypoint=spawnSync(process.execPath,[
+ fileURLToPath(new URL('./owner_new_live_postlock_recovery_once_separately_approved.mjs',import.meta.url)),
+ 'NONEXISTENT_WRANGLER_DO_NOT_USE',flag
+],{encoding:'utf8',timeout:6000,env:{...process.env,CI:'true'}});
+assert.equal(retiredEntrypoint.status,1,'spent postlock recovery must refuse CLI');
+assert.match(retiredEntrypoint.stderr,/FIRE_NEW_LIVE_POSTLOCK_RECOVERY_STOP/,
+ 'old exact recovery flag cannot trigger ANY new D1 migration');
+assert.doesNotMatch(retiredEntrypoint.stdout||'',/FIRE_NEW_LIVE_SEPARATELY_AUTHORIZED_POSTLOCK_SCHEMA_MATCH_26_OF_26_NO_DEPLOY/,
+ 'only the historical successful owner receipt may claim real 26-of-26 remote success');
+
 let n=0;
 const ok=(v,why)=>{assert.ok(v,why);n++};
 const block=(cb,why)=>{assert.throws(cb,/FIRE_NEW_LIVE_POSTLOCK_RECOVERY_STOP/,why);n++};
