@@ -91,7 +91,7 @@ export function compareImmutableModuleBytes(provider,inventory){
   // 4 non-Wrangler JSON files and BUILD_ID; those are NOT modules under
   // this Worker upload rule. Never fake hosted proof of auxiliary bytes.
   const expected=new Map(),allPaths=new Set();
-  let configs=0;
+  let configs=0,js=0,mjs=0;
   const auxiliary={bin:0,css:0,json:0,buildId:0};
   for(const item of inventory){
     if(!object(item)||!moduleName(item.path)||!hex(item.sha256)||
@@ -101,6 +101,7 @@ export function compareImmutableModuleBytes(provider,inventory){
     allPaths.add(item.path);
     if(item.path==='wrangler.json'){configs++;continue}
     if(/\.(?:js|mjs)$/.test(item.path)){
+      if(item.path.endsWith('.mjs'))mjs++;else js++;
       expected.set(item.path,item);
     }else if(/^fire-inline-assets\/asset-\d{3}-[a-f0-9]{16}\.bin$/.test(item.path)){
       auxiliary.bin++;
@@ -112,7 +113,8 @@ export function compareImmutableModuleBytes(provider,inventory){
       auxiliary.buildId++;
     }else stop('unexpected file type in reviewed archive');
   }
-  if(configs!==1||expected.size!==193||!expected.has('fire-noassets-entry.mjs')||
+  if(configs!==1||js!==190||mjs!==3||expected.size!==193||
+     !expected.has('fire-noassets-entry.mjs')||
      auxiliary.bin!==41||auxiliary.css!==2||auxiliary.json!==4||
      auxiliary.buildId!==1)
     stop('actual Wrangler ESModule configuration and reviewed ZIP inventory disagree');
