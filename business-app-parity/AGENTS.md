@@ -1,3 +1,12 @@
+<!-- FIRE_GATE7_SAVED_RECORDS_REENTRY_FIXED_BUILD_PASS_20261116 -->
+## Nov 16 — Gate7 saved .firerecords review fix and TypeScript build green
+
+Current source-only Gate7 owner backup-readback UI now requires explicitly re-entering the original AES-GCM passphrase after it was deliberately cleared at archive creation, disables saved-file picker until the secret is re-entered, verifies original saved ciphertext using reentered secret and clears it after. Original encryption/recovery format and fail-closed safeguards preserved. Real fixes 0928246e + e0bf4c3a + a7bed192; TS declaration missing new export was caught by actual full-app local compile (initial #43963089007 FAILED) and fixed in cbba3287. Corrected exact code HEAD cbba328724e598e34888590960ffd872b10ee7fe: Gate9 **local-only** build #43963491869 SUCCESS, Gate7 offline protected recovery #43963491846 SUCCESS, public site/calculator protector #43963491883 SUCCESS. Detailed source, test and limitations: [new evidence](evidence/FIRE_GATE7_SAVED_ENCRYPTED_RECORDS_REENTRY_UI_20261116.md) and [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md). No hosted TEST/Stripe proof, no owner real saved archive attestation or Gate7 closure.
+
+Formal 4/10 gates accepted (G1/G2/G3/G8), G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE remains dark NO-GO. Preserve previous approved DR version and NEW LIVE original 26/26 applied migration locks; **NEVER reapply**. No paid Cloudflare/R2, no deployment, Access or DNS changes, Stripe/payments, GitHub merge, or production cutover. Avoid redundant QA/Acer/iPhone/Cloudflare owner screenshots and tests.
+
+---
+
 <!-- FIRE_GATE7_EXACT_JOURNAL_RECOVERY_FIX_NOV16 -->
 ## NOV 16 — REAL Gate7 protected archive integrity fix, validated source-only
 
