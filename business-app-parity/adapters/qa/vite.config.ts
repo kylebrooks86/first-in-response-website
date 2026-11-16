@@ -1,8 +1,8 @@
 import {buildOfflineFieldAssets} from './scripts/build-offline-field.mjs';
 /** New, isolated FIRE synthetic QA Worker ONLY. Do not deploy automatically.
- * Never bind a production D1/R2, Stripe, custom domain or ChatGPT Sites resource.
- * QA R2 name is RESERVED FOR A FUTURE NEW QA-ONLY BUCKET; source does not
- * prove that the remote bucket exists or authorize creating/publishing it.
+ * NEVER require or bind Cloudflare R2. Customer photo originals remain in
+ * the accepted device-local vault and independently saved protected ZIPs.
+ * No production D1, Stripe, custom domain or ChatGPT Sites resource.
  */
 import vinext from "vinext";
 import { defineConfig } from "vite";
@@ -10,7 +10,6 @@ import { defineConfig } from "vite";
 const QA_WORKER = "fire-fullapp-qa-20261016";
 const QA_DB_NAME = "fire-fullapp-qa-db-20261016";
 const QA_DB_ID = "8ccfb1f8-1657-4074-b1b2-47de78f95003";
-const QA_PHOTO_BUCKET = "fire-fullapp-qa-photos-20261023";
 // Permanent Job # display/search/creation is OFF by default.
 // Only a target-bound OWNER-reviewed D1 schema, immutable trigger/link and
 // numbering high-water receipt may authorize adding this flag to a build.
@@ -100,11 +99,10 @@ export default defineConfig(async () => {
             ...reviewedJobNumberVars,
             ...reviewedQuickAuthVars
           },
-          d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }],
-          // Separate QA-only photo storage. Must be newly created and
-          // owner-verified before any deployment, NEVER an existing LIVE bucket.
-          r2_buckets: [{ binding: "BUCKET", bucket_name: QA_PHOTO_BUCKET }]
-          // No Stripe, DNS, routes or existing Worker bindings.
+          // The approved QA master has NO R2 subscription and NO R2 binding.
+          // Preserve the existing device-local photo vault and owner ZIP workflow.
+          d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }]
+          // No Stripe, paid Cloudflare, DNS, routes or existing Worker bindings.
         }
       })
     ]
