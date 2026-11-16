@@ -7,7 +7,9 @@
 const jsonReply=(error,status)=>Response.json(
  {error},{status,headers:{"Cache-Control":"no-store"}}
 );
-const deny=(status,message)=>({response:jsonReply(message,status)});
+// Always expose both properties: TypeScript/Next must typecheck every
+// public signature route without narrowing a mixed-shape JS return union.
+const deny=(status,message)=>({response:jsonReply(message,status),value:undefined});
 export async function readCustomerWriteJson(request,allowedFields,maxBytes=8192){
  if(!Array.isArray(allowedFields)||!allowedFields.every(x=>typeof x==='string')||
     !Number.isSafeInteger(maxBytes)||maxBytes<1)
@@ -54,7 +56,7 @@ export async function readCustomerWriteJson(request,allowedFields,maxBytes=8192)
   if(!body||typeof body!=="object"||Array.isArray(body)||
      Object.keys(body).some(key=>!allowedFields.includes(key)))
    return deny(400,"Invalid customer request.");
-  return {value:body};
+  return {response:undefined,value:body};
  }catch{
   return deny(400,"Invalid customer request.");
  }finally{
