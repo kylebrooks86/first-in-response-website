@@ -1,3 +1,20 @@
+<!-- FIRE_GATE4_REAL_ARCHIVE_ESMODULE_CORRECTION_20261116 -->
+## NOV 16 — GATE4 REAL OWNER-PRIVATE ZIP READBACK CORRECTED ACTUAL MODULE COUNT; PREVIOUS 241-MODULE SOURCE CLAIM SUPERSEDED
+
+**Actual newly retrieved source bytes, NOT a synthetic fixture:** Connected owner-private Google Drive file `FIRE-DR-QA15bd714c-DARK-NO-SECRETS-SOURCE-REVIEW.zip` (`fileId=1Px9qSLH1V9sCWdLRUalEcZucsRn3y-j0`) was fetched read-only. Local SHA-256 was cryptographically verified as **`eee57f2a5f98c4c9aa84c881818414094868bae5fef41d45c339073e269ecfb0`** (exact approved ZIP). Opened all 243 actual entries, inspected original sealed `first-create-source-only-receipt.json`, and matched the SHA-256 and length of **all 242 server files**, with **zero mismatches**. No user-upload, Acer retest or provider contact needed.
+
+**Real contents:** 190 JavaScript `.js`, 3 `.mjs`, 41 binary `.bin`, 5 JSON **including** `wrangler.json`, 2 CSS, and 1 `BUILD_ID` = 242 server files. **Exactly 193 runtime JS/MJS modules**, with **48 auxiliary nonruntime files** and **one Wrangler config**. The approved original `server/wrangler.json` specifies `find_additional_modules:true`, `no_bundle:true`, and **only `ESModule` `globs: ["**/*.js","**/*.mjs"]`**; per official Cloudflare bundling docs, only files matching `rules` are additional external modules. The previous offline checker incorrectly asserted **241** hosted modules by counting binary/config/non-JavaScript files, so it would have false-failed an otherwise valid provider module readback. **This documentation explicitly supersedes the previous "241 hosted modules" implementation claims below.** Do NOT alter frozen deployed QA/DR runtime or repeat owner DR deployment to address a verifier-only defect.
+
+**Actual corrective GitHub source work** on existing unmerged PR270:
+- Read-only Gate4 tool `owner_dr_immutable_module_bytes_readonly.mjs` now requires **193** expected hosted ESModules, exact 190-JS/3-MJS composition, the already independently confirmed 41 BIN/2 CSS/4 non-Wrangler JSON/1 BUILD_ID auxiliary inventory, one `wrangler.json`, and exact entry/main/version/name/decoded SHA-256/length equality. **Auxiliary 48 bytes are explicitly NOT claimed remotely verified** by JS module GET.
+- Test fixture changed from an invented 241-module layout to the actual approved 193-module/49-nonmodule layout, with additional negative tests for auxiliary modules, asset reclassification and missing asset. Original complete 243-entry ZIP fingerprint remains unchanged.
+- Corrective code commits `fe2eaa74b1342a10fc6175aeb176090f0aca3d77`, `5910985e771c5a24234bd03a9682d43f5bda491a`, `7b0890b541a30a0f59e2d18ea392312a62a34880`, `f6b42535e6652c11d9b804f2988903c5cc006e55`. Changed-function CI [#43946427743](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43946427743) **SUCCESS**. Existing exact public-site/calculator protector [#43946427850](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43946427850) **SUCCESS**. No provider calls in CI.
+- **Even this real private ZIP proof is NOT authenticated hosting source-byte proof.** The actual Cloudflare immutable-version GET has NOT been performed. It can prove only the runtime JS/MJS modules if physically captured and matched; Cloudflare does NOT automatically attest archived auxiliary byte identity via those module rules. G4 OPEN. Retain previously **accepted** owner-hosted DR 100%-serving `f7b7e27c-986b-44b5-b0f9-5e8e4b623426`, physical D1, blocked login, zero R2, prior immutable rollback listing unchanged. Once-only DR publisher LOCK is spent; NEVER retry.
+
+Formal gate acceptance unchanged **G1/G2/G3/G8 = 4/10**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO. No new QA/STAGING/TEST/DR/NEW LIVE cloud writes, no Stripe/D1 SQL/payments, no paid Cloudflare/R2, no merge, route, DNS or cutover.
+
+---
+
 <!-- FIRE_GATE4_IMMUTABLE_MODULE_BYTES_PROOF_SOURCE_20261116 -->
 ## NOV 16, 2026 — NEW **ACTUAL GATE4 SOURCE FIX**: 241 immutable hosted DR Worker module bytes can now be compared against owner-approved ZIP (OFFLINE CI GREEN; LIVE BYTE CAPTURE NOT DONE)
 
