@@ -4,9 +4,12 @@
  */
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createHash} from 'node:crypto';
+import {hashUnchangedProtectedFile}
+ from './rehearse_protected_complete_records_and_photos.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './shared/lib/numbered-records-v2-preflight.mjs';
 import {exportCompleteIsolatedSqliteSnapshot} from './export_complete_isolated_sqlite_snapshot.mjs';
 import {restoreNumberedRecordsToIsolatedSqlite} from './restore_numbered_records_to_isolated_sqlite.mjs';
@@ -14,6 +17,32 @@ const folder=await mkdtemp(join(tmpdir(),'fire-isolated-recovery-'));
 const template=join(folder,'template.sqlite'),source=join(folder,'source.sqlite');
 const core=join(folder,'core.json'),supp=join(folder,'supplemental.json'),restored=join(folder,'restored.sqlite');
 try{
+ // Gate7 final paired recovery must verify actual descriptor-held saved bytes,
+ // not a pathname reopened after an earlier lstat. All fixtures are synthetic.
+ const sourceCipher=join(folder,'fake-firerecords-for-final-read.bin');
+ const exactCipher=Buffer.alloc(256,0x51);
+ exactCipher.write('FIRERB01',0,'ascii');
+ await writeFile(sourceCipher,exactCipher);
+ const digest=await hashUnchangedProtectedFile(sourceCipher,1024);
+ assert.equal(digest,createHash('sha256').update(exactCipher).digest('hex'),
+  'final recovery verifier hashes exact original bytes by a verified descriptor');
+ const fakeLink=join(folder,'linked-firerecords.bin');
+ await symlink(sourceCipher,fakeLink);
+ await assert.rejects(hashUnchangedProtectedFile(fakeLink,1024),
+  /saved encrypted recovery source metadata unavailable/,
+  'final recovery must refuse a symbolic-link substitution');
+ await assert.rejects(hashUnchangedProtectedFile(undefined,1024),
+  /source path or size limit invalid/,
+  'missing source filename cannot cause an uncontrolled resolve error');
+ await assert.rejects(hashUnchangedProtectedFile(sourceCipher,128),
+  /saved encrypted recovery source metadata unavailable/,
+  'oversized encrypted recovery source must be refused');
+ const tamperedCipher=Buffer.from(exactCipher);
+ tamperedCipher[192]^=0x01;
+ await writeFile(sourceCipher,tamperedCipher);
+ const tamperedDigest=await hashUnchangedProtectedFile(sourceCipher,1024);
+ assert.notEqual(tamperedDigest,digest,
+  'same-length replacement after initial proof cannot reuse old source SHA');
  const db=new DatabaseSync(template);
  for(const table of [...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]){
   if(table==='fire_customer_numbers'||table==='fire_job_numbers')
