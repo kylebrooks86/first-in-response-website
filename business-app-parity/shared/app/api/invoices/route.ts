@@ -6,7 +6,7 @@ import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refu
 import {attachedJobNumbers} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import {readOwnerWriteObject} from '../../../lib/owner-write-object-guard.mjs';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
