@@ -1,3 +1,12 @@
+<!-- FIRE_OWNER_EXPENSE_INPUT_GUARD_GREEN_20261116 -->
+## NOV 16 — Expense POST bounded financial JSON; validated without provider writes
+
+**Real app source fix on existing DRAFT PR270** (NOT hosted): Owner `/api/expenses` now uses existing shared `readOwnerWriteObject(request, 32000)` before any finance/estimate DB operation rather than unrestricted `request.json()`. Commit `3cf8ebee`; zero new Worker modules; legitimate expense whole-cent, date, immutable request ID, lost-ACK recovery and Wave export semantics preserved. Changed-function actual-route native SQLite negative and positive tests `3638d58d`, Wave CSV route fixture updated `77dd2de8` to use original shared parser without changing CSV behavior. Exact tested **code SHA `77dd2de8a6f40309034202a4c7451b4291d1ed4e` has 27/27 GitHub workflows SUCCESS**: shared source/expense test [#43965511144](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511144), local full-app source [#43965511196](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511196), public website/calculator [#43965511073](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43965511073). Full [dedicated evidence](evidence/FIRE_OWNER_EXPENSE_BOUNDED_WRITE_VERIFIED_20261116.md) and [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md).
+
+**NO gate closed by source-only tests.** G1/G2/G3/G8 accepted 4/10; G4/G5/G6/G7/G9/G10 OPEN; DARK NEW LIVE NO-GO and future clean Job #0001. Do not deploy, merge, reapply physical NEW LIVE already completed D1 26/26, repeat accepted owner Acer/iPhone/Cloudflare checks, change payments/Stripe/Access/routes/DNS, or activate paid Cloudflare/R2 absent separate exact authorization.
+
+---
+
 <!-- FIRE_GATE7_SAVED_RECORDS_REENTRY_FIXED_BUILD_PASS_20261116 -->
 ## Nov 16 — Gate7 saved .firerecords review fix and TypeScript build green
 
