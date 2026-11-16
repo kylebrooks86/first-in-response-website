@@ -34,9 +34,15 @@ export function prepare(originalFile, deployFile) {
   // Either the historical candidate's exact QA-only optional R2 declaration or
   // no bucket at all is allowed; both deploy as D1-only.
   if (Object.hasOwn(config, "r2_buckets")) {
-    assert.deepEqual(config.r2_buckets, [{
-      binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"
-    }], "Unexpected R2 binding; refuse QA deploy");
+    assert.ok(Array.isArray(config.r2_buckets), "Malformed QA R2 declaration");
+    // Vinext may emit [] for a no-R2 target. Both [] and the single
+    // historically reviewed optional QA-only placeholder produce the same
+    // final NO-R2 deployment manifest. All other buckets fail closed.
+    if (config.r2_buckets.length > 0) {
+      assert.deepEqual(config.r2_buckets, [{
+        binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"
+      }], "Unexpected R2 binding; refuse QA deploy");
+    }
   }
   // Wrangler compiles unused services/queues/DO metadata as empty objects.
   // Accept that default representation but forbid any actual resource or
