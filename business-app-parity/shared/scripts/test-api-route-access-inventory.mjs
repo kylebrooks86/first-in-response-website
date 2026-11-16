@@ -88,7 +88,7 @@ for(const file of files){
   assert.match(content,/status:404/,'No-owner or no-flag must hide feature existence');
   assert.match(content,/completeBackup:false/,'Capability never claims an actual backup');
   assert.match(content,/gate7Accepted:false/,'Owner UI eligibility is not Gate7 release');
-  assert.doesNotMatch(content,/env\\.DB|\\.prepare\\(|\\.batch\\(|(?:POST|PUT|PATCH|DELETE)\\s*\\(/,
+  assert.doesNotMatch(content,/env\.DB|\.prepare\(|\.batch\(|(?:POST|PUT|PATCH|DELETE)\s*\(/,
    'Capability cannot read customer D1 rows or include provider write path');
  }
  if(rel==='backup/legacy-review/route.ts'){
