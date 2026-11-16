@@ -1,3 +1,14 @@
+<!-- FIRE_DR_WORKER_ACCESS_ABSENT_OWNER_20261116 -->
+## NOV 16 — New post-update DR owner Access-tab screenshot: **NO WORKER-SPECIFIC ACCESS POLICY CONFIGURED** (NOT security acceptance)
+
+Owner uploaded genuine authenticated iPhone Safari screenshot `IMG_4381.png` (1320×2868 PNG, 438,302 bytes, SHA256 `98d9fcc8f80f35516d6b124ea9b84b82bd9ea7a55dbf6d80845ef203f9d313c4`). Visible Worker **`fire-fullapp-dr`**, selected **Access** tab in `dash.cloudflare.com`. Cloudflare literally states **“This Worker is not protected by Access”** and **“No Worker-specific policy is configured. Traffic remains public unless a hostname or account policy applies.”**, with orange **“Not protected yet”** and an unpressed **“Protect this Worker behind Access”** button.
+
+**Genuine newly CLOSED evidence-capture subtask:** the Worker-level Access screen has been physically observed **after the code update** and shows *absence* of an Access policy. **Do NOT mark Cloudflare Access protected, externally nonowner-rejected or Gate4 security passed.** The existing new [DR Domains screenshot evidence](evidence/FIRE_DR_POSTUPDATE_WORKER_DOMAIN_SURFACE_OWNER_20261116.md) separately shows production workers.dev OFF, Preview OFF, no Worker-associated routes/domains. Disabled public URLs reduce ingress, but do not establish account-wide route enumeration or that no external calls are possible. Worker Access UI cannot settle hostname/account-level Access policies. Screenshot shows no immutable version; accepted owner Acer physical readback separately confirms new DR version `f7b7e27c-986b-44b5-b0f9-5e8e4b623426`/independent D1.
+
+**Canonical evidence record:** [FIRE_DR_POSTUPDATE_OWNER_ACCESS_TAB_20261116.md](evidence/FIRE_DR_POSTUPDATE_OWNER_ACCESS_TAB_20261116.md) includes precise screenshot scope, limitations, original file identity. Do **NOT** request the same Access tab screenshot again, press “Protect” or change Cloudflare Access, routes, DNS, payments, SQL, or login without separate exact authorization. Owner no-paid-Cloudflare/NO-R2 and no repeated unsuccessful login remain binding. **Formal acceptance still G1/G2/G3/G8 = 4/10, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO.**
+
+---
+
 <!-- FIRE_G4_POSTUPDATE_DR_DOMAINS_OWNER_SCREEN_20261116 -->
 ## Nov 16 — NEW real post-code-update DARK DR Worker Domains screenshot verified; worker-level public-exposure subcheck captured
 
