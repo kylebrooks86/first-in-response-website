@@ -8,18 +8,27 @@ assert.ok(!/export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE)\s*\(/.test(src
 let js=src.slice(src.indexOf('const ownerEmail='))
  .replaceAll('status:number','status')
  .replaceAll('message:string','message')
- .replace('env as typeof env & {FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE?:string}','env')
+ .replace('env as typeof env & {FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE?:string;FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE?:string}','env')
  .replace('export async function GET()','async function GET()');
 assert.ok(js.includes('async function GET()'));
-let count=0,providerRequests=0,authEmail=null,enabled='',property=false,location=false,throwCapture=false;
+let count=0,fullCount=0,providerRequests=0,authEmail=null,enabled='',fullEnabled='',property=false,location=false,throwCapture=false;
 const source={format:'fire-numbered-core-records-snapshot',version:2,tables:{customers:[{id:'synthetic'}]}};
 const ctx={
  Response,
- env:{DB:{marker:'synthetic-db'},get FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE(){return enabled}},
+ env:{DB:{marker:'synthetic-db'},get FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE(){return enabled},get FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE(){return fullEnabled}},
  getChatGPTUser:async()=>authEmail===null?null:{email:authEmail},
  captureNumberedCoreV2ReadOnly:async db=>{count++;assert.equal(db,ctx.env.DB);if(throwCapture)throw new Error('Sensitive synthetic private failure');return source},
  serviceLocationsEnabled:()=>location,
- customerPropertiesEnabled:()=>property
+ customerPropertiesEnabled:()=>property,
+ captureCompleteReviewedD1RecordsReadOnly:async (db,flags)=>{
+  fullCount++;assert.equal(db,ctx.env.DB);
+  assert.deepEqual({customerProperties:flags.customerProperties,serviceLocations:flags.serviceLocations},
+   {customerProperties:property,serviceLocations:location});
+  if(throwCapture)throw Error('Private source-read error must never leak');
+  return {format:'fire-full-d1-records-review',version:1,allReviewedRecordTablesIncluded:true,
+   completeBackup:false,offDeviceCustodyVerified:false,photoBytesIncluded:false,
+   core:source,supplemental:{tables:{auth_rate_limits:[],d1_migrations:[]}}};
+ }
 };
 vm.runInNewContext(js+'\nthis.handler=GET;',ctx);
 let checks=0;
@@ -58,6 +67,29 @@ try{
  eq(data.coreSnapshot,source,'Original exact core snapshot preserved in nested review payload');
  eq(data.format,'fire-numbered-core-export-review','Envelope differs from true v2 core archive');
  eq(count,1,'Only authorized owner triggers one database snapshot');
+ // New complete-records review requires its OWN explicit separate flag;
+ // the old core flag can NEVER make the larger private export accessible.
+ enabled='';fullEnabled='owner-review-only';
+ property=false;location=false;
+ res=await response();
+ eq(res.status,200,'Explicitly authorized owner gets expanded transactional record review');
+ eq(res.headers.get('cache-control'),'private, no-store','Expanded private data never cached');
+ assert.match(res.headers.get('content-disposition')??'',/NOT-PROTECTED-BACKUP/);checks++;
+ const full=await res.json();
+ eq(full.format,'fire-complete-d1-records-owner-review','Complete source review has its own distinct output contract');
+ eq(full.completeBackup,false,'Full D1 records without original photos and encryption are not a backup');
+ eq(full.recoveryAuthorized,false,'Full read-only source does not authorize restore or release');
+ eq(full.reviewedRecords.allReviewedRecordTablesIncluded,true,'Expanded result includes reviewed supplementary records');
+ eq(fullCount,1,'Separate explicit flag performs exactly one expanded review read');
+ property=true;location=true;
+ res=await response();
+ eq(res.status,200,'Property and service-location tables are delegated for reviewed full capture');
+ eq(fullCount,2,'Both optional flags pass to complete-coverage capture');
+ property=false;location=false;
+ throwCapture=true;res=await response();
+ eq(res.status,503,'Complete-read errors fail without returning partial customer data');
+ assert.ok(!(await res.text()).includes('Private source-read error'));checks++;
+ fullEnabled='';enabled='owner-review-only';
  throwCapture=true;
  res=await response();
  eq(res.status,503,'Database corruption or error blocks export');
