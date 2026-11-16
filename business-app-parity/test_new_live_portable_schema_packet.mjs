@@ -40,6 +40,13 @@ try{
    config.r2_buckets===undefined&&config.assets===undefined&&
    config.routes===undefined,
    'only one independent target D1, no R2, services, Workers or remote routes');
+ const operatorNotice=readFileSync(join(root,'OWNER_READ_ME_FIRST.txt'),'utf8');
+ pass(operatorNotice.includes('November 14, 2026')&&
+   operatorNotice.includes('already completed 26/26')&&
+   operatorNotice.includes('NEVER reapply')&&
+   operatorNotice.includes('The old installer is CONSUMED.')&&
+   !operatorNotice.includes('empty schema verification are mandatory before any remote one-shot migration'),
+   'new portable source packet cannot instruct owner to repeat accepted NEW LIVE 26/26 migration');
  const receipt=JSON.parse(readFileSync(join(root,'portable-schema-source-receipt.json')));
  pass(receipt.sqlFiles.length===26&&receipt.remoteMigrationAuthorized===false&&
    receipt.workerDeployed===false&&receipt.gatesClosedByThisSourcePacket===0,
