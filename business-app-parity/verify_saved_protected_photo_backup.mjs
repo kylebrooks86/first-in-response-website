@@ -11,7 +11,7 @@
  * The file is opened from disk, not a prepared in-memory download.
  * All decrypted bytes remain in process memory and are not written to disk.
  */
-import {readFile} from 'node:fs/promises';
+import {open,lstat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -146,14 +146,38 @@ async function readPhrase(){
  if(input.length<16||input.length>1024)fail('missing or unsupported recovery passphrase');
  return input;
 }
+/** Prevent an enormous/symlink-swapped owner photo backup from being
+ * opened by readFile(path) before any size, inode or mutation check.
+ * The held descriptor is checked against lstat BEFORE and AFTER reading.
+ * This proves exact local ciphertext identity, not off-device custody.
+ */
+const unchanged=(start,end)=>end?.isFile()&&!end.isSymbolicLink()&&
+ start.dev===end.dev&&start.ino===end.ino&&start.size===end.size&&
+ start.mtimeMs===end.mtimeMs&&start.ctimeMs===end.ctimeMs;
+export async function readUnchangedSavedProtectedPhotoFile(path){
+ if(typeof path!=='string'||!path)fail('saved encrypted photo path required');
+ const filename=resolve(path);
+ let saved,handle,before;
+ try{
+  before=await lstat(filename);
+  if(!before.isFile()||before.isSymbolicLink()||
+     before.size<=64||before.size>MAX_ARCHIVE+4096)
+   fail('saved encrypted photo archive missing or exceeds safe size');
+  handle=await open(filename,'r');
+  if(!unchanged(before,await handle.stat()))
+   fail('saved encrypted photo source changed before open');
+  saved=await handle.readFile();
+  if(saved.length!==before.size||!unchanged(before,await handle.stat())||
+     !unchanged(before,await lstat(filename)))
+   fail('saved encrypted photo source changed during read');
+ }catch{fail('saved photo backup missing, replaced or unsupported');}
+ finally{if(handle)await handle.close().catch(()=>{});}
+ return saved;
+}
 export async function verifyOwnerSavedProtectedPhotoFile(path,phrase){
  if(typeof path!=='string'||!path||typeof phrase!=='string')
   fail('a saved protected file and owner-supplied secret are required');
- let file;
- try{file=await readFile(resolve(path));}
- catch{fail('saved file could not be opened for read-only verification');}
- if(file.length<=64||file.length>MAX_ARCHIVE+4096)
-  fail('protected backup file size is unsupported');
+ const file=await readUnchangedSavedProtectedPhotoFile(path);
  const blob=new Blob([file]);
  if(!await isProtectedOfflinePhotoArchive(blob))
   fail('only encrypted .firephotos files are accepted; old plain ZIPs remain unprotected');
