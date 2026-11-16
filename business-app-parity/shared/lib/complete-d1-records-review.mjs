@@ -18,7 +18,7 @@ import {verifySignedAgreementDigests} from './deposit-agreement-backup.mjs';
 
 const coreTables=Object.freeze([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]);
 const mandatorySupplemental=Object.freeze(['auth_rate_limits','d1_migrations']);
-const propertyTables=Object.freeze(['customer_properties']);
+const propertyTables=Object.freeze(['customer_properties','estimate_property_links','property_recovery_guard']);
 const locationTables=Object.freeze(['estimate_service_locations']);
 const providerTables=new Set(['_cf_KV','_cf_METADATA']);
 const maxReviewBytes=5_000_000;
@@ -34,7 +34,7 @@ const resultRows=(x,label)=>{
 const providerKV=/^CREATE\s+TABLE\s+(?:_cf_KV|"_cf_KV"|\u0060_cf_KV\u0060|\[_cf_KV\])\s*\(\s*(?:key|"key"|\u0060key\u0060|\[key\])\s+TEXT\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|\u0060value\u0060|\[value\])\s+BLOB\s*\)\s+WITHOUT\s+ROWID\s*;?$/i;
 const providerMetadata=/^CREATE\s+TABLE\s+(?:_cf_METADATA|"_cf_METADATA"|\u0060_cf_METADATA\u0060|\[_cf_METADATA\])\s*\(\s*(?:key|"key"|\u0060key\u0060|\[key\])\s+INTEGER\s+PRIMARY\s+KEY\s*,\s*(?:value|"value"|\u0060value\u0060|\[value\])\s+BLOB\s*\)\s*;?$/i;
 const validValue=x=>x===null||typeof x==='string'||typeof x==='boolean'||
- typeof x==='number'&&Number.isSafeInteger(x);
+ typeof x==='number'&&Number.isFinite(x);
 const legalRows=(data,columns,table)=>{
  if(!Array.isArray(columns)||!columns.length||columns.some(c=>!ident(c.name))||
     new Set(columns.map(c=>c.name)).size!==columns.length)
@@ -53,8 +53,9 @@ export async function captureCompleteReviewedD1RecordsReadOnly(db,
  {customerProperties=false,serviceLocations=false}={}){
  if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')
   stop('transactional D1 read capability required');
- if(typeof customerProperties!=='boolean'||typeof serviceLocations!=='boolean')
-  stop('explicit optional schema selectors required');
+ if(typeof customerProperties!=='boolean'||typeof serviceLocations!=='boolean'||
+    (customerProperties&&!serviceLocations))
+  stop('explicit compatible optional schema selectors required');
  if(coreTables.length!==23||new Set(coreTables).size!==23)
   stop('numbered-core contract changed');
  const supplemental=[...mandatorySupplemental,
@@ -145,6 +146,38 @@ export async function captureCompleteReviewedD1RecordsReadOnly(db,
   rowCounts:Object.fromEntries(supplemental.map(t=>[t,rowCounts[t]])),
   sqliteSequence:Object.fromEntries(supplemental.filter(t=>seqs.has(t)).map(t=>[t,seqs.get(t)]))};
  validateNumberedCoreRecordsV2(core);
+ // Property/service history belongs to the exact numbered customers and
+ // estimates. A logically mismatched archive must not be labelled complete.
+ const customers=new Set(core.tables.customers.map(x=>x.id));
+ const estimates=new Map(core.tables.estimates.map(x=>[x.id,x]));
+ if(serviceLocations){
+  for(const loc of data.estimate_service_locations){
+   const estimate=estimates.get(loc.estimate_id);
+   if(!estimate||loc.customer_id!==estimate.customer_id||
+      !customers.has(loc.customer_id)||typeof loc.address!=='string'||
+      loc.address.trim()==='')stop('service-address relationship or value mismatch');
+  }
+ }
+ if(customerProperties){
+  const properties=new Map();
+  for(const p of data.customer_properties){
+   if(properties.has(p.id)||!customers.has(p.customer_id)||
+      typeof p.address!=='string'||p.address.trim()==='')
+    stop('property owner or identity mismatch');
+   properties.set(p.id,p);
+  }
+  const locations=new Map(data.estimate_service_locations.map(x=>[x.estimate_id,x]));
+  for(const link of data.estimate_property_links){
+   const p=properties.get(link.property_id);
+   const e=estimates.get(link.estimate_id);
+   const l=locations.get(link.estimate_id);
+   if(!p||!e||!l||e.customer_id!==link.customer_id||
+      p.customer_id!==link.customer_id||l.customer_id!==link.customer_id||
+      link.property_revision!==p.revision||l.captured_at!==link.captured_at||
+      l.address!==p.address+(p.designation?' · '+p.designation:''))
+    stop('property selection or immutable service-location mismatch');
+  }
+ }
  if(await verifySignedAgreementDigests(core.tables))
   stop('original signed agreement digests do not verify');
  const packed=JSON.stringify({core,supplemental:extra});
