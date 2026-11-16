@@ -74,6 +74,19 @@ try{
  equal(original.photoBytesIncluded,false,'customer photo metadata is not actual image bytes');
  equal(original.cloudflareWritesPerformed,false,'no provider or D1 modifications');
  equal(writes,0,'all captured SQL is read-only');
+ // Provider-owned D1 internal tables must not be silently mistaken for
+ // customer photos or archived as business data. Their precise reviewed DDL
+ // is allowed without altering the physical business-schema fingerprint.
+ db.exec('CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB)');
+ db.exec('CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB) WITHOUT ROWID');
+ const provider=await captureCompleteReviewedD1RecordsReadOnly(makeD1());
+ equal(provider.schemaIdentity.sha256,original.schemaIdentity.sha256,
+  'exact Cloudflare provider bookkeeping does not corrupt source schema seal');
+ equal(provider.sourceTables,25,'provider-only internal tables not exported as business');
+ await deny(captureCompleteReviewedD1RecordsReadOnly(makeD1(res=>{
+  res[0].results.find(x=>x.name==='_cf_METADATA').sql='CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB, secret TEXT)';
+ })), 'provider table with invented durable field must fail closed');
+ db.exec('DROP TABLE _cf_METADATA; DROP TABLE _cf_KV');
  const originalRows=original.core.rowCounts.customers;
  await deny(captureCompleteReviewedD1RecordsReadOnly(makeD1(results=>{
   results[2].results.find(x=>x.table_name==='customers').count=0;
