@@ -1,3 +1,10 @@
+<!-- FIRE-EXISTING-DARK-POSTUPDATE-NOV16 -->
+## Current next release boundary — code update + NEW version readback prepared, NOT executed
+
+In DRAFT PR270, existing DARK DR/NEW LIVE code-only update CLI is source-ready (requires **new exact owner approval per target**); matching post-update **read-only** verifier `owner_existing_dark_code_update_postdeploy_readonly.mjs` is now implemented. Focused changed-code [GitHub CI #43912664572](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43912664572) **SUCCESS**, log has **11/11 existing-dark offline guards + 25/25 new-version postupdate safety**, zero provider contacts. Main public website/calculator gate [#43912664555](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43912664555) **SUCCESS**, public website [#43912664289](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43912664289) SUCCESS. Exact new postupdate verifier checks **100% new immutable version, correct physical D1, owner account, blocked login, zero R2/other bindings** after a *future separately authorized* code-only update; does NOT claim hosted code SHA, public route/Access/nonowner controls, Gate4, or release. Original older postcreate verifier records old source SHA and must not be promoted to new source proof. BOTH DR and NEW LIVE ALREADY EXIST; DO NOT create again, apply SQL again, remove locks, deploy, or redo accepted QA/Acer evidence. No environment code deployed in this step, no Cloudflare/Stripe/R2/payment/Access/merge/DNS write. **4/10 accepted, six open; NEW LIVE DARK NO-GO**. Full evidence in canonical continuity register.
+
+---
+
 <!-- FIRE-GUARDED-EXISTING-DARK-CODE-UPDATE-20261116 -->
 ## Current release direction after QA hosted success — Nov 16
 
