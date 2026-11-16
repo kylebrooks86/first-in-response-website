@@ -7,9 +7,10 @@
  * Never claim remotely served source-byte parity from version metadata.
  * Never enable login, routes, Access, Stripe or paid Cloudflare products.
  */
-import {existsSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {homedir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {verifyCurrentDarkHostedEvidence} from './owner_current_dark_postcreate_readonly.mjs';
 import {TARGETS} from './owner_existing_dark_code_update_once_approved.mjs';
@@ -58,6 +59,33 @@ export function verifyExistingDarkPostUpdate(target,expectedVersion,replies){
  });
 }
 
+/** A changed version alone cannot attribute a deployment to FIRE's approved
+ * owner update. Check the durable original attempt lock before provider reads.
+ * Never create, delete, rename, or reset a historical remote-attempt lock. */
+export function verifyOriginalDarkUpdateAttempt(target,record){
+ const spec=TARGETS[target];
+ if(!spec||!record||typeof record!=='object'||Array.isArray(record)||
+    record.action!=='EXISTING_DARK_WORKER_CODE_UPDATE_ONLY'||
+    record.target!==target||record.worker!==spec.name||
+    record.predecessorVersion!==spec.previousVersion||
+    record.physicalD1!==spec.uuid||record.sourceSha!==SOURCE||
+    record.reviewedZipSha256!==spec.sha||
+    record.status!=='UNKNOWN_IF_INTERRUPTED_NO_RETRY'||
+    typeof record.timeUtc!=='string'||!Number.isFinite(Date.parse(record.timeUtc)))
+  fail('missing, altered, or unrelated original owner update attempt lock');
+ return Object.freeze({target,originalAttemptLockValidated:true});
+}
+function requireOriginalAttemptLock(target){
+ const root=join(homedir(),'Documents',
+  'FIRE-EXISTING-DARK-UPDATE-'+target.toUpperCase()+'-'+SOURCE.slice(0,8));
+ const lock=join(root,'REMOTE-UPDATE-ATTEMPT-LOCK.json');
+ if(!existsSync(lock))fail('original attempted update lock ABSENT; do not attribute a new version');
+ let record;
+ try{record=JSON.parse(readFileSync(lock,'utf8'))}
+ catch{fail('original update attempt lock unreadable; preserve it')}
+ return verifyOriginalDarkUpdateAttempt(target,record);
+}
+
 function command(args){
  // Explicit allow-list: never accept an arbitrary wrangler instruction.
  const staticCommands=[
@@ -89,6 +117,7 @@ function capture(target,newVersion){
   fail('only existing owner Acer authenticated interactive session may capture');
  if(process.env.CLOUDFLARE_ACCOUNT_ID&&process.env.CLOUDFLARE_ACCOUNT_ID!==ACCOUNT)
   fail('Cloudflare account mismatch; no switch or sign-in retry');
+ requireOriginalAttemptLock(target);
  currentTarget=target;currentVersion=newVersion;
  const s=TARGETS[target];
  if(!s||!uuid(newVersion)||newVersion===s.previousVersion)
