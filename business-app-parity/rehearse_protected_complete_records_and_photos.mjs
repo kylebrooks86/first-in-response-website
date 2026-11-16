@@ -18,8 +18,7 @@
  */
 import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
-import {createReadStream} from 'node:fs';
-import {lstat,unlink} from 'node:fs/promises';
+import {open,lstat,unlink} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {inspectSavedProtectedCompleteRecords}
@@ -89,27 +88,47 @@ export function assertProtectedRecoverySourceCustody({
   offDeviceCustodyVerified:false,gate7Accepted:false
  });
 }
-async function hashUnchangedProtectedFile(file,maxBytes){
+// The final records/photo/SQLite fingerprints must hash the EXACT inode
+// originally inspected, rather than lstat(path), re-open(path), lstat(path).
+// A temporary rename/symlink substitution can otherwise feed unrelated bytes
+// between two valid path checks. This is NOT an atomic source snapshot.
+const sameRecoveryFile=(before,after)=>after?.isFile()&&!after.isSymbolicLink()&&
+ after.dev===before.dev&&after.ino===before.ino&&
+ after.size===before.size&&after.mtimeMs===before.mtimeMs&&
+ after.ctimeMs===before.ctimeMs;
+export async function hashUnchangedProtectedFile(file,maxBytes){
+ if(typeof file!=='string'||!file||
+    !Number.isSafeInteger(maxBytes)||maxBytes<64)
+  stop('saved encrypted recovery source path or size limit invalid');
+ const path=resolve(file);
  let before;
  try{
-  before=await lstat(resolve(file));
+  before=await lstat(path);
   if(!before.isFile()||before.isSymbolicLink()||
      before.size<64||before.size>maxBytes)
    stop('saved encrypted recovery source is not a supported regular file');
  }catch{stop('saved encrypted recovery source metadata unavailable');}
- let size=0,digest=createHash('sha256');
+ let size=0,handle;
+ const digest=createHash('sha256');
  try{
-  for await(const bytes of createReadStream(resolve(file))){
+  handle=await open(path,'r');
+  if(!sameRecoveryFile(before,await handle.stat()))
+   stop('saved recovery source changed before descriptor open');
+  // Read through the held descriptor. Never open the pathname for hashing.
+  for await(const bytes of handle.createReadStream({autoClose:false})){
    size+=bytes.length;
    if(size>maxBytes)stop('saved encrypted recovery source expanded');
    digest.update(bytes);
   }
-  const after=await lstat(resolve(file));
-  if(!after.isFile()||after.isSymbolicLink()||
-     size!==before.size||after.size!==before.size||
-     after.ino!==before.ino||after.dev!==before.dev)
-    stop('saved encrypted recovery source was replaced or changed');
- }catch{stop('saved encrypted recovery source could not be verified after restore');}
+  if(size!==before.size||
+     !sameRecoveryFile(before,await handle.stat())||
+     !sameRecoveryFile(before,await lstat(path)))
+   stop('saved encrypted recovery source changed during final proof');
+ }catch{
+  stop('saved encrypted recovery source could not be verified after restore');
+ }finally{
+  if(handle)await handle.close().catch(()=>{});
+ }
  return digest.digest('hex');
 }
 /** After the photo ZIP is saved, reopen the FINAL on-disk SQLite in
