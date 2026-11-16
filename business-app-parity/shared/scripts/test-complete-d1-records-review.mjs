@@ -186,10 +186,10 @@ try{
   'a forged previously accepted Gate7 receipt cannot enable saved-file readback');
  equal(ownerSavedRecordsPassphraseReady(null,phrase),false,
   'unprepared archive cannot expose a saved-file verification path');
- equal(ownerSavedRecordsPassphraseReady(prepared,'😀'.repeat(1024)),true,
-  'a valid 1024-character UTF-8 phrase stays within the 4096-byte crypto limit');
- equal(ownerSavedRecordsPassphraseReady(prepared,'😀'.repeat(1025)),false,
-  'overlong character count is refused before selecting saved ciphertext');
+ equal(ownerSavedRecordsPassphraseReady(prepared,'😀'.repeat(512)),true,
+  'a valid 1024-UTF16-unit Unicode phrase stays within crypto passphrase limits');
+ equal(ownerSavedRecordsPassphraseReady(prepared,'😀'.repeat(513)),false,
+  'an overlong Unicode phrase is refused before selecting saved ciphertext');
  equal(prepared.gate7Accepted,false,
   'new file cannot claim live recovery or physical off-device custody');
  const temp=mkdtempSync(join(tmpdir(),'fire-browser-full-records-'));
