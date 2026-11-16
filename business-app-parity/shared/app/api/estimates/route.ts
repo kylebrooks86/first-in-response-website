@@ -10,6 +10,7 @@ import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refu
 import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel,jobNumberingReady,JOB_NUMBER_FLAG} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from '../../../lib/owner-write-object-guard.mjs';
 import {customerIdentityPredicate,duplicateCustomer,validInlineCustomerEmail,validInlineCustomerPhone} from '../../../lib/customer-identity';
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
@@ -72,9 +73,11 @@ export async function GET() {
 export async function POST(request: Request) {
   if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    let body:Record<string,unknown>;
-    try{const parsed:unknown=await request.json();if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Invalid object');body=parsed as Record<string,unknown>;}
-    catch{return Response.json({error:'A valid estimate request object is required.'},{status:400});}
+    // Harden the owner quote save path before pricing, customer resolution,
+    // request-id reservation or any D1 write. Preserve valid JSON semantics.
+    const parsed=await readOwnerWriteObject(request,128_000);
+    if(parsed.response)return parsed.response;
+    const body=parsed.value as Record<string,unknown>;
     if(body.requestId!==undefined&&!validEstimateCreateRequestId(body.requestId))return Response.json({error:'A valid estimate creation request ID is required.'},{status:400});
     const requestId=typeof body.requestId==='string'?body.requestId:null;
     // A lost response must never let an enabled Job # flow allocate a second
