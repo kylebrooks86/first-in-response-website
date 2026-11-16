@@ -3,6 +3,9 @@
  * No account, hosted D1, owner records, Stripe, photo bytes or network.
  */
 import assert from 'node:assert/strict';
+// Also prove this browser ciphertext restores into the ACTUAL independent
+// NEW LIVE 26-migration schema without ever touching hosted D1.
+import './test-complete-d1-26-restore.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
