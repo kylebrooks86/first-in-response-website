@@ -21,6 +21,7 @@ on:
       - 'business-app-parity/adapters/independent-live/drizzle/0025_independent_permanent_numbers.sql'
       - 'business-app-parity/shared/lib/new-live-migration-journal.mjs'
       - 'business-app-parity/shared/lib/protected-complete-d1-records.mjs'
+      - 'business-app-parity/shared/components/complete-d1-records-review.tsx'
       - 'business-app-parity/shared/scripts/test-complete-d1-records-review.mjs'
       - '.github/workflows/fire-isolated-sqlite-full-recovery.yml'
 permissions:
