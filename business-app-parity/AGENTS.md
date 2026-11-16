@@ -1,3 +1,12 @@
+<!-- FIRE-DARK-POSTUPDATE-ORIGINAL-LOCK-CANONICAL-20261116 -->
+## Canonical next step — existing DARK Worker post-update lock identity safeguarded
+
+**Do not start over.** Both DR/NEW LIVE Workers have already been created DARK; their first-create and D1 26/26 operations are complete. QA immutable `08d77fb1-9484-4014-bd5b-1bb1da066cdb` at source `15bd714c435a585f695ed7166cf06d2c31ea1a8e` is hosted and accepted by owner. A separate exact owner approval is needed for each future code-only DR/NEW LIVE existing Worker UPDATE; generic "continue" grants NO deployment authority.
+
+Only canonical post-update proof: `business-app-parity/owner_existing_dark_code_update_postdeploy_readonly.mjs`, with exact supplied NEW hosted version UUID and original `REMOTE-UPDATE-ATTEMPT-LOCK.json` from the one-time owner updater's existing local workspace. Original lock has exact source/old version/physical D1/saved ZIP hash + no-retry state, and is **validated BEFORE** provider metadata reads. Do NOT create/rewrite lock or use deleted duplicate `owner_existing_dark_postupdate_readonly.mjs`. Focused [changed-code CI #43913381711](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43913381711) **SUCCESS 11/11 updater + 31/31 postupdate tests**. Public website protector [#43913381492](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43913381492) **SUCCESS**. These remain source-only, no hosted update. Reuse all prior QA/DR/NEW LIVE D1 and photo evidence. No Cloudflare or Stripe writes, login/recovery/cutover/merge, R2/paid. Formal acceptance **4/10**, six gates still OPEN, NEW LIVE DARK NO-GO.
+
+---
+
 <!-- FIRE-EXISTING-DARK-POSTUPDATE-NOV16 -->
 ## Current next release boundary — code update + NEW version readback prepared, NOT executed
 
