@@ -6,6 +6,7 @@ import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refu
 import {attachedJobNumbers} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from '../../../lib/owner-write-object-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -78,7 +79,11 @@ const uncertainInvoiceCreate=()=>Response.json({
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const body = await request.json() as Record<string, unknown>;
+    // A completed job's final invoice should never parse an unbounded body.
+    // This owner-only route only needs the estimate ID, before D1 reads/writes.
+    const parsed=await readOwnerWriteObject(request,16_000);
+    if(parsed.response)return parsed.response;
+    const body=parsed.value as Record<string,unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
     const estimate = await env.DB.prepare(`
       SELECT e.id,e.customer_id AS customerId,e.total_cents AS totalCents,e.status,
