@@ -4,6 +4,8 @@ on:
     paths:
       - 'business-app-parity/owner_existing_dark_code_update_once_approved.mjs'
       - 'business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs'
+      - 'business-app-parity/owner_existing_dark_code_update_postdeploy_readonly.mjs'
+      - 'business-app-parity/test_owner_existing_dark_code_update_postdeploy_readonly.mjs'
       - '.github/workflows/fire-existing-dark-code-update-source-only.yml'
   workflow_dispatch: {}
 permissions:
@@ -26,5 +28,9 @@ jobs:
         run: |
           node --check business-app-parity/owner_existing_dark_code_update_once_approved.mjs
           node --check business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs
+          node --check business-app-parity/owner_existing_dark_code_update_postdeploy_readonly.mjs
+          node --check business-app-parity/test_owner_existing_dark_code_update_postdeploy_readonly.mjs
       - name: Focused offline, nonowner, non-Windows, no-provider safeguards
-        run: node business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs
+        run: |
+          node business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs
+          node business-app-parity/test_owner_existing_dark_code_update_postdeploy_readonly.mjs
