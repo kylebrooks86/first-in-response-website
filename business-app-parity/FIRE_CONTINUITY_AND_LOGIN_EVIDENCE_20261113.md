@@ -1,5 +1,12 @@
 # FIRE Business App — canonical continuity and authenticated-evidence register
 
+## NOV 15 — FINAL CI FOR GATE6 REVOKED ALREADY-ACCEPTED TOKEN FIX: EXACT 26/26 SUCCESS
+
+- Verified actual GitHub Actions **26/26 completed SUCCESS** at exact changed-code commit `2798f32a741a0efe1bf19a56e0a4b754672092e6` on [Draft PR270](https://github.com/kylebrooks86/first-in-response-website/pull/270). The last long [staging migration and shared-app parity #43783860922](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43783860922) has now also completed SUCCESS, including the specifically modified Gate6 share-token rotation SQLite step, synthetic mobile-browser suite and isolated staged app build. The 25/26 pending counts written below are **historical intermediate checkpoints superseded by this completed same-code CI result**.
+- No source merge or Cloudflare Worker/Access/D1, Stripe or payment write occurred. 26/26 SOURCE CI does not establish provider-hosted parity, real signed TEST Stripe webhook delivery, complete actual customer/photo recovery, hosted nonowner denial or go-live. Formal G1/G2/G3/G8 accepted **4/10**; other six gates OPEN, NEW LIVE DARK NO-GO. Previously accepted real physical NEW LIVE 26/26 SQL, DR and immutable first-create locks must never be rerun.
+
+---
+
 ## NOV 15 — GATE6 REVOKED ALREADY-SIGNED PUBLIC SHARE RECEIPT AND READ-ONLY STRIPE TEST STATUS
 
 **GATE 6 actual source security fix, no hosted mutations.** `shared/app/api/public/estimates/[token]/accept/route.ts` formerly returned `acceptedAt,signedName,signedAt,photoRelease` directly from its first `share_token`-scoped SELECT for an already-approved quote, without revalidating token status just before replying. A concurrently rotated/revoked bearer link could therefore receive an old signed name even though the existing mutation and lost-ACK branches already require current `share_token`. Implementation [`f77be2d60946edc1ed2f61cbd319cd5424a39f04`](https://github.com/kylebrooks86/first-in-response-website/commit/f77be2d60946edc1ed2f61cbd319cd5424a39f04) reuses exactly **one** token+ID-bound confirmation query for BOTH the already-approved return and lost-ACK retry. An absent/revoked/no-longer-accepted current row returns 409/no-store, never stale signature details. Legitimate repeated acceptance returns current saved signature with no-store. No SQL schema, payment, pricing, customer agreement data or host modified.
