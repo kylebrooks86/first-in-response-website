@@ -19,6 +19,16 @@ In `shared/components/complete-d1-records-review.tsx`, creating the private `.fi
 - [Preserve public website/calculator #43963088973](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963088973): **SUCCESS**, exact reviewed public-site scope preserved.
 - [Verify FIRE website #43963089006](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963089006): **SUCCESS**.
 
+## Real full-app TypeScript/build regression and fix
+
+The initial code commit passed the direct Gate7 runtime/synthetic recovery test, but the independent [Gate9 full-app local build #43963089007](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963089007) exposed a **real TS2305 failure**: the new JavaScript helper was not exported by the companion `shared/lib/protected-complete-d1-records.d.mts` declaration. This was a source type-surface mismatch, not a Cloudflare/service failure. Exact corrective commit [cbba3287](https://github.com/kylebrooks86/first-in-response-website/commit/cbba328724e598e34888590960ffd872b10ee7fe) added the proper null-safe declaration; no build guard was disabled.
+
+**Accepted revised exact code checkpoint `cbba328724e598e34888590960ffd872b10ee7fe`:**
+- [Gate9 full-app local build #43963491869](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491869) **SUCCESS**, including the previously failing TypeScript/app build step and source-only TEST packaging. **NOT** hosted TEST upload, signed event or Stripe transaction.
+- [Gate7 isolated full encrypted-record SQLite recovery #43963491846](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491846) **SUCCESS** with the re-entry guard and UI contract checks.
+- [Main/public-site/calculator protection #43963491883](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491883) **SUCCESS**.
+- [Website source verification](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43963491743) **SUCCESS**.
+
 ## Strict release boundary
 
 This is a **source-only owner-flow bug fix** in code that is still separately disabled by default in hosted environments. It does NOT prove a real owner saved/reopened an archive, independent off-Acer custody, corresponding customer-photo bytes, isolated physical provider restore, real Cloudflare D1 source UUID, Access/nonowner checks, or Gate7 acceptance. Historical QA/iPhone checks, DR guarded code update evidence and NEW LIVE 26/26 physical migrations/consumed one-shot lock remain accepted, with no repetition.
