@@ -44,6 +44,52 @@ test("bounded body rejects oversized customer name/payload (stream and header li
   await denial(request({signedName:"Test",photoRelease:"no",acceptedTerms:true},{"content-length":"999999"}),413);
   await denial(request({signedName:"Test",photoRelease:"no",acceptedTerms:true},{"content-length":"-1"}),413);
 });
+// Exercise the REAL streamed, signed customer-write reader: declared length
+// must match actual BYTES; split UTF-8 characters are valid, corrupted ones
+// fail CLOSED before the share-token handler queries any D1 records.
+function streamed(chunks,headers={}){
+ return new Request(endpoint,{method:"POST",duplex:"half",headers:{
+  origin,"content-type":"application/json; charset=utf-8",...headers
+ },body:new ReadableStream({start(controller){
+  for(const chunk of chunks)controller.enqueue(chunk);
+  controller.close();
+ }})});
+}
+test("Gate6 stream accepts split valid multibyte UTF-8 and exact declared byte length",async()=>{
+ const payload={signedName:"Synthetic 🔥 Customer",photoRelease:"no",acceptedTerms:true};
+ const bytes=new TextEncoder().encode(JSON.stringify(payload));
+ const split=bytes.indexOf(0xf0);
+ assert.ok(split>0);
+ const result=await read(streamed([
+  bytes.slice(0,split+1),bytes.slice(split+1,split+3),bytes.slice(split+3)
+ ],{"content-length":String(bytes.length)}));
+ assert.deepEqual(result.value,payload);
+ assert.equal(result.response,undefined);
+});
+test("Gate6 stream rejects forged short/extra Content-Length before any public write",async()=>{
+ const bytes=new TextEncoder().encode('{"signedName":"FIRE Test","photoRelease":"no","acceptedTerms":true}');
+ await denial(streamed([bytes],{"content-length":String(bytes.length-1)}),400);
+ await denial(streamed([bytes],{"content-length":String(bytes.length+1)}),400);
+ await denial(streamed([bytes],{"content-length":"0"}),400);
+});
+test("Gate6 strict streaming rejects malformed UTF-8, arbitrary chunks and empty request body",async()=>{
+ const start=new TextEncoder().encode('{"signedName":"');
+ const end=new TextEncoder().encode('","photoRelease":"no","acceptedTerms":true}');
+ await denial(streamed([start,new Uint8Array([0xc3,0x28]),end]),400);
+ await denial(streamed(["not a Uint8Array"]),400);
+ await denial(streamed([]),400);
+});
+test("revised customer agreement uses the same 4096-byte guarded reader before bearer token lookup",()=>{
+ const route=readFileSync(fileURLToPath(new URL(
+  "../shared/app/api/public/estimates/[token]/revised-accept/route.ts",import.meta.url)),"utf8");
+ const guard=route.indexOf("await readCustomerWriteJson(request,");
+ const token=route.indexOf("const {token}=await params;");
+ assert.ok(guard>0&&token>guard);
+ assert.match(route,/\['version','documentDigest','signedName','photoRelease','acceptedTerms'\],4096/);
+ assert.doesNotMatch(route,/await request\.text\(\)/);
+ assert.match(route,/if\(!active\(env\)\)return/);
+});
+
 test("change-request allowance supports bounded fictional message + id",async()=>{
   const value={message:"Please change my test quote",requestId:"8bd90bf2-eb6f-420d-9372-794a34aa5124"};
   const result=await readCustomerWriteJson(request(value),["message","requestId"],8192);
