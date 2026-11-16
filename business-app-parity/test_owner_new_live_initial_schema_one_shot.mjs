@@ -30,6 +30,12 @@ try{
   'only exact future owner-authorized operation flag recognized');
  await blockAsync(()=>applyNewLiveInitialSchemaAfterSeparateApproval('/fake/path',undefined),
   'public exported executor without explicit owner scope never opens Wrangler');
+ await assert.rejects(
+  ()=>applyNewLiveInitialSchemaAfterSeparateApproval('/fake/path',
+   '--exact-new-live-26-migrations-separately-authorized'),
+  /ALREADY_APPLIED_26_OF_26/,
+  'even the previously authorized exact flag cannot reapply physical completed NEW LIVE 26/26');
+ count++;
  const ownerTTY={stdinTTY:true,stdoutTTY:true};
  ok(requireLocalOwnerInteractiveNewLiveSession({},ownerTTY),
   'only an actual interactive terminal with no CI flags is eligible for owner approval');
