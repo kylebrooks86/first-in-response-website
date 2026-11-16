@@ -65,6 +65,33 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 6
+      - name: Wait only for uploaded GitHub archive to become visible (bounded GET)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_ARTIFACT_ID: ${{ steps.immutable_sql_packet_upload.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo 'No exact archive ID; STOP'; exit 1; }
+          # GitHub can return an empty artifact list briefly after a successful
+          # upload finalization. Only poll this SAME run for the exact artifact.
+          # Never re-upload, re-run D1 SQL or accept a different run's package.
+          visible=0
+          for attempt in {1..12}; do
+            listing=$(gh api --method GET \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100") || {
+                echo 'GitHub artifact read unavailable; STOP'; exit 1;
+              }
+            if printf '%s' "$listing" | jq -e --argjson id "$EXPECTED_ARTIFACT_ID" \
+              '.artifacts | any(.id == $id and .expired == false)' >/dev/null; then
+              visible=1
+              break
+            fi
+            if (( attempt < 12 )); then sleep 5; fi
+          done
+          if (( visible != 1 )); then
+            echo 'Exact uploaded GitHub archive not yet readable; STOP without re-upload'; exit 1
+          fi
+          echo 'PASS: exact same-run GitHub archive is visible for readback'
       - name: Read retained actual 31-file source archive back from GitHub (NO PROVIDER)
         uses: actions/download-artifact@v4
         with:
