@@ -294,6 +294,42 @@ try{
  check(inspectionConflict,'ZIP inspector rejects a same-ID/different-bytes archive without restoring it');
  await page.evaluate(async id=>window.FIRE_LOCAL_PHOTOS.removeOfflinePhoto(id,'synthetic-customer'),merge.secondId);
  check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===1,'Synthetic merge cleanup preserves remaining photo for offline tests');
+
+ // A real disposable Chrome IndexedDB round trip now exercises optional
+ // job photo capture and a protected customer-owned recovery preflight.
+ // This is synthetic only; it cannot replace the owner's accepted iPhone ZIP.
+ const jobLinked=await page.evaluate(async()=>{
+  const vault=window.FIRE_LOCAL_PHOTOS;
+  const photo=await vault.addOfflinePhoto('synthetic-customer','after','job-linked synthetic original',
+   new File([new TextEncoder().encode('job-linked-original')],'job-original.png',{type:'image/png'}),'estimate-job-1');
+  const zip=await vault.exportLocalPhotos('synthetic-customer');
+  await vault.removeOfflinePhoto(photo.id,'synthetic-customer');
+  const countBefore=(await vault.listOfflinePhotos('synthetic-customer')).length;
+  let deniedWithoutJobs=false,deniedWrongOwner=false,deniedUnknownJob=false;
+  try{await vault.restoreLocalPhotos(zip,['synthetic-customer']);}
+  catch(error){deniedWithoutJobs=String(error).includes('authenticated job/customer inventory');}
+  try{await vault.restoreLocalPhotos(zip,['synthetic-customer'],[{id:'estimate-job-1',customerId:'other-customer'}]);}
+  catch(error){deniedWrongOwner=String(error).includes('different customer');}
+  try{await vault.restoreLocalPhotos(zip,['synthetic-customer'],[{id:'wrong-job',customerId:'synthetic-customer'}]);}
+  catch(error){deniedUnknownJob=String(error).includes('unknown job ID');}
+  const countAfterDenials=(await vault.listOfflinePhotos('synthetic-customer')).length;
+  const restored=await vault.restoreLocalPhotos(zip,['synthetic-customer'],
+   [{id:'estimate-job-1',customerId:'synthetic-customer'}]);
+  const after=await vault.listOfflinePhotos('synthetic-customer');
+  const recovered=after.find(row=>row.id===photo.id);
+  const valid=restored.restored===1&&restored.alreadyPresent===1&&
+   recovered?.customerId==='synthetic-customer'&&recovered.jobId==='estimate-job-1'&&
+   await recovered.blob.text()==='job-linked-original';
+  await vault.removeOfflinePhoto(photo.id,'synthetic-customer');
+  return {deniedWithoutJobs,deniedWrongOwner,deniedUnknownJob,countBefore,
+   countAfterDenials,valid,countAfterCleanup:(await vault.listOfflinePhotos('synthetic-customer')).length};
+ });
+ check(jobLinked.deniedWithoutJobs&&jobLinked.deniedWrongOwner&&jobLinked.deniedUnknownJob&&
+  jobLinked.countBefore===1&&jobLinked.countAfterDenials===1,
+  'Actual disposable IndexedDB job-photo restore rejects unknown and cross-customer associations with zero writes');
+ check(jobLinked.valid&&jobLinked.countAfterCleanup===1,
+  'Authenticated job ownership restores the original blob and exact job link; isolated fixture cleanup preserves prior tests');
+
  await context.setOffline(true);
  const offline=await page.evaluate(async()=>{
   const directory=await window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory();
