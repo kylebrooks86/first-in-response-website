@@ -1,3 +1,13 @@
+## Nov 17 CST — historical archive CI and isolated Stripe TEST fallback
+
+The active PR no longer fetches expired historical artifacts 14101337096, 14101058770 and 14101977692. Exact private ZIPs passed offline (16/16 DR existing-D1, 28/28 DR DARK first-create, 31/31 NEW LIVE DARK). The Stripe TEST Worker-only fallback passed 24/24 offline and now verifies an external receipt SHA-256. **35/95 complete, 60 open, 4/10 formal gates accepted.**
+
+Source commits [`42db9748157141306c3f1d22dff13eeb43c3c2c8`](https://github.com/kylebrooks86/first-in-response-website/commit/42db9748157141306c3f1d22dff13eeb43c3c2c8) and [`4f89f99cf3016d4b6453ed5de17c683e1b3a30d5`](https://github.com/kylebrooks86/first-in-response-website/commit/4f89f99cf3016d4b6453ed5de17c683e1b3a30d5). Archive pins were preserved and CI uses only synthetic archive fixtures. TEST review package retains disabled Stripe, blocked activation, isolated TEST D1 and zero R2. [Evidence and remaining hosted requirements](evidence/FIRE_OFFLINE_ARCHIVE_CI_AND_STRIPE_TEST_FALLBACK_20261117.md).
+
+G1/G2/G3/G8 are accepted. G4/G5/G6/G7/G9/G10 remain open. NEW LIVE stays DARK and first production Job #0001 inactive. No Cloudflare or Stripe sign-in attempts or release mutations.
+
+---
+
 <!-- FIRE_G10_05_OWNER_APPROVED_PLAN_ONLY_35_OF_95_20261117 -->
 ## FIRE 95-item checklist — **G10-05 planning-only owner approval accepted; 35/95 checked, 60 remain** (2026-11-17 CST)
 
