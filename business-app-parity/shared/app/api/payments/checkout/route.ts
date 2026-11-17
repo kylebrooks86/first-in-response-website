@@ -103,7 +103,11 @@ export async function POST(request: Request) {
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const runtime = env as RuntimeEnv;
   const stripeKey = runtime.STRIPE_RESTRICTED_KEY || runtime.STRIPE_SECRET_KEY;
-  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  // The compiled adapter is "live" even in isolated DR and NEW LIVE
+  // prelaunch Workers. Only explicit production names (or a legacy unset
+  // FIRE_ENV) may use LIVE Stripe; unknown, QA and dark targets fail into TEST.
+  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
+    !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
   // Only an explicitly owner-enabled TEST-only runtime may offer checkout.
   // This guard stops before any D1 read or Stripe call, including when a TEST key later exists.
   if(sandboxTarget && runtime.FIRE_STRIPE_MODE !== "test")
