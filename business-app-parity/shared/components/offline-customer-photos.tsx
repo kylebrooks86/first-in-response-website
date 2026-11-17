@@ -19,6 +19,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
  const [preparedBackup,setPreparedBackup]=useState<File|null>(null);
+ const [preparedComparison,setPreparedComparison]=useState<{file:File;beforeId:string;afterId:string}|null>(null);
  const [backupPassphrase,setBackupPassphrase]=useState('');
  const [confirmBackupPassphrase,setConfirmBackupPassphrase]=useState('');
  const [category,setCategory]=useState<'before'|'after'|'property'>('before'),[caption,setCaption]=useState('');
@@ -39,7 +40,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  useEffect(()=>{
   let cancelled=false;setLoading(true);setError('');setItems([]);
    // A saved job/photo choice must never carry over into another customer.
-   setSelectedJobId('');setBeforeId('');setAfterId('');
+   setSelectedJobId('');setBeforeId('');setAfterId('');setPreparedComparison(null);
   listOfflinePhotos(customerId).then(rows=>{
    if(cancelled)return;
    setItems(rows.map(photo=>({photo,url:URL.createObjectURL(photo.blob)})));
@@ -56,7 +57,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   if(typeof BroadcastChannel==='undefined')return;
   const channel=new BroadcastChannel(OFFLINE_PHOTO_CHANGES_CHANNEL);
   const changed=()=>{
-   setPreparedBackup(null);
+   setPreparedBackup(null);setPreparedComparison(null);
    setError('Another FIRE tab changed on-device photos. Any previously prepared ZIP may be incomplete. Prepare a fresh backup after reviewing the updated gallery.');
    void refresh().catch(()=>setError('Other FIRE tab changed photos, but this gallery could not be refreshed. Do not rely on a previously prepared ZIP.'));
   };
@@ -277,9 +278,13 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const selectedBefore=before.find(item=>item.photo.id===(beforeId||before[0]?.photo.id));
  const compatibleAfter=selectedBefore?after.filter(item=>eligiblePhotoComparisonAfter(selectedBefore.photo,item.photo)):[];
  const selectedAfter=compatibleAfter.find(item=>item.photo.id===afterId)||compatibleAfter[0];
+ // Only offer the prepared PNG for its selected before/after originals.
+ const readyComparison=preparedComparison&&
+  preparedComparison.beforeId===selectedBefore?.photo.id&&
+  preparedComparison.afterId===selectedAfter?.photo.id?preparedComparison:null;
  const comparison=async()=>{
   if(!selectedBefore||!selectedAfter||active.current)return;
-  active.current=true;setBusy(true);setError('');setMessage('');
+  active.current=true;setBusy(true);setError('');setMessage('');setPreparedComparison(null);
   try{
    // Never present unrelated numbered-job originals as one real job comparison.
    assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo);
@@ -309,11 +314,38 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    // Keep the actual untouched photo pair; label only public FIRE identity.
    context.textAlign='right';context.font='22px sans-serif';context.fillText('firstinresponseexteriors.com',1560,930);
    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('Could not create comparison.')),'image/png'));
-   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='FIRE-before-after.png';link.click();
+   const file=new File([blob],'FIRE-before-after.png',{type:'image/png'});
+   setPreparedComparison({file,beforeId:selectedBefore.photo.id,afterId:selectedAfter.photo.id});
+   // Preserve Chrome's direct download; iPhone Safari may need a new user tap
+   // after asynchronous image decoding to open its native share sheet.
+   const url=URL.createObjectURL(file),link=document.createElement('a');link.href=url;link.download=file.name;link.click();
    window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
-   setMessage('Before/after comparison offered for download. Keep the originals in your photo backup.');
+   setMessage('Comparison prepared and download offered. On iPhone, tap Save or share comparison to open Files. Keep original photos in your separate backup.');
   }catch(err){setError(err instanceof Error?err.message:'Comparison failed.');}
   finally{active.current=false;setBusy(false);}
+ };
+ const savePreparedComparison=async()=>{
+  // Native iPhone share must be invoked on the FIRST await of this fresh tap.
+  const ready=readyComparison;
+  if(!ready||active.current||busy)return;
+  const file=ready.file;
+  setError('');setMessage('');
+  if(typeof navigator.share!=='function'||typeof navigator.canShare!=='function'||!navigator.canShare({files:[file]})){
+   try{
+    const url=URL.createObjectURL(file),link=document.createElement('a');link.href=url;link.download=file.name;link.click();
+    window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
+    setMessage('Comparison download offered. Check Files/Downloads for the PNG.');
+   }catch{setError('Comparison download could not start; the prepared PNG is unchanged.');}
+   return;
+  }
+  active.current=true;setBusy(true);
+  try{
+   await navigator.share({files:[file],title:'FIRE Before & After'});
+   setMessage('Comparison sharing offered. Confirm the PNG was saved to Files or your chosen location.');
+  }catch(err){
+   if(err instanceof Error&&err.name==='AbortError')setMessage('Sharing cancelled; prepared comparison remains available.');
+   else setError('Comparison sharing failed. The prepared PNG remains available to download.');
+  }finally{active.current=false;setBusy(false);}
  };
  return <section className="photo-panel" aria-label="On-device customer photos">
   <header><strong>Photos</strong><p>On this device only · not synced.</p></header>
@@ -372,7 +404,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   {before.length>0&&after.length>0&&<details className="photo-comparison-more"><summary>Before &amp; after comparison</summary><section className="before-after-builder"><header><div><p>Create a shareable comparison from photos stored on this device.</p></div><Images/></header>
    <div><label><span>Before</span><select value={selectedBefore?.photo.id??''} disabled={busy} onChange={e=>setBeforeId(e.target.value)}>{before.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
    <label><span>After</span><select value={selectedAfter?.photo.id??''} disabled={busy||compatibleAfter.length===0} onChange={e=>setAfterId(e.target.value)}>{compatibleAfter.length?compatibleAfter.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>):<option value="">No matching AFTER photo</option>}</select></label>
-   <Button disabled={busy||!selectedAfter} className="brand-button" onClick={()=>void comparison()}><Download className="h-4 w-4"/>Create comparison</Button></div>
+   <Button disabled={busy||!selectedAfter} className="brand-button" onClick={()=>void comparison()}><Download className="h-4 w-4"/>Create comparison</Button>
+    {readyComparison&&<Button disabled={busy} variant="outline" onClick={()=>void savePreparedComparison()}><Upload className="h-4 w-4"/>Save or share comparison</Button>}</div>
    {!selectedAfter&&<p role="status">No AFTER photo matches this saved job. Choose another BEFORE photo or add an AFTER original for the same job.</p>}
    <div className="before-after-preview"><figure><img src={selectedBefore?.url} alt="Selected before"/><figcaption>Before</figcaption></figure>{selectedAfter&&<figure><img src={selectedAfter.url} alt="Selected after"/><figcaption>After</figcaption></figure>}</div>
   </section></details>}
