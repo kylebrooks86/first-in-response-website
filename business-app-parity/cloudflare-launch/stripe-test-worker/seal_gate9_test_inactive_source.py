@@ -116,6 +116,11 @@ def verify_package(folder, source):
             config.get("routes") == [] and config.get("r2_buckets") == [] and
             "assets" not in config and "legacy_env" not in config,
             "TEST Worker has public route, assets session or paid R2")
+    require(config.get("observability") == {
+        "enabled": False,
+        "logs": {"enabled": False, "invocation_logs": False},
+        "traces": {"enabled": False},
+    }, "TEST Worker logs, invocation logs and traces must be explicitly disabled")
     require(config.get("d1_databases") == [{
                 "binding": "DB", "database_name": "fire-stripe-test-db-20261101",
                 "database_id": DB}], "wrong TEST physical database binding")
@@ -148,6 +153,7 @@ def expected_manifest(folder, source):
         "workerConfigSha256": digest(file_bytes(folder / "server/wrangler.json")),
         "stripeMode": "disabled",
         "activation": "blocked",
+        "observabilityDisabled": True,
         "noR2": True,
         "noCloudflareAssetsSession": True,
         "historicalServingPredecessor": PREDECESSOR,

@@ -64,6 +64,8 @@ function expectedConfig(original){
   compatibility_date:original.compatibility_date,
   compatibility_flags:original.compatibility_flags,
   workers_dev:false,preview_urls:false,routes:[],
+  // Estimate and invoice links can carry tokens in their paths.
+  observability:{enabled:false,logs:{enabled:false,invocation_logs:false},traces:{enabled:false}},
   d1_databases:[{binding:'DB',database_name:'fire-stripe-test-db-20261101',database_id:D1}],
   r2_buckets:[],kv_namespaces:[],services:[],
   secrets:{required:requiredSecrets},vars:configVars,

@@ -6,6 +6,9 @@
 import assert from 'node:assert/strict';
 import {mkdtempSync,cpSync,writeFileSync,readFileSync,mkdirSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
+import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
 import {verifyGate9NoAssetsDarkSource} from './prepare_gate9_noassets_dark_source.mjs';
 const folder=process.argv[2];
@@ -30,6 +33,40 @@ const j=(dir,rel,fn)=>{
  fn(v);writeFileSync(path,JSON.stringify(v,null,2)+'\n');
 };
 try{
+ const configPath='server/wrangler.json';
+ const receiptPath='gate9-noassets-dark-source-receipt.json';
+ const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
+ const sealTool=fileURLToPath(new URL('./seal_gate9_test_inactive_source.py',import.meta.url));
+ const validConfig=JSON.parse(readFileSync(join(folder,configPath),'utf8'));
+ assert.deepEqual(validConfig.observability,{
+  enabled:false,logs:{enabled:false,invocation_logs:false},traces:{enabled:false}
+ });
+ checks++;
+ for(const [name,mutate] of [
+  ['missing-observability',config=>{delete config.observability;}],
+  ['invocation-logs-enabled',config=>{config.observability.logs.invocation_logs=true;}],
+  ['traces-enabled',config=>{config.observability.traces.enabled=true;}],
+ ]){
+  const out=join(tmp,name);
+  cpSync(folder,out,{recursive:true});
+  j(out,configPath,mutate);
+  // Recompute the internal inventory so both verifiers must enforce the policy.
+  const configBytes=readFileSync(join(out,configPath));
+  j(out,receiptPath,receipt=>{
+   const row=receipt.savedInventory.find(row=>row.path===configPath);
+   row.bytes=configBytes.length;
+   row.sha256=sha256(configBytes);
+   receipt.savedInventoryDigest=sha256(JSON.stringify(receipt.savedInventory));
+  });
+  assert.throws(()=>verifyGate9NoAssetsDarkSource(out),/TEST review config differs/);
+  const result=spawnSync('python3',[sealTool,'seal',out,
+   JSON.parse(readFileSync(join(out,receiptPath),'utf8')).sourceSha,join(tmp,name+'.json')],
+   {encoding:'utf8',timeout:10000});
+  assert.ifError(result.error);
+  assert.equal(result.status,1);
+  assert.match(result.stderr,/logs, invocation logs and traces must be explicitly disabled/);
+  checks+=2;
+ }
  assert.equal(verifyGate9NoAssetsDarkSource(folder,original.receiptSha256).receiptPinVerified,true);
  checks++;
  const rewritten=join(tmp,'rewritten-source-receipt');
