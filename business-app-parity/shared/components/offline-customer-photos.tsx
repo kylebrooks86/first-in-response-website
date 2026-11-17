@@ -5,7 +5,7 @@ import {Camera,Download,Images,Trash2,Upload} from 'lucide-react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
-import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,verifyOfflinePhotoJobOwnership,type VerifiedPhotoJob,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
+import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,verifyOfflinePhotoJobOwnership,resolveVerifiedOfflinePhotoJobSelection,validateOfflinePhotoCaptureFile,type VerifiedPhotoJob,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import {requiresAllCustomerPhotoReview} from '../lib/photo-restore-interruption-scope.mjs';
 import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT,assertPhotoComparisonSameJob,eligiblePhotoComparisonAfter} from '../lib/photo-comparison-layout.mjs';
@@ -92,19 +92,25 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  useEffect(()=>()=>{for(const item of items)URL.revokeObjectURL(item.url);},[items]);
  const add=async(files:FileList|null)=>{
   if(!files?.length||active.current||reviewRequired.current||!safetyReady)return;
-  active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
+  active.current=true;setBusy(true);setError('');setMessage('');
+  let mutationStarted=false;
   try{
+   // Preflight ALL selected originals and job owner before the first durable
+   // mutation receipt, so invalid choices do not lock the entire gallery.
+   const selectedJob=resolveVerifiedOfflinePhotoJobSelection(customerId,selectedJobId,knownJobs);
+   const chosenFiles=Array.from(files);
+   for(const file of chosenFiles)validateOfflinePhotoCaptureFile(customerId,category,file,selectedJob?.id);
+   setPreparedBackup(null);
+   mutationStarted=true;
    await runPhotoMutation('add',customerId,async()=>{
-    // Never associate a new photo with another customer's job or a stale
-    // selection after the owner refreshed the authenticated job history.
-    const selectedJob=selectedJobId?knownJobs.find(job=>job.id===selectedJobId&&job.customerId===customerId):undefined;
-    if(selectedJobId&&!selectedJob)throw Error('The selected job is no longer verified for this customer. Refresh customer records.');
-    for(const file of Array.from(files))await addOfflinePhoto(customerId,category,caption,file,selectedJob?.id);
+    for(const file of chosenFiles)await addOfflinePhoto(customerId,category,caption,file,selectedJob?.id);
     await refresh();
    });setCaption('');
    setMessage('Photos verified on this device. They are NOT backed up yet; export a ZIP to Files/iCloud.');
-  }catch(err){pauseForReview();setError((err instanceof Error?err.message:'Photo save was not confirmed.')+' Some selected photos may already be saved. No automatic retry was made. Refresh and review saved photos before choosing any remaining originals.');try{await refresh();}catch{}}
-  finally{active.current=false;setBusy(false);if(cameraRef.current)cameraRef.current.value='';if(libraryRef.current)libraryRef.current.value='';}
+  }catch(err){
+   if(!mutationStarted)setError((err instanceof Error?err.message:'Photo selection is invalid.')+' No photos were changed. Choose valid originals or refresh saved jobs.');
+   else{pauseForReview();setError((err instanceof Error?err.message:'Photo save was not confirmed.')+' Some selected photos may already be saved. No automatic retry was made. Refresh and review saved photos before choosing any remaining originals.');try{await refresh();}catch{}}
+  }finally{active.current=false;setBusy(false);if(cameraRef.current)cameraRef.current.value='';if(libraryRef.current)libraryRef.current.value='';}
  };
  const remove=async(photo:OfflinePhoto)=>{
   if(active.current||reviewRequired.current||!safetyReady||!window.confirm('Delete this on-device photo? This cannot be undone without a separate backup.'))return;

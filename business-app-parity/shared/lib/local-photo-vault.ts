@@ -63,11 +63,17 @@ export async function countOfflinePhotos(customerId:string):Promise<number>{
  }finally{db.close();}
 }
 
-export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File,jobId?:string):Promise<OfflinePhoto>{
+/** Preflight every selected photo before any interruption journal or write.
+ * Reuse this identical validation inside the vault itself.
+ */
+export function validateOfflinePhotoCaptureFile(customerId:string,category:OfflinePhoto['category'],file:File,jobId?:string):void{
  if(!customerId||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))throw Error('Choose a valid saved customer before adding photos.');
  if(!['before','after','property'].includes(category))throw Error('Choose a valid photo category.');
  if(jobId!==undefined&&(typeof jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(jobId)))throw Error('Choose a valid saved job before associating photos.');
  if(!(file instanceof File)||!supportedOfflinePhotoType(file.type)||file.size<=0||file.size>MAX_FILE)throw Error('Choose an image smaller than 15 MB.');
+}
+export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File,jobId?:string):Promise<OfflinePhoto>{
+ validateOfflinePhotoCaptureFile(customerId,category,file,jobId);
  const record:OfflinePhoto={id:crypto.randomUUID(),customerId,...(jobId===undefined?{}:{jobId}),category,caption:caption.slice(0,2000),
   filename:(file.name||'photo').slice(0,240),contentType:file.type,sizeBytes:file.size,createdAt:new Date().toISOString(),blob:file};
  const db=await openVault();
@@ -161,6 +167,18 @@ export function verifyOfflinePhotoJobOwnership(
   if(owners.get(row.jobId)!==row.customerId)
    throw Error('Photo backup job belongs to a different customer. No photos were changed.');
  }
+}
+/** Authenticated owner job/customer preflight BEFORE creating a durable
+ * photo mutation receipt. Reuses the restore path's full inventory checks.
+ */
+export function resolveVerifiedOfflinePhotoJobSelection(customerId:string,selectedJobId:string,knownJobs:ReadonlyArray<VerifiedPhotoJob>):VerifiedPhotoJob|undefined{
+ if(selectedJobId==='')return undefined;
+ if(typeof selectedJobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(selectedJobId))
+  throw Error('Choose a valid saved job before associating photos.');
+ verifyOfflinePhotoJobOwnership([{customerId,jobId:selectedJobId}],knownJobs);
+ const job=knownJobs.find(item=>item.id===selectedJobId);
+ if(!job)throw Error('The selected job is no longer verified for this customer. Refresh customer records.');
+ return job;
 }
 export type PhotoRestoreResult={restored:number;alreadyPresent:number};
 export async function exactSavedPhotoMatch(saved:OfflinePhoto,incoming:OfflinePhoto):Promise<boolean>{

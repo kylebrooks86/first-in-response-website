@@ -42,6 +42,28 @@ assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-B'}],[{id
 check(true,'Cross-customer saved job linkage is rejected before photo mutation');
 assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}],[{id:'estimate-A',customerId:'customer-A'},{id:'estimate-A',customerId:'customer-B'}]),/invalid or ambiguous/);
 check(true,'Duplicate or contradictory owner job inventory cannot authorize restore');
+const selectJob=vaultGuards.resolveVerifiedOfflinePhotoJobSelection;
+check(selectJob('customer-A','',[])===undefined,'Legacy customer-only capture needs no job inventory');
+check(selectJob('customer-A','estimate-A',[{id:'estimate-A',customerId:'customer-A'}])?.id==='estimate-A','Same-customer numbered job passes capture preflight');
+assert.throws(()=>selectJob('customer-A','foreign',[{id:'foreign',customerId:'customer-B'}]),/different customer/);
+check(true,'Foreign-customer job rejected before any photo writes');
+assert.throws(()=>selectJob('customer-A','missing',[{id:'estimate-A',customerId:'customer-A'}]),/unknown job ID/);
+check(true,'Unknown job selection rejected before journal');
+assert.throws(()=>selectJob('customer-A','estimate-A',[{id:'estimate-A',customerId:'customer-A'},{id:'estimate-A',customerId:'customer-A'}]),/invalid or ambiguous/);
+check(true,'Duplicate job association cannot trigger save receipt');
+assert.throws(()=>selectJob('customer-A','bad id',[]),/valid saved job/);
+check(true,'Malformed selected job is denied before capture');
+const validateCapture=vaultGuards.validateOfflinePhotoCaptureFile;
+const captureFile=new File([new Uint8Array([1,2,3])],'before.png',{type:'image/png'});
+validateCapture('customer-A','before',captureFile,'estimate-A');
+check(true,'Valid original accepted by common preflight and device write guard');
+assert.throws(()=>validateCapture('customer-A','before',new File(['bad'],'script.svg',{type:'image/svg+xml'})),/image smaller/);
+check(true,'Unsupported SVG rejected before starting photo mutation');
+assert.throws(()=>validateCapture('customer-A','before',new File([],'empty.png',{type:'image/png'})),/image smaller/);
+check(true,'Zero-byte original rejected before starting photo mutation');
+assert.throws(()=>validateCapture('customer-A','property',captureFile,'bad job id'),/valid saved job/);
+check(true,'Invalid job ID cannot be written to photo vault');
+
 
 const first=photo('img-one','customer-A','before','one synthetic photo');
 const second=photo('img-two','customer-B','after','another synthetic photo');
@@ -216,6 +238,17 @@ check(component.includes('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')&&
  component.includes('restoreLocalPhotos(zip,knownCustomerIds,knownJobs)')&&
  component.indexOf('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')<component.indexOf("mutationStarted=true"),
  'Job-linked photo restore verifies exact customer ownership before journaling or IndexedDB writes');
+const photoAddFlow=component.slice(component.indexOf(' const add=async(files:FileList|null)=>{'),component.indexOf(' const remove=async(photo:OfflinePhoto)=>{'));
+check(photoAddFlow.includes('resolveVerifiedOfflinePhotoJobSelection(customerId,selectedJobId,knownJobs)')&&
+ photoAddFlow.includes('for(const file of chosenFiles)validateOfflinePhotoCaptureFile(customerId,category,file,selectedJob?.id)')&&
+ photoAddFlow.indexOf('resolveVerifiedOfflinePhotoJobSelection(')<photoAddFlow.indexOf('mutationStarted=true')&&
+ photoAddFlow.indexOf('validateOfflinePhotoCaptureFile(')<photoAddFlow.indexOf('mutationStarted=true')&&
+ photoAddFlow.indexOf('mutationStarted=true')<photoAddFlow.indexOf("await runPhotoMutation('add'"),
+ 'Actual owner photo UI validates all job and image selections BEFORE durable mutation journal');
+check(photoAddFlow.includes('if(!mutationStarted)setError(')&&
+ photoAddFlow.includes('else{pauseForReview();')&&
+ photoAddFlow.indexOf('setPreparedBackup(null)')>photoAddFlow.indexOf('validateOfflinePhotoCaptureFile('),
+ 'Invalid preflight never freezes customer photo gallery or invalidates prepared backups');
 check(component.includes('Attach photo to job')&&component.includes('selectedJob?.id')&&
  page.includes('knownJobs={estimates.filter('),
  'Actual customer photo UI receives authenticated numbered job IDs and supports deliberate optional job associations');
