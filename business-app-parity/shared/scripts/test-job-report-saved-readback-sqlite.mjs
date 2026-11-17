@@ -20,6 +20,23 @@ const row=(id='report-job')=>db.prepare('SELECT id,estimate_id AS estimateId,cus
 let checks=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++};
 const orig=rt.env.DB.prepare;
 try{
+ // Real owner POST should refuse invalid/oversized streamed input before ANY
+ // D1 reads or writes, not merely after buffering request.json().
+ const rawRequest=(body,headers={})=>new Request('https://fixture.invalid/api/job-reports',{
+  method:'POST',headers,body
+ });
+ for(const [name,req,expected] of [
+  ['declared oversize',rawRequest('{}',{'content-length':'64001'}),413],
+  ['actual streamed oversize',rawRequest(' '.repeat(64001)),413],
+  ['contradictory declared length',rawRequest('{"x":1}',{'content-length':'2'}),400],
+  ['invalid UTF8 body',rawRequest(new Uint8Array([123,34,120,34,58,255,125])),400],
+  ['nonobject JSON input',rawRequest('[]'),400],
+ ]){
+  const before=rt.counters();
+  const denied=await route.POST(req);
+  eq(denied.status,expected,name+' rejected before report save');
+  eq(rt.counters(),before,name+' performs no DB reads or writes');
+ }
  const saved=await post(input);
  eq(saved.status,201,'New completed legacy report must be inserted');
  eq(saved.data.report?.id,row().id,'Success receipt ID comes from actual saved D1 row');
