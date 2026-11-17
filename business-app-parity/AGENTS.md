@@ -1,3 +1,12 @@
+<!-- FIRE_95_ITEM_SNOWBALL_29_OF_95_20261117 -->
+## FIRE RELEASE SNOWBALL — November 16–17 CST: **29/95 checked; 66 OPEN; formal 4/10 accepted unchanged**
+
+The ONE editable 95-item checklist is [FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) in existing unmerged Draft PR #270, not a new or restarted release plan. Initial observed baseline was **22/95**. Seven newly marked source/documentation tasks: **B05** (latest real code SHA `8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2` exact 27/27 GitHub workflows SUCCESS, staging run 44024946759 six jobs SUCCESS), **B08** (feature inventory), **B09** (candidate-only synthetic flags remain OFF absent separate schema/hosted approval), **B10** (free/no-R2 rule in QA/STAGING/DR/NEW LIVE candidate manifest guards), **B12** (exact QA-only code-only REVIEW packet, NO deployment), **B13** (existing-versus-missing physical evidence matrix), **B14** (provider blockers and no-retry rules). Details: [source/hosted evidence matrix](evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md) and [QA code-only review packet](release/FIRE_QA_TARGETED_CODE_UPDATE_REVIEW_PR270_20261117.md). B06 frozen final candidate, B07 exact post-QA code delta review and B11 sealed final compiled Worker still **OPEN**. QA last accepted 100% serving version `08d77fb1-9484-4014-bd5b-1bb1da066cdb` from frozen source `15bd714c`; the newer 8c2b50d5 PR270 source is **NOT DEPLOYED**.
+
+**Hard distinction:** App source CI is green; this is not hosted QA/STAGING/DR/NEW LIVE parity, full served modules/assets, protected Access or distinct nonowner denial, real paired D1/photo recovery, genuine Stripe-signed TEST event/reconciliation, or actual rollback. **Official G1/G2/G3/G8 ACCEPTED (4/10); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, first real Job #0001 inactive.** DR/NEW LIVE owner screenshots, 26 migrations, consumed first-create and code-only update attempts, frozen old branches and owner backups remain accepted, not to be repeated. No Cloudflare provider update, paid Cloudflare/R2, D1 SQL, auth/Access/route, Stripe/payment, customer communication, Git merge, DNS, live activation or legacy retirement is authorized or performed in this 29/95 progress.
+
+---
+
 <!-- FIRE_DOOR_OWNER_UI_27_OF_27_CI_FINAL_20261116 -->
 ## Nov 16–17 CST — FINAL exact-code source/Chrome CI: **27/27 SUCCESS, six staging jobs SUCCESS**
 
