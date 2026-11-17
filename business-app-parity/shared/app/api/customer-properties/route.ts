@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {customerPropertiesEnabled,propertyWorkflowTestEnabled,type CustomerProperty} from '../../../lib/customer-properties';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const columns='id,customer_id AS customerId,address,designation,active,revision,created_at AS createdAt';
 async function owner(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()==='kylebrooks8605@gmail.com');}
 function id(value:unknown){return typeof value==='string'&&value.trim().length>0&&value.trim().length<=128?value.trim():'';}
@@ -25,12 +26,54 @@ export async function GET(request:Request){
 export async function POST(request:Request){
  if(!await owner())return Response.json({error:'Unauthorized'},{status:401});
  if(!customerPropertiesEnabled(env))return Response.json({error:'Property management is not enabled.'},{status:404});
+ const parsed=await readOwnerWriteObject(request,8192);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as Record<string,unknown>,customerId=id(body.customerId),
+  address=typeof body.address==='string'?body.address.trim():'',
+  designation=typeof body.designation==='string'?body.designation.trim():'';
+ const hasOperation=body.operationId!==undefined;
+ const operationId=hasOperation&&typeof body.operationId==='string'&&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.operationId)
+  ?body.operationId:null;
+ if(!customerId||!address||address.length>2000||designation.length>200||
+    body.designation!=null&&typeof body.designation!=='string'||
+    hasOperation&&!operationId||
+    Object.keys(body).some(key=>!['customerId','address','designation','operationId'].includes(key)))
+  return Response.json({error:'Enter a customer, service address and optional building/unit/area label.'},{status:400});
+ const propertyId=operationId??crypto.randomUUID();
+ const matching=(row:CustomerProperty)=>row.customerId===customerId&&row.address===address&&
+  row.designation===designation&&row.active===1;
+ const uncertain=()=>Response.json({error:'Property save is not confirmed. Review stored properties before deliberate retry.',
+  saveUncertain:true},{status:503,headers:{'Cache-Control':'private, no-store'}});
+ const collision=()=>Response.json({error:'That property save request belongs to another or archived record. Review saved properties before another attempt.'},
+  {status:409,headers:{'Cache-Control':'private, no-store'}});
+ const stored=()=>env.DB.prepare(`SELECT ${columns} FROM customer_properties WHERE id=?`)
+  .bind(propertyId).first<CustomerProperty>();
  try{
-  const body=await request.json() as Record<string,unknown>,customerId=id(body.customerId),address=typeof body.address==='string'?body.address.trim():'',designation=typeof body.designation==='string'?body.designation.trim():'';
-  if(!customerId||!address||address.length>2000||designation.length>200||body.designation!=null&&typeof body.designation!=='string'||Object.keys(body).some(key=>!['customerId','address','designation'].includes(key)))return Response.json({error:'Enter a customer, service address and optional building/unit/area label.'},{status:400});
-  const property=await env.DB.prepare(`INSERT INTO customer_properties(id,customer_id,address,designation,active,revision,created_at) SELECT ?,id,?,?,1,1,? FROM customers WHERE id=? RETURNING ${columns}`).bind(crypto.randomUUID(),address,designation,new Date().toISOString(),customerId).first<CustomerProperty>();
-  return property?Response.json({property},{status:201}):Response.json({error:'Customer not found. No property added.'},{status:404});
- }catch{return Response.json({error:'Property save was not confirmed. Review saved properties before another deliberate attempt.'},{status:500});}
+  // A lost HTTP response must reuse the same owner-generated UUID. Never
+  // create a second address record when the original immutable ID exists.
+  if(operationId){
+   const previous=await stored();
+   if(previous)return matching(previous)?Response.json({property:previous,recoveredAfterUncertainSave:true},
+    {headers:{'Cache-Control':'private, no-store'}}):collision();
+  }
+  let returned:CustomerProperty|null=null,insertReturned=false;
+  try{
+   returned=await env.DB.prepare(`INSERT INTO customer_properties(id,customer_id,address,designation,active,revision,created_at)
+    SELECT ?,id,?,?,1,1,? FROM customers WHERE id=? RETURNING ${columns}`)
+    .bind(propertyId,address,designation,new Date().toISOString(),customerId).first<CustomerProperty>();
+   insertReturned=true;
+  }catch{/* D1 may have committed the INSERT but lost its acknowledgement. */}
+  // Never trust a reported INSERT success without independent physical readback.
+  const confirmed=await stored();
+  if(confirmed)return matching(confirmed)?Response.json({property:confirmed,...(!insertReturned||!returned?{recoveredAfterUncertainSave:true}:{})},
+   {status:insertReturned&&returned?201:200,headers:{'Cache-Control':'private, no-store'}}):collision();
+  if(insertReturned&&!returned){
+   const customer=await env.DB.prepare('SELECT id FROM customers WHERE id=?').bind(customerId).first();
+   if(!customer)return Response.json({error:'Customer not found. No property added.'},{status:404});
+  }
+  return uncertain();
+ }catch{return uncertain();}
 }
 export async function PATCH(request:Request){
  if(!await owner())return Response.json({error:'Unauthorized'},{status:401});
