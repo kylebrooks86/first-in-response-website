@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite.mjs";
+import {usableCustomerPhone,usableCustomerEmail} from "../../../lib/customer-contact-links";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -74,6 +75,12 @@ export async function POST(request: Request) {
     const channel = String(value.channel ?? "").trim();
     const template = String(value.template ?? "custom").trim();
     const body = String(value.body ?? "").trim();
+    // New owner clients bind the exact contact displayed while preparing an
+    // external Text/Email handoff. Old clients without a snapshot retain the
+    // existing semantics, but still must pass fresh server contact checks.
+    if(value.recipientSnapshot!==undefined&&typeof value.recipientSnapshot!=="string")
+      return Response.json({error:"Invalid message recipient snapshot."},{status:400});
+    const recipientSnapshot=typeof value.recipientSnapshot==="string"?value.recipientSnapshot:null;
     // Raw saved timestamp is a concurrency token for appointment messages.
     // A different future date is NOT the date the owner already previewed.
     const appointmentScheduledAt=typeof value.appointmentScheduledAt==="string"?value.appointmentScheduledAt:"";
@@ -88,8 +95,19 @@ export async function POST(request: Request) {
     if(stableId)uncertainOperation={id:stableId,customerId,estimateId,channel,template,body};
     const matches=(row:{customerId:string;estimateId:string|null;channel:string;template:string;body:string})=>
       row.customerId===customerId&&(row.estimateId??"")===(estimateId||"")&&row.channel===channel&&row.template===template&&row.body===body;
-    const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(customerId).first<{id:string}>();
+    const customer=await env.DB.prepare("SELECT id,phone,email FROM customers WHERE id=? LIMIT 1")
+      .bind(customerId).first<{id:string;phone:string|null;email:string|null}>();
     if(!customer)return Response.json({error:"Customer not found."},{status:404});
+    // A saved customer can lose or change contact details on another device.
+    // Never rely only on the React button check or create a misleading
+    // text/email-prepared receipt for a missing, malformed or changed recipient.
+    const contactColumn=channel==="text_prepared"?"phone":channel==="email_prepared"?"email":null;
+    const savedContact=contactColumn==="phone"?customer.phone:contactColumn==="email"?customer.email:null;
+    const contactReady=contactColumn==="phone"?usableCustomerPhone(savedContact):
+      contactColumn==="email"?usableCustomerEmail(savedContact):null;
+    const contactError="Customer contact details are missing or changed. Reopen this customer and verify the saved phone or email before preparing the message.";
+    if(contactColumn&&(!contactReady||(recipientSnapshot!==null&&recipientSnapshot!==savedContact)))
+      return Response.json({error:contactError},{status:409,headers:{"Cache-Control":"no-store, private"}});
     if(estimateId){
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
       if(!linkedEstimate)return Response.json({error:"That estimate does not belong to this customer."},{status:409});
@@ -163,19 +181,27 @@ export async function POST(request: Request) {
       SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='scheduled'
         AND e.scheduled_at=? AND julianday(e.scheduled_at)>julianday('now')
     )`:"";
+    // Compare the current customer contact in the SAME conditional INSERT.
+    // A changed/deleted phone/email between GET and write cannot produce an
+    // apparently ready handoff. Copy-only audits remain contact-independent.
+    const contactGuard=contactColumn?` AND EXISTS (
+      SELECT 1 FROM customers c WHERE c.id=? AND c.${contactColumn}=?
+    )`:"";
     const write=await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
-      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}${appointmentGuard}`)
+      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}${appointmentGuard}${contactGuard}`)
       .bind(id,customerId,estimateId||null,channel,template,body,createdAt,
         ...(template==="review"?[estimateId,customerId]:[]),
-        ...(appointmentTemplate?[estimateId,customerId,appointmentScheduledAt]:[])).run();
+        ...(appointmentTemplate?[estimateId,customerId,appointmentScheduledAt]:[]),
+        ...(contactColumn?[customerId,savedContact]:[])).run();
     const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
       id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
     }>();
     if(!saved)return Response.json({error:template==="review"?
       "Review invitation eligibility changed during preparation. Recheck job completion, payment and refund status before trying again.":
       appointmentTemplate?appointmentError:
+      contactColumn?contactError:
       "Message preparation is not verified. Check saved drafts before retrying."},
-      {status:(template==="review"||appointmentTemplate)&&write.meta.changes===0?409:503,
+      {status:(template==="review"||appointmentTemplate||contactColumn)&&write.meta.changes===0?409:503,
        headers:{"Cache-Control":"no-store, private"}});
     if(!matches(saved))return Response.json({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
     return Response.json({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
