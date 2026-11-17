@@ -91,6 +91,14 @@ const phrase='FIRE synthetic private cross device recovery phrase 2026';
 const folder=mkdtempSync(join(tmpdir(),'fire-saved-photo-proof-'));
 const file=join(folder,'synthetic.firephotos'),legacy=join(folder,'unprotected.zip');
 try{
+ // Verify the full encrypted saved-file path, not merely a plaintext ZIP.
+ const jobProtected=await protectOfflinePhotoZip(new Blob([jobLinkedZip]),phrase);
+ const jobFile=join(folder,'synthetic-job-linked.firephotos');
+ writeFileSync(jobFile,Buffer.from(await jobProtected.arrayBuffer()));
+ const savedJob=await verifyOwnerSavedProtectedPhotoFile(jobFile,phrase);
+ ok(savedJob.photoCount===1&&savedJob.allFilesCryptographicallyVerified===true&&
+    savedJob.verifiedZipSha256===sha(jobLinkedZip),
+    'encrypted saved job-linked photo ZIP independently verifies original bytes');
  const original=zip(),protectedBytes=await protectOfflinePhotoZip(new Blob([original]),phrase);
  writeFileSync(file,Buffer.from(await protectedBytes.arrayBuffer()));
  writeFileSync(legacy,original);
