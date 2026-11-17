@@ -234,9 +234,16 @@ check(page.includes('<OfflineCustomerPhotos')&&page.includes('knownCustomerIds={
 check(!page.includes('section === "photos"&&<CustomerPhotos'),'Original R2 photo panel no longer owns the customer tab');
 check(component.includes('exportLocalPhotos(')&&component.includes('restoreLocalPhotos('),'Actual photo screen exposes archive export and restore');
 
-check(component.includes('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')&&
- component.includes('restoreLocalPhotos(zip,knownCustomerIds,knownJobs)')&&
- component.indexOf('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')<component.indexOf("mutationStarted=true"),
+const photoRestoreFlow=component.slice(
+ component.indexOf(' const restore=async(files:FileList|null)=>{'),
+ component.indexOf(' const comparison=async()=>{')
+);
+check(photoRestoreFlow.includes('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')&&
+ photoRestoreFlow.includes('restoreLocalPhotos(zip,knownCustomerIds,knownJobs)')&&
+ photoRestoreFlow.indexOf('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')<
+ photoRestoreFlow.indexOf('mutationStarted=true')&&
+ photoRestoreFlow.indexOf('mutationStarted=true')<
+ photoRestoreFlow.indexOf("await runPhotoMutation('restore'"),
  'Job-linked photo restore verifies exact customer ownership before journaling or IndexedDB writes');
 const photoAddFlow=component.slice(component.indexOf(' const add=async(files:FileList|null)=>{'),component.indexOf(' const remove=async(photo:OfflinePhoto)=>{'));
 check(photoAddFlow.includes('resolveVerifiedOfflinePhotoJobSelection(customerId,selectedJobId,knownJobs)')&&
