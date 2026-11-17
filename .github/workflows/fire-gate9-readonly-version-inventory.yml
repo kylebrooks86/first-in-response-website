@@ -2,6 +2,7 @@ name: FIRE Gate 9 offline provider-contract tests
 on:
   pull_request:
     paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1*'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.test.mjs'
@@ -52,6 +53,7 @@ jobs:
           node-version: '22'
       - name: Verify provider contract without network or secrets
         run: |
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1*.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.test.mjs
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.test.mjs
@@ -103,3 +105,16 @@ jobs:
             if ($_.Exception.Message -notmatch '^STOP: LEGACY_GATE9_UPLOAD_ATTEMPT_SPENT\.') { throw }
           }
           Write-Host 'PASS: spent upload refused before loading the binding validator or invoking Wrangler.'
+      - name: Refuse the spent TEST schema initialization on a fresh machine
+        shell: pwsh
+        run: |
+          $folder = './business-app-parity/cloudflare-launch/stripe-test-worker'
+          foreach ($name in @('initialize-empty-test-d1.ps1','initialize-empty-test-d1-v2.ps1','initialize-empty-test-d1-v3.ps1')) {
+            try {
+              & (Join-Path $folder $name)
+              throw 'Retired TEST schema initializer returned without refusal.'
+            } catch {
+              if ($_.Exception.Message -notmatch '^STOP: STRIPE_TEST_D1_INITIALIZATION_SPENT\.') { throw }
+              Write-Host "PASS: $name refused before remote commands."
+            }
+          }
