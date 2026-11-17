@@ -65,40 +65,64 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 6
-      - name: Wait only for uploaded GitHub archive to become visible (bounded GET)
+      - name: Read exact same-run retained GitHub archive by immutable ID (bounded GET)
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_ARTIFACT_ID: ${{ steps.immutable_sql_packet_upload.outputs.artifact-id }}
         run: |
           set -euo pipefail
-          [[ "$EXPECTED_ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo 'No exact archive ID; STOP'; exit 1; }
-          # GitHub can return an empty artifact list briefly after a successful
-          # upload finalization. Only poll this SAME run for the exact artifact.
-          # Never re-upload, re-run D1 SQL or accept a different run's package.
-          visible=0
-          for attempt in {1..12}; do
-            listing=$(gh api --method GET \
-              "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100") || {
-                echo 'GitHub artifact read unavailable; STOP'; exit 1;
-              }
-            if printf '%s' "$listing" | jq -e --argjson id "$EXPECTED_ARTIFACT_ID" \
-              '.artifacts | any(.id == $id and .expired == false)' >/dev/null; then
-              visible=1
-              break
+          [[ "$EXPECTED_ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo 'No exact same-run archive ID; STOP'; exit 1; }
+          # The upload response already supplies the immutable ID. GitHub's
+          # workflow-artifact LIST endpoint can briefly return 0 results even
+          # though GET by that same ID succeeds. Do not silently accept some
+          # other run, re-upload, invoke Cloudflare or rerun an applied SQL.
+          archive="$RUNNER_TEMP/fire-new-live-sql-retained.zip"
+          ready=0
+          for attempt in {1..10}; do
+            if gh api --method GET -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/artifacts/${EXPECTED_ARTIFACT_ID}/zip" \
+              > "$archive" 2>/dev/null; then
+              if [[ -s "$archive" ]]; then ready=1; break; fi
             fi
-            if (( attempt < 12 )); then sleep 5; fi
+            rm -f "$archive"
+            if (( attempt < 10 )); then sleep 4; fi
           done
-          if (( visible != 1 )); then
-            echo 'Exact uploaded GitHub archive not yet readable; STOP without re-upload'; exit 1
+          if (( ready != 1 )); then
+            echo 'Exact same-run GitHub artifact ZIP not readable; STOP with no provider action'; exit 1
           fi
-          echo 'PASS: exact same-run GitHub archive is visible for readback'
-      - name: Read retained actual 31-file source archive back from GitHub (NO PROVIDER)
-        uses: actions/download-artifact@v4
-        with:
-          artifact-ids: ${{ steps.immutable_sql_packet_upload.outputs.artifact-id }}
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/fire-new-live-sql-readback
-          merge-multiple: true
+          # Do not extract an untrusted ZIP directly. Enforce closed paths,
+          # no links, bounded bytes, exact file count and CRC before readback.
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile, BadZipFile
+          import os, stat
+          base=Path(os.environ['RUNNER_TEMP'])
+          source=base/'fire-new-live-sql-retained.zip'
+          destination=base/'fire-new-live-sql-readback'
+          if not source.is_file() or source.stat().st_size>5_000_000 or source.stat().st_size<22:
+              raise SystemExit('Exact GitHub archive exceeds safe source-only ZIP limits')
+          with ZipFile(source) as z:
+              files=[i for i in z.infolist() if not i.is_dir()]
+              if len(files)!=31 or len({i.filename for i in files})!=31:
+                  raise SystemExit('Expected exactly 31 unique reviewed source files')
+              total=0
+              for i in files:
+                  p=PurePosixPath(i.filename)
+                  mode=i.external_attr>>16
+                  if p.is_absolute() or len(p.parts)<1 or any(x in ('','..','.') for x in p.parts) or '\\' in i.filename or ':' in p.parts[0] or stat.S_ISLNK(mode):
+                      raise SystemExit('Unsafe source archive path or link')
+                  total+=i.file_size
+                  if i.file_size>2_000_000 or total>10_000_000:
+                      raise SystemExit('Source archive expands beyond safe size limit')
+              if z.testzip() is not None:
+                  raise SystemExit('Stored GitHub source archive failed ZIP CRC verification')
+              destination.mkdir(parents=True,exist_ok=True)
+              for i in files:
+                  path=destination.joinpath(*PurePosixPath(i.filename).parts)
+                  path.parent.mkdir(parents=True,exist_ok=True)
+                  path.write_bytes(z.read(i))
+          print('PASS: exact immutable same-run GitHub artifact ZIP recovered with 31 CRC-verified safe files')
+          PY
       - name: Verify RETAINED 26 reviewed Git-SQL blobs and fail-closed release receipt
         run: |
           test "$(find "$RUNNER_TEMP/fire-new-live-sql-readback" -type f | wc -l)" -eq 31
