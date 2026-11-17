@@ -33,6 +33,15 @@ check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now).
 // called an upcoming booking or imply that a text was actually sent.
 const staleAppointment=job('appointmentReminder','followup',{estimate:{id:'late-job',customerId:'late-customer',scheduledAt:new Date(now-30000).toISOString()}});
 assert.equal(context.exports.todayActionLane(staleAppointment,now),'now','Past scheduled appointment remains actionable in owner Today queue');n++;
+// A saved payment overage is a priority, but the owner must inspect the ledger
+// before contacting a customer, collecting money or initiating a refund.
+const overageAction=job('followUp1','followup',{estimate:{id:'overage-queue',customerId:'billing-customer',paymentOverageOpen:1}});
+assert.equal(context.exports.todayActionLane(overageAction,now),'verify','Billing exception must say Verify first, never Act now');n++;
+const dueAction=job('followUp1','followup',{estimate:{id:'normal-due',customerId:'ordinary-customer',firstEstimateSentAt:at(-1)}});
+assert.equal(context.exports.todayActionLane(dueAction,now),'now','Normal eligible follow-up remains Act now');n++;
+const overageQueue=context.exports.todayCustomerQueue([overageAction,dueAction],now);
+assert.equal(overageQueue[0].lane,'verify','The displayed billing exception keeps its verify-only lane');n++;
+assert.equal(overageQueue[1].lane,'now','Unrelated ordinary follow-up retains normal lane');n++;
 check(job('winBack6','repeat',{dueAt:at(-4)}),'past-target',/passed by 4d/);
 check(job('winBack6','repeat',{dueAt:at(10)}),'upcoming',/in 10d/);
 check(job('winBack11','repeat',{dueAt:at(0)}),'due',/target reached/);
