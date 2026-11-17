@@ -59,11 +59,15 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
      !Number.isSafeInteger(photo.sizeBytes)||photo.sizeBytes<1||
      photo.sizeBytes>15*1024*1024||photo.blob.size!==photo.sizeBytes)
    fail('photo metadata or bytes do not match accepted device ZIP format');
+  if(photo.jobId!==undefined&&
+     (typeof photo.jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(photo.jobId)))
+   fail('invalid photo job association');
   totalBytes+=photo.sizeBytes;
   if(totalBytes>160*1024*1024)fail('device-photo bytes exceed supported ZIP size');
   // Hash the verified actual bytes again to bind each record and photograph.
   const digest=await sha(await photo.blob.arrayBuffer());
-  photoDigests.push({id:photo.id,customerId:photo.customerId,category:photo.category,
+  photoDigests.push({id:photo.id,customerId:photo.customerId,
+   ...(photo.jobId===undefined?{}:{jobId:photo.jobId}),category:photo.category,
    caption:photo.caption,filename:photo.filename,contentType:photo.contentType,
    sizeBytes:photo.sizeBytes,createdAt:photo.createdAt,sha256:digest});
  }
