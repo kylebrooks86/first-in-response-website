@@ -8,7 +8,7 @@ import {Label} from './ui/label';
 import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,verifyOfflinePhotoJobOwnership,type VerifiedPhotoJob,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import {requiresAllCustomerPhotoReview} from '../lib/photo-restore-interruption-scope.mjs';
-import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT} from '../lib/photo-comparison-layout.mjs';
+import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT,assertPhotoComparisonSameJob} from '../lib/photo-comparison-layout.mjs';
 import {readOfflinePhotoBackup,type OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
@@ -272,6 +272,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   if(!selectedBefore||!selectedAfter||active.current)return;
   active.current=true;setBusy(true);setError('');setMessage('');
   try{
+   // Never present unrelated numbered-job originals as one real job comparison.
+   assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo);
    const load=(url:string)=>new Promise<HTMLImageElement>((resolve,reject)=>{
     const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('Photo cannot be decoded by this browser.'));image.src=url;
    });

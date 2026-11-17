@@ -22,3 +22,18 @@ export function photoComparisonPlacement(sourceWidth,sourceHeight,panelX){
   width,height,panelX,panelY:p.panelY,panelWidth:p.panelWidth,panelHeight:p.panelHeight
  });
 }
+
+/** Before/after graphics may use older unlinked customer photos, but must
+ * never silently combine originals from two different numbered jobs. A
+ * job-linked image and a legacy customer-only image also lack a verified
+ * common job identity and must be reviewed rather than auto-paired.
+ * This is a local display guard only; photo originals remain untouched.
+ */
+export function assertPhotoComparisonSameJob(before,after){
+ if(!before||!after||before.id===after.id||
+    before.category!=='before'||after.category!=='after'||
+    typeof before.customerId!=='string'||before.customerId!==after.customerId)
+  throw Error('Choose distinct BEFORE and AFTER originals for the same saved customer.');
+ if(before.jobId!==after.jobId)
+  throw Error('These photos are linked to different jobs or only one has a verified job. Choose photos for the same job, or use two unlinked customer photos.');
+}

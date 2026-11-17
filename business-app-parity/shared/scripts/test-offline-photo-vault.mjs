@@ -1,5 +1,6 @@
 /** Validate the REAL offline-photo ZIP implementation, restore checks and UI wiring. */
 import assert from 'node:assert/strict';
+import {assertPhotoComparisonSameJob} from '../lib/photo-comparison-layout.mjs';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {webcrypto} from 'node:crypto';
@@ -269,4 +270,18 @@ check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:
 check(page.includes('setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);')&&page.includes('setCustomers([]);setEstimates([]);setInvoices([]);'),'Actual owner UI revokes cached customer display and prior financial rows on explicit auth denial');
 check(page.includes('mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})'),'Actual FIRE Customers fallback uses the reviewed network/auth decision policy');
 check(page.includes('void load(true); }} />'),'Customer creation refreshes offline directory promptly rather than remaining undiscoverable until next login');
+const legacyBefore={id:'compare-before',customerId:'customer-A',category:'before'};
+const legacyAfter={id:'compare-after',customerId:'customer-A',category:'after'};
+assertPhotoComparisonSameJob(legacyBefore,legacyAfter);
+check(true,'Existing customer-only before/after comparison remains usable');
+assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-A'},{...legacyAfter,jobId:'estimate-A'});
+check(true,'Two original photos linked to the same saved job may be compared');
+assert.throws(()=>assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-A'},{...legacyAfter,jobId:'estimate-B'}),/different jobs/);
+check(true,'Different numbered jobs cannot be combined into a misleading before/after graphic');
+assert.throws(()=>assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-A'},legacyAfter),/only one has a verified job/);
+check(true,'Mixed job-linked and unlinked originals require explicit same-job review');
+assert.throws(()=>assertPhotoComparisonSameJob(legacyBefore,{...legacyAfter,customerId:'customer-B'}),/same saved customer/);
+check(true,'Cross-customer before/after comparison is denied');
+check(component.includes('assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo)'),
+ 'Actual owner photo-comparison UI invokes job and customer pairing guard before canvas output');
 console.log('PASS '+checks+' offline-photo archive and actual integrated UI checks.');
