@@ -5,6 +5,7 @@ import {DatabaseSync} from "node:sqlite";
 import vm from "node:vm";
 import ts from "typescript";
 import {shouldOfferReviewAfterPayment} from "../lib/customer-review-invite.mjs";
+import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 const db=new DatabaseSync(":memory:");
 for(const name of readdirSync("drizzle").filter(n=>n.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+name,"utf8"));
 let owner={email:"kylebrooks8605@gmail.com"},writes=0,queries=0;
@@ -18,6 +19,7 @@ vm.runInNewContext(code,{exports:module.exports,require:key=>{
  if(key==="cloudflare:workers")return {env};
  if(key==="../../chatgpt-auth")return {getChatGPTUser:async()=>owner};
  if(key==="../../../lib/customer-review-invite.mjs")return {shouldOfferReviewAfterPayment};
+ if(key==="../../../lib/customer-write-request-guard.mjs")return {readOwnerWriteObject};
  throw Error("Unexpected import "+key);
 },Response,crypto:{randomUUID:()=> "legacy-test-id-"+(++queries)}});
 const api=module.exports;

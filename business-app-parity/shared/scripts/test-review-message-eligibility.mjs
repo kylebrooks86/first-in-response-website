@@ -5,6 +5,7 @@ import {DatabaseSync} from "node:sqlite";
 import vm from "node:vm";
 import ts from "typescript";
 import {shouldOfferReviewAfterPayment} from "../lib/customer-review-invite.mjs";
+import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 const db=new DatabaseSync(":memory:");
 for(const p of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+p,"utf8"));
 let user={email:"kylebrooks8605@gmail.com"},writes=0,sequence=0;
@@ -21,7 +22,7 @@ const env={DB:{prepare(sql){return {bind(...args){const query=db.prepare(sql);re
  };}};}}};
 const load=()=>{
  const exports={};const js=ts.transpileModule(readFileSync("app/api/customer-messages/route.ts","utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
- const imported={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../lib/customer-review-invite.mjs":{shouldOfferReviewAfterPayment}};
+ const imported={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../lib/customer-review-invite.mjs":{shouldOfferReviewAfterPayment},"../../../lib/customer-write-request-guard.mjs":{readOwnerWriteObject}};
  vm.runInNewContext(js,{exports,require:n=>{if(!(n in imported))throw Error("Unexpected dependency "+n);return imported[n]},Response,crypto:{randomUUID:()=>`synthetic-review-${++sequence}`}});
  return exports;
 };

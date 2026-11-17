@@ -4,6 +4,7 @@ import {readFileSync,readdirSync} from "node:fs";
 import {DatabaseSync} from "node:sqlite";
 import ts from "typescript";
 import vm from "node:vm";
+import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 
 const db=new DatabaseSync(":memory:");
 for(const file of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+file,"utf8"));
@@ -20,6 +21,7 @@ function loadRoute(dbResource=DB) {
   if(key==="cloudflare:workers")return {env:{DB:dbResource}};
   if(key==="../../chatgpt-auth")return {getChatGPTUser:async()=>owner};
   if(key==="../../../lib/customer-review-invite.mjs")return {shouldOfferReviewAfterPayment:()=>false};
+  if(key==="../../../lib/customer-write-request-guard.mjs")return {readOwnerWriteObject};
   throw Error("Unexpected import "+key);
  },Response,URL,crypto});
  return exports;

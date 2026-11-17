@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 
 const source=readFileSync('app/api/tasks/route.ts','utf8');
 const owner=source.match(/OWNER_EMAIL="([^"]+)"/)?.[1];
@@ -55,7 +56,7 @@ let authorized=true;
 const auth=async()=>authorized?{email:owner}:null;
 const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 const ctx={exports:{},Response,Request,Date,Number,String,JSON,crypto:{randomUUID:()=> '10000000-0000-4000-8000-000000000001'},
- require(id){if(id==='cloudflare:workers')return {env:{DB:wrapper}};if(id==='../../chatgpt-auth')return {getChatGPTUser:auth};throw Error('Unexpected import '+id);}};
+ require(id){if(id==='cloudflare:workers')return {env:{DB:wrapper}};if(id==='../../chatgpt-auth')return {getChatGPTUser:auth};if(id==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};throw Error('Unexpected import '+id);}};
 vm.runInNewContext(js,ctx);
 const send=(data)=>new Request('https://synthetic.invalid/api/tasks',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
 const parse=async response=>({status:response.status,data:await response.json()});
