@@ -15,6 +15,7 @@ const composer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text=
 const categoryList=ast.statements.find(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>d.name.getText(ast)==='messageTemplateCategories'));
 const categoryIcon=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageTemplateCategoryIcon');
 assert.ok(categoryList&&categoryIcon,'Real template-group dependencies must be in browser fixture');
+const futureSchedule=new Date(Date.now()+14*86400000).toISOString(); // Synthetic saved appointment must remain upcoming.
 const fixture=`import React,{useState,useRef,useEffect}from'react';import{createRoot}from'react-dom/client';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
@@ -28,8 +29,9 @@ ${categoryIcon.getText(ast)}
 ${composer.getText(ast)}
 const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
 const estimate={id:'synthetic-estimate',customerId:'synthetic',customer:customer.name,service:'House Wash',totalCents:12300,invoiceId:null,shareToken:'',invoiceShareToken:''};
-const scheduledEstimate={...estimate,id:'synthetic-scheduled-estimate',status:'scheduled',address:'100 Fixture Way',scheduledAt:'2026-11-04T16:00:00Z'};
-createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment unscheduled" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment scheduled" customer={customer} estimate={scheduledEstimate}/></main>);`;
+const scheduledEstimate={...estimate,id:'synthetic-scheduled-estimate',status:'scheduled',address:'100 Fixture Way',scheduledAt:${JSON.stringify(futureSchedule)}};
+const staleEstimate={...estimate,id:'synthetic-stale-estimate',status:'scheduled',address:'100 Fixture Way',scheduledAt:'2026-11-04T16:00:00Z'};
+createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/><MessageComposer initialTemplate="estimate" triggerLabel="Estimate notice" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment unscheduled" customer={customer} estimate={estimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment scheduled" customer={customer} estimate={scheduledEstimate}/><MessageComposer initialTemplate="appointment" triggerLabel="Appointment stale" customer={customer} estimate={staleEstimate}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false,denyShare=true,shareRequests=0,denyTemplates=false,partialTemplates=false,templateRequests=0,denyCopyPreparation=false,seededPending=[];const server=createServer(async(req,res)=>{
@@ -168,15 +170,23 @@ try{
   'Unscheduled estimate cannot prepare or copy a false appointment confirmation');
  const beforeAppointment=requests.length;
  await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Appointment stale',exact:true}).click();
+ const stale=page.getByRole('dialog',{name:'Message',exact:true});
+ await stale.getByText('This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed.',{exact:true}).waitFor();
+ check(await stale.getByRole('button',{name:'Text',exact:true}).isDisabled()&&
+       await stale.getByRole('button',{name:'Copy',exact:true}).isDisabled(),
+   'Actually rendered old scheduled job cannot prepare a stale confirmation');
+ check(requests.length===beforeAppointment,'Past scheduled job does not create a message preparation POST');
+ await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Appointment scheduled',exact:true}).click();
  const scheduled=page.getByRole('dialog',{name:'Message',exact:true});
- await page.waitForFunction(()=>Array.from(document.querySelectorAll('[role=dialog] textarea')).some(e=>e.value.includes('2026-11-04T16:00:00Z')));
+ await page.waitForFunction(expected=>Array.from(document.querySelectorAll('[role=dialog] textarea')).some(e=>e.value.includes(expected)),futureSchedule);
  check(await scheduled.getByRole('button',{name:'Text',exact:true}).isEnabled(),
   'Saved scheduled appointment date and address enable ordinary Text preparation');
  await scheduled.getByRole('button',{name:'Text',exact:true}).click();
  await scheduled.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
  check(requests.length===beforeAppointment+1&&
-       requests.at(-1).body.includes('2026-11-04T16:00:00Z')&&
+       requests.at(-1).body.includes(futureSchedule)&&
        requests.at(-1).body.includes('100 Fixture Way'),
   'Prepared appointment message reflects exact saved schedule and property address, not a placeholder');
  // Copy must not put outgoing text on the clipboard until the same
