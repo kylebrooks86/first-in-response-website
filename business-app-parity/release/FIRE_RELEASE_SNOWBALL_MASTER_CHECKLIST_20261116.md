@@ -4,7 +4,9 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 **How to check off:** Tick each atomic step ONLY after the linked accepted evidence actually demonstrates the exact target/source and requirement. An individual checked subtask **does not close its parent gate**. Work top-to-bottom, but parallelize independent read-only tasks. Never repeat existing accepted checks. User decisions are required only when an action actually modifies providers, merges, activates, migrates, spends money or cuts over.
 
-**November 17 update — 36/95 complete, 59 open, 4/10 formal gates accepted.** G4-03 is complete from existing authenticated binding and physical D1 inventory evidence. The four-environment record is below. In parallel, [the spent Stripe TEST upload command was made preflight-only](https://github.com/kylebrooks86/first-in-response-website/commit/2e7fd8124dcb4147ebcc0aca89bbaa4d175e9f47), and [the saved Worker-only fallback passed Wrangler packaging plus 7/7 local workerd denial probes](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44086158101). G9-02 and G9-03 remain open for provider resolution and target-bound approval/preflight respectively. NEW LIVE remains DARK.
+**November 17 update — 38/95 complete, 57 open, 4/10 formal gates accepted.** G4-08 and G4-09 are complete for the separately authorized DR and NEW LIVE code-only updates to frozen QA source `15bd714c435a585f695ed7166cf06d2c31ea1a8e`. [Approval, execution and hosted readback evidence](#g4-08-and-g4-09-dark-code-update-evidence).
+
+**Previous November 17 update — 36/95 complete, 59 open, 4/10 formal gates accepted.** G4-03 is complete from existing authenticated binding and physical D1 inventory evidence. The four-environment record is below. In parallel, [the spent Stripe TEST upload command was made preflight-only](https://github.com/kylebrooks86/first-in-response-website/commit/2e7fd8124dcb4147ebcc0aca89bbaa4d175e9f47), and [the saved Worker-only fallback passed Wrangler packaging plus 7/7 local workerd denial probes](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44086158101). G9-02 and G9-03 remain open for provider resolution and target-bound approval/preflight respectively. NEW LIVE remains DARK.
 
 ## Evidence base
 - SOURCE OF TRUTH: https://github.com/kylebrooks86/first-in-response-website/issues/19
@@ -76,8 +78,8 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - [ ] **G4-05** — Check account/zone-wide routes, hostnames, preview aliases, externally reachable endpoints and Access policy scope; existing Worker-level OFF/empty screenshot is accepted but NOT complete ingress proof.
 - [ ] **G4-06** — Resolve the visible NO Worker-specific Access warning with an owner-approved protected/private ingress design, using no unapproved paid feature; verify the actual effect before any URL exposure.
 - [ ] **G4-07** — Complete independently hosted STAGING candidate (correct app/D1/rollback), not an old unrelated Sites refund-staging project, with exact-source verification.
-- [ ] **G4-08** — Bring DR to approved QA-master functional/visual version only through distinct authorized code-only deployment and verify while protecting backup/recovery independence.
-- [ ] **G4-09** — Bring NEW LIVE to exact approved candidate while DARK only through distinct authorization; preserve the consumed first-create lock, current version and rollback history.
+- [x] **G4-08** — Separately authorized DR code-only update of the approved QA-master package completed. Independent readback confirmed the new serving version, original isolated D1, blocked authentication, no R2 and predecessor retained. DR recovery evidence custody remains separate. [Evidence](#g4-08-and-g4-09-dark-code-update-evidence).
+- [x] **G4-09** — Separately authorized NEW LIVE code-only update of the exact frozen candidate completed while DARK. Independent readback confirmed the new serving version, original D1, blocked authentication and retained rollback. Original first-create and update locks remain spent. [Evidence](#g4-08-and-g4-09-dark-code-update-evidence).
 - [ ] **G4-10** — Compare every required QA-master screen/workflow/navigation/mobile calculation across QA, STAGING, DR and NEW LIVE on the *actual hosted candidate*, noting deliberate environment-specific controls only.
 - [ ] **G4-11** — Collect scoped owner/provider evidence for exact target serving identities, source bytes, isolation, ingress and parity; obtain formal Gate 4 acceptance (not automatically from CI).
 
@@ -154,7 +156,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - No unnecessary iPhone, Acer, Cloudflare login, provider screenshot or synthetic regression repetition. Recheck only a specific changed function after an approved change.
 - The owner has work data/screenshots available. Ask only for a **specific remaining original hosted evidence gap** after searching the connected records.
 
-**Subtask snapshot (latest).** 36/95 items checked, 59 open. G4-03 records physical D1 binding isolation, G7-08 records offline fail-closed recovery, and G10-05 records owner planning approval. Formal gate count is 4/10.
+**Subtask snapshot (latest).** 38/95 items checked, 57 open. Formal gate count is 4/10.
 
 ### G4-03 hosted D1 binding evidence
 
@@ -166,3 +168,14 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 | NEW LIVE | `fire-fullapp-new-live` | `DB → fire-fullapp-new-live-db` | `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662` | [Post-update version binding readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6937417820) |
 
 The four recorded `DB` bindings resolve to **four different physical D1 IDs**. The QA, DR and NEW LIVE version readbacks show no R2, and the STAGING Worker binding capture shows its sole visible D1 binding and no visible R2. STAGING is corroborated by matching the exact database name to the independent D1 inventory; its screenshot only shows the short version prefix. **G4-03 covers binding-level isolation for the recorded hosted versions.** Full hosted source parity, current-candidate STAGING validation, ingress and data-level testing remain open under their own checklist items. This evidence review used prior owner records without contacting Cloudflare.
+
+### G4-08 and G4-09 dark code-update evidence
+
+Both existing Workers were updated separately using distinct archives of the owner-approved QA-master source `15bd714c435a585f695ed7166cf06d2c31ea1a8e`. Each update was code-only and retained its independently verified D1 database and rollback version.
+
+| Target | Owner-approved archive SHA-256 | Installed version at 100% | Retained predecessor | Evidence |
+| --- | --- | --- | --- | --- |
+| DR | `eee57f2a5f98c4c9aa84c881818414094868bae5fef41d45c339073e269ecfb0` | `f7b7e27c-986b-44b5-b0f9-5e8e4b623426` | `b7c42773-5a93-4c6c-91d2-83cdb8e857d9` | [Approval](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6923894536), [CLI completion](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6926866811), [hosted readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6927144670), [Worker URLs off](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6928068767) |
+| NEW LIVE | `8c19774e4e11f08c011c5e274d815ab341e287cdcf714cce1c647a782b75d67c` | `cfacbb3d-43de-4d2c-8008-c6732d78f756` | `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09` | [Approval](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6931059249), [CLI completion](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6937179152), [hosted readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6937417820), [Worker URLs off](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6938656649) |
+
+DR retained its independent D1 and [off-device encrypted recovery evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6872378378). NEW LIVE retained its [original first-create lock and receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6897281548); both later update locks are also spent. Source and archive hashes identify what the guarded publisher reviewed. Full hosted source and static asset byte attestation is still G4-02, account/zone ingress and Access remain G4-05/G4-06, visual and workflow parity remain G4-10, and actual records/photos recovery or rollback remains Gate 7. No provider action was performed to reconcile these records.

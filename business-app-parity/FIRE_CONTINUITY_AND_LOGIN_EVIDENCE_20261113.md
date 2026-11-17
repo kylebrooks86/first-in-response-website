@@ -1,3 +1,11 @@
+## November 17 — DR and NEW LIVE code-update evidence closed (38/95)
+
+[G4-08 and G4-09](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g4-08-and-g4-09-dark-code-update-evidence) are complete. For each Worker the prior records tie a separate exact owner approval and validated QA-master archive to the successful CLI receipt and subsequent hosted readback. DR `f7b7e27c-986b-44b5-b0f9-5e8e4b623426` and NEW LIVE `cfacbb3d-43de-4d2c-8008-c6732d78f756` are each recorded at 100%, independently bound and DARK, with the predecessors still listed for rollback. Existing first-create and update locks remain spent. Full hosted byte attestation, current STAGING parity, ingress, Access, recovery and actual rollback execution retain their own requirements. Formal acceptance remains Gates 1/2/3/8 (4/10).
+
+Gate 9 source change [`fcd30f9`](https://github.com/kylebrooks86/first-in-response-website/commit/fcd30f96483e5136253a428e978708fef0b00c2d) removes the mutating code from the historical PowerShell inactive-version uploader and rejects `-Upload` before loading dependencies or invoking Wrangler. Its historical review mode remains available. The [Windows replay-refusal regression and offline provider-contract job](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44087673343) passed. [Public website/calculator scope guard](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44087673388) passed. The original provider failure and new TEST approval/preflight remain open. There was no Cloudflare login, provider write, migration, Stripe action, deployment or merge in this turn.
+
+---
+
 ## November 17 — G4-03 complete from existing evidence (36/95); Gate 9 fallback boots offline
 
 The [master checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g4-03-hosted-d1-binding-evidence) now reconciles the four observed hosted `DB` aliases with four distinct physical D1 IDs. STAGING is evidenced by its authenticated Worker Settings binding and a separate matching D1 listing. QA, DR and NEW LIVE have exact-version binding readbacks. This closes G4-03 for the recorded bindings. Hosted source/asset parity, ingress, current-candidate STAGING evidence and full Gate 4 remain open. Existing owner evidence was reused.
