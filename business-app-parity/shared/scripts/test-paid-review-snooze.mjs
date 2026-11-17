@@ -20,7 +20,10 @@ const load=(path,deps)=>{
  return exports;
 };
 const helpers=load("lib/payment-closeout-actions.ts",{});
-const auth={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../lib/payment-closeout-actions":helpers};
+// The real closeout queue now imports the mandatory fail-closed refund-ledger
+// guard. Load its actual TypeScript module; never replace it with a pass stub.
+const refundReadiness=load("lib/refund-ledger-readiness.ts",{});
+const auth={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":refundReadiness};
 const closeouts=load("app/api/payment-closeouts/route.ts",auth);
 const snooze=load("app/api/payment-closeouts/snooze/route.ts",{"cloudflare:workers":{env},"../../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../../lib/customer-write-request-guard.mjs":{readOwnerWriteObject}});
 const stamp=n=>new Date(Date.now()-n*86400000).toISOString();
