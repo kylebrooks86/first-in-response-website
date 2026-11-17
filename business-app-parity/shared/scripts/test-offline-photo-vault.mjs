@@ -329,6 +329,17 @@ check(comparisonRendering.includes("context.fillText('firstinresponseexteriors.c
  'Shareable before/after PNG overlays only public FIRE web identity, never private customer names or IDs');
 check(component.includes('assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo)'),
  'Actual owner photo-comparison UI invokes job and customer pairing guard before canvas output');
+
+check(component.includes("setPreparedComparison({file,beforeId:selectedBefore.photo.id,afterId:selectedAfter.photo.id})")&&
+ component.includes("preparedComparison.beforeId===selectedBefore?.photo.id")&&
+ component.includes("preparedComparison.afterId===selectedAfter?.photo.id")&&
+ component.includes('Save or share comparison'),
+ 'Prepared marketing PNG sharing is bound to the originally selected same-job photo IDs');
+const nativeShareFlow=component.slice(component.indexOf(' const savePreparedComparison=async()=>{'),component.indexOf(' return <section className="photo-panel"'));
+check(nativeShareFlow.includes("await navigator.share({files:[file]")&&
+ nativeShareFlow.indexOf("await navigator.share({files:[file]")===nativeShareFlow.indexOf("await navigator.share("),
+ 'Native Files sharing is the first awaited operation in the separate iPhone button click');
+
 check(eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-A'}),
  'Comparison picker offers the matching saved-job AFTER image');
 check(!eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-B'}),
