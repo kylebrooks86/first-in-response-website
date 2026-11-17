@@ -156,6 +156,8 @@ try{
   else await quick.getByRole('link',{name:'Open email app',exact:true}).waitFor();
   check(requests.length===before+1&&requests.at(-1).body===message&&requests.at(-1).channel===(mode==='Text'?'text_prepared':'email_prepared'),
    mode+' profile action prepares one exact saved draft, not an actual send');
+  check(requests.at(-1).recipientSnapshot===(mode==='Text'?'9185550102':'fixture+qa@example.invalid'),
+   mode+' real browser handoff binds the exact saved customer contact before API preparation');
   check(await quick.getByRole('button',{name:'Yes, mark sent',exact:true}).isVisible(),
    mode+' profile handoff never marks sent automatically');
  }
