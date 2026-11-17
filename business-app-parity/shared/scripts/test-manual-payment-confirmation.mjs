@@ -44,6 +44,19 @@ try{
   eq(writes,0,caseName+' must not write');
  }
 
+ // Owner policy must be enforced by the REAL payment POST, not just the
+ // dropdown or customer agreement. No payment or tip row may be created.
+ const ownerPaymentView=readFileSync('app/dashboard.tsx','utf8');
+ eq(ownerPaymentView.includes('values={["Wave","Cash App","Venmo","Cash","Card","ACH / bank","Other"]}'),true);
+ eq(ownerPaymentView.includes('values={["Wave","Cash App","Venmo","Cash","Check","Card"'),false);
+ for(const forbiddenMethod of ['Check',' check ','CHECK','Cheque','Personal Check',"Cashier's check"]){
+  const before=writes;
+  const denied=await post('b',{...attempt,requestId:randomUUID(),method:forbiddenMethod});
+  eq(denied.status,400,forbiddenMethod+' is not an accepted payment method');
+  eq((await denied.json()).error.includes('does not accept checks'),true);
+  eq(writes,before,'Rejected check cannot create a payment');
+  eq(db.prepare("SELECT COUNT(*) AS n FROM payments WHERE estimate_id='b'").get().n,0);
+ }
  // A committed principal must be discoverable even when the write acknowledgement failed.
  failAfterCommit=true;eq((await post('a',attempt)).status,503);const receipt=await (await get('a',attempt.requestId)).json();eq(receipt.confirmed,true);eq(confirmedManualPayment(receipt,'a',attempt),10000);const savedWrites=writes;
  eq((await get('b',attempt.requestId)).status,409);eq(confirmedManualPayment(receipt,'b',attempt),null);
