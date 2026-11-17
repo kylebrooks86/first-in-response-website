@@ -59,6 +59,22 @@ export function definitiveUnwrittenMessagePreparation(status:number):boolean{
  * and let the owner prepare a message that cannot open the customer's record.
  * Custom messages without either placeholder are unaffected.
  */
+/** Reject unsafe or non-document URLs before a customer sees a prepared
+ * estimate/invoice message. Deployed customer links must be HTTPS; local
+ * loopback HTTP is retained solely for offline Chrome fixture development.
+ * This is format validation, not proof the remote share token is active.
+ */
+function usablePreparedDocumentLink(value:string,kind:"estimate"|"invoice"):boolean{
+ try{
+  const url=new URL(value);
+  const loopback=url.hostname==="localhost"||url.hostname==="127.0.0.1"||url.hostname==="[::1]";
+  if(url.protocol!=="https:"&&!(url.protocol==="http:"&&loopback))return false;
+  if(url.username||url.password||!url.hostname||!url.pathname.startsWith("/"+kind+"/")||
+     url.pathname==="/"+kind+"/"||url.hash)return false;
+  return true;
+ }catch{return false;}
+}
+
 export function customerTemplateLinkReadiness(
  templateBody:string,
  templateSubject:string,
@@ -74,8 +90,8 @@ export function customerTemplateLinkReadiness(
  // non-URL label must never be substituted into a report link template.
  if(source.includes("@form_link"))
   return blocked("Report links are not available from this message editor. Update this template in Settings to remove @form_link, then attach or share the real report manually.");
- if(requiresEstimate&&!estimateLink)return blocked("Estimate link is not ready. Prepare or retry the link before this message.");
- if(requiresInvoice&&!invoiceLink)return blocked("Invoice link is not ready. Prepare or retry the link before this message.");
+ if(requiresEstimate&&!usablePreparedDocumentLink(estimateLink,"estimate"))return blocked("Estimate link is not ready or is not a secure estimate URL. Prepare or retry the link before this message.");
+ if(requiresInvoice&&!usablePreparedDocumentLink(invoiceLink,"invoice"))return blocked("Invoice link is not ready or is not a secure invoice URL. Prepare or retry the link before this message.");
  if(requiresEstimate&&!draftBody.includes(estimateLink))return blocked("Estimate link is missing from this draft. Choose the template again or paste the link.");
  if(requiresInvoice&&!draftBody.includes(invoiceLink))return blocked("Invoice link is missing from this draft. Choose the template again or paste the link.");
  return{ready:true,requiresEstimate,requiresInvoice,reason:""};
