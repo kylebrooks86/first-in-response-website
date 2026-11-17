@@ -1,5 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 import {BUSINESS_PREFERENCES_KEY,decodeBusinessPreferences,validBusinessPreferences} from '../../../lib/business-preferences';
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
@@ -7,7 +8,11 @@ async function owner(){return (await getChatGPTUser())?.email.toLowerCase()==='k
 export async function GET(){if(!await owner())return json({error:'Unauthorized'},401);try{return json({preferences:decodeBusinessPreferences(await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>())});}catch{return json({error:'Availability and repeat reminders could not be verified.'},503);}}
 export async function PUT(request:Request){
  if(!await owner())return json({error:'Unauthorized'},401);
- let input:unknown;try{input=await request.json();}catch{return json({error:'Invalid settings.'},400);}
+ // Repeat-service settings are compact owner JSON; reject oversized input
+ // before parsing while preserving existing revision-CAS recovery.
+ const parsed=await readOwnerWriteObject(request,8_192);
+ if(parsed.response)return parsed.response;
+ const input:unknown=parsed.value;
  if(!validBusinessPreferences(input)||input.blocks.length!==0)return json({error:'Availability time blocks have been retired. Only repeat-service intervals can be saved.'},400);
  try{
   const row=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>(),current=decodeBusinessPreferences(row);

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 import { FIRE_TEMPLATES, SERVICE_AGREEMENT, businessTemplateOverride } from "../../../lib/fire-templates";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
@@ -14,14 +15,10 @@ export async function GET(){
 
 export async function PUT(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
-  let body:{key?:string;subject?:string;body?:string;reset?:boolean};
-  try {
-    const parsed:unknown=await request.json();
-    if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw Error("Invalid template request");
-    body=parsed as typeof body;
-  } catch {
-    return Response.json({error:"A valid template request is required."},{status:400});
-  }
+  // Prevent oversized or malformed template writes before D1 readback.
+  const parsed=await readOwnerWriteObject(request,64_000);
+  if(parsed.response)return parsed.response;
+  const body=parsed.value as {key?:string;subject?:string;body?:string;reset?:boolean};
   const template=FIRE_TEMPLATES.find((item)=>item.key===body.key);
   if(!template)return Response.json({error:"Unknown template."},{status:400});
   const uncertain=()=>Response.json({

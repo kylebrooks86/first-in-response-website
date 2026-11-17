@@ -66,6 +66,26 @@ try{
   'Chunked over-limit request rejected even without Content-Length');
  // Older callers without request IDs remain supported as deliberate new notes.
  eq((await post({customerId:'b',body:'[FIRE FLAG] REVIEW_RECEIVED'})).status,201);eq((await post({customerId:'b',body:'x'.repeat(5000),requestId:randomUUID()})).status,201);
+ // Every other owner-only message, task and settings write must also
+ // refuse unbounded bodies before touching D1. This is the ACTUAL route
+ // loader with a disposable database, not a synthetic helper assertion.
+ const additional=createRouteFixtureLoader(process.cwd(),env,()=>owner);
+ for(const [file,method,limit] of [
+  ['app/api/customer-messages/route.ts','POST',64_000],
+  ['app/api/customer-messages/route.ts','PATCH',64_000],
+  ['app/api/tasks/route.ts','POST',64_000],
+  ['app/api/tasks/route.ts','PATCH',64_000],
+  ['app/api/message-templates/route.ts','PUT',64_000],
+  ['app/api/business-preferences/route.ts','PUT',8_192],
+ ]){
+  const handler=additional(file)[method];
+  const beforeRows=rows(),beforeWrites=writes;
+  const denied=await handler(new Request('https://fixture.invalid/owner-write',
+   {method,body:'X'.repeat(limit+1)}));
+  eq(denied.status,413,file+' '+method+' rejects actual over-limit stream');
+  eq(rows(),beforeRows,file+' '+method+' cannot alter saved notes');
+  eq(writes,beforeWrites,file+' '+method+' performs zero D1 writes');
+ }
  const frozen=rows(),writeCount=writes;for(const user of [null,{email:'other@example.invalid'}]){owner=user;eq((await post(body)).status,401);eq(rows(),frozen);eq(writes,writeCount);}
  console.log('PASS '+checks+' actual customer-note SQLite/API checks: lost INSERT ACK recovery, lost SELECT ACK fail-closed, fake write ACK refusal, retry, concurrency, immutable timestamps, conflicts, malformed input, limits and owner authorization.');
 }finally{db.close();}

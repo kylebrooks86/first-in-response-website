@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -63,13 +64,11 @@ export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   let uncertainOperation:{id:string;customerId:string;estimateId:string;channel:string;template:string;body:string}|null=null;
   try {
-    let value:Record<string,unknown>;
-    try{
-      const parsed:unknown=await request.json();
-      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
-        return Response.json({error:'Enter a valid customer message.'},{status:400});
-      value=parsed as Record<string,unknown>;
-    }catch{return Response.json({error:'Enter a valid customer message.'},{status:400});}
+    // Bound owner-prepared message bytes before parsing; keep existing
+    // prepared-ID retry and customer/job ownership verification unchanged.
+    const parsed=await readOwnerWriteObject(request,64_000);
+    if(parsed.response)return parsed.response;
+    const value=parsed.value as Record<string,unknown>;
     const customerId = String(value.customerId ?? "").trim();
     const estimateId = String(value.estimateId ?? "").trim();
     const channel = String(value.channel ?? "").trim();
@@ -188,13 +187,11 @@ export async function PATCH(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   let confirmationOperation:{id:string;customerId:string;channel:string;cancelled:boolean;preparedId:string;estimateId:string|null;template:string;body:string}|null=null;
   try {
-    let value:Record<string,unknown>;
-    try{
-      const parsed:unknown=await request.json();
-      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
-        return Response.json({error:'Enter a valid send confirmation.'},{status:400});
-      value=parsed as Record<string,unknown>;
-    }catch{return Response.json({error:'Enter a valid send confirmation.'},{status:400});}
+    // Confirm only a bounded owner request; never infer delivery or
+    // alter an idempotent prepared-message receipt on malformed input.
+    const parsed=await readOwnerWriteObject(request,64_000);
+    if(parsed.response)return parsed.response;
+    const value=parsed.value as Record<string,unknown>;
     const id=String(value.preparedMessageId??"").trim();
     const customerId=String(value.customerId??"").trim();
     const confirmed=value.ownerConfirmedSent===true, cancelled=value.ownerConfirmedNotSent===true;

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
@@ -8,12 +9,11 @@ export async function GET(){if(!await authorized())return Response.json({error:"
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request:Request){
  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
- let body:Record<string,unknown>;
- try{
-  const parsed:unknown=await request.json();
-  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Invalid payload");
-  body=parsed as Record<string,unknown>;
- }catch{return Response.json({error:"A valid task request is required."},{status:400});}
+ // Stream-bound owner task creation before JSON parse. All existing
+ // immutable request-ID and customer/job D1 checks remain authoritative.
+ const parsed=await readOwnerWriteObject(request,64_000);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as Record<string,unknown>;
  const title=String(body.title??"").trim();
  if(!title)return Response.json({error:"Task title is required."},{status:400});
  if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid task request ID is required."},{status:400});
@@ -103,12 +103,9 @@ export async function POST(request:Request){
 
 export async function PATCH(request:Request){
  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
- let body:{id?:unknown;status?:unknown;expectedStatus?:unknown;operation?:unknown;dueAt?:unknown;expectedDueAt?:unknown};
- try{
-  const parsed:unknown=await request.json();
-  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Invalid task update");
-  body=parsed as typeof body;
- }catch{return Response.json({error:"Task update requires a valid JSON object."},{status:400});}
+ const parsed=await readOwnerWriteObject(request,64_000);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as {id?:unknown;status?:unknown;expectedStatus?:unknown;operation?:unknown;dueAt?:unknown;expectedDueAt?:unknown};
  const id=typeof body.id==="string"?body.id.trim():"";
  // Rescheduling is separate from status toggles: it cannot complete a task,
  // alter linked customer/estimate identities, or rewrite a yard-sign/review marker.
