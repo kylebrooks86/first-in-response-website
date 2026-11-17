@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
@@ -17,13 +18,12 @@ export async function GET(){
 
 export async function PATCH(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  // Even owner-authenticated notification and overpayment actions must not
+  // buffer an arbitrary request body before authorization-sensitive D1 reads.
+  const parsed=await readOwnerWriteObject(request,8192);
+  if(parsed.response)return parsed.response;
   try{
-    let parsed:unknown;
-    try{parsed=await request.json();}
-    catch{return Response.json({error:"A valid notification action is required."},{status:400});}
-    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
-      return Response.json({error:"A valid notification action is required."},{status:400});
-    const value=parsed as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"refund"|"keep";refundAmountCents?:number};
+    const value=parsed.value as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"refund"|"keep";refundAmountCents?:number};
     const now=new Date().toISOString();
     if(value.all!==undefined&&value.all!==true)return Response.json({error:"Invalid mark-all request."},{status:400});
     if(value.all){
