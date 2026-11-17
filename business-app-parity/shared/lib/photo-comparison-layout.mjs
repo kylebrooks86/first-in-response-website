@@ -37,3 +37,14 @@ export function assertPhotoComparisonSameJob(before,after){
  if(before.jobId!==after.jobId)
   throw Error('These photos are linked to different jobs or only one has a verified job. Choose photos for the same job, or use two unlinked customer photos.');
 }
+
+/** Only show AFTER originals that the owner may legitimately compare to a
+ * selected BEFORE original. Keep legacy unlinked customer-only pairs usable;
+ * never present another customer's image or a differently linked job as a
+ * suggested comparison. This filter is NOT a substitute for the export guard.
+ */
+export function eligiblePhotoComparisonAfter(before,after){
+ return Boolean(before&&after&&before.category==='before'&&after.category==='after'&&
+  before.id!==after.id&&before.customerId===after.customerId&&
+  before.jobId===after.jobId);
+}

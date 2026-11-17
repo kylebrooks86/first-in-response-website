@@ -8,3 +8,7 @@ export declare function assertPhotoComparisonSameJob(
  before:Readonly<{id:string;customerId:string;jobId?:string;category:'before'|'after'|'property'}>,
  after:Readonly<{id:string;customerId:string;jobId?:string;category:'before'|'after'|'property'}>
 ):void;
+export declare function eligiblePhotoComparisonAfter(
+ before:Readonly<{id:string;customerId:string;jobId?:string;category:'before'|'after'|'property'}>|undefined,
+ after:Readonly<{id:string;customerId:string;jobId?:string;category:'before'|'after'|'property'}>|undefined
+):boolean;

@@ -1,6 +1,6 @@
 /** Validate the REAL offline-photo ZIP implementation, restore checks and UI wiring. */
 import assert from 'node:assert/strict';
-import {assertPhotoComparisonSameJob} from '../lib/photo-comparison-layout.mjs';
+import {assertPhotoComparisonSameJob,eligiblePhotoComparisonAfter} from '../lib/photo-comparison-layout.mjs';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {webcrypto} from 'node:crypto';
@@ -284,4 +284,20 @@ assert.throws(()=>assertPhotoComparisonSameJob(legacyBefore,{...legacyAfter,cust
 check(true,'Cross-customer before/after comparison is denied');
 check(component.includes('assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo)'),
  'Actual owner photo-comparison UI invokes job and customer pairing guard before canvas output');
+check(eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-A'}),
+ 'Comparison picker offers the matching saved-job AFTER image');
+check(!eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-B'}),
+ 'Comparison picker hides AFTER images from a different job');
+check(eligiblePhotoComparisonAfter(legacyBefore,legacyAfter)&&
+ !eligiblePhotoComparisonAfter(legacyBefore,{...legacyAfter,jobId:'estimate-A'}),
+ 'Legacy unlinked before/after picker remains usable without mixing linked originals');
+check(!eligiblePhotoComparisonAfter(legacyBefore,{...legacyAfter,customerId:'customer-B'})&&
+ !eligiblePhotoComparisonAfter(legacyBefore,{...legacyAfter,category:'property'}),
+ 'Comparison picker excludes other-customer and non-AFTER originals');
+check(component.includes('after.filter(item=>eligiblePhotoComparisonAfter(selectedBefore.photo,item.photo))')&&
+ component.includes('disabled={busy||!selectedAfter}')&&
+ component.includes('No AFTER photo matches this saved job.'),
+ 'Actual customer photo picker filters by matching job and disables unsupported comparison previews');
+check(component.includes("setSelectedJobId('');setBeforeId('');setAfterId('');"),
+ 'Changing customers clears a stale photo-to-job selector and comparison choices');
 console.log('PASS '+checks+' offline-photo archive and actual integrated UI checks.');

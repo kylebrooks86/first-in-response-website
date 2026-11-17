@@ -8,7 +8,7 @@ import {Label} from './ui/label';
 import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,verifyOfflinePhotoJobOwnership,type VerifiedPhotoJob,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import {requiresAllCustomerPhotoReview} from '../lib/photo-restore-interruption-scope.mjs';
-import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT,assertPhotoComparisonSameJob} from '../lib/photo-comparison-layout.mjs';
+import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT,assertPhotoComparisonSameJob,eligiblePhotoComparisonAfter} from '../lib/photo-comparison-layout.mjs';
 import {readOfflinePhotoBackup,type OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
@@ -38,6 +38,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  };
  useEffect(()=>{
   let cancelled=false;setLoading(true);setError('');setItems([]);
+   // A saved job/photo choice must never carry over into another customer.
+   setSelectedJobId('');setBeforeId('');setAfterId('');
   listOfflinePhotos(customerId).then(rows=>{
    if(cancelled)return;
    setItems(rows.map(photo=>({photo,url:URL.createObjectURL(photo.blob)})));
@@ -267,7 +269,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const before=items.filter(item=>item.photo.category==='before');
  const after=items.filter(item=>item.photo.category==='after');
  const selectedBefore=before.find(item=>item.photo.id===(beforeId||before[0]?.photo.id));
- const selectedAfter=after.find(item=>item.photo.id===(afterId||after[0]?.photo.id));
+ const compatibleAfter=selectedBefore?after.filter(item=>eligiblePhotoComparisonAfter(selectedBefore.photo,item.photo)):[];
+ const selectedAfter=compatibleAfter.find(item=>item.photo.id===afterId)||compatibleAfter[0];
  const comparison=async()=>{
   if(!selectedBefore||!selectedAfter||active.current)return;
   active.current=true;setBusy(true);setError('');setMessage('');
@@ -359,9 +362,10 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   </div>}
   {before.length>0&&after.length>0&&<details className="photo-comparison-more"><summary>Before &amp; after comparison</summary><section className="before-after-builder"><header><div><p>Create a shareable comparison from photos stored on this device.</p></div><Images/></header>
    <div><label><span>Before</span><select value={selectedBefore?.photo.id??''} disabled={busy} onChange={e=>setBeforeId(e.target.value)}>{before.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
-   <label><span>After</span><select value={selectedAfter?.photo.id??''} disabled={busy} onChange={e=>setAfterId(e.target.value)}>{after.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
-   <Button disabled={busy} className="brand-button" onClick={()=>void comparison()}><Download className="h-4 w-4"/>Create comparison</Button></div>
-   <div className="before-after-preview"><figure><img src={selectedBefore?.url} alt="Selected before"/><figcaption>Before</figcaption></figure><figure><img src={selectedAfter?.url} alt="Selected after"/><figcaption>After</figcaption></figure></div>
+   <label><span>After</span><select value={selectedAfter?.photo.id??''} disabled={busy||compatibleAfter.length===0} onChange={e=>setAfterId(e.target.value)}>{compatibleAfter.length?compatibleAfter.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>):<option value="">No matching AFTER photo</option>}</select></label>
+   <Button disabled={busy||!selectedAfter} className="brand-button" onClick={()=>void comparison()}><Download className="h-4 w-4"/>Create comparison</Button></div>
+   {!selectedAfter&&<p role="status">No AFTER photo matches this saved job. Choose another BEFORE photo or add an AFTER original for the same job.</p>}
+   <div className="before-after-preview"><figure><img src={selectedBefore?.url} alt="Selected before"/><figcaption>Before</figcaption></figure>{selectedAfter&&<figure><img src={selectedAfter.url} alt="Selected after"/><figcaption>After</figcaption></figure>}</div>
   </section></details>}
  </section>;
 }
