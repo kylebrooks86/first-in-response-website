@@ -1,3 +1,11 @@
+## Exact-source corrected CI result — no TypeScript install required
+
+**Focused exact-source CI confirmation:** The first behavior-harness commit `474802fb` caused **only a test dependency failure** in the no-install Node runner (`Cannot find module 'typescript'`); the application component was not shown to fail. [Correction `1fc4fda`](https://github.com/kylebrooks86/first-in-response-website/commit/1fc4fda895c7b9c03bc79f1f0398804be3193961) removes that dependency: the existing offline test executes the **actual useEffect source body** under a fake browser after stripping its two TS type annotations, with focus/pageshow/visible revalidation, 401/403 denial, superseded prior success, cleanup and zero post-unmount updates. [Exact corrected-source workflow #44151903570](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44151903570) **COMPLETED SUCCESS**, including step “Gate7 complete records/photo owner capability hidden until separately authorized” and **53/53 focused owner availability checks PASS**. Entire new-head CI matrix was still underway at the first verification; this focused PASS is not hosted or Gate6/Gate7 acceptance. No new owner test or provider action.
+
+Historical explanatory text below describes the earlier simulated TSX harness. The **current** executable harness is a dependency-free execution of the actual React effect body plus the existing unchanged owner-capability route test.
+
+---
+
 # FIRE — Owner-protected complete records/photo review: session revalidation (2026-11-17)
 
 **Source correction:** [e0c87182](https://github.com/kylebrooks86/first-in-response-website/commit/e0c87182f2ef1531e76fa259e7a1e7b23aa74413), followed by [actual behavior-focused regression 474802fb](https://github.com/kylebrooks86/first-in-response-website/commit/474802fb9c2abd12dc7893d9f23a43136f1a4de8), both on existing **unmerged Draft PR #270**.
