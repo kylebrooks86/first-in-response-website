@@ -1,3 +1,9 @@
+## November 17 — job-linked offline photo recovery source and targeted CI
+
+Source-only PR #270 commits [`6aee14b`](https://github.com/kylebrooks86/first-in-response-website/commit/6aee14b7c2ecf662abb7a28c15cb73bddfe8bd27) and [`778ca4c`](https://github.com/kylebrooks86/first-in-response-website/commit/778ca4c065dcd6e8d42bee394b90194a5fef62a0) preserve an **optional** bounded `jobId` through original-photo ZIP metadata and local vault save/verification/restore comparisons. Legacy customer-only archives remain supported; the photo UI is not yet proven to pass job IDs and actual owner job-linked photo restore is still open under G7-07. At inspection of the latest head, local full-app build, isolated SQLite restore, photo verification, provider contract and website CI had completed successfully; staging parity and independent DR/LIVE candidates were still running. These are source/CI facts, **not** hosted acceptance. **45/95 checked, 50 open, 4/10 gates; NEW LIVE DARK.** No login, merge, provider writes, payment activation or deployment.
+
+---
+
 ## November 17 — reviewed test evidence without reopening accepted checks
 
 **November 17 evidence follow-up — 45/95 checked, 50 open.** [Remaining evidence after the test audit](#remaining-evidence-after-the-test-audit) records the exact photo-association gap and the single missing ordered STAGING journal readback. No accepted test or screenshot capture was repeated.
