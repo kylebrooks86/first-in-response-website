@@ -17,7 +17,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - **Newer exact executable-code SHA `8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2` has 27/27 GitHub workflows SUCCESS** (independently fetched by commit SHA); [staging/native SQLite/Chrome run #44024946759](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024946759) all six jobs SUCCESS. Earlier `0c0a334f` queued/cancelled status is superseded, NOT PASS. Later PR270 documentation-only `[skip ci]` commits are not separately compiled code. B05 is now checked; no hosted proof implied.
 - Latest active NEW LIVE immutable physical version: `cfacbb3d-43de-4d2c-8008-c6732d78f756`. This is **not** the new unmerged PR270 runtime.
 
-**SNOWBALL PROGRESS UPDATE — November 16–17 CST: 33/95 atomic tasks checked (initial 22; B05/B06/B07/B08/B09/B10/B11/B12/B13/B14 and independently verified historical-draft B15). 62 remain. No new formal gate accepted (4/10).** Source-frozen QA review: [branch](https://github.com/kylebrooks86/first-in-response-website/tree/work/fire-qa-release-8c2b50d5-20261117), [post-QA patch review](../evidence/FIRE_POST_QA_MASTER_DELTA_SOURCE_REVIEW_20261117.md).
+**SNOWBALL PROGRESS UPDATE — November 16–17 CST: 34/95 atomic tasks checked (initial 22; A01–A18/B01–B15 complete, plus G7-08 exact offline fail-closed negative recovery PASS 91/91). 61 remain. No new formal gate accepted (4/10).** Source-frozen QA review: [branch](https://github.com/kylebrooks86/first-in-response-website/tree/work/fire-qa-release-8c2b50d5-20261117), [post-QA patch review](../evidence/FIRE_POST_QA_MASTER_DELTA_SOURCE_REVIEW_20261117.md).
 
 ## Checklist — smallest safe wins first
 
@@ -107,7 +107,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - [ ] **G7-05** — Keep secure independent/off-Acer custody and reproducible encrypted/versioned copies, with owner-held keys; no sensitive raw JSON/photos in public GitHub.
 - [ ] **G7-06** — Restore all required records and ordered schema into a completely empty, isolated disposable destination; prove immutable Customer #/Job # and financial history survive.
 - [ ] **G7-07** — Restore and reopen original photo bytes and customer/job associations into the corresponding isolated photo store/device archive, then verify hashes against the paired manifest.
-- [ ] **G7-08** — Prove fail-closed detection of wrong destination, altered/missing files, incomplete snapshot, wrong migration, stale key, interrupted import and occupied database.
+- [x] **G7-08** — **Source-only fail-closed recovery negative modes VERIFIED** with actual 26-reviewed-migration synthetic SQLite + saved encrypted records/photos, including newly tested preexisting interrupted-output refusal (does not overwrite or create misleading ZIP). Exact test-only commit `240f337b`, focused [run 44028504296](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44028504296) **PASS 91/91**, existing full-table recovery guards **55/55** and browser paired restore **39/39**. This closes the offline fail-closed *subtask only*, not a physical power-cut kill drill, real owner/Cloudflare D1 photo restore, off-device custody or formal Gate 7. [Exact-mode evidence](../evidence/FIRE_G7_08_FAIL_CLOSED_OFFLINE_RECOVERY_20261117.md).
 - [ ] **G7-09** — Exercise an explicitly authorized isolated code AND database/photo rollback/recovery drill; a previous Worker version merely being listed Ready is not rollback proof.
 - [ ] **G7-10** — Save an owner-operable no-paid-service backup schedule and recovery instructions; formally accept Gate 7 on real target-bound paired backup/restore evidence.
 
@@ -147,4 +147,4 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - No unnecessary iPhone, Acer, Cloudflare login, provider screenshot or synthetic regression repetition. Recheck only a specific changed function after an approved change.
 - The owner has work data/screenshots available. Ask only for a **specific remaining original hosted evidence gap** after searching the connected records.
 
-**Subtask snapshot (latest):** 33/95 items checked, 62 open. Initial 22/95 baseline superseded by eleven verified atomic task checkoffs, including historical-draft B15 completed through separate exact file receipts. The **formal gate count stays 4/10**.
+**Subtask snapshot (latest):** 34/95 items checked, 61 open. New G7-08 is only offline negative/fail-closed recovery evidence; all real owner D1/photo hosted restore and formal Gate 7 acceptance remain open. Initial 22/95 baseline superseded by eleven verified atomic task checkoffs, including historical-draft B15 completed through separate exact file receipts. The **formal gate count stays 4/10**.
