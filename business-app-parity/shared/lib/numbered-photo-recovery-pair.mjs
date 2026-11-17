@@ -48,14 +48,28 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
  // validated D1 snapshot, and that job must belong to the photo's customer.
  // Display numbers alone (e.g. "0001") are not stable database identifiers.
  const estimateOwners=new Map(archive.tables.estimates.map(row=>[row.id,row.customer_id]));
- const jobOwners=new Map();
+ const jobOwners=new Map(),numberOwners=new Map();
  for(const job of archive.tables.fire_job_numbers){
   const owner=estimateOwners.get(job.root_estimate_id);
-  if(typeof job.root_estimate_id!=='string'||typeof owner!=='string'||!customers.has(owner))
+  if(typeof job.root_estimate_id!=='string'||typeof owner!=='string'||!customers.has(owner)||
+     !Number.isSafeInteger(job.job_number)||job.job_number<1)
    fail('numbered job has no valid customer-owned root estimate');
-  if(jobOwners.has(job.root_estimate_id))
-   fail('duplicate numbered job root estimate');
+  if(jobOwners.has(job.root_estimate_id)||numberOwners.has(job.job_number))
+   fail('duplicate numbered job root estimate or number');
   jobOwners.set(job.root_estimate_id,owner);
+  numberOwners.set(job.job_number,owner);
+ }
+ // A permanent job can contain additional linked estimates/changes. They
+ // are valid job IDs only when the numbered link resolves to that SAME
+ // customer's numbered job; otherwise a later estimate could cross owners.
+ for(const link of archive.tables.fire_job_estimate_links){
+  const owner=estimateOwners.get(link.estimate_id);
+  if(typeof link.estimate_id!=='string'||typeof owner!=='string'||
+     !numberOwners.has(link.job_number)||numberOwners.get(link.job_number)!==owner)
+   fail('linked job estimate has no matching same-customer numbered job');
+  if(jobOwners.has(link.estimate_id)&&jobOwners.get(link.estimate_id)!==owner)
+   fail('linked job estimate ownership conflicts');
+  jobOwners.set(link.estimate_id,owner);
  }
  let totalBytes=0;
  for(const photo of photos){
