@@ -1,3 +1,11 @@
+## November 17 — 42/95 checked; isolated Stripe TEST baseline confirmed
+
+[G9-01](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g9-01-hosted-stripe-test-baseline) is complete from existing owner and provider evidence. The independently bound TEST D1 passed guarded physical initialization of 25 migrations including refund tables and indexes. A later schema inventory and authenticated Worker readback corroborated the refund table, serving predecessor, physical D1 and four configured secret names. The protected owner API's redirect was verified as Cloudflare Access. A new candidate's exact preflight/authorization, hosted 0% readback and actual signed delivery remain open.
+
+[Source change](https://github.com/kylebrooks86/first-in-response-website/commit/5ac34f3a5db6b6f5d24ad4b9bc584efb89401451) replaces all three spent historical TEST D1 initializers with unconditional refusal before shell setup, credential resolution or remote instructions. Their original reviewed code remains available in Git history. All three exact-source checks passed locally and all three script entrypoints refused in [Windows provider-free CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44090788709). The [public website/calculator tree guard](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44090788645) also passed. No login, migration, Stripe write, deployment or merge was performed. Formal gates remain 4/10 and NEW LIVE stays dark.
+
+---
+
 ## November 17 — 41/95 checked; NEW LIVE schema recovery and TEST logging safeguards
 
 [G5-07](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g5-07-reviewed-new-live-schema-recovery) is complete. The exact NEW LIVE target had no FIRE schema or data before the separately approved recovery. The private, reviewed 26-SQL backup predated that operation. GitHub's comparison from the archived source to the separately approved source lists no changed SQL files. The original and new attempt locks and the verified post-write receipt remain preserved. No repeat migration or provider verification was performed.

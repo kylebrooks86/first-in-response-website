@@ -4,7 +4,9 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 **How to check off:** Tick each atomic step ONLY after the linked accepted evidence actually demonstrates the exact target/source and requirement. An individual checked subtask **does not close its parent gate**. Work top-to-bottom, but parallelize independent read-only tasks. Never repeat existing accepted checks. User decisions are required only when an action actually modifies providers, merges, activates, migrates, spends money or cuts over.
 
-**November 17 update — 41/95 complete, 54 open, 4/10 formal gates accepted.** [G5-07](#g5-07-reviewed-new-live-schema-recovery) closes the separately reviewed and approved NEW LIVE schema recovery. The recorded pre-write D1 had no FIRE schema or records, and the exact target-specific SQL was archived before execution.
+**November 17 update — 42/95 complete, 53 open, 4/10 formal gates accepted.** [G9-01](#g9-01-hosted-stripe-test-baseline) is complete for the established isolated TEST Worker, D1 refund schema, configured secret names and protected owner origin. Fresh preflight and exact-candidate authorization remain G9-03.
+
+**Previous November 17 update — 41/95 complete, 54 open, 4/10 formal gates accepted.** [G5-07](#g5-07-reviewed-new-live-schema-recovery) closes the separately reviewed and approved NEW LIVE schema recovery. The recorded pre-write D1 had no FIRE schema or records, and the exact target-specific SQL was archived before execution.
 
 **New TEST review archive.** The [telemetry-disabled source build](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44088970112) pins logs, invocation logs and traces off in the Worker-only manifest and its external seal. Source `19011d3173dfb6b502b971670b4c296f31796a36`, [artifact 14331340202](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44088970112/artifacts/14331340202), 3,150,025 bytes, GitHub-reported SHA-256 `97ecc66403e608423792253e733760d345840a4ac1bb108e811177da0c285916`. CI re-downloaded and verified the seal and booted the package offline. The previous privately archived TEST ZIP stays historical. G6-09 and G9-03 remain open for hosted evidence and exact approval respectively.
 
@@ -128,7 +130,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 ### G. Gate 9 — isolated real signed Stripe TEST and exact-cent reconciliation
 
-- [ ] **G9-01** — Select/verify the independent TEST Worker, TEST D1 and required refund schema/secret *names* and protected origin; QA/DR/NEW LIVE/legacy are not substitutes.
+- [x] **G9-01** — Verified the established isolated TEST Worker and its physical TEST D1, applied refund schema, configured secret names and protected owner origin from existing provider evidence. [Evidence](#g9-01-hosted-stripe-test-baseline).
 - [x] **G9-02** — Disposed of both historical TEST upload failures. The MIME correction was followed by a separately approved successful hosted inactive version; the current Worker-only fallback bypasses the failed asset-session endpoint and passed offline packaging and boot. Both legacy write commands are retired. [Evidence](#g9-02-historical-test-upload-failure-disposition).
 - [ ] **G9-03** — Seal one exact TEST-only inactive candidate: source SHA, modules/assets digest, isolated bindings, mode, rollback and no-R2; secure new explicit approval before ANY provider POST.
 - [ ] **G9-04** — Only on approval, create/verify one inactive TEST Worker version at 0% and independently read back actual modules, assets, D1, secrets names and traffic (no blind retry).
@@ -162,7 +164,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - No unnecessary iPhone, Acer, Cloudflare login, provider screenshot or synthetic regression repetition. Recheck only a specific changed function after an approved change.
 - The owner has work data/screenshots available. Ask only for a **specific remaining original hosted evidence gap** after searching the connected records.
 
-**Subtask snapshot (latest).** 41/95 items checked, 54 open. Formal gate count is 4/10.
+**Subtask snapshot (latest).** 42/95 items checked, 53 open. Formal gate count is 4/10.
 
 ### G4-03 hosted D1 binding evidence
 
@@ -205,3 +207,11 @@ The [applied permanent-number schema](../adapters/independent-live/drizzle/0025_
 3. [Separate exact owner authorization](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6887775645) preceded the one recovery operation. [Physical success evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6889484598) confirmed the exact ordered 26 migrations and expected empty application state. [Off-device receipt readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6891448726) preserves both locks and the success receipt with a verified encrypted archive hash.
 
 This closes the known NEW LIVE discrepancy and applies only to the empty prelaunch target. The migration was previously completed. Remaining QA/STAGING schema and ledger verification stays open. No legacy LIVE database change or replay was made.
+
+### G9-01 hosted Stripe TEST baseline
+
+- [Owner physical initialization PASS](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6565851852): the exact independent `fire-stripe-test-db-20261101` D1 UUID `dba421ba-fc66-4cf8-9c31-51616f8249ba` applied all 25 migrations, with required payment/refund/deposit schema and index confirmed by the guarded postflight. [Later physical inventory](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6692317019) independently observed the migration, payment, refund and checkout tables.
+- [Authenticated Worker readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6835793246): `fire-stripe-test-20261101`, serving predecessor `96e32262-fa33-4f04-a161-bee11f0353e2` at 100%, binds this exact D1. Stripe mode was disabled and Access required. The four configured names were `FIRE_ACCESS_AUD`, `FIRE_ACCESS_OWNER_EMAIL`, `FIRE_ACCESS_TEAM_DOMAIN` and `STRIPE_WEBHOOK_SECRET`. No key or secret value was inspected. [Later deployment view](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6901852627) corroborates the serving predecessor and confirms the newer Ready versions were not serving.
+- [Owner origin check](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6900892600) verified the anonymous owner API returned a Cloudflare Access login redirect. This covers the owner route at the protected TEST origin. Exact webhook exemption and signed ingress are still subject to their separate checks.
+
+This baseline covers the established TEST resources. Any future provider write still requires fresh targeted checks, the new candidate's exact approval and a genuinely signed synthetic event to reconcile. The 25-migration authorization is spent.
