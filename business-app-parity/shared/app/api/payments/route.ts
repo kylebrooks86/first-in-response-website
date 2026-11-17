@@ -60,6 +60,12 @@ export async function POST(request: Request) {
       return Response.json({ error: "Payment and tip must be valid, exact whole-cent amounts." }, { status: 400 });
     }
     const method = String(body.method ?? "Other").trim() || "Other";
+    // FIRE does not accept checks. Refuse even a stale/mobile client that
+    // bypasses the revised owner dropdown, before any financial D1 write.
+    // Previously recorded historical payment rows remain readable.
+    if (/\b(?:checks?|cheques?)\b/i.test(method)) {
+      return Response.json({error:"FIRE does not accept checks. Choose the payment method actually received."},{status:400});
+    }
     const reference = String(body.reference ?? "").trim() || null;
     // The owner form holds this ID across an uncertain network response. Reusing
     // it must NEVER create a second manual payment or tip.
