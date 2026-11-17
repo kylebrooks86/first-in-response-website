@@ -1,5 +1,6 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../../lib/customer-write-request-guard.mjs";
 export const dynamic="force-dynamic";
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store, private"}});
 type SnoozeReceipt={id:string;customerId:string;estimateId:string;channel:string;template:string;body:string;createdAt:string};
@@ -8,8 +9,10 @@ const OP=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 export async function POST(request:Request){
  const user=await getChatGPTUser();
  if(!user||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ const parsed=await readOwnerWriteObject(request,4096);
+ if(parsed.response)return parsed.response;
  try{
-  const value=await request.json() as Record<string,unknown>;
+  const value=parsed.value as Record<string,unknown>;
   const {estimateId,customerId,operationId}=value;
   if(typeof estimateId!=="string"||!estimateId||estimateId.length>128||
    typeof customerId!=="string"||!customerId||customerId.length>128||
