@@ -93,6 +93,7 @@ jobs:
             business-app-parity/shared/scripts/test-invoice-current-state.mjs \
             business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs \
             business-app-parity/shared/scripts/test-followup-exact-lookup.mjs \
+            business-app-parity/shared/scripts/test-followup-concurrent-idempotency.mjs \
             business-app-parity/shared/scripts/test-followup-saved-service-lines-sqlite.mjs \
             business-app-parity/shared/scripts/test-photo-upload-integrity.mjs \
             business-app-parity/shared/scripts/test-photo-upload-sqlite-commit.mjs; do
@@ -276,6 +277,7 @@ jobs:
           # Owner Follow-ups must not attach a foreign homeowner's invoice
           # token, price or service/notification link to a saved estimate.
           node scripts/test-followup-exact-lookup.mjs
+          node --experimental-sqlite scripts/test-followup-concurrent-idempotency.mjs
           node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
       - name: Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)
         run: |
