@@ -21,6 +21,14 @@ function validMeta(p:Omit<OfflinePhoto,'blob'>){
    &&Number.isSafeInteger(p.sizeBytes)&&p.sizeBytes>0&&p.sizeBytes<=15*1024*1024
    &&typeof p.createdAt==='string'&&Number.isFinite(Date.parse(p.createdAt));
 }
+const REQUIRED_MANIFEST_KEYS=['format','version','exportedAt','requiresMatchingCustomerRecords','photos'];
+const REQUIRED_PHOTO_KEYS=['id','customerId','category','caption','filename','contentType','sizeBytes','createdAt','sha256'];
+function exactArchiveKeys(value:unknown,required:readonly string[],optional:readonly string[]=[]):boolean{
+ if(!value||typeof value!=='object'||Array.isArray(value))return false;
+ const keys=Object.keys(value);
+ return required.every(key=>Object.prototype.hasOwnProperty.call(value,key))&&
+  keys.every(key=>required.includes(key)||optional.includes(key));
+}
 function crc32(bytes:Uint8Array){let crc=0xffffffff;for(const byte of bytes){crc^=byte;for(let j=0;j<8;j++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
 function guard(b:boolean,msg:string):asserts b{if(!b)throw Error('Photo backup rejected: '+msg);}
 function nameFor(id:string){return 'photos/'+id;}
@@ -32,8 +40,17 @@ export async function exportOfflinePhotoBackup(records:OfflinePhoto[]):Promise<B
   guard(!seen.has(record.id),'duplicate photo identifier');seen.add(record.id);
   total+=record.sizeBytes;guard(total<=MAX_ARCHIVE,'backup exceeds the safe single-file size');
   const bytes=new Uint8Array(await record.blob.arrayBuffer());
-  const {blob,...meta}=record;
-  prepared.push({meta:{...meta,sha256:await digest(bytes.buffer as ArrayBuffer)},bytes});
+  // IndexedDB records can carry fields from another app revision. Only the
+  // reviewed FIRE photo format may enter the saved archive: do not leak
+  // unexpected local fields or create a ZIP the independent verifier rejects.
+  const meta:ArchivePhoto={
+   id:record.id,customerId:record.customerId,
+   ...(record.jobId===undefined?{}:{jobId:record.jobId}),
+   category:record.category,caption:record.caption,filename:record.filename,
+   contentType:record.contentType,sizeBytes:record.sizeBytes,
+   createdAt:record.createdAt,sha256:await digest(bytes.buffer as ArrayBuffer)
+  };
+  prepared.push({meta,bytes});
  }
  const manifest={format:'fire-offline-photo-vault',version:1,exportedAt:new Date().toISOString(),requiresMatchingCustomerRecords:true,photos:prepared.map(x=>x.meta)};
  const stream=createStoredZip(async add=>{
@@ -104,12 +121,18 @@ export async function readOfflinePhotoBackup(file:Blob):Promise<OfflinePhoto[]>{
  guard(expectedLocalOffset===dirOffset&&offset===end&&parts.has('manifest.json'),
    'ZIP contains undeclared bytes or an incomplete directory');
  let manifest:unknown;try{manifest=JSON.parse(decoder.decode(parts.get('manifest.json')!));}catch{throw Error('Photo backup rejected: invalid manifest');}
- const data=manifest as {format?:unknown;version?:unknown;requiresMatchingCustomerRecords?:unknown;photos?:unknown};
- guard(data&&data.format==='fire-offline-photo-vault'&&data.version===1&&data.requiresMatchingCustomerRecords===true&&Array.isArray(data.photos),'wrong backup format or version');
+ const data=manifest as {format?:unknown;version?:unknown;exportedAt?:unknown;requiresMatchingCustomerRecords?:unknown;photos?:unknown};
+ // The owner browser and the independent on-disk backup verifier must agree:
+ // a checksummed ZIP with undeclared metadata is not a verified FIRE archive.
+ guard(exactArchiveKeys(data,REQUIRED_MANIFEST_KEYS),'unsupported photo archive manifest fields');
+ guard(data&&data.format==='fire-offline-photo-vault'&&data.version===1&&
+   typeof data.exportedAt==='string'&&Number.isFinite(Date.parse(data.exportedAt))&&
+   data.requiresMatchingCustomerRecords===true&&Array.isArray(data.photos),'wrong backup format or version');
  guard(data.photos.length===count-1&&data.photos.length<=MAX_PHOTOS,'photo list does not match ZIP entries');
  const photos:OfflinePhoto[]=[];const ids=new Set<string>();
  for(const item of data.photos){
   const p=item as ArchivePhoto;
+  guard(exactArchiveKeys(p,REQUIRED_PHOTO_KEYS,['jobId']),'unsupported photo manifest fields');
   guard(p&&validMeta(p)&&typeof p.sha256==='string'&&/^[a-f0-9]{64}$/.test(p.sha256),'invalid photo manifest metadata');
   guard(!ids.has(p.id),'duplicate photo ID in manifest');ids.add(p.id);
   const contents=parts.get(nameFor(p.id));
