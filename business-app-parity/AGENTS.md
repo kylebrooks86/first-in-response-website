@@ -1,3 +1,9 @@
+## November 17 — saved photo backup verification now validates job/customer links
+
+[source commit `aa91d51`](https://github.com/kylebrooks86/first-in-response-website/commit/aa91d51da7622cd02e97cd84c33ab2e805098280): the read-only saved-file verification path now uses the same validated job↔customer mapping as actual restore, including fail-closed rejection of missing or foreign job IDs. Five synthetic regressions were added to the existing photo-vault test suite. Historic customer-only archives are still compatible. Focused Gate7 saved protected-photo CI passed; other CI remains subject to exact-head results. This is source-only: **45/95**, formal G1/G2/G3/G8 accepted, G7 hosted real paired recovery remains open, NEW LIVE DARK. No Cloudflare login, R2, deployment, database/Stripe change, merge or release authorization.
+
+---
+
 ## November 17 evidence and test reconciliation — 45/95 checked
 
 [Checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) and [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md) supersede the historical counts below. G6-01 and G7-06 are checked from the protected hosted QA fixture pair and the prior positive disposable restore. Formal gates remain 4/10; NEW LIVE is dark. The owner authorization boundaries below continue to apply.

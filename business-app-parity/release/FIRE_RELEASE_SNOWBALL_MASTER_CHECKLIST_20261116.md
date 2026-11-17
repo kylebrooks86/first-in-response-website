@@ -1,5 +1,7 @@
 # FIRE Business App — SNOWBALL MASTER RELEASE CHECKLIST
 
+**November 17 saved-photo verification hardening — 45/95 unchanged.** [source commit `aa91d51`](https://github.com/kylebrooks86/first-in-response-website/commit/aa91d51da7622cd02e97cd84c33ab2e805098280) strengthens the owner customer-photo verification screen: the archived photo ZIP can be called a verified saved backup only after its optional job IDs are matched against the authenticated job-to-customer inventory. Missing/foreign/ambiguous job IDs fail without photo writes; historical customer-only archives remain compatible. Five new synthetic regression checks cover those cases. The Gate 7 focused workflow passed; the exact-head full matrix was still underway at first observation. This is candidate source code, **not** a newly deployed UI, target-bound owner photo+records backup, hosted job association proof or G7-07 closure. NEW LIVE remains DARK; 4/10 formal gates.
+
 **November 17 evidence follow-up — 45/95 checked, 50 open.** [Remaining evidence after the test audit](#remaining-evidence-after-the-test-audit) records the exact photo-association gap and the single missing ordered STAGING journal readback. No accepted test or screenshot capture was repeated.
 
 **November 17 evidence and test reconciliation — 45/95 checked, 50 open, 4/10 formal gates accepted.** [G6-01 and G7-06](#established-qa-fixtures-and-completed-disposable-restore) are complete for the hosted synthetic QA test setup and executed disposable full-record restore rehearsal.
