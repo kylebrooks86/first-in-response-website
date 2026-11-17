@@ -34,9 +34,12 @@ function crc32(bytes){
 }
 function validPhoto(p){
  if(!p||typeof p!=='object'||Array.isArray(p)||
-    Object.keys(p).sort().join(',')!=='caption,category,contentType,createdAt,customerId,filename,id,sha256,sizeBytes')
+    !['caption,category,contentType,createdAt,customerId,filename,id,sha256,sizeBytes',
+     'caption,category,contentType,createdAt,customerId,filename,id,jobId,sha256,sizeBytes']
+      .includes(Object.keys(p).sort().join(',')))
   return false;
  return safeId(p.id)&&safeCustomer(p.customerId)&&
+  (p.jobId===undefined||safeCustomer(p.jobId))&&
   ['before','after','property'].includes(p.category)&&
   typeof p.caption==='string'&&p.caption.length<=2000&&
   typeof p.filename==='string'&&p.filename.length>0&&p.filename.length<=240&&
