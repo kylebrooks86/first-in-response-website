@@ -204,6 +204,11 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    const known=new Set(knownCustomerIds);
    if(incoming.some(photo=>!known.has(photo.customerId)))
     throw Error('Restore matching customer records before importing these photos.');
+   // This customer-gallery UI has no verified numbered-job inventory yet.
+   // Reject job-linked ZIPs BEFORE the mutation journal starts rather than
+   // silently importing photos against potentially nonexistent jobs.
+   if(incoming.some(photo=>photo.jobId!==undefined))
+    throw Error('This photo ZIP contains job-linked photos. Restore and verify the matching FIRE job records before importing it; this customer-only recovery screen cannot verify job associations. No photos were changed.');
    mutationStarted=true;
    const result=await runPhotoMutation('restore',customerId,async()=>{
     const restored=await restoreLocalPhotos(zip,knownCustomerIds);
