@@ -2,6 +2,7 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions,validPromotions} from '../../../lib/saved-promotions';
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){const user=await getChatGPTUser();return user?.email.toLowerCase()===OWNER;}
@@ -15,9 +16,10 @@ export async function GET(){
 }
 export async function PUT(request:Request){
   if(!await authorized())return json({error:'Unauthorized'},401);
-  let input:unknown;try{input=await request.json();}catch{return json({error:'Invalid promotions request.'},400);}
-  if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'Invalid promotions request.'},400);
-  const body=input as Record<string,unknown>;
+  // Bound the complete owner catalog before JSON parse or any financial-setting D1 read.
+  const parsed=await readOwnerWriteObject(request,262_144);
+  if(parsed.response)return parsed.response;
+  const body=parsed.value as Record<string,unknown>;
   if(Object.keys(body).sort().join(',')!=='expectedRevision,promotions'||!validPromotions(body.promotions)||
     !(body.expectedRevision===null||typeof body.expectedRevision==='string'&&/^[0-9a-f-]{36}$/i.test(body.expectedRevision)))
     return json({error:'Review promotion names, dates, amounts and services before saving.'},400);
