@@ -106,13 +106,38 @@ try{
  await verifyPhotoActionGeometry('390px, expanded ZIP tools:');
  const library=page.locator('input[type="file"][multiple]');
  const take=(name)=>({name,mimeType:'image/png',buffer:png});
- // A bulk selection can commit its first photo and then reject another.
- // The real UI must retain that committed photo and require explicit review.
- await library.setInputFiles([take('synthetic-partial.png'),{name:'invalid.txt',mimeType:'text/plain',buffer:Buffer.from('not an image')}]);
+ // The entire batch must be validated before the interruption journal.
+ // An invalid second file must NOT allow the first to be saved.
+ await library.setInputFiles([take('synthetic-preflight.png'),{name:'invalid.txt',mimeType:'text/plain',buffer:Buffer.from('not an image')}]);
+ await page.getByText(/No photos were changed/).waitFor();
+ check(await page.locator('.photo-card').count()===0,
+  'Mixed valid/invalid photo batch refuses every original before the first IndexedDB write');
+ check(await page.getByRole('button',{name:'Photo library',exact:true}).isEnabled()&&
+  await page.getByText(/Photo changes are paused/).count()===0,
+  'Invalid selection never creates a false interruption receipt or freezes the gallery');
+ // Preserve REAL post-commit uncertainty testing, instead of relying on an
+ // invalid selection to simulate a partial save. Lose the first readback
+ // after IndexedDB commits, then require owner review without replay.
+ await page.evaluate(()=>{
+  window.originalCaptureGetAll=IDBIndex.prototype.getAll;
+  window.failCaptureReadback=true;
+  IDBIndex.prototype.getAll=function(...args){
+   if(this.objectStore.name==='photos'&&window.failCaptureReadback){
+    window.failCaptureReadback=false;
+    throw Error('Synthetic post-commit photo readback unavailable');
+   }
+   return window.originalCaptureGetAll.apply(this,args);
+  };
+ });
+ await library.setInputFiles(take('synthetic-postcommit.png'));
  await page.getByText(/Photo changes are paused/).waitFor();
- check(await page.locator('.photo-card').count()===1,'Partially completed selection refreshes the committed photo without replaying it');
- check(await page.getByRole('button',{name:'Photo library',exact:true}).isDisabled(),'Uncertain batch disables new photo additions');
- check(await page.getByRole('button',{name:'Delete on-device photo'}).isDisabled(),'Uncertain batch disables destructive photo actions');
+ check(await page.locator('.photo-card').count()===1,
+  'Actual saved photo survives post-commit readback failure and is shown for review');
+ check(await page.getByRole('button',{name:'Photo library',exact:true}).isDisabled(),
+  'Genuine post-commit uncertainty still blocks additional photos');
+ check(await page.getByRole('button',{name:'Delete on-device photo'}).isDisabled(),
+  'Genuine unconfirmed photo commit still blocks destructive actions');
+ await page.evaluate(()=>{IDBIndex.prototype.getAll=window.originalCaptureGetAll;});
  await page.reload();
  await page.getByText(/Photo changes are paused/).waitFor();
  check(await page.locator('.photo-card').count()===1,'Reload after partial selection retains committed image and durable pause');
