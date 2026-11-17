@@ -322,6 +322,11 @@ assert.throws(()=>assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-
 check(true,'Mixed job-linked and unlinked originals require explicit same-job review');
 assert.throws(()=>assertPhotoComparisonSameJob(legacyBefore,{...legacyAfter,customerId:'customer-B'}),/same saved customer/);
 check(true,'Cross-customer before/after comparison is denied');
+const comparisonRendering=component.slice(component.indexOf(' const comparison=async()=>{'),component.indexOf(' return <section className="photo-panel"'));
+check(comparisonRendering.includes("context.fillText('firstinresponseexteriors.com',1560,930)")&&
+ !comparisonRendering.includes('fillText(customerName')&&
+ !comparisonRendering.includes('fillText(photo.customerId'),
+ 'Shareable before/after PNG overlays only public FIRE web identity, never private customer names or IDs');
 check(component.includes('assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo)'),
  'Actual owner photo-comparison UI invokes job and customer pairing guard before canvas output');
 check(eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-A'}),

@@ -177,8 +177,33 @@ try{
  check(await comparisonMore.locator(':scope > summary').evaluate(node=>getComputedStyle(node,'::after').content.includes('▾')),'Comparison tool has a visible expand cue');
  await comparisonMore.locator(':scope > summary').click();
  check(await page.getByRole('button',{name:'Create comparison'}).isVisible(),'Saved before/after photos still open the working comparison editor');
+ // Inspect the actual canvas text draws in Chrome, not just the source. The
+ // customer name is private app context and must not be printed on a public
+ // shareable before/after PNG. Use FIRE's public website in its place.
+ await page.evaluate(()=>{
+  window.FIRE_COMPARE_DRAWN_LABELS=[];
+  window.FIRE_ORIGINAL_CANVAS_FILL_TEXT=CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText=function(text,...args){
+   window.FIRE_COMPARE_DRAWN_LABELS.push(String(text));
+   return window.FIRE_ORIGINAL_CANVAS_FILL_TEXT.call(this,text,...args);
+  };
+ });
  const [comparisonDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Create comparison'}).click()]);
  check(comparisonDownload.suggestedFilename()==='FIRE-before-after.png','Owner can create a downloadable comparison with original saved photos');
+ const overlayLabels=await page.evaluate(()=>{
+  const labels=window.FIRE_COMPARE_DRAWN_LABELS.slice();
+  CanvasRenderingContext2D.prototype.fillText=window.FIRE_ORIGINAL_CANVAS_FILL_TEXT;
+  delete window.FIRE_ORIGINAL_CANVAS_FILL_TEXT;
+  delete window.FIRE_COMPARE_DRAWN_LABELS;
+  return labels;
+ });
+ check(overlayLabels.includes('BEFORE')&&overlayLabels.includes('AFTER')&&
+  overlayLabels.includes('FIRST IN RESPONSE EXTERIORS')&&
+  overlayLabels.includes('firstinresponseexteriors.com'),
+  'Actual Chrome before/after canvas retains FIRE branding and public website');
+ check(!overlayLabels.includes('Synthetic Photo Customer')&&
+  !overlayLabels.some(label=>/synthetic-customer-photo|customer id/i.test(label)),
+  'Actual shareable PNG never renders the private owner profile customer name or customer ID');
  await comparisonMore.locator(':scope > summary').click();
  check(!await comparisonMore.evaluate(node=>node.open),'Comparison editor can be closed without deleting or changing saved photos');
  // NEW Gate7 behavior: actual browser photo UI must default to protected

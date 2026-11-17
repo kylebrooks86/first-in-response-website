@@ -304,7 +304,10 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    context.fillStyle='#10213a';context.fillRect(0,0,796,70);context.fillRect(804,0,796,70);
    context.fillStyle='white';context.textAlign='center';context.font='bold 30px sans-serif';context.fillText('BEFORE',398,46);context.fillText('AFTER',1202,46);
    context.textAlign='left';context.font='bold 27px sans-serif';context.fillText('FIRST IN RESPONSE EXTERIORS',35,930);
-   context.textAlign='right';context.font='22px sans-serif';context.fillText(customerName,1560,930);
+   // Comparison files are intended for marketing. Customer profile names are
+   // private and must never be embedded in the exported PNG by default.
+   // Keep the actual untouched photo pair; label only public FIRE identity.
+   context.textAlign='right';context.font='22px sans-serif';context.fillText('firstinresponseexteriors.com',1560,930);
    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('Could not create comparison.')),'image/png'));
    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='FIRE-before-after.png';link.click();
    window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
