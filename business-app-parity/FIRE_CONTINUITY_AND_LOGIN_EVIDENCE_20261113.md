@@ -1,3 +1,16 @@
+<!-- FIRE_NEW_LIVE_RECEIPT_TARGET_FIX_20261116 -->
+## Nov 16 late evening — NEW LIVE authenticated module proof receipt-target bug FIXED, focused CI green
+
+**Actual code correction on open DRAFT PR270, not deployed:** The NEW LIVE immutable-module verifier had incorrectly checked original one-shot success receipt `target === "dr"`, although the genuine guarded publisher writes `target === "new-live"`. This made a legitimate owner NEW LIVE capture stop *before* the provider GET. Commit [`03f43c77da55577c826230aba917a0d8d19dddf8`](https://github.com/kylebrooks86/first-in-response-website/commit/03f43c77da55577c826230aba917a0d8d19dddf8) corrects the condition, isolates a pure success-receipt validator and adds six focused accept/refuse regressions for exact NEW LIVE target, DR cross-target, Worker, physical D1, predecessor version and fail-closed receipt flags. **Do not run any older copy of the verifier containing the DR-target typo.**
+
+**Exact code validation:** Focused DARK-worker source-only run [#44012963828](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44012963828) SUCCESS, **36/36 NEW LIVE verifier synthetic tests**; [public website/calculator protection #44012965133](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44012965133) SUCCESS; [website verification #44012964303](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44012964303) SUCCESS. This is GitHub CI only; NO owner authenticated runtime-module GET, no hosted file bytes or new QA/STAGING/DR/NEW LIVE deployment proven by the fix.
+
+Previously accepted owner **NEW LIVE** 100%-serving `cfacbb3d-43de-4d2c-8008-c6732d78f756` / independent D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662` / disabled auth / no R2 / original one-shot lock and predecessor retention remain accepted and MUST NOT be repeated. Next genuinely missing task is optional **authenticated immutable runtime module-byte readback** using the corrected script, original private ZIP and *already provisioned* scoped credential; preserve all original receipts/locks, do not create new logins, tokens or provider writes. This proof would cover 193 JS/MJS runtime modules only, **not** 48 auxiliary bytes, account-wide routes/Access, STAGING parity, nonowner denial, full future-data/photo recovery or signed Stripe TEST.
+
+**Formal gate acceptance unchanged: 4/10 (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK, NO-GO, Job #0001 not activated.** No Git merge, Cloudflare write, SQL/D1 migration, R2/paid service, Access/routes/DNS, Stripe/payment, owner device retest or legacy retirement occurred. Dedicated [evidence](evidence/FIRE_NEW_LIVE_RUNTIME_RECEIPT_TARGET_FIX_20261116.md).
+
+---
+
 <!-- FIRE_NEW_LIVE_READONLY_RUNTIME_VERIFIER_SOURCE_NOV16 -->
 ## NOV 16 LATEST: NEW LIVE 193-runtime-module hosted-code comparison SOURCE READY (NO CLOUDFARE GET)
 
