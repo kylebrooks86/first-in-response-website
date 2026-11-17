@@ -134,6 +134,34 @@ export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
    throw Error('Photos changed while this ZIP was prepared. Prepare a fresh backup before saving to Files.');
  return zip;
 }
+export type VerifiedPhotoJob={id:string;customerId:string;label?:string};
+/** A job identifier is an estimate ID from the authenticated, owner-readable
+ * saved customer history, not a displayed "Job #0001" or a user-supplied
+ * list of IDs. Check BOTH job existence and customer ownership before any
+ * mutation. Offline customer-only recovery has no verified job inventory and
+ * must refuse job-linked ZIPs without altering older customer-only photos.
+ */
+export function verifyOfflinePhotoJobOwnership(
+ rows:ReadonlyArray<Pick<OfflinePhoto,'customerId'|'jobId'>>,
+ knownJobs?:ReadonlyArray<VerifiedPhotoJob>
+):void{
+ if(!rows.some(row=>row.jobId!==undefined))return;
+ if(!knownJobs)throw Error('Restore the matching FIRE job records first. Job-linked photos require an authenticated job/customer inventory.');
+ const owners=new Map<string,string>();
+ for(const job of knownJobs){
+  if(!job||typeof job.id!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(job.id)||
+     typeof job.customerId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(job.customerId)||
+     owners.has(job.id))
+   throw Error('Saved job inventory is invalid or ambiguous. Refresh owner customer records before restoring photos.');
+  owners.set(job.id,job.customerId);
+ }
+ for(const row of rows)if(row.jobId!==undefined){
+  if(!owners.has(row.jobId))
+   throw Error('Restore the matching FIRE job records first. Photo backup contains an unknown job ID.');
+  if(owners.get(row.jobId)!==row.customerId)
+   throw Error('Photo backup job belongs to a different customer. No photos were changed.');
+ }
+}
 export type PhotoRestoreResult={restored:number;alreadyPresent:number};
 export async function exactSavedPhotoMatch(saved:OfflinePhoto,incoming:OfflinePhoto):Promise<boolean>{
  const fields=['id','customerId','jobId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
@@ -162,22 +190,16 @@ export async function verifyRestoredOfflinePhotos(archivePhotos:OfflinePhoto[]):
    throw Error('Restore needs review: photo bytes or metadata changed after validation. Original records were not overwritten by FIRE.');
  }
 }
-export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[],knownJobIds?:string[]):Promise<PhotoRestoreResult>{
+export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[],knownJobs?:ReadonlyArray<VerifiedPhotoJob>):Promise<PhotoRestoreResult>{
  // Verify the entire ZIP and its customer association BEFORE any local write.
  const rows=await readOfflinePhotoBackup(archive);
  if(!rows.length)throw Error('This photo backup is empty; no data was changed.');
  const allowed=new Set(knownCustomerIds);
  for(const row of rows)if(!allowed.has(row.customerId))
    throw Error('Restore the matching FIRE customer records first. Photo backup contains an unknown customer ID.');
- // When a verified job inventory is supplied, reject orphan job associations
- // BEFORE opening a write transaction. Legacy customer-only ZIPs remain valid.
- if(rows.some(row=>row.jobId!==undefined)&&knownJobIds===undefined)
-  throw Error('Restore the matching FIRE job records first. Job-linked photos require a verified job inventory.');
- if(knownJobIds!==undefined){
-  const jobs=new Set(knownJobIds);
-  for(const row of rows)if(row.jobId!==undefined&&!jobs.has(row.jobId))
-   throw Error('Restore the matching FIRE job records first. Photo backup contains an unknown job ID.');
- }
+ // This independent second validation protects against a future UI caller
+ // skipping its pre-journal preflight. No IndexedDB transaction starts yet.
+ verifyOfflinePhotoJobOwnership(rows,knownJobs);
  // Preflight outside a write transaction: awaiting a blob digest from inside
  // an IndexedDB transaction could auto-commit/close that transaction on iOS.
  const existing=new Map((await listOfflinePhotos()).map(photo=>[photo.id,photo]));
