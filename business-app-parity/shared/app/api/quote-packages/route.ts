@@ -2,6 +2,7 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {QUOTE_PACKAGES_KEY,decodeQuotePackages,validQuotePackages} from '../../../lib/quote-packages';
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()===OWNER;}
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
@@ -14,9 +15,10 @@ export async function GET(){
 }
 export async function PUT(request:Request){
  if(!await authorized())return json({error:'Unauthorized'},401);
- let body:Record<string,unknown>;
- try{const parsed:unknown=await request.json();if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error();body=parsed as Record<string,unknown>;}
- catch{return json({error:'A valid package catalog request is required.'},400);}
+ // Bound reusable-package input before parsing; keep original CAS and validation.
+ const parsed=await readOwnerWriteObject(request,32_000);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as Record<string,unknown>;
  const keys=Object.keys(body).sort().join(',');
  if(keys!=='expectedRevision,packages'||!validQuotePackages(body.packages)||
   !(body.expectedRevision===null||typeof body.expectedRevision==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.expectedRevision)))
