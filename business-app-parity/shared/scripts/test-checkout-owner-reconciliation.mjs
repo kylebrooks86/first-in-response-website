@@ -24,7 +24,7 @@ const load=(path,extra={})=>{
    network++;
    assert.ok(['cs_test_ownerfix','cs_test_trackedfix','cs_test_trackedpaid'].some(id=>url==='https://api.stripe.com/v1/checkout/sessions/'+id));
    return remote?Response.json(remote):Response.json({error:'missing'},{status:404});
- },async()=>owner?{email:'kylebrooks8605@gmail.com'}:null,'doomsday',extra.reconcileStripeCheckout);
+ },async()=>owner?{email:'kylebrooks8605@gmail.com'}:null,extra.deployment??'doomsday',extra.reconcileStripeCheckout);
  return exports;
 };
 const stripe=load('lib/stripe-payments.ts');
@@ -198,6 +198,43 @@ check((await stripe.recordStripeCheckoutFailure(DB,{...failedSession,id:settledF
   'Out-of-order failure cannot produce alert for already paid checkout');
 check(sql.prepare("SELECT COUNT(*) AS n FROM payments WHERE provider_id=?").get(failedId).n===0,
   'Failed checkout generates zero financial ledger records');
+
+// The real compiled app adapter is "live" for the independent DARK DR
+// and NEW LIVE targets. A missing/unknown runtime label must never permit
+// owner Stripe reconciliation, even with an accidentally present LIVE key.
+// This uses the ACTUAL compiled route with disposable SQLite; no HTTP/provider.
+const compiledLiveRoute=load('app/api/payments/checkout/reconcile/route.ts',{
+ reconcileStripeCheckout:stripe.reconcileStripeCheckout,deployment:'live'
+});
+const prelaunchReservation='fire-creating:11111111-2222-4333-8444-555555555555';
+const prelaunchRequest=()=>new Request('https://synthetic.invalid/api/payments/checkout/reconcile',{
+ method:'POST',body:JSON.stringify({reservationId:prelaunchReservation,sessionId:'cs_live_nocharge'})
+});
+const originalRuntime={fireEnv:env.FIRE_ENV,secret:allowedKey,mode:stripeMode};
+try{
+ allowedKey='sk_live_fixture-not-a-real-key';stripeMode='disabled';
+ for(const fireEnv of ['new-live-prelaunch','dr-prelaunch','new-live','dr','unexpected-dark-target']){
+   env.FIRE_ENV=fireEnv;
+   const beforeNet=network;
+   const beforePayments=paymentCount();
+   const beforeCheckoutCount=sql.prepare('SELECT COUNT(*) AS n FROM payment_checkout_sessions').get().n;
+   const response=await compiledLiveRoute.POST(prelaunchRequest());
+   const body=await response.json();
+   check(response.status===503 && body.error==='Isolated Stripe TEST reconciliation is disabled.',
+     'Compiled-live '+fireEnv+' cannot bypass dark Stripe reconciliation kill switch');
+   check(network===beforeNet && paymentCount()===beforePayments &&
+     sql.prepare('SELECT COUNT(*) AS n FROM payment_checkout_sessions').get().n===beforeCheckoutCount,
+     fireEnv+' blocked before provider request or money/checkout write');
+ }
+ // Keep historical true LIVE behavior available; exact deployed LIVE payment
+ // readiness and actual credentials remain a separate owner-controlled gate.
+ env.FIRE_ENV='live';
+ const actualLive=await compiledLiveRoute.POST(prelaunchRequest());
+ check(actualLive.status===409,'Explicit LIVE target reaches normal owner read-only reservation lookup');
+}finally{
+ env.FIRE_ENV=originalRuntime.fireEnv;
+ allowedKey=originalRuntime.secret;stripeMode=originalRuntime.mode;
+}
 
 const ownerUi=readFileSync(resolve(root,'app/dashboard.tsx'),'utf8');
 const ownerPayments=readFileSync(resolve(root,'app/api/payments/route.ts'),'utf8');
