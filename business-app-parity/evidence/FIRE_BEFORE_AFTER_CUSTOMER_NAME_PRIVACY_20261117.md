@@ -1,3 +1,13 @@
+## iPhone native Files share added without changing current PNG download
+
+[Real customer Photos UI source `1bff6de`](https://github.com/kylebrooks86/first-in-response-website/commit/1bff6de6957ffc5c6b0f79553b1e6bc3d0c249d5) preserves the existing direct `FIRE-before-after.png` download and retains the rendered file **in memory** after asynchronous full-image canvas creation. It then offers a separate **Save or share comparison** owner button, calling `navigator.share({files:[file]})` on that fresh click before its first `await`; unsupported browsers use a fresh-click download. This follows the already-accepted FIRE photo-archive iOS user-gesture pattern, without changing original photo bytes or requiring cloud storage.
+
+The staged file is paired with the exact selected BEFORE and AFTER photo IDs; the UI hides it if the owner changes either selection, changes customers, or another FIRE tab broadcasts a photo mutation. A re-render attempt discards the prior prepared comparison. This file is *not* a photo backup and no provider upload occurs. [Actual pinned Chrome test `838ea7b`](https://github.com/kylebrooks86/first-in-response-website/commit/838ea7bd6d1a30df329de8be4321a9af4d0c5217) tests the new fresh-tap native share callback with PNG signature, gesture state, saved filename and unchanged original gallery; [source regression `ccbbe07`](https://github.com/kylebrooks86/first-in-response-website/commit/ccbbe07837e2e4283e873d366b23f54e33bfadda) checks prepared-pair binding and first-awaited share. At documentation, this **new exact-code CI was not fully complete**; do not borrow the previous 25/25 PASS from privacy-only SHA `7dd6ff0`. The previous privacy-only SHA did later reach **25/25 SUCCESS** including the exact real Chrome canvas privacy test.
+
+No iPhone owner retest, actual Apple Files save verification, hosted Cloudflare deployment, photo ZIP schema change, any provider access or release gate closure. **45/95 checklist, 4/10 formal gates, NEW LIVE DARK.**
+
+---
+
 # FIRE — Shareable before/after image customer-name privacy (Nov 17, 2026)
 
 **Existing unmerged source:** [commit `7dd6ff0`](https://github.com/kylebrooks86/first-in-response-website/commit/7dd6ff02ea95c7533bc2dfabe7008ce105d64059), draft PR #270, QA-master candidate. No hosted deployment, ownership/record change, or Cloudflare action.
