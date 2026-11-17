@@ -43,6 +43,15 @@ eq(linked('Your invoice is ready: @invoice_link','','Invoice sent','','').ready,
 eq(linked('Your invoice is ready: @invoice_link','','Invoice link https://fire.example/invoice/valid','','https://fire.example/invoice/valid').ready,true,'Saved invoice link permits preparation');
 eq(linked('Custom','Invoice @invoice_link','No URL included','','https://fire.example/invoice/valid').ready,false,'Subject placeholders cannot bypass invoice link guard');
 eq(linked('@estimate_link @invoice_link','','Estimate https://fire.example/estimate/valid','https://fire.example/estimate/valid','').ready,false,'Templates requiring two URLs block if either missing');
+// A saved document's actual customer-facing URL must not be replaced with a
+// javascript/data URL, an insecure public HTTP URL, or the wrong document path.
+eq(linked('Read @estimate_link','','javascript:alert(1)','javascript:alert(1)','').ready,false,'Script URL cannot be prepared as a customer estimate link');
+eq(linked('Read @invoice_link','','data:text/html,phish','','data:text/html,phish').ready,false,'Data URL cannot be prepared as a customer invoice link');
+eq(linked('Read @estimate_link','','http://fire.example/estimate/valid','http://fire.example/estimate/valid','').ready,false,'Public HTTP link is not a secure customer estimate link');
+eq(linked('Read @invoice_link','','https://fire.example/estimate/wrong','','https://fire.example/estimate/wrong').ready,false,'Invoice message cannot carry an estimate route instead');
+eq(linked('Read @estimate_link','','https://user:pass@fire.example/estimate/valid','https://user:pass@fire.example/estimate/valid','').ready,false,'Credential-bearing URL cannot enter customer message');
+eq(linked('Read @estimate_link','','https://fire.example/estimate/valid#spoof','https://fire.example/estimate/valid#spoof','').ready,false,'Fragment-manipulated customer link is blocked');
+eq(linked('Read @estimate_link','','http://127.0.0.1:4500/estimate/test','http://127.0.0.1:4500/estimate/test','').ready,true,'Actual loopback Chrome fixture stays usable without weakening public HTTPS');
 eq(usableCustomerPhone('(918) 555-0111'),'+19185550111','Normalize an Oklahoma mobile number');
 eq(usableCustomerPhone('918-555-0111'),'+19185550111','Normalize dash-formatted number');
 eq(usableCustomerPhone('+1 918 555 0111'),'+19185550111','Retain US country code');
