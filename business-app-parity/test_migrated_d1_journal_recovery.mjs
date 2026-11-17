@@ -582,6 +582,25 @@ try{
  await copyFile(source,occupied);
  await reject(join(folder,'reject-existing-business.sqlite'),core,occupied,supp,
   'nonempty customer destination must remain non-destructive');
+ // A process crash / power loss can leave an INCOMPLETE output file. The
+ // next run must fail closed with EEXIST, preserving those bytes verbatim;
+ // it must neither relabel the partial copy as recovery success nor create
+ // a second unpaired plaintext photo ZIP. This is synthetic fault-state
+ // injection, not a claim of physically killing an owner recovery process.
+ const interruptedOutput=join(folder,'reject-interrupted-partial.sqlite');
+ const interruptedBytes=Buffer.from('FIRE INCOMPLETE SYNTHETIC RESTORE - RETAIN FOR REVIEW');
+ await writeFile(interruptedOutput,interruptedBytes);
+ const interruptedPhotoOutput=join(folder,'reject-interrupted-photo.zip');
+ await assert.rejects(rehearseProtectedCompleteRecordsAndPhotos(
+  protectedFile,independentTemplate,protectedPhotoFile,
+  interruptedOutput,interruptedPhotoOutput,phrase,photoPhrase,{approved:true}),
+  /EEXIST|file exists|already exists|BLOCKED|blocked/i,
+  'retry after interrupted SQLite output must refuse overwrite');
+ okay((await readFile(interruptedOutput)).equals(interruptedBytes),
+  'incomplete preexisting SQLite bytes remain untouched after refusal');
+ await assert.rejects(access(interruptedPhotoOutput),undefined,
+  'interrupted recovery retry must create no unpaired photo ZIP');
+ checks++;
  // Use this existing focused workflow (not another general QA rerun) to
  // validate the new owner-saved D1 SQL -> encrypted .firerecords bridge.
  // This Python test uses actual 26 SQL migrations and synthetic rows only.
