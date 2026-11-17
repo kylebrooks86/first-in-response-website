@@ -3,6 +3,7 @@ import { getChatGPTUser } from '../../chatgpt-auth';
 import { FIRE_SERVICES } from '../../../lib/fire-services';
 import { SERVICE_RATE_PREFIX,decodeServiceRate,validRate,validDetails,customServiceId } from '../../../lib/service-pricing';
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){const user=await getChatGPTUser();return user?.email.toLowerCase()===OWNER;}
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
@@ -20,9 +21,10 @@ export async function GET(){
 }
 export async function PUT(request:Request){
   if(!await authorized())return json({error:'Unauthorized'},401);
-  let input:unknown;try{input=await request.json();}catch{return json({error:'Invalid pricing request.'},400);}
-  if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'Invalid pricing request.'},400);
-  const body=input as Record<string,unknown>;
+  // An owner pricing edit must never buffer arbitrary request bytes before validation.
+  const parsed=await readOwnerWriteObject(request,24_000);
+  if(parsed.response)return parsed.response;
+  const body=parsed.value as Record<string,unknown>;
   if(!['expectedRevision,id,rateCents','details,expectedRevision,id,rateCents'].includes(Object.keys(body).sort().join(','))||!(FIRE_SERVICES.some(s=>s.id===body.id)||customServiceId(body.id))||(body.details!==undefined&&!validDetails(body.details))||!validRate(body.rateCents)||!(body.expectedRevision===null||typeof body.expectedRevision==='string'&&/^[0-9a-f-]{36}$/.test(body.expectedRevision)))return json({error:'Choose an existing service and a nonnegative price in whole cents.'},400);
   try{
     const key=SERVICE_RATE_PREFIX+body.id;
