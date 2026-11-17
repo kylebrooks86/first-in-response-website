@@ -1,3 +1,14 @@
+<!-- FIRE_GATE9_PRIVATE_240F_COMPILED_INPUT_20261117 -->
+## Nov 17 — new exact Gate9 TEST compiler output privately preserved, SHA verified, no paid R2/Stripe activation
+
+**Concrete release source work:** exact test-only source SHA `240f337bce8a5afc854f12855a86fa9b3dc156ab` [Gate9 local source build #44028504164](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44028504164) SUCCESS; **193 compiled Worker modules, 41 static assets, 401 anonymous compiled local customers GET, disabled Stripe**. Real in-memory isolated provider candidate digest `dcb0ba6bcd08f4777345de7f8288498e1afffbfa50f6729655745a33d9db1705`; no JWT/provider write. Actual GitHub Actions artifact `14304197471` 3,111,747 bytes, raw SHA256 `84cd49b3d07fe34989b42de0b8d893e7de421144c4d3bc95cd71bf1d37035ef1`. Saved a new, explicitly **SOURCE-ONLY GENERIC-BUILD NOT-DEPLOYABLE** private copy to existing owner-only Drive FIRE Business App Backups (file ID `1NTpLYoeK437pCYfHtPR95Zo6krxSlcrV`). Independent Drive **RAW BYTE RE-DOWNLOAD** SHA256 and ZIP CRC passed exactly; Google metadata `shared:false`, correct existing parent, no overwrite of old backups. [Exact custody/provenance](evidence/FIRE_GATE9_240F_PRIVATE_SOURCE_ARCHIVE_CUSTODY_20261117.md), docs-only commit `47858079`.
+
+**Never deploy this raw build ZIP:** generated Vinext `server/wrangler.json` still carries fake local D1, fake local R2 placeholder and generic starter Worker/asset directory. Only the previously reviewed **separate** source-only `prepare-stripe-test-manifest.mjs` strips unapproved local R2 when generating the TEST review manifest; a DIFFERENT in-memory candidate is verified by `gate9_compiled_candidate.mjs` and the private owner-locked uploader. No R2 subscription or other paid Cloudflare provider step was taken. No new permission to activate Stripe, TEST Worker or Cloudflare POST; past 10013/400 attempt locks spent.
+
+**Checklist not inflated:** G9-03 SOURCE-PREPARATION materially advanced with exact 193/41 digest and owner-private compiler input, but actual protected TEST origin+refund schema verification, new owner upload authorization and real signed event/ledger still missing. G9-03 UNCHECKED, G9 overall OPEN, **34/95** tasks done, formal 4/10 gates accepted (G1/G2/G3/G8), NEW LIVE DARK NO-GO. Prior QA source 8c2b50d5 27/27 was separately accepted; source SHA 240f now 25 successful workflows and two historical artifact-410 failures, not 27/27 green. No owner iPhone/Acer redo, Cloudflare/D1/Stripe provider writes, Work login, merge, production release, DNS, payment or customer data touched.
+
+---
+
 <!-- FIRE_PRIVATE_ORIGINAL_ARCHIVE_BYTES_RECOVERED_20261117 -->
 ## Nov 17 — original expired DR/NEW LIVE source artifacts PHYSICALLY RECOVERED with exact SHA, final DARK packages independently checked
 
