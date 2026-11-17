@@ -204,6 +204,24 @@ try{
  check(!overlayLabels.includes('Synthetic Photo Customer')&&
   !overlayLabels.some(label=>/synthetic-customer-photo|customer id/i.test(label)),
   'Actual shareable PNG never renders the private owner profile customer name or customer ID');
+ // Fresh click with already prepared PNG enables iOS Files sheet. Intercept
+ // the browser's native share for synthetic proof only; never invoke real Files.
+ await page.evaluate(()=>{
+  Object.defineProperty(navigator,'canShare',{configurable:true,value:({files})=>files?.length===1});
+  Object.defineProperty(navigator,'share',{configurable:true,value:async({files})=>{
+   const gesture=navigator.userActivation?.isActive??true;
+   const file=files[0],header=Array.from(new Uint8Array(await file.slice(0,8).arrayBuffer()));
+   window.FIRE_COMP_SHARED={name:file.name,type:file.type,size:file.size,gesture,header};
+  }});
+ });
+ await page.getByRole('button',{name:'Save or share comparison'}).click();
+ await page.waitForFunction(()=>window.FIRE_COMP_SHARED?.name==='FIRE-before-after.png');
+ const sharedComparison=await page.evaluate(()=>window.FIRE_COMP_SHARED);
+ check(sharedComparison.gesture===true&&sharedComparison.type==='image/png'&&
+  sharedComparison.size>100&&sharedComparison.header.join(',')==='137,80,78,71,13,10,26,10',
+  'Actual PNG reaches native share from a fresh iPhone-compatible click without awaiting preparation');
+ check(await page.locator('.photo-card').count()===2,
+  'Sharing comparison does not upload, mutate or remove original customer photographs');
  await comparisonMore.locator(':scope > summary').click();
  check(!await comparisonMore.evaluate(node=>node.open),'Comparison editor can be closed without deleting or changing saved photos');
  // NEW Gate7 behavior: actual browser photo UI must default to protected
