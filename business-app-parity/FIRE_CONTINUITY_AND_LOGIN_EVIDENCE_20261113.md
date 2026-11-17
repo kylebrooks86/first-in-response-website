@@ -1,3 +1,14 @@
+<!-- FIRE_G10_05_OWNER_APPROVED_PLAN_ONLY_35_OF_95_20261117 -->
+## FIRE 95-item checklist — **G10-05 planning-only owner approval accepted; 35/95 checked, 60 remain** (2026-11-17 CST)
+
+**Exact scoped user instruction:** The owner responded **“approve”** immediately after the assistant asked **“Can you approve G10-05 as a planning document only?”**, with explicit clarification that approval does **not** authorize a deployment, merge, SQL/Access/Stripe action or production release. This is an **owner approval of the target-by-target release/rollback PLANNING DOCUMENT ONLY**, recorded in [reviewed G10-05 plan](release/FIRE_G10_05_TARGET_BY_TARGET_GUARDED_RELEASE_AND_ROLLBACK_REVIEW_20261117.md) and [single authoritative checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md). It closes **G10-05 atomic planning/review task only**. The document inventories previously accepted QA functional/visual master, independently DARK DR and NEW LIVE, independent D1, STAGING/TEST gaps, code/data/photo rollback and no paid Cloudflare/R2 stop lines, and requires **distinct exact new owner authorization for EACH future provider mutation or release action**. The owner did NOT approve any particular future procedure step, immutable package version, Worker update, authentication/Access/routes, D1 SQL, Stripe TEST/LIVE payment, actual restore/rollback, Git merge, DNS, production cutover or Gate10 acceptance. No such action was performed.
+
+**Authoritative count after GitHub checklist readback:** **35 checked / 60 unchecked / 95 total**. Parent formal gates still **4/10 accepted (G1/G2/G3/G8)**. G4/G5/G6/G7/G9/G10 remain **OPEN**; NEW LIVE stays DARK / NO-GO; genuine first Job #0001 still inactive. Existing G7-08 actual focused 91/91 accepted synthetic fail-closed recovery and private off-device DR/NEW LIVE immutable source custody evidence are preserved; three historical source workflow HTTP410 artifact failures were not rebranded as successful. No accepted iPhone/Acer or prior Cloudflare check repeated.
+
+**Zero cloud/payment operations:** GitHub documentation/checklist/continuity updates on existing unmerged Draft PR #270 only; no Worker/Access/routes/secrets, D1 SQL/provider updates, R2 subscription, Stripe transaction, login, real backups/restore, customer messages, Git merge or deployment.
+
+---
+
 <!-- FIRE_EXPIRED_ORIGINAL_ARCHIVES_PRIVATE_RECOVERY_AND_CHECKER_20261117 -->
 ## FIRE release continuation — original historical DR/NEW LIVE source ZIPs physically recovered, expired CI not falsely green (Nov 17 CST)
 
