@@ -592,6 +592,10 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     const messageBody=body.trim();
     if(!messageBody){setMessageStatus("Write a message before preparing it.");return false;}
     const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body:messageBody,
+      // An owner-side Text/Email draft must still target the same saved
+      // customer contact after any concurrent profile edit.
+      ...(channel==="text_prepared"?{recipientSnapshot:customer.phone??""}:
+          channel==="email_prepared"?{recipientSnapshot:customer.email??""}:{}),
       // Bind this exact previewed appointment to the job timestamp that is
       // still saved at the time of the server's atomic preparation write.
       ...(template==="appointment"||template==="appointmentReminder"
