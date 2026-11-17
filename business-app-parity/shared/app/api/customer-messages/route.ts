@@ -74,6 +74,9 @@ export async function POST(request: Request) {
     const channel = String(value.channel ?? "").trim();
     const template = String(value.template ?? "custom").trim();
     const body = String(value.body ?? "").trim();
+    // Raw saved timestamp is a concurrency token for appointment messages.
+    // A different future date is NOT the date the owner already previewed.
+    const appointmentScheduledAt=typeof value.appointmentScheduledAt==="string"?value.appointmentScheduledAt:"";
     if (!customerId || !body || !["text_prepared","email_prepared","copy"].includes(channel)) return Response.json({ error: "Customer, channel, and message are required." }, { status: 400 });
     // New mobile clients keep the same operation UUID across uncertain POST
     // acknowledgements. Legacy clients without a UUID remain supported.
@@ -101,7 +104,8 @@ export async function POST(request: Request) {
       const currentJob=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
         .bind(estimateId,customerId).first<{status:string;scheduledAt:string|null}>();
       const time=currentJob?.scheduledAt?Date.parse(currentJob.scheduledAt):NaN;
-      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=Date.now())
+      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=Date.now()||
+         !appointmentScheduledAt||currentJob.scheduledAt!==appointmentScheduledAt)
         return Response.json({error:appointmentError},{status:409});
     }
     if(template==="review"){
@@ -157,13 +161,13 @@ export async function POST(request: Request) {
     // SQLite write; no old scheduled message may create a new prepared row.
     const appointmentGuard=appointmentTemplate?` AND EXISTS (
       SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='scheduled'
-        AND julianday(e.scheduled_at)>julianday('now')
+        AND e.scheduled_at=? AND julianday(e.scheduled_at)>julianday('now')
     )`:"";
     const write=await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
       SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}${appointmentGuard}`)
       .bind(id,customerId,estimateId||null,channel,template,body,createdAt,
         ...(template==="review"?[estimateId,customerId]:[]),
-        ...(appointmentTemplate?[estimateId,customerId]:[])).run();
+        ...(appointmentTemplate?[estimateId,customerId,appointmentScheduledAt]:[])).run();
     const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
       id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
     }>();
