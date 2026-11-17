@@ -118,9 +118,14 @@ export function todayActionLane(item:TodayQueueAction,now:number):TodayQueueLane
  return null;
 }
 export function todayCustomerQueue<T extends TodayQueueAction>(items:readonly T[],now:number,limit=5) {
- const candidates=items.map(item=>({item,lane:todayActionLane(item,now)})).filter(
-   (entry):entry is {item:T;lane:TodayQueueLane}=>entry.lane!==null
- );
+ // Rank saved owner actions before deduplicating by customer: a later billing
+ // exception or imminent appointment must not be buried behind an earlier
+ // routine reminder for that same homeowner. Preserve input order on ties.
+ const candidates=items.map((item,index)=>({
+   item,index,lane:todayActionLane(item,now),rank:followupUrgency(item,now).rank
+ })).filter(
+   (entry):entry is {item:T;index:number;lane:TodayQueueLane;rank:number}=>entry.lane!==null
+ ).sort((a,b)=>a.rank-b.rank||a.index-b.index);
  const keyFor=(item:T)=>item.estimate.customerId?.trim()?`customer:${item.estimate.customerId}`:`estimate:${item.estimate.id}`;
  const counts=new Map<string,number>(),seen=new Set<string>();
  for(const entry of candidates){const key=keyFor(entry.item);counts.set(key,(counts.get(key)??0)+1);}
