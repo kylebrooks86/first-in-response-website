@@ -13,8 +13,7 @@ export async function POST(request:Request){
  if(!await authorized())return json({error:'Unauthorized'},401);
  const parsed=await readOwnerWriteObject(request,8192);
  if(parsed.response)return parsed.response;
- let b:Record<string,unknown>;
- try{b=parsed.value as Record<string,unknown>;catch{return json({error:'Invalid house request.'},400);}
+ const b=parsed.value as Record<string,unknown>;
  if(!doorId(b.requestId)||!(b.expectedRevision===null||doorId(b.expectedRevision))||!['add','visit','unsuppress','locate','unpin'].includes(String(b.action)))return json({error:'Refresh and review the house request.'},400);
  const locationAction=b.action==='locate'||b.action==='unpin';
  const allowed=locationAction?['action','expectedRevision','houseId','requestId',...(b.action==='locate'?['point','capturedAt']:[])]:b.action==='add'?['action','address','expectedRevision','requestId','point','capturedAt']:b.action==='visit'?['action','expectedRevision','houseId','note','requestId','status','followUpOn','capturedAt']:['action','expectedRevision','houseId','note','requestId','status'];
