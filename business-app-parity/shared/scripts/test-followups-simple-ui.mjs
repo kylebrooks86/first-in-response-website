@@ -24,6 +24,18 @@ const section=ui.slice(start,end);
 let checks=0;
 function check(condition,message){assert.ok(condition,message);checks++;}
 
+const queueStart=timing.indexOf('export function todayCustomerQueue<');
+const queueEnd=timing.indexOf('/** Do not promote',queueStart);
+const queueSource=timing.slice(queueStart,queueEnd);
+check(queueStart>=0&&queueEnd>queueStart&&
+  queueSource.includes('rank:followupUrgency(item,now).rank')&&
+  queueSource.includes('.sort((a,b)=>a.rank-b.rank||a.index-b.index)')&&
+  queueSource.indexOf('.sort((a,b)')<queueSource.indexOf('const counts=')&&
+  queueSource.indexOf('.sort((a,b)')<queueSource.indexOf('seen.add(key)')&&
+  section.includes('todayCustomerQueue(visibleActions,now)'),
+  'Owner Today actions are urgency-ranked before one-per-customer deduplication, preserving ties');
+
+
 const contactStart=section.indexOf('className="followup-contact-actions"'),optionalStart=section.indexOf('className="followup-optional-tools"');
 check(contactStart>=0&&optionalStart>contactStart,"Default contacts precede optional tools");
 const immediate=section.slice(contactStart,optionalStart);
