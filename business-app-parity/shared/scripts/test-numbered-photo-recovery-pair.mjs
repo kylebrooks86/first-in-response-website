@@ -31,6 +31,36 @@ ok(seal.customerCount===1&&seal.photoCount===1&&seal.numberedJobCount===1,'linke
 ok(seal.customerHighWater===1&&seal.jobHighWater===1,'permanent serials sealed');
 ok(seal.physicallyStoredBackupVerified===false&&seal.gate7Accepted===false,'never fake recovery gate');
 ok(/^[0-9a-f]{64}$/.test(seal.pairSha256),'cryptographic paired digest exists');
+
+// A photo's jobId must be an immutable numbered-job root estimate ID in
+// the SAME snapshot, not a display number, an unrelated estimate or arbitrary
+// syntactically valid string. A customer's photos cannot claim another
+// customer's numbered job even when both customers exist in the archive.
+const linked={...one,jobId:'synthetic-e1'};
+const linkedSeal=await sealNumberedRecordAndPhotoRecoveryPair(original,[linked]);
+ok(linkedSeal.photosSha256!==seal.photosSha256&&linkedSeal.pairSha256!==seal.pairSha256,
+ 'Valid job-linked photo binds its numbered-job identity into the paired recovery digest');
+await assert.rejects(sealNumberedRecordAndPhotoRecoveryPair(original,[{...one,jobId:'0001'}]),
+ /unknown numbered job root estimate/);
+n++; // A human-readable job number is not an immutable job identifier.
+await assert.rejects(sealNumberedRecordAndPhotoRecoveryPair(original,[{...one,jobId:'other-estimate'}]),
+ /unknown numbered job root estimate/);
+n++;
+const otherCustomer=sample();
+otherCustomer.tables.customers.push({id:'synthetic-c2',name:'Other customer',created_at:'2026-11-01T00:00:00Z'});
+otherCustomer.tables.estimates.push({id:'synthetic-e2',customer_id:'synthetic-c2',created_at:'2026-11-01T00:00:00Z',status:'draft',total_cents:100});
+otherCustomer.tables.fire_customer_numbers.push({customer_id:'synthetic-c2',customer_number:2,created_at:'2026-11-01T00:00:00Z'});
+otherCustomer.tables.fire_job_numbers.push({root_estimate_id:'synthetic-e2',job_number:2,created_at:'2026-11-01T00:00:00Z'});
+otherCustomer.tables.fire_job_estimate_links.push({estimate_id:'synthetic-e2',job_number:2});
+otherCustomer.highWater={customer:2,job:2};
+otherCustomer.rowCounts=Object.fromEntries(Object.entries(otherCustomer.tables).map(([table,rows])=>[table,rows.length]));
+await assert.rejects(
+ sealNumberedRecordAndPhotoRecoveryPair(otherCustomer,[{...one,jobId:'synthetic-e2'}]),
+ /photo numbered job belongs to another customer/);
+n++;
+ok((await sealNumberedRecordAndPhotoRecoveryPair(otherCustomer,[{...one,jobId:'synthetic-e1'}])).photoCount===1,
+ 'Same snapshot with multiple customers accepts only correctly owned job-linked photos');
+
 const reordered=structuredClone(original);
 const matching=await sealNumberedRecordAndPhotoRecoveryPair(reordered,[one]);
 ok((await compareNumberedRecordAndPhotoPairSeals(seal,matching)).sourceAndDestinationMatch,'unchanged synthetic isolated copy agrees');
