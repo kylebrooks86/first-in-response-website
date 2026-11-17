@@ -44,6 +44,43 @@ for(const env of ['independent-dr-staging','refund-staging','synthetic-tests']){
  eq((await c.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:checkoutBody}))).status,503,env+' rejects live key despite live-labelled adapter');
  eq(c.calls.network,0,env+' no Stripe network');
 }
+// The real compiled app adapter currently says "live" for multiple Workers.
+// A DR or new-live-prelaunch binding MUST NOT turn a dark Worker into a LIVE
+// Stripe receiver or allow checkout/refunds just because it has this adapter.
+// These are actual executable route invocations, never provider calls.
+for (const fireEnv of ['isolated-dr','new-live-prelaunch','cloudflare-qa','unexpected-candidate']) {
+ const c=load('checkout','live',fireEnv,'sk_live_synthetic-not-a-key');
+ eq((await c.POST(new Request('https://synthetic.invalid/api/payments/checkout',
+   {method:'POST',body:checkoutBody}))).status,503,fireEnv+' refuses live-key checkout');
+ eq(c.calls.db,0,fireEnv+' checkout refuses before D1');
+ eq(c.calls.network,0,fireEnv+' checkout makes zero Stripe calls');
+ const r=load('refund','live',fireEnv,'sk_live_synthetic-not-a-key');
+ eq((await r.POST(new Request('https://synthetic.invalid/api/payments/refund',
+   {method:'POST',body:refundBody}))).status,503,fireEnv+' refuses live-key refund');
+ eq(r.calls.db,1,fireEnv+' refund only locates original payment');
+ eq(r.calls.network,0,fireEnv+' refund makes zero Stripe calls');
+ const w=load('webhook','live',fireEnv,'sk_live_synthetic-not-a-key');
+ eq((await webhook(w,{type:'checkout.session.completed',livemode:true,
+   data:{object:{id:'cs_live_synthetic123',payment_status:'paid'}}})).status,400,
+   fireEnv+' rejects correctly signed LIVE-mode Checkout webhook');
+ eq(w.calls.reconciled,0,fireEnv+' webhook records no payment');
+ eq(w.calls.refunds,0,fireEnv+' webhook records no refund');
+ eq(w.calls.db,0,fireEnv+' signed live callback never reads D1');
+ w.env.FIRE_STRIPE_MODE='disabled';
+ eq((await webhook(w,{type:'checkout.session.completed',livemode:false,
+   data:{object:{id:'cs_test_synthetic123',payment_status:'paid'}}})).status,503,
+   fireEnv+' rejects signed TEST event while intentionally disabled');
+ eq(w.calls.db,0,fireEnv+' disabled signed TEST event makes no D1 calls');
+}
+// Deliberate production paths must still preserve the prior LIVE behavior.
+for(const liveEnv of ['production','cloudflare-live','']) {
+ const c=load('checkout','live',liveEnv,'sk_live_synthetic-not-a-key');
+ eq((await c.POST(new Request('https://synthetic.invalid/api/payments/checkout',
+   {method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,
+   liveEnv+' retains legitimate LIVE request validation');
+ eq(c.calls.network,0,liveEnv+' invalid LIVE input makes no Stripe calls');
+}
+
 // A fully separate QA target never reaches Stripe, D1 or signed webhooks,
 // even when someone accidentally supplies a live-looking credential.
 const qaCheckout=load('checkout','qa','synthetic-qa','sk_live_fake-no-secrets');
