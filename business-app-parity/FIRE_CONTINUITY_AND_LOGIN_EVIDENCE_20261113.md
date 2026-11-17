@@ -1,3 +1,16 @@
+<!-- FIRE_OWNER_JOB_REPORT_STREAM_BOUND_20261116 -->
+## Nov 16 late CST — ACTUAL NEW APP CODE: job-report save bounded pre-D1, 10 changed-function SQLite assertions
+
+**Existing open Draft PR270 source-only:** `POST /api/job-reports` authenticated owner route previously parsed unrestricted `request.json()`. Commit `6d5d04eabd656fb2c546abad12f1c48330677b5b` now uses existing strict fatal UTF-8 `readOwnerWriteObject(request,64_000)` before any DB read/write. Existing customer/job ownership, report checklist and contact-free completion distinction, duplicate protections, atomic CAS, readback and historical financial invariants unchanged. Test commit `95609e8a16b8d9d5a557d2e110eb708902ac6ab7` adds **10 actual-route assertions** for overdeclared/overstreamed body, false length, invalid UTF8, nonobject JSON and **no DB reads or writes**; existing staging native SQLite suite invokes the test. [Source evidence](evidence/FIRE_OWNER_JOB_REPORT_STREAM_BOUNDS_20261116.md).
+
+**Exact new code HEAD `95609e8a` CI snapshot:** [local full-app build #44019546306](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44019546306) SUCCESS; [website guard #44019546056](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44019546056) SUCCESS; [website verification #44019546220](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44019546220) SUCCESS. **26/27 workflows SUCCESS at this snapshot, one longer [staging browser/native SQLite #44019546105](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44019546105) IN PROGRESS; do NOT claim actual Job Report changed-route SQLite result PASS before its step runs.** Earlier 27/27 PASS applied to *previous code HEAD `53bd40b6`*, not this new head. No hosted Cloudflare/provider validation of new job-report source.
+
+**Accepted physical NEW LIVE screenshots/evidence** remain independent and [saved here](evidence/FIRE_NEW_LIVE_POSTUPDATE_OWNER_DASHBOARD_20261116.md): new `cfacbb3d` 100% serving, workers.dev/Preview OFF, no Worker routes, absent Worker-specific Access (negative finding), blocked auth, sole D1/no R2. Do not ask for these screenshots again, infer any Access policy protection, or rerun spent provider publishers/migrations/readbacks.
+
+**Formal gates unchanged G1/G2/G3/G8 = 4/10; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; Job #0001 not enabled.** No merge, deployment, SQL/D1, Stripe/payment, R2/paid Cloudflare, Access/DNS/routes/login, legacy retirement or production cutover.
+
+---
+
 <!-- FIRE_NEW_LIVE_POSTUPDATE_OWNER_DASHBOARD_SIX_20261116 -->
 ## Nov 16 late CST — NEW LIVE latest-version owner dashboard evidence RECEIVED, exact six PNG digests preserved (NO provider write)
 
