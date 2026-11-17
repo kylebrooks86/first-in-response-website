@@ -5,7 +5,7 @@ import {Camera,Download,Images,Trash2,Upload} from 'lucide-react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
-import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
+import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,byteIdenticalOfflinePhotoInventory,verifyOfflinePhotoJobOwnership,type VerifiedPhotoJob,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import {requiresAllCustomerPhotoReview} from '../lib/photo-restore-interruption-scope.mjs';
 import {photoComparisonPlacement,FIRE_PHOTO_COMPARISON_LAYOUT} from '../lib/photo-comparison-layout.mjs';
@@ -14,7 +14,7 @@ import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 import {protectOfflinePhotoZip,openOwnerOfflinePhotoArchive} from '../lib/protected-offline-photo-archive.mjs';
 
 type Preview={photo:OfflinePhoto;url:string};
-export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,legacyCloudPhotoCount=0,onPhotoCountChange}:{customerId:string;customerName:string;knownCustomerIds:string[];legacyCloudPhotoCount?:number;onPhotoCountChange?:(customerId:string,count:number)=>void}){
+export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,knownJobs=[],legacyCloudPhotoCount=0,onPhotoCountChange}:{customerId:string;customerName:string;knownCustomerIds:string[];knownJobs?:ReadonlyArray<VerifiedPhotoJob>;legacyCloudPhotoCount?:number;onPhotoCountChange?:(customerId:string,count:number)=>void}){
  const [items,setItems]=useState<Preview[]>([]);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
@@ -22,6 +22,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const [backupPassphrase,setBackupPassphrase]=useState('');
  const [confirmBackupPassphrase,setConfirmBackupPassphrase]=useState('');
  const [category,setCategory]=useState<'before'|'after'|'property'>('before'),[caption,setCaption]=useState('');
+ const [selectedJobId,setSelectedJobId]=useState('');
  const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
  const cameraRef=useRef<HTMLInputElement>(null),libraryRef=useRef<HTMLInputElement>(null),restoreRef=useRef<HTMLInputElement>(null),verifyRef=useRef<HTMLInputElement>(null);
  const active=useRef(false),reviewRequired=useRef(false);
@@ -92,7 +93,11 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
    await runPhotoMutation('add',customerId,async()=>{
-    for(const file of Array.from(files))await addOfflinePhoto(customerId,category,caption,file);
+    // Never associate a new photo with another customer's job or a stale
+    // selection after the owner refreshed the authenticated job history.
+    const selectedJob=selectedJobId?knownJobs.find(job=>job.id===selectedJobId&&job.customerId===customerId):undefined;
+    if(selectedJobId&&!selectedJob)throw Error('The selected job is no longer verified for this customer. Refresh customer records.');
+    for(const file of Array.from(files))await addOfflinePhoto(customerId,category,caption,file,selectedJob?.id);
     await refresh();
    });setCaption('');
    setMessage('Photos verified on this device. They are NOT backed up yet; export a ZIP to Files/iCloud.');
@@ -204,14 +209,13 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    const known=new Set(knownCustomerIds);
    if(incoming.some(photo=>!known.has(photo.customerId)))
     throw Error('Restore matching customer records before importing these photos.');
-   // This customer-gallery UI has no verified numbered-job inventory yet.
-   // Reject job-linked ZIPs BEFORE the mutation journal starts rather than
-   // silently importing photos against potentially nonexistent jobs.
-   if(incoming.some(photo=>photo.jobId!==undefined))
-    throw Error('This photo ZIP contains job-linked photos. Restore and verify the matching FIRE job records before importing it; this customer-only recovery screen cannot verify job associations. No photos were changed.');
+   // Authenticated owner history supplies the job-to-customer mapping. A
+   // cached offline-only customer directory is NOT a verified job inventory.
+   // Reject unknown or cross-customer links BEFORE mutation journaling.
+   verifyOfflinePhotoJobOwnership(incoming,knownJobs);
    mutationStarted=true;
    const result=await runPhotoMutation('restore',customerId,async()=>{
-    const restored=await restoreLocalPhotos(zip,knownCustomerIds);
+    const restored=await restoreLocalPhotos(zip,knownCustomerIds,knownJobs);
     await refresh();return restored;
    });
    setMessage('Restored '+result.restored+' new verified photo(s); '+result.alreadyPresent+' byte-identical photo(s) already on this device were safely skipped. Keep the original archive and recovery passphrase in separate private locations.');
@@ -303,6 +307,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   {legacyCloudPhotoCount>0&&<p role="alert" className="save-error">{legacyCloudPhotoCount} older hosted photo record(s) remain associated with this customer. The new on-device gallery and ZIP backup do not include those bytes. No existing hosted records were deleted or migrated. Preserve the old cloud archive separately before considering its storage retired.</p>}
   <div className="photo-toolbar">
    <div><Label>Photo type</Label><select aria-label="Photo type" value={category} onChange={e=>setCategory(e.target.value as typeof category)} disabled={busy}><option value="before">Before</option><option value="after">After</option><option value="property">Property / damage</option></select></div>
+   {knownJobs.some(job=>job.customerId===customerId)&&<div><Label>Attach to job (optional)</Label><select aria-label="Attach photo to job" value={selectedJobId} onChange={e=>setSelectedJobId(e.target.value)} disabled={busy}><option value="">Customer photos only</option>{knownJobs.filter(job=>job.customerId===customerId).map(job=><option key={job.id} value={job.id}>{job.label||'Saved job'}</option>)}</select></div>}
    <div className="photo-caption"><Label>Optional note</Label><Input value={caption} disabled={busy} onChange={e=>setCaption(e.target.value)} placeholder="North siding, water damage…"/></div>
    <div className="photo-buttons"><Button disabled={busy||loading||needsReview||!safetyReady} className="brand-button" onClick={()=>cameraRef.current?.click()}><Camera className="h-4 w-4"/>Camera</Button><Button disabled={busy||loading||needsReview||!safetyReady} variant="outline" onClick={()=>libraryRef.current?.click()}><Images className="h-4 w-4"/>Photo library</Button></div>
   </div>
@@ -344,7 +349,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
     return <section key={kind}><header><strong>{kind==='property'?'Property / damage':kind==='before'?'Before':'After'}</strong><span>{matches.length}</span></header>
      <div className="photo-grid">{matches.map(({photo,url})=><article className="photo-card" key={photo.id}>
       <a href={url} target="_blank" rel="noreferrer"><img src={url} loading="lazy" alt={photo.caption||photo.filename}/></a>
-      <div><p>{photo.caption||photo.filename}</p><small>{new Date(photo.createdAt).toLocaleDateString()}</small></div>
+      <div><p>{photo.caption||photo.filename}</p><small>{new Date(photo.createdAt).toLocaleDateString()}</small>{photo.jobId&&<small>Job: {knownJobs.find(job=>job.id===photo.jobId&&job.customerId===photo.customerId)?.label||'Check restored job records'}</small>}</div>
       <button disabled={busy||needsReview||!safetyReady} type="button" aria-label="Delete on-device photo" onClick={()=>void remove(photo)}><Trash2/></button>
      </article>)}</div>
     </section>;
