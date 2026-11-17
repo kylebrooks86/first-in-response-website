@@ -1,3 +1,19 @@
+## November 17 — Stripe TEST Worker-only byte readback prepared (42/95)
+
+**November 17 G9-04 preparation — 42/95 unchanged.** [Offline verifier](https://github.com/kylebrooks86/first-in-response-website/commit/b3ffe490d998733f1825afbdc4d24bceaed51a91) now compares independently pinned Worker-only TEST package bytes to saved Cloudflare module and deployment responses. [Full-app offline CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367229) passed using the actual sealed package and simulated responses, including all 41 embedded client assets and nine rejection cases. [Provider-contract CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367240) and [public-site/calculator protection](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367448) passed. There is no new hosted evidence or approval.
+
+For the separately approved future G9-04 readback, the verifier consumes the privately extracted `package` folder from the exact reviewed artifact, its independently pinned inner receipt SHA-256, the new immutable version UUID, and two locally saved provider responses from the pinned TEST Worker: immutable Version GET with `include=modules`, and current deployments GET. The input files stay on the operator device. The CLI prints counts and version IDs only.
+
+```text
+node business-app-parity/cloudflare-launch/stripe-test-worker/verify_gate9_worker_only_readback.mjs PACKAGE_FOLDER RECEIPT_SHA256 EXACT_VERSION_UUID PRIVATE_VERSION_JSON PRIVATE_DEPLOYMENTS_JSON
+```
+
+The verifier requires exact JavaScript and compiled Data module bytes, no asset binding or version-pinned URL, the existing TEST D1, expected disabled/blocked variables and configured secret names, and the predecessor at 100% traffic. Matching saved responses are offline evidence only. Their authenticated origin, provider-side protection, schema and any Stripe signature evidence still require separate verification.
+
+Focused test-run archive [14332014607](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367229/artifacts/14332014607), 3,150,020 bytes, GitHub-reported digest `sha256:de02ddad943d5cfd156bae6e1e0d8b552de3ad3d7dcfb3b6973306cfb09d176b`. This was the same-run build and archive readback for the verifier tests. It adds no deployment approval and does not overwrite the previous private archive. Formal gates remain 4/10 and NEW LIVE remains dark.
+
+---
+
 ## November 17 — Gate9 provider-readback stream cap fixed in source (42/95 unchanged)
 
 **November 17 targeted code hardening — 42/95 unchanged (no new checkbox).** [Source/test commit `3d8e993`](https://github.com/kylebrooks86/first-in-response-website/commit/3d8e9930f7dd7aac910560da74dd528eeee3e08c) guards the existing Gate9 Cloudflare GET-only adapter against missing or dishonest `Content-Length`, streaming JSON larger than 32,000,000 bytes, and malformed UTF-8 before deserialization; no credentials, returned provider payloads or secret values are printed. The [focused Gate9 provider-contract workflow #44092396280](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44092396280) passed on that exact code SHA, including **14/14 adapter tests** and new actual oversized-stream and invalid-header/UTF-8 tests. [Public site/calculator CI #44092396390](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44092396390) passed. This is source-side operator/readback safety only, NOT a provider-authenticated preflight, hosted byte attestation, Stripe-signed transaction, Gate9 closeout or permission to deploy. The other full-app checks were still processing at this entry's creation; do not infer their result. Formal 4/10 gates, NEW LIVE DARK/NO-GO; no Cloudflare login, remote request, Stripe charge/config, D1 write, R2, merge or release.
