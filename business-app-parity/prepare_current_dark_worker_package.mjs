@@ -90,6 +90,10 @@ function checkConfig(cfg,spec,bound){
     cfg.no_bundle!==true||cfg.find_additional_modules!==true||
     cfg.preserve_file_names!==true||cfg.workers_dev!==!bound||
     cfg.preview_urls!==(bound?false:undefined)||
+    // The two sealed DARK private prelaunch packages must not inherit
+    // compiler-default observability. Source-only archive still has no
+    // provider contact; future deployment requires separate owner approval.
+    (bound&&!identical(cfg.observability,{enabled:false}))||
     cfg.assets!==undefined||cfg.legacy_env!==undefined||
     cfg.build!==undefined||cfg.account_id!==undefined||
     cfg.zone_id!==undefined||cfg.env!==undefined||
@@ -243,6 +247,9 @@ export function prepareCurrentDarkWorkerPackage(target,alternativeFolder,sealFil
  const config=structuredClone(source.config);
  config.workers_dev=false;
  config.preview_urls=false;
+ // A disabled-login source candidate must not emit request/invocation
+ // logs when the owner later authorizes its private first deployment.
+ config.observability={enabled:false};
  config.d1_databases=[{binding:'DB',database_name:spec.db,database_id:spec.uuid}];
  config.vars={...config.vars,FIRE_PHOTO_STORAGE_MODE:'owner-device-zip'};
  writeFileSync(join(output,'server/wrangler.json'),JSON.stringify(config,null,2)+'\n');
