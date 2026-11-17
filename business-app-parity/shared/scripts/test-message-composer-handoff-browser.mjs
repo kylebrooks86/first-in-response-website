@@ -179,10 +179,25 @@ try{
  check(requests.length===beforeAppointment,'Past scheduled job does not create a message preparation POST');
  await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Appointment scheduled',exact:true}).click();
- const scheduled=page.getByRole('dialog',{name:'Message',exact:true});
+ let scheduled=page.getByRole('dialog',{name:'Message',exact:true});
  await page.waitForFunction(expected=>Array.from(document.querySelectorAll('[role=dialog] textarea')).some(e=>e.value.includes(expected)),futureSchedule);
  check(await scheduled.getByRole('button',{name:'Text',exact:true}).isEnabled(),
   'Saved scheduled appointment date and address enable ordinary Text preparation');
+ // Actual browser regression for a stale open editor: do not rely on readiness
+ // computed earlier during render; time may pass before the owner taps Text.
+ await page.evaluate(scheduledAt=>{
+   window.__fireSavedDateNow=Date.now;
+   Date.now=()=>Date.parse(scheduledAt)+1000;
+ },futureSchedule);
+ await scheduled.getByRole('button',{name:'Text',exact:true}).click();
+ await scheduled.getByText('This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed.',{exact:true}).waitFor();
+ check(requests.length===beforeAppointment,'Appointment expiring while composer remains open is rechecked before durable POST');
+ await page.evaluate(()=>{Date.now=window.__fireSavedDateNow;delete window.__fireSavedDateNow;});
+ await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Appointment scheduled',exact:true}).click();
+ scheduled=page.getByRole('dialog',{name:'Message',exact:true});
+ check(await scheduled.getByRole('button',{name:'Text',exact:true}).isEnabled(),
+  'Fresh future confirmed appointment remains usable after refusing a stale open editor');
  await scheduled.getByRole('button',{name:'Text',exact:true}).click();
  await scheduled.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
  check(requests.length===beforeAppointment+1&&
