@@ -66,7 +66,7 @@ export async function countOfflinePhotos(customerId:string):Promise<number>{
 export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File,jobId?:string):Promise<OfflinePhoto>{
  if(!customerId||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))throw Error('Choose a valid saved customer before adding photos.');
  if(!['before','after','property'].includes(category))throw Error('Choose a valid photo category.');
- if(jobId!==undefined&&!/^[a-zA-Z0-9_-]{1,120}$/.test(jobId))throw Error('Choose a valid saved job before associating photos.');
+ if(jobId!==undefined&&(typeof jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(jobId)))throw Error('Choose a valid saved job before associating photos.');
  if(!(file instanceof File)||!supportedOfflinePhotoType(file.type)||file.size<=0||file.size>MAX_FILE)throw Error('Choose an image smaller than 15 MB.');
  const record:OfflinePhoto={id:crypto.randomUUID(),customerId,...(jobId===undefined?{}:{jobId}),category,caption:caption.slice(0,2000),
   filename:(file.name||'photo').slice(0,240),contentType:file.type,sizeBytes:file.size,createdAt:new Date().toISOString(),blob:file};
