@@ -42,6 +42,21 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
  if(archive.tables.customer_photos.length!==0)
   fail('hosted object photo metadata exists; device ZIP cannot recover its bytes');
  const customers=new Set(archive.tables.customers.map(x=>x.id)),ids=new Set(),photoDigests=[];
+ // The numbered-job root estimate is the immutable job identity in this
+ // recovery format. Do not accept an arbitrary jobId just because it is
+ // syntactically valid: it must resolve to a numbered job in this SAME
+ // validated D1 snapshot, and that job must belong to the photo's customer.
+ // Display numbers alone (e.g. "0001") are not stable database identifiers.
+ const estimateOwners=new Map(archive.tables.estimates.map(row=>[row.id,row.customer_id]));
+ const jobOwners=new Map();
+ for(const job of archive.tables.fire_job_numbers){
+  const owner=estimateOwners.get(job.root_estimate_id);
+  if(typeof job.root_estimate_id!=='string'||typeof owner!=='string'||!customers.has(owner))
+   fail('numbered job has no valid customer-owned root estimate');
+  if(jobOwners.has(job.root_estimate_id))
+   fail('duplicate numbered job root estimate');
+  jobOwners.set(job.root_estimate_id,owner);
+ }
  let totalBytes=0;
  for(const photo of photos){
   if(!photo||typeof photo!=='object'||typeof photo.id!=='string'||
@@ -59,9 +74,14 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
      !Number.isSafeInteger(photo.sizeBytes)||photo.sizeBytes<1||
      photo.sizeBytes>15*1024*1024||photo.blob.size!==photo.sizeBytes)
    fail('photo metadata or bytes do not match accepted device ZIP format');
-  if(photo.jobId!==undefined&&
-     (typeof photo.jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(photo.jobId)))
-   fail('invalid photo job association');
+  if(photo.jobId!==undefined){
+   if(typeof photo.jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(photo.jobId))
+    fail('invalid photo job association');
+   if(!jobOwners.has(photo.jobId))
+    fail('photo references an unknown numbered job root estimate');
+   if(jobOwners.get(photo.jobId)!==photo.customerId)
+    fail('photo numbered job belongs to another customer');
+  }
   totalBytes+=photo.sizeBytes;
   if(totalBytes>160*1024*1024)fail('device-photo bytes exceed supported ZIP size');
   // Hash the verified actual bytes again to bind each record and photograph.
