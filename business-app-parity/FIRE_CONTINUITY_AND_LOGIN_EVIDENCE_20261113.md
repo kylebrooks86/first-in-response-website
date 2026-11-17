@@ -1,3 +1,10 @@
+<!-- FIRE_NEW_LIVE_READONLY_RUNTIME_VERIFIER_SOURCE_NOV16 -->
+## NOV 16 LATEST: NEW LIVE 193-runtime-module hosted-code comparison SOURCE READY (NO CLOUDFARE GET)
+
+Actual source-only new NEW LIVE immutable byte verifier `owner_new_live_immutable_module_bytes_readonly.mjs`, test and CI wiring on draft PR270, candidate code SHA `29281dbad3e670493d689e67bc2fd45d3ef0e7d6`. NEW LIVE target pinned to already physically verified serving `cfacbb3d-43de-4d2c-8008-c6732d78f756`, independent original owner one-shot lock, exact sealed archive and frozen QA-master source. It compares 193 JS/MJS runtime modules by name/MIME/size/SHA256 and rejects DR/old versions; 48 non-runtime auxiliary bytes and account-wide routes/Access are explicitly NOT attested. Focused [CI #44012328392](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44012328392) **SUCCESS, 30/30 NEW LIVE cases PASS**; protected main public website/calculator [CI #44012328439](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44012328439) **SUCCESS**, after strict approved workflow blob pin correction, no bypass. Full [dedicated evidence](evidence/FIRE_NEW_LIVE_IMMUTABLE_RUNTIME_MODULE_PROOF_SOURCE_20261116.md). **Authenticated hosted module GET NOT performed; no NEW LIVE provider update/redeploy, login/Access, SQL/R2/paid Cloudflare, Stripe, merge or release.** Prior physically accepted NEW LIVE hosted identity/D1/no-R2 proof remains authoritative; NEVER rerun publisher or 26 migrations. Formal 4/10 accepted G1/G2/G3/G8, six remain open, NEW LIVE DARK NO-GO.
+
+---
+
 <!-- FIRE_NEW_LIVE_HOSTED_POSTUPDATE_PHYSICAL_PASS_20261116 -->
 ## Nov 16 — REAL NEW LIVE owner Acer post-update hosted immutable version/D1/auth/rollback READBACK PASS; gate4 still OPEN
 
