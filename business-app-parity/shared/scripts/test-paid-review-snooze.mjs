@@ -4,6 +4,7 @@ import {readFileSync,readdirSync} from "node:fs";
 import {DatabaseSync} from "node:sqlite";
 import vm from "node:vm";
 import ts from "typescript";
+import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 const db=new DatabaseSync(":memory:");
 for(const file of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+file,"utf8"));
 let user={email:"kylebrooks8605@gmail.com"},reads=0,writes=0;
@@ -21,7 +22,7 @@ const load=(path,deps)=>{
 const helpers=load("lib/payment-closeout-actions.ts",{});
 const auth={"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../lib/payment-closeout-actions":helpers};
 const closeouts=load("app/api/payment-closeouts/route.ts",auth);
-const snooze=load("app/api/payment-closeouts/snooze/route.ts",{"cloudflare:workers":{env},"../../../chatgpt-auth":{getChatGPTUser:async()=>user}});
+const snooze=load("app/api/payment-closeouts/snooze/route.ts",{"cloudflare:workers":{env},"../../../chatgpt-auth":{getChatGPTUser:async()=>user},"../../../../lib/customer-write-request-guard.mjs":{readOwnerWriteObject}});
 const stamp=n=>new Date(Date.now()-n*86400000).toISOString();
 let counter=0;const check=(condition,message)=>{assert.ok(condition,message);counter++};
 function job(id,{status="completed",paid=10000}={}){
@@ -42,6 +43,19 @@ try{
  user=null;check((await snooze.POST(req("ready",1))).status===401&&reads===before.reads&&writes===before.writes,"No anonymous snooze or database access");
  user={email:"notowner@example.invalid"};check((await snooze.POST(req("ready",1))).status===401&&reads===before.reads&&writes===before.writes,"Wrong owner rejected before DB");
  user={email:"kylebrooks8605@gmail.com"};
+ // The route itself rejects malformed/oversized owner bytes before D1.
+ for(const [label,body,headers,expected] of [
+  ["declared oversized body","{}",{"content-length":"4097"},413],
+  ["actual oversized stream"," ".repeat(4097),{},413],
+  ["contradictory declared bytes",'{"x":1}',{"content-length":"2"},400],
+  ["invalid UTF8",new Uint8Array([123,34,120,34,58,255,125]),{},400],
+  ["nonobject JSON","[]",{},400],
+ ]){
+  const snapshot={reads,writes};
+  const r=await snooze.POST(new Request("https://fire.invalid/api/payment-closeouts/snooze",{method:"POST",headers,body}));
+  check(r.status===expected,label+" rejected before owner billing reads");
+  check(reads===snapshot.reads&&writes===snapshot.writes,label+" touches no financial D1 records");
+ }
  const invalid=await snooze.POST(new Request("https://fire.invalid/api/payment-closeouts/snooze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:"e-ready",customerId:"c-ready",operationId:"bad"})}));
  check(invalid.status===400,"No malformed operation IDs");
  const first=await snooze.POST(req("ready",1));const saved=await first.json();
