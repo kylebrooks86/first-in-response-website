@@ -7,6 +7,7 @@ type Page={selectedProperty?:CustomerProperty|null;enabled:boolean;estimateAssoc
 export function CustomerProperties({customerId,onRecordsChange,onSelectionChange,onWorkflowChange,initialPropertyId,focusPropertyId,onPropertyFocusHandled,compact=false}:{customerId:string;onRecordsChange:(blocked:boolean)=>void;onSelectionChange?:(selection:PropertyEstimateSelection|null)=>void;onWorkflowChange?:(ready:boolean)=>void;initialPropertyId?:string;focusPropertyId?:string;onPropertyFocusHandled?:(id:string)=>void;compact?:boolean}){
  const [page,setPage]=useState<Page|null>(null),[rows,setRows]=useState<CustomerProperty[]>([]),[selected,setSelected]=useState(''),[address,setAddress]=useState(''),[designation,setDesignation]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false);
  const request=useRef(0),initialApplied=useRef(false),focusReadReady=useRef('');
+ const pendingPropertyCreate=useRef<{customerId:string;address:string;designation:string;operationId:string}|null>(null);
  const [focusError,setFocusError]=useState(''),[loadedFocus,setLoadedFocus]=useState('');
  useEffect(()=>{if(!page){onSelectionChange?.(null);onWorkflowChange?.(false);return;}const property=rows.find(row=>row.id===selected&&row.active)|| (page.soleActiveProperty?.id===selected?page.soleActiveProperty:null);onSelectionChange?.(property?{property,mode:page.activeCount===1?'sole':'explicit'}:null);onWorkflowChange?.(page.estimateAssociationReady===true);onRecordsChange(loading||busy||uncertain||Boolean(error)||page.total>0&&(!page.estimateAssociationReady||!property));},[page,rows,selected,loading,busy,uncertain,error,onRecordsChange,onSelectionChange,onWorkflowChange]);
  async function load(cursor?:string){
@@ -14,11 +15,34 @@ export function CustomerProperties({customerId,onRecordsChange,onSelectionChange
   try{const lookupId=focusPropertyId??initialPropertyId;const response=await fetch('/api/customer-properties?customerId='+encodeURIComponent(customerId)+(cursor?'&cursor='+encodeURIComponent(cursor):'')+(lookupId?'&selectedPropertyId='+encodeURIComponent(lookupId):''),{cache:'no-store'});const data=await response.json() as Page&{error?:string};if(!response.ok)throw Error(data.error||'Properties unavailable.');if(generation!==request.current)return;if(!data.enabled){setPage(null);setRows([]);onRecordsChange(false);return;}const valid=(row:CustomerProperty)=>row&&typeof row.id==='string'&&row.customerId===customerId&&typeof row.address==='string'&&typeof row.designation==='string'&&[0,1].includes(row.active)&&Number.isSafeInteger(row.revision);if(!Array.isArray(data.properties)||!Number.isSafeInteger(data.activeCount)||!Number.isSafeInteger(data.total)||typeof data.estimateAssociationReady!=='boolean'||data.properties.some(row=>!valid(row))||data.selectedProperty&&(!valid(data.selectedProperty)||data.selectedProperty.id!==lookupId)||data.activeCount===1&&(!data.soleActiveProperty||!valid(data.soleActiveProperty)||data.soleActiveProperty.active!==1))throw Error('Property response could not be verified.');setUncertain(false);onRecordsChange(data.total>0);setPage(data);const displayed=data.selectedProperty&&!data.properties.some(row=>row.id===data.selectedProperty!.id)?[data.selectedProperty,...data.properties]:data.properties;setRows(current=>cursor?[...current,...data.properties.filter(row=>!current.some(old=>old.id===row.id))]:displayed);setSelected(current=>{if(data.activeCount===1)return data.soleActiveProperty?.id??'';if(cursor||focusPropertyId)return current;if(!initialApplied.current&&initialPropertyId&&displayed.some(row=>row.id===initialPropertyId&&row.active)){initialApplied.current=true;return initialPropertyId;}initialApplied.current=true;return '';});}
   catch(e){if(generation===request.current)setError(e instanceof Error?e.message:'Properties unavailable.');}finally{if(generation===request.current){focusReadReady.current=customerId+':'+(focusPropertyId??'');setLoading(false);setLoadedFocus(focusReadReady.current);}}
  }
- useEffect(()=>{initialApplied.current=false;onRecordsChange(true);setPage(null);setRows([]);setSelected('');setAddress('');setDesignation('');setMessage('');setFocusError('');},[customerId]);
+ useEffect(()=>{initialApplied.current=false;pendingPropertyCreate.current=null;onRecordsChange(true);setPage(null);setRows([]);setSelected('');setAddress('');setDesignation('');setMessage('');setFocusError('');},[customerId]);
  useEffect(()=>{void load();return()=>{request.current++;};},[customerId]);
  useEffect(()=>{if(focusPropertyId)void load();},[focusPropertyId]);
  useEffect(()=>{if(!focusPropertyId||loading||loadedFocus!==customerId+':'+focusPropertyId||focusReadReady.current!==loadedFocus)return;setFocusError('');if(error||!page){setFocusError(error||'The selected property is unavailable or property management is not enabled.');onPropertyFocusHandled?.(focusPropertyId);return;}const row=rows.find(row=>row.id===focusPropertyId&&row.customerId===customerId);if(!row)setFocusError('The selected property is unavailable. Refresh the customer profile or check your connection.');else{const element=document.getElementById('customer-property-'+row.id);if(!element)return;element.scrollIntoView({block:'center'});element.focus({preventScroll:true});}onPropertyFocusHandled?.(focusPropertyId);},[focusPropertyId,loading,page,rows,error,customerId,loadedFocus]);
- async function save(){if(busy||!address.trim())return;setBusy(true);setMessage('');try{const response=await fetch('/api/customer-properties',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({customerId,address,designation})});const data=await response.json() as {error?:string;property?:CustomerProperty};if(!response.ok||!data.property)throw Error(data.error||'Save was not confirmed. Review stored properties.');setAddress('');setDesignation('');setMessage('Property saved. Existing customers and historical addresses were not changed.');await load();}catch(e){setUncertain(true);setMessage(e instanceof Error?e.message:'Save was not confirmed. Review stored properties.');}finally{setBusy(false);}}
+ async function save(){
+  if(busy||!address.trim())return;
+  const draft={customerId,address:address.trim(),designation:designation.trim()};
+  const existing=pendingPropertyCreate.current;
+  const operationId=existing&&existing.customerId===draft.customerId&&existing.address===draft.address&&existing.designation===draft.designation
+   ?existing.operationId:crypto.randomUUID();
+  pendingPropertyCreate.current={...draft,operationId};
+  setBusy(true);setMessage('');
+  try{
+   const response=await fetch('/api/customer-properties',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...draft,operationId})});
+   const data=await response.json() as {error?:string;property?:CustomerProperty};
+   if(!response.ok||!data.property)throw Error(data.error||'Save was not confirmed. Review stored properties.');
+   if(data.property.id!==operationId||data.property.customerId!==customerId||
+      data.property.address!==draft.address||data.property.designation!==draft.designation||data.property.active!==1)
+    throw Error('The saved property could not be matched to this exact request. Review stored properties.');
+   pendingPropertyCreate.current=null;
+   setAddress('');setDesignation('');
+   setMessage('Property saved. Existing customers and historical addresses were not changed.');
+   await load();
+  }catch(e){
+   setUncertain(true);
+   setMessage(e instanceof Error?e.message:'Save was not confirmed. Review stored properties.');
+  }finally{setBusy(false);}
+ }
  async function archive(property:CustomerProperty){if(busy||!window.confirm('Archive this property for future work? Its saved address and history will be retained.'))return;setBusy(true);setMessage('');try{const response=await fetch('/api/customer-properties',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({customerId,propertyId:property.id,action:'archive',expectedRevision:property.revision})});const data=await response.json() as {error?:string;property?:CustomerProperty};if(!response.ok||!data.property)throw Error(data.error||'Archive was not confirmed.');setMessage('Property archived; its record is retained.');await load();}catch(e){setUncertain(true);setMessage(e instanceof Error?e.message:'Archive was not confirmed.');}finally{setBusy(false);}}
  if(!page&&!error&&!focusError)return null;
  return <section aria-label="Customer properties" className="mt-4 rounded-lg border p-4 space-y-3">
