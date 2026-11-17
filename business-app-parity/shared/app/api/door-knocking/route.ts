@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {DOOR_BOOK_KEY,decodeDoorBook,validDoorBook,houseKey,doorId,doorStatus,latestDoorVisit,doorSuppressed,validDoorFollowUpDate,validDoorPoint,validDoorCapturedAt} from '../../../lib/door-knocking';
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
 async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()==='kylebrooks8605@gmail.com';}
 export async function GET(){
@@ -10,8 +11,10 @@ export async function GET(){
 }
 export async function POST(request:Request){
  if(!await authorized())return json({error:'Unauthorized'},401);
+ const parsed=await readOwnerWriteObject(request,8192);
+ if(parsed.response)return parsed.response;
  let b:Record<string,unknown>;
- try{const v:unknown=await request.json();if(!v||typeof v!=='object'||Array.isArray(v))throw Error();b=v as Record<string,unknown>;}catch{return json({error:'Invalid house request.'},400);}
+ try{b=parsed.value as Record<string,unknown>;catch{return json({error:'Invalid house request.'},400);}
  if(!doorId(b.requestId)||!(b.expectedRevision===null||doorId(b.expectedRevision))||!['add','visit','unsuppress','locate','unpin'].includes(String(b.action)))return json({error:'Refresh and review the house request.'},400);
  const locationAction=b.action==='locate'||b.action==='unpin';
  const allowed=locationAction?['action','expectedRevision','houseId','requestId',...(b.action==='locate'?['point','capturedAt']:[])]:b.action==='add'?['action','address','expectedRevision','requestId','point','capturedAt']:b.action==='visit'?['action','expectedRevision','houseId','note','requestId','status','followUpOn','capturedAt']:['action','expectedRevision','houseId','note','requestId','status'];
@@ -55,8 +58,17 @@ export async function POST(request:Request){
   book.revision=crypto.randomUUID();if(!validDoorBook(book))return json({error:'House history limit reached. Export history before expanding this tracker.'},400);
   const encoded=JSON.stringify(book);
   if(new TextEncoder().encode(encoded).length>1500000)return json({error:"House history is full. Export it before adding more."},400);
-  const result=row?await env.DB.prepare('UPDATE message_templates SET body=?,updated_at=? WHERE key=? AND body=?').bind(encoded,now,DOOR_BOOK_KEY,row.body).run():await env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO NOTHING").bind(DOOR_BOOK_KEY,encoded,now).run();
-  if(result.meta.changes!==1)return json({error:'Another device saved first. Refresh house history.'},409);
-  return json({book,confirmed:true,requestId:b.requestId});
+  // A D1 INSERT/UPDATE can commit before losing its acknowledgement. A
+  // returned changes:1 can also be spurious. Read the persisted exact book
+  // rather than treating either write reply as confirmation.
+  let changed:number|null=null;
+  try{
+   const result=row?await env.DB.prepare('UPDATE message_templates SET body=?,updated_at=? WHERE key=? AND body=?').bind(encoded,now,DOOR_BOOK_KEY,row.body).run():await env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO NOTHING").bind(DOOR_BOOK_KEY,encoded,now).run();
+   changed=Number(result.meta?.changes);
+  }catch{/* Unknown commit state; one exact readback, never repeat the write. */}
+  const saved=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DOOR_BOOK_KEY).first<{body:string}>();
+  if(saved?.body===encoded)return json({book,confirmed:true,requestId:b.requestId});
+  if(changed===0)return json({error:'Another device saved first. Refresh house history.'},409);
+  return json({error:'Save was not confirmed. Review saved house history before another attempt.',saveUncertain:true},503);
  }catch{return json({error:'Save was not confirmed. Refresh house history before another attempt.'},503);}
 }
