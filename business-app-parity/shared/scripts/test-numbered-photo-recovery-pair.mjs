@@ -61,6 +61,15 @@ n++;
 ok((await sealNumberedRecordAndPhotoRecoveryPair(otherCustomer,[{...one,jobId:'synthetic-e1'}])).photoCount===1,
  'Same snapshot with multiple customers accepts only correctly owned job-linked photos');
 
+const amendedJob=sample();
+amendedJob.tables.estimates.push({id:'synthetic-e1-change',customer_id:'synthetic-c1',
+ created_at:'2026-11-01T00:00:00Z',status:'draft',total_cents:100});
+amendedJob.tables.fire_job_estimate_links.push({estimate_id:'synthetic-e1-change',job_number:1});
+amendedJob.rowCounts=Object.fromEntries(Object.entries(amendedJob.tables).map(([table,rows])=>[table,rows.length]));
+ok((await sealNumberedRecordAndPhotoRecoveryPair(amendedJob,[{...one,jobId:'synthetic-e1-change'}])).photoCount===1,
+ 'Additional estimate linked to the SAME numbered job and customer is a valid photo association');
+
+
 const reordered=structuredClone(original);
 const matching=await sealNumberedRecordAndPhotoRecoveryPair(reordered,[one]);
 ok((await compareNumberedRecordAndPhotoPairSeals(seal,matching)).sourceAndDestinationMatch,'unchanged synthetic isolated copy agrees');
