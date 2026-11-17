@@ -78,10 +78,40 @@ export async function POST(request:Request){
 export async function PATCH(request:Request){
  if(!await owner())return Response.json({error:'Unauthorized'},{status:401});
  if(!customerPropertiesEnabled(env))return Response.json({error:'Property management is not enabled.'},{status:404});
+ const parsed=await readOwnerWriteObject(request,8192);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as Record<string,unknown>,customerId=id(body.customerId),propertyId=id(body.propertyId),
+  expectedRevision=body.expectedRevision;
+ if(!customerId||!propertyId||body.action!=='archive'||typeof expectedRevision!=='number'||
+  !Number.isSafeInteger(expectedRevision)||expectedRevision<1||
+  Object.keys(body).some(key=>!['customerId','propertyId','action','expectedRevision'].includes(key)))
+  return Response.json({error:'Explicit archive action and current property revision are required.'},{status:400});
+ const uncertain=()=>Response.json({
+  error:'Archive could not be verified. Review stored property status before another attempt.',
+  saveUncertain:true
+ },{status:503,headers:{'Cache-Control':'private, no-store'}});
+ const conflict=()=>Response.json({
+  error:'Property ownership or revision changed. Nothing new was archived by this attempt.'
+ },{status:409,headers:{'Cache-Control':'private, no-store'}});
+ const read=()=>env.DB.prepare(`SELECT ${columns} FROM customer_properties WHERE id=? AND customer_id=?`)
+  .bind(propertyId,customerId).first<CustomerProperty>();
+ let reported:CustomerProperty|null=null,writeErrored=false;
  try{
-  const body=await request.json() as Record<string,unknown>,customerId=id(body.customerId),propertyId=id(body.propertyId);
-  if(!customerId||!propertyId||body.action!=='archive'||!Number.isSafeInteger(body.expectedRevision)||Number(body.expectedRevision)<1||Object.keys(body).some(key=>!['customerId','propertyId','action','expectedRevision'].includes(key)))return Response.json({error:'Explicit archive action and current property revision are required.'},{status:400});
-  const property=await env.DB.prepare(`UPDATE customer_properties SET active=0,revision=revision+1 WHERE id=? AND customer_id=? AND active=1 AND revision=? RETURNING ${columns}`).bind(propertyId,customerId,body.expectedRevision).first<CustomerProperty>();
-  return property?Response.json({property}):Response.json({error:'Property ownership or revision changed. Nothing was archived by this attempt.'},{status:409});
- }catch{return Response.json({error:'Archive was not confirmed. Review stored status before another deliberate attempt.'},{status:500});}
+  // The SQL revision/active predicate remains the atomic authorization.
+  // Never accept RETURNING by itself: an ACK may be lost after a commit or
+  // a provider may report a success without actually persisting it.
+  try{
+   reported=await env.DB.prepare(`UPDATE customer_properties SET active=0,revision=revision+1
+    WHERE id=? AND customer_id=? AND active=1 AND revision=? RETURNING ${columns}`)
+    .bind(propertyId,customerId,expectedRevision).first<CustomerProperty>();
+  }catch{writeErrored=true;}
+  const confirmed=await read();
+  if(confirmed?.active===0&&confirmed.revision===expectedRevision+1){
+   return Response.json({property:confirmed,
+    ...(!reported||writeErrored?{recoveredAfterUncertainSave:true}:{})
+   },{headers:{'Cache-Control':'private, no-store'}});
+  }
+  if(writeErrored||reported)return uncertain();
+  return conflict();
+ }catch{return uncertain();}
 }
