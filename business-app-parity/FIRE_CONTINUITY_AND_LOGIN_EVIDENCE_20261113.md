@@ -1,3 +1,13 @@
+## November 17 — 41/95 checked; NEW LIVE schema recovery and TEST logging safeguards
+
+[G5-07](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g5-07-reviewed-new-live-schema-recovery) is complete. The exact NEW LIVE target had no FIRE schema or data before the separately approved recovery. The private, reviewed 26-SQL backup predated that operation. GitHub's comparison from the archived source to the separately approved source lists no changed SQL files. The original and new attempt locks and the verified post-write receipt remain preserved. No repeat migration or provider verification was performed.
+
+**New TEST review archive.** The [telemetry-disabled source build](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44088970112) pins logs, invocation logs and traces off in the Worker-only manifest and its external seal. Source `19011d3173dfb6b502b971670b4c296f31796a36`, [artifact 14331340202](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44088970112/artifacts/14331340202), 3,150,025 bytes, GitHub-reported SHA-256 `97ecc66403e608423792253e733760d345840a4ac1bb108e811177da0c285916`. CI re-downloaded and verified the seal and booted the package offline. The previous privately archived TEST ZIP stays historical. G6-09 and G9-03 remain open for hosted evidence and exact approval respectively.
+
+[Source change](https://github.com/kylebrooks86/first-in-response-website/commit/19011d3173dfb6b502b971670b4c296f31796a36) adds explicit observability-off configuration to the isolated TEST Worker-only fallback. The JS verifier and Python seal independently refuse missing observability configuration or re-enabled invocation logs/traces even if file inventory hashes are recomputed. [Full offline Gate 9 CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44088970112) completed successfully, including the changed negative controls, actual archive readback, packaging and local boot. Existing hosted configuration and published versions were untouched. Formal gates remain 4/10, NEW LIVE dark.
+
+---
+
 ## November 17 — 40/95 checked after clean-start and historical TEST failure reconciliation
 
 [G5-04](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g5-04-new-live-clean-start-evidence) is complete. The original hosted NEW LIVE D1 inspection verified empty operational history and zero numbering high-water on the same D1 later confirmed bound to the DARK Worker. Original receipt and consumed locks are preserved privately off the Acer. The reviewed atomic estimate/job-number write and unique root constraint apply to future activation. No synthetic or production Job #0001 was created. Actual first use remains G10-08.
