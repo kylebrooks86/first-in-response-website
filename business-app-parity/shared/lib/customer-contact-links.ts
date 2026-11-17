@@ -91,12 +91,18 @@ export function customerAppointmentTemplateReadiness(
  templateSubject:string,
  scheduledAt:string|null|undefined,
  status:string|null|undefined,
- address:string|null|undefined
+ address:string|null|undefined,
+ now:number=Date.now()
 ):{ready:boolean;reason:string}{
  const source=templateBody+" "+templateSubject;
  if(!source.includes("@schedule_date"))return{ready:true,reason:""};
- if(status!=="scheduled"||!scheduledAt||!Number.isFinite(Date.parse(scheduledAt)))
+ const appointmentAt=scheduledAt?Date.parse(scheduledAt):NaN;
+ if(status!=="scheduled"||!Number.isFinite(appointmentAt))
   return{ready:false,reason:"Save and confirm this job's appointment date before preparing an appointment confirmation or reminder."};
+ // A stale saved "scheduled" status is not proof an appointment is still upcoming.
+ // Recheck wall-clock time at the actual preparation click as well as render.
+ if(!Number.isFinite(now)||appointmentAt<=now)
+  return{ready:false,reason:"This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed."};
  if(source.includes("@service_address")&&!address?.trim())
   return{ready:false,reason:"Save a service address for this scheduled job before preparing an appointment confirmation."};
  return{ready:true,reason:""};
