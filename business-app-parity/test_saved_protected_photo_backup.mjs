@@ -78,6 +78,15 @@ const manifest=(photos=[data])=>({format:'fire-offline-photo-vault',version:1,
  exportedAt:'2026-11-13T12:01:00.000Z',requiresMatchingCustomerRecords:true,photos});
 const zip=(photos=[data],named='photos/'+photoId)=>
  storedFireZip([[named,photoBytes],['manifest.json',Buffer.from(JSON.stringify(manifest(photos)))]]);
+// Job-linked photo ZIPs must remain readable by the independent owner-saved
+// verifier, while malformed associations fail before any recovery is claimed.
+const jobLinkedZip=zip([{...data,jobId:'job-synthetic-0001'}]);
+const verifiedJobZip=inspectStoredFirePhotoZip(jobLinkedZip,{includeVerifiedPhotoItems:true});
+ok(verifiedJobZip.photoCount===1,'valid job-linked photo ZIP remains independently verifiable');
+await reject(async()=>inspectStoredFirePhotoZip(zip([{...data,jobId:'invalid job id'}])),
+ /FIRE saved photo recovery review BLOCKED:/);
+await reject(async()=>inspectStoredFirePhotoZip(zip([{...data,jobId:17}])),
+ /FIRE saved photo recovery review BLOCKED:/);
 const phrase='FIRE synthetic private cross device recovery phrase 2026';
 const folder=mkdtempSync(join(tmpdir(),'fire-saved-photo-proof-'));
 const file=join(folder,'synthetic.firephotos'),legacy=join(folder,'unprotected.zip');
