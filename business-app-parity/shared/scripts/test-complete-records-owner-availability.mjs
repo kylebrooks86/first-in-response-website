@@ -126,6 +126,92 @@ pass(widget.includes("cache:'no-store'")&&
  pass(records.includes('if(!reviewEnabled)return null')&&
   pair.includes('if(!reviewEnabled)return null'),
   'Actual records and photo controls still fail invisible when disabled');
+
+ // Exercise the ACTUAL TSX useEffect and fetch logic with a fake browser,
+ // rather than relying only on string matches. No network or credentials.
+ const {createRequire}=await import('node:module');
+ const require=createRequire(import.meta.url),ts=require('typescript');
+ const transpiled=ts.transpileModule(widget,{
+  compilerOptions:{jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,
+   module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const listeners=new Map(),stateWrites=[];
+ let activeFetch=()=>Promise.reject(Error('No synthetic reply configured'));
+ let cleanup=null,requestCount=0;
+ const fakeWindow={
+  addEventListener:(name,handler)=>listeners.set('window:'+name,handler),
+  removeEventListener:(name,handler)=>{if(listeners.get('window:'+name)===handler)listeners.delete('window:'+name);}
+ };
+ const fakeDocument={
+  visibilityState:'visible',
+  addEventListener:(name,handler)=>listeners.set('document:'+name,handler),
+  removeEventListener:(name,handler)=>{if(listeners.get('document:'+name)===handler)listeners.delete('document:'+name);}
+ };
+ const mockRequire=name=>{
+  if(name==='react')return {
+   useState:initial=>[initial,value=>stateWrites.push(value)],
+   useEffect:fn=>{cleanup=fn();}
+  };
+  if(name==='react/jsx-runtime')return {jsx:()=>null,jsxs:()=>null,Fragment:Symbol('fragment')};
+  if(name==='./complete-d1-records-review')return {CompleteD1RecordsReview:()=>null};
+  if(name==='./protected-pair-owner-review')return {ProtectedPairOwnerReview:()=>null};
+  throw Error('Unexpected browser test import '+name);
+ };
+ const response=(status=200)=>({
+  ok:status===200,status,redirected:false,
+  headers:{get:key=>key==='cache-control'?'private, no-store':null},
+  json:async()=>status===200?{
+   format:'fire-complete-records-owner-review-capability',
+   version:1,reviewEnabled:true,completeBackup:false,gate7Accepted:false
+  }:{error:'Not found'}
+ });
+ const fakeFetch=(path,init)=>{
+  requestCount++;
+  assert.equal(path,'/api/backup/review-capability');
+  assert.equal(init.method,'GET');assert.equal(init.credentials,'same-origin');
+  assert.equal(init.cache,'no-store');assert.equal(init.redirect,'error');
+  assert.ok(init.signal instanceof AbortSignal);
+  return activeFetch(init.signal);
+ };
+ const moduleExports={};
+ new Function('require','module','exports','window','document','AbortController','fetch',transpiled)(
+  mockRequire,{exports:moduleExports},moduleExports,
+  fakeWindow,fakeDocument,AbortController,fakeFetch
+ );
+ const settle=async()=>new Promise(resolve=>setImmediate(resolve));
+ activeFetch=async()=>response(200);
+ moduleExports.OwnerCompleteRecoveryAvailability();
+ await settle();
+ pass(stateWrites.at(-1)===true&&requestCount===1,
+  'Actual owner recovery widget enables only after successful private capability GET');
+ activeFetch=async()=>response(401);
+ listeners.get('window:focus')();
+ await settle();
+ pass(stateWrites.at(-1)===false,
+  'Actual owner recovery widget hides controls after session denial on focus');
+ activeFetch=async()=>response(200);
+ listeners.get('window:pageshow')();
+ await settle();
+ pass(stateWrites.at(-1)===true,
+  'Valid returning owner can re-enable review from a fresh pageshow capability check');
+ let resolveOld;
+ activeFetch=()=>new Promise(resolve=>{resolveOld=resolve;});
+ listeners.get('window:focus')();
+ activeFetch=async()=>response(403);
+ listeners.get('document:visibilitychange')();
+ await settle();
+ pass(stateWrites.at(-1)===false,
+  'Later 403 denial revokes review even when an earlier owner-OK read is unresolved');
+ resolveOld(response(200));await settle();
+ pass(stateWrites.at(-1)===false,
+  'Superseded owner-OK response cannot resurrect a revoked recovery panel');
+ const prior=stateWrites.length;
+ cleanup();
+ pass(listeners.size===0,'Owner review removes all browser activation listeners on unmount');
+ activeFetch=async()=>response(200);
+ await settle();
+ pass(stateWrites.length===prior,
+  'Unmounted owner review makes no state updates after cleanup');
  console.log('PASS '+checks+'/'+checks+
   ' full records/photo owner review availability: default OFF, exact owner+flag, private GET, no D1, UI remains hidden. SOURCE ONLY.');
 }finally{globalThis.fetch=originalFetch;}
