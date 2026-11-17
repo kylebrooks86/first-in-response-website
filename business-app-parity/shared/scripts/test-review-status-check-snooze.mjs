@@ -4,6 +4,7 @@ import {readFileSync,readdirSync} from "node:fs";
 import {DatabaseSync} from "node:sqlite";
 import vm from "node:vm";
 import ts from "typescript";
+import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 const db=new DatabaseSync(":memory:");
 for(const name of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+name,"utf8"));
 let owner={email:"kylebrooks8605@gmail.com"},reads=0,writes=0,total=0;
@@ -16,7 +17,7 @@ function load(p,deps){const exports={};const code=ts.transpileModule(readFileSyn
 const flags=load("lib/customer-activity-flags.ts",{});
 const lib=load("lib/dashboard-review-checks.ts",{"./customer-activity-flags":flags});
 const view=load("app/api/dashboard-review-checks/route.ts",{"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/dashboard-review-checks":lib});
-const action=load("app/api/dashboard-review-checks/snooze/route.ts",{"cloudflare:workers":{env},"../../../chatgpt-auth":{getChatGPTUser:async()=>owner}});
+const action=load("app/api/dashboard-review-checks/snooze/route.ts",{"cloudflare:workers":{env},"../../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../../lib/customer-write-request-guard.mjs":{readOwnerWriteObject}});
 const stamp=d=>new Date(Date.now()-d*86400000).toISOString();
 const op=n=>"10000000-0000-4000-8000-"+String(n).padStart(12,"0");
 function setup(id,jobStatus="completed",days=12,channel="text_confirmed"){
@@ -40,6 +41,18 @@ try{
  owner={email:"not-the-owner@example.invalid"};
  check((await action.POST(req("ready",1,at))).status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Wrong owner denied before DB");
  owner={email:"kylebrooks8605@gmail.com"};
+ for(const [label,body,headers,expected] of [
+  ["declared excessive review-check input","{}",{"content-length":"4097"},413],
+  ["actual excessive review-check input"," ".repeat(4097),{},413],
+  ["false short Content-Length",'{"x":1}',{"content-length":"2"},400],
+  ["invalid UTF8",new Uint8Array([123,34,120,34,58,255,125]),{},400],
+  ["nonobject JSON","[]",{},400],
+ ]){
+  const before={reads,writes};
+  const result=await action.POST(new Request("https://fire.invalid/api/dashboard-review-checks/snooze",{method:"POST",headers,body}));
+  check(result.status===expected,label+" fails before stored review checks");
+  check(before.reads===reads&&before.writes===writes,label+" leaves all D1 reads/writes untouched");
+ }
  check((await action.POST(req("draft",2,draft))).status===409,"Prepared-only review cannot be deferred");
  check((await action.POST(req("unfinished",3,unfinished))).status===409,"Unfinished job cannot authorize status check");
  check((await action.POST(req("recent",4,recent))).status===409,"Only reviews at least seven days old qualify");
