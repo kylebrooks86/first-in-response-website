@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -7,12 +8,13 @@ const requestIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  let body:Record<string,unknown>;
-  try{
-    const parsed:unknown=await request.json();
-    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Invalid note');
-    body=parsed as Record<string,unknown>;
-  }catch{return Response.json({error:'A valid customer note request is required.'},{status:400});}
+  // Owner notes can contain private customer details. Enforce an actual
+  // streamed byte limit BEFORE JSON parsing, including chunked/false-length
+  // bodies. Reuse the existing hardened owner-write reader; retain the
+  // current customer, note text and idempotent D1 confirmation semantics.
+  const parsed=await readOwnerWriteObject(request,32_000);
+  if(parsed.response)return parsed.response;
+  const body=parsed.value as Record<string,unknown>;
   if(typeof body.customerId!=='string'||!body.customerId.trim()||typeof body.body!=='string'||!body.body.trim()||body.body.trim().length>5000)return Response.json({error:'Choose a customer and write a note of 1–5,000 characters.'},{status:400});
   if(body.requestId!==undefined&&(typeof body.requestId!=='string'||!requestIdPattern.test(body.requestId)))return Response.json({error:'A valid note request ID is required.'},{status:400});
   const customerId=body.customerId.trim(),noteBody=body.body.trim(),id=typeof body.requestId==='string'?body.requestId:crypto.randomUUID();
