@@ -82,44 +82,66 @@ try{
  const appointmentId=randomUUID();
  const future=()=>new Date(Date.now()+86400000).toISOString();
  const past=()=>new Date(Date.now()-86400000).toISOString();
+ const firstFuture=future();
  db.prepare('INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at,scheduled_at) VALUES (?,?,?,?,?,?,?,?)')
-  .run(appointmentId,customerId,'scheduled',20000,20000,10000,new Date().toISOString(),future());
- const appointment={customerId,estimateId:appointmentId,channel:'text_prepared',template:'appointment',body:'Synthetic appointment confirmation',requestId:randomUUID()};
+  .run(appointmentId,customerId,'scheduled',20000,20000,10000,new Date().toISOString(),firstFuture);
+ const appointment={customerId,estimateId:appointmentId,channel:'text_prepared',template:'appointment',body:'Synthetic appointment confirmation',requestId:randomUUID(),appointmentScheduledAt:firstFuture};
  const appointmentCount=()=>db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE template IN ('appointment','appointmentReminder')").get().n;
  const none=appointmentCount();
  eq((await post({...appointment,estimateId:'',requestId:randomUUID()})).status,409);
  eq(appointmentCount(),none);
+ eq((await post({...appointment,appointmentScheduledAt:'',requestId:randomUUID()})).status,409);
+ eq(appointmentCount(),none);
  db.prepare('UPDATE estimates SET status=? WHERE id=?').run('draft',appointmentId);
  eq((await post(appointment)).status,409);
  eq(appointmentCount(),none);
- db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?').run('scheduled',past(),appointmentId);
+ const prior=past();
+ db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?').run('scheduled',prior,appointmentId);
+ appointment.appointmentScheduledAt=prior;
  eq((await post(appointment)).status,409);
  eq(appointmentCount(),none);
  db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run('not-an-appointment',appointmentId);
+ appointment.appointmentScheduledAt='not-an-appointment';
  eq((await post(appointment)).status,409);
  eq(appointmentCount(),none);
- db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(future(),appointmentId);
+ const upcoming=future();
+ db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(upcoming,appointmentId);
+ appointment.appointmentScheduledAt=upcoming;
  eq((await post(appointment)).status,201);
  eq(appointmentCount(),none+1);
- // Retries must not reopen a stale prepared appointment as a new handoff.
+ // An owner preview cannot survive a reschedule to another *future* time.
+ const moved=new Date(Date.now()+2*86400000).toISOString();
+ db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(moved,appointmentId);
+ eq((await post({...appointment,requestId:randomUUID()})).status,409);
+ eq(appointmentCount(),none+1);
+ // Retries cannot reopen a stale prepared appointment as a new handoff.
  db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(past(),appointmentId);
  eq((await post(appointment)).status,409);
  eq(appointmentCount(),none+1);
- db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(future(),appointmentId);
- const reminder={...appointment,template:'appointmentReminder',requestId:randomUUID(),body:'Synthetic 24-hour reminder'};
+ const reminderTime=future();
+ db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(reminderTime,appointmentId);
+ const reminder={...appointment,appointmentScheduledAt:reminderTime,template:'appointmentReminder',requestId:randomUUID(),body:'Synthetic 24-hour reminder'};
  eq((await post(reminder)).status,201);
- // Most important race: a second device marks the job completed *after* the
- // first SELECT but before the INSERT; the SQL statement must reject it.
- const raceDraft={...appointment,requestId:randomUUID(),body:'Raced appointment text'};
- raceAppointment={id:appointmentId,status:'completed',scheduledAt:future()};
+ // A second device can change the saved job after the first SELECT but before
+ // the SQL INSERT. Only the SQLite-time guard may authorize the draft.
+ const raceDraft={...appointment,appointmentScheduledAt:reminderTime,requestId:randomUUID(),body:'Raced appointment text'};
+ raceAppointment={id:appointmentId,status:'completed',scheduledAt:reminderTime};
  eq((await post(raceDraft)).status,409);
  eq(raceAppointment,null);
  eq(appointmentCount(),none+2);
- db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?').run('scheduled',future(),appointmentId);
+ const raceTime=future();
+ db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?').run('scheduled',raceTime,appointmentId);
  raceAppointment={id:appointmentId,status:'scheduled',scheduledAt:past()};
- eq((await post({...raceDraft,requestId:randomUUID(),body:'Raced expired appointment'})).status,409);
+ eq((await post({...raceDraft,appointmentScheduledAt:raceTime,requestId:randomUUID(),body:'Raced expired appointment'})).status,409);
  eq(appointmentCount(),none+2);
- // A genuinely custom follow-up must remain available after the job ends.
+ const freshFuture=future();
+ db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?').run('scheduled',freshFuture,appointmentId);
+ raceAppointment={id:appointmentId,status:'scheduled',scheduledAt:new Date(Date.now()+3*86400000).toISOString()};
+ eq((await post({...raceDraft,appointmentScheduledAt:freshFuture,requestId:randomUUID(),body:'Raced rescheduled appointment'})).status,409);
+ eq(raceAppointment,null);
+ eq(appointmentCount(),none+2);
+ // A genuinely custom follow-up remains available after the job ends.
  eq((await post({...appointment,template:'custom',body:'Please call when convenient',requestId:randomUUID()})).status,201);
+ eq(readFileSync('app/dashboard.tsx','utf8').includes('appointmentScheduledAt:estimate?.scheduledAt??""'),true);
  console.log('PASS: '+checks+' actual SQLite customer-message prepare/recover/confirm/cancel + stale appointment SQL-time race checks');
 }finally{db.close();}
