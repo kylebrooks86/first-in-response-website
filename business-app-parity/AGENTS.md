@@ -1,3 +1,9 @@
+## November 17 screenshot reconciliation — 43/95 checked
+
+[Current checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) and [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md) record G6-02 complete for the prior approved QA and TEST owner-login paths. Formal gates remain 4/10, NEW LIVE remains dark, and all authorization boundaries below apply. This count supersedes historical counts below.
+
+---
+
 <!-- FIRE_SNOWBALL_42_OF_95_CURRENT_20261117 -->
 ## CURRENT RELEASE HEAD — November 17, 2026: 42/95 checked, 53 open; 4/10 gates accepted
 

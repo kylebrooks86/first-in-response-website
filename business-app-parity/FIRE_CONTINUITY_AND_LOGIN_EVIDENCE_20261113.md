@@ -1,3 +1,11 @@
+## November 17 — screenshot reconciliation closed G6-02 (43/95)
+
+**November 17 screenshot reconciliation — 43/95 checked, 52 open, formal gates 4/10.** [G6-02](#g6-02-hosted-owner-sign-in-and-session-reentry) closes the originally approved owner sign-in, private redirect and reentry checks on hosted QA and TEST. The owner requested PIN/passkey development, but no hosted activation or real-device passkey acceptance is recorded. This sign-in result does not extend to DARK endpoints.
+
+[Evidence and scope](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g6-02-hosted-owner-sign-in-and-session-reentry) include the [exact TEST owner Access proof](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6569382876), [QA installed-device reentry](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6757233022), 157 accessible project images, and related tracker/Drive records. No additional Cloudflare login or change. QA/STAGING/DR/NEW LIVE migration parity, real customer isolation, protected ingress, logging/redaction, paired data/photo recovery and Stripe remain separately open. NEW LIVE is dark.
+
+---
+
 ## November 17 — Stripe TEST Worker-only byte readback prepared (42/95)
 
 **November 17 G9-04 preparation — 42/95 unchanged.** [Offline verifier](https://github.com/kylebrooks86/first-in-response-website/commit/b3ffe490d998733f1825afbdc4d24bceaed51a91) now compares independently pinned Worker-only TEST package bytes to saved Cloudflare module and deployment responses. [Full-app offline CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367229) passed using the actual sealed package and simulated responses, including all 41 embedded client assets and nine rejection cases. [Provider-contract CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367240) and [public-site/calculator protection](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367448) passed. There is no new hosted evidence or approval.
