@@ -1,3 +1,14 @@
+<!-- FIRE_95_ITEM_SNOWBALL_30_OF_95_20261117 -->
+## FIRE SNOWBALL CHECKPOINT — Nov 16–17 CST: **30/95 checked, 65 OPEN, formal gates still 4/10**
+
+Latest atomic progress: **B15 historical draft supersession triage CHECKED**, on top of the earlier 29/95 accepted quick wins. Verified exact Git blob SHA parity for **all 3** changed files from [historical PR #268](https://github.com/kylebrooks86/first-in-response-website/pull/268) and **all 5** from [historical PR #265](https://github.com/kylebrooks86/first-in-response-website/pull/265) against active unmerged Draft PR #270. Both duplicate PRs were **CLOSED UNMERGED**, original head branches/commits and evidence preserved; explanatory comments #6939902535 and #6939906659 link evidence. **PR #269, #267 and #266 intentionally remain OPEN**: tested filename overlaps but runtime file Git blobs differ, so no blind duplicate-closure or assumption of semantic parity. No app code or public website changed by this cleanup. Master checklist [FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) updated in commit `d959062a19a750da59f5f7722d9790b3e915f192`.
+
+**Next real open quick wins:** B07 review 81-file actual runtime delta against already published QA source; B06 choose/freeze one final reviewed code candidate only after source settles; B11 compile/seal exact candidate module+asset manifest and an owner-private rollback archive. These are STILL OPEN and no new publication is authorized. Last tested changed-source code remains `8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2` (27/27 GitHub workflows SUCCESS), but the Git docs-only head is newer. Current QA deployed source `15bd714c435a585f695ed7166cf06d2c31ea1a8e` at immutable version `08d77fb1-9484-4014-bd5b-1bb1da066cdb`; NEW LIVE DARK accepted version `cfacbb3d-43de-4d2c-8008-c6732d78f756`, distinct physical D1 and 26 migrations are not to be redone.
+
+**Safety unchanged:** G1/G2/G3/G8 accepted 4/10. G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO/Job #0001 inactive. No Cloudflare/Access/Workers/D1/SQL/Stripe/payments/R2/paid service/route/DNS, Git merge, production deployment or cutover in this progress; no repeated Acer/iPhone/Cloudflare sign-ins, consumed attempts, screenshots, or accepted checks.
+
+---
+
 <!-- FIRE_95_ITEM_SNOWBALL_29_OF_95_20261117 -->
 ## FIRE RELEASE SNOWBALL — November 16–17 CST: **29/95 checked; 66 OPEN; formal 4/10 accepted unchanged**
 
