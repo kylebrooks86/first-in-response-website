@@ -210,6 +210,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-offline-photo-ui-browser.mjs
+      - name: Gate 7 numbered job-linked photo capture/restore and customer isolation (real disposable Chrome IndexedDB)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Gate 6 QA HMAC expiry, origin and cookie-negative controls (offline)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
