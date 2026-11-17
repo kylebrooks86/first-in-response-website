@@ -93,6 +93,9 @@ jobs:
             business-app-parity/shared/scripts/test-invoice-current-state.mjs \
             business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs \
             business-app-parity/shared/scripts/test-followup-exact-lookup.mjs \
+            business-app-parity/shared/scripts/test-door-knocking.mjs \
+            business-app-parity/shared/scripts/test-paid-review-snooze.mjs \
+            business-app-parity/shared/scripts/test-review-status-check-snooze.mjs \
             business-app-parity/shared/scripts/test-followup-concurrent-idempotency.mjs \
             business-app-parity/shared/scripts/test-customer-property-create-receipt-sqlite.mjs \
             business-app-parity/shared/scripts/test-followup-saved-service-lines-sqlite.mjs \
@@ -280,6 +283,10 @@ jobs:
           node scripts/test-followup-exact-lookup.mjs
           node --experimental-sqlite scripts/test-followup-concurrent-idempotency.mjs
           node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
+          # Real lead-visit and review reminder owner APIs: native SQLite and bounded-stream cases.
+          node --experimental-sqlite scripts/test-door-knocking.mjs
+          node --experimental-sqlite scripts/test-paid-review-snooze.mjs
+          node --experimental-sqlite scripts/test-review-status-check-snooze.mjs
       - name: Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
