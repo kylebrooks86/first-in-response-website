@@ -5,6 +5,19 @@ import {readFileSync} from "node:fs";
 const ui=readFileSync("app/dashboard.tsx","utf8");
 const css=readFileSync("app/globals.css","utf8");
 const timing=readFileSync("lib/follow-up-timing.ts","utf8");
+// This offline UI regression executes in the existing staging workflow. It
+// requires the overdue appointment classification to be checked BEFORE the
+// future-appointment label; an older misleading "within 0h" clamp is unsafe.
+const appointmentStart=timing.indexOf('if(item.template==="appointmentReminder")');
+const appointmentEnd=timing.indexOf('if(["followUp1"',appointmentStart);
+const appointmentSource=timing.slice(appointmentStart,appointmentEnd);
+assert.ok(appointmentStart>=0&&appointmentEnd>appointmentStart,'Appointment priority helper exists');
+assert.ok(appointmentSource.includes('if(at<now)return {bucket:"past-target"')&&
+ appointmentSource.includes('verify saved job status before contacting')&&
+ appointmentSource.indexOf('if(at<now)')<appointmentSource.indexOf('return {bucket:"upcoming"')&&
+ !appointmentSource.includes('Math.max(0,Math.ceil((at-now)'),
+ 'Past appointment cannot be presented as future within 0h; owner must verify job status');
+
 const start=ui.indexOf("function FollowUpsView("),end=ui.indexOf("function PaymentsView(",start);
 assert.ok(start>=0&&end>start,"Full source Follow-ups view exists");
 const section=ui.slice(start,end);
