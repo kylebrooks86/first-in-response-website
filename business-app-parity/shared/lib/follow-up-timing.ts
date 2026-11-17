@@ -107,6 +107,9 @@ export type TodayQueueAction = FollowupUrgencyInput & {
 export type TodayQueueLane = "now"|"verify";
 export function todayActionLane(item:TodayQueueAction,now:number):TodayQueueLane|null {
  const urgency=followupUrgency(item,now);
+ // A recorded overage is a ledger exception to inspect, not authorization to
+ // contact, refund, or collect. Keep it prominent in Today but label it VERIFY.
+ if(Number(item.estimate.paymentOverageOpen)>0)return "verify";
  if(urgency.rank<=3)return "now";
  if(item.kind==="history"||item.template==="invoiceReminder"||item.estimate.status==="draft")return "verify";
  return null;
