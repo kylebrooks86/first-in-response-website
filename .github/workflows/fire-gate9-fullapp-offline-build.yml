@@ -13,6 +13,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_private_readonly.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/prepare_gate9_noassets_dark_source.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_noassets_dark_source.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/seal_gate9_test_inactive_source.py'
       - '.github/workflows/fire-gate9-fullapp-offline-build.yml'
 permissions:
   contents: read
@@ -261,3 +262,58 @@ jobs:
           node "$source_tools/prepare_gate9_noassets_dark_source.mjs" build \
             "$RUNNER_TEMP/FIRE-GATE9-REHYDRATED/dist" "$VERIFIED_SOURCE_SHA" "$review"
           node "$source_tools/test_gate9_noassets_dark_source.mjs" "$review"
+
+      - name: Create immutable TEST-only source seal with rollback and stop boundaries
+        shell: bash
+        env:
+          VERIFIED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          source_tools=business-app-parity/cloudflare-launch/stripe-test-worker
+          custody="$RUNNER_TEMP/FIRE-G9-TEST-INACTIVE-SEALED-CUSTODY"
+          test ! -e "$custody"
+          mkdir -p -m 700 "$custody"
+          mv "$RUNNER_TEMP/FIRE-GATE9-WORKER-ONLY-LOCAL-REVIEW" "$custody/package"
+          python3 "$source_tools/seal_gate9_test_inactive_source.py" seal \
+            "$custody/package" "$VERIFIED_SOURCE_SHA" "$custody/FIRE-G9-INACTIVE-TEST-SOURCE-SEAL.json"
+          python3 "$source_tools/seal_gate9_test_inactive_source.py" verify \
+            "$custody/package" "$VERIFIED_SOURCE_SHA" "$custody/FIRE-G9-INACTIVE-TEST-SOURCE-SEAL.json"
+          echo 'PASS TEST source sealed, Stripe disabled, no R2 or Cloudflare POST.'
+
+      - name: Retain immutable TEST-only inactive SOURCE candidate (not deployable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-G9-TEST-INACTIVE-SOURCE-ONLY-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/FIRE-G9-TEST-INACTIVE-SEALED-CUSTODY
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+          compression-level: 6
+
+      - name: Re-download exact same-run TEST source and verify hashes and external seal
+        shell: bash
+        env:
+          VERIFIED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          SEALED_ARTIFACT: FIRE-G9-TEST-INACTIVE-SOURCE-ONLY-${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source_tools=business-app-parity/cloudflare-launch/stripe-test-worker
+          saved="$RUNNER_TEMP/FIRE-G9-SEALED-READBACK"
+          mkdir -p -m 700 "$saved"
+          for attempt in 1 2 3 4 5; do
+            if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+                --name "$SEALED_ARTIFACT" --dir "$saved"; then break; fi
+            if [ "$attempt" -eq 5 ]; then echo 'BLOCKED exact-run TEST artifact absent'; exit 1; fi
+            sleep $((attempt * 5))
+          done
+          python3 "$source_tools/seal_gate9_test_inactive_source.py" verify \
+            "$saved/package" "$VERIFIED_SOURCE_SHA" "$saved/FIRE-G9-INACTIVE-TEST-SOURCE-SEAL.json"
+          node "$source_tools/prepare_gate9_noassets_dark_source.mjs" verify "$saved/package" \
+            "$(sha256sum "$saved/package/gate9-noassets-dark-source-receipt.json" | cut -d' ' -f1)"
+          if python3 "$source_tools/seal_gate9_test_inactive_source.py" verify \
+              "$saved/package" 0000000000000000000000000000000000000000 \
+              "$saved/FIRE-G9-INACTIVE-TEST-SOURCE-SEAL.json" >/dev/null 2>&1; then
+            echo 'BLOCKED forged source identity was accepted'; exit 1
+          fi
+          echo 'PASS actual TEST source archive readback and wrong-source negative. No Cloudflare/Stripe.'
