@@ -193,11 +193,14 @@ try{
  await scheduled.getByText('This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed.',{exact:true}).first().waitFor();
  check(requests.length===beforeAppointment,'Appointment expiring while composer remains open is rechecked before durable POST');
  await page.evaluate(()=>{Date.now=window.__fireSavedDateNow;delete window.__fireSavedDateNow;});
- await page.keyboard.press('Escape');
+ // Revisit with clean browser/React state: the previous modal represented
+ // an expired snapshot, not a rescheduled same-record edit.
+ await page.goto(origin);
  await page.getByRole('button',{name:'Appointment scheduled',exact:true}).click();
  scheduled=page.getByRole('dialog',{name:'Message',exact:true});
+ await page.waitForFunction(expected=>Array.from(document.querySelectorAll('[role=dialog] textarea')).some(e=>e.value.includes(expected)),futureSchedule);
  check(await scheduled.getByRole('button',{name:'Text',exact:true}).isEnabled(),
-  'Fresh future confirmed appointment remains usable after refusing a stale open editor');
+  'Fresh future confirmed appointment remains usable in a new editor after stale denial');
  await scheduled.getByRole('button',{name:'Text',exact:true}).click();
  await scheduled.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
  check(requests.length===beforeAppointment+1&&
