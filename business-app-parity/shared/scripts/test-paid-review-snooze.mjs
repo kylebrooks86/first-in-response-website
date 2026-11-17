@@ -8,7 +8,10 @@ import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 const db=new DatabaseSync(":memory:");
 for(const file of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+file,"utf8"));
 let user={email:"kylebrooks8605@gmail.com"},reads=0,writes=0;
-const env={DB:{prepare(sql){return {bind(...args){return {
+const env={DB:{prepare(sql){return {
+ // Match native D1 unbound SELECT .all() used by real refund-ledger gate.
+ all:async()=>{reads++;return {results:db.prepare(sql).all()}},
+ bind(...args){return {
  first:async()=>{reads++;return db.prepare(sql).get(...args)??null},
  all:async()=>{reads++;return {results:db.prepare(sql).all(...args)}},
  run:async()=>{writes++;return {meta:{changes:db.prepare(sql).run(...args).changes}}}
