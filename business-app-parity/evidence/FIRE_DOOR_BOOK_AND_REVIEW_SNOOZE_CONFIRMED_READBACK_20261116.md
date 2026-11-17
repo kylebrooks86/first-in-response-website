@@ -1,3 +1,14 @@
+<!-- FIRE_DOOR_SNOOZE_CHANGED_STEP_ACTUAL_PASS_20261116 -->
+## Changed functionality — exact real source/SQLite and mobile Chrome tests now SUCCESS
+
+**Actual code SHA `8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2` (with original paid-review schema-read fixture refinements `254db5be0`/`8c2b50d5a`):** [full no-provider shared-app staging workflow #44024946759](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024946759) now shows **QA/staging shared app source + isolated staging build SUCCESS**, including actually executed door-knocking lost-ACK/false ACK and paid-review/review-check bounded stream tests against real disposable SQLite. The same workflow's **Gate8 real MapLibre action footer/credits + newly wired door-knocking React/browser test** step now shows **COMPLETED SUCCESS**. That specific step runs both real Chromium + native SQLite fixtures in sequence, including the manually retried same UUID after a deliberately dropped precommit request.
+
+**Only unrelated longer remaining same-workflow Chrome steps were IN PROGRESS at this source checkpoint; never convert 26/27 overall result into 27/27 until actual run concludes.** This is **actual source + synthetic built/Chrome proof, not authenticated Cloudflare QA/STAGING/DR/NEW LIVE served code proof**. It closes the *new changed-function regression risk*, **not any formal owner release gate**. Prior canceled GitHub runs were superseded by PR source updates, not accepted PASS.
+
+Formal acceptance still G1/G2/G3/G8=4/10; hosted security parity, D1/photo full restore, signed Stripe TEST and explicit owner release remain OPEN. Do not re-request owner screenshots or repeat consumed provider/migration attempts.
+
+---
+
 <!-- FIRE_OWNER_DOOR_ONLINE_PENDING_UUID_20261116 -->
 ## Actual UI addition — owner pending door visit/house save survives lost transport (Nov 16 late CST)
 
