@@ -8,6 +8,8 @@ on:
       - 'business-app-parity/test_owner_existing_dark_code_update_postdeploy_readonly.mjs'
       - 'business-app-parity/owner_dr_immutable_module_bytes_readonly.mjs'
       - 'business-app-parity/test_owner_dr_immutable_module_bytes_readonly.mjs'
+      - 'business-app-parity/owner_new_live_immutable_module_bytes_readonly.mjs'
+      - 'business-app-parity/test_owner_new_live_immutable_module_bytes_readonly.mjs'
       - '.github/workflows/fire-existing-dark-code-update-source-only.yml'
   workflow_dispatch: {}
 permissions:
@@ -34,8 +36,11 @@ jobs:
           node --check business-app-parity/test_owner_existing_dark_code_update_postdeploy_readonly.mjs
           node --check business-app-parity/owner_dr_immutable_module_bytes_readonly.mjs
           node --check business-app-parity/test_owner_dr_immutable_module_bytes_readonly.mjs
+          node --check business-app-parity/owner_new_live_immutable_module_bytes_readonly.mjs
+          node --check business-app-parity/test_owner_new_live_immutable_module_bytes_readonly.mjs
       - name: Focused offline, nonowner, non-Windows, no-provider safeguards
         run: |
           node business-app-parity/test_owner_existing_dark_code_update_once_approved.mjs
           node business-app-parity/test_owner_existing_dark_code_update_postdeploy_readonly.mjs
           node business-app-parity/test_owner_dr_immutable_module_bytes_readonly.mjs
+          node business-app-parity/test_owner_new_live_immutable_module_bytes_readonly.mjs
