@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """FIRE archived DR + NEW LIVE source custody. No GitHub/Drive/Cloudflare provider calls.
-Usage: python verify_private_expired_source_archives.py DR_ORIGINAL DR_PREHOST LIVE_ORIGINAL LIVE_PREHOST
+Usage: python verify_private_expired_source_archives.py [--run-builder-tests] DR_ORIGINAL DR_PREHOST LIVE_ORIGINAL LIVE_PREHOST
 Historical prehost ZIPs are NEVER deployable or final DARK release candidates.
 """
 from __future__ import annotations
+import argparse
+from io import BytesIO
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from zipfile import ZipFile, BadZipFile
 
 EXPECTED = {
@@ -36,14 +40,14 @@ def read_exact(path: Path, label):
     raw = path.read_bytes()
     require(sha(raw) == expected, 'wrong original saved ZIP SHA256: '+label)
     try:
-        with ZipFile(path) as z:
+        with ZipFile(BytesIO(raw)) as z:
             entries = z.infolist()
             require(len(entries) == 242, 'wrong file count: '+label)
             names = [x.filename for x in entries]
             require(len(names) == len(set(names)) and all(
-                not n.startswith('/') and not n.startswith('\\') and
-                '\\' not in n and '..' not in n.split('/') and not n.endswith('/') and
-                not n.startswith('./') and x.file_size < 20_000_000
+                '\\' not in n and ':' not in n and
+                all(part not in ('', '.', '..') for part in n.split('/')) and
+                x.file_size < 20_000_000
                 for n, x in zip(names, entries)), 'unsafe or duplicate ZIP path: '+label)
             require(sum(x.file_size for x in entries)<30_000_000, 'oversized extracted ZIP: '+label)
             require(z.testzip() is None, 'failed original member CRC: '+label)
@@ -51,6 +55,25 @@ def read_exact(path: Path, label):
     except (BadZipFile, OSError) as exc:
         raise ValueError('FIRE private archive BLOCKED: invalid ZIP: '+label) from exc
     return files
+
+def run_builder_tests(archives):
+    scripts = {
+        'dr_original': 'test_dr_bound_noassets_worker.mjs',
+        'dr_prehost': 'test_dr_dark_first_create_source.mjs',
+        'live_original': 'test_new_live_bound_dark_worker.mjs',
+    }
+    with TemporaryDirectory(prefix='fire-private-archive-review-') as workspace:
+        for label, script in scripts.items():
+            root = Path(workspace) / label
+            for name, data in archives[label].items():
+                member = root / name
+                member.parent.mkdir(parents=True, exist_ok=True)
+                member.write_bytes(data)
+            subprocess.run(
+                ['node', str(Path(__file__).resolve().with_name(script)), str(root)],
+                check=True,
+                stdout=sys.stderr,
+            )
 
 def verify(original, derived, target):
     base = set(original); new = set(derived); shared = base&new
@@ -92,7 +115,7 @@ def verify(original, derived, target):
             'unapprovedHostedRelease':True,'notADeployableFinalCandidate':True,
             'prehostWorkersDevPublicFlag':c.get('workers_dev')}
 
-def main(paths):
+def main(paths, exercise_builders=False):
     require(len(paths)==4, 'four exact original and child saved ZIP paths required')
     names=['dr_original','dr_prehost','live_original','live_prehost']
     got={k:read_exact(Path(p),k) for k,p in zip(names,paths)}
@@ -101,11 +124,18 @@ def main(paths):
              'hostedVersionVerified':False,'releaseAuthorized':False,'gatesAccepted':False,
              'dr':verify(got['dr_original'],got['dr_prehost'],'dr'),
              'newLive':verify(got['live_original'],got['live_prehost'],'live')}
+    if exercise_builders:
+        run_builder_tests(got)
+        outcome['privateOfflineBuilderSuitesPassed'] = 3
     print(json.dumps(outcome,indent=2))
 
 if __name__=='__main__':
     try:
-        main(sys.argv[1:])
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument('--run-builder-tests', action='store_true')
+        parser.add_argument('archives', nargs=4, metavar='ZIP')
+        args = parser.parse_args()
+        main(args.archives, args.run_builder_tests)
     except Exception as exc:
         print('FIRE PRIVATE SOURCE VERIFICATION BLOCKED: '+str(exc),file=sys.stderr)
         sys.exit(1)
