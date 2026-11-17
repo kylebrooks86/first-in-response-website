@@ -94,6 +94,7 @@ jobs:
             business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs \
             business-app-parity/shared/scripts/test-followup-exact-lookup.mjs \
             business-app-parity/shared/scripts/test-door-knocking.mjs \
+            business-app-parity/shared/scripts/test-door-knocking-browser.mjs \
             business-app-parity/shared/scripts/test-paid-review-snooze.mjs \
             business-app-parity/shared/scripts/test-review-status-check-snooze.mjs \
             business-app-parity/shared/scripts/test-followup-concurrent-idempotency.mjs \
@@ -381,7 +382,10 @@ jobs:
           node scripts/test-section-navigation.mjs
           node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
       - name: Gate 8 real MapLibre action footer and provider credits geometry (synthetic Chrome)
-        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-territory-browser.mjs
+        run: |
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-territory-browser.mjs
+          # Changed owner prospect workflow only: preserve pending UUID after a lost request.
+          node --require ./scripts/ux-geometry-trace.cjs scripts/test-door-knocking-browser.mjs
       - name: Gate 8 financial-exception notification icons and read-state recovery (synthetic Chrome)
         run: |
           node scripts/test-notification-read-recovery.mjs
