@@ -1,3 +1,9 @@
+## Latest staging source-test reconciliation
+
+**Nov 17 focused follow-up:** The exact-source staging runner on `b09cf98` passed real disposable Chrome protected photo UI, job-linked photo capture/restore, and offline photo upload/delete, then the `test-offline-photo-vault.mjs` source assertion failed because an **old GLOBAL** `component.indexOf("mutationStarted=true")` now found the new *add* preflight receipt instead of the restore receipt. Actual restore's `verifyOfflinePhotoJobOwnership(incoming,knownJobs)` still occurs before its own journal and IndexedDB writes. The [test-only `3386c04`](https://github.com/kylebrooks86/first-in-response-website/commit/3386c04a72c668ae0328081c88503687a2723b37) scopes that order check to the actual RESTORE function and additionally requires verification before `runPhotoMutation('restore')`. No app runtime changed by the correction. The new exact-test SHA had **21/25 successful workflows, no failures, 4 still underway** when read, including staging. Source test outcome must remain provisional until that exact new run completes; don't mislabel the previous assertion error as a restore bug. **45/95 tasks, 4/10 release gates, NEW LIVE DARK, no provider/owner/deploy/merge actions.**
+
+---
+
 # FIRE Nov 17 — actual photo-batch preflight + immutable NEW LIVE SQL artifact readback repair
 
 ## 1. Real owner app source correction
