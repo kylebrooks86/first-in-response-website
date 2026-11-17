@@ -1,3 +1,16 @@
+<!-- FIRE_ARCHIVE_NOTIFICATION_ACTUAL_CODE_20261116 -->
+## Nov 16–17 latest development checkpoint — actual source repair, owner property archive + notification financial actions (DRAFT PR270, no deploy)
+
+**Actual new app work:** `26cfcf27373d4cec59df80d2c9b806f64ef3b687` repairs candidate-only `PATCH /api/customer-properties` to use 8,192-byte strict streamed owner input and requires an **independent saved D1 readback** of archived `active=0` and exact `revision=expected+1` before claiming success; lost-ACK and retry recover the archived original without duplicate revisions, fake success/readback uncertainty 503. `75a11cd0fea9d090e2d8bdc35f45296c70c4af1a` extends original actual-route native SQLite fixture with overlong/invalid and zero-D1 probes, wrong-owner/stale, saved revision, committed-but-lost ACK, fake UPDATE ACK, readback outage and recovery. `ae92189657ad1d8ca387f27bf57bd199f1f88f39` verifies exact archived customer/property/address and revision in the real owner UI. **Candidate flags remain synthetic-only, no physical deployment or SQL activation.**
+
+`c8154f11826468e6bb10a031a4e3620de8618740` bounds the real authenticated `PATCH /api/notifications` (including payment-overage reconciliation) to **8,192 bytes before D1**, using existing strict parser. Original refund amount, ledger/Stripe behavior, owner authorization, read/resolve and concurrency are unchanged. `abbe6ff298c189ccdfe5684019ae07052e603432` adds **10 actual-route/native SQLite bad stream/zero-D1 assertions** to existing notification test. [Dedicated evidence](evidence/FIRE_PROPERTY_ARCHIVE_AND_FINANCIAL_NOTIFICATIONS_20261116.md) and [Issue #19 update](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6939423273) are saved.
+
+**Changed source-head `abbe6ff298c189ccdfe5684019ae07052e603432` latest CI snapshot**: 26/27 workflows SUCCESS; [staging/browser/native SQLite #44023591592](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44023591592) **IN PROGRESS**, not a pass claim. Older `bbbaf7b9` had 27/27 passes but did not include these new edits. Watch exact changed source job conclusion before counting all tests successful; later docs-only [skip ci] commits don't replace tested source head.
+
+**Formal acceptance unchanged G1/G2/G3/G8 = 4/10; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; Job #0001 NOT active.** Existing owner Cloudflare screenshots, immutable `cfacbb3d-43de-4d2c-8008-c6732d78f756`, independent D1 UUID, disabled workers.dev/Preview, no Worker route, no Worker-specific Access policy and no-R2 remain accepted; do not retest. No Cloudflare deployment, SQL/D1 migration, Git merge, provider login/Access/DNS/routes, Stripe/payment, paid/R2 subscription or production cutover occurred.
+
+---
+
 <!-- FIRE_FOLLOWUP_PROPERTY_FINAL_CI_20261116 -->
 ## Nov 16 late CST — **FINAL exact-code GitHub CI SUCCESS for follow-up + property reliability changes**
 
