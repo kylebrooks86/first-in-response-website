@@ -19,6 +19,10 @@ const post=async value=>{
  return {status:response.status,body:await response.json()};
 };
 const raw=body=>new Request('https://synthetic.invalid/api/customer-properties',{method:'POST',body});
+const patch=async value=>{
+ const response=await route.PATCH(new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:JSON.stringify(value)}));
+ return {status:response.status,body:await response.json()};
+};
 const stored=key=>db.prepare('SELECT * FROM customer_properties WHERE id=?').get(key)??null;
 const n=()=>db.prepare('SELECT COUNT(*) AS n FROM customer_properties').get().n;
 let checks=0;
@@ -94,9 +98,95 @@ try{
  eq(result.status,201,'Existing old property client remains compatible');
  eq(typeof result.body.property.id,'string','Server generates legacy ID if caller omitted operation UUID');
  eq(n(),3,'All native SQLite property records preserved');
+ // Archive is a separate immutable revision write. A lost ACK must never
+ // make the UI claim a failed archive that was physically committed.
+ const archiveBase={customerId:base.customerId,propertyId:id(1),action:'archive',expectedRevision:1};
+ for(const [label,request,expected] of [
+  ['PATCH declared oversized',new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:'{}',headers:{'content-length':'8193'}}),413],
+  ['PATCH streamed oversized',new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:' '.repeat(8193)}),413],
+  ['PATCH contradictory length',new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:'{"x":1}',headers:{'content-length':'2'}}),400],
+  ['PATCH invalid UTF8',new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:new Uint8Array([123,34,120,34,58,255,125])}),400],
+  ['PATCH JSON array',new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:'[]'}),400],
+ ]){
+  const before=rt.counters();
+  eq((await route.PATCH(request)).status,expected,label+' rejected before D1 access');
+  eq(rt.counters(),before,label+' does not touch D1');
+ }
+ let archived=await patch(archiveBase);
+ eq(archived.status,200,'New archive confirms exact persisted revision');
+ eq(archived.body.property.active,0,'Stored property archived, not deleted');
+ eq(archived.body.property.revision,2,'Native property revision advances exactly once');
+ eq(stored(id(1)).revision,2,'Physical SQLite revision matches archive receipt');
+ eq(stored(id(1)).address,original.address,'Archived address and history remain immutable');
+ archived=await patch(archiveBase);
+ eq(archived.status,200,'Deliberate archive replay recognizes prior saved state');
+ eq(archived.body.recoveredAfterUncertainSave,true,'Replay does not claim another archive');
+ eq(stored(id(1)).revision,2,'Same archive operation never increases revision twice');
+ eq((await patch({...archiveBase,customerId:'owner-property-b'})).status,409,'Foreign customer cannot replay archive');
+ eq((await patch({...archiveBase,expectedRevision:2})).status,409,'Cannot archive already archived record at wrong revision');
+ eq((await patch({...archiveBase,unexpected:true})).status,400,'Unknown PATCH keys refused');
+ eq((await patch({...archiveBase,expectedRevision:'1'})).status,400,'Noninteger PATCH revision refused');
+
+ // D1 executes the UPDATE and *then* throws, simulating a real lost ACK.
+ let archiveLostAck=false;
+ rt.env.DB.prepare=function(sql){
+  const statement=old(sql);
+  if(sql.startsWith('UPDATE customer_properties')&&!archiveLostAck){
+   return {...statement,bind(...args){
+    const op=statement.bind(...args);
+    return {...op,async first(){await op.first();archiveLostAck=true;throw Error('D1 archive ACK lost AFTER SQL commit');}};
+   }};
+  }
+  return statement;
+ };
+ archived=await patch({...archiveBase,propertyId:id(3)});
+ eq(archiveLostAck,true,'Native archive really committed before ACK was lost');
+ eq(archived.status,200,'Lost archive ACK recovers from actual D1 readback');
+ eq(archived.body.recoveredAfterUncertainSave,true,'Owner sees truthful recovered archive receipt');
+ eq(stored(id(3)).active,0,'Recovered archive actually persisted');
+ eq(stored(id(3)).revision,2,'Recovered archive revision increments once');
+ rt.env.DB.prepare=old;
+ eq((await patch({...archiveBase,propertyId:id(3)})).status,200,'Later identical retry recovers archived state');
+ eq(stored(id(3)).revision,2,'Later retry does not archive twice');
+
+ // A forged UPDATE RETURNING response without physical commit must NOT count.
+ const legacy=db.prepare("SELECT id FROM customer_properties WHERE address='Legacy address'").get().id;
+ const priorLegacy=stored(legacy);
+ rt.env.DB.prepare=function(sql){
+  const statement=old(sql);
+  if(sql.startsWith('UPDATE customer_properties')){
+   return {...statement,bind(){return {first:async()=>({id:legacy,customerId:base.customerId,address:'Legacy address',designation:'',active:0,revision:2,createdAt:now})};}};
+  }
+  return statement;
+ };
+ archived=await patch({...archiveBase,propertyId:legacy});
+ eq(archived.status,503,'False positive UPDATE ACK fails closed');
+ eq(archived.body.saveUncertain,true,'Owner receives uncertainty on false ACK');
+ eq(stored(legacy),priorLegacy,'Fake archive receipt does not alter saved record');
+ rt.env.DB.prepare=old;
+
+ // Commit succeeds but a later SELECT fails. Never claim archive success
+ // unless the independent readback is available; deliberate retry can recover.
+ let blockRead=true;
+ rt.env.DB.prepare=function(sql){
+  const statement=old(sql);
+  if(sql.startsWith('SELECT id,customer_id AS customerId,address,designation,active,revision,created_at AS createdAt FROM customer_properties WHERE id=? AND customer_id=?')&&blockRead){
+   return {...statement,bind(...args){const op=statement.bind(...args);return{...op,async first(){blockRead=false;throw Error('Synthetic readback outage');}};}};
+  }
+  return statement;
+ };
+ archived=await patch({...archiveBase,propertyId:legacy});
+ eq(archived.status,503,'Committed archive without independent readback refuses success');
+ eq(stored(legacy).active,0,'Physical archive may have committed despite uncertain receipt');
+ rt.env.DB.prepare=old;
+ archived=await patch({...archiveBase,propertyId:legacy});
+ eq(archived.status,200,'Confirmed retry recovers previously committed archival');
+ eq(stored(legacy).revision,2,'Recovered archived revision is immutable');
+
  rt.setOwner(null);
  const before=rt.counters();
  eq((await post({...base,operationId:id(5)})).status,401,'Unauthenticated caller blocked');
+ eq((await patch(archiveBase)).status,401,'Unauthenticated caller cannot archive');
  eq(rt.counters(),before,'Unauthorized caller does not query D1');
  rt.setOwner({email:'other@example.invalid'});
  eq((await post({...base,operationId:id(5)})).status,401,'Nonowner cannot create property');
