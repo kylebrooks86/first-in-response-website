@@ -1,3 +1,16 @@
+<!-- FIRE_OWNER_DOOR_ONLINE_PENDING_UUID_20261116 -->
+## Actual UI addition — owner pending door visit/house save survives lost transport (Nov 16 late CST)
+
+The route's exact D1-confirmed CAS write is not enough when the owner browser loses a response **before the request reaches D1**. Previously, the owner UI generated a **new random `requestId` for each Save tap**, so a deliberate retry after the existing required read-only refresh could not replay the original request identity. It also could not automatically recognize a committed save from the subsequent physical book GET.
+
+- [Actual owner UI `cef9ee3553f995dba1ff4bdd478fd383bb03a721`](https://github.com/kylebrooks86/first-in-response-website/commit/cef9ee3553f995dba1ff4bdd478fd383bb03a721): preserves **one UUIDv4 request ID and the original expectedRevision** for the exact draft content across an ambiguous online POST; a changed draft starts a distinct new operation, avoiding misuse of stale IDs; a verified owner GET that contains that exact house, visit or pin operation ID records successful saved history without another POST and clears the pending operation. Existing blocked-on-uncertainty behavior, manual GET refresh requirement, cached offline queue, suppression and mobile touch UX remain unchanged.
+- [Actual React/browser/owner API + disposable native SQLite regression `145e565f382f7168ee8a4e3df55378269be9dbe4`](https://github.com/kylebrooks86/first-in-response-website/commit/145e565f382f7168ee8a4e3df55378269be9dbe4): simulates an HTTP 503 **before** the backend D1 commit and verifies the owner draft stays intact and blocked, owner explicitly refreshes read-only, then deliberately re-saves with the **exact original request ID and original CAS revision**; one saved house is present, never a fabricated record. Existing mobile light/dark and postcommit-lost-response owner tests retained.
+- [Focused staging browser runner wiring `850e758ad26c03709cb4e6d7ba25d14fcdfb4e67`](https://github.com/kylebrooks86/first-in-response-website/commit/850e758ad26c03709cb4e6d7ba25d14fcdfb4e67) executes the existing actual Chrome/native SQLite browser test after the existing territory geometry case in the same offline staging job, with early `node --check` for only the changed test. **Exact source HEAD `850e758ad26c03709cb4e6d7ba25d14fcdfb4e67`, staging workflow [#44024753309](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024753309) was QUEUED on document creation. Do not claim browser PASS until its exact run step is SUCCESS.** A previous in-flight workflow on older source was canceled by GitHub's ordinary PR superseding concurrency; that is not a functional failure and must not be counted as either PASS or FAIL.
+
+No provider/Cloudflare authentication, R2/purchase, D1 migration, deployment, Stripe or payment mutation, publication, Git merge or production activation. NEW LIVE stays dark, officially **4/10 accepted**; G4/G5/G6/G7/G9/G10 remain OPEN. Hosted exact candidate parity, owner/nonowner enforcement, photo/data recovery and signed Stripe TEST are still not physically proven.
+
+---
+
 <!-- FIRE_DOOR_BOOK_REVIEW_SNOOZE_READBACK_20261116 -->
 # FIRE sales follow-up reliability — saved door-knocking ledger and review snoozes (Nov 16, 2026 late CST)
 
