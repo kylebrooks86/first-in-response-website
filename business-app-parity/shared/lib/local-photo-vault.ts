@@ -171,6 +171,8 @@ export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[],
    throw Error('Restore the matching FIRE customer records first. Photo backup contains an unknown customer ID.');
  // When a verified job inventory is supplied, reject orphan job associations
  // BEFORE opening a write transaction. Legacy customer-only ZIPs remain valid.
+ if(rows.some(row=>row.jobId!==undefined)&&knownJobIds===undefined)
+  throw Error('Restore the matching FIRE job records first. Job-linked photos require a verified job inventory.');
  if(knownJobIds!==undefined){
   const jobs=new Set(knownJobIds);
   for(const row of rows)if(row.jobId!==undefined&&!jobs.has(row.jobId))
