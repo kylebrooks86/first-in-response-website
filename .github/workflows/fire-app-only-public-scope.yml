@@ -90,7 +90,7 @@ jobs:
           # The Gate7 legacy workflow pin below is the exact separately-tested
           # 2026-11-12 immutable blob including private-file negative checks;
           # all other verifier and protected website blobs remain unchanged.
-          # Reviewed NEW LIVE SQL-custody workflow now downloads by the exact same-run\n          # upload artifact ID, with read-only Actions permission (not mutable name).\n          # Gate9's former artifact-download race was repaired in an exact-scope
+          # NEW LIVE SQL custody workflow now reads the exact immutable same-run\n          # GitHub artifact ID directly and validates ZIP CRC, file paths and size.\n          # An earlier artifact-list-based download was racy; update only its pin.\n          # Gate9's former artifact-download race was repaired in an exact-scope
           # read-only same-run 5-attempt retry; update ONLY that workflow blob pin.
           # Real public pages, assets, calculator and unrelated paths remain protected.
           reviewed_paths=(
@@ -125,7 +125,7 @@ jobs:
             2c507c8bccadf13a2c6de9c972f2b3536d0dffb2
             4b525b420722614a52950acb453bafeeb8aefc8f
             e3e4df3fc0590cdb9d73baf090932031c03b520d
-            f4bdaf4a16922e5b2eb0dc0d274754fc4108edac
+            3b5fd85d6f67f17ece81aa7dfb18834d781c15de
             332e5e89404710ee70df684e384978bf58f8959c
             a86ae1cf30d620e3304a54f32ab03627b6e8ea7f
           )
