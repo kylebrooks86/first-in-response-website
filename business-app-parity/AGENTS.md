@@ -1,3 +1,9 @@
+## November 17 — owner complete-backup/photo-pair visibility rechecks revoked sessions
+
+[Actual app UI correction e0c8718](https://github.com/kylebrooks86/first-in-response-website/commit/e0c87182f2ef1531e76fa259e7a1e7b23aa74413) and [focused simulated React/TSX test 474802f](https://github.com/kylebrooks86/first-in-response-website/commit/474802fb9c2abd12dc7893d9f23a43136f1a4de8) protect the default-OFF owner `OwnerCompleteRecoveryAvailability` panel against an authorized first mount followed by session revocation: recheck the exact private same-origin owner capability on focus, visible return and pageshow; revoked/error responses hide the controls; outdated previous responses cannot reactivate it. [Evidence](evidence/FIRE_OWNER_RECOVERY_CAPABILITY_SESSION_REVALIDATION_20261117.md). Exact changed-source test SHA `474802fb9c2abd12dc7893d9f23a43136f1a4de8`; GitHub Actions were still running at documentation, so no full CI PASS is claimed. **45/95, 4/10 formal gates, NEW LIVE DARK.** No provider action, Cloudflare login, R2, merge, deploy, payment/SQL changes, or repeated owner evidence.
+
+---
+
 ## November 17 — photo comparison picker filters to matching saved jobs
 
 Follow-up **actual owner app source** [`7d78e569`](https://github.com/kylebrooks86/first-in-response-website/commit/7d78e569be46fd7775c85c28ee7079ad9100b9b2) now offers only same-job original AFTER images when selecting a BEFORE, disables unavailable pairs with explicit instructions, and resets stale selections when switching customers. The independent final cross-job export guard remains in place. Six targeted regression assertions + typed pure helper added in existing files. [Evidence](evidence/FIRE_BEFORE_AFTER_JOB_LINK_SAFETY_20261117.md). **Exact-code CI pending**, no hosted verification, checklist 45/95, gates 4/10; NEW LIVE DARK. Do not rerun accepted owner photo recoveries or attempt Cloudflare login/paid R2/provider writes/merge/deploy/Stripe.
