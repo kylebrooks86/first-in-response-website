@@ -162,13 +162,20 @@ export async function verifyRestoredOfflinePhotos(archivePhotos:OfflinePhoto[]):
    throw Error('Restore needs review: photo bytes or metadata changed after validation. Original records were not overwritten by FIRE.');
  }
 }
-export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[]):Promise<PhotoRestoreResult>{
+export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[],knownJobIds?:string[]):Promise<PhotoRestoreResult>{
  // Verify the entire ZIP and its customer association BEFORE any local write.
  const rows=await readOfflinePhotoBackup(archive);
  if(!rows.length)throw Error('This photo backup is empty; no data was changed.');
  const allowed=new Set(knownCustomerIds);
  for(const row of rows)if(!allowed.has(row.customerId))
    throw Error('Restore the matching FIRE customer records first. Photo backup contains an unknown customer ID.');
+ // When a verified job inventory is supplied, reject orphan job associations
+ // BEFORE opening a write transaction. Legacy customer-only ZIPs remain valid.
+ if(knownJobIds!==undefined){
+  const jobs=new Set(knownJobIds);
+  for(const row of rows)if(row.jobId!==undefined&&!jobs.has(row.jobId))
+   throw Error('Restore the matching FIRE job records first. Photo backup contains an unknown job ID.');
+ }
  // Preflight outside a write transaction: awaiting a blob digest from inside
  // an IndexedDB transaction could auto-commit/close that transaction on iOS.
  const existing=new Map((await listOfflinePhotos()).map(photo=>[photo.id,photo]));
