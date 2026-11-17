@@ -16,13 +16,21 @@ let checks=0;
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++};
 const ready=(channel,recipient,body)=>customerMessageHandoffReadiness(channel,recipient,body);
 const linked=(template,subject,body,estimateLink,invoiceLink)=>customerTemplateLinkReadiness(template,subject,body,estimateLink,invoiceLink);
-const appointment=(template,subject,date,status,address)=>customerAppointmentTemplateReadiness(template,subject,date,status,address);
+const appointmentClock=Date.parse('2026-11-01T16:00:00Z');
+const appointment=(template,subject,date,status,address,now=appointmentClock)=>customerAppointmentTemplateReadiness(template,subject,date,status,address,now);
 eq(appointment('General message','','','draft','').ready,true,'Nonappointment templates remain usable without a saved schedule');
 eq(appointment('Appointment on @schedule_date at @service_address','','','approved','Somewhere').ready,false,'Unscheduled approved estimate cannot send a confirmation');
 eq(appointment('Appointment on @schedule_date','','invalid','scheduled','Somewhere').ready,false,'Malformed saved date is not a confirmed appointment');
 eq(appointment('Appointment on @schedule_date','','2026-11-04T16:00:00Z','approved','Somewhere').ready,false,'A date on an unconfirmed approved estimate cannot claim job is scheduled');
 eq(appointment('Appointment on @schedule_date at @service_address','','2026-11-04T16:00:00Z','scheduled','').ready,false,'Scheduled appointment with missing service address blocks a misleading confirmation');
 eq(appointment('Appointment on @schedule_date at @service_address','','2026-11-04T16:00:00Z','scheduled','100 Synthetic St').ready,true,'Confirmed scheduled job and address can prepare original appointment template');
+eq(appointment('Appointment on @schedule_date','','2026-10-31T16:00:00Z','scheduled','100 Synthetic St').ready,false,'Past saved scheduled appointment cannot produce outdated customer confirmation');
+eq(appointment('Appointment on @schedule_date','','2026-11-01T16:00:00Z','scheduled','100 Synthetic St').ready,false,'An appointment at the exact current time requires owner verification before preparation');
+eq(appointment('Appointment on @schedule_date','','2026-11-01T16:00:00.001Z','scheduled','100 Synthetic St').ready,true,'A future confirmed appointment can still be prepared');
+eq(appointment('Appointment on @schedule_date','','2026-11-04T16:00:00Z','scheduled','100 Synthetic St',Number.NaN).ready,false,'Unknown current time fails closed instead of claiming future appointment');
+eq(appointment('General note without a schedule','','2026-10-31T16:00:00Z','scheduled','100 Synthetic St').ready,true,'Custom text that does not assert an appointment is not blocked');
+eq(appointment('General note','Your appointment @schedule_date','2026-10-31T16:00:00Z','scheduled','100 Synthetic St').ready,false,'Scheduling claim in a subject also requires future verified job');
+eq(appointment('Appointment on @schedule_date','','2026-10-31T16:00:00Z','scheduled','100 Synthetic St').reason.includes('Check the job status'),true,'Past-date refusal gives owner actionable status-review guidance');
 eq(appointment('Your appointment','','','draft','').ready,true,'Custom reply without date placeholder remains freely available');
 eq(linked('Custom note','','Hi there','','').ready,true,'Custom messages without link placeholders stay free to prepare');
 eq(linked('See @form_link','','See your customer report link','','').ready,false,'Missing real report URL must never be presented as a customer-facing link');
@@ -81,6 +89,8 @@ const ast=ts.createSourceFile('dashboard.tsx',dashboard,ts.ScriptTarget.Latest,t
 const composer=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='MessageComposer');
 assert.ok(composer,'Original MessageComposer is preserved');
 const actual=composer.getText(ast);
+eq(actual.includes('const freshAppointmentReadiness=customerAppointmentTemplateReadiness(')&&actual.includes('(estimate?.address??customer.address),Date.now()')&&actual.includes('if(!freshAppointmentReadiness.ready){setMessageStatus(freshAppointmentReadiness.reason);return false;}'),true,
+ 'Real customer composer rechecks schedule at click time before recording a durable outgoing message');
 eq(actual.includes('customerMessageHandoffReadiness("text",customer.phone,body)'),true,
  'Actual MessageComposer checks saved phone before making text_prepared audit event');
 eq(actual.includes('customerMessageHandoffReadiness("email",customer.email,body)'),true,
