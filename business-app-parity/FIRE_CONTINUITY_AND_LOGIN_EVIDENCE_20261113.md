@@ -1,3 +1,13 @@
+## November 17 — 40/95 checked after clean-start and historical TEST failure reconciliation
+
+[G5-04](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g5-04-new-live-clean-start-evidence) is complete. The original hosted NEW LIVE D1 inspection verified empty operational history and zero numbering high-water on the same D1 later confirmed bound to the DARK Worker. Original receipt and consumed locks are preserved privately off the Acer. The reviewed atomic estimate/job-number write and unique root constraint apply to future activation. No synthetic or production Job #0001 was created. Actual first use remains G10-08.
+
+[G9-02](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g9-02-historical-test-upload-failure-disposition) is complete. Existing records tie HTTP 400/10162 to the reviewed module MIME correction and the later separately authorized, successful 0%-traffic historical version. The sealed current Worker-only fallback avoids the HTTP 500/10013 asset-session endpoint and passed actual offline packaging and boot. Provider root-cause resolution for the 10013 service incident is unconfirmed. This disposition supersedes earlier notes treating the two historical failures as one unresolved release step. Neither old attempt may be replayed. Fresh candidate approval and actual hosted TEST evidence remain open.
+
+Formal gates remain 4/10. NEW LIVE remains DARK. No Cloudflare login, upload, D1 writes, migration, Stripe action, merge or deployment was performed for this reconciliation.
+
+---
+
 ## November 17 — DR and NEW LIVE code-update evidence closed (38/95)
 
 [G4-08 and G4-09](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g4-08-and-g4-09-dark-code-update-evidence) are complete. For each Worker the prior records tie a separate exact owner approval and validated QA-master archive to the successful CLI receipt and subsequent hosted readback. DR `f7b7e27c-986b-44b5-b0f9-5e8e4b623426` and NEW LIVE `cfacbb3d-43de-4d2c-8008-c6732d78f756` are each recorded at 100%, independently bound and DARK, with the predecessors still listed for rollback. Existing first-create and update locks remain spent. Full hosted byte attestation, current STAGING parity, ingress, Access, recovery and actual rollback execution retain their own requirements. Formal acceptance remains Gates 1/2/3/8 (4/10).
