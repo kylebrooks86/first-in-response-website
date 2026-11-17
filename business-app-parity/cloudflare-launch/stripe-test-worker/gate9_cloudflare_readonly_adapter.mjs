@@ -217,7 +217,7 @@ export function createGate9ReadOnlyApi({
     const MAX_REPLY_BYTES=32_000_000;
     const declared=res.headers?.get?.('content-length');
     if(declared!==null&&declared!==undefined)
-      check(/^\\d+$/.test(declared)&&Number(declared)<=MAX_REPLY_BYTES,'REPLY_SIZE');
+      check(/^\d+$/.test(declared)&&Number(declared)<=MAX_REPLY_BYTES,'REPLY_SIZE');
     let body;
     try{
       const reader=res.body?.getReader?.();

@@ -212,7 +212,7 @@ test('GET-only adapter refuses real streamed responses over the byte budget with
       return new Response(body,{status:200,headers:{'content-length':'1'}});
     }
   });
-  await assert.rejects(api.readState(),/READ ONLY \\[REPLY_SIZE\\]/);
+  await assert.rejects(api.readState(),e=>e.message.includes('[REPLY_SIZE]'));
   assert.equal(requests,1);
   assert(segments>=32,'read beyond declared one byte to prove stream enforcement');
 });
@@ -227,12 +227,12 @@ test('GET-only adapter refuses dishonest oversized header before streaming and m
         return new Response('{}',{status:200,headers});
       }
     });
-    await assert.rejects(api.readState(),/READ ONLY \\[REPLY_SIZE\\]/);
+    await assert.rejects(api.readState(),e=>e.message.includes('[REPLY_SIZE]'));
     assert.equal(calls,1);
   }
   const api=createGate9ReadOnlyApi({
     accountId:acct,tokenProvider:async()=> 'SYNTHETIC_NONSECRET_READ_TOKEN',
     fetchImpl:async()=>new Response(Uint8Array.of(0xff,0xfe),{status:200})
   });
-  await assert.rejects(api.readState(),/READ ONLY \\[GET_JSON\\]/);
+  await assert.rejects(api.readState(),e=>e.message.includes('[GET_JSON]'));
 });
