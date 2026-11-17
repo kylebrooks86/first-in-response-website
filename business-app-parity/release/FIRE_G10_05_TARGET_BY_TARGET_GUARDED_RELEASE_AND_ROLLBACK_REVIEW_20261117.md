@@ -34,6 +34,12 @@ Before ANY authorized provider mutation capture a local/private receipt with: UT
 
 After an actually authorized request: use **GET-only reconciliation** of target immutable versions, traffic, D1/Access/routing and targeted changed function. On ambiguous POST/CLI status never retry or reset locks. Abort on source/asset mismatch, unexpected login route, unauthorized/synthetic-customer leak, absent refunds, changed payment mode, photo archive gap or incorrect job numbering. Roll back only with a distinct exact owner decision and tested code **and** data/photo recovery path. Document result in Issue #19/continuity. The actual bank/live Stripe and public website remain untouched unless separately authorized.
 
+## 2A. Exact offline package provenance — new Nov 17 guardrails
+
+- Actual owner-private original DR and NEW LIVE GitHub artifacts that expired with 410 were **physically recovered** with exact original SHA256 and all 41/41 binary client Data files. See [artifact forensic receipt](../evidence/FIRE_EXPIRED_GITHUB_ARTIFACT_PRIVATE_DRIVE_BYTE_RECOVERY_20261117.md). This is archive custody only; it does NOT turn expired GitHub URLs back into active CI artifacts.
+- **Never submit intermediate DR source directly to Cloudflare:** original and D1-bound intermediate DR manifests have `workers_dev:true` by design. The separate later reviewed **FINAL DR** first-create ZIP has `workers_dev:false` and `preview_urls:false`. Actual owner-private FINAL DR and NEW LIVE first-create ZIPs are independently SHA/ZIP verified and both DARK. Do not replay first-create attempts.
+- **Never submit the raw Gate9 source compiler output:** `FIRE-GATE9-240f337b-SOURCE-ONLY-GENERIC-BUILD-NOT-DEPLOYABLE.zip` is a private saved generic Vinext BUILD, with temporary local fake D1/R2 placeholders and an unapproved generic Worker. Only the separate generated review manifest/in-memory 193/41 TEST candidate digest `dcb0ba6bcd08f4777345de7f8288498e1afffbfa50f6729655745a33d9db1705` is eligible for a future exact-authorization review; it has not been approved/uploaded. [Private compiled-input custody receipt](../evidence/FIRE_GATE9_240F_PRIVATE_SOURCE_ARCHIVE_CUSTODY_20261117.md). Stripe runtime stays disabled.
+
 ## 3. Concrete task status as of this plan
 
 - **G7-08 checked** for actual disposable offline fail-closed negative source proof (focused 91/91) only. [Evidence](../evidence/FIRE_G7_08_FAIL_CLOSED_OFFLINE_RECOVERY_20261117.md). All physical data/photo recovery and Gate7 acceptance still OPEN.
