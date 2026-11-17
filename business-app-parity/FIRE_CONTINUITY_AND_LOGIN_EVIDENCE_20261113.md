@@ -1,3 +1,12 @@
+<!-- FIRE_SNOWBALL_PR266_PR267_PR269_CLOSED_SEMANTIC_20261117 -->
+## FIRE release continuation — 33/95 verified; historical draft review now fully reconciled (Nov 16–17 CST)
+
+The [single 95-item checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) now accurately reflects B11 physically sealed 8c2b50d5 compiled source-review archive/private Drive readback, B12 QA review reconciliation, and completed B15 historical-draft retirement. [PR #269](https://github.com/kylebrooks86/first-in-response-website/pull/269), [#266](https://github.com/kylebrooks86/first-in-response-website/pull/266) and [#267](https://github.com/kylebrooks86/first-in-response-website/pull/267) were **CLOSED UNMERGED** after per-file semantic review, preserving the historical branches and precisely recording that different Git blobs reflect tighter target-pinned DARK-first-request guards rather than claiming SHA identity. [Semantic closeout](evidence/FIRE_HISTORICAL_PR266_267_269_SEMANTIC_SUPERSESSION_20261117.md), PR comment IDs 6940089714, 6940091073 and 6940092430. Earlier #265/#268 were independently exact-parity and remain closed. **Do not increment the 95-task tally for these three; they are B15 follow-through.** Current precise count remains **33/95 completed, 62 open**; all A01–A18/B01–B15 done.
+
+No Git merge, executable app source changes, Cloudflare Worker/Access/route/provider call, remote D1/SQL, Stripe/payment, R2/paid service, or app deployment. QA master serving version remains 08d77fb1-9484-4014-bd5b-1bb1da066cdb (previous owner proof), frozen newer tested source 8c2b50d5 is OFFLINE/UNDEPLOYED; DR/NEW LIVE DARK, NEW LIVE first real Job #0001 inactive. Formal release gates G1/G2/G3/G8 **4/10 accepted**, G4/G5/G6/G7/G9/G10 **OPEN**. Focus next on *real hosted* code/asset/source, Access/ingress and independent resource proof; source-only CI and offline bundles never substitute.
+
+---
+
 <!-- FIRE_SNOWBALL_33_OF_95_ALL_PREPARATION_COMPLETE_20261117 -->
 ## FIRE SNOWBALL LATEST — Nov 16–17 CST: **33/95 complete; ALL A01–A18 + B01–B15 checked; 62 formal G4–G10 acceptance subtasks remain**
 
