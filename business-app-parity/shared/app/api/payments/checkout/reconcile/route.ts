@@ -12,7 +12,12 @@ export async function POST(request:Request){
   const owner=await getChatGPTUser();
   if(!owner||owner.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
   const runtime=env as RuntimeEnv;
-  const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=="live"||/(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV||"");
+  // The compiled app's "live" adapter is NOT authorization for a dark DR,
+  // NEW LIVE prelaunch or unrecognized environment to touch LIVE Stripe.
+  // Match the explicit production allowlist used by the checkout, refund,
+  // webhook and connection routes. This runs before any D1/Stripe read/write.
+  const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=="live"||
+    !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV??"").trim().toLowerCase());
   // An authenticated owner must not bypass the isolated TEST payment kill-switch
   // by reconciling a paid or expired checkout directly. Check BEFORE any D1
   // read or Stripe GET; no ledger, invoice, or checkout-lock mutations.
