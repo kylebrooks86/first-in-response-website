@@ -317,3 +317,86 @@ jobs:
             echo 'BLOCKED forged source identity was accepted'; exit 1
           fi
           echo 'PASS actual TEST source archive readback and wrong-source negative. No Cloudflare/Stripe.'
+
+      - name: Package and boot the exact saved Worker-only TEST fallback offline
+        shell: bash
+        timeout-minutes: 3
+        working-directory: ${{ runner.temp }}/FIRE-GATE9-SYNTHETIC-LOCAL
+        env:
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          CLOUDFLARE_SEND_METRICS: 'false'
+        run: |
+          set -euo pipefail
+          saved="$RUNNER_TEMP/FIRE-G9-SEALED-READBACK/package"
+          wrangler=(env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN -u CLOUDFLARE_API_KEY -u CF_API_KEY -u CLOUDFLARE_EMAIL -u CLOUDFLARE_ACCOUNT_ID node ./node_modules/wrangler/bin/wrangler.js)
+          "${wrangler[@]}" deploy --dry-run --no-bundle --config "$saved/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/FIRE-G9-WORKER-ONLY-PACKAGING"
+          local_package="$RUNNER_TEMP/FIRE-G9-WORKER-ONLY-RUNTIME"
+          cp -a "$saved" "$local_package"
+          python3 - "$local_package/server/wrangler.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          config = json.loads(path.read_text())
+          assert config["name"] == "fire-stripe-test-20261101"
+          assert config["vars"]["FIRE_GATE9_PRIVATE_ACTIVATION"] == "blocked"
+          assert config["vars"]["FIRE_STRIPE_MODE"] == "disabled"
+          assert config["workers_dev"] is False and config["preview_urls"] is False
+          assert not config["routes"] and not config["r2_buckets"] and "assets" not in config
+          assert len(config["d1_databases"]) == 1 and config["d1_databases"][0]["binding"] == "DB"
+          config["d1_databases"][0].update(
+              database_name="fire-gate9-local-smoke",
+              database_id="00000000-0000-4000-8000-000000000000",
+          )
+          path.write_text(json.dumps(config))
+          PY
+          "${wrangler[@]}" dev --local --no-bundle --config "$local_package/server/wrangler.json" \
+            --persist-to "$RUNNER_TEMP/FIRE-G9-WORKER-ONLY-D1" --ip 127.0.0.1 \
+            --port 18788 --inspector-port 0 > "$RUNNER_TEMP/FIRE-G9-WORKER-ONLY-RUNTIME.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
+          python3 - "$local_package/gate9-noassets-dark-source-receipt.json" <<'PY'
+          import http.client
+          import json
+          import sys
+          import time
+          from pathlib import Path
+
+          def request(method, path):
+              connection = http.client.HTTPConnection("127.0.0.1", 18788, timeout=2)
+              try:
+                  connection.request(method, path)
+                  with connection.getresponse() as response:
+                      return (response.status, response.getheader("Cache-Control"),
+                              response.getheader("X-Content-Type-Options"), response.read())
+              finally:
+                  connection.close()
+
+          expected = (404, "private, no-store", "nosniff", b"")
+          for attempt in range(45):
+              try:
+                  first = request("GET", "/")
+              except (OSError, http.client.RemoteDisconnected):
+                  time.sleep(1)
+                  continue
+              assert first == expected, f"TEST entrypoint missed the inactive response: HTTP {first[0]}"
+              break
+          else:
+              raise SystemExit("The isolated TEST Worker-only build failed to start")
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          asset = next(row["path"] for row in receipt["originalClientAssets"] if row["path"].endswith(".js"))
+          for method, path in [
+              ("GET", "/api/customers"),
+              ("POST", "/api/payments/checkout"),
+              ("POST", "/api/payments/refund"),
+              ("POST", "/api/payments/webhook"),
+              ("GET", asset),
+              ("HEAD", asset),
+          ]:
+              actual = request(method, path)
+              assert actual == expected, f"{method} {path} missed the inactive response: HTTP {actual[0]}"
+          print("PASS 7/7 actual local Worker-only entrypoint denials with no provider or payment calls")
+          PY
