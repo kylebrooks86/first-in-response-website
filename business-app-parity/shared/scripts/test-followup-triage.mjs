@@ -32,7 +32,8 @@ check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now).
 // A stale appointment belongs in Today's owner review, but must never be
 // called an upcoming booking or imply that a text was actually sent.
 const staleAppointment=job('appointmentReminder','followup',{estimate:{id:'late-job',customerId:'late-customer',scheduledAt:new Date(now-30000).toISOString()}});
-assert.equal(context.exports.todayActionLane(staleAppointment,now),'now','Past scheduled appointment remains actionable in owner Today queue');n++;
+assert.equal(context.exports.todayActionLane(staleAppointment,now),'verify','Past appointment stays in Today but says Verify first before contacting');n++;
+assert.equal(context.exports.todayCustomerQueue([staleAppointment],now)[0].lane,'verify','A past appointment is visible with status-verification guidance');n++;
 // A saved payment overage is a priority, but the owner must inspect the ledger
 // before contacting a customer, collecting money or initiating a refund.
 const overageAction=job('followUp1','followup',{estimate:{id:'overage-queue',customerId:'billing-customer',paymentOverageOpen:1}});
