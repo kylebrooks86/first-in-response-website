@@ -570,6 +570,9 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
+          # Guard actual customer-facing terms: no checks/unsupported ACH and
+          # retain FIRE Cash App/Venmo, even after legacy template compatibility.
+          node --experimental-strip-types scripts/test-business-template-compatibility.mjs
       - name: Gate 8 owner expense save recovery and Wave financial record ID integrity (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
