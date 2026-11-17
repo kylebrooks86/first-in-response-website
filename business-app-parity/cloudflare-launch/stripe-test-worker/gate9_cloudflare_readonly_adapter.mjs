@@ -51,14 +51,14 @@ function cleanBinding(b){
   }
   fail('UNEXPECTED_BINDING_TYPE');
 }
-function normalizedBindings(version){
+export function normalizedBindings(version){
   const b=version?.bindings??version?.resources?.bindings;
   check(Array.isArray(b)&&b.length>=9&&b.length<=10,'BINDINGS_MISSING');
   const result=b.map(cleanBinding);
   check(new Set(result.map(x=>x.name)).size===result.length,'DUPLICATE_BINDINGS');
   return result;
 }
-function unwrap(response){
+export function unwrap(response){
   check(response&&response.success===true &&
     (response.errors==null||Array.isArray(response.errors)&&response.errors.length===0)&&
     response.result&&typeof response.result==='object',
@@ -79,14 +79,7 @@ export function deployedVersionFromApi(payload){
     'ACTIVE_VERSION_CHANGED');
   return [{version_id:PREDECESSOR,percentage:100}];
 }
-/**
- * Never leak raw Cloudflare bindings or secrets in the returned result. Different
- * provider versions expose D1 as database_id; Wrangler uses id.
- */
-export function predecessorFromApi(payload){
-  const v=unwrap(payload);
-  check(v.id===PREDECESSOR,'PREDECESSOR_ID');
-  const safe={id:v.id,resources:{bindings:normalizedBindings(v)}};
+export function verifyNoAssetResource(v){
   // Cloudflare's version GET can include default assets routing metadata
   // even for the owner's existing code-only TEST predecessor. Mere presence
   // of {assets:{config:{...}}} is not proof of an uploaded asset collection.
@@ -113,6 +106,16 @@ export function predecessorFromApi(payload){
          .includes(a.config.not_found_handling)),
       'PREDECESSOR_ASSET_CONFIG');
   }
+}
+/**
+ * Never leak raw Cloudflare bindings or secrets in the returned result. Different
+ * provider versions expose D1 as database_id; Wrangler uses id.
+ */
+export function predecessorFromApi(payload){
+  const v=unwrap(payload);
+  check(v.id===PREDECESSOR,'PREDECESSOR_ID');
+  const safe={id:v.id,resources:{bindings:normalizedBindings(v)}};
+  verifyNoAssetResource(v);
   verifyPredecessor(safe);
   return safe;
 }

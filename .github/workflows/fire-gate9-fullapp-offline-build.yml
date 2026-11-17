@@ -2,6 +2,8 @@ name: FIRE Gate 9 full-app LOCAL build, never deploy
 on:
   pull_request:
     paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/verify_gate9_worker_only_readback.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_worker_only_readback.mjs'
       - 'business-app-parity/cloudflare-launch/materialize-stripe-test.py'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs'
@@ -316,6 +318,8 @@ jobs:
               "$saved/FIRE-G9-INACTIVE-TEST-SOURCE-SEAL.json" >/dev/null 2>&1; then
             echo 'BLOCKED forged source identity was accepted'; exit 1
           fi
+          node "$source_tools/test_gate9_worker_only_readback.mjs" "$saved/package" \
+            "$(sha256sum "$saved/package/gate9-noassets-dark-source-receipt.json" | cut -d' ' -f1)"
           echo 'PASS actual TEST source archive readback and wrong-source negative. No Cloudflare/Stripe.'
 
       - name: Package and boot the exact saved Worker-only TEST fallback offline
