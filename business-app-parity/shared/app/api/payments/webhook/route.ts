@@ -103,7 +103,11 @@ export async function POST(request:Request) {
   // Keep malformed signatures at 400, but a valid signed delivery at 503
   // until owner-approved TEST-only activation explicitly sets "test".
   // Never impose this staging control on the actual LIVE deployment.
-  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  // A dark DR or new-live-prelaunch Worker has a compiled "live" adapter.
+  // Unknown/nonproduction FIRE_ENV must never accept signed LIVE Stripe
+  // events or skip the disabled TEST gate if ingress accidentally opens.
+  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
+    !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
   // Access can exempt the precise Stripe webhook path, but must never bypass
   // owner login for the rest of this Worker. An HMAC-valid TEST event delivered
   // through another hostname (including a version URL) is not an approved
