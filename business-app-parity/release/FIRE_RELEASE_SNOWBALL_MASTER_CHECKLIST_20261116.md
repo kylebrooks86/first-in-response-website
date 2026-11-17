@@ -14,8 +14,10 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 ## Current source CI truth
 - Existing Draft PR270 development head may advance; do not equate docs-only `[skip ci]` SHA with the changed-code SHA.
-- Most recent changed-code test candidate observed: `0c0a334fc1e9d6c0344e10833809e1cfc20614f6`. As last checked, **25 of 27** workflows success; [staging/native SQLite](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024131150) in progress and DR binding parser pending. Do not mark B05 yet. Previous code `bbbaf7b9` had 27/27 PASS; no extrapolation.
+- **Newer exact executable-code SHA `8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2` has 27/27 GitHub workflows SUCCESS** (independently fetched by commit SHA); [staging/native SQLite/Chrome run #44024946759](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024946759) all six jobs SUCCESS. Earlier `0c0a334f` queued/cancelled status is superseded, NOT PASS. Later PR270 documentation-only `[skip ci]` commits are not separately compiled code. B05 is now checked; no hosted proof implied.
 - Latest active NEW LIVE immutable physical version: `cfacbb3d-43de-4d2c-8008-c6732d78f756`. This is **not** the new unmerged PR270 runtime.
+
+**SNOWBALL PROGRESS UPDATE — November 16–17 CST: 28/95 atomic tasks checked (previously 22/95; six new B05/B08/B09/B10/B13/B14); 67 remain. Formal gate acceptance remains 4/10, no new gate accepted.** Detailed evidence: [verified quick-win proof and hosted matrix](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
 
 ## Checklist — smallest safe wins first
 
@@ -46,16 +48,16 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - [x] **B02** — Reconcile Issue #19 and current continuity/AGENTS with the existing 4/10 acceptance and legacy-migration supersession.
 - [x] **B03** — Inventory open active PRs; keep #270 central and avoid needless duplicate new branches.
 - [x] **B04** — Identify exact latest changed-code SHA vs later documentation-only [skip ci] heads; do not mistake them for separate tested builds.
-- [ ] **B05** — Let exact changed-code SHA 0c0a334f staging/native SQLite and remaining workflows complete; inspect failures if any, fix only changed cases; do not claim 27/27 early.
+- [x] **B05** — Exact changed-source regression resolved: code SHA 8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2 has 27/27 workflows SUCCESS, including staging/native SQLite/Chrome run 44024946759 six jobs SUCCESS. Earlier 0c0a334f run was superseded, not falsely marked PASS. [Proof](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
 - [ ] **B06** — Freeze a final reviewed candidate Git SHA *after* code settles, keeping accepted QA rollback/old frozen branches intact.
 - [ ] **B07** — Review exact PR #270 changed runtime/feature files against the approved QA master; resolve only reproduced launch-breaking functional changes, not cosmetic churn.
-- [ ] **B08** — Finalize feature inventory for customer Save/lookup, permanent Customer #/Job #, photos, pricing/minimum, estimates, deposit, invoices, scheduling, tasks, follow-ups, messages, notifications, communications, permissions, reporting, backups and mobile.
-- [ ] **B09** — Decide explicit candidate-only feature flags (e.g., customer-property migration) for release: keep OFF unless separately reviewed, migrated, hosted-proven and approved.
-- [ ] **B10** — Freeze final no-R2 photo/storage and free Cloudflare requirements in each target manifest; reject upgrades/subscriptions.
+- [x] **B08** — Finalized owner QA-master source feature inventory for customer Save/lookup, permanent numbering, photos, pricing/minimum, estimates, deposits, invoices, scheduling, tasks/follow-ups, Google Voice/text/email, notifications, payments/refunds, reports, backups, security and mobile; per-feature hosted evidence explicitly remains OPEN. [Proof](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
+- [x] **B09** — Explicit release decision: candidate-only customer-properties/service-locations/estimate-association/recovery/workflow synthetic flags remain OFF on production targets unless separately reviewed, migrated, hosted-proven and owner-approved; NEW LIVE auth remains DARK. This is flag POLICY, not a provider config change. [Proof](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
+- [x] **B10** — Reconciled all target SOURCE manifest guards: QA temporary manifest strips historical compiled R2 placeholder, STAGING rejects all R2, DR/NEW LIVE require owner-device-zip and r2_buckets=[], Stripe TEST manifest has D1 only. No paid Cloudflare/R2. Still requires Gate4 hosted confirmation and Gate7 recoverability. [Proof](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
 - [ ] **B11** — Compile and seal offline final Worker modules/assets manifest plus source-to-build SHA; retain immutable private rollback copy.
 - [ ] **B12** — Prepare *one* targeted QA-only code update review package with exact branch/source/destination/rollback/what changed; do not deploy without separate exact owner approval.
-- [ ] **B13** — Write an explicit hosted evidence matrix showing *which* observations are already accepted and only missing changed/target-specific observations (no repeat screenshot requests).
-- [ ] **B14** — Document any externally owned blocker with its existing support issue/case and safe alternative; do not rerun failed Cloudflare sign-ins or spent one-shots.
+- [x] **B13** — Saved target-by-target evidence matrix distinguishing accepted QA/DR/NEW LIVE/Stripe TEST/owner screenshots from only still-missing hosted source bytes, account ingress, Access, security, schema, recovery and signed Stripe deliveries. Do not repeat accepted captures. [Proof](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
+- [x] **B14** — Recorded actual third-party/owner blockers, Cloudflare assets-upload-session 10013 already filed (issues workers-sdk #16882 / developer-platform #149), no Worker-specific Access, Stripe TEST signed delivery dependency; legacy Sites support #19701066 is historical and NOT a clean-new-LIVE migration blocker. Protected no-retry/no-paid alternatives recorded. [Proof](../evidence/FIRE_SNOWBALL_QUICK_WINS_AND_HOSTED_EVIDENCE_MATRIX_20261117.md).
 - [ ] **B15** — Review older open drafts for proved supersession; close only with verified content parity, without merge, source loss or guessed equivalence. This housekeeping is not itself a release gate.
 
 ### C. Gate 4 — exact hosted app parity, identities and ingress (physical evidence required)
