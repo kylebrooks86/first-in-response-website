@@ -1,7 +1,7 @@
 import {createStoredZip} from './photo-storage-zip';
 
 export type OfflinePhoto = {
-  id:string;customerId:string;category:'before'|'after'|'property';
+  id:string;customerId:string;jobId?:string;category:'before'|'after'|'property';
   caption:string;filename:string;contentType:string;sizeBytes:number;createdAt:string;blob:Blob;
 };
 type ArchivePhoto = Omit<OfflinePhoto,'blob'> & {sha256:string};
@@ -13,6 +13,7 @@ async function digest(bytes:ArrayBuffer){return hex(await crypto.subtle.digest('
 function validMeta(p:Omit<OfflinePhoto,'blob'>){
   return typeof p.id==='string'&&/^[a-zA-Z0-9_-]{1,90}$/.test(p.id)
    &&typeof p.customerId==='string'&&/^[a-zA-Z0-9_-]{1,120}$/.test(p.customerId)
+   &&(p.jobId===undefined||(typeof p.jobId==='string'&&/^[a-zA-Z0-9_-]{1,120}$/.test(p.jobId)))
    &&['before','after','property'].includes(p.category)
    &&typeof p.caption==='string'&&p.caption.length<=2000
    &&typeof p.filename==='string'&&p.filename.length>0&&p.filename.length<=240
