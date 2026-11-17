@@ -1,3 +1,9 @@
+## November 17 — browser/Node original-photo archive format fixed on active PR270
+
+[Source evidence](evidence/FIRE_G7_BROWSER_NODE_PHOTO_ZIP_SCHEMA_ALIGNMENT_20261117.md): real application source commits `9af8fe46` and `6e537a72` align browser ZIP manifest field validation with the independent saved-file verifier, prevent exporting unrelated IndexedDB record fields, and add four focused accepted/rejected ZIP cases. Legacy customer-only and optional job-linked photo archives remain compatible; the real Gate7 saved protected photo CI and public website guard passed on `6e537a72`; longer matrix had not yet finished when logged. **This is source-only, not new hosted proof or an owner full D1/photo recovery. Checklist stays 45/95, formal gates 4/10; NEW LIVE DARK.** No Cloudflare login, R2, provider mutation, owner retest, merge or release.
+
+---
+
 ## November 17 — actual job-linked original photo UI + recovery preflight built, pinned Chrome CI added
 
 [Detailed source and test evidence](evidence/FIRE_G7_JOB_LINKED_PHOTO_OWNERSHIP_AND_BROWSER_20261117.md): active draft PR270 now associates on-device original photos with an optional **authenticated saved numbered job**, validates **both** job existence and customer ownership before backup verification or restore writes, accepts legitimate same-customer linked estimates, and rejects foreign/ambiguous/unknown job IDs. This builds on the accepted October 27 original iPhone 3/3 photo recovery; **do not rerun it**. New disposable Chrome IndexedDB save/export/deny/restore regression was wired to the existing staging workflow. Exact commit `65bf530e` had successful Gate7 saved-file, paired-record/photo and public-site protection CI; staging/Chrome still processing at first record. This is real **candidate source progress, not hosted or owner paired backup/restore**. **45/95 completed, 4/10 formal gates, G7-03/04/07 open, NEW LIVE DARK.** No provider or paid R2/login/merge/deployment/SQL/Stripe action.
