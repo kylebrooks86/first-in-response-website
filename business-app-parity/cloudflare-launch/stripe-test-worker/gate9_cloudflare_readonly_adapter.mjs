@@ -212,10 +212,44 @@ export function createGate9ReadOnlyApi({
       });
     }catch{fail('GET_FAILED');}
     check(res&&res.status===200&&res.ok===true,'GET_STATUS');
-    const len=Number(res.headers?.get?.('content-length'));
-    check(!Number.isFinite(len)||len<=32_000_000,'REPLY_SIZE');
+    // Never trust Content-Length alone: chunked or misreported JSON can otherwise
+    // consume unlimited memory during res.json() on a private owner machine.
+    const MAX_REPLY_BYTES=32_000_000;
+    const declared=res.headers?.get?.('content-length');
+    if(declared!==null&&declared!==undefined)
+      check(/^\\d+$/.test(declared)&&Number(declared)<=MAX_REPLY_BYTES,'REPLY_SIZE');
     let body;
-    try{body=await res.json();}catch{fail('GET_JSON');}
+    try{
+      const reader=res.body?.getReader?.();
+      check(reader&&typeof reader.read==='function','GET_STREAM');
+      const chunks=[];
+      let total=0;
+      while(true){
+        const next=await reader.read();
+        if(next.done)break;
+        check(next.value instanceof Uint8Array,'GET_STREAM');
+        total+=next.value.byteLength;
+        if(total>MAX_REPLY_BYTES){
+          // No second request, no response echo, and no full-body allocation.
+          try{await reader.cancel();}catch{}
+          fail('REPLY_SIZE');
+        }
+        chunks.push(Buffer.from(next.value));
+      }
+      check(total>0,'GET_JSON');
+      body=JSON.parse(new TextDecoder('utf-8',{fatal:true})
+        .decode(Buffer.concat(chunks,total)));
+    }catch(e){
+      // Only our own fixed sanitized error codes may leave the adapter.
+      if(e?.message===
+          'STOP: Gate9 Cloudflare READ ONLY [REPLY_SIZE]; no changes made.'||
+         e?.message===
+          'STOP: Gate9 Cloudflare READ ONLY [GET_STREAM]; no changes made.'||
+         e?.message===
+          'STOP: Gate9 Cloudflare READ ONLY [GET_JSON]; no changes made.')
+        throw e;
+      fail('GET_JSON');
+    }
     return body;
   };
   return Object.freeze({

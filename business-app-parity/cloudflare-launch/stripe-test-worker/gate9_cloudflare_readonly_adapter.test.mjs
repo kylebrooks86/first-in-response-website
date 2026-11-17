@@ -195,3 +195,44 @@ test('read-only adapter cannot be constructed for placeholder or invalid account
   }
 });
 
+
+test('GET-only adapter refuses real streamed responses over the byte budget without trusting Content-Length',async()=>{
+  let requests=0,segments=0;
+  const body=new ReadableStream({
+    pull(controller){
+      segments++;
+      if(segments<=34) controller.enqueue(new Uint8Array(1_000_000));
+      else controller.close();
+    }
+  });
+  const api=createGate9ReadOnlyApi({
+    accountId:acct,tokenProvider:async()=> 'SYNTHETIC_NONSECRET_READ_TOKEN',
+    fetchImpl:async()=>{
+      requests++;
+      return new Response(body,{status:200,headers:{'content-length':'1'}});
+    }
+  });
+  await assert.rejects(api.readState(),/READ ONLY \\[REPLY_SIZE\\]/);
+  assert.equal(requests,1);
+  assert(segments>=32,'read beyond declared one byte to prove stream enforcement');
+});
+
+test('GET-only adapter refuses dishonest oversized header before streaming and malformed UTF-8',async()=>{
+  for(const headers of [{'content-length':'32000001'},{'content-length':'n/a'}]){
+    let calls=0;
+    const api=createGate9ReadOnlyApi({
+      accountId:acct,tokenProvider:async()=> 'SYNTHETIC_NONSECRET_READ_TOKEN',
+      fetchImpl:async()=>{
+        calls++;
+        return new Response('{}',{status:200,headers});
+      }
+    });
+    await assert.rejects(api.readState(),/READ ONLY \\[REPLY_SIZE\\]/);
+    assert.equal(calls,1);
+  }
+  const api=createGate9ReadOnlyApi({
+    accountId:acct,tokenProvider:async()=> 'SYNTHETIC_NONSECRET_READ_TOKEN',
+    fetchImpl:async()=>new Response(Uint8Array.of(0xff,0xfe),{status:200})
+  });
+  await assert.rejects(api.readState(),/READ ONLY \\[GET_JSON\\]/);
+});
