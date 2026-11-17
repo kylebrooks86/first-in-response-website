@@ -1,3 +1,11 @@
+## November 17 — existing hosted and executed test evidence closes G6-01 and G7-06
+
+**November 17 evidence and test reconciliation — 45/95 checked, 50 open, 4/10 formal gates accepted.** [G6-01 and G7-06](#established-qa-fixtures-and-completed-disposable-restore) are complete for the hosted synthetic QA test setup and executed disposable full-record restore rehearsal.
+
+[The checklist reconciliation](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#established-qa-fixtures-and-completed-disposable-restore) records the independently protected QA fixture pair and real synthetic disposable restore, and ties the remaining financial, owner/session, backup and TEST work to the runs already completed. There was no duplicate test, new Cloudflare login or provider action. Real owner paired recovery and hosted Stripe proof remain open. NEW LIVE stays dark.
+
+---
+
 ## November 17 — screenshot reconciliation closed G6-02 (43/95)
 
 **November 17 screenshot reconciliation — 43/95 checked, 52 open, formal gates 4/10.** [G6-02](#g6-02-hosted-owner-sign-in-and-session-reentry) closes the originally approved owner sign-in, private redirect and reentry checks on hosted QA and TEST. The owner requested PIN/passkey development, but no hosted activation or real-device passkey acceptance is recorded. This sign-in result does not extend to DARK endpoints.

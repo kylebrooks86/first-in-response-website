@@ -1,3 +1,9 @@
+## November 17 evidence and test reconciliation — 45/95 checked
+
+[Checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) and [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md) supersede the historical counts below. G6-01 and G7-06 are checked from the protected hosted QA fixture pair and the prior positive disposable restore. Formal gates remain 4/10; NEW LIVE is dark. The owner authorization boundaries below continue to apply.
+
+---
+
 ## November 17 screenshot reconciliation — 43/95 checked
 
 [Current checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) and [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md) record G6-02 complete for the prior approved QA and TEST owner-login paths. Formal gates remain 4/10, NEW LIVE remains dark, and all authorization boundaries below apply. This count supersedes historical counts below.
