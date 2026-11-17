@@ -19,6 +19,22 @@ const rows=()=>rt.db.prepare('SELECT id,read_at,resolved_at FROM notifications O
 const put=(n,readAt=null)=>rt.db.prepare('INSERT INTO notifications(id,type,title,body,read_at,created_at) VALUES (?,?,?,?,?,?)')
   .run(id(n),'estimate_viewed','Synthetic activity '+n,'No customer data',readAt,stamp);
 try{
+ // Keep notification MARK, RESOLVE and financial exception input bounded.
+ // All malformed owner actions are refused before D1 reads OR writes.
+ for(const [label,body,headers,expected] of [
+  ['overdeclared owner action','{}',{'content-length':'8193'},413],
+  ['oversized streamed owner action',' '.repeat(8193),{},413],
+  ['false short declared length','{"x":1}',{'content-length':'2'},400],
+  ['invalid owner UTF8',new Uint8Array([123,34,120,34,58,255,125]),{},400],
+  ['owner JSON array','[]',{},400]
+ ]){
+  const before=rt.counters();
+  const refused=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+   method:'PATCH',headers:{'content-type':'application/json',...headers},body
+  }));
+  check(refused.status===expected,label+' fails closed with exact HTTP status');
+  check(JSON.stringify(rt.counters())===JSON.stringify(before),label+' touches no D1 state');
+ }
  put(1);put(2);put(3,'2026-10-19T12:00:00Z');
  const start=await read();
  check(start.status===200&&start.data.unread===2&&start.data.notifications.length===3,
