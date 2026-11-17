@@ -2,6 +2,7 @@ name: FIRE Gate 9 offline provider-contract tests
 on:
   pull_request:
     paths:
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_versions_read_only.test.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_inactive_fullapp_contract.mjs'
@@ -78,3 +79,27 @@ jobs:
         shell: pwsh
         run: |
           ./business-app-parity/cloudflare-launch/stripe-test-worker/gate9_access_readonly_fixture.test.ps1
+      - name: Refuse replay of the retired PowerShell TEST uploader before loading any dependency
+        shell: pwsh
+        run: |
+          $isolated = Join-Path $env:RUNNER_TEMP 'fire-gate9-spent-upload-test'
+          New-Item -ItemType Directory -Path $isolated | Out-Null
+          $script = Join-Path $isolated 'owner_gate9_inactive_version_upload.ps1'
+          Copy-Item ./business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_inactive_version_upload.ps1 $script
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw 'Legacy TEST review script does not parse.' }
+          $writes = $ast.FindAll({
+            param($node)
+            if ($node -isnot [System.Management.Automation.Language.CommandAst]) { return $false }
+            return $node.Extent.Text -match '(?im)^\s*&\s+\$Wrangler\s+versions\s+upload\s+--'
+          }, $true)
+          if ($writes.Count -ne 0) { throw 'Legacy TEST review still contains a Wrangler upload command.' }
+          try {
+            & $script -Upload -ExpectedPreviousVersion '00000000-0000-4000-8000-000000000000'
+            throw 'Legacy upload mode was accepted.'
+          } catch {
+            if ($_.Exception.Message -notmatch '^STOP: LEGACY_GATE9_UPLOAD_ATTEMPT_SPENT\.') { throw }
+          }
+          Write-Host 'PASS: spent upload refused before loading the binding validator or invoking Wrangler.'

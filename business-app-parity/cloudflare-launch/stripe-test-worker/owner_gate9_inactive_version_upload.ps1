@@ -1,9 +1,5 @@
-# Gate 9 HMAC-first: stage an INACTIVE TEST Worker version; NEVER serve new traffic.
-# Default is read-only review. -Upload needs separate explicit owner consent and never deploys traffic.
-# No Stripe mode enabling, webhook endpoint/Access changes, database, migration, R2, LIVE, QA or DR writes.
-# Stop on uncertainty: NEVER retry automatically after an inactive upload attempt.
-# Prior approved upload attempt used project-local Wrangler 4.92.0 and failed on unsupported --strict.
-# THIS REVISED SOURCE REQUIRES A NEW SEPARATE OWNER APPROVAL; the earlier one-upload approval is consumed.
+# Historical Gate 9 HMAC-first TEST candidate review.
+# The legacy upload attempt is spent. This script accepts only review operations.
 [CmdletBinding()]
 param(
   [switch]$Upload,
@@ -11,6 +7,9 @@ param(
   [ValidatePattern('^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$')]
   [string]$ExpectedPreviousVersion
 )
+if ($Upload) {
+  throw 'STOP: LEGACY_GATE9_UPLOAD_ATTEMPT_SPENT. Use the review mode only.'
+}
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 # Offline-only validated handler for actual Cloudflare plain_text .text schema.
@@ -32,26 +31,11 @@ $Scratch=Join-Path $env:TEMP ('FIRE-StripeTEST-Gate9-Signature-'+[Guid]::NewGuid
 $Source=Join-Path $Scratch 'source'
 $App=Join-Path $Scratch 'app'
 $InApp=$false
-$UploadStarted=$false
 function Assert([bool]$ok,[string]$reason){
   if(-not $ok){throw "STOP: $reason"}
 }
 function ExitCheck([string]$label){
   Assert ($LASTEXITCODE -eq 0) "$label failed. Do not rerun automatically."
-}
-function WranglerJson([string[]]$params){
-  $raw=(& $script:Wrangler @params | Out-String).Trim()
-  ExitCheck ('wrangler '+($params -join ' '))
-  Assert ($raw.Length -gt 0) 'Unexpected empty Wrangler JSON'
-  try{
-    $parsed=ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-    # Wrangler versions list may legitimately return ONE result. Preserve the
-    # provider's top-level JSON array instead of letting PowerShell unwrap it
-    # into a single PSCustomObject that looks like an unknown response schema.
-    if($raw.TrimStart().StartsWith('[')){return ,@($parsed)}
-    return $parsed
-  }
-  catch{throw "STOP: Cannot parse Wrangler response. No deploy."}
 }
 function Assert-VersionSecretBindings([object[]]$bindings){
   # Worker-level "secret list" alone is NOT evidence that a newly uploaded
@@ -82,26 +66,6 @@ function VerifyVersion([string]$id){
   Assert ([bool](Assert-VersionSecretBindings -bindings $bindings)) 'TEST Worker version secrets are not inherited correctly'
   Write-Host ('PASS: Immutable version '+$id+' uses isolated TEST DB, no R2, Stripe disabled and four encrypted secrets by NAME.')
 }
-function Get-StrictVersionIds($data){
-  if($data -is [array]){$items=@($data)}
-  elseif($null -ne $data -and @($data.PSObject.Properties.Name) -contains 'versions'){$items=@($data.versions)}
-  elseif($null -ne $data -and @($data.PSObject.Properties.Name) -contains 'result'){
-    if($data.result -is [array]){$items=@($data.result)}
-    elseif($null -ne $data.result -and @($data.result.PSObject.Properties.Name) -contains 'versions'){$items=@($data.result.versions)}
-    else{throw 'STOP: Unrecognized version-list result shape'}
-  }else{throw 'STOP: Unrecognized version-list JSON shape'}
-  $ids=@()
-  foreach($item in $items){
-    if($null -eq $item){throw 'STOP: Null version-list item'}
-    if(@($item.PSObject.Properties.Name) -contains 'id'){$id=[string]$item.id}
-    elseif(@($item.PSObject.Properties.Name) -contains 'version_id'){$id=[string]$item.version_id}
-    else{throw 'STOP: Missing version identifier'}
-    if($id -notmatch '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'){throw 'STOP: Malformed version UUID'}
-    $ids+=$id.ToLowerInvariant()
-  }
-  if($ids.Count -lt 1 -or $ids.Count -ne @($ids|Sort-Object -Unique).Count){throw 'STOP: Empty/duplicate version list'}
-  return $ids
-}
 function SecretNamesPretty(){
   # Wrangler 4.151.0 owner-proven form, NO values: "Secret Name: NAME"
   # Exact equality below blocks missing, unexpected, or duplicate names.
@@ -118,7 +82,7 @@ function SecretNamesPretty(){
   Assert ($names.Count -eq 4 -and @($names|Sort-Object -Unique).Count -eq 4) 'Wrong or duplicate TEST secret-name inventory'
   return (($names|Sort-Object) -join ',')
 }
-function Assert-InactiveUploadCli([string]$version,[string]$help){
+function Assert-ReviewWranglerVersion([string]$version){
   # Owner-confirmed standalone Wrangler v4.151.0 on Acer, separate from
   # project-local pnpm Wrangler 4.92.0 (which lacks versions upload --strict).
   # Standalone `wrangler.cmd --version` on the owner's Acer prints just
@@ -127,10 +91,7 @@ function Assert-InactiveUploadCli([string]$version,[string]$help){
   $reported=$version.Trim()
   $exactBare=$reported -ceq '4.151.0'
   $exactLabeled=$reported -match '(?i)\A(?:⛅\s*)?wrangler\s+4\.151\.0\z'
-  Assert ($exactBare -or $exactLabeled) 'Global Wrangler 4.151.0 not verified. STOP before authorizing any upload.'
-  foreach($flag in @('--strict','--keep-vars','--config')){
-    Assert ($help.Contains($flag)) ('Global versions upload CLI does not support required '+$flag+' safety capability.')
-  }
+  Assert ($exactBare -or $exactLabeled) 'Global Wrangler 4.151.0 not verified. STOP before reviewing the candidate.'
   return $true
 }
 function Remove-LegacyEnvFromTempReview([string]$reviewFile){
@@ -178,16 +139,14 @@ function Pnpm([string[]]$argsToRun){
   ExitCheck ('pnpm '+($argsToRun -join ' '))
 }
 try{
-  Write-Host 'STEP 1/5: Gate9 existing TEST Worker, predecessor, FOUR encrypted secrets, Access, isolated D1'
+  Write-Host 'STEP 1/4: Gate9 existing TEST Worker, predecessor, FOUR encrypted secrets, Access, isolated D1'
   $Wrangler=(Get-Command wrangler.cmd -ErrorAction Stop).Source
-  # Pure CLI help/version preflight BEFORE any owner write authorization.
+  # Check the pinned CLI version before running the historical review.
   # These invocations perform NO remote writes and must use standalone
   # Wrangler, NOT the app-local pnpm wrangler locked at 4.92.0.
   $globalVersion=(& $Wrangler --version | Out-String).Trim()
   ExitCheck 'Standalone Wrangler version preflight'
-  $globalHelp=(& $Wrangler versions upload --help | Out-String)
-  ExitCheck 'Standalone Wrangler inactive-upload capabilities'
-  Assert ([bool](Assert-InactiveUploadCli $globalVersion $globalHelp)) 'Unsupported standalone Wrangler for safe version staging'
+  Assert ([bool](Assert-ReviewWranglerVersion $globalVersion)) 'Unsupported standalone Wrangler for the historical candidate review'
   Write-Host 'PASS: Standalone Wrangler 4.151.0 supports --strict and --keep-vars (separate from app build CLI).'
   $null=Get-Command git.exe -ErrorAction Stop
   $null=Get-Command node.exe -ErrorAction Stop
@@ -214,7 +173,7 @@ try{
   Assert ($h -match '(?im)^location:\s*https://restless-unit-ad5b\.cloudflareaccess\.com/') 'Owner-only Cloudflare Access redirect not verified'
   Write-Host 'PASS: Isolated TEST predecessor, Access, physical D1 and FOUR encrypted secrets incl. webhook'
 
-  Write-Host 'STEP 2/5: Save rollback record and fetch exact approved source'
+  Write-Host 'STEP 2/4: Save rollback record and fetch exact approved source'
   $backupFolder=Join-Path $HOME 'FIRE-Backups'
   New-Item -ItemType Directory -Path $backupFolder -Force | Out-Null
   $backup=Join-Path $backupFolder ('stripe-test-before-gate9-hmac-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.json')
@@ -260,7 +219,7 @@ try{
     $materializerSource.Contains('Stripe TEST is intentionally disabled.') -and
     -not $materializerSource.Contains('"app/api/payments/webhook/route.ts": "export async function POST')) 'Wrong TEST-only HMAC-first generator source'
 
-  Write-Host 'STEP 3/5: Build exact Gate9 HMAC-first TEST code with Stripe money operations DISABLED'
+  Write-Host 'STEP 3/4: Build exact Gate9 HMAC-first TEST code with Stripe money operations DISABLED'
   $materializer=Join-Path $Source 'business-app-parity\cloudflare-launch\materialize-stripe-test.py'
   if($python.Name -eq 'py.exe') { & $python.Source -3 $materializer $App }
   else { & $python.Source $materializer $App }
@@ -288,7 +247,7 @@ try{
   Pnpm @('exec','tsc','--noEmit','--incremental','false')
   Pnpm @('run','build')
 
-  Write-Host 'STEP 4/5: Exact D1, Stripe-off, no-R2 Wrangler dry run'
+  Write-Host 'STEP 4/4: Exact D1, Stripe-off, no-R2 Wrangler dry run'
   $manifestScript=Join-Path $Source 'business-app-parity\cloudflare-launch\stripe-test-worker\prepare-stripe-test-manifest.mjs'
   $local=Join-Path $App 'dist\server\wrangler.json'
   $review=Join-Path $App 'dist\server\wrangler.FIRE_TEST_REVIEW_ONLY.json'
@@ -310,79 +269,19 @@ try{
   }
   $dry=Join-Path $Scratch 'dry-run'
   Pnpm @('exec','wrangler','deploy','--config',$review,'--dry-run','--outdir',$dry)
-  # The actual one-upload CLI is standalone Wrangler 4.151.0, not the pinned
-  # project-local 4.92.0. Validate THIS EXACT TEMP REVIEW CONFIG against
-  # the standalone CLI's parser before any owner confirmation or hosted write.
+  # Parse the same local manifest with the pinned standalone Wrangler.
   $globalDry=Join-Path $Scratch 'dry-run-standalone-v4151'
   & $Wrangler deploy --config $review --dry-run --outdir $globalDry
   ExitCheck 'Standalone Wrangler 4.151.0 strict TEST config dry-run'
   Assert ([bool](Assert-RemoteAssetsNotChanged $PriorVersion $cfg)) 'Remote-versus-local static assets drift must be resolved separately'
   Write-Host 'PASS: Gate9 HMAC-first TEST dry-runs with both CLI versions AND remote asset compatibility; no routes, R2 or Stripe activation.'
-  if(-not $Upload){
-    Write-Host ('REVIEW PASS ONLY. No Cloudflare/Stripe writes. Pinned candidate '+$ExpectedCommit)
-    Write-Host ('Pinned active version '+$PriorVersion)
-    return
-  }
-  $approval='UPLOAD INACTIVE FIRE STRIPE TEST ONLY '+$Worker+' '+$DatabaseId+' '+$ExpectedCommit+' FROM '+$PriorVersion
-  Write-Warning 'One INACTIVE version upload; ZERO traffic change. Never deploy version, enable Stripe, modify D1, Access, secrets, LIVE, QA or DR.'
-  Write-Host ('To authorize the INACTIVE upload, type: '+$approval)
-  $typed=Read-Host 'Exact owner inactive-upload approval'
-  Assert ($typed -ceq $approval) 'Owner declined inactive upload; NO hosted write'
-
-  Write-Host 'STEP 5/5: Fresh host version, D1, Access, secrets and version inventory before one INACTIVE upload'
-  $last=(& $Wrangler deployments status --name $Worker --json | Out-String).Trim()
-  ExitCheck 'Fresh serving version status'
-  $lv=@((ConvertFrom-Json -InputObject $last -ErrorAction Stop).versions)
-  Assert ($lv.Count -eq 1 -and $lv[0].version_id -ceq $PriorVersion -and [int]$lv[0].percentage -eq 100) 'Serving version drifted. STOP'
-  VerifyVersion $PriorVersion
-  Assert ((SecretNamesPretty) -ceq $ExpectedSecrets) 'Existing four secrets changed. STOP'
-  # Wrangler versions list is a RECENT-version window, not the complete
-  # immutable history. A legitimate 100%-serving predecessor can be older
-  # than the list window. Its identity was already authenticated above via
-  # deployments status + versions view; never infer a missing deployed version.
-  $beforeIds=@(Get-StrictVersionIds (WranglerJson @('versions','list','--name',$Worker,'--json')))
-  Assert ($beforeIds.Count -gt 0) 'Cannot establish recent version inventory. STOP'
-
-  # Wrangler strict noninteractive must reject conflicting dashboard configuration;
-  # never accept a prompt, force overwrite or auto-shift traffic.
-  $priorCI=[Environment]::GetEnvironmentVariable('CI','Process')
-  $UploadStarted=$true
-  try {
-    [Environment]::SetEnvironmentVariable('CI','true','Process')
-    # ONE upload on standalone v4.151.0; NEVER use pnpm-local v4.92.0.
-    & $Wrangler versions upload --config $review --keep-vars --strict
-    ExitCheck 'Standalone Wrangler one inactive-only upload (strict/no traffic)'
-  }
-  finally {
-    [Environment]::SetEnvironmentVariable('CI',$priorCI,'Process')
-  }
-  # Cloudflare may return zero even after a declined prompt in older Wrangler;
-  # require no traffic change and a new version listed, else STOP/NO RETRY.
-  $after=(& $Wrangler deployments status --name $Worker --json | Out-String).Trim()
-  ExitCheck 'Read-only serving version after inactive-only upload'
-  $served=@((ConvertFrom-Json -InputObject $after -ErrorAction Stop).versions)
-  Assert ($served.Count -eq 1 -and $served[0].version_id -ceq $PriorVersion -and [int]$served[0].percentage -eq 100) 'CRITICAL: Serving version changed after upload-only action!'
-  $afterIds=@(Get-StrictVersionIds (WranglerJson @('versions','list','--name',$Worker,'--json')))
-  $newIds=@($afterIds|Where-Object {$_ -notin $beforeIds})
-  Assert ($newIds.Count -eq 1 -and $newIds[0] -cne $PriorVersion) 'No UNIQUE new inactive version found. DO NOT RETRY.'
-  $newId=[string]$newIds[0]
-  VerifyVersion $newId
-  Assert ((SecretNamesPretty) -ceq $ExpectedSecrets) 'Secret names changed after inactive upload'
-  $h=(& curl.exe --silent --show-error --max-time 20 --dump-header - --output NUL $Origin | Out-String)
-  ExitCheck 'Owner-only Access after inactive upload'
-  Assert ($h -match '(?im)^location:\s*https://restless-unit-ad5b\.cloudflareaccess\.com/') 'Owner Access redirect changed!'
-  Write-Host ('PASS: Original TEST version still 100% active: '+$PriorVersion) -ForegroundColor Green
-  Write-Host ('PASS: New INACTIVE version '+$newId+' verified with correct D1 and Stripe disabled; provenance and version-specific secrets need separate acceptance.')
-  Write-Warning 'THIS SCRIPT DOES NOT ACTIVATE ANY VERSION. NEVER RERUN. New separate owner approval required for traffic rollout.'
+  Write-Host ('REVIEW PASS ONLY. No Cloudflare/Stripe writes. Pinned candidate '+$ExpectedCommit)
+  Write-Host ('Pinned active version '+$PriorVersion)
 
 }
 catch{
   Write-Host $_.Exception.Message -ForegroundColor Red
-  if($UploadStarted){
-    Write-Host 'INACTIVE UPLOAD MAY HAVE OCCURRED. DO NOT RUN AGAIN. Inspect TEST versions and deployments READ-ONLY.' -ForegroundColor Yellow
-  }else{
-    Write-Host 'No inactive upload attempted. Stop and review error first.' -ForegroundColor Yellow
-  }
+  Write-Host 'Review stopped. No inactive upload attempted.' -ForegroundColor Yellow
   exit 1
 }
 finally{
