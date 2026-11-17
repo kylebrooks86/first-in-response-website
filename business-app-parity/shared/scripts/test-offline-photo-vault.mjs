@@ -22,6 +22,26 @@ const photo=(id,customerId,category='before',text='photo bytes')=>{
  const blob=new Blob([new TextEncoder().encode(text)],{type:'image/png'});
  return {id,customerId,category,caption:'Synthetic test',filename:id+'.png',contentType:'image/png',sizeBytes:blob.size,createdAt:'2026-10-15T03:20:00.000Z',blob};
 };
+// Test the actual job/customer preflight without IndexedDB or hosted access.
+const vaultGuards=load('../lib/local-photo-vault.ts',name=>{
+ if(name==='./offline-photo-backup')return archive;
+ if(name==='../app/local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'live'};
+ throw Error('Unexpected job preflight dependency '+name);
+});
+const verifyJobs=vaultGuards.verifyOfflinePhotoJobOwnership;
+verifyJobs([{customerId:'customer-A'}]); // Legacy customer-only ZIP requires no job inventory.
+check(true,'Existing customer-only photos retain offline restore compatibility');
+verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}],[{id:'estimate-A',customerId:'customer-A'}]);
+check(true,'Matching authenticated saved job and customer are accepted');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}]),/authenticated job\/customer inventory/);
+check(true,'Offline customer directory cannot authorize linked-job restore');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'missing'}],[{id:'estimate-A',customerId:'customer-A'}]),/unknown job ID/);
+check(true,'An unknown job ID is rejected before any photo mutation');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-B'}],[{id:'estimate-B',customerId:'customer-B'}]),/different customer/);
+check(true,'Cross-customer saved job linkage is rejected before photo mutation');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}],[{id:'estimate-A',customerId:'customer-A'},{id:'estimate-A',customerId:'customer-B'}]),/invalid or ambiguous/);
+check(true,'Duplicate or contradictory owner job inventory cannot authorize restore');
+
 const first=photo('img-one','customer-A','before','one synthetic photo');
 const second=photo('img-two','customer-B','after','another synthetic photo');
 const file=await archive.exportOfflinePhotoBackup([first,second]);
@@ -114,6 +134,15 @@ const vault=readFileSync(new URL('../lib/local-photo-vault.ts',import.meta.url),
 check(page.includes('<OfflineCustomerPhotos')&&page.includes('knownCustomerIds={customers.map(item=>item.id)}'),'Actual FIRE customer profile renders the on-device vault');
 check(!page.includes('section === "photos"&&<CustomerPhotos'),'Original R2 photo panel no longer owns the customer tab');
 check(component.includes('exportLocalPhotos(')&&component.includes('restoreLocalPhotos('),'Actual photo screen exposes archive export and restore');
+
+check(component.includes('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')&&
+ component.includes('restoreLocalPhotos(zip,knownCustomerIds,knownJobs)')&&
+ component.indexOf('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')<component.indexOf("mutationStarted=true"),
+ 'Job-linked photo restore verifies exact customer ownership before journaling or IndexedDB writes');
+check(component.includes('Attach photo to job')&&component.includes('selectedJob?.id')&&
+ page.includes('knownJobs={estimates.filter('),
+ 'Actual customer photo UI receives authenticated numbered job IDs and supports deliberate optional job associations');
+
 check(component.includes('Prepare protected all-photos backup')&&component.includes('Save prepared backup to Files')&&component.includes('Download prepared backup'),'Owner has a separate native iOS share action after protected photo archive preparation');
 const prepareFlow=component.slice(component.indexOf("const prepareArchive=async(scope:'all'|'customer',protectedFile=true)=>{"),component.indexOf('const downloadPreparedArchive=()=>{'));
 const saveFlow=component.slice(component.indexOf('const savePreparedArchive=async()=>{'),component.indexOf('const restore=async('));
