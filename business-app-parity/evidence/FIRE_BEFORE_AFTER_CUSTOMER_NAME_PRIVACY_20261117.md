@@ -1,3 +1,9 @@
+## Exact iOS comparison share source-test follow-up
+
+On `ccbbe078`, the actual synthetic Chrome UI comparison/share step completed **SUCCESS** with the new fresh-tap PNG handoff, before the succeeding `test-offline-photo-vault.mjs` source test failed on its historical safety-copy assertion `component.includes('Keep originals') || component.includes('Keep the originals')`. The new UI text had said `Keep original photos in your separate backup`, preserving the same meaning but not the exact accepted copy. [Source copy-only correction `f0746e1`](https://github.com/kylebrooks86/first-in-response-website/commit/f0746e141e627205fb80d878ae39c4fa3b1ef7fe) restores **`Keep the originals in your separate backup.`** in the comparison message. This preserves the existing safety reminder and the new iPhone share feature; no regression assertion was weakened. The **new exact-source CI for `f0746e1`** was queued/running when recorded. Do not report 25/25 or hosted/iPhone proof until verified.
+
+---
+
 ## iPhone native Files share added without changing current PNG download
 
 [Real customer Photos UI source `1bff6de`](https://github.com/kylebrooks86/first-in-response-website/commit/1bff6de6957ffc5c6b0f79553b1e6bc3d0c249d5) preserves the existing direct `FIRE-before-after.png` download and retains the rendered file **in memory** after asynchronous full-image canvas creation. It then offers a separate **Save or share comparison** owner button, calling `navigator.share({files:[file]})` on that fresh click before its first `await`; unsupported browsers use a fresh-click download. This follows the already-accepted FIRE photo-archive iOS user-gesture pattern, without changing original photo bytes or requiring cloud storage.

@@ -1,3 +1,9 @@
+## Nov 17 — preserve original-photo backup safety copy on new iPhone share feature
+
+[Copy-only source correction `f0746e1`](https://github.com/kylebrooks86/first-in-response-website/commit/f0746e141e627205fb80d878ae39c4fa3b1ef7fe) retains accepted `Keep the originals` warning after the new prepared PNG share UI. Actual synthetic Chrome share step had passed on previous SHA; historical source-copy assertion then caught the changed wording. No check removed or guard relaxed. [Evidence](evidence/FIRE_BEFORE_AFTER_CUSTOMER_NAME_PRIVACY_20261117.md). Latest CI pending, source only, 45/95 checklist, 4/10 gates, NEW LIVE DARK; no provider operations or owner tests.
+
+---
+
 ## November 17 — already addressed past appointment misclassification in owner Follow-ups
 
 [Actual source `2a42a55`](https://github.com/kylebrooks86/first-in-response-website/commit/2a42a555b702dd81d351db981af51f559f4043c9) changes `followupUrgency`: an already-past appointment cannot appear as future "within 0h"; it instead says owner should verify actual saved job status before contacting. Maintains Today queue rank, does not automatically send or write anything. Four focused test cases in existing `test-followup-triage.mjs`. [Evidence](evidence/FIRE_OVERDUE_APPOINTMENT_OWNER_TRIAGE_20261117.md). On exact appointment source SHA `2a42a555b702dd81d351db981af51f559f4043c9`, initial GitHub Actions were still executing and a later PR push superseded the long staging job; do **NOT** claim 25/25 or the changed triage test PASS until verified on a head including this commit. Separately the previous `7dd6ff0` photo-comparison privacy source completed **25/25 workflow groups SUCCESS**. Do NOT reopen the old accepted owner screenshots/tests. **45/95, formal 4/10; NEW LIVE DARK**, no provider/Cloudflare/R2/payment/merge/deploy action.
