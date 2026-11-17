@@ -1,3 +1,11 @@
+## Follow-up actual UI improvement — filtered same-job AFTER chooser (source `7d78e569`)
+
+[Second executable code commit `7d78e569be46fd7775c85c28ee7079ad9100b9b2`](https://github.com/kylebrooks86/first-in-response-website/commit/7d78e569be46fd7775c85c28ee7079ad9100b9b2) takes the previous fail-closed last-second export guard into the actual owner workflow: the AFTER selector and preview now show only same-customer, **same job-association** photos for the selected BEFORE. If the chosen BEFORE has no matching AFTER, the owner sees an explicit explanation and Create comparison is disabled; a foreign-job image is no longer previewed as an intended pair. Changing the customer clears stale selected job, BEFORE and AFTER IDs. Legacy customer-only photo pairs still work, and the final export guard remains independent defense-in-depth. The existing `test-offline-photo-vault.mjs` suite gains six additional assertions: same-job allowed, foreign-job excluded, legacy-only allowed/mixed excluded, foreign customer/category excluded, actual picker wired/disabled, and reset on customer change. Typed declarations track the new pure filter.
+
+At document update, exact-code GitHub Actions for this **second SHA** were only queued/in progress; **do not claim a PASS or four-target hosted parity**. The predecessor SHA `111073ca` had 24/25 green workflow groups and one long staging suite still in progress; do not attribute the predecessor results to the newer code. New and old UI updates remain **candidate source only**, 45/95 checklist, 4/10 gates, NEW LIVE DARK, no owner retest or provider/merge action.
+
+---
+
 # FIRE Business App — safer original-photo before/after comparisons (Nov 17, 2026)
 
 **Executable source commit:** [`111073ca9ddb0f95c6980fa1c82481d143ae03b7`](https://github.com/kylebrooks86/first-in-response-website/commit/111073ca9ddb0f95c6980fa1c82481d143ae03b7), in existing **draft, unmerged PR #270**. This is **source-only**, not provider/hosted photo or release evidence.

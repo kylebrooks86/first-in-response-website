@@ -1,3 +1,9 @@
+## November 17 — photo comparison picker filters to matching saved jobs
+
+Follow-up **actual owner app source** [`7d78e569`](https://github.com/kylebrooks86/first-in-response-website/commit/7d78e569be46fd7775c85c28ee7079ad9100b9b2) now offers only same-job original AFTER images when selecting a BEFORE, disables unavailable pairs with explicit instructions, and resets stale selections when switching customers. The independent final cross-job export guard remains in place. Six targeted regression assertions + typed pure helper added in existing files. [Evidence](evidence/FIRE_BEFORE_AFTER_JOB_LINK_SAFETY_20261117.md). **Exact-code CI pending**, no hosted verification, checklist 45/95, gates 4/10; NEW LIVE DARK. Do not rerun accepted owner photo recoveries or attempt Cloudflare login/paid R2/provider writes/merge/deploy/Stripe.
+
+---
+
 ## November 17 — owner photo BEFORE/AFTER comparison now rejects cross-job mixes
 
 [Actual candidate app-source patch `111073ca`](https://github.com/kylebrooks86/first-in-response-website/commit/111073ca9ddb0f95c6980fa1c82481d143ae03b7) updates the **real** owner Photos comparison UI and pure helper to reject two numbered-job photos from different jobs, job-linked + customer-only mixed pairs, cross-customer photos and invalid before/after selections before exporting any marketing graphic; same-job and both legacy customer-only originals remain supported. Six focused tests added to the already-existing photo suite. [Bounded evidence](evidence/FIRE_BEFORE_AFTER_JOB_LINK_SAFETY_20261117.md). Initial exact-source CI was queued/running, not established PASS. **No release/checklist checkbox changed: 45/95; formal 4/10; NEW LIVE DARK.** Source is unmerged/undeployed, with no Cloudflare login, provider/SQL/Stripe/R2 write, paid service, owner iPhone retest or merge.
