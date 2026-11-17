@@ -98,4 +98,28 @@ try{
  const body=JSON.stringify(await response.json());check(!body.includes(config.key)&&!body.includes(env.STRIPE_WEBHOOK_SECRET),'Actual route hides both API and signing secrets');
  delete env.FIRE_STRIPE_EXPECTED_ACCOUNT_ID;check((await route.GET()).status===503,'Actual route fails closed without an explicit account pin');
 }finally{globalThis.fetch=previous;}
+// Even with the compiled "live" deployment adapter, actual DR and NEW LIVE
+// prelaunch must refuse Stripe diagnostics while TEST mode is disabled.
+// This test goes through the ACTUAL owner-authenticated route, not a regex
+// source assertion or provider connection.
+const darkRuntime={...env,FIRE_STRIPE_MODE:'disabled',FIRE_ENV:'isolated-dr'};
+const darkRoute=load('../app/api/payments/connection/route.ts',{
+ 'cloudflare:workers':{env:darkRuntime},
+ '../../../chatgpt-auth':{getChatGPTUser:async()=>owner},
+ '../../../local-customer-deployment':{LOCAL_CUSTOMER_DEPLOYMENT:'live'},
+ '../../../../lib/stripe-connection-inspection':{inspectStripeConnection}
+});
+const beforeFetch=globalThis.fetch;
+globalThis.fetch=async()=>{throw Error('Dark Worker must not contact Stripe');};
+try{
+ for(const target of ['isolated-dr','new-live-prelaunch','cloudflare-qa','unrecognized-private-target']){
+  darkRuntime.FIRE_ENV=target;
+  const response=await darkRoute.GET();
+  const body=await response.json();
+  check(response.status===503 && body.connectionReady===false &&
+        body.reason==='stripe_test_mode_disabled' && body.diagnosticOnly===true &&
+        body.endToEndVerified===false,
+    target+' live-compiled adapter refuses owner Stripe connection/probe in disabled prelaunch');
+ }
+}finally{globalThis.fetch=beforeFetch;}
 console.log('PASS '+checks+' actual-source Stripe configuration/currency assertions; no external requests, writes or credentials.');
