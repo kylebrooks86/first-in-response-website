@@ -8,7 +8,7 @@ const db=new DatabaseSync(':memory:');
 for(const name of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())
   db.exec(readFileSync('drizzle/'+name,'utf8'));
 let user={email:'kylebrooks8605@gmail.com'},loseAck=false,loseBatchAck=false;
-let raceAppointment=null;
+let raceAppointment=null,raceContact=null;
 const prep=sql=>({sql,values:[],bind(...values){return {...this,values}},
   async first(){return db.prepare(sql).get(...this.values)??null},
   async all(){return {results:db.prepare(sql).all(...this.values)}},
@@ -20,6 +20,11 @@ const prep=sql=>({sql,values:[],bind(...values){return {...this,values}},
       db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?')
         .run(race.status,race.scheduledAt,race.id);
     }
+    if(raceContact&&sql.includes('INSERT OR IGNORE INTO customer_messages')){
+      const update=raceContact;raceContact=null;
+      db.prepare('UPDATE customers SET phone=?,email=? WHERE id=?')
+        .run(update.phone,update.email,update.id);
+    }
     const result=db.prepare(sql).run(...this.values);if(loseAck){loseAck=false;throw Error('Synthetic committed message write lost D1 ACK');}return {meta:{changes:Number(result.changes)}}}
 });
 const env={DB:{prepare:prep,async batch(rows){
@@ -29,13 +34,14 @@ const env={DB:{prepare:prep,async batch(rows){
 }}};
 const route=createRouteFixtureLoader(process.cwd(),env,()=>user)('app/api/customer-messages/route.ts');
 const customerId=randomUUID();
-db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(customerId,'Synthetic Message Customer',new Date().toISOString());
+db.prepare('INSERT INTO customers(id,name,phone,email,created_at) VALUES(?,?,?,?,?)')
+ .run(customerId,'Synthetic Message Customer','(918) 555-0111','synthetic@example.invalid',new Date().toISOString());
 const post=body=>route.POST(new Request('https://synthetic.invalid/api/customer-messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
 const patch=body=>route.PATCH(new Request('https://synthetic.invalid/api/customer-messages',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
 const list=()=>route.GET(new Request('https://synthetic.invalid/api/customer-messages?customerId='+customerId));
 let checks=0;
 const eq=(actual,expected)=>{assert.deepEqual(actual,expected);checks++};
-const base={customerId,estimateId:'',channel:'text_prepared',template:'custom',body:'Synthetic reminder — no provider delivery',requestId:randomUUID()};
+const base={customerId,estimateId:'',channel:'text_prepared',template:'custom',body:'Synthetic reminder — no provider delivery',requestId:randomUUID(),recipientSnapshot:'(918) 555-0111'};
 try{
  user=null;eq((await post(base)).status,401);eq((await patch({})).status,401);eq((await list()).status,401);
  user={email:'kylebrooks8605@gmail.com'};
@@ -143,5 +149,62 @@ try{
  // A genuinely custom follow-up remains available after the job ends.
  eq((await post({...appointment,template:'custom',body:'Please call when convenient',requestId:randomUUID()})).status,201);
  eq(readFileSync('app/dashboard.tsx','utf8').includes('appointmentScheduledAt:estimate?.scheduledAt??""'),true);
- console.log('PASS: '+checks+' actual SQLite customer-message prepare/recover/confirm/cancel + stale appointment SQL-time race checks');
+ // Real contact-readiness preflight and SQL-time invalidation on saved
+ // customer data. All negative cases must create ZERO prepared rows.
+ const totalMessages=()=>Number(db.prepare('SELECT COUNT(*) AS n FROM customer_messages').get().n);
+ const beforeContact=totalMessages();
+ const textDraft={...base,requestId:randomUUID(),body:'Fresh synthetic text'};
+ const emailDraft={...textDraft,channel:'email_prepared',recipientSnapshot:'synthetic@example.invalid',requestId:randomUUID(),body:'Fresh synthetic email'};
+ db.prepare('UPDATE customers SET phone=NULL WHERE id=?').run(customerId);
+ eq((await post(textDraft)).status,409);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET phone=? WHERE id=?').run('not-a-phone-number',customerId);
+ eq((await post({...textDraft,requestId:randomUUID()})).status,409);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET phone=? WHERE id=?').run('(918) 555-0112',customerId);
+ eq((await post({...textDraft,requestId:randomUUID()})).status,409);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET phone=? WHERE id=?').run('(918) 555-0111',customerId);
+ eq((await post({...textDraft,recipientSnapshot:7,requestId:randomUUID()})).status,400);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET email=NULL WHERE id=?').run(customerId);
+ eq((await post(emailDraft)).status,409);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET email=? WHERE id=?').run('not-an-email',customerId);
+ eq((await post({...emailDraft,requestId:randomUUID()})).status,409);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET email=? WHERE id=?').run('other@example.invalid',customerId);
+ eq((await post({...emailDraft,requestId:randomUUID()})).status,409);
+ eq(totalMessages(),beforeContact);
+ db.prepare('UPDATE customers SET email=? WHERE id=?').run('synthetic@example.invalid',customerId);
+ eq((await post(emailDraft)).status,201);
+ eq(totalMessages(),beforeContact+1);
+ // Even a stable request-ID retry must refuse handing off an old receipt
+ // when the actual customer address was edited after preparation.
+ db.prepare('UPDATE customers SET email=? WHERE id=?').run('reassigned@example.invalid',customerId);
+ eq((await post(emailDraft)).status,409);
+ eq(totalMessages(),beforeContact+1);
+ db.prepare('UPDATE customers SET email=? WHERE id=?').run('synthetic@example.invalid',customerId);
+ // A second device changes the number AFTER the API's fresh SELECT but
+ // BEFORE the conditional INSERT. SQL must refuse the stale snapshot.
+ raceContact={id:customerId,phone:'(918) 555-0113',email:'synthetic@example.invalid'};
+ eq((await post({...textDraft,requestId:randomUUID(),body:'Phone changed during preparation'})).status,409);
+ eq(raceContact,null);
+ eq(totalMessages(),beforeContact+1);
+ db.prepare('UPDATE customers SET phone=? WHERE id=?').run('(918) 555-0111',customerId);
+ raceContact={id:customerId,phone:'(918) 555-0111',email:'new@example.invalid'};
+ eq((await post({...emailDraft,requestId:randomUUID(),body:'Email changed during preparation'})).status,409);
+ eq(raceContact,null);
+ eq(totalMessages(),beforeContact+1);
+ // Legacy clients without a snapshot are still required to have a valid
+ // contact at preflight and unchanged saved value in SQL.
+ db.prepare('UPDATE customers SET email=? WHERE id=?').run('synthetic@example.invalid',customerId);
+ eq((await post({...textDraft,recipientSnapshot:undefined,requestId:randomUUID(),body:'Legacy valid text'})).status,201);
+ // Copy-only owner audit must still work even if both contacts are absent.
+ db.prepare('UPDATE customers SET phone=NULL,email=NULL WHERE id=?').run(customerId);
+ eq((await post({...textDraft,channel:'copy',recipientSnapshot:undefined,requestId:randomUUID(),body:'Copy to notes, no send'})).status,201);
+ const composer=readFileSync('app/dashboard.tsx','utf8');
+ eq(composer.includes('recipientSnapshot:customer.phone??""'),true);
+ eq(composer.includes('recipientSnapshot:customer.email??""'),true);
+ console.log('PASS: '+checks+' actual SQLite customer-message prepare/recover/confirm/cancel + stale appointment and recipient SQL-time race checks');
 }finally{db.close();}
