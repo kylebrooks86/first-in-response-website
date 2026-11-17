@@ -603,6 +603,7 @@ jobs:
           node scripts/test-webhook-boundary.mjs .
           node scripts/test-stripe-refunds.mjs .
           node scripts/test-stripe-connection-inspection.mjs
+          node scripts/test-stripe-isolation.mjs
       - name: Verify compiled Worker can only target designated staging D1
         run: node business-app-parity/check_independent_staging_runtime_config.mjs "$RUNNER_TEMP/fire-independent-staging-candidate/dist/server/wrangler.json"
       - name: Verify compiled source exactly matches reviewed app and overlays
