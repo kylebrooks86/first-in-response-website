@@ -91,6 +91,19 @@ export async function POST(request: Request) {
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
       if(!linkedEstimate)return Response.json({error:"That estimate does not belong to this customer."},{status:409});
     }
+    // The client rechecks at the actual Text/Email/Copy click, but its
+    // browser state can be stale or bypassed. Confirm the *saved* appointment
+    // on the server before returning an idempotent draft as well as before INSERT.
+    const appointmentTemplate=template==="appointment"||template==="appointmentReminder";
+    const appointmentError="This saved appointment is no longer confirmed for a future time. Review the job status and schedule before preparing an appointment message.";
+    if(appointmentTemplate){
+      if(!estimateId)return Response.json({error:appointmentError},{status:409});
+      const currentJob=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
+        .bind(estimateId,customerId).first<{status:string;scheduledAt:string|null}>();
+      const time=currentJob?.scheduledAt?Date.parse(currentJob.scheduledAt):NaN;
+      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=Date.now())
+        return Response.json({error:appointmentError},{status:409});
+    }
     if(template==="review"){
       if(!estimateId)return Response.json({error:"A completed paid job is required before requesting a review."},{status:409});
       const reviewState=await env.DB.prepare(`SELECT e.status,
@@ -139,17 +152,27 @@ export async function POST(request: Request) {
        AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
        AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
      )`:"";
+    // The appointment can be completed, rescheduled or cancelled by another
+    // owner device AFTER the read above. Verify it again in the very same
+    // SQLite write; no old scheduled message may create a new prepared row.
+    const appointmentGuard=appointmentTemplate?` AND EXISTS (
+      SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='scheduled'
+        AND julianday(e.scheduled_at)>julianday('now')
+    )`:"";
     const write=await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
-      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}`)
+      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}${appointmentGuard}`)
       .bind(id,customerId,estimateId||null,channel,template,body,createdAt,
-        ...(template==="review"?[estimateId,customerId]:[])).run();
+        ...(template==="review"?[estimateId,customerId]:[]),
+        ...(appointmentTemplate?[estimateId,customerId]:[])).run();
     const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
       id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
     }>();
     if(!saved)return Response.json({error:template==="review"?
       "Review invitation eligibility changed during preparation. Recheck job completion, payment and refund status before trying again.":
+      appointmentTemplate?appointmentError:
       "Message preparation is not verified. Check saved drafts before retrying."},
-      {status:template==="review"&&write.meta.changes===0?409:503,headers:{"Cache-Control":"no-store, private"}});
+      {status:(template==="review"||appointmentTemplate)&&write.meta.changes===0?409:503,
+       headers:{"Cache-Control":"no-store, private"}});
     if(!matches(saved))return Response.json({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
     return Response.json({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
   } catch {
