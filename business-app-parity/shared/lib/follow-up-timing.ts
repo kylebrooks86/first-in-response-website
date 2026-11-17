@@ -73,8 +73,13 @@ export function followupUrgency(item:FollowupUrgencyInput,now:number):{bucket:Fo
  if(["followUp1","followUp3","followUp7"].includes(item.template)){
    const first=date(item.estimate.firstEstimateSentAt);
    if(first===null||!Number.isFinite(now))return {bucket:"review",label:"Confirm estimate send date first",rank:4};
+   // Corrupt/future send evidence must not suggest contacting a customer now.
+   // A valid scheduled recommendation can be shown in the full list, but it
+   // must not be pulled into the owner Today queue before its target day.
+   if(first>now)return {bucket:"review",label:"Estimate send date is in the future · verify saved history",rank:4};
    const stage=item.template==="followUp7"?7:item.template==="followUp3"?3:1;
    const lag=now-(first+stage*day);
+   if(lag<0)return {bucket:"upcoming",label:`Suggested day ${stage} in ${Math.ceil(-lag/day)}d`,rank:7};
    if(lag>=day)return {bucket:"past-target",label:`Past suggested day ${stage} by ${Math.floor(lag/day)}d`,rank:2};
    return {bucket:"due",label:`Suggested day ${stage} follow-up due`,rank:3};
  }
