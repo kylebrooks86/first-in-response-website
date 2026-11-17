@@ -110,6 +110,9 @@ export function todayActionLane(item:TodayQueueAction,now:number):TodayQueueLane
  // A recorded overage is a ledger exception to inspect, not authorization to
  // contact, refund, or collect. Keep it prominent in Today but label it VERIFY.
  if(Number(item.estimate.paymentOverageOpen)>0)return "verify";
+ // An appointment already past its saved time requires checking the job's
+ // actual status before any customer reminder is prepared or sent.
+ if(item.template==="appointmentReminder"&&urgency.bucket==="past-target")return "verify";
  if(urgency.rank<=3)return "now";
  if(item.kind==="history"||item.template==="invoiceReminder"||item.estimate.status==="draft")return "verify";
  return null;
