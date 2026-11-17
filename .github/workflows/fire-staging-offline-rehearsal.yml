@@ -94,6 +94,7 @@ jobs:
             business-app-parity/shared/scripts/test-invoice-create-confirmed-sqlite.mjs \
             business-app-parity/shared/scripts/test-followup-exact-lookup.mjs \
             business-app-parity/shared/scripts/test-followup-concurrent-idempotency.mjs \
+            business-app-parity/shared/scripts/test-customer-property-create-receipt-sqlite.mjs \
             business-app-parity/shared/scripts/test-followup-saved-service-lines-sqlite.mjs \
             business-app-parity/shared/scripts/test-photo-upload-integrity.mjs \
             business-app-parity/shared/scripts/test-photo-upload-sqlite-commit.mjs; do
@@ -559,6 +560,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
+      - name: Candidate-only customer property idempotent save, lost D1 ACK and owner isolation (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-customer-property-create-receipt-sqlite.mjs
       - name: FIRE owner task creation atomic customer/job ownership and lost ACK (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
