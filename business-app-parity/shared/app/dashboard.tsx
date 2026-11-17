@@ -591,7 +591,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     // Keep internal line breaks; only surrounding whitespace is discarded.
     const messageBody=body.trim();
     if(!messageBody){setMessageStatus("Write a message before preparing it.");return false;}
-    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body:messageBody};
+    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body:messageBody,
+      // Bind this exact previewed appointment to the job timestamp that is
+      // still saved at the time of the server's atomic preparation write.
+      ...(template==="appointment"||template==="appointmentReminder"
+        ?{appointmentScheduledAt:estimate?.scheduledAt??""}:{})};
     const signature=JSON.stringify(payload);
     if(uncertainPreparation.current&&uncertainPreparation.current.signature!==signature){
       setMessageStatus("A previous message preparation is unconfirmed. Restore its original text and retry the same request, or reopen saved drafts to verify it first.");
