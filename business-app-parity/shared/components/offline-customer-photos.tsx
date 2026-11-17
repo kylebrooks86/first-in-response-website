@@ -320,7 +320,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    // after asynchronous image decoding to open its native share sheet.
    const url=URL.createObjectURL(file),link=document.createElement('a');link.href=url;link.download=file.name;link.click();
    window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
-   setMessage('Comparison prepared and download offered. On iPhone, tap Save or share comparison to open Files. Keep original photos in your separate backup.');
+   setMessage('Comparison prepared and download offered. On iPhone, tap Save or share comparison to open Files. Keep the originals in your separate backup.');
   }catch(err){setError(err instanceof Error?err.message:'Comparison failed.');}
   finally{active.current=false;setBusy(false);}
  };
