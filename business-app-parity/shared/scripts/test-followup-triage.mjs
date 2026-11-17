@@ -43,6 +43,20 @@ assert.equal(context.exports.todayActionLane(dueAction,now),'now','Normal eligib
 const overageQueue=context.exports.todayCustomerQueue([overageAction,dueAction],now);
 assert.equal(overageQueue[0].lane,'verify','The displayed billing exception keeps its verify-only lane');n++;
 assert.equal(overageQueue[1].lane,'now','Unrelated ordinary follow-up retains normal lane');n++;
+
+// Customer deduplication must choose the highest-priority saved action even
+// when its record appears AFTER a routine reminder in the API action order.
+const routineSameCustomer=job('followUp1','followup',{estimate:{id:'routine-before-exception',customerId:'billing-customer',firstEstimateSentAt:at(-1)}});
+const unsortedActions=[dueAction,routineSameCustomer,overageAction];
+const sortedToday=context.exports.todayCustomerQueue(unsortedActions,now);
+assert.equal(sortedToday.length,2,'Only one Today action per homeowner is shown');n++;
+assert.equal(sortedToday[0].item.estimate.id,'overage-queue','Later billing exception outranks earlier ordinary actions');n++;
+assert.equal(sortedToday[0].lane,'verify','Highest-priority financial exception still requires verification');n++;
+assert.equal(sortedToday[0].additionalCustomerActions,1,'Other same-customer actions remain counted');n++;
+assert.equal(sortedToday[1].item.estimate.id,'normal-due','Other customer remains in Today after prioritization');n++;
+assert.equal(context.exports.todayCustomerQueue(unsortedActions,now,1)[0].item.estimate.id,'overage-queue','Five-card cap applies after urgency sorting');n++;
+const equalPriority=context.exports.todayCustomerQueue([dueAction,routineSameCustomer],now);
+assert.equal(equalPriority[0].item.estimate.id,'normal-due','Equal urgency preserves original action order');n++;
 check(job('winBack6','repeat',{dueAt:at(-4)}),'past-target',/passed by 4d/);
 check(job('winBack6','repeat',{dueAt:at(10)}),'upcoming',/in 10d/);
 check(job('winBack11','repeat',{dueAt:at(0)}),'due',/target reached/);
