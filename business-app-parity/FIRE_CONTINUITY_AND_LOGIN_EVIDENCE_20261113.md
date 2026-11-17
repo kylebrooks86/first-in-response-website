@@ -1,3 +1,13 @@
+## November 17 — G4-03 complete from existing evidence (36/95); Gate 9 fallback boots offline
+
+The [master checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#g4-03-hosted-d1-binding-evidence) now reconciles the four observed hosted `DB` aliases with four distinct physical D1 IDs. STAGING is evidenced by its authenticated Worker Settings binding and a separate matching D1 listing. QA, DR and NEW LIVE have exact-version binding readbacks. This closes G4-03 for the recorded bindings. Hosted source/asset parity, ingress, current-candidate STAGING evidence and full Gate 4 remain open. Existing owner evidence was reused.
+
+Gate 9 source change [`2e7fd81`](https://github.com/kylebrooks86/first-in-response-website/commit/2e7fd8124dcb4147ebcc0aca89bbaa4d175e9f47) retires the historical `--execute` command before Git, build access, credential lookup or provider calls. Offline preflight remains available. Five focused local tests passed. [Provider-contract CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44086157704) passed at `705cf38c30e03bf551dd6ee50494fa29274ef936`. [Exact saved Worker-only fallback CI](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44086158101) passed local Wrangler packaging and 7/7 workerd denial probes for home, customers, Checkout, refunds, webhook, and GET/HEAD for a compiled asset. It used an isolated local D1 and Stripe-disabled activation. [Public website and calculator protection](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44086158105) passed. The historical provider responses still need resolution, so G9-02 remains open. G9-03 still requires exact approval and its target-bound preflight. No Cloudflare login, provider action, migration, payment, merge or deploy.
+
+**36/95 checked, 59 open. Formal Gates 1/2/3/8 accepted (4/10). NEW LIVE DARK.**
+
+---
+
 **FINAL exact source/test commit CI verification:** GitHub has now completed **25/25 PR workflow groups SUCCESS** for exact Gate9 source SHA `ec32566f6c512914fecca04f868253c20374d972` (independently fetched by commit), including [full staged SQLite+Chrome six-job suite #44034840333](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44034840333) **6/6 SUCCESS**, [Gate9 sealed source/artifact #44034840220](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44034840220) SUCCESS, public website and calculator guards SUCCESS. **This is source-only/offline; does not add a hosted gate.**
 
 <!-- FIRE_G9_REAL_SEALED_TEST_SOURCE_PRIVATE_CUSTODY_20261117 -->

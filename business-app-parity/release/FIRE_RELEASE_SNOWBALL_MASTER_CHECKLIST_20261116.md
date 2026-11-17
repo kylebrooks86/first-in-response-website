@@ -4,6 +4,8 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 **How to check off:** Tick each atomic step ONLY after the linked accepted evidence actually demonstrates the exact target/source and requirement. An individual checked subtask **does not close its parent gate**. Work top-to-bottom, but parallelize independent read-only tasks. Never repeat existing accepted checks. User decisions are required only when an action actually modifies providers, merges, activates, migrates, spends money or cuts over.
 
+**November 17 update — 36/95 complete, 59 open, 4/10 formal gates accepted.** G4-03 is complete from existing authenticated binding and physical D1 inventory evidence. The four-environment record is below. In parallel, [the spent Stripe TEST upload command was made preflight-only](https://github.com/kylebrooks86/first-in-response-website/commit/2e7fd8124dcb4147ebcc0aca89bbaa4d175e9f47), and [the saved Worker-only fallback passed Wrangler packaging plus 7/7 local workerd denial probes](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44086158101). G9-02 and G9-03 remain open for provider resolution and target-bound approval/preflight respectively. NEW LIVE remains DARK.
+
 ## Evidence base
 - SOURCE OF TRUTH: https://github.com/kylebrooks86/first-in-response-website/issues/19
 - Continuity: business-app-parity/FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md
@@ -17,7 +19,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - **Newer exact executable-code SHA `8c2b50d5a4e311afdd98d2ae1d64fef42c2f82a2` has 27/27 GitHub workflows SUCCESS** (independently fetched by commit SHA); [staging/native SQLite/Chrome run #44024946759](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024946759) all six jobs SUCCESS. Earlier `0c0a334f` queued/cancelled status is superseded, NOT PASS. Later PR270 documentation-only `[skip ci]` commits are not separately compiled code. B05 is now checked; no hosted proof implied.
 - Latest active NEW LIVE immutable physical version: `cfacbb3d-43de-4d2c-8008-c6732d78f756`. This is **not** the new unmerged PR270 runtime.
 
-**SNOWBALL PROGRESS UPDATE — November 16–17 CST: 35/95 atomic tasks checked (initial 22; A01–A18/B01–B15 complete, plus G7-08 exact offline fail-closed negative recovery PASS 91/91 and G10-05 planning approval). 60 remain. No new formal gate accepted (4/10).**
+**PREVIOUS SNOWBALL PROGRESS UPDATE — November 16–17 CST: 35/95 atomic tasks checked (initial 22; A01–A18/B01–B15 complete, plus G7-08 exact offline fail-closed negative recovery PASS 91/91 and G10-05 planning approval). 60 remain. No new formal gate accepted (4/10).**
 
 **Actual G9-03 SOURCE SEAL now completed, but checkbox STILL OPEN pending exact provider-action approval/hosted preflight:** The isolated TEST Worker-only candidate from source `ec32566f6c512914fecca04f868253c20374d972` passed [full local Gate9 build+24/24 source negative tests+real same-run GitHub saved-artifact readback](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44034840220), with 192 original SSR modules, 41 actual client Data assets, dedicated TEST D1 source binding, `FIRE_STRIPE_MODE=disabled`, private activation `blocked`, no R2 and predecessor rollback reference. Exact immutable ZIP artifact `14307460618` / raw SHA256 `3f163ecaebf0637671afd1615078999e49dd79e678f7d3b55ab7a45fcd4dd983` / **3,149,992 bytes** / 240 ZIP entries CRC PASS was uploaded to existing PRIVATE FIRE Drive backup folder as a NEW file, and independently raw re-downloaded matching exactly (shared:false). [Full custody / no-approval boundary](../evidence/FIRE_G9_TEST_INACTIVE_IMMUTABLE_SOURCE_SEAL_PRIVATE_DRIVE_20261117.md). **G9-03 remains [ ]** because exact new Cloudflare POST authorization and current target-bound Access/refund schema/serving-version readback have not happened; older failed 10013/HTTP400 locks are spent. Source-only release package ≠ hosted inactive version or Gate9 acceptance. **35/95 unchanged; zero provider writes.**
 
@@ -69,7 +71,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 - [ ] **G4-01** — Pin a single reviewed runtime source/build for QA, STAGING, DR and NEW LIVE; record independently hosted version/traffic for each target after any separately authorized code update.
 - [ ] **G4-02** — Attest full immutable served Worker executable modules AND auxiliary/static assets byte-for-byte to the reviewed source/build, not just a version prefix or local ZIP.
-- [ ] **G4-03** — Record distinct physical D1 IDs and correct runtime aliases for all four environments; independently verify no accidental shared data/storage.
+- [x] **G4-03** — Matched the hosted `DB` aliases for QA, STAGING, DR and NEW LIVE to four distinct physical D1 UUIDs using archived Worker binding captures and provider inventory. No shared D1 binding was found among those targets. [Four-environment proof below](#g4-03-hosted-d1-binding-evidence).
 - [ ] **G4-04** — Verify environment-specific origin, secret *names* and scopes, TEST-vs-LIVE payment mode isolation, photo mode and absence of R2 without publishing secrets.
 - [ ] **G4-05** — Check account/zone-wide routes, hostnames, preview aliases, externally reachable endpoints and Access policy scope; existing Worker-level OFF/empty screenshot is accepted but NOT complete ingress proof.
 - [ ] **G4-06** — Resolve the visible NO Worker-specific Access warning with an owner-approved protected/private ingress design, using no unapproved paid feature; verify the actual effect before any URL exposure.
@@ -152,4 +154,15 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - No unnecessary iPhone, Acer, Cloudflare login, provider screenshot or synthetic regression repetition. Recheck only a specific changed function after an approved change.
 - The owner has work data/screenshots available. Ask only for a **specific remaining original hosted evidence gap** after searching the connected records.
 
-**Subtask snapshot (latest).** 35/95 items checked, 60 open. G7-08 records offline fail-closed recovery and G10-05 records owner planning approval. Formal gate count is 4/10.
+**Subtask snapshot (latest).** 36/95 items checked, 59 open. G4-03 records physical D1 binding isolation, G7-08 records offline fail-closed recovery, and G10-05 records owner planning approval. Formal gate count is 4/10.
+
+### G4-03 hosted D1 binding evidence
+
+| Environment | Hosted Worker | D1 binding | Physical D1 UUID | Existing evidence |
+| --- | --- | --- | --- | --- |
+| QA | `fire-fullapp-qa-20261016` | `DB → fire-fullapp-qa-db-20261016` | `8ccfb1f8-1657-4074-b1b2-47de78f95003` | [Version binding readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6921614028) |
+| STAGING | `fire-app-independent-staging` | `DB → fire-app-staging-db` | `afb2c05a-d794-4a9a-b580-924ce01c26ad` | [Hosted Worker binding](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6853475014) + [physical name-to-ID inventory](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6866906104) |
+| DR | `fire-fullapp-dr` | `DB → fire-fullapp-dr-db` | `5e55c5b7-cd67-4c8f-a52e-40f71b5d3145` | [Post-update version binding readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6927144670) |
+| NEW LIVE | `fire-fullapp-new-live` | `DB → fire-fullapp-new-live-db` | `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662` | [Post-update version binding readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6937417820) |
+
+The four recorded `DB` bindings resolve to **four different physical D1 IDs**. The QA, DR and NEW LIVE version readbacks show no R2, and the STAGING Worker binding capture shows its sole visible D1 binding and no visible R2. STAGING is corroborated by matching the exact database name to the independent D1 inventory; its screenshot only shows the short version prefix. **G4-03 covers binding-level isolation for the recorded hosted versions.** Full hosted source parity, current-candidate STAGING validation, ingress and data-level testing remain open under their own checklist items. This evidence review used prior owner records without contacting Cloudflare.
