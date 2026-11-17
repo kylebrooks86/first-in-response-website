@@ -113,8 +113,9 @@ try{
   ok(done.clientDataAssets===assets.length,target+' verifies every saved client Data byte');
   const cfg=JSON.parse(readFileSync(join(out,'server/wrangler.json'),'utf8'));
   ok(cfg.d1_databases[0].database_id===f.spec.id&&cfg.workers_dev===false&&
-     cfg.preview_urls===false&&cfg.r2_buckets.length===0,
-     target+' physical D1 identity recorded and all public routes/R2 disabled');
+     cfg.preview_urls===false&&cfg.r2_buckets.length===0&&
+     cfg.observability?.enabled===false,
+     target+' physical D1, private routes, no R2 and invocation observability disabled');
   ok(cfg.vars[f.spec.prefix+'_AUTH_ENABLED']==='blocked'&&
      cfg.vars.FIRE_PHOTO_STORAGE_MODE==='owner-device-zip',
      target+' no auth/payment/photo cloud activation');
@@ -184,6 +185,13 @@ try{
   rehashUnsignedReceipt(out);
   denied(()=>verifyCurrentDarkWorkerPackage(target,out),
     target+' silent payment activation despite rewritten unsigned receipt');
+  put(c,originalConfig);
+  const logEnabled=JSON.parse(originalConfig.toString());
+  logEnabled.observability={enabled:true};
+  put(c,JSON.stringify(logEnabled,null,2)+'\n');
+  rehashUnsignedReceipt(out);
+  denied(()=>verifyCurrentDarkWorkerPackage(target,out),
+    target+' source receipt cannot silently re-enable invocation logs');
   put(c,originalConfig);
 
   const originalEntry=readFileSync(join(out,'server/fire-noassets-entry.mjs'));
