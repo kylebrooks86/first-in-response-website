@@ -6,9 +6,18 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {compareImmutableModuleBytes} from './owner_new_live_immutable_module_bytes_readonly.mjs';
+import {compareImmutableModuleBytes,verifyOriginalNewLiveSuccessReceipt} from './owner_new_live_immutable_module_bytes_readonly.mjs';
+import {TARGETS} from './owner_existing_dark_code_update_once_approved.mjs';
 
 const sha=b=>createHash('sha256').update(b).digest('hex');
+const successReceipt=()=>({
+ target:'new-live',worker:TARGETS['new-live'].name,
+ sourceSha:'15bd714c435a585f695ed7166cf06d2c31ea1a8e',
+ originalVersion:TARGETS['new-live'].previousVersion,
+ physicalD1:TARGETS['new-live'].uuid,cliSuccess:true,
+ postdeployHostedVerification:false,hostedParityAccepted:false,gate4Accepted:false,
+ gate10Accepted:false,timeUtc:'2026-11-17T03:24:00.000Z'
+});
 const VERSION='cfacbb3d-43de-4d2c-8008-c6732d78f756';
 const textFor=n=>Buffer.from('FIRE QA synthetic immutable module '+n+'\n','utf8');
 const fixture=()=>{
@@ -42,6 +51,31 @@ const denied=(name,mutate)=>{
  test(name,()=>assert.throws(()=>compareImmutableModuleBytes(f.provider,f.inventory),
   /FIRE NEW LIVE IMMUTABLE MODULE PROOF STOP/));
 };
+test('accept exact NEW LIVE one-shot publisher success receipt',()=>{
+ assert.equal(verifyOriginalNewLiveSuccessReceipt(successReceipt()),true);
+});
+test('reject actual DR success receipt as wrong environment',()=>{
+ assert.throws(()=>verifyOriginalNewLiveSuccessReceipt({...successReceipt(),target:'dr'}),
+  /FIRE NEW LIVE IMMUTABLE MODULE PROOF STOP/);
+});
+test('reject receipt with DR worker despite correct NEW LIVE target',()=>{
+ assert.throws(()=>verifyOriginalNewLiveSuccessReceipt({...successReceipt(),worker:TARGETS.dr.name}),
+  /FIRE NEW LIVE IMMUTABLE MODULE PROOF STOP/);
+});
+test('reject receipt with unrelated physical D1',()=>{
+ assert.throws(()=>verifyOriginalNewLiveSuccessReceipt({...successReceipt(),physicalD1:TARGETS.dr.uuid}),
+  /FIRE NEW LIVE IMMUTABLE MODULE PROOF STOP/);
+});
+test('reject receipt with wrong predecessor immutable version',()=>{
+ assert.throws(()=>verifyOriginalNewLiveSuccessReceipt({...successReceipt(),originalVersion:TARGETS.dr.previousVersion}),
+  /FIRE NEW LIVE IMMUTABLE MODULE PROOF STOP/);
+});
+test('reject incomplete or unconfirmed owner publisher receipt',()=>{
+ for(const change of [{cliSuccess:false},{gate4Accepted:true},{hostedParityAccepted:true},{sourceSha:'wrong'}]){
+  assert.throws(()=>verifyOriginalNewLiveSuccessReceipt({...successReceipt(),...change}),
+   /FIRE NEW LIVE IMMUTABLE MODULE PROOF STOP/);
+ }
+});
 test('default executable mode is truly offline and reports no provider proof',()=>{
  const file=fileURLToPath(new URL('./owner_new_live_immutable_module_bytes_readonly.mjs',import.meta.url));
  const output=JSON.parse(execFileSync(process.execPath,[file],{encoding:'utf8',env:{...process.env,CI:'true'}}));

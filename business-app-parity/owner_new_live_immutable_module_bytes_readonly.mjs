@@ -166,6 +166,16 @@ export function compareImmutableModuleBytes(provider,inventory){
     deploymentPerformed:false,sourceUploaded:false,productionReady:false
   });
 }
+/** Validate the NEW LIVE receipt emitted by the consumed one-shot publisher.
+ * Keep this pure so target isolation can be tested without owner files. */
+export function verifyOriginalNewLiveSuccessReceipt(s){
+  if(!object(s)||s.target!=='new-live'||s.worker!==TARGETS['new-live'].name||
+     s.sourceSha!==SOURCE||s.originalVersion!==TARGETS['new-live'].previousVersion||
+     s.physicalD1!==TARGETS['new-live'].uuid||s.cliSuccess!==true||
+     s.hostedParityAccepted!==false||s.gate4Accepted!==false)
+    stop('original NEW LIVE upload success receipt inconsistent');
+  return true;
+}
 export function readOriginalNewLiveUpdateLock(){
   const workspace=join(homedir(),'Documents','FIRE-EXISTING-DARK-UPDATE-NEW-LIVE-'+SOURCE.slice(0,8));
   const lock=join(workspace,'REMOTE-UPDATE-ATTEMPT-LOCK.json');
@@ -177,11 +187,7 @@ export function readOriginalNewLiveUpdateLock(){
     s=JSON.parse(readFileSync(success,'utf8'));
   }catch{stop('original NEW LIVE attempt evidence unreadable')}
   verifyOriginalDarkUpdateAttempt('new-live',l);
-  if(!object(s)||s.target!=='dr'||s.worker!==TARGETS['new-live'].name||
-     s.sourceSha!==SOURCE||s.originalVersion!==TARGETS['new-live'].previousVersion||
-     s.physicalD1!==TARGETS['new-live'].uuid||s.cliSuccess!==true||
-     s.hostedParityAccepted!==false||s.gate4Accepted!==false)
-    stop('original NEW LIVE upload success receipt inconsistent');
+  verifyOriginalNewLiveSuccessReceipt(s);
   return true;
 }
 async function captureFromExistingCredential(zipPath){
