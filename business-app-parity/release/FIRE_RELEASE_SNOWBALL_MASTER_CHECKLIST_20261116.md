@@ -1,5 +1,7 @@
 # FIRE Business App — SNOWBALL MASTER RELEASE CHECKLIST
 
+**November 17 evidence follow-up — 45/95 checked, 50 open.** [Remaining evidence after the test audit](#remaining-evidence-after-the-test-audit) records the exact photo-association gap and the single missing ordered STAGING journal readback. No accepted test or screenshot capture was repeated.
+
 **November 17 evidence and test reconciliation — 45/95 checked, 50 open, 4/10 formal gates accepted.** [G6-01 and G7-06](#established-qa-fixtures-and-completed-disposable-restore) are complete for the hosted synthetic QA test setup and executed disposable full-record restore rehearsal.
 
 **November 17 screenshot reconciliation — 43/95 checked, 52 open, formal gates 4/10.** [G6-02](#g6-02-hosted-owner-sign-in-and-session-reentry) closes the originally approved owner sign-in, private redirect and reentry checks on hosted QA and TEST. The owner requested PIN/passkey development, but no hosted activation or real-device passkey acceptance is recorded. This sign-in result does not extend to DARK endpoints.
@@ -253,3 +255,15 @@ The [independent STAGING journal capture](https://github.com/kylebrooks86/first-
 | [Actual sealed Worker-only TEST artifact and simulated provider readback](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44094367229) passed all 41 embedded assets, the immutable version inputs and the predecessor traffic guard. | G9-03/G9-04 still need fresh exact authority and real provider readback. Signed Stripe TEST delivery is separately open. |
 
 This reconciliation used the prior review of 157 available project images, retained Issue #19 records and the original GitHub Actions results. No previously accepted owner or CI test was rerun.
+
+### Remaining evidence after the test audit
+
+- **G7-07:** The [actual paired recovery test](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43798962371) and [native SQLite recovery test](https://github.com/kylebrooks86/first-in-response-website/actions/runs/43664232024) restored and reopened the synthetic source-photo ZIP, rechecked original bytes/CRC/SHA and preserved photo-to-customer identity. The [photo archive record](https://github.com/kylebrooks86/first-in-response-website/blob/4343e345b697dc95db2e92dc4b89359a3fcddd8d/business-app-parity/shared/lib/offline-photo-backup.ts) carries `customerId` and category but no job identifier. The [device vault](https://github.com/kylebrooks86/first-in-response-website/blob/4343e345b697dc95db2e92dc4b89359a3fcddd8d/business-app-parity/shared/lib/local-photo-vault.ts) indexes by customer. A numbered job was also restored in the DB fixture; that does not prove any individual photo's association with that job. Require verifiable job-level association where applicable and the actual owner backup before closing this item.
+- **G6-08:** Prior executed [built Worker association and synthetic origin controls](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6722872604) and [shared-app QA native SQLite checks](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024946759) already cover local cross-origin denial and no-customer-data/charge behavior. Keep those results. The remaining requirement is hosted mutation/privilege evidence for the intended candidate. A complete live customer separation test is independently G6-05.
+- **G5-01:** The original [independent STAGING read-only query](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6513700760) returned 22 records but only its last three names were visible. The [older locally restored export](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6563777438) confirms record counts and integrity but did not record the complete ordered filenames. Reuse both. If that original full result is still available, read it. Otherwise the only journal capture needed is the ordered `id,name` output from the already verified `fire-app-staging-db` (physical D1 `afb2c05a-d794-4a9a-b580-924ce01c26ad`), through the owner's existing authenticated session. Do not collect business rows, repeat DR/NEW LIVE 26/26 proof or apply migrations.
+
+```sql
+SELECT id, name FROM d1_migrations ORDER BY id;
+```
+
+New Cloudflare login, provider changes, paid services, merge and deployment remain outside this evidence review.

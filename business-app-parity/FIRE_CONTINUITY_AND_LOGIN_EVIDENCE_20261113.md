@@ -1,3 +1,11 @@
+## November 17 — reviewed test evidence without reopening accepted checks
+
+**November 17 evidence follow-up — 45/95 checked, 50 open.** [Remaining evidence after the test audit](#remaining-evidence-after-the-test-audit) records the exact photo-association gap and the single missing ordered STAGING journal readback. No accepted test or screenshot capture was repeated.
+
+The [exact cross-check](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md#remaining-evidence-after-the-test-audit) separates verified restored photo bytes and customer links from an unproven per-job photo association. It retains prior hosted and local checks and narrows independent STAGING journal evidence to the full ordered name list. No new Cloudflare login, application change, deployment, or rerun. Formal gates 4/10; NEW LIVE dark.
+
+---
+
 ## November 17 — existing hosted and executed test evidence closes G6-01 and G7-06
 
 **November 17 evidence and test reconciliation — 45/95 checked, 50 open, 4/10 formal gates accepted.** [G6-01 and G7-06](#established-qa-fixtures-and-completed-disposable-restore) are complete for the hosted synthetic QA test setup and executed disposable full-record restore rehearsal.
