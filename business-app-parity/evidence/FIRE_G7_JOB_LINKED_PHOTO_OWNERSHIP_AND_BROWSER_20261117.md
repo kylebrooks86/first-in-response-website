@@ -26,3 +26,14 @@ On source commit `65bf530e8c4c2706e10207e12720abd50c133045`, [Gate7 protected sa
 - G4/G5/G6/G9/G10: independently hosted QA/STAGING/DR/LIVE parity/Access/nonowner denial, Stripe-signed TEST payment/refund and final release authorizations remain separate.
 
 **Checklist remains 45/95 checked; formal gates remain G1/G2/G3/G8 accepted (4/10).** G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO, first real Job #0001 not created. No Cloudflare login, provider mutation, SQL, Stripe, paid Cloudflare/R2, merge, DNS, Access or deployment performed.
+
+## Exact focused Chrome outcome (later readback)
+
+The added, genuinely executable [staging workflow run #44120832586](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44120832586) on exact app code SHA `65bf530e8c4c2706e10207e12720abd50c133045` confirmed the following specific steps **COMPLETED SUCCESS**:
+- **Gate 7 numbered job-linked photo capture/restore and customer isolation (real disposable Chrome IndexedDB)**
+- **Gate 7 changed protected photo UI actual Chrome export/verify/restore (synthetic only)**
+- **Gate 7 bounded photo upload, safe viewing and verified deletion (no remote storage)**
+- **Gate 7 strict offline photo ZIP restore rejects forged directory metadata (no provider)**
+
+At this job-step readback the entire staging workflow still had in-progress jobs; **do not represent full workflow as green until GitHub reports completion**. This targeted evidence verifies changed source functions and disposable local browser only. It proves neither actual iPhone owner/job restore nor protected hosted source/owner pairing.
+
