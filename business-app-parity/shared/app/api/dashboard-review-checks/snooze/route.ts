@@ -1,5 +1,6 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../../lib/customer-write-request-guard.mjs";
 export const dynamic="force-dynamic";
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{"Cache-Control":"no-store, private"}});
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -8,8 +9,10 @@ type Receipt={id:string;customerId:string;estimateId:string|null;channel:string;
 export async function POST(request:Request){
  const owner=await getChatGPTUser();
  if(!owner||owner.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ const parsed=await readOwnerWriteObject(request,4096);
+ if(parsed.response)return parsed.response;
  try{
-  const input=await request.json() as Record<string,unknown>;
+  const input=parsed.value as Record<string,unknown>;
   const {customerId,requestedAt,operationId}=input;
   if(typeof customerId!=="string"||!customerId||customerId.length>128||
    typeof requestedAt!=="string"||requestedAt.length>64||!Number.isFinite(Date.parse(requestedAt))||
