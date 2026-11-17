@@ -1,3 +1,12 @@
+<!-- FIRE_NEW_LIVE_REAL_HOSTED_PHYSICAL_READBACK_20261116 -->
+## NOV 16 latest — NEW LIVE existing DARK code-only update ACTUALLY HOSTED; NEW-VERSION physical binding/rollback PASS
+
+**Do NOT repeat successful NEW LIVE update, owner Acer verifier, original one-shot lock, or 26/26 D1 migrations.** One-time exact owner-approved code-only UPDATE of existing DARK `fire-fullapp-new-live` completed (updater CLI success); genuine independent authenticated `wrangler deployments status` captured new 100%-serving version `cfacbb3d-43de-4d2c-8008-c6732d78f756`. Then original SHA-pinned reviewer `owner_existing_dark_code_update_postdeploy_readonly.mjs --capture new-live cfacbb3d-43de-4d2c-8008-c6732d78f756` returned `FIRE_EXISTING_DARK_NEW_VERSION_PHYSICAL_READBACK_PASS`: correct physical isolated D1 `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, dark auth disabled, no R2/extra bindings, immutable predecessor `adb5fd7c-ddd0-4e97-87e7-6a4045d42d09` listed for rollback (**not rolled back**), no verifier writes. Owner original lock and success receipt retained. Full exact physical proof and limitations: [dedicated evidence](evidence/FIRE_NEW_LIVE_POSTUPDATE_HOSTED_READBACK_20261116.md), canonical [continuity](FIRE_CONTINUITY_AND_LOGIN_EVIDENCE_20261113.md), and Issue19.
+
+**Critical boundary:** This proves a new version's actual serving identity, physical D1 binding, blocked hosted auth-vars and retained rollback listing, **NOT served JS/static bytes, post-update routes/preview/Access/nonowner deny, QA/STAGING/DR/NEW LIVE full functional parity, full future-data/photo recovery, signed Stripe TEST, or production readiness**. QA frozen app source candidate `15bd714c435a585f695ed7166cf06d2c31ea1a8e` is package input, not newly authenticated hosted byte hash. G1/G2/G3/G8 accepted **4/10**, G4/G5/G6/G7/G9/G10 still OPEN; NEW LIVE DARK/NO-GO, Job #0001 not enabled. No R2/paid Cloudflare, SQL/26 migrations, Stripe/payment, Access/auth/routes/DNS, merge or release. Focus ONLY unresolved physical gates, not duplicate owner device checks.
+
+---
+
 <!-- FIRE_OWNER_EXPENSE_INPUT_GUARD_GREEN_20261116 -->
 ## NOV 16 — Expense POST bounded financial JSON; validated without provider writes
 
