@@ -63,7 +63,11 @@ export function followupUrgency(item:FollowupUrgencyInput,now:number):{bucket:Fo
  if(item.template==="appointmentReminder"){
    const at=date(item.estimate.scheduledAt);
    if(at===null||!Number.isFinite(now))return {bucket:"review",label:"Appointment time needs verification",rank:4};
-   const hours=Math.max(0,Math.ceil((at-now)/3600000));
+   // Past jobs must NOT be presented as future appointments "within 0h".
+   // This is an owner-side review cue, not proof the job is unfinished or
+   // permission to send a reminder to the customer.
+   if(at<now)return {bucket:"past-target",label:"Appointment time passed · verify saved job status before contacting",rank:2};
+   const hours=Math.ceil((at-now)/3600000);
    return {bucket:"upcoming",label:`Appointment within ${hours}h`,rank:hours<=24?1:5};
  }
  if(["followUp1","followUp3","followUp7"].includes(item.template)){

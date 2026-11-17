@@ -18,6 +18,13 @@ check(job('followUp7','followup',{estimate:{firstEstimateSentAt:null}}),'review'
 check(job('invoiceReminder'),'review',/invoice due date unverified/);
 check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now+3*3600000).toISOString()}}),'upcoming',/within 3h/,1);
 check(job('appointmentReminder','followup',{estimate:{scheduledAt:'invalid'}}),'review',/verification/);
+check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now-1).toISOString()}}),'past-target',/time passed .*verify saved job status/,2);
+check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now-4*3600000).toISOString()}}),'past-target',/time passed .*verify saved job status/,2);
+check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now).toISOString()}}),'upcoming',/within 0h/,1);
+// A stale appointment belongs in Today's owner review, but must never be
+// called an upcoming booking or imply that a text was actually sent.
+const staleAppointment=job('appointmentReminder','followup',{estimate:{id:'late-job',customerId:'late-customer',scheduledAt:new Date(now-30000).toISOString()}});
+assert.equal(context.exports.todayActionLane(staleAppointment,now),'now','Past scheduled appointment remains actionable in owner Today queue');n++;
 check(job('winBack6','repeat',{dueAt:at(-4)}),'past-target',/passed by 4d/);
 check(job('winBack6','repeat',{dueAt:at(10)}),'upcoming',/in 10d/);
 check(job('winBack11','repeat',{dueAt:at(0)}),'due',/target reached/);
