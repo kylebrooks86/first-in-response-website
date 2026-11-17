@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -35,8 +36,10 @@ export async function POST(request: Request) {
     estimateId?: string; customerId?: string; checklist?: unknown; notes?: string;
     airflowBefore?: string; airflowAfter?: string; status?: string; complete?: boolean
   };
-  try { body = await request.json(); }
-  catch { return Response.json({ error: "A valid job-report request is required." }, { status: 400 }); }
+  // Authenticate before inspecting input; stream-limit the owner report before any D1 activity.
+  const parsed=await readOwnerWriteObject(request,64_000);
+  if(parsed.response)return parsed.response;
+  body=parsed.value as typeof body;
   if (!body.estimateId || !body.customerId)
     return Response.json({ error: "Job and customer are required." }, { status: 400 });
 
