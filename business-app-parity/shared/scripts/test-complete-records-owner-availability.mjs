@@ -129,15 +129,20 @@ pass(widget.includes("cache:'no-store'")&&
 
  // Exercise the ACTUAL TSX useEffect and fetch logic with a fake browser,
  // rather than relying only on string matches. No network or credentials.
- const {createRequire}=await import('node:module');
- const require=createRequire(import.meta.url),ts=require('typescript');
- const transpiled=ts.transpileModule(widget,{
-  compilerOptions:{jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,
-   module:ts.ModuleKind.CommonJS}
- }).outputText;
+ // Execute the actual guarded useEffect body with only its two explicit
+ // TypeScript annotations erased. This NO-INSTALL offline CI runner does not
+ // have the TypeScript package; do not add a network dependency for this test.
+ const start=widget.indexOf(" useEffect(()=>{");
+ const end=widget.indexOf("\n },[]);",start);
+ assert.ok(start>=0&&end>start,'Actual owner review effect is present');
+ const effectBody=widget.slice(start+" useEffect(()=>{".length,end)
+  .replace('const raw:unknown','const raw')
+  .replace('const payload=raw as Record<string,unknown>','const payload=raw');
+ assert.ok(!effectBody.includes('raw:unknown')&&!effectBody.includes('as Record<'),
+  'Test executes the actual owner effect body without TypeScript-only syntax');
  const listeners=new Map(),stateWrites=[];
  let activeFetch=()=>Promise.reject(Error('No synthetic reply configured'));
- let cleanup=null,requestCount=0;
+ let requestCount=0;
  const fakeWindow={
   addEventListener:(name,handler)=>listeners.set('window:'+name,handler),
   removeEventListener:(name,handler)=>{if(listeners.get('window:'+name)===handler)listeners.delete('window:'+name);}
@@ -146,16 +151,6 @@ pass(widget.includes("cache:'no-store'")&&
   visibilityState:'visible',
   addEventListener:(name,handler)=>listeners.set('document:'+name,handler),
   removeEventListener:(name,handler)=>{if(listeners.get('document:'+name)===handler)listeners.delete('document:'+name);}
- };
- const mockRequire=name=>{
-  if(name==='react')return {
-   useState:initial=>[initial,value=>stateWrites.push(value)],
-   useEffect:fn=>{cleanup=fn();}
-  };
-  if(name==='react/jsx-runtime')return {jsx:()=>null,jsxs:()=>null,Fragment:Symbol('fragment')};
-  if(name==='./complete-d1-records-review')return {CompleteD1RecordsReview:()=>null};
-  if(name==='./protected-pair-owner-review')return {ProtectedPairOwnerReview:()=>null};
-  throw Error('Unexpected browser test import '+name);
  };
  const response=(status=200)=>({
   ok:status===200,status,redirected:false,
@@ -173,14 +168,12 @@ pass(widget.includes("cache:'no-store'")&&
   assert.ok(init.signal instanceof AbortSignal);
   return activeFetch(init.signal);
  };
- const moduleExports={};
- new Function('require','module','exports','window','document','AbortController','fetch',transpiled)(
-  mockRequire,{exports:moduleExports},moduleExports,
-  fakeWindow,fakeDocument,AbortController,fakeFetch
- );
  const settle=async()=>new Promise(resolve=>setImmediate(resolve));
  activeFetch=async()=>response(200);
- moduleExports.OwnerCompleteRecoveryAvailability();
+ const cleanup=new Function('window','document','AbortController','fetch','setAllowed',effectBody)(
+  fakeWindow,fakeDocument,AbortController,fakeFetch,value=>stateWrites.push(value)
+ );
+ assert.equal(typeof cleanup,'function');
  await settle();
  pass(stateWrites.at(-1)===true&&requestCount===1,
   'Actual owner recovery widget enables only after successful private capability GET');
