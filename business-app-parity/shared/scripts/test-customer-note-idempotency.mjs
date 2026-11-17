@@ -34,6 +34,36 @@ try{
  eq(rows().length,4);
  const before=rows();for(const bad of [null,[],{},'text',{customerId:{},body:'x'},{customerId:'a',body:{}},{customerId:'a',body:[]},{customerId:'a',body:' '},{customerId:'a',body:'x'.repeat(5001)},...['',null,12,'not-uuid',randomUUID().replace('-','')].map(requestId=>({...body,requestId}))]){eq((await post(bad)).status,400);eq(rows(),before);}
  const malformed=await route.POST(new Request('https://fixture.invalid',{method:'POST',body:'{bad'}));eq(malformed.status,400);eq(rows(),before);eq((await post({...body,customerId:'missing',requestId:randomUUID()})).status,404);eq(rows(),before);
+ // The real owner route must reject oversized/chunked or falsely declared
+ // input before JSON parse or any D1 write, without losing normal 5K notes.
+ const endpoint='https://fixture.invalid/api/customer-notes';
+ const noWrite=async(req,status,label)=>{
+  const unchanged=rows(),beforeWrites=writes;
+  const res=await route.POST(req);eq(res.status,status,label);
+  eq(rows(),unchanged,label+' leaves D1 unchanged');
+  eq(writes,beforeWrites,label+' performs zero writes');
+ };
+ await noWrite(new Request(endpoint,{method:'POST',body:'x'.repeat(32_001)}),413,
+  'Undeclared over-limit request rejected before JSON parsing');
+ await noWrite(new Request(endpoint,{method:'POST',
+  headers:{'content-length':'32001'},body:'{}'}),413,
+  'Oversized declared length rejected before streaming');
+ await noWrite(new Request(endpoint,{method:'POST',
+  headers:{'content-length':'1'},body:JSON.stringify(body)}),400,
+  'False short content length rejected');
+ await noWrite(new Request(endpoint,{method:'POST',
+  headers:{'content-length':'abc'},body:'{}'}),400,
+  'Malformed declared content length rejected');
+ await noWrite(new Request(endpoint,{method:'POST',
+  body:new Uint8Array([0x7b,0x22,0x78,0x22,0x3a,0xff,0x7d])}),400,
+  'Invalid UTF-8 is rejected without a note');
+ const stream=new ReadableStream({start(controller){
+  controller.enqueue(new Uint8Array(16_000).fill(65));
+  controller.enqueue(new Uint8Array(16_002).fill(66));
+  controller.close();
+ }});
+ await noWrite(new Request(endpoint,{method:'POST',body:stream,duplex:'half'}),413,
+  'Chunked over-limit request rejected even without Content-Length');
  // Older callers without request IDs remain supported as deliberate new notes.
  eq((await post({customerId:'b',body:'[FIRE FLAG] REVIEW_RECEIVED'})).status,201);eq((await post({customerId:'b',body:'x'.repeat(5000),requestId:randomUUID()})).status,201);
  const frozen=rows(),writeCount=writes;for(const user of [null,{email:'other@example.invalid'}]){owner=user;eq((await post(body)).status,401);eq(rows(),frozen);eq(writes,writeCount);}
