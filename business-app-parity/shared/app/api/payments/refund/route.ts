@@ -40,7 +40,10 @@ export async function POST(request:Request){
     const stripePayment=["deposit","balance","Tip"].includes(payment.type)&&Boolean(payment.providerId?.startsWith("cs_"));
     const mode=stripePayment?"stripe":"manual";
     const runtime=env as RuntimeEnv;
-    const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+    // Isolated DR / new-live-prelaunch are NOT LIVE payment environments,
+    // even though the shared compiled deployment adapter says "live".
+    const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
+      !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
     // A staging manual refund is a separately confirmed external return, not
     // a Stripe refund. Keep it usable while preventing disabled TEST Stripe
     // refunds before creating any D1 refund reservation or provider request.
