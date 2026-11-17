@@ -1,3 +1,14 @@
+<!-- FIRE_DOOR_BOOK_REVIEW_SNOOZE_20261116 -->
+## Nov 16 late CST — REAL owner lead/marketing app fixes: D1-verified door-book writes + bounded seven-day review snoozes (existing DRAFT PR270)
+
+**Actual source changes, NOT deployed:** `/api/door-knocking` POST now bounds input to 8,192 streamed strict UTF-8 bytes pre-D1 and independently verifies exact physically saved message_templates history after CAS write: *committed but lost ACK → success only on saved exact readback; false-success ACK without persistence → 503 `saveUncertain`; concurrent CAS competitor → 409*; still respects Do Not Knock, visit/revisit dates, house/point identity, stable owner request IDs. Source `a6cff7b4` and immediate syntax correction `8f1c38d1`, native actual-route SQLite loss-ACK/fake-success/zero-D1 test `fc5e9456`. `/api/payment-closeouts/snooze` and `/api/dashboard-review-checks/snooze` now each use existing 4,096-byte strict streamed owner body guard **before financial/customer D1** (`40b3bca9`, `48ec0d5b`) with 10 zero-D1 input-negative assertions apiece (`2a88af45`, `1b3a929e`). Both remain seven-day local owner defer actions: do not send messages, accept payments/refunds, or claim reviews received. `0c0a334f` wires only the three changed native SQLite scripts into the existing no-provider staging workflow. [Dedicated exact commits + evidence](evidence/FIRE_DOOR_BOOK_AND_REVIEW_SNOOZE_CONFIRMED_READBACK_20261116.md).
+
+**Exact app-code head `0c0a334fc1e9d6c0344e10833809e1cfc20614f6`, [staging/native SQLite/Chrome run #44024131150](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44024131150) still IN PROGRESS at this checkpoint**. Other source workflows on that code SHA do not count as actual hosted Cloudflare/Stripe tests. Do not label the new door/snooze changed-route steps SUCCESS until their precise job finishes. Last separately completed code checkpoint `bbbaf7b9` 27/27 SUCCESS remains accepted historical test evidence, not proof of this newer source.
+
+**Formal release remains 4/10 accepted G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN.** NEW LIVE physically DARK/NO-GO: existing immutable serving version `cfacbb3d-43de-4d2c-8008-c6732d78f756`, independent D1 UUID `0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662`, workers.dev/preview OFF, no Worker domains/routes, blocked auth/no R2, and **no Worker-specific Access protection** (negative observation; not Access PASS). Job #0001 remains inactive. Reuse six accepted owner Cloudflare screenshots and physical identity/readbacks; no repeated Acer/iPhone/provider checks, attempt-lock reuses or SQL migrations. No Cloudflare/Access/DNS/SQL/Stripe/payment/R2/paid subscription, Git merge, deployment, or production/legacy cutover authorized or performed.
+
+---
+
 <!-- FIRE_ARCHIVE_NOTIFICATION_ACTUAL_CODE_20261116 -->
 ## Nov 16–17 latest development checkpoint — actual source repair, owner property archive + notification financial actions (DRAFT PR270, no deploy)
 
