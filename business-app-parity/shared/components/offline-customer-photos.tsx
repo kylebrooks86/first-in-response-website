@@ -171,7 +171,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   active.current=true;setBusy(true);setError('');setMessage('');
   try{
    const opened=await openOwnerOfflinePhotoArchive(files[0],backupPassphrase);
-   const result=await inspectSavedOfflinePhotoZip(opened,knownCustomerIds);
+   const result=await inspectSavedOfflinePhotoZip(opened,knownCustomerIds,knownJobs);
    // A valid ZIP is not necessarily a complete backup. An older or
    // customer-scoped ZIP may have perfect checksums but miss newer photos.
    const details=result.archivePhotoCount+' photo(s) in archive; '+

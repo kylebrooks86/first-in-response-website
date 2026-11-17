@@ -44,6 +44,39 @@ check(true,'Duplicate or contradictory owner job inventory cannot authorize rest
 
 const first=photo('img-one','customer-A','before','one synthetic photo');
 const second=photo('img-two','customer-B','after','another synthetic photo');
+// The owner-facing SAVED-FILE "verified backup" status must not approve
+// checksum-valid photos linked to missing, foreign, or unauthenticated jobs.
+// Use the real inspection module with an empty synthetic device inventory.
+const backupInspection=load('../lib/offline-photo-inspection.ts',name=>{
+ if(name==='./offline-photo-backup')return archive;
+ if(name==='./local-photo-vault')return {...vaultGuards,listOfflinePhotos:async()=>[],exactSavedPhotoMatch:async()=>true};
+ throw Error('Unexpected saved-photo inspection dependency '+name);
+});
+const jobLinked={...first,jobId:'estimate-A'};
+const jobLinkedZip=await archive.exportOfflinePhotoBackup([jobLinked]);
+await assert.rejects(
+ backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A']),
+ /authenticated job\/customer inventory/
+);
+check(true,'Saved ZIP verification refuses job-linked photos without authenticated job history');
+await assert.rejects(
+ backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A'],[{id:'estimate-A',customerId:'customer-B'}]),
+ /different customer/
+);
+check(true,'Saved ZIP verification refuses a checksum-valid photo owned by a different customer job');
+await assert.rejects(
+ backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A'],[{id:'other',customerId:'customer-A'}]),
+ /unknown job ID/
+);
+check(true,'Saved ZIP verification refuses an unknown referenced job before reporting backup completeness');
+const verifiedLinked=await backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A'],[{id:'estimate-A',customerId:'customer-A'}]);
+check(verifiedLinked.archivePhotoCount===1&&verifiedLinked.notYetOnDevice===1&&verifiedLinked.byteIdenticalOnDevice===0,
+ 'Saved ZIP verification accepts complete cryptographic job-linked archive only with matching owner job history');
+const verifiedLegacy=await backupInspection.inspectSavedOfflinePhotoZip(
+ await archive.exportOfflinePhotoBackup([first]),['customer-A']
+);
+check(verifiedLegacy.archivePhotoCount===1,
+ 'Legacy customer-only saved-photo backups remain verifiable without numbered jobs');
 const file=await archive.exportOfflinePhotoBackup([first,second]);
 check(file.type==='application/zip'&&file.size>0,'Real archive exporter produces ZIP bytes without Cloudflare');
 const restored=await archive.readOfflinePhotoBackup(file);
