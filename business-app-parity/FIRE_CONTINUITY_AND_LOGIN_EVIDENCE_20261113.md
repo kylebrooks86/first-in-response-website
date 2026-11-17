@@ -1,3 +1,16 @@
+<!-- FIRE_EXPIRED_ORIGINAL_ARCHIVES_PRIVATE_RECOVERY_AND_CHECKER_20261117 -->
+## FIRE release continuation — original historical DR/NEW LIVE source ZIPs physically recovered, expired CI not falsely green (Nov 17 CST)
+
+**Actual evidence:** The two GitHub Actions original archive IDs `14101337096` DR and `14101058770` NEW LIVE returned HTTP 410 in current prehost workflows. The exact previously accepted owner-private Google Drive **original binary ZIPs still exist**, and were freshly fetched locally and independently hashed: DR **3,084,259 bytes SHA256 `f61b28b6b0f8e669f9863be995cf7d56d527a51d012ee9e77083fb260c059719`**, NEW LIVE **3,086,564 bytes SHA256 `7c701cc6401e3eba06f684db2dd5a770b4c137401224ef8aeb812d18faabaec3`**, exactly equal to their original historical GitHub/Issue #19 release evidence. Both ZIP CRC pass and contain exactly 242 members. The historical original→independent D1-prehost pairs preserve all **240/241 shared non-configuration file bytes** and original 41/41 embedded client Data module hashes, one changed file `server/wrangler.json`; source and provider-target receipts remain separate. [Independent audit](evidence/FIRE_EXPIRED_GITHUB_ORIGINAL_DR_NEWLIVE_ARCHIVES_RECOVERED_20261117.md). **Only source/private custody is recovered**, not GitHub expired artifact endpoints and not new provider evidence.
+
+**Repeatable test-only source implemented:** [`verify_private_expired_source_archives.py`](verify_private_expired_source_archives.py), commit `fc62018e`, locally PASS for the 4 original private archives, and two negative mutation/cross-target tests PASS (**3/3** total). Requires private owner ZIPs supplied LOCALLY; never uploads or embeds them. Its report **refuses final-release status** and correctly flags the older DR *prehost* manifest's `workers_dev:true`; those prehost review ZIPs are not an acceptable DARK release artifact. Later reviewed dark-first-create source is distinct. **Never publish or activate the historical DR prehost**. No PII, secrets, DB rows, owner private archive contents, or connection material committed.
+
+**Current CI truth:** exact test-only `240f337b` completed **25/27** PR workflows SUCCESS, and the two old-artifact-dependent workflows FAIL HTTP410; do NOT claim new 27/27 or source regression. Earlier frozen actual runtime code SHA `8c2b50d5` remains separately accepted **27/27** plus private compiled 1,030-file QA review ZIP. Any new CI for test-only verifier commit `fc62018e` is separate, and must be checked at its own final run status. No repeat of old Cloudflare/Acer/iPhone tests.
+
+**Release checklist remains 34/95 checked, 61 open, formal 4/10 G1/G2/G3/G8 accepted.** No Gate4/G5/G6/G7/G9/G10 newly accepted, NEW LIVE DARK/NO-GO, first Job #0001 inactive. Source/private archive custody and a reproducible verifier do NOT prove currently served module/static bytes, independently hosted STAGING, actual Access route protection, real backup/restore or genuine signed Stripe TEST. G10-05 review plan still awaits owner review. No provider/Stripe/SQL/cloud deployment/Git merge/DNS/payment/paid Cloudflare/R2/public access change.
+
+---
+
 <!-- FIRE_GATE9_PRIVATE_240F_COMPILED_INPUT_20261117 -->
 ## Nov 17 — new exact Gate9 TEST compiler output privately preserved, SHA verified, no paid R2/Stripe activation
 
