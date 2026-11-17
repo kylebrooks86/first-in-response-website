@@ -1,12 +1,16 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {estimateReminderStage, type ReminderRecord} from "../../../lib/follow-up-timing";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 // Explicit owner actions append history. They never send messages or alter estimates.
 export async function POST(request:Request){
  const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
+ // Follow-up history writes are small. Reject oversized/malformed streams before any D1 lookup.
+ const parsed=await readOwnerWriteObject(request,4096);
+ if(parsed.response)return parsed.response;
  try{
-  const value=await request.json() as Record<string,unknown>;
+  const value=parsed.value as Record<string,unknown>;
   const {customerId,estimateId,action,operationId}=value;
   if(typeof customerId!=="string"||!customerId||customerId.length>128||typeof estimateId!=="string"||!estimateId||estimateId.length>128||(typeof action!=="string"||!['contacted','snooze','no_answer'].includes(action))||typeof operationId!=="string"||! /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId))return Response.json({error:"A matching customer, estimate and explicit action are required."},{status:400});
   // A failed telephone contact attempt is NOT contact, a sent message, or a
