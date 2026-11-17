@@ -1,3 +1,16 @@
+<!-- FIRE_G7_08_34_OF_95_20261117 -->
+## LATEST FIRE 95-item snowball — **34/95 checked, 61 OPEN** (2026-11-17 CST)
+
+**ONE verified new completed subtask: G7-08 offline fail-closed recovery**, test-only commit [240f337b](https://github.com/kylebrooks86/first-in-response-website/commit/240f337bce8a5afc854f12855a86fa9b3dc156ab), same unmerged Draft PR #270. New synthetic interrupted-restore output refusal preserves preexisting incomplete SQLite bytes, refuses overwrites, and creates no new unpaired plaintext photo ZIP. Existing 26-migration encrypted record/photo negatives independently cover wrong input/destination, corrupted/missing bytes, bad passwords, altered journals, incomplete source records and occupied databases. **Exact focused workflow [44028504296](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44028504296) SUCCESS with 91/91 real disposable SQLite recovery checks**, and 39/39 pair / 55/55 complete-table guards. [Exact verified evidence](evidence/FIRE_G7_08_FAIL_CLOSED_OFFLINE_RECOVERY_20261117.md); checkbox saved in [master checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md). This proves the local fail-closed *subtask* only, not a real machine power-off drill, Cloudflare-hosted full source D1+photo restore, off-device custody, Gate7 acceptance, or NEW LIVE production readiness.
+
+**Real parallel source CI issue not hidden:** on test-only SHA 240f337b, DR prehost workflow #44028504172 and NEW LIVE prehost workflow #44028504176 separately FAILED fetching original historical GitHub artifact IDs 14101337096 and 14101058770, with **HTTP 410** in job logs; these are old artifact-retention dependencies, not failure of G7-08 91/91. Do not retry spent Cloudflare/owner uploads or replace exact originals with unverified recompiled artifacts. Previously privately sealed Drive archives remain historical source custody, not automatic CI rehydration or hosted proof. Other workflow statuses must be verified at final run conclusion. This task did **not** change executable app source; frozen 8c2b50d5 code and B11 private QA review archive remain distinct/unchanged.
+
+**G10-05 prepared for owner review, NOT checked:** [complete environment-specific guarded deployment / code+data rollback plan](release/FIRE_G10_05_TARGET_BY_TARGET_GUARDED_RELEASE_AND_ROLLBACK_REVIEW_20261117.md), distinguishing QA master, unverified new STAGING, DARK DR/NEW LIVE, disabled Stripe TEST, explicit separate approvals, no R2/paid Cloudflare, account-wide Access ingress, full paired future record/photos restore, and Job #0001. Plan creation gives no authorization.
+
+**FORMAL release unchanged: 4/10 accepted G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK / NO-GO.** No remote Worker/route/Access/SQL/D1/Stripe/payment/provider activity, new sign-in, customer messages, Git merge, production publication, legacy retirement, R2 or paid subscription. All accepted screenshot, version, D1 26/26 and iPhone/Acer checks retained; no redundancy.
+
+---
+
 <!-- FIRE_SNOWBALL_PR266_PR267_PR269_CLOSED_SEMANTIC_20261117 -->
 ## FIRE release continuation — 33/95 verified; historical draft review now fully reconciled (Nov 16–17 CST)
 
