@@ -14,6 +14,14 @@ let n=0;function check(action,bucket,pattern,rank){const r=triage(action,now);as
 check(job('followUp7'),'past-target',/Past suggested day 7 by 1d/,2);
 check(job('followUp3'),'past-target',/Past suggested day 3 by 5d/);
 check(job('followUp1','followup',{estimate:{firstEstimateSentAt:at(-1)}}),'due',/Suggested day 1/);
+// A future recommendation may appear in the complete list, but never as
+// immediately due or in Today's outreach; suspicious future send dates need review.
+check(job('followUp1','followup',{estimate:{firstEstimateSentAt:at(-.5)}}),'upcoming',/Suggested day 1 in 1d/,7);
+check(job('followUp3','followup',{estimate:{firstEstimateSentAt:at(-1)}}),'upcoming',/Suggested day 3 in 2d/,7);
+check(job('followUp1','followup',{estimate:{firstEstimateSentAt:at(.5)}}),'review',/send date is in the future/,4);
+assert.equal(triage(job('followUp1'),Number.NaN).bucket,'review','An invalid current time cannot claim follow-up is due');n++;
+const futureQueueItem=job('followUp1','followup',{estimate:{id:'future-estimate',customerId:'future-customer',firstEstimateSentAt:at(-.5)}});
+assert.equal(context.exports.todayActionLane(futureQueueItem,now),null,'An upcoming recommended follow-up must not enter Today outreach');n++;
 check(job('followUp7','followup',{estimate:{firstEstimateSentAt:null}}),'review',/Confirm estimate send date/);
 check(job('invoiceReminder'),'review',/invoice due date unverified/);
 check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now+3*3600000).toISOString()}}),'upcoming',/within 3h/,1);
