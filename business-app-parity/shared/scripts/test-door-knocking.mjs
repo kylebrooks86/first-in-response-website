@@ -1,9 +1,9 @@
 /** Actual owner APIs, disposable SQLite, no remote records. */
-import assert from'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFileSync,readdirSync}from'node:fs';import vm from'node:vm';import ts from'typescript';
-let checks=0,writes=0,owner={email:'kylebrooks8605@gmail.com'},race=false;const eq=(a,b,s)=>{assert.deepEqual(a,b,s);checks++;};const db=new DatabaseSync(':memory:');for(const p of readdirSync('drizzle').filter(p=>p.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+p,'utf8'));
-const env={DB:{prepare(q){return{bind(...args){return{async first(){return db.prepare(q).get(...args)??null;},async run(){writes++;if(race){race=false;return{meta:{changes:0}};}return{meta:{changes:Number(db.prepare(q).run(...args).changes)}};}};}}}}};
+import assert from'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFileSync,readdirSync}from'node:fs';import vm from'node:vm';import ts from'typescript';import{readOwnerWriteObject}from'../lib/customer-write-request-guard.mjs';
+let checks=0,reads=0,writes=0,owner={email:'kylebrooks8605@gmail.com'},race=false,fakeAck=false,loseAck=false;const eq=(a,b,s)=>{assert.deepEqual(a,b,s);checks++;};const db=new DatabaseSync(':memory:');for(const p of readdirSync('drizzle').filter(p=>p.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+p,'utf8'));
+const env={DB:{prepare(q){return{bind(...args){return{async first(){reads++;return db.prepare(q).get(...args)??null;},async run(){writes++;if(race){race=false;return{meta:{changes:0}};}if(fakeAck){fakeAck=false;return{meta:{changes:1}};}const actual={meta:{changes:Number(db.prepare(q).run(...args).changes)}};if(loseAck){loseAck=false;throw Error('Synthetic D1 transport ACK lost after committed door-book save');}return actual;}};}}}}};
 function load(p,imports){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(p,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:k=>{if(!(k in imports))throw Error(k);return imports[k];},Response,Request,crypto,Date,Set,Object,TextEncoder});return exports;}
-const model=load('lib/door-knocking.ts',{}),api=load('app/api/door-knocking/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/door-knocking':model});
+const model=load('lib/door-knocking.ts',{}),api=load('app/api/door-knocking/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/door-knocking':model,'../../../lib/customer-write-request-guard.mjs':{readOwnerWriteObject}});
 const dashboard=load('app/api/door-knocking/followups/route.ts',{'cloudflare:workers':{env},'../../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../../lib/door-knocking':model});
 const uid=n=>'dddddddd-dddd-4ddd-8ddd-'+String(n).padStart(12,'0'),post=b=>api.POST(new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:typeof b==='string'?b:JSON.stringify(b)})),book=async()=>(await(await api.GET()).json()).book,revisit=async()=>dashboard.GET();
 try{
@@ -25,6 +25,36 @@ try{
  for(const invalid of [{...follow,requestId:uid(13),expectedRevision:b.revision,followUpOn:'2026-02-30'},{...follow,requestId:uid(14),expectedRevision:b.revision,followUpOn:undefined},{...follow,requestId:uid(15),expectedRevision:b.revision,status:'door-hanger',followUpOn:today}])eq((await post(invalid)).status,400,'Missing, invalid or off-status callback dates rejected before writes');
  eq((await post({...follow,requestId:uid(16),expectedRevision:b.revision,status:'business-card',followUpOn:undefined})).status,200,'Subsequent visit clears stale scheduled reminder');b=await book();eq(model.doorRevisitQueue(b,today).length,0,'No revisit stays due after another house outcome');eq((await (await revisit()).json()).dueCount,0,'Dashboard stops surfacing completed contact');
  race=true;eq((await post({...visit,requestId:uid(10),expectedRevision:b.revision,status:'business-card'})).status,409,'Concurrent CAS conflict');eq((await book()).revision,b.revision);
+ // After a physically committed CAS save loses its D1 ACK, the authoritative
+ // book readback confirms this exact event without a second mutation.
+ const noAck={...visit,requestId:uid(17),expectedRevision:b.revision,status:'not-contacted',note:'Actual saved, missing acknowledgement'};
+ loseAck=true;
+ eq((await post(noAck)).status,200,'Committed saved door visit readback survives lost D1 ACK');
+ b=await book();eq(b.houses[0].visits.filter(v=>v.id===uid(17)).length,1,'Lost ACK appends exactly one visit');
+ const already=writes;eq((await post(noAck)).status,200,'Retry recovers original saved visit');
+ eq(writes,already,'Retry after lost ACK creates no second D1 write');
+ // An apparently successful write reply does not establish stored history.
+ const refused={...visit,requestId:uid(18),expectedRevision:b.revision,status:'business-card',note:'Fake success must not be shown'};
+ const prior=JSON.stringify(b);fakeAck=true;
+ const fake=await post(refused);
+ eq(fake.status,503,'False positive CAS write ACK fails closed after unmatched readback');
+ eq((await fake.json()).saveUncertain,true,'False ACK surfaces actionable uncertainty');
+ eq(JSON.stringify(await book()),prior,'No phantom knock or customer history on fake ACK');
+ eq((await post(refused)).status,200,'Same stable request can be deliberately retried after verification');
+ b=await book();eq(b.houses[0].visits.filter(v=>v.id===uid(18)).length,1,'Real retry appends one true visit');
+ // The payload contains at most one house and note. Stream-limit its body
+ // instead of allocating unbounded JSON before reaching existing D1.
+ for(const [kind,request,code] of [
+  ['oversized declared length',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',headers:{'content-length':'8193'},body:'{}'}),413],
+  ['oversized actual stream',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:' '.repeat(8193)}),413],
+  ['false short Content-Length',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',headers:{'content-length':'2'},body:'{"x":1}'}),400],
+  ['invalid UTF8',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:new Uint8Array([123,34,120,34,58,255,125])}),400],
+  ['nonobject JSON',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:'[]'}),400],
+ ]){
+  const before={reads,writes},response=await api.POST(request);
+  eq(response.status,code,kind+' rejected by actual route');
+  eq({reads,writes},before,kind+' touches no database records');
+ }
  for(const bad of [null,[],{},'bad json',{...visit,status:'unknown-outcome'},{...visit,note:'x'.repeat(1001)},{...visit,latitude:123}])eq((await post(bad)).status,400);
  const count=writes;for(const user of [null,{email:'nonowner@example.invalid'}]){owner=user;eq((await api.GET()).status,401);eq((await post(add)).status,401);eq((await revisit()).status,401,'Revisit dashboard requires owner authentication');}eq(writes,count);owner={email:'kylebrooks8605@gmail.com'};db.prepare('UPDATE message_templates SET body=? WHERE key=?').run('bad',model.DOOR_BOOK_KEY);eq((await api.GET()).status,503);eq((await revisit()).status,503,'Corrupt saved visit history never appears as an empty due queue');eq((await post(add)).status,503);console.log('PASS '+checks+' door-knocking SQLite/API safety checks.');
 }finally{db.close();}
