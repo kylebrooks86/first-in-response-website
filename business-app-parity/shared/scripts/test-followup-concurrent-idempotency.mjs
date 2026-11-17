@@ -3,6 +3,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 /** Native synthetic D1 race tests: never send an actual customer message. */
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
@@ -10,7 +11,7 @@ let owner={email:'kylebrooks8605@gmail.com'},calls=0;
 const env={DB:{prepare(sql){calls++;const s=db.prepare(sql);return{bind(...params){return{first:async()=>s.get(...params)??null,run:async()=>({meta:{changes:s.run(...params).changes}})}}}}}};
 function load(path,deps){const exports={};const js=ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;vm.runInNewContext(js,{exports,require:name=>{if(!(name in deps))throw Error('Unexpected import '+name);return deps[name]},Response,Date});return exports;}
 const timing=load('lib/follow-up-timing.ts',{});
-const route=load('app/api/followup-actions/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/follow-up-timing':timing});
+const route=load('app/api/followup-actions/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/follow-up-timing':timing,'../../../lib/customer-write-request-guard.mjs':{readOwnerWriteObject}});
 const stamp=n=>new Date(Date.now()-n*86400000).toISOString();
 const key=n=>'10000000-0000-4000-8000-'+String(n).padStart(12,'0');
 function job(id){
@@ -22,6 +23,22 @@ const req=(id,action,n)=>new Request('https://example.invalid/api/followup-actio
 const count=n=>db.prepare('SELECT COUNT(*) AS total FROM customer_messages WHERE id=?').get('followup-action:'+key(n)).total;
 let assertions=0;const check=(yes,what)=>{assert.ok(yes,what);assertions++;};
 try{
+ // Real route body is never buffered unbounded or allowed to look up a
+ // customer/estimate before a successful streamed owner JSON parse.
+ for(const [label,body,headers,expected] of [
+  ['oversize declared bytes','{}',{'content-length':'4097'},413],
+  ['oversize observed stream',' '.repeat(4097),{},413],
+  ['incorrect declared length','{"x":1}',{'content-length':'2'},400],
+  ['invalid UTF8',new Uint8Array([123,34,120,34,58,255,125]),{},400],
+  ['nonobject JSON','[]',{},400],
+ ]) {
+  const before=calls;
+  const response=await route.POST(new Request('https://example.invalid/api/followup-actions',{
+   method:'POST',headers,body
+  }));
+  check(response.status===expected,label+' rejected at owner follow-up POST');
+  check(calls===before,label+' makes ZERO D1 reads/writes');
+ }
  job('double');
  const both=await Promise.all([route.POST(req('double','contacted',1)),route.POST(req('double','contacted',1))]);
  check(both.map(r=>r.status).sort().join(',')==='200,201','Two matching concurrent writes yield one save and one replay');
