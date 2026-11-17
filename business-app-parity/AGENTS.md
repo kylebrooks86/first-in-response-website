@@ -1,3 +1,12 @@
+<!-- FIRE_FOLLOWUP_PROPERTY_FINAL_CI_20261116 -->
+## Nov 16 late CST — **FINAL exact-code GitHub CI SUCCESS for follow-up + property reliability changes**
+
+**Actual source revision `bbbaf7b9c2097142f8a7411c8fc9504ab233f176` has now completed 27/27 GitHub workflows SUCCESS, zero failed/canceled.** [FIRE staging/shared app workflow #44021863898](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44021863898) **completed SUCCESS, all 6/6 jobs SUCCESS**, including *QA/staging shared app source and isolated staging build (NO upload)* and its new **`Candidate-only customer property idempotent save, lost D1 ACK and owner isolation (native SQLite only)`** step **SUCCESS**. The same successful shared app job executed the newly wired actual owner follow-up concurrent/idempotent and stream-bounds test. [Gate9 local build #44021863752](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44021863752), [public website/calculator guard #44021863853](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44021863853), and [website #44021863864](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44021863864) all SUCCESS. Earlier 26/27 notes below are **historical in-progress snapshots**, NOT current status; tests are entirely local/disposable, **not Cloudflare-hosted or signed Stripe TEST proof**. Latest source improvements and exact commits documented in [dedicated evidence](evidence/FIRE_FOLLOWUP_AND_PROPERTY_CONFIRMED_WRITE_20261116.md). 
+
+**Release still officially G1/G2/G3/G8 = 4/10 accepted, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK and NO-GO; no Job #0001 activation.** Owner post-update Cloudflare physical screenshots, D1 UUID/immutable serving version, and spent publisher/26 migrations preserved; no paid Cloudflare/R2, Cloudflare deploy, SQL, Stripe/payment, Access/routes/DNS, merge or cutover.
+
+---
+
 <!-- FIRE_FOLLOWUP_PROPERTY_IDEMPOTENT_SAVES_20261116 -->
 ## Nov 16 late CST — REAL API + UI progress: owner follow-up stream guard and duplicate-proof customer property Save (DRAFT PR270, not deployed)
 **App source commits:** `0cdd1956` bounds `POST /api/followup-actions` with existing 4,096-byte strict streamed owner guard pre-D1; `5c417e6d` adds ten zero-D1-access malformed/oversized actual-route/native-SQLite checks and `b1d409b4` wires that previously unexecuted original owner follow-up concurrent-idempotency test into staging. Existing contacted/no-answer/snooze receipts, idempotency, no-send truthfulness unchanged.
