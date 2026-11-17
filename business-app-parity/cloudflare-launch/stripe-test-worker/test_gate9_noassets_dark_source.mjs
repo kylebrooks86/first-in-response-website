@@ -8,7 +8,6 @@ import {mkdtempSync,cpSync,writeFileSync,readFileSync,mkdirSync,rmSync} from 'no
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {verifyGate9NoAssetsDarkSource} from './prepare_gate9_noassets_dark_source.mjs';
-const fail=fn=>assert.throws(fn,/FIRE GATE9 WORKER-ONLY SOURCE BLOCKED/);
 const folder=process.argv[2];
 if(!folder||process.argv.length!==3)throw Error('usage: SOURCE_ONLY_CURRENT_TEST_PACKAGE');
 const original=verifyGate9NoAssetsDarkSource(folder);
@@ -21,16 +20,27 @@ assert.equal(original.stripeMode,'disabled');
 assert.ok(original.clientAssets>=30&&original.serverModules>=80);
 const tmp=mkdtempSync(join(tmpdir(),'fire-test-gate9-noassets-'));
 let checks=7;
-const attack=(name,edit)=>{
+const attack=(name,edit,message=/FIRE GATE9 WORKER-ONLY SOURCE BLOCKED/)=>{
  const out=join(tmp,name);cpSync(folder,out,{recursive:true});
  edit(out);
- fail(()=>verifyGate9NoAssetsDarkSource(out));checks++;
+ assert.throws(()=>verifyGate9NoAssetsDarkSource(out),message);checks++;
 };
 const j=(dir,rel,fn)=>{
  const path=join(dir,rel),v=JSON.parse(readFileSync(path,'utf8'));
  fn(v);writeFileSync(path,JSON.stringify(v,null,2)+'\n');
 };
 try{
+ assert.equal(verifyGate9NoAssetsDarkSource(folder,original.receiptSha256).receiptPinVerified,true);
+ checks++;
+ const rewritten=join(tmp,'rewritten-source-receipt');
+ cpSync(folder,rewritten,{recursive:true});
+ j(rewritten,'gate9-noassets-dark-source-receipt.json',r=>{r.sourceSha='1'.repeat(40)});
+ assert.throws(()=>verifyGate9NoAssetsDarkSource(rewritten,original.receiptSha256),
+  /receipt differs from independent SHA256 pin/);
+ checks++;
+ attack('receipt-path-escape',d=>j(d,'gate9-noassets-dark-source-receipt.json',r=>{
+  r.originalServerFiles[0].path='server/../original-compiled-wrangler.json';
+ }),/bad original full TEST server manifest/);
  attack('activate-test-auth',d=>j(d,'server/wrangler.json',x=>{x.vars.FIRE_GATE9_PRIVATE_ACTIVATION='owner-approved'}));
  attack('enable-stripe-test',d=>j(d,'server/wrangler.json',x=>{x.vars.FIRE_STRIPE_MODE='test'}));
  attack('inject-paid-r2',d=>j(d,'server/wrangler.json',x=>{x.r2_buckets=[{binding:'BUCKET',bucket_name:'unapproved'}]}));

@@ -8,7 +8,7 @@
  * deploy may replace the currently serving version despite disabled URLs.
  *
  * node prepare_gate9_noassets_dark_source.mjs build DIST EXACT_GIT_SHA NEW_FOLDER
- * node prepare_gate9_noassets_dark_source.mjs verify SAVED_FOLDER
+ * node prepare_gate9_noassets_dark_source.mjs verify SAVED_FOLDER [PINNED_RECEIPT_SHA256]
  */
 import {createHash} from 'node:crypto';
 import {existsSync,lstatSync,readdirSync,readFileSync,writeFileSync,mkdirSync,copyFileSync} from 'node:fs';
@@ -96,8 +96,15 @@ const entry=[
  '}});',''
 ].join('\n');
 
-function validateReview(folder){
- const root=resolve(folder),paths=tree(root),r=readJSON(join(root,'gate9-noassets-dark-source-receipt.json'));
+function validateReview(folder,pinnedReceiptSha256){
+ const root=resolve(folder),paths=tree(root),pathSet=new Set(paths);
+ const receiptPath='gate9-noassets-dark-source-receipt.json';
+ if(!pathSet.has(receiptPath))stop('saved TEST source receipt missing');
+ const receiptBytes=file(join(root,receiptPath)),receiptSha256=sha(receiptBytes);
+ if(pinnedReceiptSha256!==undefined&&(!hex(pinnedReceiptSha256)||pinnedReceiptSha256!==receiptSha256))
+  stop('saved TEST source receipt differs from independent SHA256 pin');
+ let r;
+ try{r=JSON.parse(receiptBytes)}catch{stop('invalid saved TEST source receipt')}
  if(r.kind!==TYPE||!sourceSha(r.sourceSha)||r.worker!==WORKER||
     r.predecessorPreserved!==true||r.providerContacted!==false||
     r.workerUploaded!==false||r.deployed!==false||
@@ -130,6 +137,7 @@ function validateReview(folder){
   'original-compiled-wrangler.json','gate9-noassets-dark-source-receipt.json']);
  for(const originalFile of r.originalServerFiles){
   if(typeof originalFile?.path!=='string'||!originalFile.path.startsWith('server/')||
+     !pathSet.has(originalFile.path)||
      allowed.has(originalFile.path)||!hex(originalFile.sha256)||
      originalFile.bytes<1||!Number.isSafeInteger(originalFile.bytes))
    stop('bad original full TEST server manifest');
@@ -146,7 +154,10 @@ function validateReview(folder){
      a.type!==assetContentType(a.path)||!hex(a.sha256)||!Number.isSafeInteger(a.bytes)||a.bytes<1)
    stop('unreviewed TEST client Data member');
   seen.add(a.path);
-  const p='server/'+a.module,v=row(root,p);
+  const p='server/'+a.module;
+  if(!pathSet.has(p)||allowed.has(p)||!a.module.endsWith('-'+a.sha256.slice(0,16)+'.bin'))
+   stop('missing, repeated or mislabeled TEST client Data module');
+  const v=row(root,p);
   if(v.bytes!==a.bytes||v.sha256!==a.sha256)stop('original TEST client byte changed');
   assetBytes+=a.bytes;allowed.add(p);
  }
@@ -157,7 +168,8 @@ function validateReview(folder){
   stop('TEST client/UI scope incomplete or changed');
  if(!same(paths,[...allowed].sort()))stop('unexpected/missing source and client files');
  return {status:'GATE9_WORKER_ONLY_DARK_SOURCE_VERIFIED',sourceSha:r.sourceSha,
-  worker:WORKER,serverModules:r.originalServerFiles.length,clientAssets:seen.size,
+  worker:WORKER,receiptSha256,receiptPinVerified:pinnedReceiptSha256!==undefined,
+  serverModules:r.originalServerFiles.length,clientAssets:seen.size,
   filesVerified:paths.length,providerContacted:false,deployed:false,
   stripeMode:'disabled',currentHostedPredecessorReplaced:false,gate9Accepted:false};
 }
@@ -225,8 +237,9 @@ export const verifyGate9NoAssetsDarkSource=validateReview;
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
   if(process.argv[2]==='verify'){
-   if(process.argv.length!==4)stop('usage: verify SOURCE_ONLY_SAVED_FOLDER');
-   console.log(JSON.stringify(validateReview(process.argv[3]),null,2));
+   if(process.argv.length<4||process.argv.length>5)
+    stop('usage: verify SOURCE_ONLY_SAVED_FOLDER [PINNED_RECEIPT_SHA256]');
+   console.log(JSON.stringify(validateReview(process.argv[3],process.argv[4]),null,2));
   }else{
    if(process.argv[2]!=='build'||process.argv.length!==6)
     stop('usage: build BUILT_TEST_DIST EXACT_SOURCE_SHA NEW_ABSENT_FOLDER');
