@@ -54,6 +54,49 @@ const backupInspection=load('../lib/offline-photo-inspection.ts',name=>{
 });
 const jobLinked={...first,jobId:'estimate-A'};
 const jobLinkedZip=await archive.exportOfflinePhotoBackup([jobLinked]);
+const unexpectedDeviceField='FIRE_INTERNAL_FIELD_MUST_NOT_BE_EXPORTED';
+const sanitizedZip=await archive.exportOfflinePhotoBackup([
+ {...jobLinked,unreviewedInternalToken:unexpectedDeviceField}
+]);
+const sanitizedPhotos=await archive.readOfflinePhotoBackup(sanitizedZip);
+check(sanitizedPhotos.length===1&&
+ !Object.hasOwn(sanitizedPhotos[0],'unreviewedInternalToken')&&
+ !(await sanitizedZip.text()).includes(unexpectedDeviceField),
+ 'Unknown IndexedDB metadata is never leaked into a saved owner photo ZIP');
+const linkedPhotoBytes=new Uint8Array(await jobLinked.blob.arrayBuffer());
+const linkedSha=Buffer.from(await webcrypto.subtle.digest('SHA-256',linkedPhotoBytes)).toString('hex');
+const forgeManifestZip=async(extraManifest={},extraPhoto={})=>{
+ const {blob,...knownMeta}=jobLinked;
+ const photoMeta={
+  id:knownMeta.id,customerId:knownMeta.customerId,jobId:knownMeta.jobId,
+  category:knownMeta.category,caption:knownMeta.caption,
+  filename:knownMeta.filename,contentType:knownMeta.contentType,
+  sizeBytes:knownMeta.sizeBytes,createdAt:knownMeta.createdAt,
+  sha256:linkedSha,...extraPhoto
+ };
+ const manifest={
+  format:'fire-offline-photo-vault',version:1,
+  exportedAt:'2026-11-17T00:00:00.000Z',
+  requiresMatchingCustomerRecords:true,photos:[photoMeta],...extraManifest
+ };
+ const stream=zip.createStoredZip(async add=>{
+  await add('photos/'+photoMeta.id,linkedPhotoBytes);
+  await add('manifest.json',new TextEncoder().encode(JSON.stringify(manifest)));
+ });
+ return new Blob([await new Response(stream).arrayBuffer()],{type:'application/zip'});
+};
+await assert.rejects(
+ archive.readOfflinePhotoBackup(await forgeManifestZip({unreviewedInternalToken:unexpectedDeviceField})),
+ /unsupported photo archive manifest fields/
+);
+check(true,'Valid-checksum ZIP with unreviewed top-level manifest fields is rejected by browser restore');
+await assert.rejects(
+ archive.readOfflinePhotoBackup(await forgeManifestZip({}, {unreviewedInternalToken:unexpectedDeviceField})),
+ /unsupported photo manifest fields/
+);
+check(true,'Valid-checksum ZIP with unreviewed per-photo fields is rejected by browser restore');
+check((await archive.readOfflinePhotoBackup(await forgeManifestZip())).length===1,
+ 'Exact job-linked manifest remains compatible with the independent saved-file format');
 await assert.rejects(
  backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A']),
  /authenticated job\/customer inventory/
