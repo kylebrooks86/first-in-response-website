@@ -11,11 +11,14 @@ export async function GET(){
  const owner=await getChatGPTUser();
  if(!owner||owner.email.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401});
  const runtime=env as RuntimeEnv;
- const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=='live'||/(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV||'');
+ // Treat dark DR, prelaunch NEW LIVE, QA and unknown runtime labels as
+ // isolated TEST targets despite the shared compiled "live" adapter.
+ const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=='live'||
+   !['','live','production','cloudflare-live'].includes(String(runtime.FIRE_ENV??'').trim().toLowerCase());
  if(sandbox && runtime.FIRE_STRIPE_MODE !== 'test')
    return Response.json({connectionReady:false,diagnosticOnly:true,endToEndVerified:false,reason:'stripe_test_mode_disabled'},{status:503,headers:{'cache-control':'no-store'}});
  const result=await inspectStripeConnection({key:runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY,
-  expectedAccountId:runtime.FIRE_STRIPE_EXPECTED_ACCOUNT_ID,sandbox:String(LOCAL_CUSTOMER_DEPLOYMENT)!=='live'||/(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV||''),
+  expectedAccountId:runtime.FIRE_STRIPE_EXPECTED_ACCOUNT_ID,sandbox,
   appUrl:runtime.SITE_ORIGIN,webhookSecretConfigured:Boolean(runtime.STRIPE_WEBHOOK_SECRET)});
  return Response.json(result,{status:result.connectionReady?200:503,headers:{'cache-control':'no-store'}});
 }
