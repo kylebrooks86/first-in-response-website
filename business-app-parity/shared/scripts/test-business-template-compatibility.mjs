@@ -17,5 +17,13 @@ for(const [key] of Object.entries(LEGACY_BUSINESS_TEMPLATE_DEFAULTS)){
  if(key==='autoReply'){assert.equal(actual.subject,'Call Kyle about your project');assert.equal(actual.body,'Customer Kyle Brooks: kyle@example.invalid');}
  else{assert.equal(actual.subject,templateByKey(key).subject);assert.equal(actual.body,templateByKey(key).body);}
 }
+// The customer-facing agreement must never offer payment methods the owner
+// expressly refuses; protect the NEW QA-master default and future template resets.
+const customerTerms=templateByKey('contractTerms').body;
+assert.match(customerTerms,/Checks are not accepted\./,'The actual customer contract explicitly rejects checks');
+assert.doesNotMatch(customerTerms,/Accepted methods may include cash, check/i,'No legacy offer of checks in customer terms');
+assert.doesNotMatch(customerTerms,/ACH bank transfer/i,'No unsupported ACH method offered in customer terms');
+assert.match(customerTerms,/Venmo \(@FirstInResponseExteriors\)/,'Existing approved Venmo handle remains visible');
+assert.match(customerTerms,/Cash App \(\$FIREExteriors\)/,'Existing approved Cash App handle remains visible');
 assert.equal(JSON.stringify(rows),snapshot);assert.equal(writes,0);
 console.log('PASS: authenticated real template route upgrades exact stored defaults on read, retains custom text/timestamps, denies unauthorized access and performs no database writes.');
