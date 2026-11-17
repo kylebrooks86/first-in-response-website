@@ -580,6 +580,13 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     if(!verifiedTemplate){setMessageStatus(templateFailureMessage);return false;}
     if(!linkReadiness.ready){setMessageStatus(documentLinkMessage);return false;}
     if(!appointmentReadiness.ready){setMessageStatus(appointmentReadiness.reason);return false;}
+    // Do not trust a possibly stale render if this editor remained open past
+    // the scheduled start. Recheck immediately before the durable draft write.
+    const freshAppointmentReadiness=customerAppointmentTemplateReadiness(
+      activeTemplate?.body??"",activeTemplate?.subject??"",estimate?.scheduledAt,estimate?.status,
+      (estimate?.address??customer.address),Date.now()
+    );
+    if(!freshAppointmentReadiness.ready){setMessageStatus(freshAppointmentReadiness.reason);return false;}
     // Match the API's normalization before signing or comparing its receipt.
     // Keep internal line breaks; only surrounding whitespace is discarded.
     const messageBody=body.trim();
