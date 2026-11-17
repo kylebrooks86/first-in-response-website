@@ -125,7 +125,10 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
     fail(label+' exceeds page bound');
   };
   const domains=await pages('/client/v4/accounts/'+FIRE_DARK_ACCOUNT+'/workers/domains','domains');
-  const zones=await pages('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT+'&type=full,partial,secondary,internal','zones');
+  // Do NOT filter zone types. The zones API accepts a single type, and a
+  // comma-joined filter can silently omit unrecognized/other zone types.
+  // Inspect every account-scoped zone returned before claiming no routes.
+  const zones=await pages('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT,'zones');
   const routes=[];
   for(const zone of zones){
     if(!isObj(zone)||!(/^[a-f0-9]{32}$/).test(zone.id)||zone.account?.id!==FIRE_DARK_ACCOUNT)
