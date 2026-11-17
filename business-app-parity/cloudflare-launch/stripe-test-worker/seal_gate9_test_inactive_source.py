@@ -61,7 +61,10 @@ def exact_tree(folder):
             require(p.is_file() and st.st_nlink == 1 and 0 < st.st_size < 25_000_000,
                     "unreviewed file shape or size")
             rel = p.relative_to(folder).as_posix()
-            require(re.fullmatch(r"[a-zA-Z0-9_./-]+", rel) and
+            # Compiled Next.js chunk names legitimately contain a tilde (~).
+            # Still refuse percent, backslash, traversal, symlinks and all
+            # other unreviewed characters; never decode archive paths.
+            require(re.fullmatch(r"[a-zA-Z0-9_./~-]+", rel) and
                     ".." not in rel.split("/"), "unsafe source path")
             raw = file_bytes(p)
             rows.append({"path": rel, "bytes": len(raw), "sha256": digest(raw)})
