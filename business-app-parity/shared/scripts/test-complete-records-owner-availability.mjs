@@ -99,6 +99,30 @@ try{
   widget.includes('<CompleteD1RecordsReview reviewEnabled={allowed}/>')&&
   widget.includes('<ProtectedPairOwnerReview reviewEnabled={allowed}/>'),
   'Both controls require separately authenticated affirmative capability');
+
+pass(widget.includes("window.addEventListener('focus',onFocus)")&&
+ widget.includes("window.addEventListener('pageshow',onFocus)")&&
+ widget.includes("document.addEventListener('visibilitychange',onVisible)")&&
+ widget.includes("document.visibilityState==='visible'")&&
+ widget.includes("window.removeEventListener('focus',onFocus)")&&
+ widget.includes("window.removeEventListener('pageshow',onFocus)")&&
+ widget.includes("document.removeEventListener('visibilitychange',onVisible)"),
+ 'Already-open owner review revalidates on focus, visible and back-forward return, with listener cleanup');
+pass(widget.includes("const requestId=++latestCheck,signal=controller.signal")&&
+ widget.includes("controller.abort()")&&
+ widget.includes("requestId===latestCheck&&!signal.aborted")&&
+ widget.includes("disposed=true;latestCheck++"),
+ 'A superseded or unmounted capability response cannot reenable sensitive owner review');
+pass(widget.includes("let approved=false")&&
+ widget.includes("setAllowed(approved)")&&
+ !widget.includes("setAllowed(true)"),
+ 'Denied, expired or failed owner read revokes an existing allowed state instead of preserving stale permission');
+pass(widget.includes("cache:'no-store'")&&
+ widget.includes("credentials:'same-origin'")&&
+ widget.includes("redirect:'error'")&&
+ widget.includes("payload.gate7Accepted===false"),
+ 'Reactivation uses the same strict private owner-only no-store capability contract');
+
  pass(records.includes('if(!reviewEnabled)return null')&&
   pair.includes('if(!reviewEnabled)return null'),
   'Actual records and photo controls still fail invisible when disabled');
