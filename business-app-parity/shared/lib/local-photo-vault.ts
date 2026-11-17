@@ -63,11 +63,12 @@ export async function countOfflinePhotos(customerId:string):Promise<number>{
  }finally{db.close();}
 }
 
-export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File):Promise<OfflinePhoto>{
+export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File,jobId?:string):Promise<OfflinePhoto>{
  if(!customerId||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))throw Error('Choose a valid saved customer before adding photos.');
  if(!['before','after','property'].includes(category))throw Error('Choose a valid photo category.');
+ if(jobId!==undefined&&!/^[a-zA-Z0-9_-]{1,120}$/.test(jobId))throw Error('Choose a valid saved job before associating photos.');
  if(!(file instanceof File)||!supportedOfflinePhotoType(file.type)||file.size<=0||file.size>MAX_FILE)throw Error('Choose an image smaller than 15 MB.');
- const record:OfflinePhoto={id:crypto.randomUUID(),customerId,category,caption:caption.slice(0,2000),
+ const record:OfflinePhoto={id:crypto.randomUUID(),customerId,...(jobId===undefined?{}:{jobId}),category,caption:caption.slice(0,2000),
   filename:(file.name||'photo').slice(0,240),contentType:file.type,sizeBytes:file.size,createdAt:new Date().toISOString(),blob:file};
  const db=await openVault();
  try{
@@ -97,7 +98,7 @@ export async function removeOfflinePhoto(id:string,customerId:string):Promise<vo
  * inventory while the archive was being prepared. No additional blob reads. */
 export function sameOfflinePhotoInventory(before:OfflinePhoto[],after:OfflinePhoto[]):boolean{
  if(before.length!==after.length)return false;
- const fields=['id','customerId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
+ const fields=['id','customerId','jobId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
  return before.every((row,i)=>{
   const current=after[i];
   return Boolean(current&&fields.every(field=>row[field]===current[field])&&
@@ -135,7 +136,7 @@ export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
 }
 export type PhotoRestoreResult={restored:number;alreadyPresent:number};
 export async function exactSavedPhotoMatch(saved:OfflinePhoto,incoming:OfflinePhoto):Promise<boolean>{
- const fields=['id','customerId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
+ const fields=['id','customerId','jobId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
  if(fields.some(field=>saved[field]!==incoming[field]))return false;
  if(!(saved.blob instanceof Blob)||saved.blob.size!==saved.sizeBytes||
     saved.blob.type!==saved.contentType)return false;
