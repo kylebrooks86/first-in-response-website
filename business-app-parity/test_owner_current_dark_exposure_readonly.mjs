@@ -70,6 +70,11 @@ assert.equal(proof.publicEndpointsAbsentInSuppliedEvidence,true);
 assert.equal(proof.gate4Accepted,false);
 assert.equal(calls.length,4);
 assert.ok(calls.every(p=>p.startsWith('/client/v4/')&&!/\b(post|put|delete)\b/i.test(p)));
+assert.ok(calls.some(p=>p.startsWith('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT+'&page=1&per_page=50')),
+  'All-zone account inventory must be queried without a type filter');
+assert.ok(calls.filter(p=>p.startsWith('/client/v4/zones?')).every(p=>!/[?&]type=/.test(p)),
+  'A comma-joined or partial type filter must not exclude undiscovered Cloudflare zones');
+console.log('PASS all account zone types enumerated, with no restrictive provider type filter');
 console.log('PASS four exact read-only GET mock calls; no paid API, auth or remote state');
 const malformedCounts=async(_token,path)=>{
  const result=await mock(_token,path);
