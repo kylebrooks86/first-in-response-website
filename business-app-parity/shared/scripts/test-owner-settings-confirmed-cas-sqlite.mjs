@@ -25,11 +25,11 @@ const promotionModel=r.load('lib/saved-promotions.ts');
 const packagesModel=r.load('lib/quote-packages.ts');
 const specs=[
  {name:'owner service pricing',route:'service-pricing',key:rateModel.SERVICE_RATE_PREFIX+'house-wash',
-  field:'rate',payload:(rev,phase)=>({id:'house-wash',rateCents:[23,25,27][phase],expectedRevision:rev})},
+  field:'rate',maxBytes:24_000,payload:(rev,phase)=>({id:'house-wash',rateCents:[23,25,27][phase],expectedRevision:rev})},
  {name:'stackable saved promotions',route:'saved-promotions',key:promotionModel.SAVED_PROMOTIONS_KEY,
-  field:'catalog',payload:(rev,phase)=>({promotions:[[promotionA],[promotionA,promotionB],[]][phase],expectedRevision:rev})},
+  field:'catalog',maxBytes:262_144,payload:(rev,phase)=>({promotions:[[promotionA],[promotionA,promotionB],[]][phase],expectedRevision:rev})},
  {name:'saved quote packages',route:'quote-packages',key:packagesModel.QUOTE_PACKAGES_KEY,
-  field:'catalog',payload:(rev,phase)=>({packages:[[packageA],[packageA,packageB],[packageB]][phase],expectedRevision:rev})},
+  field:'catalog',maxBytes:32_000,payload:(rev,phase)=>({packages:[[packageA],[packageA,packageB],[packageB]][phase],expectedRevision:rev})},
  {name:'repeat-service reminders',route:'business-preferences',key:prefModel.BUSINESS_PREFERENCES_KEY,
   field:'preferences',payload:(rev,phase)=>({revision:rev,blocks:[],repeatMonths:{'house-wash':[12,18,24][phase]}})}
 ];
@@ -86,6 +86,22 @@ async function withinFault(kind,fn){
 }
 try{
  for(const spec of specs){
+  if(spec.maxBytes){
+   const api=r.load('app/api/'+spec.route+'/route.ts');
+   const uri='https://synthetic.invalid/api/'+spec.route;
+   const cases=[
+    ['declared excessive length',new Request(uri,{method:'PUT',headers:{'content-length':String(spec.maxBytes+1)},body:'{}'}),413],
+    ['chunked excessive body',new Request(uri,{method:'PUT',body:' '.repeat(spec.maxBytes+1)}),413],
+    ['false short length',new Request(uri,{method:'PUT',headers:{'content-length':'2'},body:'{\"x\":1}'}),400],
+    ['invalid UTF-8',new Request(uri,{method:'PUT',body:new Uint8Array([123,34,120,34,58,255,125])}),400],
+   ];
+   for(const [label,request,expected] of cases){
+    const before=r.counters();
+    const refusal=await api.PUT(request);
+    test(refusal.status===expected,spec.name+': '+label+' refused before JSON parse');
+    test(JSON.stringify(r.counters())===JSON.stringify(before),spec.name+': '+label+' does not touch D1');
+   }
+  }
   const fresh=await get(spec);
   test(fresh.status===200,spec.name+': initial route GET succeeds');
   test(stored(spec.key)===null,spec.name+': no initial settings row');
