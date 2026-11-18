@@ -37,8 +37,9 @@ test('both paths pin the same QA target and physical D1 without R2', () => {
     requireGuard(script, /\bversions view\b/, 'Current immutable version binding must be checked');
     requireGuard(script, /bindingVerified\s*-eq\s*\$true/, 'Physical D1 binding must be verified');
   }
-  requireGuard(review, /r2_buckets/, 'Reviewer must check no-R2 requirement');
-  requireGuard(publish, /NO R2 bucket is bound or billed/, 'Publisher must preserve no-R2 requirement');
+  requireGuard(review, /check_qa_runtime_config\.mjs/, 'Reviewer must validate isolated QA runtime configuration');
+  requireGuard(review, /no R2 billing, bucket or photo cloud sync/, 'Reviewer must preserve no-R2 guard');
+  requireGuard(publish, /No R2 bucket is bound or billed/, 'Publisher must preserve no-R2 requirement');
 });
 
 test('review refuses split traffic, changed version, stale local SHA and unreviewed migration', () => {
