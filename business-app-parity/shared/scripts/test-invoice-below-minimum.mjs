@@ -81,6 +81,31 @@ function seed(id){
 }
 try{
  seed('small');
+ // Financial invoice edits must reject malformed, excessive and contradictory
+ // body streams before creating a revision or expiring a Stripe checkout.
+ // This exercises the actual route and shared production reader.
+ const beforeInvalidHeader=JSON.stringify(db.prepare("SELECT * FROM invoices WHERE id='small'").get());
+ const beforeInvalidLines=JSON.stringify(db.prepare("SELECT * FROM invoice_items WHERE invoice_id='small'").all());
+ const postRawInvoice=(body,headers={})=>route.PATCH(new Request(
+   'https://synthetic.invalid/api/invoices/small',{method:'PATCH',headers,body}
+ ),{params:Promise.resolve({id:'small'})});
+ const badInvoiceBodies=[
+  ['array','[]',{},400],
+  ['null','null',{},400],
+  ['malformed','{"items":',{},400],
+  ['invalid UTF-8',new Uint8Array([0xc3,0x28]),{},400],
+  ['oversize stream',JSON.stringify({note:'x'.repeat(129000)}),{},413],
+  ['oversize declared','{}',{'Content-Length':'128001'},413],
+  ['contradictory length','{}',{'Content-Length':'300'},400],
+ ];
+ for(const [why,body,headers,status] of badInvoiceBodies){
+   const refused=await postRawInvoice(body,headers);
+   eq(refused.status,status,why+' invoice PATCH rejects body before financial mutation');
+   eq(JSON.stringify(db.prepare("SELECT * FROM invoices WHERE id='small'").get()),beforeInvalidHeader,why+' leaves invoice header unchanged');
+   eq(JSON.stringify(db.prepare("SELECT * FROM invoice_items WHERE invoice_id='small'").all()),beforeInvalidLines,why+' leaves invoice lines unchanged');
+   eq(revisions('small'),0,why+' creates no audit revision');
+   eq(remoteCalls,0,why+' sends no Stripe request');
+ }
  let response=await patch('small',items(2500,'Trash bin'),'dollar',0,{expectedRevisionCount:undefined});
  eq(response.status,400,'API rejects invoice edit with missing source revision number');
  eq(revisions('small'),0,'Missing version writes no revision');
