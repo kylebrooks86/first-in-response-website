@@ -19,6 +19,9 @@ const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),pay=load('app/a
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
 const get=(id,requestId)=>confirm.GET(new Request('https://synthetic.invalid/api/payments/confirmation?'+new URLSearchParams({estimateId:id,requestId})));
 const post=(id,a)=>pay.POST(new Request('https://synthetic.invalid/api/payments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estimateId:id,...a})}));
+const postRaw=(raw,headers={})=>pay.POST(new Request('https://synthetic.invalid/api/payments',{
+ method:'POST',headers:{'Content-Type':'application/json',...headers},body:raw
+}));
 function seed(id,status='approved'){db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run('c-'+id,'Synthetic Payment '+id,'2026-10-18');db.prepare('INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,20000,20000,10000,?)').run(id,'c-'+id,status,'2026-10-18');}
 const attempt={requestId:randomUUID(),amountCents:10000,tipCents:0,method:'Cash',reference:'synthetic',processingFeeCents:null};
 try{
@@ -26,6 +29,29 @@ try{
  owner=null;eq((await get('a',attempt.requestId)).status,401);owner={email:'customer@example.invalid'};eq((await get('a',attempt.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
  eq((await get('a','bad')).status,400);eq((await get('missing',attempt.requestId)).status,404);
  let response=await get('a',attempt.requestId);eq(response.status,200);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
+ // The actual financial-write API must reject malformed, primitive or giant
+ // owner bodies BEFORE any payment or tip write. Do not silently parse JSON
+ // via an unbounded request.json() from a stale or hostile client.
+ const moneyBefore=writes;
+ for(const raw of ['null','[]','123','"not an object"','{broken','',new Uint8Array([0xc3,0x28])]){
+  const denied=await postRaw(raw);
+  eq(denied.status,400);
+  eq(writes,moneyBefore,'Invalid money request must never write D1');
+ }
+ eq((await postRaw('{"estimateId":"b"}',{'Content-Length':'2'})).status,400,
+  'Misstated manual payment Content-Length must fail closed');
+ eq(writes,moneyBefore);
+ const huge='{"unused":"'+('X'.repeat(16_100))+'"}';
+ eq((await postRaw(huge)).status,413,'Oversized streamed payment request is rejected');
+ eq(writes,moneyBefore);
+ eq((await postRaw('{"estimateId":"b"}',{'Content-Length':'16001'})).status,413,
+  'Declared oversize payment is refused before reading JSON');
+ eq(writes,moneyBefore);
+ eq((await postRaw('{"estimateId":"b"}',{'Content-Length':'garbage'})).status,400,
+  'Invalid declared payment length does not reach D1');
+ eq(writes,moneyBefore);
+ eq(readFileSync('app/api/payments/route.ts','utf8').includes('readOwnerWriteObject(request,16_000)'),true,
+  'Actual money endpoint uses bounded shared owner parser');
  // Exact-cents validation must happen at the actual API boundary, even when a
  // malformed client bypasses the mobile form. Reject without any D1 mutation.
  for(const [caseName,patch]of [
