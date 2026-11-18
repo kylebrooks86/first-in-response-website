@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_QA25_BACKUP_ACTIVE_VERSION_CORRECTION -->
+## November 18 — QA current25 owner backup helper SOURCE BLOCKER FIXED, both focused GitHub CI jobs PASS (Gate7 subwork)
+
+PR270 current owner-private QA backup helper was still tied to an obsolete `99fa8c27` version, even after current QA read-only/QA reviewer/publisher were correctly pinned to accepted physically hosted `08d77fb1-9484-4014-bd5b-1bb1da066cdb`. That mismatch would stop a future separately authorized `-Export` before checking a valid current QA release. **Actual code correction** now pins the same accepted immutable QA version in `owner_windows_qa_backup_current25.ps1`, compares the single executable PowerShell assignment not a comment, retains owner exact typed `-Export` approval, pre-existing private folder, no overwrite, no R2 and no remote D1 writes. `verify_qa_current25_d1_export.py` now reports correct accepted version and 4/10 gate count in pass/fail receipts. Historical older v25 backup helper stays archived without mislabeling.
+
+**Real exact-source GitHub CI PASS:** [QA Code Update Read-Only Review Safety #44375053726](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44375053726), both `review` and `Windows QA private backup default never exports or accesses Cloudflare` jobs **completed SUCCESS** for actual code/test SHA `74a5fd0f01ef4bfbd4046bec8703ed559f12b49d`. Python tests include exact pin, stale/duplicate refusal, existing synthetic 25-migration encrypted-private-export in-memory restore constraints; Windows executed actual default PowerShell helper, confirmed **NO EXPORT/NO REMOTE WRITES**. A first Windows CI harness misread Write-Host stream; corrected only test harness capture, final Windows CI truly green. [Complete documented source, test and non-provider boundary](../evidence/FIRE_QA25_BACKUP_ACTIVE_VERSION_GUARD_CI_20261118.md).
+
+**Gate7 remains [ ]** for hosted owner-complete backup/photo pair and physical restoration; this code fix cannot be miscounted as an actual new backup. Formal release unchanged **45/95 full checkmarks, 50 remaining; 4/10 gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO; first Job #0001 unused.** No Cloudflare login/token, remote export, SQL/Stripe/Access, R2 or paid service, customer photo copy, deploy, merge or launch.
+
+---
+
 <!-- FIRE_NOV18_QA_ACTIVE_PIN_PR270_INTEGRATED -->
 ## November 18 — REAL QA owner release-tool stale active-version defect FIXED AND FOCUSED CI PASS
 
