@@ -1,3 +1,10 @@
+<!-- FIRE_NOV18_QA_DEPOSIT_IMMUTABILITY_TRIGGERS -->
+## November 18 — NEW physical QA deposit/audit immutability trigger inventory, 4/4 present
+
+Original owner Cloudflare Console screenshot on physical QA D1 `8ccfb1f8-1657-4074-b1b2-47de78f95003` actually returned four expected `sqlite_master` trigger rows: `deposit_policy_events_no_update`, `deposit_policy_events_no_delete`, `deposit_agreement_snapshots_no_update` and `deposit_agreement_snapshots_no_delete`. Each points to its expected deposit policy/agreement table; all names match reviewed 0023/0024 source migrations. Original image remains private; [exact evidence and hash](../evidence/FIRE_QA_DEPOSIT_IMMUTABLE_TRIGGER_INVENTORY_OWNER_20261118.md). ✅ **G5-02 QA trigger-existence subcheck verified; do NOT rerun this query.** Trigger SQL/actual blocked write were not executed on provider, and old STAGING has an accepted *zero-trigger* inventory. Thus no blanket four-target schema or hosted behavior proof. **G5-02 overall still [ ]; 45/95 full tasks checked, 50 open; formal 4/10 accepted G1/G2/G3/G8; NEW LIVE DARK NO-GO.** No provider operation besides owner's read-only SQL.
+
+---
+
 <!-- FIRE_NOV18_QA_REFUND_FOREIGN_KEY_OWNER -->
 ## November 18 — NEW original physical QA refund FK definitions VERIFIED (G5-02 partial)
 
