@@ -1,3 +1,9 @@
+## November 18 — G7-02 accepted for the active QA database
+
+Owner approved one QA export and confirmed private storage and the export window in the guarded Acer helper. Its pre/post checks passed for the active QA Worker and pinned D1, and the complete 55,305-byte QA25 SQL export passed disposable local SQLite restore verification. The verifier compares all restored table data digests and the ordered journal. This covers the records present on QA at export time. Private SQL and receipt remain on the Acer. Evidence summarized without the signed download URL. [Scoped approval](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6989333904).
+
+47/95 complete, 48 open. Formal gates 4/10. G7-03 remains accepted for the three-photo iPhone archive. G7-04 still requires matching the actual pair, and G7-05 independent custody is separate.
+
 ## November 18 — G7-03 accepted: verified iPhone QA photo archive
 
 46/95 checklist items complete, 49 open. Formal gates 4/10 (G1, G2, G3, G8). The owner retained the 4.4 MB all-photos backup. The hosted QA verifier read the saved archive and verified its manifest and original photo hashes: 3 of 3 exact device matches, zero archive-only. The owner confirmed one After and one Property/damage photo alongside the visible one Before for the same customer. [Saved-file verification](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6989220100). G7-04 still requires a matching point-in-time D1 and photo pair. No repeat photo verification needed.
@@ -467,7 +473,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 ### F. Gate 7 — complete *future* records + real photos backup, isolated restore and rollback
 
 - [ ] **G7-01** — Make the owner-accessible complete records + saved-photo archive flow available on an *approved hosted candidate*; source-only endpoint/flag checks are insufficient.
-- [ ] **G7-02** — Create one owner-authorized protected backup of all test/new-app D1 records, journals, invoices, payments, customer/job numbers, notes, messages, schedule and supplemental tables.
+- [x] **G7-02** — Create one owner-authorized protected backup of all test/new-app D1 records, journals, invoices, payments, customer/job numbers, notes, messages, schedule and supplemental tables.
 - [x] **G7-03** — Create and privately retain one full original-photo owner-device ZIP (no R2), metadata manifest, every actual file's bytes and hashes, including representative before/after pairing.
 - [ ] **G7-04** — Verify *one matching point-in-time* D1+photo pair: record IDs, file associations, exact hashes, sizes, counts and manifest with no missing/extra bytes.
 - [ ] **G7-05** — Keep secure independent/off-Acer custody and reproducible encrypted/versioned copies, with owner-held keys; no sensitive raw JSON/photos in public GitHub.
