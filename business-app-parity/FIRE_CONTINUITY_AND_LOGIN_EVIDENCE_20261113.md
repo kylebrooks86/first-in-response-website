@@ -1,3 +1,9 @@
+## November 18 — G7-05 accepted for independent encrypted backup custody
+
+The owner opened the password-protected records archive and confirmed the dated QA SQL and restore receipt. Drive showed a private retained revision. The Acer SHA-256 comparison passed for the downloaded 10,815-byte archive against the original (IMG_5C6A9754-8961-481C-9714-6F7D8E74E752.jpeg). The separately encrypted 4,593,469-byte photo backup was already downloaded and authenticated with the owner’s key, with all three originals matched to the saved QA records. [Custody evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6993173147). G7-07 isolated photo restoration remains open.
+
+49/95 complete, 46 outstanding. Formal gates 4/10 (G1, G2, G3, G8).
+
 ## November 18 — G7-04 accepted for the saved QA records and device-photo pair
 
 Owner Acer readback (IMG_C2953DDB-DE0D-440E-A998-C3AE9EDC8662.jpeg) on checker `b94cfb07fd975bcb9226b5923b181a15f6fcf170`: PHOTO_COUNT=3, JOB_LINKS_PRESENT=0, PASS. The checker authenticated the encrypted archive, checked the ZIP inventory and individual photo hashes and sizes, verified the SQL against its restore receipt, and matched each recorded customer ID against the exported QA database. SHA-256 fingerprints were emitted for the SQL, encrypted archive and verified ZIP. SQL size 55,305 bytes, encrypted photos 4,593,469 bytes. The [owner confirmed no edits in the capture window](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6989487444). This accepts a logically matching QA backup pair; it does not assert an atomic distributed snapshot or a restored job association. The three original photos have customer associations only. G7-05 independent encrypted custody and G7-07 isolated restore remain open.
