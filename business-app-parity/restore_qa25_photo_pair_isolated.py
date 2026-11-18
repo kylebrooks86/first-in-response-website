@@ -1,4 +1,4 @@
-"""FIRE G7-07: owner-only offline restore of saved QA photos into a new isolated folder.
+r"""FIRE G7-07: owner-only offline restore of saved QA photos into a new isolated folder.
 
 No Cloudflare, uploads, database writes, R2, or provider calls. Original input files
 remain unchanged. Restored original photos are PLAINTEXT in the output directory:
