@@ -79,8 +79,29 @@ def checked_photo_zip(photo, phrase, db):
         cwd=ROOT, input=json.dumps(phrase).encode('utf-8'),
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
     )
-    if result.returncode or not 22 < len(result.stdout) <= MAX_ZIP:
-        raise ValueError('Encrypted file authentication or verified ZIP readback failed')
+    if result.returncode:
+        # Distinguish stopped local-tool stages WITHOUT printing stderr, file paths,
+        # photo metadata, credentials, customer records, or decrypted bytes.
+        err = result.stderr.decode('utf-8', errors='replace').lower()
+        if 'wrong passphrase or damaged protected file' in err:
+            stage = 'CIPHERTEXT_AUTHENTICATION_OR_KEY_STOP'
+        elif 'saved photo backup missing, replaced or unsupported' in err:
+            stage = 'LOCAL_ENCRYPTED_FILE_READ_STOP'
+        elif 'not an encrypted fire photo file' in err:
+            stage = 'ENCRYPTED_FORMAT_HEADER_STOP'
+        elif 'fire saved photo recovery review blocked:' in err:
+            stage = 'VERIFIED_ZIP_FORMAT_OR_INTEGRITY_STOP'
+        elif 'err_module_not_found' in err or 'cannot find module' in err:
+            stage = 'RESTORE_SOURCE_MODULE_STOP'
+        elif 'syntaxerror' in err or 'referenceerror' in err or 'typeerror' in err:
+            stage = 'LOCAL_NODE_HELPER_RUNTIME_STOP'
+        else:
+            stage = 'UNCLASSIFIED_NODE_STOP'
+        raise ValueError('Photo recovery stopped safely at ' + stage
+                         + '; no isolated photo files were written')
+    if not 22 < len(result.stdout) <= MAX_ZIP:
+        raise ValueError('Photo recovery stopped safely at INVALID_DECRYPTED_ZIP_LENGTH'
+                         '; no isolated photo files were written')
     zipbytes = result.stdout
     with zipfile.ZipFile(io.BytesIO(zipbytes), 'r') as zipped:
         names = zipped.namelist()
