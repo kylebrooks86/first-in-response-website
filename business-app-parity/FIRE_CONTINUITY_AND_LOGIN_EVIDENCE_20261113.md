@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_EXACT_CI_GREEN_OWNER_PRECHECK -->
+## Nov 18 — exact-executable-source 25/25 CI verified; owner Acer user-folder precheck classified
+
+**Completed actual GitHub CI readback:** at executable/test SHA `33a4970890b8436acf9f190e7a66ff6af0145107`, **all 25/25 PR workflow runs concluded SUCCESS** (no pending/failed), including the long **6/6 completed SUCCESS** staging jobs in [#44319128990](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44319128990). This completes the previously pending/failed synthetic Insights 30-day fixture check; it is NOT an actual hosted customer/Stripe/provider success. A compare to the observed PR270 docs head `bcc44669ab2e3facc290122e923e51a894eaac5a` found **10 commits and 5 Markdown-only changed paths, no executable/config/test changes**, so this valid completed CI checks the unchanged executable code now carried in the unmerged review. [Readback evidence](evidence/FIRE_NOV18_CI_25_OF_25_EXACT_SOURCE_READBACK_20261118.md).
+
+**New original Acer photo:** interactive Windows PowerShell 5.1 at the owner's home folder; Git says no repository and the relative dark-exposure source checker is absent *in that folder*, Node reports v24.22.0, API token env boolean False. No inference that old local QA clone, archive, provider permissions or actual deployed proof have disappeared. Historical documented QA repo `$HOME\\FIREQA-PR172` can be located read-only; do not overwrite/check out its frozen branch or solicit credentials. Absent existing scoped token, stop all live provider GET capture, do not create/recover a token or attempt a Cloudflare Work login; rely on already accepted owner readbacks and continue source/GitHub work.
+
+**Acceptance unchanged:** 45/95 checked, 50 open, formal 4/10 gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, real Job #0001 unused. No Cloudflare provider, SQL, Stripe, Access, app deployment/merge, paid R2 or production change.
+
+---
+
 <!-- FIRE_NOV18_OWNER_ACER_POWERSHELL_PROOF -->
 ## Nov 18 — Owner Acer PowerShell proof is ALREADY accepted and must be prioritized over new screenshots
 
