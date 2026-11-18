@@ -10,7 +10,7 @@ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;console.log('PASS: '+description);};
 const body=JSON.stringify({shareToken:'synthetic-share-token',paymentType:'deposit'});
-function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01',siteOrigin='https://synthetic.invalid',requestOrigin='https://synthetic.invalid',holdAtReserve=null,holdAfterStripe=null}={}){
+function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01',siteOrigin='https://synthetic.invalid',requestOrigin='https://synthetic.invalid',holdAtReserve=null,holdAfterStripe=null,holdAtPromotion=null}={}){
  const state={open:priorStatus?{id:'cs_test_previoussynthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0,dbPrepares:0};
  let readers=0,openReaders;
  const bothReaders=new Promise(resolve=>{openReaders=resolve;});
@@ -47,6 +47,11 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
            return {meta:{changes:1}};
          }
          if(sql.includes('UPDATE payment_checkout_sessions SET id=?')){
+           // A second device changes financial/auth state after the final
+           // read but before the real source's final conditional D1 UPDATE.
+           if(holdAtPromotion==='refund'&&sql.includes("NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')"))return {meta:{changes:0}};
+           if(holdAtPromotion==='overage'&&sql.includes("NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)"))return {meta:{changes:0}};
+           if(holdAtPromotion==='revoked'&&sql.includes('e.share_token=?'))return {meta:{changes:0}};
            if(saveFailure)throw Error('Synthetic D1 acknowledgement unavailable');
            if(!state.open||state.open.id!==params[1])return {meta:{changes:0}};
            state.open.id=params[0];return {meta:{changes:1}};
@@ -174,6 +179,15 @@ for(const kind of ['refund','overage']){
  check(reply.status===409,kind+' introduced during Stripe session creation blocks returning the payment URL');
  check(h.state.creates===1&&h.state.expirations===1&&h.state.open===null,
   kind+' after remote acknowledgement triggers verified expiry rather than exposing the link');
+}
+// After Stripe creation and even after post-provider readback, do not
+// promote a stale/financially blocked checkout at the last SQL write.
+for(const kind of ['refund','overage','revoked']){
+ const h=harness({holdAtPromotion:kind});
+ const reply=await h.post();
+ check(reply.status===503,kind+' appearing at final promotion denies checkout URL');
+ check(h.state.creates===1&&h.state.expirations===1&&h.state.open===null,
+   kind+' final SQL-time block expires the Stripe session and releases its provisional lock');
 }
 for(const kind of ['wrong-mode','bad-origin','plain-http','bad-id']){
  const h=harness({stripeResponse:kind});
