@@ -124,6 +124,15 @@ try{
  db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(past(),appointmentId);
  eq((await post(appointment)).status,409);
  eq(appointmentCount(),none+1);
+ // A valid scheduled job next week may receive a confirmation, but its
+ // canned "service is tomorrow" reminder must not be prepared yet.
+ const laterWeek=new Date(Date.now()+5*86400000).toISOString();
+ db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(laterWeek,appointmentId);
+ const prematureReminder={...appointment,appointmentScheduledAt:laterWeek,template:'appointmentReminder',requestId:randomUUID(),body:'Incorrectly says service is tomorrow'};
+ const prematureResponse=await post(prematureReminder);
+ eq(prematureResponse.status,409);
+ eq((await prematureResponse.json()).error.includes('day before'),true);
+ eq(appointmentCount(),none+1);
  const reminderTime=future();
  db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(reminderTime,appointmentId);
  const reminder={...appointment,appointmentScheduledAt:reminderTime,template:'appointmentReminder',requestId:randomUUID(),body:'Synthetic 24-hour reminder'};
@@ -149,6 +158,9 @@ try{
  // A genuinely custom follow-up remains available after the job ends.
  eq((await post({...appointment,template:'custom',body:'Please call when convenient',requestId:randomUUID()})).status,201);
  eq(readFileSync('app/dashboard.tsx','utf8').includes('appointmentScheduledAt:estimate?.scheduledAt??""'),true);
+ const routeSource=readFileSync('app/api/customer-messages/route.ts','utf8');
+ eq(routeSource.includes("julianday('now') < julianday(?)"),true);
+ eq(routeSource.includes("customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,now)"),true);
  // Real contact-readiness preflight and SQL-time invalidation on saved
  // customer data. All negative cases must create ZERO prepared rows.
  const totalMessages=()=>Number(db.prepare('SELECT COUNT(*) AS n FROM customer_messages').get().n);
