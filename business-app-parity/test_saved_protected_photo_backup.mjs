@@ -110,7 +110,7 @@ try{
  // a synthetic valid saved archive. A previous real owner run stopped after
  // its passphrase prompt; the old suite never exercised this binary bridge.
  const restoreSource=readFileSync(new URL('./restore_qa25_photo_pair_isolated.py',import.meta.url),'utf8');
- const helperMatch=restoreSource.match(/PHOTO_READ\\s*=\\s*r"""([\\s\\S]*?)"""/);
+ const helperMatch=restoreSource.match(/PHOTO_READ\s*=\s*r"""([\s\S]*?)"""/);
  ok(!!helperMatch,'owner QA25 restore embeds the expected raw Node script');
  const nodeHelperArgs=['--input-type=module','-e',helperMatch[1],file];
  const bridge=spawnSync(process.execPath,nodeHelperArgs,{
