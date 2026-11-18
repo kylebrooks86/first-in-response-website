@@ -200,7 +200,7 @@ try{
  check(await initialPage.getByRole('heading',{name:'Customers',exact:true}).count()===1,
    'First-use Dashboard call to action opens actual Customers page without sending messages');
  await initialPage.close();
- const customerResponse=await request('/api/customers','POST',{name:'Synthetic HTTP Customer',address:'100 Synthetic Fixture Way',email:'fixture@example.invalid'});
+ const customerResponse=await request('/api/customers','POST',{name:'Synthetic HTTP Customer',address:'100 Synthetic Fixture Way',email:'fixture@example.invalid',phone:'9185550123'});
  const customer=(await customerResponse.json()).customer;
  check(customerResponse.status()===201&&typeof customer?.id==='string','Customer creation persists through actual HTTP and native D1');
  let testPhotoId=null;let testPhotoBytes=null;
