@@ -4,6 +4,7 @@ import {resolve} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {createHmac} from 'node:crypto';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
 import {serviceLocationManifest,serviceLocationBackupError} from '../lib/service-location-backup.mjs';
 import {readBoundedRecordsRestoreText} from '../lib/bounded-records-restore.mjs';
@@ -19,6 +20,7 @@ globalThis.__feeBackupHelpers={propertyBackupError,hasPropertyBackup,serviceLoca
 // fixture strips imports, so inject the SAME production reader, never a mock
 // or fallback to unbounded request.text().
 globalThis.__feeBoundedRecordsRestoreText=readBoundedRecordsRestoreText;
+globalThis.__refundBoundedOwnerWrite=readOwnerWriteObject;
 async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
   // The fixture strips route imports; inline the actual pure audit validator source.
   source=readFileSync(root+'/lib/deposit-audit-backup.mjs','utf8')+'\n'+readFileSync(root+'/lib/deposit-agreement-backup.mjs','utf8')+'\n'+source;
@@ -29,7 +31,7 @@ const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLoca
 const readBoundedRecordsRestoreText=globalThis.__feeBoundedRecordsRestoreText;
 const exportPropertyRecords=()=>{throw Error('Unexpected property export in synthetic legacy backup')};
 const restorePropertyRecords=()=>{throw Error('Unexpected property restore in synthetic legacy backup')};
-`+source;}if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;const refundLedgerObjectsPresent=globalThis.__refundLedgerGuard.refundLedgerObjectsPresent;const refundLedgerNotReady=globalThis.__refundLedgerGuard.refundLedgerNotReady;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const LOCAL_CUSTOMER_DEPLOYMENT="'+(path.includes('webhook')?'doomsday':'live')+'";\n'+source;source='const env={DB:globalThis.__feeTestDB,SITE_ORIGIN:\"https://test\",STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",get STRIPE_RESTRICTED_KEY(){return globalThis.__stripeTestKeyUnavailable?undefined:"sk_test_fixture"},FIRE_STRIPE_MODE:"test"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
+`+source;}if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;const refundLedgerObjectsPresent=globalThis.__refundLedgerGuard.refundLedgerObjectsPresent;const refundLedgerNotReady=globalThis.__refundLedgerGuard.refundLedgerNotReady;const readOwnerWriteObject=globalThis.__refundBoundedOwnerWrite;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const LOCAL_CUSTOMER_DEPLOYMENT="'+(path.includes('webhook')?'doomsday':'live')+'";\n'+source;source='const env={DB:globalThis.__feeTestDB,SITE_ORIGIN:\"https://test\",STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",get STRIPE_RESTRICTED_KEY(){return globalThis.__stripeTestKeyUnavailable?undefined:"sk_test_fixture"},FIRE_STRIPE_MODE:"test"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
 const refunds=await load('lib/stripe-refunds.ts');globalThis.__refundFinalize=refunds.finalizeRefund;globalThis.__refundUpdate=refunds.recordRefundUpdate;
 
 const schemaGuard=await load('lib/refund-ledger-readiness.ts');globalThis.__refundLedgerGuard=schemaGuard;
@@ -100,6 +102,31 @@ const external=fixture(10000,1000,'cs_external');assert.equal((await event({id:'
 // Concurrent API attempts reserve the same original payment budget atomically.
 const concurrent=fixture(5000,0);const pair=await Promise.all([refund('p-'+concurrent,'c1',4000),refund('p-'+concurrent,'c2',4000)]);assert.deepEqual(pair.map(x=>x.status).sort(),[200,409]);assert.equal(principal(concurrent),1000);
 for(const invalid of [0,-1,1.1,'100',null])assert.equal((await refund('p-'+id,'bad-'+String(invalid),invalid)).status,400);
+// The real refund API must reject abusive JSON before reserving money or
+// contacting Stripe. Use the same production byte-stream parser, not a mock.
+const guardedRefundSnapshot=()=>JSON.stringify({
+  payments:sql.prepare('SELECT * FROM payments ORDER BY id').all(),
+  refunds:sql.prepare('SELECT * FROM payment_refunds ORDER BY id').all(),
+});
+const originalRefundSnapshot=guardedRefundSnapshot(),originalRefundPosts=posts;
+const postRawRefund=(body,headers={})=>route.POST(new Request(
+  'https://test/api/payments/refund',{method:'POST',headers,body}
+));
+const invalidRefundBodies=[
+  ['non-object array','[]',{},400],
+  ['non-object null','null',{},400],
+  ['truncated JSON','{"paymentId":',{},400],
+  ['invalid UTF-8',new Uint8Array([0xc3,0x28]),{},400],
+  ['streamed oversized JSON',JSON.stringify({note:'x'.repeat(17000)}),{},413],
+  ['declared oversized body','{}',{'Content-Length':'16001'},413],
+  ['false Content-Length','{}',{'Content-Length':'300'},400],
+];
+for(const [reason,body,headers,expected] of invalidRefundBodies){
+  const response=await postRawRefund(body,headers);
+  assert.equal(response.status,expected,reason+' must fail before refund work');
+  assert.equal(guardedRefundSnapshot(),originalRefundSnapshot,reason+' must not change payments/refunds');
+  assert.equal(posts,originalRefundPosts,reason+' must not call Stripe');
+}
 const legacy=fixture(10000,0);sql.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES ('legacy-refund',?,'Refund',-9000,'paid','2026-10-08')").run(legacy);assert.equal((await refund('p-'+legacy,'legacy-limit',1001)).status,409);
 const stale=fixture(5000,0);sql.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES ('stale',?,?,1000,'stripe','pending','2026-01-01')").run('p-'+stale,stale);const stalePosts=posts;assert.equal((await refund('p-'+stale,'stale',1000)).status,409);assert.equal(posts,stalePosts);
 assert.equal((await webhook.POST(new Request('https://test/api/payments/webhook',{method:'POST',headers:{'stripe-signature':'t=1,v1=invalid'},body:'{}'}))).status,400);
