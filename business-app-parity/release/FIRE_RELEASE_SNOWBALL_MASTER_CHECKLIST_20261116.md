@@ -1,3 +1,10 @@
+<!-- FIRE_NOV18_QA_REFUND_PRAGMA_OWNER -->
+## November 18 — NEW physical QA refund column contract VERIFIED (G5-02 subproof; no repeat)
+
+Owner's original authenticated QA D1 `PRAGMA table_info(payment_refunds)` screenshot directly confirms **all 10 refund columns, required flags, TEXT/INTEGER types, primary-key marker and default pending status** on physical QA UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003`. All column-level details agree with reviewed migration 0018. Original photo remains private; [exact SHA-256/column evidence](../evidence/FIRE_QA_REFUND_COLUMN_PRAGMA_OWNER_20261118.md). **G5-02 QA column subproof COMPLETE. Never ask for this PRAGMA again.** Prior QA index-DDL, 25-row journal and FK integrity check remain credited without repeat. This does NOT prove physical QA foreign-key relationship definitions/SQL-time behavior, full settlement/ledger requirements or four-target schema parity (QA 25, old STAGING 22, DR/NEW LIVE 26 migrations). **G5-02 and G5-01 overall remain [ ]; 45/95 items checked, 50 open, 4/10 release gates accepted, NEW LIVE DARK/NO-GO.** No provider or source runtime change.
+
+---
+
 <!-- FIRE_NOV18_25_OF_25_EXACT_EXECUTABLE_CI -->
 ## November 18 — 25/25 exact-source CI SUCCESS; Acer session correctly scoped (NO DEPLOY)
 
