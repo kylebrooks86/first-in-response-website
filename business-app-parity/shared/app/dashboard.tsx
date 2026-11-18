@@ -449,7 +449,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const linkReadiness=customerTemplateLinkReadiness(activeTemplate?.body??"",activeTemplate?.subject??"",body,customerLink,invoiceLink);
   const appointmentReadiness=customerAppointmentTemplateReadiness(
     activeTemplate?.body??"",activeTemplate?.subject??"",estimate?.scheduledAt,estimate?.status,
-    (estimate?.address??customer.address)
+    (estimate?.address??customer.address),Date.now(),template
   );
   const needsInvoiceLink=linkReadiness.requiresInvoice;
   const needsEstimateLink=linkReadiness.requiresEstimate;
@@ -584,7 +584,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     // the scheduled start. Recheck immediately before the durable draft write.
     const freshAppointmentReadiness=customerAppointmentTemplateReadiness(
       activeTemplate?.body??"",activeTemplate?.subject??"",estimate?.scheduledAt,estimate?.status,
-      (estimate?.address??customer.address),Date.now()
+      (estimate?.address??customer.address),Date.now(),template
     );
     if(!freshAppointmentReadiness.ready){setMessageStatus(freshAppointmentReadiness.reason);return false;}
     // Match the API's normalization before signing or comparing its receipt.
