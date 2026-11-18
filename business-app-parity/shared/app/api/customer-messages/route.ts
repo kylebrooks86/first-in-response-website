@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite.mjs";
-import {usableCustomerPhone,usableCustomerEmail} from "../../../lib/customer-contact-links";
+import {usableCustomerPhone,usableCustomerEmail,customerReminderIsTomorrowInTulsa,tulsaReminderExpiryUtc} from "../../../lib/customer-contact-links";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -117,14 +117,20 @@ export async function POST(request: Request) {
     // on the server before returning an idempotent draft as well as before INSERT.
     const appointmentTemplate=template==="appointment"||template==="appointmentReminder";
     const appointmentError="This saved appointment is no longer confirmed for a future time. Review the job status and schedule before preparing an appointment message.";
+    const reminderError="A 24-hour reminder can only be prepared the day before this saved appointment in Tulsa. Choose Appointment confirmation for a later date.";
     if(appointmentTemplate){
       if(!estimateId)return Response.json({error:appointmentError},{status:409});
       const currentJob=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
         .bind(estimateId,customerId).first<{status:string;scheduledAt:string|null}>();
       const time=currentJob?.scheduledAt?Date.parse(currentJob.scheduledAt):NaN;
-      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=Date.now()||
+      const now=Date.now();
+      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=now||
          !appointmentScheduledAt||currentJob.scheduledAt!==appointmentScheduledAt)
         return Response.json({error:appointmentError},{status:409});
+      // The canned reminder says "tomorrow"; a future date next week is
+      // a valid confirmation, NOT a truthful 24-hour reminder.
+      if(template==="appointmentReminder"&&!customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,now))
+        return Response.json({error:reminderError},{status:409});
     }
     if(template==="review"){
       if(!estimateId)return Response.json({error:"A completed paid job is required before requesting a review."},{status:409});
@@ -181,6 +187,12 @@ export async function POST(request: Request) {
       SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='scheduled'
         AND e.scheduled_at=? AND julianday(e.scheduled_at)>julianday('now')
     )`:"";
+    // A prepared reminder must not cross midnight while the owner waits for
+    // the database. This SQLite condition uses the actual Tulsa-local
+    // tomorrow-to-today boundary, including daylight-saving transitions.
+    const reminderExpiry=template==="appointmentReminder"?tulsaReminderExpiryUtc(Date.now()):null;
+    const reminderGuard=template==="appointmentReminder"?
+      " AND julianday('now') < julianday(?)":"";
     // Compare the current customer contact in the SAME conditional INSERT.
     // A changed/deleted phone/email between GET and write cannot produce an
     // apparently ready handoff. Copy-only audits remain contact-independent.
@@ -188,17 +200,18 @@ export async function POST(request: Request) {
       SELECT 1 FROM customers c WHERE c.id=? AND c.${contactColumn}=?
     )`:"";
     const write=await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
-      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}${appointmentGuard}${contactGuard}`)
+      SELECT ?,?,?,?,?,?,? WHERE 1=1${reviewGuard}${appointmentGuard}${reminderGuard}${contactGuard}`)
       .bind(id,customerId,estimateId||null,channel,template,body,createdAt,
         ...(template==="review"?[estimateId,customerId]:[]),
         ...(appointmentTemplate?[estimateId,customerId,appointmentScheduledAt]:[]),
+        ...(template==="appointmentReminder"?[reminderExpiry]:[]),
         ...(contactColumn?[customerId,savedContact]:[])).run();
     const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
       id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
     }>();
     if(!saved)return Response.json({error:template==="review"?
       "Review invitation eligibility changed during preparation. Recheck job completion, payment and refund status before trying again.":
-      appointmentTemplate?appointmentError:
+      appointmentTemplate?(template==="appointmentReminder"?reminderError:appointmentError):
       contactColumn?contactError:
       "Message preparation is not verified. Check saved drafts before retrying."},
       {status:(template==="review"||appointmentTemplate||contactColumn)&&write.meta.changes===0?409:503,
