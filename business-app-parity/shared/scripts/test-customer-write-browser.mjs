@@ -207,6 +207,9 @@ try{
   insightPayload={customers:[],estimates:[]};await page.setViewportSize({width,height:700});await page.goto(origin+'/insights');await page.evaluate(value=>window.setTheme(value),theme);await page.getByRole('alert').filter({hasText:'Insights unavailable'}).waitFor();check(await page.locator('.insight-kpis').count()===0,'Incomplete Insights response cannot show zero financial metrics');
   insightPayload={customers:[{id:'c',name:'Synthetic',createdAt:'2026-10-19T12:00:00Z',leadSource:'Referral'}],estimates:[{id:'e',status:'completed',service:'Synthetic wash',createdAt:'2026-10-19T12:00:00Z',totalCents:'20000',invoiceTotalCents:'18000',paidCents:'5000',items:[{name:'Synthetic wash',totalCents:'20000'}]}],invoices:[{id:'i',estimateId:'e',totalCents:'18000'}],payments:[{id:'p',estimateId:'e',type:'Cash',amountCents:'6000',createdAt:'2026-10-19T12:00:00Z'},{id:'r',estimateId:'e',type:'Refund',amountCents:'-1000',createdAt:'2026-10-19T12:00:00Z'},{id:'t',estimateId:'e',type:'Tip',amountCents:'500',createdAt:'2026-10-19T12:00:00Z'}]};
   await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.insight-kpis').waitFor();
+  // The KPI container can appear before an asynchronous Insights retry finishes.
+  // Require every exact monetary value before asserting its visibility.
+  await Promise.all(['$55.00','$130.00','$180.00'].map(value=>page.getByText(value,{exact:true}).waitFor({state:'visible'})));
   check(await page.getByText('$55.00',{exact:true}).isVisible(),'Insights retry preserves signed refunds and tips');check(await page.getByText('$130.00',{exact:true}).isVisible(),'Insights balance excludes tips from principal');check(await page.getByText('$180.00',{exact:true}).isVisible(),'Insights uses revised invoice job value');check(await page.getByRole('alert').count()===0,'Successful Insights retry clears error');
  }
  // Actual compiled Radix dialog + compiled CSS, no real messages or network:
