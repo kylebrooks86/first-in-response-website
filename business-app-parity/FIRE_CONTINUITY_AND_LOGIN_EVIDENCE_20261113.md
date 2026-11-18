@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_QA_ACTIVE_VERSION_PIN_SOURCE_FIX -->
+## Nov 18 — Central PR270 QA release reviewer/publisher/current readback 100%-active pin FIXED, CI SUCCESS
+
+The owner-accepted QA Worker actual served version `08d77fb1-9484-4014-bd5b-1bb1da066cdb` is unchanged, proven from earlier Nov16 provider receipts and MUST NOT be re-requested. Draft PR270's THREE QA owner tools incorrectly expected superseded `6d77bd7c`. Reviewer and publisher have now been actually corrected on main development PR270 with exact Git blob equality to the previously isolated reviewed repair branch (`16b3438`, `913a60c`); the third QA current-version read-only script was corrected (`388e789`); two existing executable Python tests now require consistent Nov16 pin and explicitly refuse the old version (`eaf5bea`, `28a0ffc`). All explicit owner consent, exact candidate SHA, physical D1 and no-R2 locks remain.
+
+Focused [GitHub CI #44372222795](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44372222795) **completed SUCCESS** with reviewer/publisher, dual D1 INFO, detached worktree and no-default-publish guards for executable/test SHA `28a0ffc3ba3f2ceb14ca9c14a7a4474a1e01cefa`. [Exact commit+CI provenance](evidence/FIRE_QA_ACTIVE_VERSION_PIN_PR270_INTEGRATION_20261118.md). **No QA or STAGING provider publication made.** Owner Acer source worktree remains unchanged, no recheck requested. Source-safety development only, not byte-attested hosted deployment.
+
+**Release remains 45/95 full items, 50 remaining; 4/10 accepted G1/G2/G3/G8, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, Job #0001 unused.** Do not launch, merge, deploy, apply D1/Stripe, sign in again or buy/activate R2. Future publication requires separate exact owner approval.
+
+---
+
 <!-- FIRE_NOV18_STAGING_JOURNAL_SOURCE_ID_FIX -->
 ## Nov 18 — actual STAGING journal-ID bug fixed/tested (source only)
 
