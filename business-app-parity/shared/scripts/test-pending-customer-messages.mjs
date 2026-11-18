@@ -6,6 +6,14 @@ import ts from "typescript";
 import vm from "node:vm";
 import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 
+// Load the actual shared customer-contact checks used by the API, not a
+// fabricated fixture stub. Older recovery tests used a fixed mock importer.
+const contactFns={};
+vm.runInNewContext(ts.transpileModule(
+ readFileSync("lib/customer-contact-links.ts","utf8"),
+ {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}
+).outputText,{exports:contactFns});
+
 const db=new DatabaseSync(":memory:");
 for(const file of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+file,"utf8"));
 let owner={email:"kylebrooks8605@gmail.com"},queries=[];
@@ -21,6 +29,7 @@ function loadRoute(dbResource=DB) {
   if(key==="cloudflare:workers")return {env:{DB:dbResource}};
   if(key==="../../chatgpt-auth")return {getChatGPTUser:async()=>owner};
   if(key==="../../../lib/customer-review-invite.mjs")return {shouldOfferReviewAfterPayment:()=>false};
+  if(key==="../../../lib/customer-contact-links")return contactFns;
   if(key==="../../../lib/customer-write-request-guard.mjs")return {readOwnerWriteObject};
   throw Error("Unexpected import "+key);
  },Response,URL,crypto});
