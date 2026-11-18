@@ -1,3 +1,10 @@
+<!-- FIRE_NOV18_QA_REFUND_FOREIGN_KEY_OWNER -->
+## November 18 — NEW original physical QA refund FK definitions VERIFIED (G5-02 partial)
+
+Owner's already-authenticated Cloudflare QA D1 Console returned two exact `PRAGMA foreign_key_list(payment_refunds)` rows at physical QA UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003`: `estimate_id → estimates.id` and `payment_id → payments.id`, both `NO ACTION` on update/delete, matching reviewed migration 0018. Private original owner image SHA-256 `6297dcaf25cce0faed085aefa7f43e5cc982a04e065088d592921e9c75ba629f`. [Sanitized evidence](../evidence/FIRE_QA_REFUND_FOREIGN_KEY_LIST_OWNER_20261118.md). ✅ **G5-02 QA foreign-key definition subproof COMPLETE; never request this PRAGMA again.** This complements prior captured QA 10-column PRAGMA, index-DDL, 25/25 journal and zero existing FK violations; no repeat needed. It does not independently prove runtime FK enforcement, all ledger/settlement checks, or four-target parity. **Formal G5-02 still [ ]; 45/95 complete, 50 open, 4/10 formal gates; NEW LIVE DARK NO-GO.** No Cloudflare/SQL/Stripe/Worker change.
+
+---
+
 <!-- FIRE_NOV18_QA_REFUND_PRAGMA_OWNER -->
 ## November 18 — NEW physical QA refund column contract VERIFIED (G5-02 subproof; no repeat)
 
