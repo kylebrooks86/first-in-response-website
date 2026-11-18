@@ -69,6 +69,7 @@ try{
   CREATE TABLE estimate_items(estimate_id TEXT,name TEXT);
   CREATE TABLE payments(estimate_id TEXT,amount_cents INTEGER,status TEXT,type TEXT);
   CREATE TABLE notifications(estimate_id TEXT,type TEXT,resolved_at TEXT);
+  CREATE TABLE payment_refunds(id TEXT,estimate_id TEXT,status TEXT);
   CREATE TABLE payment_checkout_sessions(id TEXT,estimate_id TEXT,type TEXT,
     amount_cents INTEGER,status TEXT,created_at TEXT);`);
   db.prepare('INSERT INTO customers(id,name) VALUES(?,?)').run('ca','Synthetic Alpha');
@@ -115,5 +116,30 @@ try{
   assert.equal(reserveStmt.run('current-token','ec','deposit',10000,'now','ec','ec','gamma-rotated').changes,1,
     'Current authorized link can reserve a checkout');
   n+=6;
-  console.log('PASS '+n+' source/SQLite FIRE checkout customer ownership and share-token revocation checks. No provider calls, real customers or remote data.');
+  // Real source-derived INSERT, not a mock: another device can create a
+  // pending refund/overage after the first token/amount read. Both must be
+  // rejected in the SAME atomic SQLite INSERT before contacting Stripe.
+  addEstimate.run('ed','ca','hold-token');
+  assert.equal(initialStmt.get('hold-token').invoiceOwnershipMismatch,0,
+    'Synthetic checkout preflight initially sees an otherwise eligible job');
+  db.prepare("INSERT INTO payment_refunds(id,estimate_id,status) VALUES('refund-hold','ed','pending')").run();
+  assert.equal(afterStmt.get('ed','hold-token').pendingRefundCount,1,
+    'Actual post-Stripe source query exposes newly pending refund');
+  assert.equal(reserveStmt.run('refund-race','ed','balance',10000,'now','ed','ed','hold-token').changes,0,
+    'Actual atomic D1 SQL refuses a new reservation when refund appears after preflight');
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM payment_checkout_sessions WHERE estimate_id='ed'").get().count,0,
+    'No extra checkout reservation survives a pending-refund race');
+  db.prepare("DELETE FROM payment_refunds WHERE id='refund-hold'").run();
+  db.prepare("INSERT INTO notifications(estimate_id,type,resolved_at) VALUES('ed','payment_overage',NULL)").run();
+  assert.equal(afterStmt.get('ed','hold-token').paymentOverageOpen,1,
+    'Actual post-Stripe query sees unresolved payment overage');
+  assert.equal(reserveStmt.run('overage-race','ed','balance',10000,'now','ed','ed','hold-token').changes,0,
+    'Actual atomic D1 SQL refuses a new reservation when overage appears after preflight');
+  db.prepare("UPDATE notifications SET resolved_at='now' WHERE estimate_id='ed'").run();
+  assert.equal(afterStmt.get('ed','hold-token').pendingRefundCount,0,
+    'Resolved refund/overage does not leave an invented pending-refund state');
+  assert.equal(reserveStmt.run('recovered-race','ed','balance',10000,'now','ed','ed','hold-token').changes,1,
+    'Actual atomic reservation remains available after real holds are resolved');
+  n+=9;
+  console.log('PASS '+n+' source/SQLite FIRE checkout owner isolation, token revocation and financial-hold races. No provider calls, real customers or remote data.');
 }finally{db.close();}
