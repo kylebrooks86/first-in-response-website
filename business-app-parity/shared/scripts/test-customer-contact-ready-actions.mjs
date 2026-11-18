@@ -17,7 +17,7 @@ const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);check
 const ready=(channel,recipient,body)=>customerMessageHandoffReadiness(channel,recipient,body);
 const linked=(template,subject,body,estimateLink,invoiceLink)=>customerTemplateLinkReadiness(template,subject,body,estimateLink,invoiceLink);
 const appointmentClock=Date.parse('2026-11-01T16:00:00Z');
-const appointment=(template,subject,date,status,address,now=appointmentClock)=>customerAppointmentTemplateReadiness(template,subject,date,status,address,now);
+const appointment=(template,subject,date,status,address,now=appointmentClock,key)=>customerAppointmentTemplateReadiness(template,subject,date,status,address,now,key);
 eq(appointment('General message','','','draft','').ready,true,'Nonappointment templates remain usable without a saved schedule');
 eq(appointment('Appointment on @schedule_date at @service_address','','','approved','Somewhere').ready,false,'Unscheduled approved estimate cannot send a confirmation');
 eq(appointment('Appointment on @schedule_date','','invalid','scheduled','Somewhere').ready,false,'Malformed saved date is not a confirmed appointment');
@@ -37,6 +37,12 @@ eq(appointment('Your appointment','','','draft','').ready,true,'Custom reply wit
 const reminderSubject="Reminder: your service is tomorrow";
 eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-04T16:00:00Z","scheduled","100 Synthetic St").ready,false,
  "The 24-hour reminder cannot claim a service four days away is tomorrow");
+eq(appointment("Your service is scheduled","Please prepare your property","2026-11-04T16:00:00Z","scheduled","100 Synthetic St",appointmentClock,"appointmentReminder").ready,false,
+ "Customized reminder without tomorrow wording or @schedule_date still enforces actual next-day schedule");
+eq(appointment("Your service is scheduled","Please prepare your property","2026-11-02T16:00:00Z","scheduled","100 Synthetic St",appointmentClock,"appointmentReminder").ready,true,
+ "Customized reminder remains usable when the saved appointment really is tomorrow");
+eq(appointment("Your service","Custom subject",null,"draft","100 Synthetic St",appointmentClock,"appointment").ready,false,
+ "Edited appointment confirmation cannot remove date placeholder to bypass scheduled-status validation");
 eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-02T16:00:00Z","scheduled","100 Synthetic St").ready,true,
  "Next-day 24-hour reminder remains available in Tulsa");
 eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-01T23:00:00Z","scheduled","100 Synthetic St").ready,false,
@@ -134,7 +140,7 @@ const ast=ts.createSourceFile('dashboard.tsx',dashboard,ts.ScriptTarget.Latest,t
 const composer=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='MessageComposer');
 assert.ok(composer,'Original MessageComposer is preserved');
 const actual=composer.getText(ast);
-eq(actual.includes('const freshAppointmentReadiness=customerAppointmentTemplateReadiness(')&&actual.includes('(estimate?.address??customer.address),Date.now()')&&actual.includes('if(!freshAppointmentReadiness.ready){setMessageStatus(freshAppointmentReadiness.reason);return false;}'),true,
+eq(actual.includes('const freshAppointmentReadiness=customerAppointmentTemplateReadiness(')&&actual.includes('(estimate?.address??customer.address),Date.now(),template')&&actual.includes('if(!freshAppointmentReadiness.ready){setMessageStatus(freshAppointmentReadiness.reason);return false;}'),true,
  'Real customer composer rechecks schedule at click time before recording a durable outgoing message');
 eq(actual.includes('customerMessageHandoffReadiness("text",customer.phone,body)'),true,
  'Actual MessageComposer checks saved phone before making text_prepared audit event');
