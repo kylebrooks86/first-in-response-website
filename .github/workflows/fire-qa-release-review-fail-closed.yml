@@ -95,7 +95,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $output = @(& ./business-app-parity/owner_windows_qa_backup_current25.ps1 | Out-String)
+          $output = @(& ./business-app-parity/owner_windows_qa_backup_current25.ps1 6>&1 | Out-String)
           if ($output.Count -ne 1 -or $output[0] -notmatch 'EXPORT_ATTEMPTED=NO; REMOTE_WRITES=NONE; QA_RELEASE_APPROVED=NO') {
             throw 'FIRE QA private backup did not remain inert by default.'
           }
