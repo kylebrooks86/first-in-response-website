@@ -125,7 +125,7 @@ try{
  check(ui.includes("openEstimate=")&&ui.includes("encodeURIComponent(item.estimateId)"),"Queue links directly to exact job");
  check(ui.includes('onRecorded={()=>void load()}'),"Manual payment refresh includes closeout queue");
  check(ui.includes("Other payment records remain available."),"Review-feed failure does not hide payment history");
- check(ui.includes("sending not confirmed")&&ui.includes("Nothing sends automatically."),"Unverified delivery never claimed");
+ check(ui.includes("Prepared · send unconfirmed")&&ui.includes("Nothing sends automatically."),"Unverified delivery never claimed");
  check(ui.includes('fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor)')&&ui.includes("Load older paid jobs"),
   "Payments screen loads older closeouts with encoded cursor only on owner click");
  check(ui.includes("reviewPageRequest.current++")&&ui.includes("reviewOlderLock.current")&&ui.includes("Previously loaded jobs are still available."),
