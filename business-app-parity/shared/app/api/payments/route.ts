@@ -201,7 +201,13 @@ export async function POST(request: Request) {
         AND NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')
         AND NOT EXISTS (SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
           WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)
-      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents, estimateId, estimateId);
+        -- Preflight can become stale during a second-device/provider update.
+        -- Never collect more principal while a refund or overage is unresolved.
+        AND NOT EXISTS (SELECT 1 FROM payment_refunds r
+          WHERE r.estimate_id=? AND r.status='pending')
+        AND NOT EXISTS (SELECT 1 FROM notifications n
+          WHERE n.estimate_id=? AND n.type='payment_overage' AND n.resolved_at IS NULL)
+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents, estimateId, estimateId, estimateId, estimateId);
 
       if(tipCents>0){
         const recordedTipId=tipId??crypto.randomUUID();
@@ -218,12 +224,12 @@ export async function POST(request: Request) {
             WHERE id=? AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund'))`)
             .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tipCreatedAt,estimateId,payment.id,estimateId),
         ]);
-        if(!results[0]?.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
+        if(!results[0]?.meta.changes)return Response.json({ error:"The amount due, checkout, refund, or payment-review status changed while this payment was being recorded. Refresh billing before trying again." },{status:409});
         if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record. Refresh Payment History before recording anything else." },{status:409});
         tip={id:recordedTipId,estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:tipReference,createdAt:tipCreatedAt};
       }else{
         const inserted=await paymentStatement.run();
-        if(!inserted.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
+        if(!inserted.meta.changes)return Response.json({ error:"The amount due, checkout, refund, or payment-review status changed while this payment was being recorded. Refresh billing before trying again." },{status:409});
       }
     }
 
@@ -235,14 +241,20 @@ export async function POST(request: Request) {
           WHERE NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')
           AND EXISTS (SELECT 1 FROM estimates e WHERE e.id=? AND e.status='completed')
           AND NOT EXISTS (SELECT 1 FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id
-            WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)`)
-          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method,estimateId,estimateId,estimateId),
+            WHERE e.id=? AND inv.customer_id IS NOT e.customer_id)
+          -- Tip-only writes require the same financial holds as principal.
+          -- The pre-read alone is not safe against a concurrent refund/alert.
+          AND NOT EXISTS (SELECT 1 FROM payment_refunds r
+            WHERE r.estimate_id=? AND r.status='pending')
+          AND NOT EXISTS (SELECT 1 FROM notifications n
+            WHERE n.estimate_id=? AND n.type='payment_overage' AND n.resolved_at IS NULL)`)
+          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method,estimateId,estimateId,estimateId,estimateId,estimateId),
         env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
           SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?
           AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND type='Tip' AND status='paid')`)
           .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId,tip.id,estimateId),
       ]);
-      if(!results[0]?.meta.changes)return Response.json({error:"A Stripe checkout became active or the tip could not be recorded safely. Verify the customer payment before trying again."},{status:409});
+      if(!results[0]?.meta.changes)return Response.json({error:"Checkout, refund, or payment-review status changed; the tip could not be recorded safely. Verify the customer payment before trying again."},{status:409});
     }
 
     const refreshed = await env.DB.prepare(`
