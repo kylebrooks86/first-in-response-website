@@ -1,3 +1,10 @@
+<!-- FIRE_NOV18_QA_PHYSICAL_REFUND_COLUMNS -->
+## November 18 — owner-hosted QA refund column contract observed and archived
+
+The owner provided a NEW direct logged-in Cloudflare Console `PRAGMA table_info(payment_refunds)` result on `fire-fullapp-qa-db-20261016`, physical UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003`. The full 10-column/default/primary-key/not-null metadata agrees with reviewed source migration 0018; exact original photograph SHA-256 `8f893e092b122e5ff2f1d619a9f919455445996a3a4808096cf35531802948e5`; original screenshot remains private. [Sanitized exact evidence](evidence/FIRE_QA_REFUND_COLUMN_PRAGMA_OWNER_20261118.md). **Completed physical QA G5-02 column-level subproof; do not request this PRAGMA again.** Reuse prior QA 25/25 journal, refund/payment indexes and zero FK violations, STAGING 22/22 history and DR/NEW LIVE 26/26. Cross-target G5-01/G5-02 overall still OPEN; no implied FK declarations/runtime enforcement, signed Stripe test, release parity or money movement. **45/95 full items checked, 50 open; formal 4/10 gates G1/G2/G3/G8 accepted; NEW LIVE DARK NO-GO, Job #0001 unissued.** Doc-only PR270 update. No Cloudflare sign-in, D1 write, R2, deployment, merge, authorization, payments or production changes.
+
+---
+
 <!-- FIRE_NOV18_EXACT_CI_GREEN_OWNER_PRECHECK -->
 ## Nov 18 — exact-executable-source 25/25 CI verified; owner Acer user-folder precheck classified
 
