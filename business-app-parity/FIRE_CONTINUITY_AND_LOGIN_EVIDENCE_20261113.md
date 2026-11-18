@@ -1,3 +1,11 @@
+## Nov 17 FINAL — bounded refund + invoice financial APIs VERIFIED 25/25 exact-source CI (NO DEPLOY)
+
+**Final exact executable app-and-regression SHA:** [`80d5e21be6b3f544b7b9e2b796a6dadf977528df`](https://github.com/kylebrooks86/first-in-response-website/commit/80d5e21be6b3f544b7b9e2b796a6dadf977528df/checks). **All 25/25 top-level GitHub Actions workflow groups SUCCESS; zero failures, zero pending.** [Staging run #44242907872](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44242907872) **6/6 jobs SUCCESS**, including the real refund lifecycle+webhook/native SQLite cases and the actual invoice finance/ownership/edit and bounded-body tests. This final readback **supersedes the earlier 24/25 CI pending checkpoint below**; the later repository commits updating tracker/continuity are documentation-only and do not alter executable code. No other completed owner device/hosted tests were rerun.
+
+The 16,000-byte owner refund POST and 128,000-byte invoice PATCH request protections remain on unmerged, undeployed **DRAFT PR #270**; they are not yet proven on hosted Stripe/Cloudflare. **Checklist stays 45/95; formal gates 4/10 (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO, Job #0001 unused.** No Cloudflare login, paid R2, hosted D1/Stripe/payments, migrations, Access/route, publish, merge or production action.
+
+---
+
 ## Nov 17 — SOURCE FIX VERIFIED: bounded refund requests and invoice revisions (NO HOSTED CHANGE)
 
 Current exact executable source+test SHA: [`80d5e21be6b3f544b7b9e2b796a6dadf977528df`](https://github.com/kylebrooks86/first-in-response-website/commit/80d5e21be6b3f544b7b9e2b796a6dadf977528df/checks), existing **DRAFT PR #270**, not merged or deployed. Two *actual owner financial API* defects fixed: **`POST /api/payments/refund`** now bounds the streamed owner JSON to **16,000 bytes** before payment lookup, refund ledger reservation or Stripe POST, and **`PATCH /api/invoices/[id]`** bounds full original service-line snapshot bodies to **128,000 bytes** before invoice read, checkout expiration, or D1 revision transaction. Both reuse existing hardened `readOwnerWriteObject`; existing owner authentication, missing-ledger fail-closed, invoice customer ownership, exact-cent/refund/overage conditions and lost-ack safeguards remain.
