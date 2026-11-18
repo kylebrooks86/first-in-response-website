@@ -1,3 +1,7 @@
+## November 18 — paired restore verifies each saved job link
+
+Draft source `396a9feb39ff288c18cace8b86052a8fb7ba8e33` checks saved photo job ownership before writing a recovered ZIP. Real disposable SQLite and ZIP readback recovered a synthetic photo linked to Job #0001. Current owner-held paired recovery is outstanding. The physical QA/STAGING/DR/NEW LIVE journals have already been captured (25/22/26/26). No further journal screenshots are needed for those versions. Checklist 45/95, formal gates 4/10. [Issue #19 evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6988640833) · [SQLite recovery](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44376511176) · [Saved photo verification](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44376510896) · [Numbered records/photo pair](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44376510876).
+
 <!-- FIRE_NOV18_QA25_PRIVATE_BACKUP_ACTIVE_VERSION_FIX -->
 ## November 18 — actual current QA25 owner private-backup helper repaired and tested (no export)
 
