@@ -52,7 +52,14 @@ def migration_files(folder):
 def ordered_journal(db):
     cols = {r[1] for r in db.execute('PRAGMA table_info(d1_migrations)')}
     require({'id', 'name'} <= cols, "No compatible D1 migration journal")
-    return [r[0] for r in db.execute('SELECT name FROM d1_migrations ORDER BY id')]
+    # A matching list of filenames is NOT sufficient. A restored/forged journal
+    # with gaps, shifted IDs, or ID zero must never be called a valid D1 prefix.
+    # This matches the exact 1..25 ID contract used for independent LIVE.
+    rows = list(db.execute('SELECT id, name FROM d1_migrations ORDER BY id'))
+    require(all(type(row[0]) is int and row[0] == offset + 1
+                for offset, row in enumerate(rows)),
+            "Staging migration journal IDs must start at 1 and be contiguous")
+    return [row[1] for row in rows]
 
 
 def schema_objects(db):
