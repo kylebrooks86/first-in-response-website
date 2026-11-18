@@ -291,6 +291,9 @@ jobs:
           # Real lead-visit and review reminder owner APIs: native SQLite and bounded-stream cases.
           node --experimental-sqlite scripts/test-door-knocking.mjs
           node --experimental-sqlite scripts/test-paid-review-snooze.mjs
+          # Exact customer+estimate scope in the actual paid closeout API; a
+          # historical mismatched customer's message must never hide a job.
+          node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
           node --experimental-sqlite scripts/test-review-status-check-snooze.mjs
       - name: Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)
         run: |
