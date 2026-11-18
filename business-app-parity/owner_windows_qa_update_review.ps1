@@ -1,4 +1,4 @@
-# Nov 9/13 owner-accepted PR216 QA Worker 6d77bd7c served 100% traffic,
+# Nov 16 owner-accepted QA Worker 08d77fb1-9484-4014-bd5b-1bb1da066cdb serves 100% traffic,
 # isolated physical QA D1 and no R2; former 2be6407d remains rollback. NO publish consent.
 # Review an UPDATED QA Business App after the first successful hosted deployment.
 # READ ONLY: never deploys, uploads secrets, touches D1 data, or changes device vaults.
@@ -29,7 +29,7 @@ $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '6d77bd7c-20d3-49aa-9816-c651d98953cb'
+$expectedActiveVersion = '08d77fb1-9484-4014-bd5b-1bb1da066cdb'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
