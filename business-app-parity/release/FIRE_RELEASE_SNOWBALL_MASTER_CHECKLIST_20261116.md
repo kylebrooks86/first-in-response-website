@@ -1,3 +1,18 @@
+<!-- FIRE_ACER_POWERSHELL_NOV18_EVIDENCE_CROSSWALK -->
+## November 18 — Acer PowerShell original-hosted evidence: previously verified, credited (NO repeat checks)
+
+The owner has supplied extensive **real Acer PowerShell screenshots, CLI deployment receipts, Cloudflare authenticated GET-only version/D1 readbacks, actual D1 migration and saved SQL integrity results** over October–November. [21 substantial dated evidence records with exact Issue #19 original-source links](../evidence/FIRE_ACER_POWERSHELL_EVIDENCE_CROSSWALK_20261118.md). This is a targeted crosswalk, **not** a count of all user screenshots.
+
+**Actual verified checkmarks already satisfied using the Acer evidence:** ✅ **G4-03** — QA/STAGING/DR/NEW LIVE different physical D1 UUIDs; ✅ **G4-08** — actual DR source update + 100% serving/physical binding/no-R2; ✅ **G4-09** — actual NEW LIVE dark source update + 100%/physical binding/no-R2/retained predecessor; ✅ **G5-04** — real NEW LIVE empty numbering, future Job #0001; ✅ **G5-07** — separately authorized NEW LIVE 26/26 physical migration recovery. These five were ALREADY `[x]`, not five new full checkoffs. Acer evidence also supports checked A07–A14, G6-02 and G9-01 within their prior acceptance scopes.
+
+**Further real historical owner subproofs credited, not made into false full gate closures:** ✅ STAGING 22-row remote `d1_migrations` read; ✅ Nov1 Acer STAGING SQL restore to isolated SQLite with `integrity_check=ok` and 22 journals; ✅ QA 25-migration/current 100%-Worker readback, then Nov16 genuine code/asset upload and independent immutable QA version `08d77fb1-9484-4014-bd5b-1bb1da066cdb` 100%/bound physical D1/no R2; ✅ forged QA session denial actual HTTP401 (not true expired signed session or separate real nonowner); ✅ Stripe TEST Access anonymous redirection and contrasting GET 405 (not genuine signed POST); ✅ 32/32 encrypted DR release receipts and NEW LIVE three encrypted migration receipts preserved off-Acer (NOT full future customer records+photos backup); ✅ DR and NEW LIVE DARK hosted versions/rollback entries actually read.
+
+**Remaining compound requirements cannot be closed from this prior proof:** exact *new candidate* hosted executable+asset bytes (G4-02), complete account-wide ingress and owner-approved Access (G4-05/06), complete currently bound *all-target* ordered schema journals (G5-01), newer target-specific real nonowner/expired session (G6-03–10), current *paired physical* D1+original-photo restore/rollback (G7), genuine signed Stripe TEST webhook/ledger (G9), final activation (G10). Do not replay previously successful one-shot publishers, original NEW LIVE 26/26 migrations, hosted QA PowerShell metadata checks, backup export/restore, token/login failure loops, TEST 302/405, or owner iPhone checks without a target-specific new change.
+
+**Official count unchanged:** 45/95 complete, 50 open, 4/10 formal gates G1/G2/G3/G8 accepted. NEW LIVE DARK/NO-GO, Job #0001 unissued. This entry preserves established physical proof; no provider actions, source runtime code change or new full formal acceptance.
+
+---
+
 <!-- FIRE_NOV18_SECOND_PASS_STRIPE_IMAGES_OWNER_PROOF -->
 ## November 18 — 5 HISTORICAL EVIDENCE SUBCHECKS VERIFIED / DEDUPED (NO NEW FORMAL GATE)
 
