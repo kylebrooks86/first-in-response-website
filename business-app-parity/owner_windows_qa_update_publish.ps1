@@ -1,4 +1,4 @@
-# Nov 9/13 owner-accepted PR216 QA Worker 6d77bd7c served 100% traffic,
+# Nov 16 owner-accepted QA Worker 08d77fb1-9484-4014-bd5b-1bb1da066cdb serves 100% traffic,
 # isolated physical QA D1 and no R2; former 2be6407d remains rollback. NO publish consent.
 # Second (and later) QA Business App deployment. No writes unless -Publish,
 # and a fresh exact typed owner approval confirms updating this EXISTING Worker.
@@ -32,7 +32,7 @@ $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
 # This observation NEVER authorizes publication: require a fresh exact source,
 # two independently verified database identities, 25-journal, device-photo
 # protection and typed owner consent before any existing QA Worker update.
-$expectedActiveVersion = '6d77bd7c-20d3-49aa-9816-c651d98953cb'
+$expectedActiveVersion = '08d77fb1-9484-4014-bd5b-1bb1da066cdb'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
