@@ -37,6 +37,8 @@ const initial=one('FROM estimates e JOIN customers c ON c.id=e.customer_id',
 const after=one('FROM estimates e WHERE e.id=?','post-Stripe amount revalidation');
 const reserve=one("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at)",
   'atomic checkout reservation');
+const promote=one('UPDATE payment_checkout_sessions SET id=?',
+  'post-Stripe atomic session promotion');
 for(const sql of [initial,after]){
   assert.match(sql,/inv\.estimate_id=e\.id AND inv\.customer_id=e\.customer_id/);
   assert.match(sql,/inv\.customer_id IS NOT e\.customer_id/);
@@ -141,5 +143,31 @@ try{
   assert.equal(reserveStmt.run('recovered-race','ed','balance',10000,'now','ed','ed','hold-token').changes,1,
     'Actual atomic reservation remains available after real holds are resolved');
   n+=9;
+  // The real, source-extracted final UPDATE must reject state changes that
+  // appear AFTER the post-Stripe SELECT, before a payable URL is returned.
+  const promoteStmt=db.prepare(promote);
+  const promoteArgs=['cs_test_promoted','recovered-race','ed','hold-token','balance','balance',10000,20000,0];
+  const finalId=()=>db.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id='ed' AND status='open'").get()?.id;
+  db.prepare("INSERT INTO payment_refunds(id,estimate_id,status) VALUES('late-refund','ed','pending')").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,0,'Late refund prevents promotion in actual SQL');
+  assert.equal(finalId(),'recovered-race','Late refund preserves the provisional lock for confirmed Stripe expiry');
+  db.prepare("DELETE FROM payment_refunds WHERE id='late-refund'").run();
+  db.prepare("INSERT INTO notifications(estimate_id,type,resolved_at) VALUES('ed','payment_overage',NULL)").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,0,'Late unresolved overage prevents promotion');
+  db.prepare("UPDATE notifications SET resolved_at='now' WHERE estimate_id='ed'").run();
+  db.prepare("UPDATE estimates SET share_token='rotated-token' WHERE id='ed'").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,0,'Late revoked bearer token prevents promotion');
+  db.prepare("UPDATE estimates SET share_token='hold-token' WHERE id='ed'").run();
+  db.prepare("UPDATE estimates SET deposit_cents=12000 WHERE id='ed'").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,0,'Late deposit amount change prevents promotion');
+  db.prepare("UPDATE estimates SET deposit_cents=10000,total_cents=23000 WHERE id='ed'").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,0,'Late invoice/quote total change prevents promotion');
+  db.prepare("UPDATE estimates SET total_cents=20000 WHERE id='ed'").run();
+  db.prepare("INSERT INTO payments(estimate_id,amount_cents,status,type) VALUES('ed',100,'paid','Deposit')").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,0,'Late paid ledger change prevents promotion');
+  db.prepare("DELETE FROM payments WHERE estimate_id='ed'").run();
+  assert.equal(promoteStmt.run(...promoteArgs).changes,1,'Unchanged legitimate amount and authorized link promote once');
+  assert.equal(finalId(),'cs_test_promoted','Actual atomic SQL promotes only a valid final session');
+  n+=14;
   console.log('PASS '+n+' source/SQLite FIRE checkout owner isolation, token revocation and financial-hold races. No provider calls, real customers or remote data.');
 }finally{db.close();}
