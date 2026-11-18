@@ -48,3 +48,13 @@
 **Next action without repeating screenshots:** Treat the actual Access destination and single Allow policy as now **CAPTURED** for this account/app. Do not ask the owner to re-open these tabs again. Preserve the no-paid/no-R2 architecture. A safe resolution of machine-to-machine Stripe delivery would require reviewing any independently existing path override or designing a narrowly scoped provider-compatible mechanism, with **separate explicit owner authorization before ANY Cloudflare policy/route change, TEST activation, payment or webhook event**. In the meantime, continue source-only release work and do not expose DR/NEW LIVE.
 
 **Checklist:** G4-05, G4-06 and G9-07 **OPEN**; source/provider distinction preserved. **45/95 accepted, 4/10 formal gates; NEW LIVE DARK NO-GO; first real Job #0001 unused.**
+
+## Nov 17 third follow-up — same Access application, further scrolled, not a second exception screen (`IMG_4435.png`)
+
+**Owner screenshot:** iPhone Safari Cloudflare dashboard, 7:00 PM CST November 17, 2026, 471,147 original bytes, SHA-256 `e41ce57783ea83a5a4088958802b341b7b61a2920e4c19319f6e34f4e7147658`. Original image preserved in conversation; do not upload original image to public GitHub.
+
+**Observed:** this is a lower scroll position on the **same Zero Trust Access application-edit page** (not the separate Worker settings Access view). Browser rendering for browser-based RDP, SSH or VNC is **Off**; it is unrelated to Stripe signed webhook ingress. The same one visible policy (order 1, truncated `FIRE Stripe TEST - O...`, `Allow`) remains the sole row in this visible Access policies table. A Policy tester description and previous empty destination selector are visible. This is corroboration, NOT independent proof of a webhook-specific exception or absence of all exceptions, and it does not resolve webhook delivery/HMAC readiness.
+
+**Deduplication:** **Do not request the same Stripe TEST Application details → Policies/Destinations/All edit screen again.** Previously accepted Nov 15 **separate TEST Worker Access tab** owner screenshots `IMG_4336.png` and `IMG_4337.png` already document worker-level All traffic / owner-email Allow. Those screenshots must NOT be re-requested merely to reproduce this evidence. A genuinely new provider fact, not another UI scroll, is needed to resolve whether Stripe-signed machine-to-machine webhook POSTs bypass interactive Access: current path-override readback, or later separately approved signed TEST webhook + ledger evidence.
+
+**Checkpoint:** G4-05/G4-06/G9-07 remain open; 45/95 accepted, 4/10 formal gates; NEW LIVE dark and Job #0001 unused. No configuration was modified or saved.
