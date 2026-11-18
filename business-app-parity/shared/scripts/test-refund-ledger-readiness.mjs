@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {createRequire} from "node:module";
+import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
 const require=createRequire(import.meta.url);
 const ts=require("typescript");
 // Windows Git worktrees may check out API route source with CRLF even when the
@@ -78,11 +79,11 @@ function route(file,db,owner=true,deployment="live"){
  const calls={fetch:0,finalize:0,refundUpdate:0};
  const exports={};
  const factory=new Function("require","exports","env","getChatGPTUser",
-   "refundLedgerObjectsPresent","refundLedgerNotReady","LOCAL_CUSTOMER_DEPLOYMENT",
+   "refundLedgerObjectsPresent","refundLedgerNotReady","readOwnerWriteObject","LOCAL_CUSTOMER_DEPLOYMENT",
    "processingAmounts","finalizeRefund","recordRefundUpdate","fetch","Response",compile(file));
  factory(()=>{throw Error("Imports are supplied as synthetic dependencies");},exports,env,
    async()=>owner?{email:"kylebrooks8605@gmail.com"}:null,
-   refundLedgerObjectsPresent,refundLedgerNotReady,deployment,
+   refundLedgerObjectsPresent,refundLedgerNotReady,readOwnerWriteObject,deployment,
    ()=>{throw Error("No processing on missing schema");},
    async()=>{calls.finalize++;throw Error("No refund writes allowed");},
    async()=>{calls.refundUpdate++;throw Error("No refund updates allowed");},
