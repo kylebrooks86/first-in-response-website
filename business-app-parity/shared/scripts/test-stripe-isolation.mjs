@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {createHmac,webcrypto} from 'node:crypto';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 const require=createRequire(import.meta.url),ts=require('typescript');
 let checks=0;
 function eq(actual,expected,message){assert.equal(actual,expected,message);checks++;}
@@ -13,12 +14,12 @@ function load(route,deployment,fireEnv,key){
  const calls={db:0,network:0,reconciled:0,refunds:0,failures:0},env={FIRE_ENV:fireEnv,SITE_ORIGIN:'https://synthetic.invalid',STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',FIRE_STRIPE_MODE:'test',
   DB:{prepare(){calls.db++;return {bind(){return {async first(){return {id:'synthetic-payment',estimateId:'job-1',type:'deposit',status:'paid',amountCents:5000,providerId:'cs_fake',customerId:'customer-1'};}}}};}}};
  const exports={};
- const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordStripeCheckoutFailure','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady',code);
+ const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordStripeCheckoutFailure','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady','readOwnerWriteObject',code);
  fn(id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,Response,Request,webcrypto,async()=>{calls.network++;throw Error('Network forbidden');},deployment,async()=>({email:'kylebrooks8605@gmail.com'}),env,
  async()=>{calls.reconciled++;return {ok:true,duplicate:false};},
  async()=>{calls.failures++;return {recorded:true,duplicate:false};},
  async()=>{calls.refunds++;return {ok:true};},
- async()=>true,()=>Response.json({error:'Synthetic refund schema missing'},{status:503}));
+ async()=>true,()=>Response.json({error:'Synthetic refund schema missing'},{status:503}),readOwnerWriteObject);
  return {POST:exports.POST,calls,env};
 }
 const checkoutBody=JSON.stringify({shareToken:'synthetic',paymentType:'deposit'});
