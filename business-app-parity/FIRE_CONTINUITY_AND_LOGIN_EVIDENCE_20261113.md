@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_OWNER_ACER_POWERSHELL_PROOF -->
+## Nov 18 — Owner Acer PowerShell proof is ALREADY accepted and must be prioritized over new screenshots
+
+Owner has repeatedly supplied genuine Acer / Wrangler / Node / PowerShell screenshots of actual host-provider reads, migration/receipt results and backup/restore checks. An issue-by-issue crosswalk of **21 distinct substantive proof reports** (NOT the entire historic Acer photo count) is saved: [FIRE_ACER_POWERSHELL_EVIDENCE_CROSSWALK_20261118.md](evidence/FIRE_ACER_POWERSHELL_EVIDENCE_CROSSWALK_20261118.md), Issue #19 [permanent note](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6981993623). Source dates October 13–November 16.
+
+**Already FULLY checked from owner Acer-supported physical proof:** G4-03 distinct QA/STAGING/DR/NEW LIVE D1 UUIDs; G4-08 actual hosted DR code-only update at 100% + D1/no R2; G4-09 NEW LIVE hosted DARK code-only update at 100% + D1/no R2; G5-04 actual clean NEW LIVE Job #0001 initial state; G5-07 real 26/26 NEW LIVE migration recovery and original spent locks. Other real Acer subproofs: Nov16 QA compiled upload and 100% immutable version/physical D1/no R2; STAGING actual 22-row journal, Nov1 real isolated SQL import+integrity+refund row; Nov9 QA invalid session denial HTTP401; Stripe TEST Access redirect/customer 302/webhook GET405; DR 32/32 encrypted physical evidence files and 3/3 NEW LIVE receipts securely preserved off Acer/verified Drive. Do not treat prior command prompt failures or `--dry-run` as a cloud deployment, or new version ID metadata as byte-level entire hosted source attestation. G4 full, G5 all targets, G6 hostile/expired session, G7 same-snapshot current full D1/photos, G9 fresh signed TEST remain open.
+
+**Owner request rule:** Never ask again for those exact successful screenshots, publisher command, migration, SQL restore, token/login loop or QA owner/iPhone tests unless a specifically approved changed target demands a different physical fact. Any genuinely new owner Acer or phone instruction MUST first map a missing accepted checklist field to provider surface, compare prior screenshots/Issue19, and protect original locks/secrets/photos. 45/95 checked, 50 open, formal 4/10 accepted, NEW LIVE DARK NO-GO / Job #0001 unused. No provider/Stripe/Cloudflare/R2/SQL/merge/release operation performed by this documentary correction.
+
+---
+
 <!-- FIRE_NOV18_STRIPE_AND_157_IMAGE_SECOND_PASS -->
 ## Nov 18 — OWNER EVIDENCE: actual Stripe screenshots and older device/recovery proofs must be reused
 
