@@ -1,0 +1,28 @@
+# FIRE Gate 4 — original owner account-level Workers and Zero Trust Access screenshots (Nov 17, 2026)
+
+**Scope:** Six ORIGINAL owner-provided screenshots from an already authenticated Cloudflare dashboard on November 17, 2026, approximately 6:38–6:39 PM America/Chicago for captures displaying a clock. This is a separate source of **read-only physical account overview evidence** beyond the previously accepted per-Worker custom domain/preview views and the previously recorded November 15 Access Applications listing. No new Cloudflare sign-in/retry, provider API call or write was performed. Original image bytes remain ONLY in the user's ChatGPT conversation, not in GitHub. Exact source file SHA-256 and sizes below are for evidence provenance; do not publicly republish screenshots or their embedded account details.
+
+## Grounded observations and limits
+
+1. **Account Workers & Pages overview:** `IMG_4429.png` shows `fire-fullapp-new-live` as **No active routes**, `fire-fullapp-dr` as **No active routes**, and clickable workers.dev URLs for `fire-fullapp-qa-20261016`, `fire-stripe-test-20261101` and `fire-app-independent-staging`. The overview `IMG_4430.png` continues with `fire-synthetic-offline-test-bfc00939` (Pages), `fire-field-calculator-live` (Pages) and `fire-calculator-best-of-both-preview` (Pages), and says **Showing 1–8 of 8**. The visible account summary exposes an **account-wide Workers Cloudflare Access** setting “Apply one account-wide Access policy across your Workers” with switch **OFF**. This is an account-wide Worker listing, not a captured authoritative zone-specific route table or full externally probed ingress inventory.
+2. **Account overview tiles:** `IMG_4427.jpeg` and `IMG_4428.jpeg` show Workers shortcut entries for NEW LIVE, DR and QA and a Domains “Add a domain” affordance, but not the actual complete Zones/Workers Routes table. The absence of a domain listed in these overview tiles does **not** prove no owned domains in every account, no route in another zone/account or no custom hostname.
+3. **Zero Trust → Access → Applications:** `IMG_4431.png` and `IMG_4432.png` show the **unfiltered** application list with pagination **Showing 1–1 of 1**, containing only `fire-stripe-test-20261101 - Cloudflare ...` (truncated display name) and its Stripe TEST destination. No separately named QA/STAGING/DR/NEW LIVE Access application is displayed in this selected account. This **corroborates** the historical owner Access Applications screenshot `IMG_4329.png` in the Nov 15 continuity register, and does not imply any policy or payment system was changed.
+4. **Meaning of account-wide switch:** OFF means the single account-wide “apply one policy across Workers” option is not enabled in the screenshot. It does **NOT** imply Cloudflare Access is entirely disabled: the Stripe TEST application is visibly listed, and the previously accepted TEST Worker owner-email Access evidence remains intact. Nor does absence of a named Access application prove the app has no independent server-side authentication. Existing QA owner/Access/passphrase tests and dark route/auth-blocked proofs are preserved, not retested.
+5. **Important remaining proof:** This overview does not reveal actual zone-wide route bindings, secrets/Access rules at path level, preview alias inventory, externally reachable endpoint tests, exact currently serving Worker source bytes, nonowner denial, or genuine Stripe signed webhook exceptions. In particular the existing TEST “All traffic” Access rule may intercept machine-to-machine Stripe signed POSTs unless a separate approved existing path exception is shown. Never interpret a nonactive route label as proof of zero conceivable ingress; **G4-05 and G4-06 remain OPEN** pending complete provider/owner-approved checks and a protected ingress design.
+
+## Exact uploaded original image provenance (raw bytes never committed to public GitHub)
+
+| Original conversation image | Raw bytes | SHA-256 |
+| --- | ---: | --- |
+| `IMG_4427.jpeg` | 121,089 | `87d8e61003aae0f7408aafc213fc05044ea182ff71cda49775af879bebfceb02` |
+| `IMG_4428.jpeg` | 110,854 | `b6eb61af5e55d41d13182a964fc3336f8d9799db966e8006bf7f652e345ccdd5` |
+| `IMG_4429.png` | 280,480 | `a602eb471c366f10d95292cc784da748da67bfc1b802d26f78752389bc8975f3` |
+| `IMG_4430.png` | 244,086 | `2a1e5362bcb22f8e6e6a0a56fc31313f06e6506ba7d6574de7d3367b3d5d1cfc` |
+| `IMG_4431.png` | 404,125 | `4908d931b0516928cfb70e05297457bfa847618c43f28c4a740c3c8eeddd5a0b` |
+| `IMG_4432.png` | 343,700 | `9792d77a7ba97b5c8cf83c7a9bb39b9bc0557f1ef22d4aff121aa12e09e467e8` |
+
+## Checklist interpretation
+
+**G4-05 — OPEN, genuine partial physical progress**: account-level Worker enumeration and Access overview captured; still need actual zone-wide routes/external aliases and target-specific Access/ingress verification. **G4-06 — OPEN:** account-wide policy shown off, Stripe TEST Access is separately installed, and no named DR/NEW LIVE Access app appears. Must decide/verify owner-approved protection before any new access route or authentication is enabled; no app exposure is authorized. This evidence should not reopen accepted DR/NEW LIVE dark domain screenshots, identity/D1 or owner QA sign-in.
+
+**Gates unchanged:** 45/95 checklist items accepted, 50 outstanding; 4/10 formal gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO; genuine first Job #0001 unused. Source changes on PR #270 remain unmerged and not hosted. NO Cloudflare subscription/R2, account Access policy toggle, route, Worker, code, D1/SQL, Stripe/payments, Git merge, traffic or live cutover change occurred.
