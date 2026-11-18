@@ -160,7 +160,7 @@ try{
  eq(readFileSync('app/dashboard.tsx','utf8').includes('appointmentScheduledAt:estimate?.scheduledAt??""'),true);
  const routeSource=readFileSync('app/api/customer-messages/route.ts','utf8');
  eq(routeSource.includes("julianday('now') < julianday(?)"),true);
- eq(routeSource.includes("customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,now)"),true);
+ eq(routeSource.includes("customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,appointmentClock)"),true);
  // Real contact-readiness preflight and SQL-time invalidation on saved
  // customer data. All negative cases must create ZERO prepared rows.
  const totalMessages=()=>Number(db.prepare('SELECT COUNT(*) AS n FROM customer_messages').get().n);
