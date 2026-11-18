@@ -2,6 +2,7 @@ import {submittedDiscountCents} from '../../../../lib/discount-input';
 import {currentInvoice} from "../../../../lib/invoice-state.mjs";
 import {normalizeOriginalInvoiceSnapshot,matchesOriginalInvoiceSnapshot,invoiceOriginalSQLGuard} from "../../../../lib/invoice-editor-source-guard.mjs";
 import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../../lib/refund-ledger-readiness";
+import {readOwnerWriteObject} from "../../../../lib/customer-write-request-guard.mjs";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 
@@ -68,9 +69,14 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
   // Before any invoice edits, remote checkout expiration or payment read:
   // a missing or incomplete refund ledger must hold all financial changes.
   if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
+  // Invoice revisions carry original line snapshots and can alter collectible
+  // balances. Bound the actual streamed owner request before invoice reads,
+  // checkout expiration or a revision D1 batch; allow 128 KB for full lines.
+  const parsed=await readOwnerWriteObject(request,128_000);
+  if(parsed.response)return parsed.response;
   try{
     const {id}=await params;
-    const body=await request.json() as Record<string,unknown>;
+    const body=parsed.value as Record<string,unknown>;
     // The owner editor supplies the revision count observed when it loaded
     // the original invoice. An older tab may not silently replace newer saved
     // invoice services, discounts or due dates.
