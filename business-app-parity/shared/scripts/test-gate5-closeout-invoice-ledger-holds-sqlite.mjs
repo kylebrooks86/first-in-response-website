@@ -8,6 +8,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import * as invoiceSourceGuard from '../lib/invoice-editor-source-guard.mjs';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
 const compile=code=>ts.transpileModule(code,{compilerOptions:{
@@ -51,7 +52,8 @@ function load(path,DB,count,owner=true){
   '../../../lib/payment-closeout-actions':{buildPaymentCloseoutActions:()=>[]},
   '../../../../lib/discount-input':{submittedDiscountCents:()=>0},
   '../../../../lib/invoice-state.mjs':{currentInvoice:()=>null},
-  '../../../../lib/invoice-editor-source-guard.mjs':invoiceSourceGuard
+  '../../../../lib/invoice-editor-source-guard.mjs':invoiceSourceGuard,
+  '../../../../lib/customer-write-request-guard.mjs':{readOwnerWriteObject}
  };
  vm.runInNewContext(compile(readFileSync(path,'utf8')),{exports,
   require:name=>{if(!(name in deps))throw Error('Unexpected import: '+name);return deps[name]},
