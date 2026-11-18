@@ -1,3 +1,12 @@
+<!-- FIRE_NOV18_STAGING_JOURNAL_SOURCE_ID_FIX -->
+## Nov 18 — actual STAGING journal-ID bug fixed/tested (source only)
+
+New PR270 source change [`0af61c3`](https://github.com/kylebrooks86/first-in-response-website/commit/0af61c37f467d96f2f56ccb4fbc522dcbdef5592) makes the disposable STAGING 22→25 rehearsal require exact `d1_migrations.id` 1..22 in addition to ordered names, preventing zero-based, shifted or gapped restored SQL journal false PASS. Regression [`74b4ef8`](https://github.com/kylebrooks86/first-in-response-website/commit/74b4ef83baf67f71cfb094a2b40ac300870d7410) adds three owner-private-export model SQLite rejection tests. Real GitHub [staging workflow #44370723685](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44370723685), synthetic 22→25 job `135036625854` **SUCCESS**, required Python negative controls and actual 25-source in-memory rehearsal both SUCCESS. [Complete code/test custody](evidence/FIRE_STAGING_JOURNAL_IDS_FAILCLOSED_SOURCE_FIX_20261118.md). No Cloudflare migration, no release-parity claim, other long CI jobs initially pending.
+
+Use established authenticated STAGING owner readbacks: 22 exact named/ID migration rows and populated synthetic data, Nov1 independent isolated SQL restore, Oct29 provider collision count ZERO ([Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6513760737)), recent refund table/index objects and zero STAGING trigger inventory. **Never repeat** these. Formal **45/95 tasks [x], 50 OPEN; 4/10 G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO, real Job #0001 unused.** Source draft PR270 unmerged, no paid Cloudflare/R2, provider SQL/Stripe/customer writes, merge or deploy.
+
+---
+
 <!-- FIRE_NOV18_OWNER_QA_DEPOSIT_TRIGGER_INVENTORY -->
 ## November 18 — owner-supplied QA deposit history trigger inventory reconciled
 
