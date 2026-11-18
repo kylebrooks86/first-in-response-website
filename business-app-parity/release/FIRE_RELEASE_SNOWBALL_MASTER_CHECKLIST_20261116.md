@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_QA_ACTIVE_PIN_PR270_INTEGRATED -->
+## November 18 — REAL QA owner release-tool stale active-version defect FIXED AND FOCUSED CI PASS
+
+PR270 previously pinned obsolete `6d77bd7c-20d3-49aa-9816-c651d98953cb` in three owner PowerShell QA tools even though actual QA has physically served `08d77fb1-9484-4014-bd5b-1bb1da066cdb` at 100% since Nov16; this stale pin blocked future valid read-only review and authorized QA update. **Actual source fixes**: reviewer [`16b3438`](https://github.com/kylebrooks86/first-in-response-website/commit/16b343800996aa08e4e770cd8b7f4bf920b804f2) and publisher [`913a60c`](https://github.com/kylebrooks86/first-in-response-website/commit/913a60c04cbcbe8ece6f916667d2f77bd1ff63b7) were ported with **exact Git blob parity** from previously reviewed isolated branch; third current read-only tool [`388e789`](https://github.com/kylebrooks86/first-in-response-website/commit/388e7894eb46582f96ce210fbadfb938f6b3e419) corrected too. Two actual Python regression files updated to enforce all three identical Nov16 pins and reject the former one ([`eaf5bea`](https://github.com/kylebrooks86/first-in-response-website/commit/eaf5bea9956c30dde3e77b9b859cfec09b463d35), [`28a0ffc`](https://github.com/kylebrooks86/first-in-response-website/commit/28a0ffc3ba3f2ceb14ca9c14a7a4474a1e01cefa)).
+
+**Changed-source CI VERIFIED:** [FIRE QA Code Update Read-Only Review Safety workflow #44372222795](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44372222795) job `review` **COMPLETED SUCCESS** at executable/test SHA `28a0ffc3ba3f2ceb14ca9c14a7a4474a1e01cefa`, including both owner reviewer/publisher guards, dual D1 INFO metadata, detached/attached checkout and approval locks. Source update NOT deployed; old Acer worktree untouched; existing 100% QA-hosted immutable version accepted without duplicate screenshot. [Complete exact source/Git SHA/CI record](../evidence/FIRE_QA_ACTIVE_VERSION_PIN_PR270_INTEGRATION_20261118.md).
+
+This genuinely corrects **additional source release tooling**, not a new physical STAGING/QA deployment or formal gate pass. **Formal checklist unchanged: 45/95 full tasks complete, 50 open, 4/10 gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO and first real Job #0001 unissued.** No Cloudflare login, paid R2, Worker/D1/Stripe/Access/provider writes, source merge, publication or cutover.
+
+---
+
 <!-- FIRE_NOV18_STAGING_JOURNAL_ID_FAILCLOSED -->
 ## November 18 — real STAGING 22→25 journal-ID fail-closed defect FIXED and focused CI SUCCESS
 
