@@ -155,10 +155,15 @@ export function customerAppointmentTemplateReadiness(
  scheduledAt:string|null|undefined,
  status:string|null|undefined,
  address:string|null|undefined,
- now:number=Date.now()
+ now:number=Date.now(),
+ templateKey?:string
 ):{ready:boolean;reason:string}{
  const source=templateBody+" "+templateSubject;
- if(!source.includes("@schedule_date"))return{ready:true,reason:""};
+ // A saved owner may edit out the date placeholder and "tomorrow" wording.
+ // The selected built-in appointment template identity is still a scheduling
+ // assertion, so client checks must match the keyed server's stricter rule.
+ const isAppointmentTemplate=templateKey==="appointment"||templateKey==="appointmentReminder";
+ if(!source.includes("@schedule_date")&&!isAppointmentTemplate)return{ready:true,reason:""};
  const appointmentAt=scheduledAt?Date.parse(scheduledAt):NaN;
  if(status!=="scheduled"||!Number.isFinite(appointmentAt))
   return{ready:false,reason:"Save and confirm this job's appointment date before preparing an appointment confirmation or reminder."};
@@ -168,7 +173,8 @@ export function customerAppointmentTemplateReadiness(
   return{ready:false,reason:"This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed."};
  if(source.includes("@service_address")&&!address?.trim())
   return{ready:false,reason:"Save a service address for this scheduled job before preparing an appointment confirmation."};
- if(/\btomorrow\b/i.test(templateSubject)&&!customerReminderIsTomorrowInTulsa(scheduledAt,now))
+ if((templateKey==="appointmentReminder"||/\btomorrow\b/i.test(templateSubject))&&
+    !customerReminderIsTomorrowInTulsa(scheduledAt,now))
   return{ready:false,reason:"The 24-hour reminder says tomorrow, but this saved appointment is not tomorrow in Tulsa. Use Appointment confirmation for a later date, or prepare the reminder the day before service."};
  return{ready:true,reason:""};
 }
