@@ -59,11 +59,12 @@ async function boundedCheckoutBody(request:Request):Promise<CheckoutRead>{
     while(true){
       const part=await reader.read();
       if(part.done)break;
-      if(!(part.value instanceof Uint8Array))return{ok:false,tooLarge:false};
+      if(!ArrayBuffer.isView(part.value)||Object.prototype.toString.call(part.value)!=='[object Uint8Array]')return{ok:false,tooLarge:false};
       total+=part.value.byteLength;
       if(total>MAX_CHECKOUT_BODY_BYTES)return{ok:false,tooLarge:true};
       chunks.push(part.value);
     }
+    if(total===0||(claimed!==null&&total!==Number(claimed)))return{ok:false,tooLarge:false};
     const bytes=new Uint8Array(total);
     let offset=0;
     for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
@@ -203,7 +204,7 @@ export async function POST(request: Request) {
     try {
       const locked=await env.DB.prepare(`INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at)
         SELECT ?,?,?,?,'open',? WHERE NOT EXISTS (
-          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND share_token=? AND status IN ('approved','scheduled','completed') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id AND inv.customer_id IS NOT estimates.customer_id))`)
+          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND share_token=? AND status IN ('approved','scheduled','completed') AND accepted_at IS NOT NULL AND signed_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id AND inv.customer_id IS NOT estimates.customer_id) AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=estimates.id AND r.status='pending') AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=estimates.id AND n.type='payment_overage' AND n.resolved_at IS NULL))`)
         .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id,row.id,shareToken).run();
       reserved=Boolean(locked.meta.changes);
     }catch {
@@ -263,10 +264,11 @@ export async function POST(request: Request) {
       (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
       COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
-      (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen
-      FROM estimates e WHERE e.id=? AND e.share_token=?`).bind(row.id,shareToken).first<{status:string;acceptedAt:string|null;signedAt:string|null;depositCents:number;invoiceOwnershipMismatch:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
+      (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
+      (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount
+      FROM estimates e WHERE e.id=? AND e.share_token=?`).bind(row.id,shareToken).first<{status:string;acceptedAt:string|null;signedAt:string|null;depositCents:number;invoiceOwnershipMismatch:number;totalCents:number;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number}>();
     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
-    if(!current||!current.acceptedAt||!current.signedAt||!["approved","scheduled","completed"].includes(current.status)||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||Number(current.invoiceOwnershipMismatch)!==0||currentDue!==amount){
+    if(!current||!current.acceptedAt||!current.signedAt||!["approved","scheduled","completed"].includes(current.status)||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||Number(current.pendingRefundCount)>0||Number(current.invoiceOwnershipMismatch)!==0||currentDue!==amount){
       if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();
       return Response.json({error:"The amount due changed during checkout creation. Refresh the job; if the checkout remains blocked, contact FIRE."},{status:409});
     }
