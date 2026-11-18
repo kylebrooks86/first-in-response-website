@@ -6,6 +6,10 @@ import vm from "node:vm";
 import ts from "typescript";
 import {shouldOfferReviewAfterPayment} from "../lib/customer-review-invite.mjs";
 import {readOwnerWriteObject} from "../lib/customer-write-request-guard.mjs";
+const contactFns={};
+vm.runInNewContext(ts.transpileModule(readFileSync("lib/customer-contact-links.ts","utf8"),
+ {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}
+).outputText,{exports:contactFns});
 const db=new DatabaseSync(":memory:");
 for(const name of readdirSync("drizzle").filter(n=>n.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+name,"utf8"));
 let owner={email:"kylebrooks8605@gmail.com"},writes=0,queries=0;
@@ -19,12 +23,16 @@ vm.runInNewContext(code,{exports:module.exports,require:key=>{
  if(key==="cloudflare:workers")return {env};
  if(key==="../../chatgpt-auth")return {getChatGPTUser:async()=>owner};
  if(key==="../../../lib/customer-review-invite.mjs")return {shouldOfferReviewAfterPayment};
+ if(key==="../../../lib/customer-contact-links")return contactFns;
  if(key==="../../../lib/customer-write-request-guard.mjs")return {readOwnerWriteObject};
  throw Error("Unexpected import "+key);
 },Response,crypto:{randomUUID:()=> "legacy-test-id-"+(++queries)}});
 const api=module.exports;
 const at=new Date().toISOString();
-function job(id,who,paid){db.prepare("INSERT INTO customers(id,name,created_at) VALUES(?,?,?)").run(who,"Fixture "+who,at);
+function job(id,who,paid){
+ const phone=who==="alice"?"9185550101":"9185550102";
+ db.prepare("INSERT INTO customers(id,name,phone,email,created_at) VALUES(?,?,?,?,?)")
+  .run(who,"Fixture "+who,phone,who+"@example.invalid",at);
  db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)").run(id,who,"completed",10000,10000,5000,at);
  if(paid)db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)").run("p-"+id,id,"Cash",paid,"paid",at);
 }
