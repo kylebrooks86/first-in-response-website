@@ -1,3 +1,9 @@
+## November 18 — G7-04 accepted for the saved QA records and device-photo pair
+
+Owner Acer readback (IMG_C2953DDB-DE0D-440E-A998-C3AE9EDC8662.jpeg) on checker `b94cfb07fd975bcb9226b5923b181a15f6fcf170`: PHOTO_COUNT=3, JOB_LINKS_PRESENT=0, PASS. The checker authenticated the encrypted archive, checked the ZIP inventory and individual photo hashes and sizes, verified the SQL against its restore receipt, and matched each recorded customer ID against the exported QA database. SHA-256 fingerprints were emitted for the SQL, encrypted archive and verified ZIP. SQL size 55,305 bytes, encrypted photos 4,593,469 bytes. The [owner confirmed no edits in the capture window](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6989487444). This accepts a logically matching QA backup pair; it does not assert an atomic distributed snapshot or a restored job association. The three original photos have customer associations only. G7-05 independent encrypted custody and G7-07 isolated restore remain open.
+
+48/95 checklist items complete, 47 outstanding. Formal gates 4/10. Keep original owner files private.
+
 ## November 18 — G7-02 accepted for the active QA database
 
 Owner approved one QA export and confirmed private storage and the export window in the guarded Acer helper. Its pre/post checks passed for the active QA Worker and pinned D1, and the complete 55,305-byte QA25 SQL export passed disposable local SQLite restore verification. The verifier compares all restored table data digests and the ordered journal. This covers the records present on QA at export time. Private SQL and receipt remain on the Acer. Evidence summarized without the signed download URL. [Scoped approval](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6989333904).
@@ -475,7 +481,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - [ ] **G7-01** — Make the owner-accessible complete records + saved-photo archive flow available on an *approved hosted candidate*; source-only endpoint/flag checks are insufficient.
 - [x] **G7-02** — Create one owner-authorized protected backup of all test/new-app D1 records, journals, invoices, payments, customer/job numbers, notes, messages, schedule and supplemental tables.
 - [x] **G7-03** — Create and privately retain one full original-photo owner-device ZIP (no R2), metadata manifest, every actual file's bytes and hashes, including representative before/after pairing.
-- [ ] **G7-04** — Verify *one matching point-in-time* D1+photo pair: record IDs, file associations, exact hashes, sizes, counts and manifest with no missing/extra bytes.
+- [x] **G7-04** — Verify *one matching point-in-time* D1+photo pair: record IDs, file associations, exact hashes, sizes, counts and manifest with no missing/extra bytes.
 - [ ] **G7-05** — Keep secure independent/off-Acer custody and reproducible encrypted/versioned copies, with owner-held keys; no sensitive raw JSON/photos in public GitHub.
 - [x] **G7-06** — A complete synthetic encrypted record backup was actually restored to an empty isolated disposable SQLite destination and reopened. The ordered 26-migration journal, immutable Customer #/Job # and financial/refund history survived. [Evidence](#established-qa-fixtures-and-completed-disposable-restore).
 - [ ] **G7-07** — Restore and reopen original photo bytes and customer/job associations into the corresponding isolated photo store/device archive, then verify hashes against the paired manifest.
