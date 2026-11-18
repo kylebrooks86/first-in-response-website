@@ -1,3 +1,12 @@
+<!-- FIRE_NOV18_STAGING_JOURNAL_ID_FAILCLOSED -->
+## November 18 — real STAGING 22→25 journal-ID fail-closed defect FIXED and focused CI SUCCESS
+
+Two new **executable/test** commits on existing unmerged PR270: [`0af61c3`](https://github.com/kylebrooks86/first-in-response-website/commit/0af61c37f467d96f2f56ccb4fbc522dcbdef5592) fixes the read-only in-memory STAGING migration rehearsal falsely accepting correctly ordered 22 names when the actual D1 journal IDs are shifted, zero-based or gapped; [`74b4ef8`](https://github.com/kylebrooks86/first-in-response-website/commit/74b4ef83baf67f71cfb094a2b40ac300870d7410) adds 3 real negative SQLite export tests to the existing normal rehearsal. Actual GitHub Actions [`FIRE Staging Migration and Shared-App Parity` #44370723685](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44370723685) **job #135036625854 SUCCESS**, including the actual Python unit tests and real-source 25-migration in-memory rehearsal. Broader build/browser jobs were still running at initial readback; never claim full 25/25 green solely from this focused job. [Exact source and observed CI evidence](../evidence/FIRE_STAGING_JOURNAL_IDS_FAILCLOSED_SOURCE_FIX_20261118.md).
+
+Already accepted Oct29 STAGING `0 duplicate provider groups` preflight is independently preserved at [Issue19 #6513760737](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-6513760737): **do not repeat it**. Actual owner STAGING 22/22 journal, 22-migration historical lineage and remote refund objects also already accepted. This was **substantive source safety work**, but cannot check the compound hosted STAGING G4-07/G5-01/02/G4-10 until separately approved physical new app/migration/rollback proof. **Formal 45/95 [x], 50 open; 4/10 accepted G1/G2/G3/G8; NEW LIVE DARK/NO-GO and real Job #0001 unused.** No provider access, SQL write, payments, paid R2, deployment or Git merge.
+
+---
+
 <!-- FIRE_NOV18_QA_DEPOSIT_IMMUTABILITY_TRIGGERS -->
 ## November 18 — NEW physical QA deposit/audit immutability trigger inventory, 4/4 present
 
