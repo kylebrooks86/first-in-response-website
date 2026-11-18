@@ -13,7 +13,7 @@ $ErrorActionPreference='Stop'
 $worker='fire-fullapp-qa-20261016'
 $database='fire-fullapp-qa-db-20261016'
 $qaUuid='8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$version='99fa8c27-df83-48d3-b953-9a84eb295334'
+$version='08d77fb1-9484-4014-bd5b-1bb1da066cdb'
 $root=$PSScriptRoot
 $review=Join-Path $root 'owner_windows_qa_current_readonly.ps1'
 $verifier=Join-Path $root 'verify_qa_current25_d1_export.py'
@@ -25,7 +25,7 @@ function Require([bool]$ok,[string]$why) {
 }
 Write-Host 'FIRE QA PRIVATE CURRENT25 ARCHIVE — SOURCE-ONLY OWNER CONTROL'
 Write-Host 'No deploy, hosted SQL writes, migration, customer messages or payments.'
-Write-Host 'This is not an app release approval. Current production readiness: 3/10.'
+Write-Host 'This is not an app release approval. Current formal release gates accepted: 4/10.'
 if (-not $Export) {
     Write-Host 'DRY RUN ONLY: no Cloudflare connection, private file, backup or new folder.'
     Write-Host 'Export is disabled unless the owner separately approves a bounded QA-only export.'
@@ -39,7 +39,12 @@ foreach ($f in @($review,$verifier,$configSource)) {
     Require (-not ((Get-Item -LiteralPath $f).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'Linked support file refused.'
 }
 $reviewText=Get-Content -LiteralPath $review -Raw
-Require ($reviewText.Contains($version) -and $reviewText.Contains($qaUuid)) 'Current owner read-only runtime guard is missing exact QA pins.'
+# Match the actual executable pin, never a historical comment containing a version.
+# An unreviewed or duplicate pin must fail before authenticated provider/export work.
+$reviewPins=[regex]::Matches($reviewText, "(?m)^\$expectedVersion\s*=\s*'([^']+)'\s*$")
+Require ($reviewPins.Count -eq 1 -and
+    $reviewPins[0].Groups[1].Value -ceq $version -and
+    $reviewText.Contains($qaUuid)) 'Current owner read-only runtime guard is missing exact QA pins.'
 $cfg=Get-Content -LiteralPath $configSource -Raw | ConvertFrom-Json
 Require ($cfg.name -ceq $worker -and @($cfg.d1_databases).Count -eq 1) 'QA config unexpectedly changed.'
 Require ($cfg.d1_databases[0].binding -ceq 'DB' -and
@@ -146,4 +151,4 @@ Write-Host ('SHA256='+$hash)
 Write-Host ('PRIVATE_EXPORT_BYTES='+$check.exportBytes)
 Write-Host 'KEEP THE SQL AND RECEIPT ENCRYPTED. DO NOT POST THEM IN CHAT OR GITHUB.'
 Write-Host 'LIMIT: Hosting origin, immutable off-device custody and rollback after deployment are not independently established.'
-Write-Host 'REMOTE_D1_ROW_WRITES=NONE; DEPLOYED=NO; QA_RELEASE_APPROVED=NO; PRODUCTION_GATES=3/10'
+Write-Host 'REMOTE_D1_ROW_WRITES=NONE; DEPLOYED=NO; QA_RELEASE_APPROVED=NO; FORMAL_GATES_ACCEPTED=4/10'
