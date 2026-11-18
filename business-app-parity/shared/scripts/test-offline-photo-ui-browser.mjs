@@ -269,7 +269,9 @@ try{
  await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
   Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
-  Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
+  Object.defineProperty(navigator,'share',{configurable:true,value:async payload=>{
+   const {files}=payload;
+   if(Object.keys(payload).join(',')!=='files'||files.length!==1)throw Error('Backup handoff must contain only the archive file');
    // An iOS share-sheet call must be invoked within the real TAP handler,
    // before awaiting file creation or unrelated asynchronous work.
    window.fixtureNativeShare={active:Boolean(navigator.userActivation?.isActive),

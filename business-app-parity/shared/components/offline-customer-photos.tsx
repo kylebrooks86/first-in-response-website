@@ -168,7 +168,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   }
   active.current=true;setBusy(true);
   try{
-   await navigator.share({files:[file],title:'FIRE Offline Photo Backup'});
+   await navigator.share({files:[file]});
    setMessage('Check that the backup exists in Files or separate private storage, then use Verify saved photo backup. A protected file requires the original passphrase.');
   }catch(err){
    if(err instanceof Error&&err.name==='AbortError')setMessage('Saving was cancelled. The prepared backup is still available; photos are NOT backed up.');
