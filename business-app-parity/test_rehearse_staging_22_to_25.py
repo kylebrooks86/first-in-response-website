@@ -33,7 +33,8 @@ class RehearsalTests(unittest.TestCase):
         for name, sql in zip(TAIL, TAIL_SQL):
             (self.root / name).write_text(sql)
 
-    def export(self, *, collision=False, wrong_order=False, already=False):
+    def export(self, *, collision=False, wrong_order=False, already=False,
+               journal_ids=None):
         path = self.root.parent / 'owner-private-export.sql'
         with sqlite3.connect(':memory:') as db:
             for p in sorted(self.root.glob('*.sql')):
@@ -44,7 +45,9 @@ class RehearsalTests(unittest.TestCase):
             names = sorted(p.name for p in self.root.glob('*.sql') if p.name[:4].isdigit() and p.name[:4] < '0022')
             if wrong_order:
                 names[0], names[1] = names[1], names[0]
-            db.executemany('INSERT INTO d1_migrations(name) VALUES (?)', [(n,) for n in names])
+            ids = list(range(1, len(names)+1)) if journal_ids is None else journal_ids
+            self.assertEqual(len(ids), len(names))
+            db.executemany('INSERT INTO d1_migrations(id, name) VALUES (?, ?)', zip(ids, names))
             if collision:
                 db.executemany("INSERT INTO payments(id, provider_id) VALUES (?, 'cs_collision')", [('a',), ('b',)])
             else:
@@ -75,6 +78,20 @@ class RehearsalTests(unittest.TestCase):
     def test_rejects_swapped_journal_even_if_names_match(self):
         with self.assertRaisesRegex(Blocked, 'exact 22-migration'):
             rehearse(self.root, self.export(wrong_order=True))
+
+    def test_rejects_shifted_journal_ids_even_when_names_are_exact(self):
+        with self.assertRaisesRegex(Blocked, 'journal IDs must start at 1'):
+            rehearse(self.root, self.export(journal_ids=list(range(2, 24))))
+
+    def test_rejects_zero_based_journal_ids_even_when_names_are_exact(self):
+        with self.assertRaisesRegex(Blocked, 'journal IDs must start at 1'):
+            rehearse(self.root, self.export(journal_ids=list(range(22))))
+
+    def test_rejects_gapped_journal_ids_even_when_names_are_exact(self):
+        ids = list(range(1, 23))
+        ids[10:] = [value + 1 for value in ids[10:]]
+        with self.assertRaisesRegex(Blocked, 'journal IDs must start at 1'):
+            rehearse(self.root, self.export(journal_ids=ids))
 
     def test_rejects_partially_applied_schema(self):
         with self.assertRaisesRegex(Blocked, 'already exist'):
