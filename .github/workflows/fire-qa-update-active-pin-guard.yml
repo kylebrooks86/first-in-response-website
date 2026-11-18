@@ -1,0 +1,19 @@
+name: FIRE QA active-version release-tool guard
+on:
+  push:
+    branches:
+      - work/fire-qa-update-active-pin-20261118
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa-active-version-pin-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify reviewed QA update pins and fail-closed release contract (no provider access)
+        run: node --test business-app-parity/test-qa-active-version-pin.mjs
