@@ -34,7 +34,7 @@ export async function GET(request?:Request){
       AND NOT EXISTS(SELECT 1 FROM customer_messages cancelled WHERE cancelled.id=m.id||':owner-cancelled'
         AND cancelled.customer_id=m.customer_id AND cancelled.estimate_id=m.estimate_id
         AND cancelled.template=m.template AND cancelled.channel='send_cancelled')) AS reviewPreparedAt,
-    (SELECT MAX(m.created_at) FROM customer_messages m WHERE m.estimate_id=e.id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed')) AS reviewConfirmedAt,
+    (SELECT MAX(m.created_at) FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed')) AS reviewConfirmedAt,
     (SELECT MAX(n.created_at) FROM customer_notes n WHERE n.customer_id=e.customer_id AND n.body='[FIRE FLAG] REVIEW_RECEIVED') AS reviewReceivedAt,
     (SELECT COUNT(*) FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='pending') AS pendingRefundCount,
     (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
@@ -42,7 +42,7 @@ export async function GET(request?:Request){
    FROM estimates e JOIN customers c ON c.id=e.customer_id
    WHERE e.status='completed'
     AND EXISTS(SELECT 1 FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.amount_cents>0 AND p.type NOT IN ('Tip','Tip Refund'))
-    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed'))
+    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed'))
     AND NOT EXISTS(SELECT 1 FROM customer_notes n WHERE n.customer_id=e.customer_id AND n.body='[FIRE FLAG] REVIEW_RECEIVED')
     -- Filter the ledger BEFORE LIMIT so newer partial payments cannot hide
     -- an older eligible paid-in-full job from the owner action queue.
@@ -52,7 +52,7 @@ export async function GET(request?:Request){
     AND NOT EXISTS(SELECT 1 FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='pending')
     AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
     AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
-    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.channel='review_snoozed' AND m.template='reviewSnooze' AND m.body>?)
+    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id AND m.channel='review_snoozed' AND m.template='reviewSnooze' AND m.body>?)
     AND (? IS NULL OR ${paymentDateSql}<? OR (${paymentDateSql}=? AND e.id<?))
    ORDER BY lastPaidAt DESC,e.id DESC LIMIT 201
   `).bind(new Date().toISOString(),cursor?.lastPaidAt??null,cursor?.lastPaidAt??null,cursor?.lastPaidAt??null,cursor?.estimateId??null).all<CloseoutRow>();
