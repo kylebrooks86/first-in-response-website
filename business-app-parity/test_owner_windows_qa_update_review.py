@@ -58,7 +58,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "6d77bd7c-20d3-49aa-9816-c651d98953cb",
+                         "08d77fb1-9484-4014-bd5b-1bb1da066cdb",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -143,7 +143,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
             self.assertNotIn(forbidden,S)
 
     def test_owner_verified_readonly_pin_and_publisher_stays_locked(self):
-        # Read-only review must match the Nov 9 owner-observed QA active-version pin; Wrangler still authenticates its resource binding.
+        # Read-only review must match the Nov 16 physically accepted QA 100%-active version; Wrangler still authenticates its resource binding.
         # The distinct -Publish script must match the currently verified version
         # but retains its own explicit approval, backup and no-default-publish gates.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
@@ -151,10 +151,11 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["6d77bd7c-20d3-49aa-9816-c651d98953cb"])
+        self.assertEqual(readonly_pins, ["08d77fb1-9484-4014-bd5b-1bb1da066cdb"])
         self.assertEqual(review_pins, readonly_pins)
         self.assertEqual(publish_pins, readonly_pins)
         for pinned_script in (readonly, S, publisher):
+            self.assertNotIn("6d77bd7c-20d3-49aa-9816-c651d98953cb", pinned_script, "stale Nov 9 QA version cannot be treated as serving")
             self.assertNotIn("31b511b5-1ffa-47cc-8a08-7aed537b1b74", pinned_script, "previous v24 baseline is not current v25")
             self.assertNotIn("8165ead3-43f1-48fd-b077-a1881ed0b978", pinned_script, "previous QA version is not the current rollback reference")
         self.assertIn("[switch]$Publish", publisher)
