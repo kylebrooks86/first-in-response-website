@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_QA25_PRIVATE_BACKUP_ACTIVE_VERSION_FIX -->
+## November 18 — actual current QA25 owner private-backup helper repaired and tested (no export)
+
+Central draft PR270's `owner_windows_qa_backup_current25.ps1` still required an older `99fa8c27` version although physically accepted QA Worker is `08d77fb1-9484-4014-bd5b-1bb1da066cdb`. It now uses the correct pin and a strict non-interpolating single-match executable PowerShell assignment check, without weakening the exact owner typed export, encrypted-folder warning, reviewer before/after, SQLite offline restore or default NO EXPORT. Python verifier receipts now label actual Nov16 hosting observation and **4/10 gates**; historical `owner_windows_qa_v25_backup_current25.ps1` remains untouched. New Python negative test + existing full synthetic SQL replay + real Windows default/no-Cloudflare dry-run wired into established QA CI.
+
+**GitHub [run #44375053726](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44375053726) BOTH `review` and `Windows QA private backup default never exports or accesses Cloudflare` SUCCESS** on executable SHA `74a5fd0f01ef4bfbd4046bec8703ed559f12b49d`. Initial earlier Windows test harness incorrectly captured stdout rather than Write-Host stream and was corrected before final green; not an app/provider failure. [Sanitized exact evidence](evidence/FIRE_QA25_BACKUP_ACTIVE_VERSION_GUARD_CI_20261118.md). No owner screenshot requested, no backup created, no provider calls, no remote SQL, no photos copied and no R2/paid service. This is substantive Gate7 **source preparation**, not a full physical 95-item checkbox.
+
+**Official unchanged 45/95 completed, 50 open; formal G1/G2/G3/G8 accepted (4/10); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; Job #0001 unused.** Do not attempt owner backup export, new cloud auth, merge, deployment, migration, payment or launch without exact scoped approval.
+
+---
+
 <!-- FIRE_NOV18_QA_ACTIVE_VERSION_PIN_SOURCE_FIX -->
 ## Nov 18 — Central PR270 QA release reviewer/publisher/current readback 100%-active pin FIXED, CI SUCCESS
 
