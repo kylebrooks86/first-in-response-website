@@ -1,3 +1,10 @@
+<!-- FIRE_NOV18_QA_REFUND_FK_LIST_OWNER -->
+## Nov 18 — second distinct QA refund-table PRAGMA physically captured; no repeat
+
+Owner provided new original authenticated QA D1 `PRAGMA foreign_key_list(payment_refunds)` result on `fire-fullapp-qa-db-20261016`, UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003`: 2 exact FK definitions `estimate_id → estimates.id`, `payment_id → payments.id`, both `NO ACTION` on update and delete. Private screenshot SHA-256 `6297dcaf25cce0faed085aefa7f43e5cc982a04e065088d592921e9c75ba629f`. [Exact sanitized D1 metadata readback](evidence/FIRE_QA_REFUND_FOREIGN_KEY_LIST_OWNER_20261118.md). **G5-02 QA refund relationship-definition subproof verified**; previous ten-column, index, journal, integrity captures already credited and should not be rerun. No proof of live Worker FK connection pragmas, financial event reconciliation, future rows or 4-way release-schema parity. **Official 45/95 full items, 4/10 formal gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO, first Job #0001 unused.** Source and provider left intact; draft PR270 documentation update only, no writes to D1, Access, deployment, Cloudflare billing/R2, Stripe, code merge or launch.
+
+---
+
 <!-- FIRE_NOV18_QA_PHYSICAL_REFUND_COLUMNS -->
 ## November 18 — owner-hosted QA refund column contract observed and archived
 
