@@ -55,6 +55,11 @@ await assertReject(recoverProtectedOfflinePhotoZip(extra,phrase),/incomplete|uns
  'trailing unexpected bytes rejected');
 const blank=new Blob([]);
 await assertReject(protectOfflinePhotoZip(blank,phrase),/empty/i,'empty archive rejected');
+for(const bytes of [new Uint8Array(),raw.subarray(0,20),new Uint8Array(80)]){
+ const invalid=new File([bytes],'saved.FIREPHOTOS');
+ await assertReject(openOwnerOfflinePhotoArchive(invalid,phrase),/missing its protected backup header/i,
+  'invalid protected file rejected before legacy ZIP inspection');
+}
 const notProtected=new Blob([new Uint8Array([1,2,3])]);
 await assertReject(recoverProtectedOfflinePhotoZip(notProtected,phrase),/truncated/i,
  'malformed short file rejected');

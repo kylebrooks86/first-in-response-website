@@ -103,5 +103,7 @@ export async function openOwnerOfflinePhotoArchive(file,phrase){
  if(!(file instanceof Blob))stop('choose a photo backup file');
  if(await isProtectedOfflinePhotoArchive(file))
   return recoverProtectedOfflinePhotoZip(file,phrase);
+ if(typeof file.name==='string'&&/\.firephotos$/i.test(file.name))
+  stop('the selected .firephotos file is missing its protected backup header. Check the saved file in Files and keep the original photos.');
  return file;
 }
