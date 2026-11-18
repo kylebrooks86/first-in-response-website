@@ -275,9 +275,26 @@ export async function POST(request: Request) {
     try {
       // Promote the existing lock to the real Stripe session IN PLACE. Creating
       // a second open row would violate the unique index and strand the session.
+      // The post-Stripe SELECT is only a snapshot. A refund, overage,
+      // revoked link or changed financial amount can arrive before the final
+      // promotion. Enforce the SAME guards in this atomic D1 write so a
+      // newly blocked checkout can only be expired, never given to a payer.
       const saved=await env.DB.prepare(`UPDATE payment_checkout_sessions SET id=?
-        WHERE id=? AND estimate_id=? AND status='open'`)
-        .bind(data.id,reservationId,row.id).run();
+        WHERE id=? AND estimate_id=? AND status='open'
+          AND EXISTS (
+            SELECT 1 FROM estimates e
+            WHERE e.id=payment_checkout_sessions.estimate_id
+              AND e.share_token=? AND e.accepted_at IS NOT NULL AND e.signed_at IS NOT NULL
+              AND ((?='deposit' AND e.status IN ('approved','scheduled'))
+                OR (?='balance' AND e.status='completed'))
+              AND e.deposit_cents=?
+              AND COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)=?
+              AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)=?
+              AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
+              AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
+              AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
+          )`)
+        .bind(data.id,reservationId,row.id,shareToken,paymentType,paymentType,depositCents,totalCents,paidCents).run();
       if(!saved.meta.changes)throw Error("Checkout reservation was lost.");
     } catch {
       if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();
