@@ -64,6 +64,17 @@ try{
  check(data.actions.find(x=>x.estimateId==="e-copy")?.state==="ready","Copy-only history never claims sent");
  check(!data.actions.some(x=>/approved|unpaid|overpaid|zero|pending|card|overage|refunded|tip|confirmed|received/.test(x.estimateId)),"No unfinished, unsafe, refunded or already requested work");
  check(data.actions.every(x=>!["phone","email","body"].some(k=>k in x)),"No customer contact information or message body in action feed");
+ // Historical/imported cross-customer message pointers must not suppress
+ // the rightful homeowner's paid-job review action. A matching estimate alone
+ // is NOT enough: both owner/customer IDs must agree in every exclusion.
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)")
+  .run("wrong-customer-confirmed","c-prepared","e-ready","text_confirmed","review","Synthetic mismatch",stamp(0));
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)")
+  .run("wrong-customer-snooze","c-prepared","e-copy","review_snoozed","reviewSnooze",new Date(Date.now()+7*86400000).toISOString(),stamp(0));
+ data=(await read()).data;
+ check(data.actions.some(x=>x.estimateId==="e-ready"),"Other customer's mismatched confirmed review cannot hide this homeowner's ready action");
+ check(data.actions.some(x=>x.estimateId==="e-copy"),"Other customer's mismatched snooze cannot hide this homeowner's ready action");
+
  check(statements.every(sql=>sql.trim().startsWith("SELECT")),"Endpoint performs no writes");
  db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)").run("unpaid-balance","e-unpaid","Cash",5000,"paid",stamp(0));
  data=(await read()).data;
