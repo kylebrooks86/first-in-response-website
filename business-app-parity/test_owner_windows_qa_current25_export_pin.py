@@ -40,7 +40,11 @@ class Current25PrivateBackupPinTests(unittest.TestCase):
     def test_preflight_checks_actual_executable_pin_not_comment(self):
         self.assertIn("[regex]::Matches($reviewText", self.wrapper)
         self.assertIn(
-            """$reviewPins=[regex]::Matches($reviewText, '(?m)^\\$expectedVersion\\s*=\\s*''([^'']+)''\\s*        self.assertIn("$reviewPins.Count -eq 1", self.wrapper)
+            r"""$reviewPins=[regex]::Matches($reviewText, '(?m)^\$expectedVersion\s*=\s*''([^'']+)''[ \t]*(?:\r?\n|\z)')""",
+            self.wrapper,
+            "PowerShell pin regex must be a non-interpolating literal"
+        )
+        self.assertIn("$reviewPins.Count -eq 1", self.wrapper)
         self.assertIn("$reviewPins[0].Groups[1].Value -ceq $version", self.wrapper)
         # If the correct pin appears in prose but the executable pin is stale,
         # the expected exact-pin contract must reject it.
