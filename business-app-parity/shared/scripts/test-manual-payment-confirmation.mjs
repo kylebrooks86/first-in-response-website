@@ -157,6 +157,76 @@ try{
  eq(paymentsFor('tipRace'),1);
 
 
+ // Cross-device/provider races must be blocked at the SAME conditional
+ // payment INSERT, not just by an earlier SELECT. Synthetic rows are isolated
+ // in disposable native SQLite; no Stripe/hosted D1 ever receives a request.
+ const addOpenOverage=(id)=>db.prepare(
+   "INSERT INTO notifications(id,type,title,body,customer_id,estimate_id,created_at) VALUES(?,?,?,?,?,?,?)"
+ ).run('overage-'+id,'payment_overage','Payment review','Synthetic unresolved hold','c-'+id,id,'2026-11-17');
+ const addPendingRefund=(id,paymentId)=>db.prepare(
+   "INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,'pending',?)"
+ ).run('refund-'+id,paymentId,id,100,'stripe','2026-11-17');
+ const oldPayment=(id)=>db.prepare(
+   "INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',1000,'paid',?)"
+ ).run('previous-'+id,id,'2026-11-17');
+
+ // Principal: refund becomes pending after preflight, before actual SQL write.
+ seed('refundRace','completed');invoice('refundRace','c-refundRace');oldPayment('refundRace');
+ const principalDuringRefund={...attempt,requestId:randomUUID(),amountCents:500};
+ beforePaymentInsert=()=>addPendingRefund('refundRace','previous-refundRace');
+ let raceDenied=await post('refundRace',principalDuringRefund);
+ eq(raceDenied.status,409,'New pending refund blocks principal at the actual SQL write');
+ eq(paymentsFor('refundRace'),1,'A competing pending refund cannot create an extra principal');
+ eq(db.prepare("SELECT status FROM payment_refunds WHERE id='refund-refundRace'").get().status,'pending');
+ db.prepare("DELETE FROM payment_refunds WHERE id='refund-refundRace'").run();
+ eq((await post('refundRace',principalDuringRefund)).status,201,'Cleared refund permits legitimate original principal request');
+ eq(paymentsFor('refundRace'),2);
+
+ // Principal: unresolved overage appears in another session after SELECT.
+ seed('overageRace','completed');invoice('overageRace','c-overageRace');
+ const principalDuringOverage={...attempt,requestId:randomUUID(),amountCents:500};
+ beforePaymentInsert=()=>addOpenOverage('overageRace');
+ raceDenied=await post('overageRace',principalDuringOverage);
+ eq(raceDenied.status,409,'New unresolved overage blocks principal at SQL-time');
+ eq(paymentsFor('overageRace'),0,'No extra principal is written while overage unresolved');
+ db.prepare("UPDATE notifications SET resolved_at='2026-11-17' WHERE id='overage-overageRace'").run();
+ eq((await post('overageRace',principalDuringOverage)).status,201,'Resolved overage permits a valid principal');
+ eq(paymentsFor('overageRace'),1);
+
+ // Tip-only path has a separate INSERT: it must enforce BOTH holds itself.
+ seed('tipRefundRace','completed');invoice('tipRefundRace','c-tipRefundRace');oldPayment('tipRefundRace');
+ const tipDuringRefund={...attempt,requestId:randomUUID(),amountCents:0,tipCents:250,method:'Venmo'};
+ beforePaymentInsert=()=>addPendingRefund('tipRefundRace','previous-tipRefundRace');
+ raceDenied=await post('tipRefundRace',tipDuringRefund);
+ eq(raceDenied.status,409,'Second-device pending refund blocks tip-only at SQL-time');
+ eq(paymentsFor('tipRefundRace'),1,'No tip row written under concurrent pending refund');
+ db.prepare("DELETE FROM payment_refunds WHERE id='refund-tipRefundRace'").run();
+ eq((await post('tipRefundRace',tipDuringRefund)).status,201,'Once refunded hold clears tip-only can save');
+ eq(paymentsFor('tipRefundRace'),2);
+
+ seed('tipOverageRace','completed');invoice('tipOverageRace','c-tipOverageRace');
+ const tipDuringOverage={...tipDuringRefund,requestId:randomUUID()};
+ beforePaymentInsert=()=>addOpenOverage('tipOverageRace');
+ raceDenied=await post('tipOverageRace',tipDuringOverage);
+ eq(raceDenied.status,409,'Unresolved overage appearing during tip-only INSERT blocks it');
+ eq(paymentsFor('tipOverageRace'),0);
+ db.prepare("UPDATE notifications SET resolved_at='2026-11-17' WHERE id='overage-tipOverageRace'").run();
+ eq((await post('tipOverageRace',tipDuringOverage)).status,201);
+ eq(paymentsFor('tipOverageRace'),1);
+
+ // A combined principal+tip batch cannot partly record a tip after a
+ // concurrent money-review hold prevents principal in the first statement.
+ seed('comboOverageRace','completed');invoice('comboOverageRace','c-comboOverageRace');
+ const comboDuringOverage={...attempt,requestId:randomUUID(),amountCents:500,tipCents:150,method:'Venmo'};
+ beforePaymentInsert=()=>addOpenOverage('comboOverageRace');
+ eq((await post('comboOverageRace',comboDuringOverage)).status,409);
+ eq(paymentsFor('comboOverageRace'),0,'Concurrent hold must not create principal or orphaned tip');
+ eq(db.prepare("SELECT COUNT(*) AS n FROM notifications WHERE estimate_id='comboOverageRace' AND type='tip_received'").get().n,0,
+  'No tip confirmation notice when payment batch rejected');
+ db.prepare("UPDATE notifications SET resolved_at='2026-11-17' WHERE id='overage-comboOverageRace'").run();
+ eq((await post('comboOverageRace',comboDuringOverage)).status,201);
+ eq(paymentsFor('comboOverageRace'),2,'After resolution principal and tip pair remain valid');
+
  // Read-only confirmation is part of the actual money workflow, not a source
  // of authorization to collect again. Even a valid saved payment cannot
  // certify an invoice that is now linked to a different customer.
