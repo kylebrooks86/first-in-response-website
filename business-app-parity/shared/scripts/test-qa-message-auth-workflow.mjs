@@ -23,8 +23,12 @@ export async function verifySignedMessageHandoff({request,page,customer,estimate
     'Real signed owner QA cookie opens customer/estimate-scoped prepared message history');
 
   const requestId=randomUUID(),body='Synthetic QA prepared message. DO NOT SEND.';
+  // The real owner API will not prepare a Text draft without a valid saved
+  // phone. Assert the fixture's customer save actually persisted that phone.
+  check(customer.phone==='9185550123',
+    'Synthetic QA customer persisted exact saved phone before Text preparation');
   const payload={customerId:customer.id,estimateId:estimate.id,channel:'text_prepared',
-    template:'estimate',body,requestId};
+    template:'estimate',body,requestId,recipientSnapshot:customer.phone};
   const response=await request('/api/customer-messages','POST',payload);
   const preparedResponse=await response.json(),prepared=preparedResponse.message;
   check(response.status()===201&&prepared?.id==='owner-message-prep:'+requestId&&
