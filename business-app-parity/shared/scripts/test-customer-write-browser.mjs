@@ -202,10 +202,16 @@ try{
    historyFailure=false;await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('status').filter({hasText:'1 estimate loaded'}).waitFor();check(await page.getByText('Latest query customer',{exact:true}).isVisible(),'Fresh search retry restores correct result');check(historyReads.at(-1).includes('q=Latest%20'+mode),'Retry preserves the entered query');
   }
  }
+ // Use recent synthetic timestamps so rolling 30-day KPI tests do not expire.
+
+ // Fixed 2026-10-19 dates stopped qualifying on 2026-11-18.
+
+ const recentInsightFixtureAt=new Date(Date.now()-86400000).toISOString();
+
  insightMode=true;
  for(const width of [320,390])for(const theme of ['light','dark']){
   insightPayload={customers:[],estimates:[]};await page.setViewportSize({width,height:700});await page.goto(origin+'/insights');await page.evaluate(value=>window.setTheme(value),theme);await page.getByRole('alert').filter({hasText:'Insights unavailable'}).waitFor();check(await page.locator('.insight-kpis').count()===0,'Incomplete Insights response cannot show zero financial metrics');
-  insightPayload={customers:[{id:'c',name:'Synthetic',createdAt:'2026-10-19T12:00:00Z',leadSource:'Referral'}],estimates:[{id:'e',status:'completed',service:'Synthetic wash',createdAt:'2026-10-19T12:00:00Z',totalCents:'20000',invoiceTotalCents:'18000',paidCents:'5000',items:[{name:'Synthetic wash',totalCents:'20000'}]}],invoices:[{id:'i',estimateId:'e',totalCents:'18000'}],payments:[{id:'p',estimateId:'e',type:'Cash',amountCents:'6000',createdAt:'2026-10-19T12:00:00Z'},{id:'r',estimateId:'e',type:'Refund',amountCents:'-1000',createdAt:'2026-10-19T12:00:00Z'},{id:'t',estimateId:'e',type:'Tip',amountCents:'500',createdAt:'2026-10-19T12:00:00Z'}]};
+  insightPayload={customers:[{id:'c',name:'Synthetic',createdAt:recentInsightFixtureAt,leadSource:'Referral'}],estimates:[{id:'e',status:'completed',service:'Synthetic wash',createdAt:recentInsightFixtureAt,totalCents:'20000',invoiceTotalCents:'18000',paidCents:'5000',items:[{name:'Synthetic wash',totalCents:'20000'}]}],invoices:[{id:'i',estimateId:'e',totalCents:'18000'}],payments:[{id:'p',estimateId:'e',type:'Cash',amountCents:'6000',createdAt:recentInsightFixtureAt},{id:'r',estimateId:'e',type:'Refund',amountCents:'-1000',createdAt:recentInsightFixtureAt},{id:'t',estimateId:'e',type:'Tip',amountCents:'500',createdAt:recentInsightFixtureAt}]};
   await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.insight-kpis').waitFor();
   // The KPI container can appear before an asynchronous Insights retry finishes.
   // Require every exact monetary value before asserting its visibility.
