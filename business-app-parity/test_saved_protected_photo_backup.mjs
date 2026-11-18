@@ -262,6 +262,19 @@ try{
   rowCounts:Object.fromEntries(Object.entries(tables).map(([key,list])=>[key,list.length])),
   highWater:{customer:1,job:1}};
  writeFileSync(recordsPath,JSON.stringify(records));
+ const jobOutput=join(folder,'job-linked-recovered.zip');
+ await reject(recoverSavedProtectedPhotoZip(jobFile,jobOutput,phrase,
+  {allowPlaintextRecovery:true,recordsPath}),/unknown numbered job/);
+ ok(!readFileSyncSafe(jobOutput),'unknown job cannot write plaintext photos');
+ const linkedRecords=structuredClone(records);
+ linkedRecords.tables.fire_job_estimate_links.push({estimate_id:'job-synthetic-0001',job_number:1});
+ linkedRecords.tables.estimates.push({...tables.estimates[0],id:'job-synthetic-0001'});
+ linkedRecords.rowCounts.estimates++;
+ linkedRecords.rowCounts.fire_job_estimate_links++;
+ const recoveredJob=await recoverSavedProtectedPhotoZip(jobFile,jobOutput,phrase,
+  {allowPlaintextRecovery:true,recordsArchive:linkedRecords});
+ ok(recoveredJob.savedRecoveryZipReadBackVerified&&readFileSync(jobOutput).equals(jobLinkedZip),
+  'linked estimate survives encrypted recovery and saved ZIP readback');
  const pair=await inspectOwnerSavedNumberedPhotoPair(recordsPath,file,phrase);
  ok(pair.savedRecordsFileReadBack&&pair.savedProtectedPhotoFileReadBack,
   'read back the separate actual saved records AND protected photo files');

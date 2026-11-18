@@ -34,14 +34,9 @@ const canonicalRecords=archive=>{
   highWater:archive.highWater,rowCounts:archive.rowCounts,tables:t,
   allTablesComplete:archive.allTablesComplete,truncated:archive.truncated});
 };
-export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
- const recordState=validateNumberedCoreRecordsV2(archive);
- if(!Array.isArray(photos)||photos.length>500)fail('verified complete photo archive required');
- // With NO R2 binding, rows naming legacy cloud photo objects are not
- // included in the device ZIP; a pair must NOT claim complete recovery.
- if(archive.tables.customer_photos.length!==0)
-  fail('hosted object photo metadata exists; device ZIP cannot recover its bytes');
- const customers=new Set(archive.tables.customers.map(x=>x.id)),ids=new Set(),photoDigests=[];
+// Both sealing and recovery use the same ownership rules for numbered jobs.
+export function verifyPhotoJobOwners(archive,photos){
+ const customers=new Set(archive.tables.customers.map(row=>row.id));
  // The numbered-job root estimate is the immutable job identity in this
  // recovery format. Do not accept an arbitrary jobId just because it is
  // syntactically valid: it must resolve to a numbered job in this SAME
@@ -71,6 +66,26 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
    fail('linked job estimate ownership conflicts');
   jobOwners.set(link.estimate_id,owner);
  }
+ for(const photo of photos){
+  if(photo?.jobId!==undefined){
+   if(typeof photo.jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(photo.jobId))
+    fail('invalid photo job association');
+   if(!jobOwners.has(photo.jobId))
+    fail('photo references an unknown numbered job root estimate');
+   if(jobOwners.get(photo.jobId)!==photo.customerId)
+    fail('photo numbered job belongs to another customer');
+  }
+ }
+}
+export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
+ const recordState=validateNumberedCoreRecordsV2(archive);
+ if(!Array.isArray(photos)||photos.length>500)fail('verified complete photo archive required');
+ // With NO R2 binding, rows naming legacy cloud photo objects are not
+ // included in the device ZIP; a pair must NOT claim complete recovery.
+ if(archive.tables.customer_photos.length!==0)
+  fail('hosted object photo metadata exists; device ZIP cannot recover its bytes');
+ const customers=new Set(archive.tables.customers.map(x=>x.id)),ids=new Set(),photoDigests=[];
+ verifyPhotoJobOwners(archive,photos);
  let totalBytes=0;
  for(const photo of photos){
   if(!photo||typeof photo!=='object'||typeof photo.id!=='string'||
@@ -88,14 +103,6 @@ export async function sealNumberedRecordAndPhotoRecoveryPair(archive,photos){
      !Number.isSafeInteger(photo.sizeBytes)||photo.sizeBytes<1||
      photo.sizeBytes>15*1024*1024||photo.blob.size!==photo.sizeBytes)
    fail('photo metadata or bytes do not match accepted device ZIP format');
-  if(photo.jobId!==undefined){
-   if(typeof photo.jobId!=='string'||!/^[a-zA-Z0-9_-]{1,120}$/.test(photo.jobId))
-    fail('invalid photo job association');
-   if(!jobOwners.has(photo.jobId))
-    fail('photo references an unknown numbered job root estimate');
-   if(jobOwners.get(photo.jobId)!==photo.customerId)
-    fail('photo numbered job belongs to another customer');
-  }
   totalBytes+=photo.sizeBytes;
   if(totalBytes>160*1024*1024)fail('device-photo bytes exceed supported ZIP size');
   // Hash the verified actual bytes again to bind each record and photograph.

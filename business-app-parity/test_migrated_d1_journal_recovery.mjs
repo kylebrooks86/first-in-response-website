@@ -4,6 +4,7 @@
  * node --experimental-sqlite business-app-parity/test_migrated_d1_journal_recovery.mjs
  */
 import assert from 'node:assert/strict';
+import {inspectStoredFirePhotoZip} from './verify_saved_protected_photo_backup.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -42,12 +43,12 @@ const reject=async(path,records,isolated,extra,why)=>{
 // A tiny synthetically generated QA-master gallery ZIP, not a real photo.
 // Uses the SAME ZIP local descriptors, central-directory and SHA-256 format
 // that the deployed app's existing protected photo verifier requires.
-function makeStoredPhotoZip(customerId){
+function makeStoredPhotoZip(customerId,jobId){
  const photoId='synthetic-photo-001',bytes=Buffer.from([0xff,0xd8,0xff,0xd9,1,2,3,4]);
  const hash=createHash('sha256').update(bytes).digest('hex');
  const manifest={format:'fire-offline-photo-vault',version:1,
   exportedAt:'2026-11-13T12:01:00.000Z',requiresMatchingCustomerRecords:true,
-  photos:[{id:photoId,customerId,category:'before',caption:'synthetic bytes only',
+  photos:[{id:photoId,customerId,jobId,category:'before',caption:'synthetic bytes only',
    filename:'synthetic.jpg',contentType:'image/jpeg',sizeBytes:bytes.length,
    createdAt:'2026-11-13T12:00:00.000Z',sha256:hash}]};
  const parts=[['photos/'+photoId,bytes],['manifest.json',Buffer.from(JSON.stringify(manifest))]];
@@ -255,7 +256,7 @@ try{
  // Recover two separately authenticated SAVED files in one local command.
  // The database must disappear if any photo/customer proof fails.
  const photoPhrase='FIRE synthetic distinct photo recovery phrase 2026';
- const galleryZip=makeStoredPhotoZip('synthetic-first-customer');
+ const galleryZip=makeStoredPhotoZip('synthetic-first-customer','synthetic-first-job');
  const protectedPhotoFile=join(folder,'saved-photos.firephotos');
  const galleryCipher=await protectOfflinePhotoZip(new Blob([galleryZip]),photoPhrase);
  await writeFile(protectedPhotoFile,Buffer.from(await galleryCipher.arrayBuffer()));
@@ -428,6 +429,13 @@ try{
  okay(pairedDb.prepare('SELECT job_number AS n FROM fire_job_numbers').get().n===1&&
       pairedDb.prepare('SELECT amount_cents AS n FROM payment_refunds').get().n===500,
   'paired recovery contains actual immutable Job #0001 and paid/refund ledger');
+ const [restoredPhoto]=inspectStoredFirePhotoZip(await readFile(pairZip),
+  {includePhotoInventory:true}).photoInventory;
+ const savedJob=pairedDb.prepare(
+  'SELECT e.customer_id, l.job_number FROM estimates e JOIN fire_job_estimate_links l ON l.estimate_id=e.id WHERE e.id=?'
+ ).get(restoredPhoto.jobId);
+ okay(savedJob?.customer_id===restoredPhoto.customerId&&savedJob.job_number===1,
+  'reopened original photo is linked to its customer and Job #0001 in the recovered SQLite');
  pairedDb.close();
 
  // Exercise actual owner-facing CLI: use stdin secrets and the newly saved

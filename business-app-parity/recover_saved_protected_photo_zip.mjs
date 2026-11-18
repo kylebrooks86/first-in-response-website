@@ -16,6 +16,8 @@ import {recoverProtectedOfflinePhotoZip,isProtectedOfflinePhotoArchive} from './
 import {inspectStoredFirePhotoZip,readUnchangedSavedProtectedPhotoFile} from './verify_saved_protected_photo_backup.mjs';
 import {validateNumberedCoreRecordsV2} from './shared/lib/numbered-records-v2-preflight.mjs';
 
+import {verifyPhotoJobOwners} from './shared/lib/numbered-photo-recovery-pair.mjs';
+
 const MAX_FILE=161*1024*1024+4096;
 /**
  * Reopen the actual *saved* recovery ZIP. Encryption authentication and
@@ -91,6 +93,7 @@ export async function recoverSavedProtectedPhotoZip(input,output,phrase,{allowPl
   const customers=new Set(records.tables.customers.map(row=>row.id));
   if(proof.photoInventory.some(photo=>!customers.has(photo.customerId)))
    stop('a photo references a customer absent from the records snapshot');
+  verifyPhotoJobOwners(records,proof.photoInventory);
   matchingRecordsVerified=true;
  }
  let handle,created=false,readback;
