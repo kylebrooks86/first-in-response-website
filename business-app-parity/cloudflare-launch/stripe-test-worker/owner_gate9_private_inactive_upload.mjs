@@ -55,13 +55,14 @@ export function ownerGate9Candidate({sourceSha,expectedDigest,buildDir,
   const clientDir=join(build,'dist','client');
   const out=compileGate9ApprovalCandidate({serverDir,clientDir,sourceSha});
   need(out.candidateDigest===expectedDigest,'APPROVAL_DIGEST_CHANGED');
-  // The current QA-master adds ONE owner-only, default-OFF Gate7 recovery
-  // capability API route. Exact-head GitHub offline compiled TEST source
-  // (run 43812033452) observed 193 modules / 41 assets. Keep the count EXACT,
-  // not a range, and require separately approved source SHA and SHA256 digest.
-  // Former 192-module consent and failed provider POST remain permanently spent.
-  // Updating this SOURCE guard authorizes NO upload or provider operation.
-  need(out.counts.compiledModules===193&&out.counts.staticAssets===41,
+  // Independently observed exact-head LOCAL TEST build 44204404693 now has
+  // 194 compiled modules / 41 assets: the new server-side customer contact
+  // validation adds one module. This is ONLY an offline structural count.
+  // Keep the count EXACT (not a range), plus source SHA and full candidate
+  // SHA256 equality. No owner consent to a new provider POST is inferred.
+  // Historical one-shot consent and the failed provider POST remain spent.
+  // This preflight cannot upload, create a version, deploy or change payments.
+  need(out.counts.compiledModules===194&&out.counts.staticAssets===41,
     'FULL_APP_COMPILED_COUNT');
   return {out,serverDir,clientDir};
 }
