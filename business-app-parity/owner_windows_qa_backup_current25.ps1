@@ -41,7 +41,7 @@ foreach ($f in @($review,$verifier,$configSource)) {
 $reviewText=Get-Content -LiteralPath $review -Raw
 # Match the actual executable pin, never a historical comment containing a version.
 # An unreviewed or duplicate pin must fail before authenticated provider/export work.
-$reviewPins=[regex]::Matches($reviewText, '(?m)^\$expectedVersion\s*=\s*''([^'']+)''\s*
+$reviewPins=[regex]::Matches($reviewText, '(?m)^\$expectedVersion\s*=\s*''([^'']+)''[ \t]*(?:\r?\n|\z)')
 Require ($reviewPins.Count -eq 1 -and
     $reviewPins[0].Groups[1].Value -ceq $version -and
     $reviewText.Contains($qaUuid)) 'Current owner read-only runtime guard is missing exact QA pins.'
