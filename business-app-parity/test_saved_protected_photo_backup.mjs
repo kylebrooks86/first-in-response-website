@@ -9,6 +9,7 @@ import {createHash} from 'node:crypto';
 import {mkdtempSync,writeFileSync,readFileSync,rmSync,truncateSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {protectOfflinePhotoZip} from './shared/lib/protected-offline-photo-archive.mjs';
 import {inspectOwnerSavedNumberedPhotoPair} from './verify_saved_numbered_photo_pair.mjs';
@@ -105,6 +106,26 @@ try{
  // Gate7 current encrypted input must be a BOUNDED, descriptor-verified
  // owner-saved file BEFORE any AES decrypt/restore allocates its bytes.
  // No real owner photographs, browser state or provider connection used.
+ // Exercise the ACTUAL Node helper embedded in owner QA25 Python restore on
+ // a synthetic valid saved archive. A previous real owner run stopped after
+ // its passphrase prompt; the old suite never exercised this binary bridge.
+ const restoreSource=readFileSync(new URL('./restore_qa25_photo_pair_isolated.py',import.meta.url),'utf8');
+ const helperMatch=restoreSource.match(/PHOTO_READ\\s*=\\s*r"""([\\s\\S]*?)"""/);
+ ok(!!helperMatch,'owner QA25 restore embeds the expected raw Node script');
+ const nodeHelperArgs=['--input-type=module','-e',helperMatch[1],file];
+ const bridge=spawnSync(process.execPath,nodeHelperArgs,{
+  cwd:fileURLToPath(new URL('.',import.meta.url)),input:JSON.stringify(phrase),
+  maxBuffer:16*1024*1024,encoding:null
+ });
+ ok(bridge.status===0&&Buffer.compare(bridge.stdout,original)===0,
+  'exact protected-photo Node-to-Python binary-stream helper round trip');
+ const badBridge=spawnSync(process.execPath,nodeHelperArgs,{
+  cwd:fileURLToPath(new URL('.',import.meta.url)),
+  input:JSON.stringify('A deliberately incorrect synthetic phrase 2026'),
+  maxBuffer:16*1024*1024,encoding:null
+ });
+ ok(badBridge.status!==0&&badBridge.stdout.length===0,
+  'invalid phrase never streams partial original photo ZIP bytes');
  const ciphertext=readFileSync(file);
  ok((await readUnchangedSavedProtectedPhotoFile(file)).equals(ciphertext),
   'saved original photo ciphertext is read by one verified stable descriptor');
