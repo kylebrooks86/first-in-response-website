@@ -97,6 +97,53 @@ export function customerTemplateLinkReadiness(
  return{ready:true,requiresEstimate,requiresInvoice,reason:""};
 }
 
+/** Tulsa-local calendar logic for the FIRE 24-hour / "tomorrow" reminder.
+ * A 24-hour reminder speaks about TOMORROW, not an arbitrary future appointment.
+ * Format-to-parts is deliberately used instead of browser/system local time:
+ * the owner's phone, a UTC Worker and the SQLite runner must agree on the day.
+ */
+const tulsaDayFormatter=new Intl.DateTimeFormat("en-US",{
+ timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
+});
+function tulsaDayKey(time:number):string|null{
+ if(!Number.isFinite(time))return null;
+ const parts=tulsaDayFormatter.formatToParts(new Date(time));
+ const value=(name:string)=>parts.find(part=>part.type===name)?.value??"";
+ const year=value("year"),month=value("month"),day=value("day");
+ return /^\\d{4}$/.test(year)&&/^\\d{2}$/.test(month)&&/^\\d{2}$/.test(day)
+  ?year+"-"+month+"-"+day:null;
+}
+function nextTulsaDayKey(now:number):string|null{
+ const today=tulsaDayKey(now);
+ if(!today)return null;
+ const [year,month,day]=today.split("-").map(Number);
+ const next=new Date(Date.UTC(year,month-1,day+1));
+ return next.toISOString().slice(0,10);
+}
+export function customerReminderIsTomorrowInTulsa(scheduledAt:string|null|undefined,now:number=Date.now()):boolean{
+ const instant=scheduledAt?Date.parse(scheduledAt):NaN;
+ return Number.isFinite(instant)&&Number.isFinite(now)&&instant>now&&
+   tulsaDayKey(instant)===nextTulsaDayKey(now);
+}
+/** Exact UTC midnight when "tomorrow" becomes "today" in Tulsa.
+ * Binary-searching the Tulsa date boundary is DST-safe even for spring/fall
+ * transitions; a fixed -5/-6 hour offset is wrong on transition days.
+ * The server binds this expiry into the same SQLite INSERT that saves a draft.
+ */
+export function tulsaReminderExpiryUtc(now:number=Date.now()):string|null{
+ const target=nextTulsaDayKey(now);
+ if(!target)return null;
+ const [year,month,day]=target.split("-").map(Number);
+ const candidate=Date.UTC(year,month-1,day);
+ let low=candidate-12*3600_000,high=candidate+18*3600_000;
+ while(low<high){
+  const middle=low+Math.floor((high-low)/2000)*1000;
+  if((tulsaDayKey(middle)??'')<target)low=middle+1000;
+  else high=middle;
+ }
+ return new Date(low).toISOString();
+}
+
 /**
  * A canned appointment confirmation/reminder must come from the actual
  * selected saved job, not a generic "your scheduled time" fallback. Custom
@@ -121,5 +168,7 @@ export function customerAppointmentTemplateReadiness(
   return{ready:false,reason:"This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed."};
  if(source.includes("@service_address")&&!address?.trim())
   return{ready:false,reason:"Save a service address for this scheduled job before preparing an appointment confirmation."};
+ if(/\\btomorrow\\b/i.test(templateSubject)&&!customerReminderIsTomorrowInTulsa(scheduledAt,now))
+  return{ready:false,reason:"The 24-hour reminder says tomorrow, but this saved appointment is not tomorrow in Tulsa. Use Appointment confirmation for a later date, or prepare the reminder the day before service."};
  return{ready:true,reason:""};
 }
