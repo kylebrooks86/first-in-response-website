@@ -10,7 +10,7 @@ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;console.log('PASS: '+description);};
 const body=JSON.stringify({shareToken:'synthetic-share-token',paymentType:'deposit'});
-function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01',siteOrigin='https://synthetic.invalid',requestOrigin='https://synthetic.invalid'}={}){
+function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01',siteOrigin='https://synthetic.invalid',requestOrigin='https://synthetic.invalid',holdAtReserve=null,holdAfterStripe=null}={}){
  const state={open:priorStatus?{id:'cs_test_previoussynthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0,dbPrepares:0};
  let readers=0,openReaders;
  const bothReaders=new Promise(resolve=>{openReaders=resolve;});
@@ -23,7 +23,7 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
          if(sql.includes('FROM payment_refunds WHERE estimate_id=?'))return null;
          if(sql.includes("FROM notifications WHERE estimate_id=? AND type='payment_overage'"))return null;
          if(sql.includes('AS amount FROM payments WHERE estimate_id=?'))return {amount:0};
-         if(sql.includes('SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0,invoiceOwnershipMismatch:0};
+         if(sql.includes('SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:holdAfterStripe==='overage'?1:0,pendingRefundCount:holdAfterStripe==='refund'?1:0,invoiceOwnershipMismatch:0};
          throw Error('Unexpected first SQL: '+sql);
        },
        async all(){
@@ -36,6 +36,12 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
          if(sql.includes('INSERT INTO payment_checkout_sessions')){
            check(sql.includes('WHERE NOT EXISTS'),'Checkout lock uses database-side conditional reservation');
            state.locks++;
+           // Model a different device creating a financial hold AFTER the
+           // preflight SELECT and BEFORE the actual conditional D1 INSERT.
+           // This test permits a reservation only if its real SQL omits the
+           // required predicate; a missing source guard then fails below.
+           if(holdAtReserve==='refund'&&sql.includes("NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=estimates.id AND r.status='pending')"))return {meta:{changes:0}};
+           if(holdAtReserve==='overage'&&sql.includes("NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=estimates.id AND n.type='payment_overage' AND n.resolved_at IS NULL)"))return {meta:{changes:0}};
            if(state.open)return {meta:{changes:0}};
            state.open={id:params[0],estimateId:params[1],type:params[2],charge:params[3],status:'open'};
            return {meta:{changes:1}};
@@ -128,6 +134,9 @@ for(const [label,payload,headers,expected] of [
  ['spoofed smaller length still >16KiB','x'.repeat(16385),{'content-length':'8'},413],
  ['declared oversize','{}',{'content-length':'16385'},413],
  ['malformed Content-Length','{}',{'content-length':'12abc'},413],
+ ['smaller declared length than actual JSON','{}',{'content-length':'1'},400],
+ ['larger declared length than actual JSON','{}',{'content-length':'3'},400],
+ ['empty request body','',{},400],
  ['unclosed JSON','{broken',{},400],
  ['array is not an object','[]',{},400],
  ['JSON null','null',{},400],
@@ -146,6 +155,25 @@ for(const [label,payload,headers,expected] of [
  const response=await h.post(body,{'content-length':String(Buffer.byteLength(body,'utf8'))});
  check(response.status===200,'Valid signed checkout request with numeric Content-Length is accepted');
  check(h.state.locks===1&&h.state.creates===1,'Valid Content-Length preserves exactly one checkout');
+}
+// A refund or unresolved payment exception can appear in a separate owner
+// session between the public checkout's initial SELECT and its reserved INSERT.
+// The actual SQL must reject the new hold BEFORE any Stripe session creation.
+for(const kind of ['refund','overage']){
+ const h=harness({holdAtReserve:kind});
+ const response=await h.post();
+ check(response.status===409,kind+' inserted between preflight and reservation blocks card checkout');
+ check(h.state.locks===1&&h.state.creates===0&&h.state.open===null,
+  kind+' SQL-time hold cannot reserve a session or contact Stripe');
+}
+// When a refund/overage appears after Stripe acknowledged the session, do
+// not return a payable link; confirm remote expiry and release only safely.
+for(const kind of ['refund','overage']){
+ const h=harness({holdAfterStripe:kind});
+ const reply=await h.post();
+ check(reply.status===409,kind+' introduced during Stripe session creation blocks returning the payment URL');
+ check(h.state.creates===1&&h.state.expirations===1&&h.state.open===null,
+  kind+' after remote acknowledgement triggers verified expiry rather than exposing the link');
 }
 for(const kind of ['wrong-mode','bad-origin','plain-http','bad-id']){
  const h=harness({stripeResponse:kind});
