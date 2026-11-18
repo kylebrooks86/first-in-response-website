@@ -27,7 +27,7 @@ from verify_qa_d1_export import data_digest, expected, schema_matches
 
 FULL_PINS = {**HISTORICAL_GIT_BLOBS, **NEW_GIT_BLOBS}
 FULL_NAMES = sorted(FULL_PINS)
-LAST_QA_WORKER_VERSION = "99fa8c27-df83-48d3-b953-9a84eb295334"
+LAST_QA_WORKER_VERSION = "08d77fb1-9484-4014-bd5b-1bb1da066cdb"
 FORMAT = "fire-private-qa-current25-offline-validation-v1"
 
 class CurrentQAExportStop(ValueError):
@@ -48,7 +48,7 @@ class CurrentQAExportStop(ValueError):
             "hostedRestoreTested": False,
             "qaUpdateAuthorized": False,
             "productionReleaseAuthorized": False,
-            "officialGatesPassed": 3,
+            "officialGatesPassed": 4,
             "officialGatesTotal": 10,
         }
 
@@ -154,7 +154,7 @@ def verify_current25_export(path, *, expected_sha256):
             "hostedRestoreTested": False,
             "qaUpdateAuthorized": False,
             "productionReleaseAuthorized": False,
-            "officialGatesPassed": 3,
+            "officialGatesPassed": 4,
             "officialGatesTotal": 10,
         }
     except CurrentQAExportStop:
