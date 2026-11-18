@@ -10,7 +10,7 @@ const source=readFileSync('lib/customer-contact-links.ts','utf8');
 const js=ts.transpileModule(source,{
  compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}
 }).outputText;
-const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness}
+const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation,customerTemplateLinkReadiness,customerAppointmentTemplateReadiness,customerReminderIsTomorrowInTulsa,tulsaReminderExpiryUtc}
  =await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(js));
 let checks=0;
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++};
@@ -32,6 +32,42 @@ eq(appointment('General note without a schedule','','2026-10-31T16:00:00Z','sche
 eq(appointment('General note','Your appointment @schedule_date','2026-10-31T16:00:00Z','scheduled','100 Synthetic St').ready,false,'Scheduling claim in a subject also requires future verified job');
 eq(appointment('Appointment on @schedule_date','','2026-10-31T16:00:00Z','scheduled','100 Synthetic St').reason.includes('Check the job status'),true,'Past-date refusal gives owner actionable status-review guidance');
 eq(appointment('Your appointment','','','draft','').ready,true,'Custom reply without date placeholder remains freely available');
+// The saved 24-hour template literally says "tomorrow", which must match
+// Tulsa's calendar, not a generic upcoming or UTC calendar date.
+const reminderSubject="Reminder: your service is tomorrow";
+eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-04T16:00:00Z","scheduled","100 Synthetic St").ready,false,
+ "The 24-hour reminder cannot claim a service four days away is tomorrow");
+eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-02T16:00:00Z","scheduled","100 Synthetic St").ready,true,
+ "Next-day 24-hour reminder remains available in Tulsa");
+eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-01T23:00:00Z","scheduled","100 Synthetic St").ready,false,
+ "Same-day future service is today, not tomorrow");
+eq(appointment("Appointment on @schedule_date",reminderSubject,"2026-11-04T16:00:00Z","scheduled","100 Synthetic St").reason.includes("Use Appointment confirmation"),true,
+ "Premature reminder gives the owner a truthful future-date alternative");
+eq(customerReminderIsTomorrowInTulsa("2026-11-02T16:00:00Z",appointmentClock),true,
+ "Server and browser share Tulsa-local tomorrow decision");
+eq(customerReminderIsTomorrowInTulsa("2026-11-04T16:00:00Z",appointmentClock),false,
+ "Server refuses a future-week reminder with no tomorrow semantics");
+eq(customerReminderIsTomorrowInTulsa("not-a-date",appointmentClock),false,
+ "Malformed appointment timestamp cannot be tomorrow");
+eq(customerReminderIsTomorrowInTulsa("2026-11-02T16:00:00Z",NaN),false,
+ "Unverifiable clock cannot assert tomorrow");
+// Exact UTC boundaries are -05 or -06 depending on the midnight itself.
+eq(tulsaReminderExpiryUtc(Date.parse("2026-10-31T23:30:00Z")),
+ "2026-11-01T05:00:00.000Z",
+ "Before November DST fallback, Tulsa tomorrow begins at 05:00 UTC");
+eq(tulsaReminderExpiryUtc(Date.parse("2026-11-01T20:00:00Z")),
+ "2026-11-02T06:00:00.000Z",
+ "After November DST fallback, Tulsa tomorrow begins at 06:00 UTC");
+eq(tulsaReminderExpiryUtc(Date.parse("2026-03-07T20:00:00Z")),
+ "2026-03-08T06:00:00.000Z",
+ "Before spring DST transition, next Tulsa midnight stays on standard time");
+eq(tulsaReminderExpiryUtc(Date.parse("2026-03-08T20:00:00Z")),
+ "2026-03-09T05:00:00.000Z",
+ "After spring DST transition, next Tulsa midnight uses daylight time");
+eq(customerReminderIsTomorrowInTulsa("2026-11-02T16:00:00Z",Date.parse("2026-11-02T05:59:59Z")),true,
+ "One second before local midnight tomorrow is still tomorrow");
+eq(customerReminderIsTomorrowInTulsa("2026-11-02T16:00:00Z",Date.parse("2026-11-02T06:00:00Z")),false,
+ "At Tulsa midnight the scheduled service becomes today");
 eq(linked('Custom note','','Hi there','','').ready,true,'Custom messages without link placeholders stay free to prepare');
 eq(linked('See @form_link','','See your customer report link','','').ready,false,'Missing real report URL must never be presented as a customer-facing link');
 eq(linked('See @form_link','','Report at https://example.invalid/report','','').ready,false,'Pasting unrelated URL into unresolved placeholder cannot bypass verified report access');
