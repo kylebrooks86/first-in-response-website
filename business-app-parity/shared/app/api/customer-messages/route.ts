@@ -116,6 +116,9 @@ export async function POST(request: Request) {
     // browser state can be stale or bypassed. Confirm the *saved* appointment
     // on the server before returning an idempotent draft as well as before INSERT.
     const appointmentTemplate=template==="appointment"||template==="appointmentReminder";
+    // Capture one wall-clock instant. If midnight passes before INSERT, its
+    // exact deadline becomes past and the database must reject this draft.
+    const appointmentClock=Date.now();
     const appointmentError="This saved appointment is no longer confirmed for a future time. Review the job status and schedule before preparing an appointment message.";
     const reminderError="A 24-hour reminder can only be prepared the day before this saved appointment in Tulsa. Choose Appointment confirmation for a later date.";
     if(appointmentTemplate){
@@ -123,13 +126,12 @@ export async function POST(request: Request) {
       const currentJob=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
         .bind(estimateId,customerId).first<{status:string;scheduledAt:string|null}>();
       const time=currentJob?.scheduledAt?Date.parse(currentJob.scheduledAt):NaN;
-      const now=Date.now();
-      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=now||
+      if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=appointmentClock||
          !appointmentScheduledAt||currentJob.scheduledAt!==appointmentScheduledAt)
         return Response.json({error:appointmentError},{status:409});
       // The canned reminder says "tomorrow"; a future date next week is
       // a valid confirmation, NOT a truthful 24-hour reminder.
-      if(template==="appointmentReminder"&&!customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,now))
+      if(template==="appointmentReminder"&&!customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,appointmentClock))
         return Response.json({error:reminderError},{status:409});
     }
     if(template==="review"){
@@ -190,7 +192,7 @@ export async function POST(request: Request) {
     // A prepared reminder must not cross midnight while the owner waits for
     // the database. This SQLite condition uses the actual Tulsa-local
     // tomorrow-to-today boundary, including daylight-saving transitions.
-    const reminderExpiry=template==="appointmentReminder"?tulsaReminderExpiryUtc(Date.now()):null;
+    const reminderExpiry=template==="appointmentReminder"?tulsaReminderExpiryUtc(appointmentClock):null;
     const reminderGuard=template==="appointmentReminder"?
       " AND julianday('now') < julianday(?)":"";
     // Compare the current customer contact in the SAME conditional INSERT.
