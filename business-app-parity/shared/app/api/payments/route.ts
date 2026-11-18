@@ -2,6 +2,7 @@ import { processingAmounts } from "../../../lib/processing-fees";
 import { refundLedgerNotReady, refundLedgerObjectsPresent } from "../../../lib/refund-ledger-readiness";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { readOwnerWriteObject } from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -47,7 +48,12 @@ export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!await refundLedgerObjectsPresent(env.DB)) return refundLedgerNotReady();
   try {
-    const body = await request.json() as Record<string, unknown>;
+    // Manual payment POST is a sensitive money-write boundary. Reject giant,
+    // malformed, array or primitive bodies before any payment/fee D1 write.
+    // A normal owner payment receipt only requires a few small fields.
+    const parsed=await readOwnerWriteObject(request,16_000);
+    if(parsed.response)return parsed.response;
+    const body=parsed.value as Record<string,unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
     // Owner-facing validation is not an accounting boundary. Never coerce
     // malformed JSON into zero or silently round fractional cents here.
