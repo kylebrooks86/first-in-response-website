@@ -4,6 +4,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import { finalizeRefund, recordRefundUpdate, type StripeRefund } from "../../../../lib/stripe-refunds";
 import { refundLedgerNotReady, refundLedgerObjectsPresent } from "../../../../lib/refund-ledger-readiness";
+import { readOwnerWriteObject } from "../../../../lib/customer-write-request-guard.mjs";
 
 const currency=(v:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(v/100);
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
@@ -18,8 +19,13 @@ export async function POST(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   // LIVE without migration 0019 must stop before any Stripe call or money movement.
   if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
+  // Refund POSTs may initiate a real Stripe money movement. Reject malformed,
+  // excessive and contradictory body bytes before any payment lookup, D1
+  // reservation or provider POST. Keep schema/QA denial order unchanged.
+  const parsed=await readOwnerWriteObject(request,16_000);
+  if(parsed.response)return parsed.response;
   try{
-    const value=await request.json() as Record<string,unknown>;
+    const value=parsed.value as Record<string,unknown>;
     const paymentId=String(value.paymentId??"").trim();
     const requestId=String(value.requestId??"").trim();
     const amountCents=value.amountCents;
