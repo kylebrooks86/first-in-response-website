@@ -42,48 +42,7 @@ class Current25PrivateBackupPinTests(unittest.TestCase):
         self.assertIn(
             r"""$reviewPins=[regex]::Matches($reviewText, '(?m)^\$expectedVersion\s*=\s*''([^'']+)''[ \t]*(?:\r?\n|\z)')""",
             self.wrapper,
-            "PowerShell pin regex must be a non-interpolating literal"
-        )
-        self.assertIn("$reviewPins.Count -eq 1", self.wrapper)
-        self.assertIn("$reviewPins[0].Groups[1].Value -ceq $version", self.wrapper)
-        # If the correct pin appears in prose but the executable pin is stale,
-        # the expected exact-pin contract must reject it.
-        forged = self.review.replace(
-            "$expectedVersion = '" + ACTIVE + "'",
-            "$expectedVersion = '" + OBSOLETE[0] + "'"
-        ) + "\n# Previously active version was " + ACTIVE
-        self.assertNotEqual(extract(forged, "expectedVersion"), ACTIVE)
-        duplicate = self.review + "\n$expectedVersion = '" + ACTIVE + "'\n"
-        with self.assertRaises(ValueError):
-            extract(duplicate, "expectedVersion")
-
-    def test_default_returns_before_provider_and_private_file_operations(self):
-        script = self.wrapper
-        guard = script.index("if (-not $Export) {")
-        safe_return = script.index("\n    return\n}", guard)
-        self.assertLess(safe_return, script.index("Get-Command 'wrangler.cmd'"))
-        self.assertLess(safe_return, script.index("Read-Host"))
-        self.assertLess(safe_return, script.index("d1 export $database --remote"))
-        self.assertIn("EXPORT_ATTEMPTED=NO; REMOTE_WRITES=NONE; QA_RELEASE_APPROVED=NO", script)
-        self.assertIn("Require ($typed -ceq ('EXPORT '+$qaUuid))", script)
-        self.assertIn("Require ($custody -ceq 'PRIVATE CURRENT25')", script)
-        self.assertIn("No deploy, hosted SQL writes", script)
-        self.assertIn("$reviewPins[0].Groups[1].Value -ceq $version", script)
-        self.assertIn("OFFLINE_CURRENT_QA_25_RESTORE_PASSED", script)
-        self.assertNotIn("d1 migrations apply", script)
-        self.assertNotIn("r2 bucket create", script)
-
-    def test_exact_historical_gate_count_not_misreported(self):
-        self.assertIn("FORMAL_GATES_ACCEPTED=4/10", self.wrapper)
-        self.assertIn('"officialGatesPassed": 4', self.verifier)
-        self.assertNotIn('"officialGatesPassed": 3', self.verifier)
-
-
-if __name__ == "__main__":
-    unittest.main()
-)""",
-            self.wrapper,
-            "Regex must be a PowerShell single-quoted literal: double quotes interpolate $expectedVersion"
+            "PowerShell pin regex must use non-interpolating string literal"
         )
         self.assertIn("$reviewPins.Count -eq 1", self.wrapper)
         self.assertIn("$reviewPins[0].Groups[1].Value -ceq $version", self.wrapper)
