@@ -1,3 +1,14 @@
+<!-- FIRE_NOV18_25_OF_25_EXACT_EXECUTABLE_CI -->
+## November 18 — 25/25 exact-source CI SUCCESS; Acer session correctly scoped (NO DEPLOY)
+
+**NEW completed verified source-only result:** all **25/25** GitHub Actions workflow groups for executable/test SHA `33a4970890b8436acf9f190e7a66ff6af0145107` have **completed SUCCESS**; actual long [staging #44319128990](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44319128990) is **6/6 jobs SUCCESS** including the previously failing Insights Chrome check after date-fixture correction. Comparison from executable SHA to observed PR270 head `bcc44669` showed **10 subsequent documentation-only commits touching 5 Markdown files, zero executable changes**. Evidence: [exact GitHub workflow readback and owner Acer screenshot boundary](../evidence/FIRE_NOV18_CI_25_OF_25_EXACT_SOURCE_READBACK_20261118.md). This is actual completion of the previously provisional full CI checkpoint, NOT a new hosted gate proof.
+
+**Owner Acer screenshot:** PowerShell was at the user home directory, not a Git checkout, so git branch/HEAD and relative checker Test-Path failed; Node v24.22.0 available. Current-session Cloudflare API token presence was `False`. Never treat this as absence of source on the device, never ask for repeated Cloudflare login/previous receipt, and do not run an authenticated exposure capture without a preexisting scoped token. Prior owner QA clone location `$HOME\\FIREQA-PR172` may be inspected read-only without overwriting its frozen branch.
+
+**Official 45/95 accepted, 50 OPEN; 4/10 formal G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN.** NEW LIVE DARK/NO-GO, first job #0001 unused. No new provider/Stripe/D1/photo proof, no Cloudflare login, paid/R2, deploy, merge, migration or cutover.
+
+---
+
 <!-- FIRE_ACER_POWERSHELL_NOV18_EVIDENCE_CROSSWALK -->
 ## November 18 — Acer PowerShell original-hosted evidence: previously verified, credited (NO repeat checks)
 
