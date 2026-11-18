@@ -110,7 +110,7 @@ function tulsaDayKey(time:number):string|null{
  const parts=tulsaDayFormatter.formatToParts(new Date(time));
  const value=(name:string)=>parts.find(part=>part.type===name)?.value??"";
  const year=value("year"),month=value("month"),day=value("day");
- return /^\\d{4}$/.test(year)&&/^\\d{2}$/.test(month)&&/^\\d{2}$/.test(day)
+ return /^\d{4}$/.test(year)&&/^\d{2}$/.test(month)&&/^\d{2}$/.test(day)
   ?year+"-"+month+"-"+day:null;
 }
 function nextTulsaDayKey(now:number):string|null{
@@ -168,7 +168,7 @@ export function customerAppointmentTemplateReadiness(
   return{ready:false,reason:"This saved appointment time has passed or cannot be verified. Check the job status before preparing a confirmation or reminder. Use a custom message if follow-up is needed."};
  if(source.includes("@service_address")&&!address?.trim())
   return{ready:false,reason:"Save a service address for this scheduled job before preparing an appointment confirmation."};
- if(/\\btomorrow\\b/i.test(templateSubject)&&!customerReminderIsTomorrowInTulsa(scheduledAt,now))
+ if(/\btomorrow\b/i.test(templateSubject)&&!customerReminderIsTomorrowInTulsa(scheduledAt,now))
   return{ready:false,reason:"The 24-hour reminder says tomorrow, but this saved appointment is not tomorrow in Tulsa. Use Appointment confirmation for a later date, or prepare the reminder the day before service."};
  return{ready:true,reason:""};
 }
