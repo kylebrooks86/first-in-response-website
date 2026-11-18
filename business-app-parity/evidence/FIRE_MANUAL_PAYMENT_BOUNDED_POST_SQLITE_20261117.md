@@ -22,3 +22,7 @@ The exact executable [SHA checks](https://github.com/kylebrooks86/first-in-respo
 These changes and synthetic SQLite execution **do not establish deployment or formal Gate 5 acceptance**. No owner Cloudflare sign-in/retry, paid R2/plan, hosted D1/SQL, Stripe checkout/payment/refund/webhook, customer message, owner Acer/iPhone repeat, PR merge, Workers Access/routes/DNS, deployment, cutover or live data mutation occurred.
 
 **Release status unchanged:** 45/95 atomic checklist items accepted, 50 OPEN; 4/10 gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO, first genuine Job #0001 unused.
+
+## Final exact SHA CI verification (supersedes interim 24/25)
+
+Final exact executable source/test SHA [`1c39c63ecab20834737195ce900c055f546cf5f9`](https://github.com/kylebrooks86/first-in-response-website/commit/1c39c63ecab20834737195ce900c055f546cf5f9/checks) shows **all 25/25 GitHub Actions workflow groups SUCCESS, zero failures and zero pending**. [Mandatory staging + built QA/native SQLite run #44220832299](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44220832299) **6/6 jobs SUCCESS**, specifically including the actual `Gate 5 real manual payment API — invoice customer ownership, lost-ACK replay, principal/tip atomic race (SQLite only)` step success on the newly bounded parser and negative tests. No hosted Worker/D1/Stripe interaction, real payment, merge or deployment occurred. Formal release checklist and gates remain unchanged pending physical hosted evidence and owner approval.
