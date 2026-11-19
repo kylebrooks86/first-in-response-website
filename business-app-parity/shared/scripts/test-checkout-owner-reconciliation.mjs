@@ -5,6 +5,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {webcrypto} from 'node:crypto';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 const require=createRequire(import.meta.url),ts=require('typescript');
 const root=resolve(process.argv[2]||'.');
 const sql=new DatabaseSync(':memory:');
@@ -20,11 +21,11 @@ const load=(path,extra={})=>{
  const source=readFileSync(resolve(root,path),'utf8').replace(/^import .*?;\n/gm,'');
  const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};const req=id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);};
- new Function('exports','require','env','crypto','Response','Request','fetch','getChatGPTUser','LOCAL_CUSTOMER_DEPLOYMENT','reconcileStripeCheckout',output)(exports,req,env,webcrypto,Response,Request,async(url)=>{
+ new Function('exports','require','env','crypto','Response','Request','fetch','getChatGPTUser','LOCAL_CUSTOMER_DEPLOYMENT','reconcileStripeCheckout','readOwnerWriteObject',output)(exports,req,env,webcrypto,Response,Request,async(url)=>{
    network++;
    assert.ok(['cs_test_ownerfix','cs_test_trackedfix','cs_test_trackedpaid'].some(id=>url==='https://api.stripe.com/v1/checkout/sessions/'+id));
    return remote?Response.json(remote):Response.json({error:'missing'},{status:404});
- },async()=>owner?{email:'kylebrooks8605@gmail.com'}:null,extra.deployment??'doomsday',extra.reconcileStripeCheckout);
+ },async()=>owner?{email:'kylebrooks8605@gmail.com'}:null,extra.deployment??'doomsday',extra.reconcileStripeCheckout,readOwnerWriteObject);
  return exports;
 };
 const stripe=load('lib/stripe-payments.ts');
@@ -60,6 +61,27 @@ check(disabled.status===503,'Unset TEST mode blocks owner-expired recovery');
 check(network===net&&status()==='open'&&paymentCount()===0,
  'Missing mode cannot release a checkout reservation or call Stripe');
 stripeMode='test';
+// An ambient owner session must not reconcile money from another origin,
+// and neither unsupported browser forms nor oversized JSON may reach Stripe.
+for(const [name,headers,expected] of [
+ ['cross-site',{'origin':'https://foreign.invalid','sec-fetch-site':'cross-site','content-type':'application/json'},403],
+ ['sibling-site',{'origin':'https://sibling.synthetic.invalid','sec-fetch-site':'same-site','content-type':'application/json'},403],
+ ['forged Origin',{'origin':'https://foreign.invalid','sec-fetch-site':'same-origin','content-type':'application/json'},403],
+ ['cross-site navigation',{'sec-fetch-site':'none','content-type':'application/json'},403],
+ ['browser form',{'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'text/plain'},415],
+ ['oversized JSON',{'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json','content-length':'9000'},413]
+]){
+ const beforeNet=network, beforeStatus=status(), beforePayments=paymentCount();
+ const response=await api.POST(new Request('https://synthetic.invalid/api/payments/checkout/reconcile',{
+  method:'POST',headers,body:JSON.stringify({reservationId:reserve,sessionId})}));
+ check(response.status===expected,'Owner Stripe reconciliation blocks '+name+' at request boundary');
+ check(network===beforeNet&&status()===beforeStatus&&paymentCount()===beforePayments,
+  name+' cannot fetch Stripe or alter a checkout reservation/payment');
+}
+check((await api.POST(new Request('https://synthetic.invalid/api/payments/checkout/reconcile',{
+ method:'POST',headers:{'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'},
+ body:JSON.stringify({reservationId:'malformed',sessionId})}))).status===400,
+ 'Legitimate same-origin owner JSON retains ordinary reservation validation');
 // A Stripe session can be valid while the job's invoice has been linked to
 // someone else's customer record. Refuse money/ledger changes before repair.
 sql.prepare("INSERT INTO customers(id,name,created_at) VALUES ('foreign-owner','Unrelated synthetic owner','now')").run();
