@@ -31,7 +31,7 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @($qa,$staging) -Compress -Depth 6)
   }
   'deployments status' {
-    $version = '6d77bd7c-20d3-49aa-9816-c651d98953cb'
+    $version = '08d77fb1-9484-4014-bd5b-1bb1da066cdb'
     if ($scenario -eq 'retained-previous-pr213-code') { $version = 'd497b695-f6d3-4a83-82b9-d2a33fbc5366' }
     if ($scenario -eq 'stale-previous-version') { $version = 'bf7cfad4-62a8-47a6-8906-625d715a754c' }
     if ($scenario -eq 'older-stale-version') { $version = 'd430dd95-a9d1-4e08-aeb4-49e5a8a34f9d' }
@@ -49,7 +49,7 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @{versions=$versions} -Compress -Depth 6)
   }
   'versions view' {
-    $version='6d77bd7c-20d3-49aa-9816-c651d98953cb'
+    $version='08d77fb1-9484-4014-bd5b-1bb1da066cdb'
     $physicalDb='8ccfb1f8-1657-4074-b1b2-47de78f95003'
     $binding=@{type='d1';name='DB';id=$physicalDb}
     if ($scenario -eq 'wrong-physical-db' -or ($scenario -eq 'changed-physical-db-during-check' -and $priorStatus -ge 2)) { $binding.id='ffffffff-ffff-4fff-8fff-ffffffffffff' }
