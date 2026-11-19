@@ -5,6 +5,7 @@ import {verifyNewLiveFirstJobState} from "../../../lib/new-live-clean-start.mjs"
 import { env } from "cloudflare:workers";
 import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {ownerBrowserWriteScope} from "../../../lib/customer-write-request-guard.mjs";
 import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 import {customerNumberingReady,customerNumberForCustomer,newCustomerNumberStatement} from '../../../lib/customer-numbering.mjs';
@@ -147,6 +148,11 @@ export async function GET(request?:Request) {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Owner-only customer creation/editing must have the same exact-origin,
+  // Fetch Metadata and JSON browser boundary as other owner D1 writes.
+  // Keep the existing strict 64 KiB streamed parser and lost-ACK recovery.
+  const browserBoundary = ownerBrowserWriteScope(request, true);
+  if (browserBoundary) return browserBoundary;
   const body = await readCustomerRequest(request);
   if (!body) return Response.json({ error: "A valid customer request is required." }, { status: 400 });
   // Preserve the same operation identity across a lost D1 acknowledgement.
@@ -248,6 +254,11 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Owner-only customer creation/editing must have the same exact-origin,
+  // Fetch Metadata and JSON browser boundary as other owner D1 writes.
+  // Keep the existing strict 64 KiB streamed parser and lost-ACK recovery.
+  const browserBoundary = ownerBrowserWriteScope(request, true);
+  if (browserBoundary) return browserBoundary;
   const body = await readCustomerRequest(request);
   if (!body) return Response.json({ error: "A valid customer update is required." }, { status: 400 });
   try {
