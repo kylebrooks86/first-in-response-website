@@ -3,6 +3,7 @@ import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,readPromotionAttribution,promotion
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,depositSchedulingGuard,type DepositPolicyRow} from '../../../../lib/deposit-policy';
+import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -11,6 +12,10 @@ type EditItem={id?:string;name:string;description:string;quantity:number;unit:st
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Before reading the request body or consulting D1, reject forged browser
+  // origin and non-JSON owner writes. Internal clients still require owner auth.
+  const browserBoundary=ownerBrowserWriteScope(request,true);
+  if(browserBoundary)return browserBoundary;
   let guardedSchedule=false;
   let estimateWriteAttempted=false;
   let statusWriteAttempted=false;
