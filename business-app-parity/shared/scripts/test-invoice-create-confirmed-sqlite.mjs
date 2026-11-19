@@ -67,6 +67,16 @@ try{
  eq(new Set(receipt.items.map(i=>i.id)).size,2,'Two actual distinct invoice service UUIDs');
  eq(receipt.items.reduce((a,i)=>a+Number(i.totalCents),0),29500,'Invoice scope totals exactly');
  eq(receipt.items.map(i=>i.name),['House Wash','Gutter Cleaning'],'Original quote service names remain');
+ // Exercise actual owner financial list after a confirmed invoice, not only
+ // a static header string. The list contains private invoice share tokens.
+ const invoiceList=await route.GET();
+ eq(invoiceList.status,200,'Authenticated owner financial list reads persisted invoice');
+ eq(invoiceList.headers.get('cache-control'),'private, no-store','Invoice list never enters shared/client caches');
+ eq(invoiceList.headers.get('vary'),'Cookie','Invoice list varies by authenticated owner session');
+ eq(invoiceList.headers.get('x-content-type-options'),'nosniff','Invoice private JSON cannot be MIME sniffed');
+ const ownerInvoices=(await invoiceList.json()).invoices;
+ eq(ownerInvoices.some(row=>row.id===receipt.id&&row.customerId===receipt.customerId),true,
+    'Private owner list retains persisted invoice and customer association');
  const saved=await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:receipt.id})});
  eq((await saved.json()).invoice.items.map(i=>i.id),receipt.items.map(i=>i.id),'Independent invoice detail preserves the same UUIDs');
  response=await post('normal');eq(response.status,200,'Same job replay reads existing invoice');
@@ -149,7 +159,12 @@ try{
  const before=mutations;response=await post('invalid-total');
  eq(response.status,409,'Original estimate cannot exceed actual saved service scope');
  eq(mutations,before,'Incorrect original subtotal cannot create invoice');
- owner={email:'intruder@example.invalid'};response=await post('normal');
+ owner={email:'intruder@example.invalid'};
+ const deniedList=await route.GET();
+ eq(deniedList.status,401,'Nonowner cannot list private invoice contacts or bearer tokens');
+ eq(deniedList.headers.get('cache-control'),'private, no-store','Nonowner invoice list denial is never cached');
+ eq(deniedList.headers.get('vary'),'Cookie','Nonowner denial is session-varying');
+ response=await post('normal');
  eq(response.status,401,'Nonowner cannot request invoice');
  eq(remote,0,'No external provider or Stripe calls');
  console.log('PASS '+checks+'/'+checks+' actual invoice-create native SQLite: stored header/lines/UUIDs, zero-write ACK, lost-commit ACK, incomplete readback, revision replay, corrupted data, auth and no remote calls.');
