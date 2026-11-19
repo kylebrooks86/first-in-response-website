@@ -156,7 +156,7 @@ const largeExact=parseCSV(await (await context.exports.GET(new Request(url))).te
 eq(largeExact[1][3],'90071992547409.91','Max-safe integer amount exported by exact whole-cent decimal arithmetic');
 database.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run(-123);
 const creditExact=parseCSV(await (await context.exports.GET(new Request(url))).text());
-eq(creditExact[1][3],'-1.23','Legacy negative expense adjustment preserved exactly rather than silently omitted');
+eq(creditExact[1][3],"'-1.23",'Legacy negative adjustment retains exact cents and spreadsheet formula-injection defense');
 database.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run(rawAmount);
 failReads=true;
 try{
