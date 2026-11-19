@@ -69,8 +69,10 @@ export async function readCustomerWriteJson(request,allowedFields,maxBytes=8192)
 }
 
 // Owner-only writes use the same hardened request-guard module without
-// adding a new Cloudflare Worker server module. They intentionally omit the
-// PUBLIC bearer-link Origin and Content-Type restrictions.
+// adding a new Cloudflare Worker server module. Unlike PUBLIC bearer links,
+// the owner API must also tolerate internal recovery/test callers with no
+// browser metadata; however actual browser writes must not be authorized
+// from a foreign Origin, same-site sibling host, or cross-site form.
 const refuse=(status,message)=>({
   value:undefined,
   response:Response.json({error:message},{status,headers:{'cache-control':'private, no-store'}})
@@ -78,6 +80,29 @@ const refuse=(status,message)=>({
 export async function readOwnerWriteObject(request,maxBytes){
   if(!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>262144)
     return refuse(400,'Invalid owner request configuration.');
+  // Browser-originated requests must match the exact Worker origin, not only
+  // the registrable domain. Cross-site HTML forms and sibling subdomains must
+  // never reach an owner D1/Stripe write even with a valid ambient session.
+  // Requests with no browser headers remain eligible for non-browser/synthetic
+  // callers; authentication and all route-level invariants still apply.
+  const fetchSite=request?.headers?.get('sec-fetch-site');
+  if(fetchSite!==null&&fetchSite!==undefined&&fetchSite!=='same-origin')
+    return refuse(403,'Owner action requires a same-origin app request.');
+  const browserOrigin=request?.headers?.get('origin');
+  if(browserOrigin!==null&&browserOrigin!==undefined){
+    let exactOrigin;
+    try{exactOrigin=new URL(request.url).origin;}
+    catch{return refuse(403,'Invalid owner request origin.');}
+    if(browserOrigin!==exactOrigin)
+      return refuse(403,'Owner action requires a same-origin app request.');
+  }
+  // A browser write must use JSON, never a simple text/plain/form encoding
+  // that can be submitted by a foreign page without a CORS preflight.
+  if((browserOrigin!==null&&browserOrigin!==undefined)||
+      (fetchSite!==null&&fetchSite!==undefined)){
+    if(!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get('content-type')??''))
+      return refuse(415,'A JSON owner request is required.');
+  }
   const rawLength=request?.headers?.get('content-length');
   if(rawLength!==null&&rawLength!==undefined&&
     (!/^(0|[1-9][0-9]*)$/.test(rawLength)||
