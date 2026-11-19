@@ -158,7 +158,8 @@ test('rejects malformed asset ignore bytes, links and very long build exclusion 
   assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_SHAPE/);
   rmSync(file);
   symlinkSync(join(x.folder,'_next','static','chunks','app.js'),file);
-  assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_SHAPE/);
+  assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_SHAPE|DOT_ENTRY/,
+    'symlinked hidden control file must be refused before any upload');
  }finally{rmSync(x.temporary,{recursive:true,force:true})}
 });
 
