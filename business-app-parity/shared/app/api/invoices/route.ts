@@ -10,7 +10,7 @@ import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mj
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // Invoice lists include financial figures, contact details and customer bearer links.
-const ownerInvoiceListHeaders = {"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+const ownerInvoiceListHeaders = {"Cache-Control":"no-store, private","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
 
 export async function GET() {
