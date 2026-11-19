@@ -54,6 +54,20 @@ try {
     }
     Must (-not $good.Lines.Contains($hash)) 'private hash must not be printed'
     Must (-not $good.Lines.Contains($records)) 'private path must not be printed'
+    # A second process holding a writable photo handle must not permit a
+    # header/length check from a file that might change during inspection.
+    # The checker must fail closed and never print the owner photo path.
+    $activeWriter = [IO.File]::Open($photos, [IO.FileMode]::Open,
+        [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)
+    try {
+        $busyPhotos=Invoke-Check
+        Must ($busyPhotos.Exit -ne 0 -and
+              $busyPhotos.Lines.Contains('PHOTO_ENVELOPE_READ_UNAVAILABLE')) 'active writer cannot race photo header validation'
+        Must (-not $busyPhotos.Lines.Contains($photos)) 'photo read failure must not reveal private path'
+        Must (-not $busyPhotos.Lines.Contains('ENCRYPTED_PHOTO_HEADER_STRUCTURE=PASS')) 'busy photo cannot produce a structure pass'
+    } finally {
+        $activeWriter.Dispose()
+    }
     # A downloaded/copied OLD snapshot can have today's local file timestamp.
     # The review must NOT certify such an archive as fresh just for being copied.
     (Get-Item $records).LastWriteTimeUtc = [DateTime]::UtcNow
