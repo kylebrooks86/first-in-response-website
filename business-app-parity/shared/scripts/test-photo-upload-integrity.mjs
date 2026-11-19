@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {webcrypto} from 'node:crypto';
+import {ownerBrowserWriteScope} from '../lib/customer-write-request-guard.mjs';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
 const root=new URL('./fixtures/photo-integrity/', import.meta.url);
@@ -42,7 +43,7 @@ function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true){
   };
   const compiled=ts.transpileModule(readFileSync(new URL(filename+'.txt',root),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   const exports={};
-  vm.runInNewContext(compiled,{exports,require(id){if(id==='cloudflare:workers')return {env};if(id==='../../chatgpt-auth'||id==='../../owner-auth')return {getChatGPTUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null,getOwnerUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null};throw Error('Unexpected import '+id);},Response,Request,FormData,File,crypto:webcrypto,Date,console},{filename});
+  vm.runInNewContext(compiled,{exports,require(id){if(id==='cloudflare:workers')return {env};if(id==='../../chatgpt-auth'||id==='../../owner-auth')return {getChatGPTUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null,getOwnerUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null};if(id==='../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};throw Error('Unexpected import '+id);},Response,Request,FormData,File,crypto:webcrypto,Date,console},{filename});
   return {POST:exports.POST,objects,rows,counts:()=>({deletes,puts,dbWrites,photoSelects})};
 }
 function request({customerId='customer-1',mime='image/png',name='before.png',bytes=4,category='before'}={}){
@@ -73,6 +74,14 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
   }
   if(patched){
     if(file==='customer-photos.patched.ts'){
+    {
+      const m=loadRoute(file),foreign=request();
+      foreign.headers.set('origin','https://foreign.example.invalid');
+      foreign.headers.set('sec-fetch-site','cross-site');
+      const result=await m.POST(foreign);
+      check('Owner photo browser cross-site POST is denied before R2/D1 reads or writes',
+        result.status===403&&m.counts().puts===0&&m.counts().dbWrites===0&&m.counts().photoSelects===0);
+    }
     {
       const m=loadRoute(file),bad=request({mime:'image/svg+xml',name:'invoice.svg'});
       const res=await m.POST(bad);
