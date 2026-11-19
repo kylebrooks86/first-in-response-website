@@ -16,6 +16,28 @@ import {dirname,join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {captureDarkExposure,FIRE_DARK_WORKERS} from './owner_current_dark_exposure_readonly.mjs';
+/** One guarded owner action for both existing DARK Workers. No provider call
+ * is made without an explicit --capture both and an already valid session. */
+export async function captureBothDarkExposures({token,request}={}){
+ const options=request===undefined?{token}:{token,request};
+ const dr=await captureDarkExposure('dr',options);
+ const newLive=await captureDarkExposure('new-live',options);
+ const bothAbsent=dr.publicEndpointsAbsentInSuppliedEvidence===true&&
+   newLive.publicEndpointsAbsentInSuppliedEvidence===true;
+ return Object.freeze({
+  result:bothAbsent?'FIRE_BOTH_DARK_EXPOSURE_INVENTORY_CLEAR':'FIRE_BOTH_DARK_EXPOSURE_REQUIRES_REVIEW',
+  targets:[dr,newLive],
+  publicEndpointsAbsentInSuppliedEvidence:bothAbsent,
+  completeInventoryFromSuppliedEvidence:
+   dr.completeInventoryFromSuppliedEvidence===true&&
+   newLive.completeInventoryFromSuppliedEvidence===true,
+  providerReadbackVerified:dr.providerReadbackVerified===true&&newLive.providerReadbackVerified===true,
+  credentialStored:false,credentialDisplayed:false,
+  accessPolicyProviderVerified:false,hostedNonownerDenialVerified:false,
+  hostedSourceBytesVerified:false,gate4Accepted:false,productionReady:false
+ });
+}
+
 const fail=()=>{throw new Error('FIRE EXISTING WRANGLER READ-ONLY STOP: session token unavailable or malformed; no login or retries attempted')};
 const isObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 export function parseExistingWranglerToken(raw){
@@ -60,17 +82,20 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
    console.log(JSON.stringify({result:'OFFLINE_NO_PROVIDER_NO_CREDENTIALS',
     providerContacted:false,existingSessionRead:false,
     permittedTargets:Object.keys(FIRE_DARK_WORKERS),gate4Accepted:false}));
-  }else if(args.length===2&&args[0]==='--capture'&&FIRE_DARK_WORKERS[args[1]]){
+  }else if(args.length===2&&args[0]==='--capture'&&
+      (args[1]==='both'||FIRE_DARK_WORKERS[args[1]])){
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
       process.env.CI||process.env.GITHUB_ACTIONS)
     throw new Error('FIRE EXISTING WRANGLER READ-ONLY STOP: existing interactive owner Windows console required');
    const token=readExistingWranglerToken({npmCli:installedNpmCli()});
-   const evidence=await captureDarkExposure(args[1],{token});
+   const evidence=args[1]==='both'?
+     await captureBothDarkExposures({token}):
+     await captureDarkExposure(args[1],{token});
    // The token is NEVER copied to the result.
    console.log(JSON.stringify({...evidence,credentialSource:'existingWranglerSession',
     credentialStored:false,credentialDisplayed:false},null,2));
    if(!evidence.publicEndpointsAbsentInSuppliedEvidence)process.exitCode=2;
-  }else throw new Error('usage: node SCRIPT (offline) OR SCRIPT --capture dr|new-live');
+  }else throw new Error('usage: node SCRIPT (offline) OR SCRIPT --capture dr|new-live|both');
  }catch(_e){
   // Do not print provider response bodies or anything from Wrangler that
   // might contain credentials, even on failure.
