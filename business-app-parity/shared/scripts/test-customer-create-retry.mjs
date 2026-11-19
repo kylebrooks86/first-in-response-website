@@ -59,6 +59,31 @@ try{
  const customerRequest=(method,body,headers={})=>new Request('https://synthetic.invalid/api/customers',{
   method,headers:{'content-type':'application/json',...headers},body,duplex:'half'
  });
+ // G6: customer POST/PATCH used a separate bounded parser, so both routes
+ // must independently apply the real browser same-origin/JSON boundary.
+ // A forged browser write must reach ZERO D1 operations or customer rows.
+ for(const method of ['POST','PATCH']){
+  const handler=customers[method],beforeWrites=writes;
+  const fields=method==='POST'?{requestId:randomUUID(),name:'Forged synthetic customer'}:
+   {id:'synthetic-customer',name:'Forged synthetic edit'};
+  for(const [headers,expected] of [
+   [{'origin':'https://attacker.invalid'},403],
+   [{'origin':'https://sibling.synthetic.invalid','sec-fetch-site':'same-site'},403],
+   [{'sec-fetch-site':'cross-site'},403],
+   [{'sec-fetch-site':'same-site'},403],
+   [{'sec-fetch-site':'none'},403],
+   [{'origin':'null'},403],
+   [{'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'text/plain'},415],
+  ]){
+   const denied=await handler(customerRequest(method,JSON.stringify(fields),headers));
+   eq(denied.status,expected);eq(writes,beforeWrites);
+   eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,0);
+  }
+  const validBrowser=await handler(customerRequest(method,'{}',{
+   'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin'
+  }));
+  eq(validBrowser.status,400);eq(writes,beforeWrites);
+ }
  for(const method of ['POST','PATCH']){
   const handler=customers[method],beforeWrites=writes;
   for(const [raw,headers] of [
