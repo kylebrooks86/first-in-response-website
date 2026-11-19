@@ -1,3 +1,15 @@
+## Nov 19 subsequent photo DELETE/test-fixture integration — source and targeted CI succeeded
+
+The owner-only saved photo `DELETE /api/customer-photos/[id]` also now requires `ownerBrowserWriteScope(request,false)` **after owner authentication and before D1 read or irreversible storage deletion**. A same-origin browser DELETE remains valid without an artificial JSON body; cross-site/sibling-origin DELETE returns 403 before D1 or bucket activity. The branch's separately landed source/fixture adjustment is preserved (exact current shared DELETE source matches its test fixture). New [mock integration + two real route behavior checks `a09c8035`](https://github.com/kylebrooks86/first-in-response-website/commit/a09c80356528e39cc698c5af43020d16a9b420ac) injects the actual helper into the synthetic TypeScript DELETE harness, proves cross-site denial with zero D1/R2 operations, and proves legitimate same-origin deletion completes.
+
+**Exact changed-source GitHub Actions** [staging/QA workflow #44521718312](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44521718312) at `a09c80356528e39cc698c5af43020d16a9b420ac`: job `135551764147`, **Gate6 public request-body/security tests STEP SUCCESS**, **Gate7 bounded photo upload, safe viewing and verified deletion STEP SUCCESS** at 12:14:40 UTC on Nov 19. The larger job was still in progress at this checkpoint; these are targeted step conclusions, **not whole-workflow green or hosted Cloudflare proof**. Actual [website/calculator scope protection #44521718318](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44521718318) and [website verify #44521718370](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44521718370) both **COMPLETED SUCCESS** at same SHA.
+
+**Prior failure diagnosed and resolved**: older QA CI #44520888996 failed the strict exact-source pinned DELETE fixture check even though its upload tests passed. The source/fixture were later synchronized, and `test-photo-delete-integrity.mjs` needed the import shim for the real helper. The new tests maintain—not bypass—that byte-identical fixture protection. No real owner's photo, hosted Worker, database, or R2 API was touched.
+
+**No formal acceptance inflation:** 50/95 checked, 45 open; 4/10 G1/G2/G3/G8 accepted. G6-08/G6 and G7 remain OPEN for actual hosted owner/nonowner denial and future-data photo recoverability; NEW LIVE DARK/NO-GO and first real Job #0001 unissued. No Cloudflare login/route/Access, paid or free-allowance-activation R2 subscription, Stripe/payment, SQL writes, merge, deploy, DNS or production activation.
+
+---
+
 # FIRE Gate 6 — owner browser-origin protection, records restore and photo upload (2026-11-19)
 
 ## Goal and verified source scope
