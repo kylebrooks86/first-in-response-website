@@ -45,6 +45,21 @@ try{
  eq(result.body.property.id,base.operationId,'Server stores caller operation ID as immutable property ID');
  eq(stored(id(1)).customer_id,base.customerId,'Native SQLite retained right owner');
  eq(n(),1,'Only one record exists');
+ // GET exposes saved private service addresses and ownership metadata.
+ // A response must not remain in a shared proxy/browser cache, even on 401.
+ const ownerList=await route.GET(new Request('https://synthetic.invalid/api/customer-properties?customerId=owner-property-a&limit=50'));
+ const ownerPage=await ownerList.json();
+ eq(ownerList.status,200,'Owner property inventory still loads normally');
+ eq(ownerList.headers.get('cache-control'),'private, no-store','Customer address response never publicly cached');
+ eq(ownerList.headers.get('vary'),'Cookie','Customer address responses vary with owner session');
+ eq(ownerList.headers.get('x-content-type-options'),'nosniff','Property data is not MIME-sniffed');
+ eq(ownerPage.properties[0].id,base.operationId,'Private response retains exact owner property');
+ const foreignList=await route.GET(new Request('https://synthetic.invalid/api/customer-properties?customerId=owner-property-b&selectedPropertyId='+base.operationId));
+ const foreignPage=await foreignList.json();
+ eq(foreignList.status,200,'Different synthetic customer property listing loads');
+ eq(foreignPage.properties.length,0,'Different customer property list contains no first-customer address');
+ eq(foreignPage.selectedProperty,null,'Cross-customer selected property cannot leak original address');
+
  const original=stored(id(1));
  result=await post(base);
  eq(result.status,200,'Identical HTTP replay safely returns original row');
@@ -185,6 +200,10 @@ try{
 
  rt.setOwner(null);
  const before=rt.counters();
+ const anonymousList=await route.GET(new Request('https://synthetic.invalid/api/customer-properties?customerId=owner-property-a'));
+ eq(anonymousList.status,401,'Unauthenticated property address GET refused');
+ eq(anonymousList.headers.get('cache-control'),'private, no-store','Unauthorized owner property response cannot be cached');
+ eq(rt.counters(),before,'Unauthorized property GET did not read D1');
  eq((await post({...base,operationId:id(5)})).status,401,'Unauthenticated caller blocked');
  eq((await patch(archiveBase)).status,401,'Unauthenticated caller cannot archive');
  eq(rt.counters(),before,'Unauthorized caller does not query D1');
