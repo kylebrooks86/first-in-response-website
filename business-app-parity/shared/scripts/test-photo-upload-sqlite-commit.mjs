@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {webcrypto} from 'node:crypto';
+import {ownerBrowserWriteScope} from '../lib/customer-write-request-guard.mjs';
 import {DatabaseSync} from 'node:sqlite';
 
 const code=ts.transpileModule(readFileSync('app/api/customer-photos/route.ts','utf8'),{
@@ -62,6 +63,7 @@ for(const mode of scenarios){
   exports,require(id){
    if(id==='cloudflare:workers')return {env};
    if(id==='../../chatgpt-auth')return {getChatGPTUser:async()=>user};
+   if(id==='../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};
    throw Error('Unexpected module '+id);
   },
   Request,Response,FormData,File,Date,crypto:webcrypto
