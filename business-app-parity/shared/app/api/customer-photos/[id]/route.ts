@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -26,8 +27,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Require exact same-origin browser intent before even inspecting the
+  // customer's object key. A forged browser request must never delete D1
+  // photo metadata or the remaining stored original bytes.
+  const deniedBrowserWrite=ownerBrowserWriteScope(request,false);
+  if(deniedBrowserWrite)return deniedBrowserWrite;
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
   const row = await env.DB.prepare("SELECT object_key AS objectKey FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string}>();
