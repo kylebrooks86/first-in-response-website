@@ -62,7 +62,29 @@ if ($saved.status -cne 'OFFLINE_CURRENT_QA_25_RESTORE_PASSED' -or
     $saved.exportSha256 -notmatch '^[a-f0-9]{64}$') {
     Stop-Review 'RECORDS_RECEIPT_MISMATCH'
 }
-$actualHash = (Get-FileHash -LiteralPath $sql.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+# Hash the SQL export under one read-only, writer-denying file handle.
+# Recheck its length on the same stream, not solely earlier Get-Item metadata.
+# A racing writer must never produce a seemingly complete backup receipt.
+$sqlReader = $null
+$hasher = $null
+$checkedSqlLength = [long]0
+$actualHash = ''
+try {
+    $sqlReader = [IO.File]::Open($sql.FullName, [IO.FileMode]::Open,
+        [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    $checkedSqlLength = $sqlReader.Length
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    $actualHash = [BitConverter]::ToString($hasher.ComputeHash($sqlReader)).
+        Replace('-', '').ToLowerInvariant()
+} catch {
+    Stop-Review 'RECORDS_READ_UNAVAILABLE'
+} finally {
+    if ($null -ne $hasher) { $hasher.Dispose() }
+    if ($null -ne $sqlReader) { $sqlReader.Dispose() }
+}
+if ($checkedSqlLength -ne [long]$saved.exportBytes) {
+    Stop-Review 'RECORDS_RECEIPT_MISMATCH'
+}
 if ($actualHash -cne $saved.exportSha256) { Stop-Review 'RECORDS_HASH_MISMATCH' }
 # Quick protected photo envelope shape check, NOT authentication or content recovery.
 if ($photos.Length -lt 65 -or $photos.Length -gt (161MB + 4096)) {
