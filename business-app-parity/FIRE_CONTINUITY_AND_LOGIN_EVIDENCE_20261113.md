@@ -1,3 +1,20 @@
+## November 18 — G7-07 OWNER ACRE REAL PHOTO RESTORE PASS; 50/95 checklist tasks accepted
+
+**Previously outstanding physically isolated original-photo restoration is COMPLETE for the accepted QA snapshot.** Original owner Acer screenshot `IMG_2D01304E-2B35-49DF-ADD8-E551942E8502.jpeg` (328,503 bytes; SHA-256 `ca8840de4027e63135617bd2478a23a1c35de17d33b9ae1da4d3befb60e738e8`) visibly records:
+
+- `ISOLATED_RESTORE_PASS`
+- `ORIGINAL_PHOTOS_REOPENED=3`
+- `JOB_LINKS_PRESENT=0` — expected and **NOT** evidence that any photo is tied to an individual job; all three are customer-associated and the SQL pairing check passed
+- `QA_SQL_SHA256=` and `VERIFIED_ZIP_SHA256=` full fingerprints are shown on owner terminal and retained privately; no confidential manifest, SQL rows, password or restored photos were posted
+- `RESTORED_LOCATION=C:\\Users\\Kyleb\\AppData\\Local\\FIRE-G7-Isolated-Photos-20261118`
+- `Cloud/provider writes: NONE. Originals kept unchanged.`
+
+This is the repaired existing offline `restore_qa25_photo_pair_isolated.py` in separately cloned `FIRE-G7-Restore-Tools` on the owner's Acer. It authenticated the encrypted `FIREPX01` saved file, verified the ZIP manifest + individual original SHA/size, matched customer/optional job IDs against the prior accepted 55,305-byte QA25 SQL and its read-only restore receipt in ephemeral in-memory SQLite, created a **new isolated private local folder** of plaintext images, and reopened/rehash-compared each original from disk before issuing the PASS. **No Cloudflare/D1/Stripe/R2/network changes, no provider export, no Git merge or deployment.** Initial earlier syntax and archive-stream STOPs were resolved; this new PASS supersedes those procedural blockers. Do not request the same original photo restoration or backups again without a new changed-scope reason.
+
+**Authoritative checklist [G7-07] is now [x]** at [f234cc615b5d66bfd6b8ca584096938a4218a8de](https://github.com/kylebrooks86/first-in-response-website/commit/f234cc615b5d66bfd6b8ca584096938a4218a8de), **50 of 95 done, 45 remain**, one new verified item credited. Preserve accepted G7-02–G7-05 and G7-06 proof. This does NOT accept **overall Gate7 for every future dataset/host**, the release, QA/STAGING/DR/NEW LIVE functionality and physical parity, hosted nonowner denial or live signed Stripe TEST. **Formal accepted 4/10 (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; real Job #0001 not yet issued.** Keep restored plaintext originals private and protected locally; no public Drive or GitHub image upload. No repeat Acer/phone/Cloudflare login experiments.
+
+---
+
 ## November 18 — G7-07 physical owner Acer readback: syntax fixed, encrypted-archive stream stopped; targeted synthetic bridge PASS, owner restore still pending
 
 Owner supplied genuine Acer PowerShell screenshot after `git pull --ff-only`: **`PYTHON_SYNTAX_PASS`**, then first real private `Photo backup passphrase (hidden)` prompt, then **`STOP: local input or isolated restore verification failed: Encrypted file authentication or verified ZIP readback failed`**. The source bytes read from GitHub were the fixed raw-docstring helper (prior [d4040ae](https://github.com/kylebrooks86/first-in-response-website/commit/d4040ae71996ad4091dc04b6edf292c2ed98288b)); the command did NOT produce `ISOLATED_RESTORE_PASS` or a restored photo folder. Original accepted QA25 SQL + private `.restore-review.json` and owner-downloaded encrypted file remain untouched. A generic combined error cannot determine whether Windows Node failed to read the selected ciphertext, whether it failed to authenticate the entered phrase/bytes, or whether ZIP verification failed. Do not blame user password or declare archive corruption. No secret requested, pasted, or recorded; no Cloudflare, D1, Stripe, R2 or provider operation.
