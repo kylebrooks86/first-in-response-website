@@ -1,12 +1,16 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {ownerBrowserWriteScope} from "../../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"private, no-store","Vary":"Cookie"}});
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getChatGPTUser();
   if (!user || String(user.email??"").toLowerCase() !== OWNER_EMAIL) return reply({ error: "Unauthorized" }, 401);
+  // A cross-site browser must not mint or recover a private invoice bearer link.
+  const browserBoundary=ownerBrowserWriteScope(request,false);
+  if(browserBoundary)return browserBoundary;
   const { id } = await params;
   try {
     // Owner permissions alone do not prove an invoice references its OWN
