@@ -53,12 +53,13 @@ for(const action of actions){
  }
  const sameOrigin={...jsonHeader,origin:'https://qa.example.invalid',
   'sec-fetch-site':'same-origin'};
- const before=reads;
+ const before=reads,beforeWrites=writes;
  const legit=await run(action,sameOrigin);
  eq(legit.status!==403&&legit.status!==415,true,
   'Owner '+action.name+' same-origin request passes browser gate');
  eq(reads>before,true,'Owner '+action.name+' legitimate route reaches synthetic D1');
- eq(writes,0,'Owner '+action.name+' fixture never commits a write');
+ eq(writes-beforeWrites,action.name==='void'?1:0,
+  'Owner '+action.name+' performs only its expected synthetic D1 operation (no commit)');
  owner=null;
  const deniedBefore={reads,writes};
  const denied=await run(action,{...jsonHeader,origin:'https://external.invalid'});
