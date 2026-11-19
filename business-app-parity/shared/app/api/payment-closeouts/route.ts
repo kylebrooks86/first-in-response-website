@@ -3,7 +3,7 @@ import {getChatGPTUser} from "../../chatgpt-auth";
 import {buildPaymentCloseoutActions,type CloseoutRow} from "../../../lib/payment-closeout-actions";
 import {refundLedgerObjectsPresent,refundLedgerNotReady} from "../../../lib/refund-ledger-readiness";
 export const dynamic="force-dynamic";
-const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cache-Control":"no-store, private"}});
+const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"}});
 /** Authenticated, no-write list of confirmed closeouts requiring owner review-message attention.
  * A stable keyset cursor lets the owner continue beyond the first 200 results.
  * Query parameters never change financial records or send messages.
@@ -26,7 +26,7 @@ export async function GET(request?:Request){
   const paymentDateSql="(SELECT MAX(p.created_at) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund') AND p.amount_cents>0)";
   const result=await env.DB.prepare(`
    SELECT e.id AS estimateId,e.customer_id AS customerId,c.name AS customerName,e.status,
-    COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
+    COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id AND i.customer_id=e.customer_id LIMIT 1),e.total_cents) AS totalCents,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
     (SELECT MAX(p.created_at) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund') AND p.amount_cents>0) AS lastPaidAt,
     (SELECT MAX(m.created_at) FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id
@@ -46,10 +46,16 @@ export async function GET(request?:Request){
     AND NOT EXISTS(SELECT 1 FROM customer_notes n WHERE n.customer_id=e.customer_id AND n.body='[FIRE FLAG] REVIEW_RECEIVED')
     -- Filter the ledger BEFORE LIMIT so newer partial payments cannot hide
     -- an older eligible paid-in-full job from the owner action queue.
-    AND COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id LIMIT 1),e.total_cents)>0
+    -- A linked invoice owned by another customer makes review eligibility untrustworthy.
+    AND NOT EXISTS(SELECT 1 FROM invoices i WHERE i.estimate_id=e.id AND i.customer_id IS NOT e.customer_id)
+    AND COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id AND i.customer_id=e.customer_id LIMIT 1),e.total_cents)>0
     AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
-      =COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id LIMIT 1),e.total_cents)
+      =COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id AND i.customer_id=e.customer_id LIMIT 1),e.total_cents)
     AND NOT EXISTS(SELECT 1 FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='pending')
+    -- A succeeded refund must be independently excluded: a partial/lost
+    -- ledger acknowledgement can leave the old gross paid sum unchanged.
+    -- Never queue customer review requests while this mismatch needs review.
+    AND NOT EXISTS(SELECT 1 FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='succeeded')
     AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
     AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
     AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id AND m.channel='review_snoozed' AND m.template='reviewSnooze' AND m.body>?)
