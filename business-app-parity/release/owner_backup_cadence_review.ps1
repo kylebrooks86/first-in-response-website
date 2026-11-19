@@ -68,13 +68,23 @@ if ($actualHash -cne $saved.exportSha256) { Stop-Review 'RECORDS_HASH_MISMATCH' 
 if ($photos.Length -lt 65 -or $photos.Length -gt (161MB + 4096)) {
     Stop-Review 'PHOTO_ENVELOPE_SIZE_INVALID'
 }
-$reader = [IO.File]::Open($photos.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read,
-    [IO.FileShare]::ReadWrite)
+# Refuse a concurrent writer: accepting a file while another process is
+# rewriting it could validate a header from a different revision than its size.
+# Capture the length and header from the SAME locked file handle.
+$reader = $null
+$checkedPhotoLength = [long]0
+$countRead = 0
 try {
+    $reader = [IO.File]::Open($photos.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read,
+        [IO.FileShare]::Read)
+    $checkedPhotoLength = $reader.Length
     $header = New-Object byte[] 48
     $countRead = $reader.Read($header, 0, 48)
+} catch {
+    # Never show a private Windows path or a raw filesystem exception.
+    Stop-Review 'PHOTO_ENVELOPE_READ_UNAVAILABLE'
 } finally {
-    $reader.Dispose()
+    if ($null -ne $reader) { $reader.Dispose() }
 }
 if ($countRead -ne 48 -or [Text.Encoding]::ASCII.GetString($header,0,8) -cne 'FIREPX01') {
     Stop-Review 'PHOTO_ENVELOPE_HEADER_INVALID'
@@ -85,7 +95,7 @@ $chunks = [BitConverter]::ToUInt32($header,44)
 $expectCount = [math]::Ceiling([double]$plain/1048576)
 if ($chunk -ne 1048576 -or $plain -lt 1 -or $plain -gt (161MB) -or
     $chunks -lt 1 -or $chunks -ne $expectCount -or
-    $photos.Length -ne (48 + [long]$plain + 16*[long]$chunks)) {
+    $checkedPhotoLength -ne (48 + [long]$plain + 16*[long]$chunks)) {
     Stop-Review 'PHOTO_ENVELOPE_STRUCTURE_INVALID'
 }
 # LastWriteTimeUtc is LOCAL FILE metadata, not a trustworthy archive capture time.
