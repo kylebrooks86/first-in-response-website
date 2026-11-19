@@ -12,6 +12,8 @@ import {customerNumberingReady,customerNumberForCustomer,newCustomerNumberStatem
 import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Customer directory includes PII, quote tokens, payment and contact histories.
+const ownerCustomerListHeaders = {"Cache-Control":"no-store, private","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized() {
   const user = await getChatGPTUser();
   return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
@@ -61,16 +63,16 @@ async function readCustomerRequest(request: Request): Promise<Record<string, unk
 }
 
 export async function GET(request?:Request) {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401, headers: ownerCustomerListHeaders });
   try {
     // Read-only owner-authenticated customer listing and edit confirmation.
     const numbered=await customerNumberingReady(env.DB,env);
     const numberColumn=numbered?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=c.id) AS customerNumber":"NULL AS customerNumber";
     const confirmId=request?new URL(request.url).searchParams.get("confirmEdit"):null;
     if(confirmId!==null){
-      if(!confirmId||confirmId.length>128)return Response.json({error:"Invalid customer confirmation ID."},{status:400,headers:{"Cache-Control":"no-store, private"}});
+      if(!confirmId||confirmId.length>128)return Response.json({error:"Invalid customer confirmation ID."},{status:400,headers:ownerCustomerListHeaders});
       const customer=await env.DB.prepare("SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,"+numberColumn+" FROM customers c WHERE c.id=? LIMIT 1").bind(confirmId).first();
-      return customer?Response.json({customer},{headers:{"Cache-Control":"no-store, private"}}):Response.json({error:"Customer record not found."},{status:404,headers:{"Cache-Control":"no-store, private"}});
+      return customer?Response.json({customer},{headers:ownerCustomerListHeaders}):Response.json({error:"Customer record not found."},{status:404,headers:ownerCustomerListHeaders});
     }
     // The confirmEdit single-record read above is independent of payment
     // history. Full customer lists include financial/refund state and must
@@ -130,9 +132,9 @@ export async function GET(request?:Request) {
     // into a record. Owner review is safer than an apparently payable balance.
     if(invoices.results.some(row=>Number((row as Record<string,unknown>).invoiceOwnershipMismatch)!==0))
       return Response.json({error:"An invoice is linked to a different customer than its estimate. Reconcile invoice ownership before using customer billing."},
-        {status:409,headers:{"Cache-Control":"no-store, private"}});
+        {status:409,headers:ownerCustomerListHeaders});
     const grouped=new Map<string,Record<string,unknown>[]>();
-    for(const raw of estimateItems.results as Record<string,unknown>[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const key=String(raw.estimateId);grouped.set(key,[...(grouped.get(key)??[]),row]);}
+    for(const raw of estimateItems.results as Record<string,unknown>[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const key=String(raw.estimateId);const group=grouped.get(key);if(group)group.push(row);else grouped.set(key,[row]);}
     const customerNumbers=new Map((customers.results as Record<string,unknown>[]).map(row=>[String(row.id),row.customerNumber??null]));
     // The customer's completed-job counter and history MUST use the same
     // persisted Job # links as the global estimate/invoice views. Distinct
@@ -140,9 +142,9 @@ export async function GET(request?:Request) {
     const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
     const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimates.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
     const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.id))??null,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
-    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: (invoices.results as Record<string,unknown>[]).map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return {...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null};}), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
+    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: (invoices.results as Record<string,unknown>[]).map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return {...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null};}), photos: photos.results, messages: messages.results, payments:payments.results },{headers:ownerCustomerListHeaders});
   } catch {
-    return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503 });
+    return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503, headers: ownerCustomerListHeaders });
   }
 }
 

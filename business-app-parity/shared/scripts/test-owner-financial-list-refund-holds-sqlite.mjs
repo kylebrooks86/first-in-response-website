@@ -72,6 +72,9 @@ for(const scenario of [
   const GET=instantiate(path,scope.DB,true);
   const response=kind==='customers'?await GET(new Request('https://fire-qa.invalid/api/customers')):await GET();
   assert.equal(response.status,503,path+' must return a controlled hold, not SQL 500');
+  assert.equal(response.headers.get('cache-control'),'private, no-store','Private financial schema hold is never cacheable');
+  assert.equal(response.headers.get('vary'),'Cookie','Financial schema hold varies by owner session');
+  assert.equal(response.headers.get('x-content-type-options'),'nosniff','Financial schema hold refuses MIME sniffing');
   const body=await response.json();
   assert.equal(body.code,'REFUND_LEDGER_SCHEMA_INCOMPLETE');
   assert.equal(body.retryable,false);
@@ -86,6 +89,12 @@ for(const [path,kind] of named){
  const GET=instantiate(path,scope.DB,false);
  const denied=kind==='customers'?await GET(new Request('https://fire-qa.invalid/api/customers')):await GET();
  assert.equal(denied.status,401);
+ // Existing estimates and customer/invoice routes use different token orders;
+ // both directives are independently required, regardless of header order.
+ assert.deepEqual((denied.headers.get('cache-control')??'').split(',').map(s=>s.trim()).sort(),
+   ['no-store','private'],'Anonymous owner list denial is private and never cached');
+ assert.equal(denied.headers.get('vary'),'Cookie','Anonymous list denial varies by authenticated session');
+ assert.equal(denied.headers.get('x-content-type-options'),'nosniff','Anonymous denial is not MIME sniffable');
  assert.equal(scope.counts().metadataQueries,0,'Owner auth precedes any schema probing');
  assert.equal(scope.counts().rowQueries,0);
  scope.sqlite.close();
@@ -96,6 +105,9 @@ for(const [path,kind] of named){
  const GET=instantiate('app/api/customers/route.ts',scope.DB,true);
  const response=await GET(new Request('https://fire-qa.invalid/api/customers?confirmEdit=customer-a'));
  assert.equal(response.status,200,'Unrelated customer save readback must not depend on refund schema');
+ assert.equal(response.headers.get('cache-control'),'no-store, private','Single customer confirmation stays private');
+ assert.equal(response.headers.get('vary'),'Cookie','Customer confirmation varies by owner cookie');
+ assert.equal(response.headers.get('x-content-type-options'),'nosniff','Customer confirmation cannot be sniffed');
  const value=await response.json();
  assert.equal(value.customer.id,'customer-a');
  assert.equal(scope.counts().metadataQueries,0);
