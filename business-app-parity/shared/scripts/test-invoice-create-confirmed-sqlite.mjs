@@ -71,7 +71,7 @@ try{
  // a static header string. The list contains private invoice share tokens.
  const invoiceList=await route.GET();
  eq(invoiceList.status,200,'Authenticated owner financial list reads persisted invoice');
- eq(invoiceList.headers.get('cache-control'),'private, no-store','Invoice list never enters shared/client caches');
+ eq(invoiceList.headers.get('cache-control'),'no-store, private','Invoice list never enters shared/client caches');
  eq(invoiceList.headers.get('vary'),'Cookie','Invoice list varies by authenticated owner session');
  eq(invoiceList.headers.get('x-content-type-options'),'nosniff','Invoice private JSON cannot be MIME sniffed');
  const ownerInvoices=(await invoiceList.json()).invoices;
@@ -162,7 +162,7 @@ try{
  owner={email:'intruder@example.invalid'};
  const deniedList=await route.GET();
  eq(deniedList.status,401,'Nonowner cannot list private invoice contacts or bearer tokens');
- eq(deniedList.headers.get('cache-control'),'private, no-store','Nonowner invoice list denial is never cached');
+ eq(deniedList.headers.get('cache-control'),'no-store, private','Nonowner invoice list denial is never cached');
  eq(deniedList.headers.get('vary'),'Cookie','Nonowner denial is session-varying');
  response=await post('normal');
  eq(response.status,401,'Nonowner cannot request invoice');
