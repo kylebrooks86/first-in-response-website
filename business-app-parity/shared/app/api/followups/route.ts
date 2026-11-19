@@ -5,22 +5,24 @@ import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from ".
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+// Follow-up histories include private homeowner contacts, quotes and share tokens.
+const privateFollowupHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(request:Request){
- const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
+ const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:privateFollowupHeaders});
  const url=new URL(request.url),sizeText=url.searchParams.get("limit")??"50";
  // Owner-only single saved estimate lookup for notification navigation.
  // Do not combine exact lookups with cursor paging or custom page size.
  const focusedId=url.searchParams.get("estimateId");
  if(focusedId!==null&&(!/^[A-Za-z0-9_-]{1,128}$/.test(focusedId)||url.searchParams.has("cursor")||url.searchParams.has("limit")))
-  return Response.json({error:"Invalid exact follow-up lookup."},{status:400});
- if(!/^(?:[1-9]|[1-4][0-9]|50)$/.test(sizeText))return Response.json({error:"Page size must be 1 through 50."},{status:400});
+  return Response.json({error:"Invalid exact follow-up lookup."},{status:400,headers:privateFollowupHeaders});
+ if(!/^(?:[1-9]|[1-4][0-9]|50)$/.test(sizeText))return Response.json({error:"Page size must be 1 through 50."},{status:400,headers:privateFollowupHeaders});
  const size=focusedId!==null?1:Number(sizeText),encoded=url.searchParams.get("cursor");let cursor:{createdAt:string;id:string}|null=null;
  if(encoded!==null){try{
   if(!encoded||encoded.length>512||!/^[A-Za-z0-9_-]+$/.test(encoded))throw Error();
   const value=JSON.parse(atob(encoded.replace(/-/g,"+").replace(/_/g,"/"))) as Record<string,unknown>;
   if(Object.keys(value).length!==2||typeof value.createdAt!=="string"||value.createdAt.length>64||!Number.isFinite(Date.parse(value.createdAt))||typeof value.id!=="string"||!value.id||value.id.length>128)throw Error();
   cursor={createdAt:value.createdAt,id:value.id};
- }catch{return Response.json({error:"Invalid follow-up cursor."},{status:400});}}
+ }catch{return Response.json({error:"Invalid follow-up cursor."},{status:400,headers:privateFollowupHeaders});}}
  try{
   const result=await env.DB.prepare(`
         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.total_cents AS totalCents,e.deposit_cents AS depositCents,
@@ -62,7 +64,7 @@ export async function GET(request:Request){
   // wrong bill to a valid quote or prepared customer message.
   if(result.results.some(row=>Number(row.invoiceOwnershipMismatch)!==0))
     return Response.json({error:"An invoice is linked to a different customer. Reconcile the invoice before preparing a follow-up."},
-      {status:409,headers:{"Cache-Control":"no-store, private"}});
+      {status:409,headers:privateFollowupHeaders});
   const base=result.results.slice(0,size),last=base.at(-1);
   // Follow-ups opens the same editable estimate detail as Estimates and
   // Customers. Its summary-only rows previously omitted the actual service
@@ -76,7 +78,9 @@ export async function GET(request:Request){
       .bind(...base.map(e=>e.id)).all<SavedLine>();
     for(const raw of lines.results){
       const line={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};
-      grouped.set(line.estimateId,[...(grouped.get(line.estimateId)??[]),line]);
+      let saved=grouped.get(line.estimateId);
+       if(!saved){saved=[];grouped.set(line.estimateId,saved);}
+       saved.push(line);
     }
   }
   const prefRow=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>();
@@ -90,6 +94,6 @@ export async function GET(request:Request){
     estimates=base.map(({invoiceOwnershipMismatch:_verified,...e})=>({...e,items:grouped.get(e.id)??[],repeatMonths:repeatIntervalFor((grouped.get(e.id)??[]).map(i=>i.name),prefs.repeatMonths,identities)}));
   }
   const nextCursor=result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
-  return Response.json({estimates,nextCursor,pageSize:size,...(focusedId!==null?{estimateId:focusedId}:{})});
- }catch{return Response.json({error:"Follow-up records could not be read."},{status:503});}
+  return Response.json({estimates,nextCursor,pageSize:size,...(focusedId!==null?{estimateId:focusedId}:{})},{headers:privateFollowupHeaders});
+ }catch{return Response.json({error:"Follow-up records could not be read."},{status:503,headers:privateFollowupHeaders});}
 }
