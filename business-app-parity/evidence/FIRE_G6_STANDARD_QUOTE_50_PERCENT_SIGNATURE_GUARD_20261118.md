@@ -15,3 +15,14 @@ The existing standard FIRE public estimate signature route `shared/app/api/publi
 **50/95 accepted, 45 open; formal 4/10 G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN.** G6-06 bearer-token, genuine hosted nonowner/customer denial and release Gate6 are not automatically closed by source tests. NEW LIVE remains DARK/NO-GO and first Job #0001 unissued. No Stripe, Cloudflare login, paid R2, Worker deploy, D1 provider migration, real customer records, Git merge, or production action.
 
 The actual Nov18 owner Acer Gate4 dual DARK GET-only action already STOPPED once; it is preserved and **must not be repeated**. See [owner STOP receipt](FIRE_G4_OWNER_ACER_DUAL_DARK_STOP_RECEIPT_20261118.md).
+
+
+## Public site/verifier review gate preserved after adding the isolated workflow
+
+The new `.github/workflows/fire-g6-standard-signing-offline.yml` was intentionally blocked on first review by the existing fail-closed website/calculator scope guard (CI #44455994211), because the owner project explicitly permits **no unreviewed CI workflows**. This did not mean the public site changed. The proposed fix **did not weaken or wildcard** the guard.
+
+- Actual [review guard commit 9897f275](https://github.com/kylebrooks86/first-in-response-website/commit/9897f275a7d33e36e56b5034f1eda5be2315edf7) explicitly adds **only** the reviewed G6 workflow path to the allowed PR paths, the path change allowlist and reviewed workflow filename array; **pins its exact immutable Git blob** `cbc5ca2d2348ad2aaf003f1ae67028a1be1c927b`.
+- The [preserve public website/calculator scope workflow #44456315099](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44456315099) **COMPLETED SUCCESS** on that exact guard change, along with [Verify FIRE website #44456315176](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44456315176) **COMPLETED SUCCESS**. Existing protected website/calculator files and fixed production deployment workflows remained byte-for-byte unchanged.
+- Re-executed exact-source focused [G6 signing job #44456315204](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44456315204), **COMPLETED SUCCESS** with identical new signing SQL and test code; no customer records, D1 provider, Stripe, or photos contacted.
+
+**The earlier broader staging QA browser photo-test failure remains separate, and does not reopen the established real Acer three-photo recovery.** This source/CI packet does not close hosted Gate6, Gate4, or formal release gates. Canonical 50/95 accepted, 45 open, 4/10 formal. NEW LIVE DARK/NO-GO.
