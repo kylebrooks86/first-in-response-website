@@ -61,12 +61,12 @@ try{
   eq(childRowsRead,200,'Worker loads 200 matching service lines, not all 224 history rows');
   eq(list[0].id,'owner-test-estimate-0111','Newest saved quote appears first');
   eq(list.at(-1).id,'owner-test-estimate-0012','100th latest quote is retained');
-  eq(list.every(q=>q.items.length===2),'Both original service lines retained per visible quote');
-  eq(list.every(q=>q.items[0].name==='House washing'&&q.items[1].name==='Gutter cleaning'),
+  eq(list.every(q=>q.items.length===2),true,'Both original service lines retained per visible quote');
+  eq(list.every(q=>q.items[0].name==='House washing'&&q.items[1].name==='Gutter cleaning'),true,
     'Saved line order and service names preserved for each quote');
-  eq(list.every(q=>q.customerId==='owner-private-estimate-customer'&&q.customer==='Synthetic QA'),
+  eq(list.every(q=>q.customerId==='owner-private-estimate-customer'&&q.customer==='Synthetic QA'),true,
     'Private customer relationship retained only for owner');
-  eq(list.every(q=>q.items.reduce((a,item)=>a+item.totalCents,0)===q.subtotalCents),
+  eq(list.every(q=>q.items.reduce((a,item)=>a+item.totalCents,0)===q.subtotalCents),true,
     'Original item cents still reconcile to displayed quote subtotal');
   eq(list.some(q=>q.id==='owner-test-estimate-0000'),false,
     'Old historical quote remains off the bounded dashboard response');
