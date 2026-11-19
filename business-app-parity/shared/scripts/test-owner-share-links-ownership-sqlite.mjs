@@ -72,9 +72,9 @@ const reset=()=>{
   db.exec("INSERT INTO invoices VALUES ('inv-a','cust-a','est-a',NULL);");
   owner=true;afterRead=null;lostAck=false;readCount=0;writeCount=0;
 };
-const request=async(kind,id)=>{
+const request=async(kind,id,headers={})=>{
   const response=await modules[kind].POST(
-    new Request('https://qa-synthetic.invalid/api/'+kind+'/'+id+'/share',{method:'POST'}),
+    new Request('https://qa-synthetic.invalid/api/'+kind+'/'+id+'/share',{method:'POST',headers}),
     {params:Promise.resolve({id})});
   return {status:response.status,body:await response.json(),headers:response.headers};
 };
@@ -94,6 +94,30 @@ assert.equal(outcome.status,401);
 outcome=await request('invoices','inv-a');
 assert.equal(outcome.status,401);
 assert.equal(readCount,0);assert.equal(writeCount,0);
+confirm();
+
+// An authenticated ambient owner session is NOT permission for a foreign
+// website to mint a customer's private invoice share link.
+reset();
+for(const [kind,id] of [['estimates','est-a'],['invoices','inv-a']]){
+ for(const [name,headers] of [
+  ['cross-site',{'origin':'https://foreign.invalid','sec-fetch-site':'cross-site'}],
+  ['sibling host',{'origin':'https://sibling.qa-synthetic.invalid','sec-fetch-site':'same-site'}],
+  ['forged Origin',{'origin':'https://foreign.invalid','sec-fetch-site':'same-origin'}],
+  ['navigation',{'sec-fetch-site':'none'}]
+ ]){
+  outcome=await request(kind,id,headers);
+  assert.equal(outcome.status,403,kind+' '+name+' must be denied');
+  assert.equal(readCount,0,kind+' '+name+' cannot read customer/invoice rows');
+  assert.equal(writeCount,0,kind+' '+name+' cannot mint tokens');
+  assert.equal(token(kind,id),null,kind+' '+name+' leaves share token absent');
+  confirm();
+ }
+}
+reset();
+outcome=await request('invoices','inv-a',{'origin':'https://qa-synthetic.invalid','sec-fetch-site':'same-origin'});
+assert.equal(outcome.status,200,'Legitimate same-origin owner may still mint an invoice link');
+assert.equal(writeCount,1);
 confirm();
 
 reset();
