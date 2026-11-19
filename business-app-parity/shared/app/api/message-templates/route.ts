@@ -4,27 +4,30 @@ import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mj
 import { FIRE_TEMPLATES, SERVICE_AGREEMENT, businessTemplateOverride } from "../../../lib/fire-templates";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+// Owner-customized message text may contain private customer or business details.
+// Keep both successful reads and owner-write receipts out of shared caches.
+const PRIVATE_TEMPLATE_HEADERS={"Cache-Control":"no-store, private","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
 export async function GET(){
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:PRIVATE_TEMPLATE_HEADERS});
   const saved=await env.DB.prepare("SELECT key,subject,body,updated_at AS updatedAt FROM message_templates").all<{key:string;subject:string;body:string;updatedAt:string}>();
   const overrides=new Map((saved.results??[]).map((item)=>[item.key,businessTemplateOverride(item)]));
-  return Response.json({templates:FIRE_TEMPLATES.map((item)=>{const override=overrides.get(item.key);if(item.key==="contractTerms"&&override?.body.startsWith("I authorize First In Response Exteriors to perform the services listed"))return {...item,body:SERVICE_AGREEMENT};return {...item,...override};})});
+  return Response.json({templates:FIRE_TEMPLATES.map((item)=>{const override=overrides.get(item.key);if(item.key==="contractTerms"&&override?.body.startsWith("I authorize First In Response Exteriors to perform the services listed"))return {...item,body:SERVICE_AGREEMENT};return {...item,...override};})},{headers:PRIVATE_TEMPLATE_HEADERS});
 }
 
 export async function PUT(request:Request){
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:PRIVATE_TEMPLATE_HEADERS});
   // Prevent oversized or malformed template writes before D1 readback.
   const parsed=await readOwnerWriteObject(request,64_000);
   if(parsed.response)return parsed.response;
   const body=parsed.value as {key?:string;subject?:string;body?:string;reset?:boolean};
   const template=FIRE_TEMPLATES.find((item)=>item.key===body.key);
-  if(!template)return Response.json({error:"Unknown template."},{status:400});
+  if(!template)return Response.json({error:"Unknown template."},{status:400,headers:PRIVATE_TEMPLATE_HEADERS});
   const uncertain=()=>Response.json({
     error:"Template save not confirmed. Your edits may already be stored. Reopen Settings and check the saved version before trying again.",
     saveUncertain:true
-  },{status:503,headers:{"Cache-Control":"no-store, private"}});
+  },{status:503,headers:PRIVATE_TEMPLATE_HEADERS});
   if(body.reset){
     // A DELETE can commit even when its D1 acknowledgement is interrupted.
     // Confirm the actual absence of the override before reporting restored.
@@ -34,12 +37,12 @@ export async function PUT(request:Request){
     try{
       const retained=await env.DB.prepare("SELECT key FROM message_templates WHERE key=?").bind(template.key).first<{key:string}>();
       if(retained)return uncertain();
-      return Response.json({template},{headers:{"Cache-Control":"no-store, private"}});
+      return Response.json({template},{headers:PRIVATE_TEMPLATE_HEADERS});
     }catch{return uncertain();}
   }
   const subject=String(body.subject??"").trim();
   const content=String(body.body??"").trim();
-  if(!content)return Response.json({error:"Template message cannot be empty."},{status:400});
+  if(!content)return Response.json({error:"Template message cannot be empty."},{status:400,headers:PRIVATE_TEMPLATE_HEADERS});
   const updatedAt=new Date().toISOString();
   // A saved override must be confirmed by a separate D1 read, regardless
   // of whether the write acknowledgement was received or interrupted.
@@ -51,6 +54,6 @@ export async function PUT(request:Request){
       .bind(template.key).first<{key:string;subject:string;body:string;updatedAt:string}>();
     if(!saved||saved.key!==template.key||saved.subject!==subject||saved.body!==content||saved.updatedAt!==updatedAt)
       return uncertain();
-    return Response.json({template:{...template,subject:saved.subject,body:saved.body,updatedAt:saved.updatedAt}},{headers:{"Cache-Control":"no-store, private"}});
+    return Response.json({template:{...template,subject:saved.subject,body:saved.body,updatedAt:saved.updatedAt}},{headers:PRIVATE_TEMPLATE_HEADERS});
   }catch{return uncertain();}
 }

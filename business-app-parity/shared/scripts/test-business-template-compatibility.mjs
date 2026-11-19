@@ -9,9 +9,17 @@ rows.push({key:'autoReply',subject:'Call Kyle about your project',body:'Customer
 const snapshot=JSON.stringify(rows);
 const env={DB:{prepare(sql){assert.match(sql,/^SELECT key,subject,body,updated_at/);reads++;return {async all(){return {results:structuredClone(rows)}},run(){writes++;throw Error('No writes permitted')}};}}};
 const route=createRouteFixtureLoader(process.cwd(),env,()=>owner)('app/api/message-templates/route.ts');
-owner=null;assert.equal((await route.GET()).status,401);assert.equal(reads,0);
-owner={email:'customer@example.invalid'};assert.equal((await route.GET()).status,401);assert.equal(reads,0);
-owner={email:'kylebrooks8605@gmail.com'};const response=await route.GET();assert.equal(response.status,200);const {templates}=await response.json();
+owner=null;const anonymous=await route.GET();assert.equal(anonymous.status,401);assert.equal(reads,0);
+assert.equal(anonymous.headers.get('cache-control'),'no-store, private');
+assert.equal(anonymous.headers.get('vary'),'Cookie');
+assert.equal(anonymous.headers.get('x-content-type-options'),'nosniff');
+owner={email:'customer@example.invalid'};const nonowner=await route.GET();assert.equal(nonowner.status,401);assert.equal(reads,0);
+assert.equal(nonowner.headers.get('cache-control'),'no-store, private');
+owner={email:'kylebrooks8605@gmail.com'};const response=await route.GET();assert.equal(response.status,200);
+assert.equal(response.headers.get('cache-control'),'no-store, private','Owner-specific saved template text is never cacheable');
+assert.equal(response.headers.get('vary'),'Cookie','Caches must not reuse authenticated templates between sessions');
+assert.equal(response.headers.get('x-content-type-options'),'nosniff','Template JSON cannot be interpreted as another content type');
+const {templates}=await response.json();
 for(const [key] of Object.entries(LEGACY_BUSINESS_TEMPLATE_DEFAULTS)){
  const actual=templates.find(item=>item.key===key);assert.ok(actual);
  if(key==='autoReply'){assert.equal(actual.subject,'Call Kyle about your project');assert.equal(actual.body,'Customer Kyle Brooks: kyle@example.invalid');}

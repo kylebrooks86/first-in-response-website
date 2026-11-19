@@ -10,7 +10,7 @@ const key='estimate';let checks=0;
 const check=(test,label)=>{assert.ok(test,label);checks++;};
 const put=async payload=>{
  const response=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({key,...payload})}));
- return{status:response.status,body:await response.json(),cache:response.headers.get('cache-control')};
+ return{status:response.status,body:await response.json(),cache:response.headers.get('cache-control'),vary:response.headers.get('vary'),nosniff:response.headers.get('x-content-type-options')};
 };
 const stored=()=>db.prepare('SELECT key,subject,body,updated_at AS updatedAt FROM message_templates WHERE key=?').get(key);
 const serverTemplate=async()=>{const result=await route.GET();return(await result.json()).templates.find(x=>x.key===key);};
@@ -20,6 +20,7 @@ try{
  check(saved.status===200&&saved.body.template.subject==='Custom subject'&&saved.body.template.body==='Saved custom owner wording',
   'Successful saved template response is exact normalized owner wording');
  check(saved.cache==='no-store, private','Template save receipts cannot be cached');
+ check(saved.vary==='Cookie'&&saved.nosniff==='nosniff','Saved template receipts stay session-scoped JSON');
  check(stored()?.subject==='Custom subject'&&stored()?.body==='Saved custom owner wording'&&
   saved.body.template.updatedAt===stored().updatedAt,
   'Success requires actual durable D1 row and timestamp readback');
@@ -85,7 +86,7 @@ try{
   return originalPrepare(sql);
  };
  const recoveredDefault=await put({reset:true});
- check(recoveredDefault.status===200&&recoveredDefault.body.template.key===key&&!stored(),
+ check(recoveredDefault.status===200&&recoveredDefault.cache==='no-store, private'&&recoveredDefault.vary==='Cookie'&&recoveredDefault.body.template.key===key&&!stored(),
   'Committed reset with lost DELETE ACK succeeds only after absence readback');
  rt.env.DB.prepare=originalPrepare;
  const restored=await put({reset:true});
@@ -105,7 +106,7 @@ try{
  check(unknown.status===400,'Unknown template key cannot create unrelated metadata');
  rt.setOwner(null);
  const denied=await put({subject:'Not owner',body:'No access'});
- check(denied.status===401&&!stored(),'Nonowner cannot overwrite a template');
+ check(denied.status===401&&denied.cache==='no-store, private'&&denied.vary==='Cookie'&&!stored(),'Nonowner cannot overwrite a template');
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
  // Failed DB writes are uncertain, not acknowledged as success.
  rt.env.DB.prepare=function(sql){
