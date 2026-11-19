@@ -1,3 +1,15 @@
+## Nov 19 downstream Gate9 refund fixture compatibility — independently PASSED on corrected source
+
+The local staging refund regression failed after the owner backup-restore route imported `ownerBrowserWriteScope` because `shared/scripts/test-stripe-refunds.mjs` deliberately strips imports when loading actual routes in a synthetic `data:` module. The **test fixture** needed to inject the real production helper; the failure was not a proven real Stripe/refund functional failure.
+
+[Actual test harness fix `96b4055`](https://github.com/kylebrooks86/first-in-response-website/commit/96b405557685fee78b43f11866fe18ec9732c76b) imports and exposes the **real** `ownerBrowserWriteScope` alongside the existing actual bounded restore parser. It does not weaken authentication, skip refund cases, alter payment routes, change the actual backup route or make a Stripe provider call.
+
+**Targeted observed CI at exact corrected source SHA `96b405557685fee78b43f11866fe18ec9732c76b`:** [Staging shared-app workflow #44522623441](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44522623441), job `135554933593` **COMPLETED SUCCESS**, its **Gate 9 signed refund lifecycle/webhook regression STEP SUCCESS** at 12:22:21 UTC Nov 19. Actual job log prints `PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; refund.failed signature and verified persistence` and **124/124 isolated test-key and live-event safety checks PASS**. The *entire multi-job workflow* was still in progress at last observation; only the tested job and steps are accepted. [Public website/calculator preservation #44522623465](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44522623465) and [website verifier #44522623214](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44522623214) **COMPLETED SUCCESS** at the same corrected SHA.
+
+**Acceptance scope unchanged:** synthetic TEST-mode refund safety and test harness correctness, **not genuine Stripe signed provider webhook delivery or LIVE/TEST activation**. G9 and G6/G7 remain OPEN, 50/95 formal acceptance, NEW LIVE DARK/NO-GO, no provider/money/account/DB/photo/deployment writes or merge.
+
+---
+
 ## Nov 19 subsequent photo DELETE/test-fixture integration — source and targeted CI succeeded
 
 The owner-only saved photo `DELETE /api/customer-photos/[id]` also now requires `ownerBrowserWriteScope(request,false)` **after owner authentication and before D1 read or irreversible storage deletion**. A same-origin browser DELETE remains valid without an artificial JSON body; cross-site/sibling-origin DELETE returns 403 before D1 or bucket activity. The branch's separately landed source/fixture adjustment is preserved (exact current shared DELETE source matches its test fixture). New [mock integration + two real route behavior checks `a09c8035`](https://github.com/kylebrooks86/first-in-response-website/commit/a09c80356528e39cc698c5af43020d16a9b420ac) injects the actual helper into the synthetic TypeScript DELETE harness, proves cross-site denial with zero D1/R2 operations, and proves legitimate same-origin deletion completes.
