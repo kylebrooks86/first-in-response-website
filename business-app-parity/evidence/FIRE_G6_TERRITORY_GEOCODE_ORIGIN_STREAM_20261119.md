@@ -17,3 +17,7 @@ Latest changed source/test SHA: `0ae8f4d1d85b7d388e1f3bf3a8c5592816a3550e`. [Sta
 Source-only unmerged DRAFT PR270; no QA/STAGING/DR/NEW LIVE/TEST deployment, payment, Cloudflare auth/Access/route/D1/R2, real customer data/photos, release merge or public site changes. Formal hosted G6-08 and all Gate 6 acceptance remain OPEN. Master checklist remains 50/95 accepted, 45 open; formal gates 4/10 accepted (G1/G2/G3/G8); NEW LIVE remains DARK, Job #0001 unissued.
 
 Reuse accepted owner screenshots, iPhone QA and Nov 18 Acer STOP; do not rerun provider login, Cloudflare Wrangler probe or duplicate owner tests.
+
+## Verified native code execution (changed-source proof)
+
+GitHub Actions [#44578773058](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44578773058), **job `135753582549` COMPLETED SUCCESS** at exact changed source/test SHA `0ae8f4d1d85b7d388e1f3bf3a8c5592816a3550e`. The original job log proves `PASS 146 territory model/SQLite/API checks` plus `PASS 89 door-knocking SQLite/API safety checks`; this includes the newly wired real owner geocoder route. The same job compiled the full disposable QA Worker, and no hosted Worker was deployed. This supersedes the two fixture-failure runs; do not rerun accepted tests. The other five jobs in the six-job workflow are separate: their final status must still be read before claiming a complete workflow PASS. No G6 formal hosted gate is accepted from this native source proof.
