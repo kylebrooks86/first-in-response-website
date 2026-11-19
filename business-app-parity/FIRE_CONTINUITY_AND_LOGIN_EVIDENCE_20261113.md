@@ -1,4 +1,4 @@
-## November 18 — G7-07 OWNER ACRE REAL PHOTO RESTORE PASS; 50/95 checklist tasks accepted
+## November 18 — G7-07 OWNER ACER REAL PHOTO RESTORE PASS; 50/95 checklist tasks accepted
 
 **Previously outstanding physically isolated original-photo restoration is COMPLETE for the accepted QA snapshot.** Original owner Acer screenshot `IMG_2D01304E-2B35-49DF-ADD8-E551942E8502.jpeg` (328,503 bytes; SHA-256 `ca8840de4027e63135617bd2478a23a1c35de17d33b9ae1da4d3befb60e738e8`) visibly records:
 
