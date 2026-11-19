@@ -3,6 +3,7 @@ import {getChatGPTUser} from '../../../../../chatgpt-auth';
 import {POST as verifyOriginalQuote} from '../route';
 import {BOOKING_REVIEW_DRAFT_PREFIX,readBookingReviewDraft,type BookingReviewDraft} from '../../../../../../lib/booking-review-draft';
 import {estimateScopeFingerprint} from '../../../../../../lib/estimate-scope-fingerprint';
+import {readOwnerWriteObject} from '../../../../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -51,10 +52,10 @@ export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){
 }
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  if(!await authorized())return json({error:'Unauthorized'},401);
+ const parsed=await readOwnerWriteObject(request,8192);
+ if(parsed.response)return parsed.response;
  const {id}=await params;
- let body:Record<string,unknown>;
- try{const parsed=await request.json();if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('bad');body=parsed as Record<string,unknown>;}
- catch{return json({error:'Invalid owner draft request.'},400);}
+ const body=parsed.value as Record<string,unknown>;
  if(Object.keys(body).sort().join(',')!=='bookingConfirmedOn,expectedOriginalTotalCents,expectedProposedTotalCents,expectedRevision,ownerNote'||
   typeof body.bookingConfirmedOn!=='string'||typeof body.ownerNote!=='string'||body.ownerNote.length>400||
   !(body.expectedRevision===null||typeof body.expectedRevision==='string'&&uuid.test(body.expectedRevision))||
@@ -100,9 +101,10 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
 }
 export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
  if(!await authorized())return json({error:'Unauthorized'},401);
+ const parsed=await readOwnerWriteObject(request,4096);
+ if(parsed.response)return parsed.response;
  const {id}=await params;
- let body:unknown;
- try{body=await request.json();}catch{return json({error:'Provide the current draft revision.'},400);}
+ const body:unknown=parsed.value;
  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).join(',')!=='expectedRevision'||
   typeof (body as {expectedRevision?:unknown}).expectedRevision!=='string'||
   !uuid.test((body as {expectedRevision:string}).expectedRevision))return json({error:'Provide the current draft revision.'},400);
