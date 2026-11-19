@@ -24,7 +24,7 @@ function Safe-LocalFile([string]$Location,[string]$Code) {
     # is NOT inside C:\\Users\\owner. Also refuse junction/reparse ancestors,
     # which could otherwise redirect an apparently private file outside the profile.
     $ownerPath = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd(
-        [IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+        [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar))
     $fullPath = [IO.Path]::GetFullPath($item.FullName)
     $ownerBoundary = $ownerPath + [IO.Path]::DirectorySeparatorChar
     if (-not $fullPath.StartsWith($ownerBoundary, [StringComparison]::OrdinalIgnoreCase)) {
