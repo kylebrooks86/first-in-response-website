@@ -94,3 +94,8 @@ try{
  same(historical(),before,'Historical estimate stays unchanged');
  console.log('PASS '+checks+' saved promotion catalog, stack, booking deadline, eligibility, SQLite persistence, conflicts, replay, owner access, corruption and historical safeguards.');
 }finally{db.close();}
+
+// The existing staging saved-promotion CI step also exercises the REAL
+// booking-amendment preview and review-draft routes (including origin/size
+// negative controls). No new CI workflow or hosted service is required.
+await import('./test-promotion-review-drafts.mjs');
