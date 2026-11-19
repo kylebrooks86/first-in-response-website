@@ -131,6 +131,9 @@ try{
  });
  await library.setInputFiles(take('synthetic-postcommit.png'));
  await page.getByText(/Photo changes are paused/).waitFor();
+ // The interruption banner can render before the follow-up vault read finishes;
+ // require the saved image to reappear instead of racing the React update.
+ await page.locator('.photo-card').first().waitFor({state:'visible'});
  check(await page.locator('.photo-card').count()===1,
   'Actual saved photo survives post-commit readback failure and is shown for review');
  check(await page.getByRole('button',{name:'Photo library',exact:true}).isDisabled(),
