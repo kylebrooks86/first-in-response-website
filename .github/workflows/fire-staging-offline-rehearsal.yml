@@ -569,6 +569,7 @@ jobs:
           # The actual owner estimate PATCH must reject forged browser origins
           # before D1 reads/writes while retaining valid same-origin edits.
           node --experimental-sqlite scripts/test-estimate-edit-confirmed-lines-sqlite.mjs
+          node scripts/test-estimate-owner-origin-actions.mjs
           node scripts/test-inline-new-customer-contact-parity.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
       - name: FIRE note and Settings template committed-write recovery (native SQLite only)
