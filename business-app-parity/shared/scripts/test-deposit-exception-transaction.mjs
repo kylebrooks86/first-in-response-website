@@ -67,6 +67,31 @@ try{
  eq((await post('invalid',missingOrigin)).status,403);
  let [badType]=request('invalid','waive',{}, {'content-type':'text/plain'});
  eq((await post('invalid',badType)).status,415);
+ // Synthetic UTF-8 byte-size and fake Content-Length attacks must fail
+ // BEFORE an audit lookup or D1 mutation, even if JS character count is small.
+ const [validShape]=request('invalid');
+ const utf8Body=JSON.stringify({
+  mode:'waive',confirmed:true,reason:'💥'.repeat(1200)
+ });
+ assert.ok(utf8Body.length<4096&&Buffer.byteLength(utf8Body,'utf8')>4096);checks++;
+ const utf8Oversize=new Request(validShape.url,{method:'POST',headers:{
+  Origin:'https://synthetic.invalid','content-type':'application/json'
+ },body:utf8Body});
+ eq((await post('invalid',utf8Oversize)).status,413);
+ const spoofedLargeLength=new Request(validShape.url,{method:'POST',headers:{
+  Origin:'https://synthetic.invalid','content-type':'application/json','content-length':'99999'
+ },body:JSON.stringify({confirmed:true})});
+ eq((await post('invalid',spoofedLargeLength)).status,413);
+ const spoofedShortLength=new Request(validShape.url,{method:'POST',headers:{
+  Origin:'https://synthetic.invalid','content-type':'application/json','content-length':'5'
+ },body:JSON.stringify({confirmed:true})});
+ eq((await post('invalid',spoofedShortLength)).status,400);
+ for(const site of ['cross-site','same-site','none']){
+  const [forgedSite]=request('invalid','waive',{}, {'sec-fetch-site':site});
+  eq((await post('invalid',forgedSite)).status,403);
+ }
+ const [sameOriginMeta]=request('invalid','waive',{confirmed:false},{'sec-fetch-site':'same-origin'});
+ eq((await post('invalid',sameOriginMeta)).status,409);
  for(const extra of [{confirmed:false},{actorEmail:'outsider@example.invalid'},{confirmationId:'not-a-uuid'},{expectedTotalCents:1},{expectedDepositCents:1},{expectedLastEventId:uuid()},{percentBasisPoints:10}]){
   const [req]=request('invalid','waive',extra);eq((await post('invalid',req)).status===201,false);
  }
