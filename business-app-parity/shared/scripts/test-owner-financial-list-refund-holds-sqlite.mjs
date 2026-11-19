@@ -89,7 +89,7 @@ for(const [path,kind] of named){
  const GET=instantiate(path,scope.DB,false);
  const denied=kind==='customers'?await GET(new Request('https://fire-qa.invalid/api/customers')):await GET();
  assert.equal(denied.status,401);
- assert.equal(denied.headers.get('cache-control'),'private, no-store','Anonymous owner list denial is not cached');
+ assert.equal(denied.headers.get('cache-control'),'no-store, private','Anonymous owner list denial is not cached');
  assert.equal(denied.headers.get('vary'),'Cookie','Anonymous list denial varies by authenticated session');
  assert.equal(denied.headers.get('x-content-type-options'),'nosniff','Anonymous denial is not MIME sniffable');
  assert.equal(scope.counts().metadataQueries,0,'Owner auth precedes any schema probing');
@@ -102,7 +102,7 @@ for(const [path,kind] of named){
  const GET=instantiate('app/api/customers/route.ts',scope.DB,true);
  const response=await GET(new Request('https://fire-qa.invalid/api/customers?confirmEdit=customer-a'));
  assert.equal(response.status,200,'Unrelated customer save readback must not depend on refund schema');
- assert.equal(response.headers.get('cache-control'),'private, no-store','Single customer confirmation stays private');
+ assert.equal(response.headers.get('cache-control'),'no-store, private','Single customer confirmation stays private');
  assert.equal(response.headers.get('vary'),'Cookie','Customer confirmation varies by owner cookie');
  assert.equal(response.headers.get('x-content-type-options'),'nosniff','Customer confirmation cannot be sniffed');
  const value=await response.json();
