@@ -174,8 +174,9 @@ test("Gate6 destructive restore and photo upload require owner origin checks bef
  const upload=source("../shared/app/api/customer-photos/route.ts");
  assert.match(restore,/import \{ownerBrowserWriteScope\} from/);
  assert.match(upload,/import \{ownerBrowserWriteScope\} from/);
- const restoreAuth=restore.indexOf('if (!await authorized())');
- const restoreGuard=restore.indexOf('ownerBrowserWriteScope(request,true)');
+ const restorePost=restore.indexOf('export async function POST(request: Request)');
+ const restoreAuth=restore.indexOf('if (!await authorized())',restorePost);
+ const restoreGuard=restore.indexOf('ownerBrowserWriteScope(request,true)',restorePost);
  const restoreDatabaseRead=restore.indexOf('numberedIdentityBackupLocked()',restoreAuth);
  const restoreBody=restore.indexOf('await readBoundedRecordsRestoreText(request)',restoreAuth);
  assert.ok(restoreAuth>=0&&restoreGuard>restoreAuth&&restoreGuard<restoreDatabaseRead&&restoreGuard<restoreBody,
