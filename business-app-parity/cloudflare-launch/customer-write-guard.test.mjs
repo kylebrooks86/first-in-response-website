@@ -207,9 +207,10 @@ test("Gate6 actual photo DELETE route checks owner and browser boundary before D
  const auth=route.indexOf("if (!await authorized())",del);
  const scope=route.indexOf("ownerBrowserWriteScope(request,false)",del);
  const bucket=route.indexOf("if (!env.BUCKET)",del);
- const select=route.indexOf('SELECT object_key AS objectKey FROM customer_photos',del);
+ const select=route.indexOf('SELECT customer_id AS customerId,object_key AS objectKey FROM customer_photos',del);
+ const identity=route.indexOf('photoKeyMatchesIdentity(id,row.customerId,row.objectKey)',del);
  const remove=route.indexOf('DELETE FROM customer_photos WHERE id=? AND object_key=?',del);
  const deleteBytes=route.indexOf('await env.BUCKET.delete(',del);
- assert.ok(auth>del&&scope>auth&&scope<bucket&&scope<select&&scope<remove&&scope<deleteBytes,
-  "Photo DELETE refuses cross-origin browser intent before storage and irreversible metadata/byte writes");
+ assert.ok(auth>del&&scope>auth&&scope<bucket&&scope<select&&select<identity&&identity<remove&&remove<deleteBytes,
+  "Photo DELETE refuses cross-origin browser intent and corrupted customer photo keys before D1/R2 writes");
 });
