@@ -88,15 +88,20 @@ if ($chunk -ne 1048576 -or $plain -lt 1 -or $plain -gt (161MB) -or
     $photos.Length -ne (48 + [long]$plain + 16*[long]$chunks)) {
     Stop-Review 'PHOTO_ENVELOPE_STRUCTURE_INVALID'
 }
-# Times identify a review cadence; they do not prove a cross-device atomic snapshot.
+# LastWriteTimeUtc is LOCAL FILE metadata, not a trustworthy archive capture time.
+# Downloading an old backup or copying it onto the Acer can make an old snapshot
+# appear new. Stale local file times are a conservative warning, but fresh times
+# must NEVER be reported as a current or timely backup without authenticated
+# snapshot timestamps and paired customer/photo evidence.
 $now = [DateTime]::UtcNow
 $daysRecords = [math]::Max(0,[math]::Floor(($now-$sql.LastWriteTimeUtc).TotalDays))
 $daysPhotos = [math]::Max(0,[math]::Floor(($now-$photos.LastWriteTimeUtc).TotalDays))
 Write-Output 'LOCAL_SQL_HASH_RECEIPT=PASS'
 Write-Output 'ENCRYPTED_PHOTO_HEADER_STRUCTURE=PASS'
-Write-Output ('RECORDS_AGE_DAYS='+$daysRecords)
-Write-Output ('PHOTOS_AGE_DAYS='+$daysPhotos)
-Write-Output ('CADENCE='+$(if ($daysRecords -gt $MaxAgeDays -or $daysPhotos -gt $MaxAgeDays) {'REVIEW_NEW_BACKUP_DUE'} else {'WITHIN_LOCAL_AGE_WINDOW'}))
+Write-Output ('RECORDS_LOCAL_FILE_AGE_DAYS='+$daysRecords)
+Write-Output ('PHOTOS_LOCAL_FILE_AGE_DAYS='+$daysPhotos)
+Write-Output ('CADENCE='+$(if ($daysRecords -gt $MaxAgeDays -or $daysPhotos -gt $MaxAgeDays) {'REVIEW_NEW_BACKUP_DUE'} else {'CAPTURE_AGE_UNVERIFIED'}))
+Write-Output 'AUTHENTIC_BACKUP_CAPTURE_AGE_VERIFIED=NO'
 Write-Output 'PHOTOS_AES_OR_ORIGINAL_HASH_VERIFIED=NO'
 Write-Output 'RECORDS_PHOTOS_PAIRED_SNAPSHOT_VERIFIED=NO'
 Write-Output 'OFF_DEVICE_CUSTODY_VERIFIED=NO'
