@@ -182,6 +182,36 @@ try{
   assert.equal(db.prepare("SELECT accepted_at FROM estimates WHERE id='echo'").get().accepted_at,
     '2026-11-08T00:00:00.000Z','Correctly reconciled signature is committed');
   checks+=13;
+  // A standard customer signs for the displayed 50% deposit. The saved
+  // price engine computes Math.round(total/2), which rounds odd cents up.
+  // A mis-saved smaller or larger deposit must never silently become a
+  // customer's legally accepted normal agreement.
+  const signedDepositCase=(id,subtotal,discount,total,deposit)=>{
+    insert.run(id,id+'-token');
+    item.run('item-'+id,id,'Synthetic exact-cent service');
+    db.prepare('UPDATE estimates SET subtotal_cents=?,discount_cents=?,total_cents=?,deposit_cents=? WHERE id=?')
+      .run(subtotal,discount,total,deposit,id);
+    db.prepare('UPDATE estimate_items SET total_cents=? WHERE estimate_id=?')
+      .run(subtotal,id);
+    return attempt(id,id+'-token');
+  };
+  assert.match(normal,/AND deposit_cents=\(total_cents\+1\)\/2/,
+    'Standard signing SQL must enforce 50% with odd-cent rounding atomically');
+  assert.equal(signedDepositCase('golf',20000,2999,17001,8501),1,
+    'Odd-cent discounted quote signs with exact rounded-up 50% deposit');
+  assert.equal(signedDepositCase('hotel',20000,0,20000,7000),0,
+    'Understated standard deposit cannot be agreed through the legacy 50% route');
+  assert.equal(signedDepositCase('india',20000,2999,17001,8500),0,
+    'Odd-cent total must not round its stated 50% deposit down');
+  assert.equal(signedDepositCase('juliet',20000,2999,17001,8502),0,
+    'Excess deposit cannot be signed under an unchanged 50% contract');
+  assert.equal(signedDepositCase('kilo',20000,0,20000,11000),0,
+    'Overstated standard deposit must not sign as though it were 50%');
+  for(const id of ['hotel','india','juliet','kilo']){
+    assert.equal(db.prepare('SELECT accepted_at FROM estimates WHERE id=?').get(id).accepted_at,null,
+      id+': disputed standard deposit remains completely unsigned');
+  }
+  checks+=10;
   // Actual persisted write, simulated thrown response: recover that exact
   // write without running a second SQL UPDATE or revealing other signatures.
   insert.run('foxtrot','foxtrot-original');
