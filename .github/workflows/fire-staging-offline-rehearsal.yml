@@ -274,6 +274,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-owner-financial-list-refund-holds-sqlite.mjs
+          node --experimental-sqlite scripts/test-estimate-owner-list-bounded-private-sqlite.mjs
       - name: Gate 5 invoice read/edit and paid-job review queue block missing refund ledger before private reads or Stripe (new SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
