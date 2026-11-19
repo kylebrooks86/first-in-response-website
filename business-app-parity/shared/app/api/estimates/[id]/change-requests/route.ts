@@ -1,5 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../../chatgpt-auth';
+import {readOwnerWriteObject} from '../../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL='kylebrooks8605@gmail.com';
 const headers={'Cache-Control':'no-store, private'};
 type Context={params:Promise<{id:string}>};
@@ -23,8 +24,12 @@ export async function GET(_request:Request,{params}:Context){
 }
 export async function PATCH(request:Request,{params}:Context){
   const user=await owner();if(!user)return Response.json({error:'Unauthorized'},{status:401,headers});
+  // A customer change-resolution is an owner D1 write: reject forged browser
+  // requests and overlong payloads before any history read or mutation.
+  const parsed=await readOwnerWriteObject(request,8192);
+  if(parsed.response)return parsed.response;
   try{
-    const {id}=await params,body=await request.json() as {requestId?:unknown;confirm?:unknown};
+    const {id}=await params,body=parsed.value as {requestId?:unknown;confirm?:unknown};
     if(typeof body.requestId!=='string'||!body.requestId||body.requestId.length>200||body.confirm!==true)return Response.json({error:'Choose and explicitly confirm one change request.'},{status:400,headers});
     const row=await env.DB.prepare(`SELECT cr.id,cr.customer_id AS customerId,cr.message,cr.status,cr.created_at AS createdAt
       FROM estimate_change_requests cr JOIN estimates e ON e.id=cr.estimate_id AND e.customer_id=cr.customer_id
