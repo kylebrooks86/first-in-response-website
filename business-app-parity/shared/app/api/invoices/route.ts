@@ -9,10 +9,12 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Invoice lists include financial figures, contact details and customer bearer links.
+const ownerInvoiceListHeaders = {"Cache-Control":"no-store, private","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
 
 export async function GET() {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401, headers: ownerInvoiceListHeaders });
   // A full financial list requires known refund-ledger table and index
   // identities. Return a clear no-retry 503 instead of a SQL 500 or stale
   // balance if this target has not completed Gate5 migration review.
@@ -32,11 +34,11 @@ export async function GET() {
     // handlers; a read must be at least as strict as collecting the money.
     if(result.results.some(row=>Number(row.invoiceOwnershipMismatch)!==0))
       return Response.json({error:"An invoice is linked to a different customer than its estimate. Review and reconcile invoice ownership before billing."},
-        {status:409,headers:{"Cache-Control":"no-store, private"}});
+        {status:409,headers:ownerInvoiceListHeaders});
     const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
     const jobNumbers=showJobs?await attachedJobNumbers(env.DB,result.results.map(row=>String(row.estimateId))):new Map();
-    return Response.json({ invoices: result.results.map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return currentInvoice({...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.estimateId))??null}:{})});}) },{headers:{"Cache-Control":"no-store, private"}});
-  } catch { return Response.json({ error: "Invoices are temporarily unavailable." }, { status: 503 }); }
+    return Response.json({ invoices: result.results.map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return currentInvoice({...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.estimateId))??null}:{})});}) },{headers:ownerInvoiceListHeaders});
+  } catch { return Response.json({ error: "Invoices are temporarily unavailable." }, { status: 503, headers: ownerInvoiceListHeaders }); }
 }
 
 // A successful D1 batch acknowledgement does not establish that an invoice or

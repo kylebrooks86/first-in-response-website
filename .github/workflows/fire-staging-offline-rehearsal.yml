@@ -275,6 +275,8 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-owner-financial-list-refund-holds-sqlite.mjs
           node --experimental-sqlite scripts/test-estimate-owner-list-bounded-private-sqlite.mjs
+          # Source-integrated PR274 real owner history privacy and 60-estimate SQLite paging.
+          node --experimental-sqlite scripts/test-owner-estimate-history-private-sqlite.mjs
       - name: Gate 5 invoice read/edit and paid-job review queue block missing refund ledger before private reads or Stripe (new SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
@@ -289,6 +291,8 @@ jobs:
           node scripts/test-followup-exact-lookup.mjs
           node --experimental-sqlite scripts/test-followup-concurrent-idempotency.mjs
           node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
+          # Source-integrated PR275 real followup privacy, ownership and 60-estimate SQLite paging.
+          node --experimental-sqlite scripts/test-owner-followups-private-sqlite.mjs
           # Real lead-visit and review reminder owner APIs: native SQLite and bounded-stream cases.
           node --experimental-sqlite scripts/test-door-knocking.mjs
           # Actual owner territory geocoder/SQLite route regression, including
@@ -593,6 +597,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-expense-save-receipt-sqlite.mjs
+          # Actual owner expense CSV GET, exact accounting cents and private/outage native SQLite checks.
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
       - name: Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"

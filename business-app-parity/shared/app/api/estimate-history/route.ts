@@ -5,12 +5,14 @@ import {getChatGPTUser} from "../../chatgpt-auth";
 import {attachedJobNumbers,jobNumberingReady,parseJobNumberQuery} from '../../../lib/job-numbering.mjs';
 import {customerNumberingReady} from '../../../lib/customer-numbering.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+// Every owner history response includes customer identities, financial figures or auth state.
+const privateHistoryHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(request:Request){
- const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
+ const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:privateHistoryHeaders});
  const url=new URL(request.url),sizeText=url.searchParams.get("limit")??"50";
- if(!/^(?:[1-9]|[1-4][0-9]|50)$/.test(sizeText))return Response.json({error:"Page size must be 1 through 50."},{status:400});
+ if(!/^(?:[1-9]|[1-4][0-9]|50)$/.test(sizeText))return Response.json({error:"Page size must be 1 through 50."},{status:400,headers:privateHistoryHeaders});
  const focus=url.searchParams.get("focus"),search=(url.searchParams.get("q")??"").trim(),status=url.searchParams.get("status")??"all";
- if(search.length>128||!["all","draft","sent","approved","scheduled","completed","declined"].includes(status)||focus!==null&&(!focus||focus.length>128))return Response.json({error:"Invalid estimate history filter."},{status:400});
+ if(search.length>128||!["all","draft","sent","approved","scheduled","completed","declined"].includes(status)||focus!==null&&(!focus||focus.length>128))return Response.json({error:"Invalid estimate history filter."},{status:400,headers:privateHistoryHeaders});
  const pattern="%"+search.replace(/[\\%_]/g,value=>"\\"+value)+"%";
  const size=focus?1:Number(sizeText),encoded=url.searchParams.get("cursor");let cursor:{createdAt:string;id:string}|null=null;
  if(encoded!==null){try{
@@ -18,7 +20,7 @@ export async function GET(request:Request){
   const value=JSON.parse(atob(encoded.replace(/-/g,"+").replace(/_/g,"/"))) as Record<string,unknown>;
   if(Object.keys(value).length!==2||typeof value.createdAt!=="string"||value.createdAt.length>64||!Number.isFinite(Date.parse(value.createdAt))||typeof value.id!=="string"||!value.id||value.id.length>128)throw Error();
   cursor={createdAt:value.createdAt,id:value.id};
- }catch{return Response.json({error:"Invalid estimate history cursor."},{status:400});}}
+ }catch{return Response.json({error:"Invalid estimate history cursor."},{status:400,headers:privateHistoryHeaders});}}
  try{
   const customerNumbersReady=await customerNumberingReady(env.DB,env);
   const customerNumberColumn=customerNumbersReady?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=e.customer_id) AS customerNumber":"NULL AS customerNumber";
@@ -63,11 +65,11 @@ export async function GET(request:Request){
   // payable bill, even in owner-only search/history and deep-link results.
   if(result.results.some(row=>Number((row as Record<string,unknown>).invoiceOwnershipMismatch)!==0))
     return Response.json({error:"An invoice is linked to another customer. Reconcile invoice ownership before using this estimate for billing."},
-      {status:409,headers:{"Cache-Control":"no-store, private"}});
+      {status:409,headers:privateHistoryHeaders});
   const page=result.results.slice(0,size),last=page.at(-1);
   const grouped=new Map<string,Record<string,unknown>[]>();
   if(page.length){const placeholders=page.map(()=>"?").join(",");const items=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id IN (${placeholders}) ORDER BY rowid ASC`).bind(...page.map(row=>row.id)).all<Record<string,unknown>>();
-   for(const raw of items.results){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const id=String(raw.estimateId);grouped.set(id,[...(grouped.get(id)??[]),row]);}
+   for(const raw of items.results){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const id=String(raw.estimateId);let lines=grouped.get(id);if(!lines){lines=[];grouped.set(id,lines);}lines.push(row);}
   }
   // The Schedule, Estimates and owner history screens read this same paginated
   // route. Attach permanent Job # references without touching records or UUIDs.
@@ -75,6 +77,6 @@ export async function GET(request:Request){
   const numbers=showJobs?await attachedJobNumbers(env.DB,page.map(row=>row.id)):new Map();
   const estimates=page.map(({invoiceOwnershipMismatch:_ownershipCheck,...row})=>{void _ownershipCheck;return {...row,...(showJobs?{jobNumber:numbers.get(row.id)??null}:{}),items:grouped.get(row.id)??[]};});
   const nextCursor=!focus&&result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
-  return Response.json({estimates,nextCursor,pageSize:size},{headers:{"Cache-Control":"no-store"}});
- }catch{return Response.json({error:"Estimate history could not be read."},{status:503});}
+  return Response.json({estimates,nextCursor,pageSize:size},{headers:privateHistoryHeaders});
+ }catch{return Response.json({error:"Estimate history could not be read."},{status:503,headers:privateHistoryHeaders});}
 }

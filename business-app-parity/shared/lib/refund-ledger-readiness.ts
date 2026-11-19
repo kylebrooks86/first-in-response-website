@@ -40,5 +40,5 @@ export function refundLedgerNotReady(): Response {
     code: "REFUND_LEDGER_SCHEMA_INCOMPLETE",
     error: "Payment and refund history are temporarily unavailable because the refund ledger needs verified database review. Do not retry refunds or enter another payment until the owner confirms the database migration history.",
     retryable: false,
-  }, { status: 503, headers: { "cache-control": "no-store" } });
+  }, { status: 503, headers: { "cache-control": "private, no-store", "vary": "Cookie", "x-content-type-options": "nosniff" } });
 }

@@ -42,6 +42,11 @@ const job=(id,c)=>db.prepare("INSERT INTO estimates(id,customer_id,status,subtot
 const message=(id,c,e,channel,at=1)=>db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)").run(id,c,e,channel,"review","Review my exact prepared text "+id,stamp(at));
 const read=async(c,e,cursor)=>{const params=new URLSearchParams({customerId:c,estimateId:e??""});if(cursor!==undefined)params.set("cursor",cursor);const q="https://fire.example.invalid/api/customer-messages?"+params.toString();const r=await api.GET(new Request(q));return {response:r,data:await r.json()}};
 let n=0;const check=(truth,label)=>{assert.ok(truth,label);n++};
+const privateGet=(response,label)=>{
+ check(response.headers.get("cache-control")==="private, no-store",label+" private no-store");
+ check(response.headers.get("vary")==="Cookie",label+" session-specific");
+ check(response.headers.get("x-content-type-options")==="nosniff",label+" no MIME sniff");
+};
 try{
  customer("c1");customer("c2");job("e1","c1");job("e2","c1");job("foreign","c2");
  message("first","c1","e1","text_prepared",8);
@@ -53,6 +58,7 @@ try{
  message("no-job","c1",null,"text_prepared",3);
  message("unconfirmed-email","c1","e1","email_prepared",1);
  let {response,data}=await read("c1","e1");
+ privateGet(response,"Owner prepared-message history");
  check(response.status===200&&response.headers.get("cache-control").includes("no-store"),"Private owner-only no-store response");
  check(data.pending.length===2&&data.pending[0].id==="unconfirmed-email"&&data.pending[1].id==="first","Only correct customer/job, unconfirmed prepared messages sorted newest first");
  const cancel=async(messageId,customerId,flags={ownerConfirmedNotSent:true})=>{
@@ -81,11 +87,19 @@ try{
  check(response.status===200&&data.pending.length===1&&data.pending[0].id==="no-job","Customer-only composer sees only its customer-level prepared messages");
  ({response,data}=await read("c2","foreign"));
  check(data.pending.length===1&&data.pending[0].id==="other-customer","Second customer's own history is available in its own exact scope");
- check((await read("c1","foreign")).response.status===409,"Foreign estimate rejected for selected customer");
- check((await read("missing","e1")).response.status===404,"Missing customer rejected");
- check((await read("c1","x".repeat(129))).response.status===400,"Overlong IDs refused");
+ const foreignDenied=await read("c1","foreign");
+ check(foreignDenied.response.status===409,"Foreign estimate rejected for selected customer");
+ privateGet(foreignDenied.response,"Foreign customer/job denial");
+ const missingCustomer=await read("missing","e1");
+ check(missingCustomer.response.status===404,"Missing customer rejected");
+ privateGet(missingCustomer.response,"Missing customer denial");
+ const invalidId=await read("c1","x".repeat(129));
+ check(invalidId.response.status===400,"Overlong IDs refused");
+ privateGet(invalidId.response,"Malformed customer/job request");
  const before=queries.length;
- owner=null;check((await read("c1","e1")).response.status===401&&queries.length===before,"Unauthenticated session cannot read drafts");
+ owner=null;const anonymous=await read("c1","e1");
+ check(anonymous.response.status===401&&queries.length===before,"Unauthenticated session cannot read drafts");
+ privateGet(anonymous.response,"Anonymous denial");
  owner={email:"nonowner@example.invalid"};check((await read("c1","e1")).response.status===401&&queries.length===before,"Non-owner cannot read drafts");
  owner={email:"kylebrooks8605@gmail.com"};
  for(let i=0;i<13;i++)message("many-"+i,"c1","e1","text_prepared",0);
@@ -99,6 +113,7 @@ try{
  check(older.data.pending.every(item=>!firstIds.includes(item.id)&&item.customerId==="c1"&&item.estimateId==="e1"),"Keyset pages stay scoped and never duplicate prepared messages");
  check(older.data.nextCursor===null&&older.data.mayHaveMore===false,"Final pending-message page ends without a false next cursor");
  const rejectedCursor=await read("c1","e1","wrong-cursor");
+ privateGet(rejectedCursor.response,"Malformed cursor");
  check(rejectedCursor.response.status===400&&((rejectedCursor.data.error??"").includes("cursor")),"Malformed cursor fails closed");
  const foreignCursor=await read("c2","foreign",data.nextCursor);
  check(foreignCursor.response.status===200&&foreignCursor.data.pending.every(item=>item.customerId==="c2"),"A valid cursor cannot reveal another customer's message history");
@@ -106,6 +121,7 @@ try{
  const outage=loadRoute({prepare(){throw Error("Database unavailable");}});
  const fail=await outage.GET(new Request("https://fire.example.invalid/api/customer-messages?customerId=c1&estimateId=e1"));
  check(fail.status===503&&((await fail.json()).error??"").includes("No send is assumed"),"Database outage never claims delivery or shows stale records");
+ privateGet(fail,"D1 failure");
  const dashboard=readFileSync("app/dashboard.tsx","utf8");
  const a=dashboard.indexOf("function MessageComposer("),z=dashboard.indexOf("\nfunction ",a+20),ui=dashboard.slice(a,z);
  check(ui.includes('fetch("/api/customer-messages?"+query.toString()')&&ui.includes('cache:"no-store"'),"Composer fetches fresh exact-owner saved draft history on reopening");

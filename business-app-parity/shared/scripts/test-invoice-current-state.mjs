@@ -10,6 +10,13 @@ let writes=0,owner={email:'kylebrooks8605@gmail.com'};
 const env={DB:{prepare(sql){return {sql,values:[],bind(...values){return {...this,values}},async first(){return db.prepare(sql).get(...this.values)??null},async all(){return {results:db.prepare(sql).all(...this.values)}},async run(){writes++;throw Error('Unexpected mutation')}}},async batch(rows){return rows.map(r=>({results:db.prepare(r.sql).all(...r.values)}))}}};
 const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),list=load('app/api/invoices/route.ts'),detail=load('app/api/invoices/[id]/route.ts'),customers=load('app/api/customers/route.ts'),history=load('app/api/estimate-history/route.ts');
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
+// HTTP Cache-Control directives are order-insensitive; require BOTH protections,
+// rather than rejecting a stronger owner response for harmless serialization order.
+function assertPrivateCache(response,label){
+ const directives=new Set(String(response.headers.get('cache-control')||'').toLowerCase().split(',').map(x=>x.trim()));
+ eq(directives.has('private'),true,label+' must be private');
+ eq(directives.has('no-store'),true,label+' must be non-cacheable');
+}
 function seed(id,total=24000,status='sent'){db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run('c-'+id,'Synthetic Invoice '+id,'2026-10-18');db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,'completed',?,?,?,'2026-10-18')").run('e-'+id,'c-'+id,total,total,Math.round(total/2));db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,share_token,created_at) VALUES(?,?,?,?,?,?,?)').run(id,'e-'+id,'c-'+id,status,total,'token-'+id,'2026-10-18');}
 function payment(id,key,type,amount,status='paid'){db.prepare('INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)').run(key,'e-'+id,type,amount,status,'2026-10-18');}
 async function state(id,status,paid,balance,review=false){
@@ -19,7 +26,7 @@ async function state(id,status,paid,balance,review=false){
  for(const row of [a,one.invoice,c]){eq(row.status,status);eq(row.paidCents,paid);eq(row.balanceCents,balance);eq(row.paymentReviewPending,review);}
 }
 try{
- seed('invoice');seed('other',50000);seed('zero',0);seed('zero-draft',0,'draft');seed('zero-historical',0,'paid');eq((await list.GET()).headers.get('cache-control'),'no-store, private');eq((await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:'invoice'})})).headers.get('cache-control'),'no-store, private');eq((await customers.GET()).headers.get('cache-control'),'no-store, private');await state('invoice','sent',0,24000);await state('zero','sent',0,0);await state('zero-draft','draft',0,0);await state('zero-historical','draft',0,0);
+ seed('invoice');seed('other',50000);seed('zero',0);seed('zero-draft',0,'draft');seed('zero-historical',0,'paid');assertPrivateCache(await list.GET(),'Owner invoice list');assertPrivateCache(await detail.GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({id:'invoice'})}),'Owner invoice detail');assertPrivateCache(await customers.GET(),'Owner customer roster');await state('invoice','sent',0,24000);await state('zero','sent',0,0);await state('zero-draft','draft',0,0);await state('zero-historical','draft',0,0);
  payment('invoice','deposit','Cash',12000);await state('invoice','partial',12000,12000);
  payment('invoice','tip','Tip',1200);payment('invoice','tip-refund','Tip Refund',-200);payment('invoice','pending','Cash',500,'pending');payment('invoice','failed','Cash',500,'failed');await state('invoice','partial',12000,12000);
  payment('other','excess','Cash',60000);await state('other','review',60000,0,true);
@@ -65,7 +72,8 @@ try{
  ]){
   const denied=await read();
   eq(denied.status,409,screen+' refuses a foreign-customer invoice');
-  eq(denied.headers.get('cache-control'),'no-store, private',screen+' returns private no-store review');
+  assertPrivateCache(denied,screen+' foreign-invoice refusal');
+  if(screen==='estimate history')eq(denied.headers.get('vary'),'Cookie','History refusal is bound to the owner session');
   eq((await denied.json()).error.toLowerCase().includes('invoice'),true,screen+' names invoice ownership review');
   eq(writes,beforeCrossReads,screen+' never attempts a financial or customer write');
  }

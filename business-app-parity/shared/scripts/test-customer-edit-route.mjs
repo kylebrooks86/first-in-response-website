@@ -18,7 +18,10 @@ const identitySource=ts.createSourceFile('customer-identity.ts',readFileSync('li
 const getIdentityVar=n=>identitySource.statements.find(s=>ts.isVariableStatement(s)&&
  s.declarationList.declarations.some(d=>d.name.getText(identitySource)===n))?.getText(identitySource).replace(/^export /,'');
 const getIdentityFunction=n=>identitySource.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(identitySource).replace(/^export /,'');
-const code=['const OWNER_EMAIL="qa-owner@example.invalid";',
+// Keep the real private GET header constant when extracting source-only
+// functions into the historical isolated VM; do not stub away production headers.
+assert.ok(getRouteVar('ownerCustomerListHeaders'),'Real owner customer GET privacy header declaration must be present');
+const code=['const OWNER_EMAIL="qa-owner@example.invalid";',getRouteVar('ownerCustomerListHeaders'),
  getIdentityVar('digits'),getIdentityVar('CUSTOMER_PHONE_SQL'),getIdentityFunction('customerIdentityPredicate'),
  getContact('usableCustomerPhone'),getContact('usableCustomerEmail'),
  getRouteVar('MAX_CUSTOMER_REQUEST_BYTES'),get('authorized'),get('readCustomerRequest'),get('GET'),get('PATCH'),'exports.run={GET,PATCH}'].join('\n');
