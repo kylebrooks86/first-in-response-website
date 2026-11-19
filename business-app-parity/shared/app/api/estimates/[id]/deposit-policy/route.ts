@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../../chatgpt-auth';
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,type DepositPolicyRow} from '../../../../../lib/deposit-policy';
+import {readOwnerWriteObject} from '../../../../../lib/customer-write-request-guard.mjs';
 const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
  const user=await getChatGPTUser();
@@ -64,14 +65,12 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  const expectedOrigin=new URL(request.url).origin;
  if(request.headers.get('Origin')!==expectedOrigin)return json({error:'The request must originate from this app.'},403);
  if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'JSON is required.'},415);
- let body:Record<string,unknown>;
- try {
-  const text=await request.text();
-  if(text.length>4096)return json({error:'Request is too large.'},413);
-  const input:unknown=JSON.parse(text);
-  if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'Invalid request.'},400);
-  body=input as Record<string,unknown>;
- }catch{return json({error:'Invalid JSON.'},400);}
+ // Preserve STRICT owner, active-feature, exact Origin and JSON requirements.
+ // Limit streamed UTF-8 bytes before parsing a sensitive deposit exception,
+ // including chunked bodies and bodies whose character count hides byte size.
+ const parsed=await readOwnerWriteObject(request,4096);
+ if(parsed.response)return parsed.response;
+ const body=parsed.value as Record<string,unknown>;
  const confirmationId=body.confirmationId;
  const expectedLastEventId=body.expectedLastEventId;
  if(typeof confirmationId!=='string'||!confirmationPattern.test(confirmationId)||
