@@ -84,7 +84,7 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
     }
     for(const [description,options] of [
       ['empty file',{bytes:0}],
-      ['oversized description',{caption:'x'.repeat(501)}],
+      ['oversized description',{caption:'x'.repeat(2001)}],
       ['oversized filename',{name:'x'.repeat(241)+'.png'}],
     ]){
       const m=loadRoute(file);
