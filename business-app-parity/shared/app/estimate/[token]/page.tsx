@@ -20,6 +20,7 @@ import {agreementDigest,agreementScope,validateAgreementItems} from "../../../li
 import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
 import {verifySignedAgreementDigests} from "../../../lib/deposit-agreement-backup.mjs";
+import {recordPublicDocumentFirstView} from "../../../lib/public-document-first-view.mjs";
 
 export const dynamic="force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -164,16 +165,19 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const paymentExceptionsPending=Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
   if(!ownerPreview&&!row.firstViewedAt){
-    const now=new Date().toISOString();
-    // If an owner amendment won the race after our initial audit read,
-    // the legacy portal must NOT render its obsolete 50% deposit terms.
-    const unmodifiedAuditGuard=syntheticOwnerException?" AND NOT EXISTS(SELECT 1 FROM deposit_policy_events d WHERE d.estimate_id=estimates.id)":"";
-    const viewed=await env.DB.batch([
-      env.DB.prepare("UPDATE estimates SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL"+unmodifiedAuditGuard).bind(now,row.id),
-      env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE type='estimate_viewed' AND estimate_id=?)`).bind(crypto.randomUUID(),"estimate_viewed",`${row.customer} viewed an estimate`,`${serviceSummary} estimate was opened for the first time.`,row.customerId,row.id,now,row.id),
-    ]);
-    if(syntheticOwnerException&&viewed[0]?.meta?.changes!==1)
+    // The initial quote SELECT does not lock its bearer token. A replaced or
+    // revoked share link must fail the atomic D1 first-view UPDATE AND alert,
+    // not merely the first read. Keep synthetic revised-deposit protection:
+    // a newly saved exception cannot be shown with the old 50% agreement.
+    const viewed=await recordPublicDocumentFirstView(env.DB,{
+      kind:"estimate",id:row.id,customerId:row.customerId,token,
+      customerName:row.customer,serviceSummary,
+      requireNoDepositException:syntheticOwnerException
+    });
+    if(syntheticOwnerException&&!viewed.newlyViewed)
       return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card"><h1>Updated estimate required</h1><p>Deposit terms changed while this estimate was being opened. Please request the current revised agreement before signing or making a payment.</p></section></main>;
+    if(!viewed.allowed)
+      return <main className={`pay-page${ownerPreview?" owner-estimate-preview":""}`}>{ownerPreviewExit(row.id)}<section className="pay-card"><h1>Estimate link needs refreshing</h1><p>This estimate link changed or its current status could not be verified. Please contact First In Response Exteriors for the current quote.</p></section></main>;
   }
   const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);
   const estimateAmountsSafe=estimateSnapshotSafe&&Number(row.invoiceOwnershipMismatch)===0&&[billingTotalCents,Number(row.totalCents),Number(row.depositCents)].every((value)=>Number.isSafeInteger(value)&&value>=0)&&Number(row.depositCents)<=Number(row.totalCents);
