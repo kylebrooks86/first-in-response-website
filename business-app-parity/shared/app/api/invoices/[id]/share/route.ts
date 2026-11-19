@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../../chatgpt-auth";
-import {ownerBrowserWriteScope} from "../../../../lib/customer-write-request-guard.mjs";
+import {ownerBrowserWriteScope} from "../../../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"private, no-store","Vary":"Cookie"}});
