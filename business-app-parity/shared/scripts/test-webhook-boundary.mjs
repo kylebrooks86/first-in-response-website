@@ -47,6 +47,21 @@ const paddedLengthResponse=await route.POST(new Request('https://synthetic.inval
 }));
 assert.equal(paddedLengthResponse.status,200,
  'Syntactically valid numeric Content-Length with leading zeros is allowed');
+// Even a correctly signed raw body must not be accepted when the claimed
+// Content-Length contradicts bytes actually read. Reconciliation stays at 0.
+for(const claimedBytes of [0,Buffer.byteLength(body,'utf8')-1,Buffer.byteLength(body,'utf8')+1]){
+ const mismatched=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
+  method:'POST',headers:{
+   'stripe-signature':header(body),
+   'content-length':String(claimedBytes)
+  },body
+ }));
+ assert.equal(mismatched.status,413,
+  'Conflicting signed Stripe webhook Content-Length must be refused before financial processing: '+claimedBytes);
+ assert.equal(mismatched.headers.get('cache-control'),'no-store');
+}
+assert.equal(state.checkoutCalls+state.refundCalls+state.failureCalls,0,
+ 'All mismatched-length signed webhooks must make zero payment/refund calls');
 const badLengthResponse=await route.POST(new Request('https://synthetic.invalid/api/payments/webhook',{
  method:'POST',headers:{'stripe-signature':header(body),'content-length':'12abc'},body
 }));
