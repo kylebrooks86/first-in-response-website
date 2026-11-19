@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 const root=process.cwd();let checks=0,owner={email:'kylebrooks8605@gmail.com'},writes=0,lookupCalls=0,failLookup=false;
 const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 function load(path,imports={},extra={}){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:99,module:1}}).outputText,{exports,require:k=>{if(!(k in imports))throw Error(k);return imports[k];},Response,Request,URL,URLSearchParams,AbortSignal,crypto,Date,Set,Map,Object,TextEncoder,structuredClone,...extra});return exports;}
@@ -17,7 +18,7 @@ const env={FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',DB:{prepare(sql){re
 const auth={getChatGPTUser:async()=>owner};
 const api=load('app/api/door-knocking/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':auth,'../../../lib/door-knocking':model});
 const directory=load('app/api/territory/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':auth,'../../../lib/service-location':service});
-const search=load('app/api/territory/search/route.ts',{'../../../chatgpt-auth':auth,'../../../../lib/door-knocking':model},{fetch:async url=>{lookupCalls++;eq(url.origin,'https://geocoding.geo.census.gov','Fixed geocoder origin; no arbitrary outbound URL');eq(url.searchParams.get('address'),'100 Synthetic St, Tulsa OK','Only explicitly entered address is sent');if(failLookup)throw Error();return Response.json({result:{addressMatches:[{matchedAddress:'100 SYNTHETIC ST, TULSA, OK',coordinates:{x:-95.99,y:36.15}}]}});}});
+const search=load('app/api/territory/search/route.ts',{'../../../chatgpt-auth':auth,'../../../../lib/door-knocking':model,'../../../../lib/customer-write-request-guard.mjs':{readOwnerWriteObject}},{fetch:async url=>{lookupCalls++;eq(url.origin,'https://geocoding.geo.census.gov','Fixed geocoder origin; no arbitrary outbound URL');eq(url.searchParams.get('address'),'100 Synthetic St, Tulsa OK','Only explicitly entered address is sent');if(failLookup)throw Error();return Response.json({result:{addressMatches:[{matchedAddress:'100 SYNTHETIC ST, TULSA, OK',coordinates:{x:-95.99,y:36.15}}]}});}});
 const uid=n=>'dddddddd-dddd-4ddd-8ddd-'+String(n).padStart(12,'0'),point={lat:36.15,lng:-95.99},get=async()=>(await(await api.GET()).json()).book;
 const post=b=>api.POST(new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:JSON.stringify(b)}));
 const lookup=b=>search.POST(new Request('https://synthetic.invalid/api/territory/search',{method:'POST',body:JSON.stringify(b)}));
@@ -93,7 +94,30 @@ try{
  currentBook=await get();eq((await post({action:'visit',houseId:uid(1001),status:'contacted',note:'Newer online visit',requestId:uid(1300),expectedRevision:currentBook.revision})).status,200);currentBook=await get();count=writes;eq((await post({...op.details,requestId:uid(1301),capturedAt,expectedRevision:currentBook.revision})).status,409,'Older offline visit cannot replace a newer saved outcome');eq(writes,count,'Stale captured visit writes nothing');rejected=false;try{offlineModel.reviewTerritoryDraft({...op,id:uid(1301)},currentBook);}catch{rejected=true;}eq(rejected,true,'Offline review shows older-visit conflict before POST');
  eq((await post({action:'locate',houseId:uid(1001),point,requestId:uid(1302),expectedRevision:currentBook.revision})).status,200);currentBook=await get();eq((await post({action:'locate',houseId:uid(1001),point:{lat:36.2,lng:-96},capturedAt,requestId:uid(1303),expectedRevision:currentBook.revision})).status,409,'Older offline location cannot overwrite a newer confirmed pin');
  eq(territory.territoryCardStatus(territory.territoryPlaces(clean,records)[0]).includes('Completed'),true,'Compact card retains completion state');eq(territory.territoryCardStatus(territory.territoryPlaces(clean,records)[0]).includes('Lead'),true,'Compact card retains independent sent-estimate state');
- eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,200);failLookup=true;eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,503);eq((await lookup({address:'100 Synthetic St, Tulsa OK',note:'Never send this'})).status,400);eq((await lookup(null)).status,400);
+ // Actual owner geocoder route: require browser same-origin + strict JSON and
+ // enforce streamed UTF-8 byte limits BEFORE Census network or D1 access.
+ const geocodeURL='https://synthetic.invalid/api/territory/search';
+ const addressJSON=JSON.stringify({address:'100 Synthetic St, Tulsa OK'});
+ const protectedLookup=(headers,body=addressJSON)=>search.POST(new Request(geocodeURL,{method:'POST',headers,body}));
+ const validOrigin={'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+ eq((await protectedLookup(validOrigin)).status,200,'Legitimate owner browser search still queries Census');
+ const beforeBlocked=lookupCalls;
+ for(const [headers,expected,name] of [
+  [{origin:'https://outside.invalid','content-type':'application/json'},403,'foreign Origin'],
+  [{origin:'https://sub.synthetic.invalid','sec-fetch-site':'same-site','content-type':'application/json'},403,'sibling origin'],
+  [{...validOrigin,'sec-fetch-site':'cross-site'},403,'cross-site metadata'],
+  [{origin:'null','content-type':'application/json'},403,'null Origin'],
+  [{'sec-fetch-site':'none','content-type':'application/json'},403,'browser none metadata'],
+  [{...validOrigin,'content-type':'text/plain'},415,'browser non-JSON form']
+ ])eq((await protectedLookup(headers)).status,expected,'Owner geocoder rejects '+name);
+ eq((await protectedLookup(validOrigin,JSON.stringify({address:'€'.repeat(800)}))).status,413,'Owner geocoder enforces real UTF-8 bytes');
+ eq((await protectedLookup({...validOrigin,'content-length':'1'})).status,400,'Mismatched declared length rejected');
+ eq((await protectedLookup(validOrigin,'[]')).status,400,'Nonobject JSON rejected');
+ eq(lookupCalls,beforeBlocked,'All malformed owner geocoder requests refused before outbound Census fetch');
+ eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,200);
+ failLookup=true;eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,503);
+ eq((await lookup({address:'100 Synthetic St, Tulsa OK',note:'Never send this'})).status,400);
+ eq((await lookup(null)).status,400);
  count=lookupCalls;const beforeWrites=writes;for(const u of [null,{email:'other@example.invalid'}]){owner=u;eq((await directory.GET()).status,401);eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,401);eq((await post({...moved,requestId:uid(15)})).status,401);}eq(lookupCalls,count,'Unauthorized lookup never contacts provider');eq(writes,beforeWrites,'Unauthorized map cannot write');
  console.log(`PASS ${checks} territory model/SQLite/API checks.`);
 }finally{db.close();}
