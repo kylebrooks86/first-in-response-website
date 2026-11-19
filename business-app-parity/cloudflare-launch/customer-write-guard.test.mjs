@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {fileURLToPath} from "node:url";
-import {readCustomerWriteJson,readOwnerWriteObject} from "../shared/lib/customer-write-request-guard.mjs";
+import {readCustomerWriteJson,readOwnerWriteObject,ownerBrowserWriteScope} from "../shared/lib/customer-write-request-guard.mjs";
 
 const origin="https://fire-stripe-test-20261101.kyle-bfc.workers.dev";
 const endpoint=origin+"/api/public/estimates/FICTIONAL/accept";
@@ -152,4 +152,38 @@ test("Gate6 owner synthetic/internal request without browser metadata retains ex
  const result=await ownerRead(req);
  assert.deepEqual(result.value,{description:"Internal synthetic"});
  assert.equal(result.response,undefined);
+});
+
+test("Gate6 backup restore permits same-origin browser JSON but rejects forged and form writes",()=>{
+ const json=ownerRequest({format:"synthetic"},{});
+ assert.equal(ownerBrowserWriteScope(json,true),null);
+ const crossSite=ownerRequest({format:"synthetic"},{"origin":"https://foreign.invalid","sec-fetch-site":"cross-site"});
+ assert.equal(ownerBrowserWriteScope(crossSite,true)?.status,403);
+ const form=ownerRequest('{"format":"synthetic"}',{"content-type":"text/plain"});
+ assert.equal(ownerBrowserWriteScope(form,true)?.status,415);
+});
+test("Gate6 photo upload keeps valid multipart while rejecting browser cross-origin requests",()=>{
+ const multipart=new Request(ownerEndpoint,{method:"POST",headers:{"origin":origin,"sec-fetch-site":"same-origin","content-type":"multipart/form-data; boundary=synthetic"},body:"--synthetic--"});
+ assert.equal(ownerBrowserWriteScope(multipart,false),null);
+ const foreign=new Request(ownerEndpoint,{method:"POST",headers:{"origin":"https://untrusted.invalid","sec-fetch-site":"cross-site","content-type":"multipart/form-data; boundary=synthetic"},body:"--synthetic--"});
+ assert.equal(ownerBrowserWriteScope(foreign,false)?.status,403);
+});
+test("Gate6 destructive restore and photo upload require owner origin checks before ANY D1/storage work",()=>{
+ const source=(path)=>readFileSync(fileURLToPath(new URL(path,import.meta.url)),"utf8");
+ const restore=source("../shared/app/api/backup/route.ts");
+ const upload=source("../shared/app/api/customer-photos/route.ts");
+ assert.match(restore,/import \{ownerBrowserWriteScope\} from/);
+ assert.match(upload,/import \{ownerBrowserWriteScope\} from/);
+ const restoreAuth=restore.indexOf('if (!await authorized())');
+ const restoreGuard=restore.indexOf('ownerBrowserWriteScope(request,true)');
+ const restoreDatabaseRead=restore.indexOf('numberedIdentityBackupLocked()',restoreAuth);
+ const restoreBody=restore.indexOf('await readBoundedRecordsRestoreText(request)',restoreAuth);
+ assert.ok(restoreAuth>=0&&restoreGuard>restoreAuth&&restoreGuard<restoreDatabaseRead&&restoreGuard<restoreBody,
+  "Restore must reject forged browser requests before D1 and JSON backup parsing");
+ const uploadAuth=upload.indexOf('if (!await authorized())');
+ const uploadGuard=upload.indexOf('ownerBrowserWriteScope(request,false)');
+ const uploadStorage=upload.indexOf('if (!env.BUCKET)',uploadAuth);
+ const uploadBody=upload.indexOf('await boundedPhotoForm(request)',uploadAuth);
+ assert.ok(uploadAuth>=0&&uploadGuard>uploadAuth&&uploadGuard<uploadStorage&&uploadGuard<uploadBody,
+  "Photo upload must reject forged browser writes before storage and multipart parsing");
 });
