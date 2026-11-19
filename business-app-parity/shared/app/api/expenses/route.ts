@@ -43,7 +43,7 @@ export async function GET(request:Request){
       const value=BigInt(Math.abs(cents));
       return (cents<0?"-":"")+String(value/BigInt(100))+"."+String(value%BigInt(100)).padStart(2,"0");
     };
-    const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map(({item,day})=>[day,item.category,item.description,formatAmount(item.amountCents),item.customer,item.service].map(escape).join(","))].join("\n");
+    const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map(({item,day})=>[escape(day),escape(item.category),escape(item.description),formatAmount(item.amountCents),escape(item.customer),escape(item.service)].join(","))].join("\n");
     return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=${selectedYear?`fire-expenses-${selectedYear}-wave.csv`:"fire-expenses-wave.csv"}`,...privateExpenseGetHeaders}});
     }
     return Response.json({expenses:rows.results},{headers:privateExpenseGetHeaders});
