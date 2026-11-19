@@ -3,23 +3,28 @@ import {expenseBusinessDay,expenseDateInstant} from "../../../lib/expense-date";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+const privateExpenseGetHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
 export async function GET(request:Request){
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateExpenseGetHeaders});
+  const query=new URL(request.url).searchParams;
+  const isCsv=query.get("format")==="csv";
+  const selectedYear=isCsv?query.get("year"):null;
+  // Refuse malformed CSV requests before any private D1 read or expensive export.
+  if(isCsv&&selectedYear!==null&&!/^(?:19|20)[0-9]{2}$/.test(selectedYear))
+    return Response.json({error:"Choose a valid four-digit tax year."},{status:400,headers:privateExpenseGetHeaders});
+  try{
   const rows=await env.DB.prepare(`SELECT x.id,x.estimate_id AS estimateId,x.category,x.description,x.amount_cents AS amountCents,x.incurred_at AS incurredAt,x.created_at AS createdAt,c.name AS customer,
     COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'') AS service
     FROM expenses x LEFT JOIN estimates e ON e.id=x.estimate_id LEFT JOIN customers c ON c.id=e.customer_id ORDER BY x.incurred_at DESC,x.created_at DESC,x.id DESC`).all<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string;customer:string|null;service:string|null}>();
-  const query=new URL(request.url).searchParams;
-  if(query.get("format")==="csv"){
-    const selectedYear=query.get("year");
-    if(selectedYear!==null&&!/^(?:19|20)[0-9]{2}$/.test(selectedYear))return Response.json({error:"Choose a valid four-digit tax year."},{status:400});
+    if(isCsv){
     // A late December 31 owner expense can be January 1 in UTC.
     // Never group it under the wrong tax year or silently omit an invalid date.
     const datedRows=(rows.results??[]).map(item=>({item,day:expenseBusinessDay(item.incurredAt)}));
     if(datedRows.some(row=>!row.day))return Response.json(
       {error:"Saved expense dates could not be verified. Review the records before exporting."},
-      {status:503,headers:{"cache-control":"private, no-store"}}
+      {status:503,headers:privateExpenseGetHeaders}
     );
     const exportRows=selectedYear?datedRows.filter(row=>row.day!.slice(0,4)===selectedYear):datedRows;
     // Excel and other spreadsheet tools can evaluate formula-looking CSV cells even when quoted.
@@ -29,10 +34,23 @@ export async function GET(request:Request){
       const safe=/^[\s\u0000-\u001f\uFEFF]*[=+\-@]/u.test(original)?"'"+original:original;
       return `"${safe.replaceAll('"','""')}"`;
     };
-    const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map(({item,day})=>[day,item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
-    return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=${selectedYear?`fire-expenses-${selectedYear}-wave.csv`:"fire-expenses-wave.csv"}`,"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
+    // An invalid legacy amount must never create a plausible but wrong Wave tax line.
+    if(datedRows.some(({item})=>typeof item.amountCents!=="number"||!Number.isSafeInteger(item.amountCents)))
+      return Response.json({error:"Saved expense amounts could not be verified. Review the records before exporting."},
+        {status:503,headers:privateExpenseGetHeaders});
+    // Whole-cent integer arithmetic avoids IEEE-754 rounding in large legacy amounts.
+    const formatAmount=(cents:number)=>{
+      const value=BigInt(Math.abs(cents));
+      return (cents<0?"-":"")+String(value/100n)+"."+String(value%100n).padStart(2,"0");
+    };
+    const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map(({item,day})=>[day,item.category,item.description,formatAmount(item.amountCents),item.customer,item.service].map(escape).join(","))].join("\n");
+    return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=${selectedYear?`fire-expenses-${selectedYear}-wave.csv`:"fire-expenses-wave.csv"}`,...privateExpenseGetHeaders}});
+    }
+    return Response.json({expenses:rows.results},{headers:privateExpenseGetHeaders});
+  }catch{
+    return Response.json({error:"Expense records could not be read. Saved expenses were not changed."},
+      {status:503,headers:privateExpenseGetHeaders});
   }
-  return Response.json({expenses:rows.results},{headers:{"cache-control":"private, no-store"}});
 }
 
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
