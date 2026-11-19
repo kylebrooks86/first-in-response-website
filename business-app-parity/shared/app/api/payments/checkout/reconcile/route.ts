@@ -1,6 +1,7 @@
 import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../../local-customer-deployment";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {readOwnerWriteObject} from "../../../../../lib/customer-write-request-guard.mjs";
 import { reconcileStripeCheckout, type StripeCheckoutSession } from "../../../../../lib/stripe-payments";
 
 type RuntimeEnv=Cloudflare.Env & {STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KEY?:string;FIRE_ENV?:string;FIRE_STRIPE_MODE?:string};
@@ -24,8 +25,10 @@ export async function POST(request:Request){
   if(sandbox&&runtime.FIRE_STRIPE_MODE!=="test")
     return Response.json({error:"Isolated Stripe TEST reconciliation is disabled."},
       {status:503,headers:{"cache-control":"no-store"}});
+  const parsed=await readOwnerWriteObject(request,8192);
+  if(parsed.response)return parsed.response;
   try{
-    const body=await request.json() as Record<string,unknown>;
+    const body=parsed.value as Record<string,unknown>;
     const reservationId=String(body.reservationId??"").trim();
     const sessionId=String(body.sessionId??"").trim();
     const provisional=/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId);
