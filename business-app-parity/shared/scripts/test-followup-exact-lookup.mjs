@@ -7,7 +7,9 @@ const source=readFileSync('app/api/followups/route.ts','utf8');
 const ast=ts.createSourceFile('route.ts',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const get=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='GET');
 assert.ok(get,'Real follow-ups GET handler must exist');
-const js=ts.transpileModule('const OWNER_EMAIL="owner@example.test";\n'+get.getText(ast)+'\nexports.GET=GET;',{
+const privateHeaders=ast.statements.find(node=>ts.isVariableStatement(node)&&node.declarationList.declarations.some(d=>d.name.getText(ast)==='privateFollowupHeaders'));
+assert.ok(privateHeaders,'Extract the real private header declaration along with the owner GET handler');
+const js=ts.transpileModule('const OWNER_EMAIL="owner@example.test";\n'+privateHeaders.getText(ast)+'\n'+get.getText(ast)+'\nexports.GET=GET;',{
  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
 let identity='owner@example.test',queries=[],results=[];
