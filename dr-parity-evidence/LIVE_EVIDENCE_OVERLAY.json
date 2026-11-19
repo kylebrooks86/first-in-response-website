@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "side": "live",
+  "purpose": "Persistent newer LIVE comparison-reference evidence layered on top of sealed legacy LIVE captures without deleting historical evidence.",
+  "entries": []
+}

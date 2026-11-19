@@ -1,0 +1,131 @@
+{
+  "parent": "6a7b4cb861e61085b0e94c97dd35677f398cbf78",
+  "scope": "Inactive synthetic local customer retrieval and pure export preflight; no restoration",
+  "changes": [
+    "getCustomer validates ID, returns latest validated detached record or null only after successful readonly transaction completion",
+    "listCustomers returns validated detached records from the isolated namespace; malformed rows and aborted reads reject",
+    "validateLocalCustomerExport validates exact v1 shape, namespace, record IDs/revisions/timestamps, unique operation IDs, payload references and complete revision history; returns detached data without writes"
+  ],
+  "targets": {
+    "live": {
+      "exitCode": 0,
+      "result": {
+        "passed": 56,
+        "total": 56,
+        "browser": "153.0.8010.0",
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "quotaFaultInjected": true,
+        "physicalQuotaExhaustionTested": false,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "logSha256": "b15939e7bdb20ebc533900dfdd73cbbc2e43394895f441922e257b450ae5216f",
+      "buildLogSha256": "be97894ebf22f3998bdcdbd0afa7f4432a232984e3fcce30c793220b5909b83e"
+    },
+    "staging": {
+      "exitCode": 0,
+      "result": {
+        "passed": 56,
+        "total": 56,
+        "browser": "153.0.8010.0",
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "quotaFaultInjected": true,
+        "physicalQuotaExhaustionTested": false,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "logSha256": "b15939e7bdb20ebc533900dfdd73cbbc2e43394895f441922e257b450ae5216f",
+      "buildLogSha256": "d8335c614c30e05833a887d04fa6277db255e613c4cc2b300796a9b8f78fa7b9"
+    },
+    "doomsday-verified": {
+      "exitCode": 0,
+      "result": {
+        "passed": 56,
+        "total": 56,
+        "browser": "153.0.8010.0",
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "quotaFaultInjected": true,
+        "physicalQuotaExhaustionTested": false,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "logSha256": "b15939e7bdb20ebc533900dfdd73cbbc2e43394895f441922e257b450ae5216f",
+      "buildLogSha256": "8f1f10c757991c0482e37d4f0c574766281dba8f768f1d580e9e4656ed9f6533"
+    }
+  },
+  "checksPassed": 168,
+  "checksTotal": 168,
+  "newChecksPerTarget": 41,
+  "invalidBackupCasesPerTarget": 31,
+  "browser": "Chromium 153.0.8010.0 native IndexedDB",
+  "typecheck": {
+    "passed": 3,
+    "total": 3
+  },
+  "build": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedSourceParity": {
+    "sharedFilesChecked": 120,
+    "roots": [
+      "/workspace/scratch/a307f8c9f987/offline-browser-live",
+      "/workspace/scratch/a307f8c9f987/offline-browser-staging",
+      "/workspace/scratch/a307f8c9f987/customer-read-doomsday-clean"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "failures": [
+    "Additional provenance check rejected an older disposable Doomsday manifest after test-source copies; resolved by fresh materialization and passing clean build verification. No browser, TypeScript or build test failed."
+  ],
+  "doomsdayCleanBuildVerification": {
+    "passed": true,
+    "localOnly": true,
+    "wranglerConfigSha256": "35dacb782376f920b2a8fe64a17bc030e6b78d7b96b1589d16e462e068bb4419"
+  },
+  "faultInjection": [
+    "native transaction abort after successful read/getAll request",
+    "inherited aborted write and injected quota tests; no physical quota exhaustion or power loss"
+  ],
+  "notVerified": [
+    "atomic restore/import (deferred)",
+    "local unlock/access protection",
+    "Safari/iPhone or installed PWA offline cold launch",
+    "storage eviction/crash/power-loss durability",
+    "whole-screen scroll shaking remains unresolved",
+    "UI activation, synchronization and real business records"
+  ],
+  "uiActivated": false,
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "migrations": false,
+  "stripeCalls": false,
+  "paidOperations": false,
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "ready": false
+  },
+  "changedFilesSha256": {
+    "shared/lib/local-customer-store.ts": "0d9a6851cfa4ce91a23b00261a366a92e01c346cfc8d49b470cc3151aba17ee6",
+    "shared/scripts/test-local-customer-store-browser.mjs": "33a8fd480d9add2c3be2bd2f6cd5028612fc6cd7b8206f62303a23dedd586c79"
+  },
+  "cleanDoomsdayBuildLogSha256": "01c0c65c2c57f50010f8b92848cdcdb666bbbb2abb525945fbf0e5b145ae1efe"
+}

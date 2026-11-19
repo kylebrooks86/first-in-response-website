@@ -1,0 +1,154 @@
+diff --git a/business-app-parity/shared/lib/local-customer-vault.ts b/business-app-parity/shared/lib/local-customer-vault.ts
+index 5a8f57b..2db4a17 100644
+--- a/business-app-parity/shared/lib/local-customer-vault.ts
++++ b/business-app-parity/shared/lib/local-customer-vault.ts
+@@ -137,6 +137,21 @@ export async function openLocalCustomerVault(account: string, target: string,
+       };
+       schedule(); visibility();
+     },
++    // Reads only key presence: no decryption, unlock, seed, update or deletion.
++    // A preflight result is advisory; initialize's atomic add is still authoritative.
++    async hasStoredSnapshot(): Promise<boolean> {
++      synchronizeLock();
++      const epoch = generation; check(epoch);
++      return await new Promise<boolean>((resolve, reject) => {
++        const tx = db.transaction('sealed', 'readonly');
++        const request = tx.objectStore('sealed').getKey('snapshot');
++        tx.oncomplete = () => {
++          try { check(epoch); resolve(request.result !== undefined); }
++          catch (error) { reject(error); }
++        };
++        tx.onabort = () => reject(tx.error ?? new Error('Vault status unavailable; preserve data.'));
++      });
++    },
+     async initialize(value: unknown, phrase: string): Promise<void> {
+       synchronizeLock();
+       const epoch = generation; check(epoch);
+diff --git a/business-app-parity/shared/scripts/local-customer-demo.html b/business-app-parity/shared/scripts/local-customer-demo.html
+index 036a54c..48c6c82 100644
+--- a/business-app-parity/shared/scripts/local-customer-demo.html
++++ b/business-app-parity/shared/scripts/local-customer-demo.html
+@@ -5,15 +5,15 @@
+ <style>body{font:17px system-ui;margin:auto;padding:24px;max-width:620px;background:#111827;color:#f9fafb}button,select,input{font:inherit;min-height:48px;padding:10px;margin:6px 0;width:100%;box-sizing:border-box;border-radius:8px}button{background:#b91c1c;color:white;border:0}button:disabled{opacity:.5}label{display:block;margin-top:14px}fieldset{border:0;margin:0;padding:0;min-width:0}section{margin-top:24px}p{line-height:1.5}:focus-visible{outline:3px solid #fbbf24}[hidden]{display:none!important}</style>
+ <h1>Offline customer demo</h1><p>Synthetic records only. This local test screen cannot enter real customer details. It does not activate the Business App or prove offline Home Screen launch.</p>
+ <p>Use a test recovery phrase of at least 16 characters. Never enter a real business phrase.</p>
+-<form id="unlock-form"><fieldset id="unlock-controls" disabled><label for="phrase">Test recovery phrase</label><input id="phrase" type="password" autocomplete="off" required><button id="unlock">Unlock synthetic vault</button></fieldset></form>
++<p>Unlock on an empty vault creates Revision 1. To restore a backup, check stored-vault status and recover before unlocking.</p><form id="unlock-form"><fieldset id="unlock-controls" disabled><label for="phrase">Test recovery phrase</label><input id="phrase" type="password" autocomplete="off" required><button id="unlock">Unlock synthetic vault</button></fieldset></form>
+ <p id="offline-shell" role="status">Offline shell not installed yet.</p>
+ <section id="recovery" role="alert" hidden><h2>Demo recovery</h2><p id="recovery-message">Reconnect, then retry loading this demo. Existing encrypted records are not deleted.</p><button id="retry-load" type="button">Retry demo load</button></section>
+ <p id="status" role="status" aria-live="polite">Locked</p>
+ <section id="records" hidden><h2>Synthetic customer</h2><p id="customer"></p><form id="edit-form"><fieldset id="edit-controls" disabled><label for="name">Synthetic name preset</label><select id="name"><option>Synthetic Customer</option><option>Synthetic Updated</option><option>Synthetic Recovery</option></select><label for="save-phrase">Test recovery phrase for save</label><input id="save-phrase" type="password" autocomplete="off" required><button id="save">Save offline edit</button></fieldset></form><form id="backup-form"><fieldset id="backup-controls" disabled><label for="backup-phrase">Test phrase to encrypt backup</label><input id="backup-phrase" type="password" autocomplete="off" required><button id="export-backup">Download encrypted synthetic backup</button></fieldset></form><button id="lock" type="button" disabled>Lock and clear screen</button></section>
+-<section><h2>Verify or recover a synthetic backup</h2><p>Only this demo's encrypted customer archive is accepted (maximum 2 MiB). Verification does not change records. Recovery works only in an empty vault and never overwrites existing records. Keep the original vault and its backup.</p><form id="archive-form"><fieldset id="archive-controls" disabled><label for="archive-file">Saved encrypted JSON file</label><input id="archive-file" type="file" accept=".json,application/json" required><label for="archive-phrase">Test phrase used for this backup</label><input id="archive-phrase" type="password" autocomplete="off" required><button id="verify-backup" type="submit">Verify saved file without changes</button><label><input id="restore-empty" type="checkbox" style="width:auto;vertical-align:middle"> I intend recovery into an empty synthetic vault.</label><button id="restore-backup" type="submit">Recover only if vault is empty</button></fieldset></form><p id="backup-result" role="status" aria-live="polite"></p></section>
++<section><h2>Verify or recover a synthetic backup</h2><p>Only this demo's encrypted customer archive is accepted (maximum 2 MiB). Verification does not change records. Recovery works only in an empty vault and never overwrites existing records. Keep the original vault and its backup.</p><button id="check-vault" type="button" disabled>Check stored-vault status without changes</button><p id="vault-presence" role="status" aria-live="polite">Stored-vault status not checked. Locked does not mean empty.</p><p>The backup phrase is cleared after each attempt. Enter it again before recovery.</p><form id="archive-form"><fieldset id="archive-controls" disabled><label for="archive-file">Saved encrypted JSON file</label><input id="archive-file" type="file" accept=".json,application/json" required><label for="archive-phrase">Test phrase used for this backup</label><input id="archive-phrase" type="password" autocomplete="off" required><button id="verify-backup" type="submit">Verify saved file without changes</button><label><input id="restore-empty" type="checkbox" style="width:auto;vertical-align:middle"> I intend recovery into an empty synthetic vault.</label><button id="restore-backup" type="submit">Recover only if vault is empty</button></fieldset></form><p id="backup-result" role="status" aria-live="polite"></p></section>
+ <script type="module">
+ // Kept in the HTML shell so missing modules can still show recovery instructions.
+-const controls = ['unlock-controls', 'edit-controls', 'backup-controls', 'archive-controls', 'lock'].map(id => document.getElementById(id));
++const controls = ['unlock-controls', 'edit-controls', 'backup-controls', 'archive-controls', 'lock', 'check-vault'].map(id => document.getElementById(id));
+ document.getElementById('retry-load').addEventListener('click', () => location.reload());
+ try {
+   await import('./demo.js');
+diff --git a/business-app-parity/shared/scripts/local-customer-demo.ts b/business-app-parity/shared/scripts/local-customer-demo.ts
+index d3b7f97..ad9a9a2 100644
+--- a/business-app-parity/shared/scripts/local-customer-demo.ts
++++ b/business-app-parity/shared/scripts/local-customer-demo.ts
+@@ -44,6 +44,7 @@ function clear() {
+   element<HTMLInputElement>('backup-phrase').value = ''; element<HTMLInputElement>('archive-phrase').value = '';
+   element<HTMLInputElement>('archive-file').value = ''; element<HTMLInputElement>('restore-empty').checked = false;
+   element<HTMLElement>('backup-result').textContent = '';
++  element<HTMLElement>('vault-presence').textContent = 'Stored-vault status not checked. Locked does not mean empty.';
+   status.textContent = 'Locked — unlock to retrieve synthetic records.';
+   element<HTMLButtonElement>('save').disabled = false;
+   element<HTMLButtonElement>('unlock').disabled = false;
+@@ -134,18 +135,43 @@ element<HTMLFormElement>('backup-form').addEventListener('submit', async event =
+   } catch { if (epoch === generation) backupResult.textContent = 'Backup export failed. No records changed.'; }
+   finally { if (epoch === generation) busy = false; }
+ });
++element<HTMLButtonElement>('check-vault').addEventListener('click', async () => {
++  if (busy) return;
++  const epoch = generation; busy = true;
++  const indicator = element<HTMLElement>('vault-presence');
++  try {
++    const exists = await vault.hasStoredSnapshot();
++    if (epoch !== generation) return;
++    indicator.textContent = exists
++      ? 'Stored vault exists on this device. Recovery is blocked; no records changed. Keep this vault.'
++      : 'No stored vault snapshot found on this device. Recover before Unlock; no records changed.';
++  } catch { if (epoch === generation) indicator.textContent = 'Stored-vault status unavailable. Do not clear data or assume this vault is empty.'; }
++  finally { if (epoch === generation) busy = false; }
++});
+ element<HTMLFormElement>('archive-form').addEventListener('submit', async event => {
+   event.preventDefault(); if (busy) return;
+   const epoch = generation, supplied = archivePhrase.value, file = archiveFile.files?.length === 1 ? archiveFile.files[0] : undefined;
+   const restoring = (event as SubmitEvent).submitter?.id === 'restore-backup';
+   const confirmed = element<HTMLInputElement>('restore-empty').checked;
+   archivePhrase.value = ''; busy = true; backupResult.textContent = '';
++  let phase: 'confirmation' | 'status' | 'archive' | 'commit' = 'confirmation';
+   try {
+     if (restoring && !confirmed) throw new Error('Explicit empty-vault confirmation required.');
++    if (restoring) {
++      phase = 'status';
++      const exists = await vault.hasStoredSnapshot();
++      if (epoch !== generation) return;
++      if (exists) {
++        backupResult.textContent = 'Recovery blocked: vault already exists on this device. Existing records preserved; do not clear data.';
++        return;
++      }
++    }
++    phase = 'archive';
+     const archive = await readArchive(file, supplied);
+     if (epoch !== generation) return;
+     if (restoring) {
+       // initialize uses an atomic add, never put: existing vaults cannot be overwritten.
++      phase = 'commit';
+       await vault.initialize(archive, supplied);
+       if (epoch !== generation) return;
+       archiveFile.value = ''; element<HTMLInputElement>('restore-empty').checked = false;
+@@ -154,7 +180,12 @@ element<HTMLFormElement>('archive-form').addEventListener('submit', async event
+       backupResult.textContent = `Backup verified: synthetic customer revision ${archive.customers[0].revision}; ${archive.pendingOperations.length} operation receipts. No records changed.`;
+     }
+   } catch { if (epoch === generation) backupResult.textContent = restoring
+-    ? 'Recovery failed or vault already exists. Existing records preserved; unlock and inspect before retrying.'
++    ? ({
++      confirmation: 'Recovery failed: check the empty-vault confirmation. No records changed.',
++      status: 'Recovery failed: stored-vault status unavailable. Do not clear data or assume this vault is empty.',
++      archive: 'Recovery failed: backup verification failed. Reselect the file and re-enter its backup phrase. No records changed.',
++      commit: 'Recovery failed: file verified, but storage commit did not complete. Check stored-vault status before retrying; existing records preserved.'
++    }[phase])
+     : 'Backup verification failed. Check the file and test phrase. No records changed.'; }
+   finally { if (epoch === generation) busy = false; }
+ });
+diff --git a/business-app-parity/shared/scripts/test-local-customer-demo-backup-ui-browser.mjs b/business-app-parity/shared/scripts/test-local-customer-demo-backup-ui-browser.mjs
+index a9f1c32..e629fd4 100644
+--- a/business-app-parity/shared/scripts/test-local-customer-demo-backup-ui-browser.mjs
++++ b/business-app-parity/shared/scripts/test-local-customer-demo-backup-ui-browser.mjs
+@@ -13,7 +13,10 @@ async function unlock(p){await p.fill('#phrase',phrase);await p.click('#unlock')
+ async function snapshot(p){return p.evaluate(async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('fire-local-customer-vault:v1:synthetic-demo-owner:synthetic-demo-target');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});try{return await new Promise((resolve,reject)=>{const tx=db.transaction('sealed'),r=tx.objectStore('sealed').getAll();tx.oncomplete=()=>resolve(JSON.stringify(r.result));tx.onabort=()=>reject(tx.error);});}finally{db.close();}});}
+ async function fileAction(p,buffer,secret,button='verify-backup'){await p.setInputFiles('#archive-file',{name:'synthetic.json',mimeType:'application/json',buffer});await p.fill('#archive-phrase',secret);await p.click('#'+button);await p.waitForFunction(()=>document.getElementById('backup-result').textContent.length>0);}
+ try{
+- browser=await chromium.launch({executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,headless:true,args:['--no-sandbox','--disable-gpu']});const source=await browser.newContext({acceptDownloads:true,viewport:{width:390,height:844}});source.on('request',r=>requests.push(r.url()));const p=await open(source);await unlock(p);await p.selectOption('#name','Synthetic Updated');await p.fill('#save-phrase',phrase);await p.click('#save');await p.waitForFunction(()=>document.getElementById('customer').textContent.includes('Revision 2'));await source.setOffline(true);const before=await snapshot(p);
++ browser=await chromium.launch({executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,headless:true,args:['--no-sandbox','--disable-gpu']});const source=await browser.newContext({acceptDownloads:true,viewport:{width:390,height:844}});source.on('request',r=>requests.push(r.url()));const p=await open(source);
++ await check('read-only status confirms empty vault without seeding or opening write transactions',async()=>{const initial=await snapshot(p);await p.evaluate(()=>{window.statusModes=[];window.originalTransaction=IDBDatabase.prototype.transaction;IDBDatabase.prototype.transaction=function(...args){window.statusModes.push(args[1]||'readonly');return window.originalTransaction.apply(this,args);};});await p.click('#check-vault');await p.waitForFunction(()=>document.getElementById('vault-presence').textContent.includes('No stored vault'));assert.deepEqual(await p.evaluate(()=>window.statusModes),['readonly']);await p.evaluate(()=>{IDBDatabase.prototype.transaction=window.originalTransaction;});assert.equal(await snapshot(p),initial);assert.equal(await p.locator('#records').isHidden(),true);});
++ await check('status read failure does not claim empty or create records',async()=>{await p.evaluate(()=>{window.originalGetKey=IDBObjectStore.prototype.getKey;IDBObjectStore.prototype.getKey=function(){throw new DOMException('Injected read failure','InvalidStateError');};});await p.click('#check-vault');await p.waitForFunction(()=>document.getElementById('vault-presence').textContent.includes('status unavailable'));await p.evaluate(()=>{IDBObjectStore.prototype.getKey=window.originalGetKey;});assert.equal(await snapshot(p),'[]');});
++ await unlock(p);await p.selectOption('#name','Synthetic Updated');await p.fill('#save-phrase',phrase);await p.click('#save');await p.waitForFunction(()=>document.getElementById('customer').textContent.includes('Revision 2'));await source.setOffline(true);const before=await snapshot(p);
+  let bytes;
+  await check('actual encrypted JSON download works offline and excludes plaintext',async()=>{await p.fill('#backup-phrase',phrase);const pending=p.waitForEvent('download');await p.click('#export-backup');const download=await pending;assert.equal(download.suggestedFilename(),'fire-synthetic-customer-backup.json');const path=join(dir,'saved.json');await download.saveAs(path);bytes=readFileSync(path);const envelope=JSON.parse(bytes);assert.equal(envelope.format,'fire-local-customers-encrypted');assert.ok(!bytes.toString().includes(phrase));assert.ok(!bytes.toString().includes('Synthetic Updated'));assert.equal(await p.inputValue('#backup-phrase'),'');});
+  await check('reading actual downloaded file verifies revision and receipts without writes',async()=>{await fileAction(p,bytes,phrase);assert.match(await p.locator('#backup-result').textContent(),/revision 2; 2 operation receipts/);assert.equal(await snapshot(p),before);});
+@@ -26,15 +29,17 @@ try{
+  });
+  await check('oversized archive is rejected before decryption or writes',async()=>{await fileAction(p,Buffer.alloc(2*1024*1024+1,32),phrase);assert.match(await p.locator('#backup-result').textContent(),/failed/);assert.equal(await snapshot(p),before);});
+  await check('restore requires explicit empty-vault confirmation',async()=>{await fileAction(p,bytes,phrase,'restore-backup');assert.match(await p.locator('#backup-result').textContent(),/Recovery failed/);assert.equal(await snapshot(p),before);});
++ await check('locked existing-vault status preserves bytes and does not reveal records',async()=>{await p.click('#lock');await p.click('#check-vault');await p.waitForFunction(()=>document.getElementById('vault-presence').textContent.includes('Stored vault exists'));assert.equal(await snapshot(p),before);assert.equal(await p.locator('#records').isHidden(),true);await unlock(p);});
+  await check('confirmed restore cannot overwrite an existing vault',async()=>{await p.check('#restore-empty');await fileAction(p,bytes,phrase,'restore-backup');assert.match(await p.locator('#backup-result').textContent(),/vault already exists/);assert.equal(await snapshot(p),before);});
+  await check('lock during encryption prevents a late download or result',async()=>{await p.evaluate(()=>{window.oldEncrypt=SubtleCrypto.prototype.encrypt;window.started=false;window.gate=new Promise(r=>window.release=r);SubtleCrypto.prototype.encrypt=async function(...a){window.started=true;await window.gate;return window.oldEncrypt.apply(this,a);};});let downloads=0;const count=()=>downloads++;p.on('download',count);await p.fill('#backup-phrase',phrase);await p.click('#export-backup');await p.waitForFunction(()=>window.started);await p.click('#lock');await p.evaluate(()=>{window.release();SubtleCrypto.prototype.encrypt=window.oldEncrypt;});await p.waitForTimeout(500);assert.equal(downloads,0);assert.equal(await p.locator('#backup-result').textContent(),'');assert.equal(await p.inputValue('#archive-phrase'),'');p.off('download',count);assert.equal(await snapshot(p),before);});
+  await check('lock during file decryption clears fields and suppresses late verification',async()=>{await unlock(p);await p.evaluate(()=>{window.oldDecrypt=SubtleCrypto.prototype.decrypt;window.decryptStarted=false;window.decryptGate=new Promise(r=>window.releaseDecrypt=r);SubtleCrypto.prototype.decrypt=async function(...a){window.decryptStarted=true;await window.decryptGate;return window.oldDecrypt.apply(this,a);};});await p.setInputFiles('#archive-file',{name:'synthetic.json',mimeType:'application/json',buffer:bytes});await p.fill('#archive-phrase',phrase);await p.click('#verify-backup');await p.waitForFunction(()=>window.decryptStarted);await p.click('#lock');await p.evaluate(()=>{window.releaseDecrypt();SubtleCrypto.prototype.decrypt=window.oldDecrypt;});await p.waitForTimeout(500);assert.equal(await p.locator('#backup-result').textContent(),'');assert.equal(await p.inputValue('#archive-file'),'');assert.equal(await snapshot(p),before);});
+  const empty=await browser.newContext({viewport:{width:390,height:844}}),q=await open(empty);empty.on('request',r=>requests.push(r.url()));await empty.setOffline(true);
++ await check('wrong recovery phrase is identified as verification failure in empty vault',async()=>{const initial=await snapshot(q);await q.check('#restore-empty');await fileAction(q,bytes,'wrong backup phrase for restore','restore-backup');assert.match(await q.locator('#backup-result').textContent(),/backup verification failed/);assert.equal(await snapshot(q),initial);});
+  await check('invalid recovery into an empty vault never writes a snapshot',async()=>{const initial=await snapshot(q);for(const buffer of [foreign,nonSynthetic,Buffer.from('{')]){await q.check('#restore-empty');await fileAction(q,buffer,phrase,'restore-backup');assert.match(await q.locator('#backup-result').textContent(),/Recovery failed/);assert.equal(await snapshot(q),initial);}});
+  await check('interrupted IndexedDB recovery leaves the empty vault untouched',async()=>{const initial=await snapshot(q);await q.evaluate(()=>{window.oldAdd=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(...args){const r=window.oldAdd.apply(this,args);r.addEventListener('success',()=>r.transaction.abort());return r;};});await q.check('#restore-empty');await fileAction(q,bytes,phrase,'restore-backup');assert.match(await q.locator('#backup-result').textContent(),/Recovery failed/);await q.evaluate(()=>{IDBObjectStore.prototype.add=window.oldAdd;});assert.equal(await snapshot(q),initial);});
+  await check('actual saved file recovers into separate empty offline browser context',async()=>{await q.check('#restore-empty');await fileAction(q,bytes,phrase,'restore-backup');assert.match(await q.locator('#backup-result').textContent(),/Recovered into an empty/);await unlock(q);assert.match(await q.locator('#customer').textContent(),/Synthetic Updated.*Revision 2/);assert.equal(await snapshot(p),before);});
+  await check('repeated recovery preserves the newly recovered vault',async()=>{const recovered=await snapshot(q);await q.check('#restore-empty');await fileAction(q,bytes,phrase,'restore-backup');assert.match(await q.locator('#backup-result').textContent(),/vault already exists/);assert.equal(await snapshot(q),recovered);});
+  await check('recovered revision survives offline reload and unlock',async()=>{await q.reload();await q.waitForFunction(()=>!document.getElementById('unlock-controls').disabled);await unlock(q);assert.match(await q.locator('#customer').textContent(),/Synthetic Updated.*Revision 2/);});
+  await check('no external services or production requests and screen fits mobile width',async()=>{assert.ok(requests.every(r=>new URL(r).origin===app.origin));assert.equal(await q.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);});
+- console.log(JSON.stringify({passed,total:16,actualDownloadedFile:true,offlineExportVerifyRecover:true,separateEmptyContext:true,sourceVaultPreserved:true,nativeIndexedDB:true,nativeWebCrypto:true,iPhoneFilesTested:false}));
++ console.log(JSON.stringify({passed,total:20,actualDownloadedFile:true,offlineExportVerifyRecover:true,separateEmptyContext:true,sourceVaultPreserved:true,nativeIndexedDB:true,nativeWebCrypto:true,iPhoneFilesTested:false}));
+ }finally{await browser?.close();await new Promise(resolve=>app.server.close(resolve));rmSync(dir,{recursive:true,force:true});}

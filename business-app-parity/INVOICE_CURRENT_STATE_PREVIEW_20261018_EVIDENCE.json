@@ -1,0 +1,49 @@
+{
+  "baseCommit": "44b309710a0342c0c78e56f8f52b91e6ef45e1f0",
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "scope": "Shared development source and isolated synthetic candidates; no hosted app or records changed",
+  "implemented": [
+    "State-aware paid/review invoice footer; paid invoices hide additional collection prompts, including Cash App/Venmo; positive refundable balance restores appropriate original footer/options",
+    "Read-only invoice state derives from actual net principal excluding Tip/Tip Refund, for public page, owner list/detail and customer invoice history",
+    "Pending refunds, overpayment holds, invalid amounts and unsupported invoice state block public collection; review copy never assumes money was received",
+    "Stored invoice status, revision records, custom template text and ledger remain untouched by display reconciliation",
+    "Private/no-store owner invoice/customer reads prevent cached status",
+    "Owner invoice preview X uses existing responsive/print-hidden control; same-tab owner entry points from estimate, customer invoices and invoice list",
+    "Server-authenticated preview skips invoice-view notification and timestamp; normal standalone links never expose owner navigation, even with owner cookie or forged headers/query",
+    "Return focuses exact invoice card, original estimate, or correct customer Invoices tab; consume targets once and report missing records without loops"
+  ],
+  "verification": {
+    "nativeSqliteCurrentStateContracts": "194/194 per four candidates",
+    "builtQaNativeD1HttpsBrowser": "82/82, widths 320/390/768/1366, long scroll, keyboard/print, three return contexts, standalone/forged auth, paid/refunded/review states and backup integrity",
+    "financial": "208/208 customer/invoice principal assertions per candidate; processing-fee suite per four; final-tipping suite per three non-QA candidates",
+    "customerLoadRecovery": "1460/1460 mocked read/error/stale/unmount checks per candidate",
+    "publicDocumentGuards": "Repeated/stale notifications, approval and pending refund/overage collection guards passed",
+    "typeScript": "Four candidates passed",
+    "builds": "Four final-source candidate builds passed",
+    "sourceParity": {
+      "qa": 386,
+      "live": 381,
+      "doomsday": 386,
+      "staging": 382
+    }
+  },
+  "syntheticFixtures": [
+    "Native local HTTP created separate $240 estimate, $120 deposit, completion report, final invoice, $120 final principal and $12 tip",
+    "Stopped only the disposable local Worker to seed a stale stored invoice flag and consistent synthetic refund/pending rows through Wrangler --local; no refund provider operation",
+    "Replayed native D1 reads after restart, preserving secure owner session and complete valid backup relationships"
+  ],
+  "limitations": [
+    "No hosted deployment, real iPhone/iPad acceptance or physical environment isolation proof claimed",
+    "Outgoing owner-authored billing drafts/SMS automation and complete global status synchronization remain separate work; this batch corrects current invoice views and their billing footer",
+    "Return restores saved record/tab context. Unsaved draft fields are not serialized into URLs or persistent plaintext storage",
+    "Hosted intermittent 10-second transport root cause, wider Safari scrolling, full search/notification targets, resolved change history, deposit exceptions, concern-photo metadata and remaining release gates stay open"
+  ],
+  "nextBatch": "Finish resolved change-request history and owner notification record targets; complete remaining billing-message guards and safe combined QA review",
+  "deploymentPerformed": false,
+  "hostedDatabaseChanged": false,
+  "credentialsOrStripeChanged": false
+}

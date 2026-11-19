@@ -1,0 +1,6 @@
+[
+  "app/owner-auth.ts",
+  "app/login/page.tsx",
+  "app/api/auth/login/route.ts",
+  "app/api/auth/logout/route.ts"
+]
