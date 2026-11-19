@@ -13,7 +13,7 @@ import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // Customer directory includes PII, quote tokens, payment and contact histories.
-const ownerCustomerListHeaders = {"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+const ownerCustomerListHeaders = {"Cache-Control":"no-store, private","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized() {
   const user = await getChatGPTUser();
   return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
