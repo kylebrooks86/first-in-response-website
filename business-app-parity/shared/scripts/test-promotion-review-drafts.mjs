@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 const r=stackedRuntime(),m=r.load('lib/saved-promotions.ts'),d=r.load('lib/booking-review-draft.ts');
 const api=r.load('app/api/estimates/[id]/promotion-amendment/review-draft/route.ts');
+const previewApi=r.load('app/api/estimates/[id]/promotion-amendment/route.ts');
 const date=m.fireDate(new Date()),uuid=n=>'bbbb0000-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
 const bundle={id:uuid(1),name:'House and gutters $25',type:'dollar',valueCents:2500,enabled:true,autoApply:true,dateBasis:'estimate-created',startOn:null,endOn:null,requiredServiceIds:['house-wash','gutters']};
 const booking={id:uuid(2),name:'Owner-confirmed booking 15%',type:'percent',valueCents:1500,enabled:true,autoApply:true,dateBasis:'booking-confirmed',startOn:null,endOn:null,requiredServiceIds:[]};
@@ -25,6 +26,32 @@ const draftInput={bookingConfirmedOn:date,expectedOriginalTotalCents:43500,expec
 const snapshot=()=>JSON.stringify(['customers','estimates','estimate_items','invoices','payments'].map(t=>r.db.prepare('SELECT * FROM '+t+' ORDER BY rowid').all()));
 const source=snapshot(),before=r.counters();
 try{
+ // Real compiled route sources, not a mocked guard: a foreign-origin browser
+ // cannot preview private financial details or create/remove review metadata.
+ const scoped=(route,method,payload,headers)=>route[method](new Request(
+  'https://synthetic.invalid/api/estimates/'+estimate+'/promotion-amendment'+(route===api?'/review-draft':''),
+  {method,headers,body:JSON.stringify(payload)}),{params:Promise.resolve({id:estimate})});
+ const sameOrigin={'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+ const crossSite={'origin':'https://evil.invalid','sec-fetch-site':'cross-site','content-type':'application/json'};
+ const sibling={'origin':'https://sibling.synthetic.invalid','sec-fetch-site':'same-site','content-type':'application/json'};
+ for(const [route,method,payload,name] of [
+  [previewApi,'POST',{bookingConfirmedOn:date},'preview'],
+  [api,'POST',draftInput,'draft save'],
+  [api,'DELETE',{expectedRevision:uuid(3)},'draft delete']
+ ]){
+  for(const [headers,desc] of [[crossSite,'cross-origin'],[sibling,'sibling-site']]){
+   const counts=r.counters();
+   eq((await scoped(route,method,payload,headers)).status,403,name+' '+desc+' browser write denied');
+   eq(r.counters(),counts,name+' '+desc+' rejected before all D1 reads and writes');
+  }
+  const counts=r.counters();
+  eq((await scoped(route,method,payload,{...sameOrigin,'content-type':'text/plain'})).status,415,name+' browser form/text denied');
+  eq(r.counters(),counts,name+' text/form denied without D1 access');
+  const tooLarge=route===previewApi?4097:method==='POST'?8193:4097;
+  eq((await scoped(route,method,payload,{...sameOrigin,'content-length':String(tooLarge)})).status,413,name+' oversized declared request rejected');
+  eq(r.counters(),counts,name+' oversized request stopped before all D1 access');
+ }
+ eq((await scoped(previewApi,'POST',{bookingConfirmedOn:date},sameOrigin)).status,200,'Legitimate same-origin booking preview preserved');
  let response=await get(estimate);eq(response.status,200,'Owner sees no saved review initially');eq((await response.json()).draft,null,'Absent draft not confused with accepted quote');
  response=await post(estimate,draftInput);eq(response.status,200,'Internal proposal saves');let body=await response.json();
  eq(body.confirmed,true,'Save confirms internal draft only');eq(body.alreadySaved,false,'First save creates revision');
