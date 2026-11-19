@@ -1,12 +1,17 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"private, no-store","Vary":"Cookie"}});
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&String(user.email??"").toLowerCase()===OWNER_EMAIL);}
 
-export async function POST(_request:Request,context:{params:Promise<{id:string}>}){
+export async function POST(request:Request,context:{params:Promise<{id:string}>}){
   if(!await authorized())return reply({error:"Unauthorized"},401);
+  // Link issuance may create a bearer token. Refuse cross-origin browser POST
+  // before any customer lookup or token allocation; no request body is needed.
+  const browserBoundary=ownerBrowserWriteScope(request,false);
+  if(browserBoundary)return browserBoundary;
   const {id}=await context.params;
   try{
     // The owner can only issue a link for an estimate whose customer still
