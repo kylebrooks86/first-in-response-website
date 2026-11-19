@@ -290,6 +290,9 @@ jobs:
           node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
           # Real lead-visit and review reminder owner APIs: native SQLite and bounded-stream cases.
           node --experimental-sqlite scripts/test-door-knocking.mjs
+          # Actual owner territory geocoder/SQLite route regression, including
+          # streamed UTF-8 request limits and exact browser-origin refusal.
+          node --experimental-sqlite scripts/test-territory.mjs
           node --experimental-sqlite scripts/test-paid-review-snooze.mjs
           # Exact customer+estimate scope in the actual paid closeout API; a
           # historical mismatched customer's message must never hide a job.
