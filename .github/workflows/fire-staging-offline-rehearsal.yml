@@ -597,6 +597,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-expense-save-receipt-sqlite.mjs
+          # Actual owner expense CSV GET, exact accounting cents and private/outage native SQLite checks.
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
       - name: Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
