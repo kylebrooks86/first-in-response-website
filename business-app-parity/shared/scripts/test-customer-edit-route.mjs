@@ -7,6 +7,7 @@ import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {customerNumberingReady,customerNumberForCustomer} from '../lib/customer-numbering.mjs';
+import {ownerBrowserWriteScope} from '../lib/customer-write-request-guard.mjs';
 const require=createRequire(import.meta.url);
 const source=ts.createSourceFile('customers-route.ts',readFileSync('app/api/customers/route.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const get=n=>source.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(source);
@@ -26,7 +27,7 @@ const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
 let writes=0,reads=0,authorized=true,throwAfterWrite=false,skipNextUpdate=false,throwAfterUpdate=false,distortNextReadback=false,missingNextReadback=false,beforeUpdate=null;
 const ctxPhoneDigits=raw=>{const digits=String(raw??'').replace(/\D/g,'');return digits.length===11&&digits.startsWith('1')?digits.slice(1):digits;};
-const ctx={exports:{},require,Response,URL,Date,crypto,TextDecoder,customerNumberingReady,customerNumberForCustomer,
+const ctx={exports:{},require,Response,URL,Date,crypto,TextDecoder,customerNumberingReady,customerNumberForCustomer,ownerBrowserWriteScope,
   getChatGPTUser:async()=>authorized?{email:'qa-owner@example.invalid'}:null,
   env:{DB:{prepare(sql){return {bind(...values){
     return {
@@ -87,6 +88,18 @@ const read=async id=>GET(new Request('https://qa.invalid/api/customers?confirmEd
 authorized=false;
 let result=await read('first');eq(result.status,401,'Unauthenticated readback denied');eq(reads,0,'Unauthenticated request read nothing');
 authorized=true;
+// Run the actual edited PATCH source with the real same-origin helper in
+// this VM fixture; a cross-origin browser request cannot touch synthetic D1.
+const preForgeryReads=reads,preForgeryWrites=writes;
+const forgedEdit=new Request('https://qa.invalid/api/customers',{
+  method:'PATCH',
+  headers:{'content-type':'application/json','origin':'https://attacker.invalid','sec-fetch-site':'cross-site'},
+  body:JSON.stringify({id:'first',...rows.get('first'),name:'Forged'})
+});
+result=await PATCH(forgedEdit);
+eq(result.status,403,'Cross-site customer edit rejected before D1');
+eq(reads,preForgeryReads,'Cross-site edit did not read private rows');
+eq(writes,preForgeryWrites,'Cross-site edit never wrote customer rows');
 result=await read('first');eq(result.status,200,'Authenticated existing customer returned');eq((await result.json()).customer.id,'first');eq(writes,0,'Readback never writes');
 result=await read('missing');eq(result.status,404,'Unknown customer not found');
 result=await read('');eq(result.status,400,'Empty id rejected');
