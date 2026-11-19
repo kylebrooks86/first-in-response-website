@@ -8,6 +8,7 @@ import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/s
 import {DEPOSIT_AUDIT_COLUMNS,validateDepositAuditIntegrity,depositAuditRowsConflict} from "../../../lib/deposit-audit-backup.mjs";
 import {SIGNED_AGREEMENT_COLUMNS,validateSignedAgreementSnapshots,verifySignedAgreementDigests,signedAgreementRowsConflict} from "../../../lib/deposit-agreement-backup.mjs";
 import {readBoundedRecordsRestoreText} from '../../../lib/bounded-records-restore.mjs';
+import {ownerBrowserWriteScope} from '../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // The v1 JSON records format intentionally does not include permanent
@@ -298,6 +299,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const deniedBrowserWrite=ownerBrowserWriteScope(request,true);
+  if(deniedBrowserWrite)return deniedBrowserWrite;
   if(await numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
   if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
   const restoreAudit={
