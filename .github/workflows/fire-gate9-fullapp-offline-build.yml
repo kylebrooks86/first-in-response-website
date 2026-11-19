@@ -6,6 +6,7 @@ on:
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_worker_only_readback.mjs'
       - 'business-app-parity/cloudflare-launch/materialize-stripe-test.py'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.mjs'
+      - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.test.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_server_modules.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_version_envelope.mjs'
       - 'business-app-parity/cloudflare-launch/stripe-test-worker/gate9_compiled_candidate.mjs'
@@ -37,6 +38,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Test ignored-asset control, complete JS/CSS integrity and negative cases (synthetic only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9_offline_asset_manifest.test.mjs
       - name: Generate isolated TEST full-app source outside repository
         shell: bash
         run: |
