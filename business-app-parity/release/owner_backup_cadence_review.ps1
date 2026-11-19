@@ -20,8 +20,26 @@ function Safe-LocalFile([string]$Location,[string]$Code) {
     if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
         Stop-Review ($Code+'_LINK_REFUSED')
     }
-    if (-not $item.FullName.StartsWith($env:USERPROFILE, [StringComparison]::OrdinalIgnoreCase)) {
+    # A text prefix is not a Windows directory boundary: C:\\Users\\owner-other
+    # is NOT inside C:\\Users\\owner. Also refuse junction/reparse ancestors,
+    # which could otherwise redirect an apparently private file outside the profile.
+    $ownerPath = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd(
+        [IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $fullPath = [IO.Path]::GetFullPath($item.FullName)
+    $ownerBoundary = $ownerPath + [IO.Path]::DirectorySeparatorChar
+    if (-not $fullPath.StartsWith($ownerBoundary, [StringComparison]::OrdinalIgnoreCase)) {
         Stop-Review ($Code+'_OUTSIDE_OWNER_PROFILE')
+    }
+    $directory = [IO.Path]::GetDirectoryName($fullPath)
+    while ($directory -and
+        ($directory -ieq $ownerPath -or
+         $directory.StartsWith($ownerBoundary, [StringComparison]::OrdinalIgnoreCase))) {
+        try { $parent = Get-Item -LiteralPath $directory -Force -ErrorAction Stop }
+        catch { Stop-Review ($Code+'_PATH_UNREADABLE') }
+        if (($parent.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            Stop-Review ($Code+'_LINKED_DIRECTORY_REFUSED')
+        }
+        $directory = [IO.Path]::GetDirectoryName($directory)
     }
     return $item
 }
