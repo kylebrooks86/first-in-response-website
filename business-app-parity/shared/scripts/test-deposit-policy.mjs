@@ -48,3 +48,7 @@ try{
  readFailure=true;eq((await get('normal')).status,503);readFailure=false;
  console.log(`PASS ${checks}/${checks}: actual deposit-policy reads and gated scheduling; principal/tip/refund separation, odd cents, legacy schedule preservation, override refusal, atomic race guards and committed-response uncertainty. No provider calls or hosted data.`);
 }finally{db.close()}
+
+// Run the actual synthetic-only owner deposit exception POST regression as
+// part of the existing Gate 8 deposit-policy CI step. No hosted writes.
+await import('./test-deposit-exception-transaction.mjs');
