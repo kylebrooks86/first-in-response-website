@@ -102,6 +102,30 @@ try{
  response=await r.patch(id,{...request([{...reviewed.items[0],description:'Owner consciously reviewed newest'}]),expectedSaved:reviewed});
  eq(response.status,200,'Fresh deliberate source version can save after stale edit');
  eq(lines(id)[0].description,'Owner consciously reviewed newest','Refreshed owner edit saved without lost updates');
+ // Gate6: exercise the ACTUAL estimate PATCH handler with browser metadata.
+ // These are forged authenticated-owner browser requests, not nonowner tests.
+ // They must never parse/consult D1, and must not change the saved quote.
+ const ownerPatch=r.load('app/api/estimates/[id]/route.ts').PATCH;
+ const forgedCases=[
+  [{origin:'https://other.invalid','content-type':'application/json'},403,'foreign Origin'],
+  [{origin:'https://sibling.synthetic.invalid','sec-fetch-site':'same-site','content-type':'application/json'},403,'sibling host'],
+  [{origin:'https://synthetic.invalid','sec-fetch-site':'cross-site','content-type':'application/json'},403,'cross-site metadata'],
+  [{origin:'null','content-type':'application/json'},403,'null Origin'],
+  [{'sec-fetch-site':'none','content-type':'application/json'},403,'browser none metadata'],
+  [{origin:'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'text/plain'},415,'form-compatible body']
+ ];
+ for(const [headers,expected,label] of forgedCases){
+  const before=r.counters(),saved=lines(id);
+  const reply=await ownerPatch(new Request('https://synthetic.invalid/api/estimates/'+id,
+   {method:'PATCH',headers,body:JSON.stringify({status:'declined'})}),{params:Promise.resolve({id})});
+  eq(reply.status,expected,'Authenticated owner estimate PATCH refuses '+label);
+  eq(r.counters(),before,label+' is rejected before any D1 reads/writes');
+  eq(lines(id),saved,label+' preserves original estimate service lines');
+ }
+ const sameOrigin=await ownerPatch(new Request('https://synthetic.invalid/api/estimates/'+id,
+  {method:'PATCH',headers:{origin:'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'},body:JSON.stringify({status:'draft'})}),
+  {params:Promise.resolve({id})});
+ eq(sameOrigin.status,200,'Legitimate same-origin JSON owner estimate PATCH remains functional');
  r.setOwner(null);
  response=await r.patch(id,request([payload.items[0]]));
  eq(response.status,401,'Nonowner cannot edit estimate');
