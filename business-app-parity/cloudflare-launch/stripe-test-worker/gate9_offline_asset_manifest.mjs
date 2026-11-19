@@ -29,18 +29,16 @@ function compiledRoot(root) {
   insist(actual===path,'ROOT_SYMLINK'); // no symlink for compiled root
   return path;
 }
-// A Cloudflare .assetsignore control is executable upload policy, not just
-// inert Vite metadata. Never silently omit it: a wildcard could hide every
-// compiled JS/CSS file while giving a false complete-assets PASS.
-const SAFE_IGNORE_RULES=new Set([
-  '.vite','/.vite','.vite/**','/.vite/**','**/.vite/**',
-  '_headers','/_headers','_redirects','/_redirects',
-  '.assetsignore','/.assetsignore',
-  '*.map','**/*.map','/*.map',
-  '.DS_Store','**/.DS_Store'
-]);
-export function inspectAssetIgnoreControl(root) {
+// An .assetsignore rule changes Cloudflare's published file set. Inventory
+// all actual compiled public assets first, then fail closed if ANY simple rule
+// could hide one of them. '*' and '**' conservatively match across directories
+// instead of relying on fragile provider-specific wildcard assumptions.
+export function inspectAssetIgnoreControl(root,assetPaths) {
   const base=compiledRoot(root);
+  insist(Array.isArray(assetPaths)&&assetPaths.length>=2&&
+    assetPaths.every(x=>typeof x==='string'&&x.startsWith('/')&&
+      !x.includes('..')&&!x.includes('\\')),
+    'ASSET_IGNORE_REQUIRES_FULL_INVENTORY');
   const file=join(base,'.assetsignore');
   if(!existsSync(file))return {present:false,sha256:null,ruleCount:0};
   const st=lstatSync(file);
@@ -56,8 +54,19 @@ export function inspectAssetIgnoreControl(root) {
   for(const raw of lines.split(/\r?\n/)){
     const rule=raw.trim();
     if(!rule||rule.startsWith('#'))continue;
-    insist(rule===raw && SAFE_IGNORE_RULES.has(rule),
+    insist(raw===rule&&rule.length<=200&&
+      /^[A-Za-z0-9._/*?-]+$/.test(rule)&&
+      !rule.includes('..')&&!rule.includes('//'),
       'UNREVIEWED_ASSET_IGNORE_RULE');
+    // Require a simple known-glob syntax; treat '*' (including '**') as
+    // matching ANY slash-separated path so this is an over-approximation.
+    const normalized=rule.replace(/^\//,'').replace(/\/$/,'');
+    insist(normalized.length>0,'UNREVIEWED_ASSET_IGNORE_RULE');
+    const escaped=normalized.replace(/\./g,'\\.').replace(/\*/g,'.*')
+      .replace(/\?/g,'.');
+    const glob=new RegExp('(?:^|/)'+escaped+'(?:$|/)');
+    insist(!assetPaths.some(path=>glob.test(path.slice(1))),
+      'ASSET_IGNORE_WOULD_HIDE_PUBLISHED_BYTES');
     rules++;
     insist(rules<=32,'ASSET_IGNORE_RULE_LIMIT');
   }
@@ -66,7 +75,6 @@ export function inspectAssetIgnoreControl(root) {
 }
 export function createLocalAssetManifest(root) {
   const base=compiledRoot(root);
-  inspectAssetIgnoreControl(base);
   const manifest={};
   let count=0, bytes=0;
   function walk(folder,parents=[]) {
@@ -77,7 +85,7 @@ export function createLocalAssetManifest(root) {
       // They are NOT public site assets and must never be uploaded.
       // Reject all other hidden entries, symlinks or unexpected shapes.
       if (parents.length === 0 && name === '.vite' && entry.isDirectory()) continue;
-      if (parents.length === 0 && name === '.assetsignore' && entry.isFile()) continue; // rules validated before walk
+      if (parents.length === 0 && name === '.assetsignore' && entry.isFile()) continue; // rules verified against actual scanned assets below
       // Cloudflare requires these exact extensionless control files as
       // text/plain Worker modules, NEVER ordinary static asset manifest items.
       if (parents.length === 0 && ['_headers','_redirects'].includes(name) && entry.isFile()) continue;
@@ -111,6 +119,7 @@ export function createLocalAssetManifest(root) {
     }
   }
   walk(base);
+  inspectAssetIgnoreControl(base,Object.keys(manifest));
   try { verifyAssetManifest(manifest); }
   catch { throw Error('STOP: Local TEST asset inventory [MANIFEST_SHAPE]. NO upload.'); }
   return manifest;
