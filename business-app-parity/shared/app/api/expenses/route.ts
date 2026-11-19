@@ -41,7 +41,7 @@ export async function GET(request:Request){
     // Whole-cent integer arithmetic avoids IEEE-754 rounding in large legacy amounts.
     const formatAmount=(cents:number)=>{
       const value=BigInt(Math.abs(cents));
-      return (cents<0?"-":"")+String(value/100n)+"."+String(value%100n).padStart(2,"0");
+      return (cents<0?"-":"")+String(value/BigInt(100))+"."+String(value%BigInt(100)).padStart(2,"0");
     };
     const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map(({item,day})=>[day,item.category,item.description,formatAmount(item.amountCents),item.customer,item.service].map(escape).join(","))].join("\n");
     return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=${selectedYear?`fire-expenses-${selectedYear}-wave.csv`:"fire-expenses-wave.csv"}`,...privateExpenseGetHeaders}});
