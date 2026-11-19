@@ -566,6 +566,9 @@ jobs:
           # Exercise REAL quote/inline-customer source and transactional D1
           # with invalid contact inputs and immutable save replay.
           node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
+          # The actual owner estimate PATCH must reject forged browser origins
+          # before D1 reads/writes while retaining valid same-origin edits.
+          node --experimental-sqlite scripts/test-estimate-edit-confirmed-lines-sqlite.mjs
           node scripts/test-inline-new-customer-contact-parity.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
       - name: FIRE note and Settings template committed-write recovery (native SQLite only)
