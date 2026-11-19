@@ -375,6 +375,7 @@ jobs:
           node scripts/test-customer-job-journey.mjs
           node scripts/test-customer-invoice-balances.mjs
           node scripts/test-public-invoice-due-central-time.mjs
+          node --experimental-sqlite scripts/test-public-document-first-view-sqlite.mjs
           node scripts/test-review-after-payment.mjs
           node scripts/test-google-voice-text-safety.mjs
           node scripts/test-pending-customer-messages.mjs
