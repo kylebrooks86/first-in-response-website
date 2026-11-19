@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {fileURLToPath} from "node:url";
-import {readCustomerWriteJson} from "../shared/lib/customer-write-request-guard.mjs";
+import {readCustomerWriteJson,readOwnerWriteObject} from "../shared/lib/customer-write-request-guard.mjs";
 
 const origin="https://fire-stripe-test-20261101.kyle-bfc.workers.dev";
 const endpoint=origin+"/api/public/estimates/FICTIONAL/accept";
@@ -106,4 +106,50 @@ test("both public write handlers use same-origin bounded parser before share-tok
     assert.match(handler,/if\(parsed\.response\)return parsed\.response/);
     assert.match(handler,/\.bind\(token\)/);
   }
+});
+
+const ownerEndpoint=origin+"/api/expenses";
+const ownerRequest=(body,overrides={})=>new Request(ownerEndpoint,{method:"POST",
+  headers:{"origin":origin,"sec-fetch-site":"same-origin","content-type":"application/json",...overrides},
+  body:typeof body==="string"?body:JSON.stringify(body)});
+const ownerRead=async(request)=>readOwnerWriteObject(request,8192);
+const ownerDenied=async(request,expected)=>{
+  const result=await ownerRead(request);
+  assert.equal(result.response?.status,expected);
+  assert.equal(result.response?.headers.get("cache-control"),"private, no-store");
+  assert.equal(result.value,undefined);
+};
+test("Gate6 owner JSON writes accept same-origin browser metadata and small valid bodies",async()=>{
+ const row={description:"Synthetic expense",amountCents:1500};
+ const result=await ownerRead(ownerRequest(row));
+ assert.deepEqual(result.value,row);
+ assert.equal(result.response,undefined);
+});
+test("Gate6 owner writes reject foreign Origin, sibling origin, and null Origin before reading body",async()=>{
+ const row={description:"Synthetic expense",amountCents:1500};
+ for(const foreign of ["https://evil.example","https://foo.kyle-bfc.workers.dev","null"]){
+   await ownerDenied(ownerRequest(row,{"origin":foreign}),403);
+ }
+ // A forged same-site sibling fetch is still not the same origin.
+ await ownerDenied(ownerRequest(row,{"sec-fetch-site":"same-site"}),403);
+});
+test("Gate6 owner writes reject cross-site, navigational and null fetch contexts even without Origin",async()=>{
+ for(const site of ["cross-site","same-site","none","null"]){
+  const req=ownerRequest({description:"Synthetic expense"},{"sec-fetch-site":site});
+  req.headers.delete("origin");
+  await ownerDenied(req,403);
+ }
+});
+test("Gate6 owner browser writes reject form/text content types and missing JSON before DB writes",async()=>{
+ for(const contentType of ["text/plain","application/x-www-form-urlencoded","multipart/form-data"]){
+  await ownerDenied(ownerRequest('{"description":"Synthetic"}',{"content-type":contentType}),415);
+ }
+ const req=ownerRequest({description:"Synthetic"});req.headers.delete("content-type");
+ await ownerDenied(req,415);
+});
+test("Gate6 owner synthetic/internal request without browser metadata retains existing bounded JSON compatibility",async()=>{
+ const req=new Request(ownerEndpoint,{method:"POST",body:JSON.stringify({description:"Internal synthetic"})});
+ const result=await ownerRead(req);
+ assert.deepEqual(result.value,{description:"Internal synthetic"});
+ assert.equal(result.response,undefined);
 });
