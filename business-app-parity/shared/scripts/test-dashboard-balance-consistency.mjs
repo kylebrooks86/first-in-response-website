@@ -81,6 +81,10 @@ try {
  // falsely failed before exercising the current production route.
  db.exec("CREATE TABLE fire_job_numbers(job_number INTEGER PRIMARY KEY,root_estimate_id TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL)");
  db.exec("CREATE TABLE fire_job_estimate_links(estimate_id TEXT PRIMARY KEY,job_number INTEGER NOT NULL)");
+ db.exec(`CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT RAISE(ABORT,'immutable'); END;
+   CREATE TRIGGER fire_job_numbers_no_delete BEFORE DELETE ON fire_job_numbers BEGIN SELECT RAISE(ABORT,'immutable'); END;
+   CREATE TRIGGER fire_job_estimate_links_no_update BEFORE UPDATE ON fire_job_estimate_links BEGIN SELECT RAISE(ABORT,'immutable'); END;
+   CREATE TRIGGER fire_job_estimate_links_no_delete BEFORE DELETE ON fire_job_estimate_links BEGIN SELECT RAISE(ABORT,'immutable'); END;`);
  db.prepare("INSERT INTO fire_job_numbers(job_number,root_estimate_id,created_at) SELECT 1,id,created_at FROM estimates WHERE id='e'").run();
  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('e',1)").run();
  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('older-0',1)").run();
