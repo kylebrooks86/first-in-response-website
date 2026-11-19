@@ -13,7 +13,7 @@ const check=(value,label)=>{assert.ok(value,label);checks++;console.log('PASS: '
 const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const stamp='2026-10-20T12:00:00Z';
 const route=rt.load('app/api/notifications/route.ts');
-const read=async()=>{const r=await route.GET();return{status:r.status,data:await r.json()};};
+const read=async()=>{const r=await route.GET();return{status:r.status,data:await r.json(),headers:r.headers};};
 const patch=async body=>{const r=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)}));return{status:r.status,data:await r.json()};};
 const rows=()=>rt.db.prepare('SELECT id,read_at,resolved_at FROM notifications ORDER BY id').all();
 const put=(n,readAt=null)=>rt.db.prepare('INSERT INTO notifications(id,type,title,body,read_at,created_at) VALUES (?,?,?,?,?,?)')
@@ -37,6 +37,8 @@ try{
  }
  put(1);put(2);put(3,'2026-10-19T12:00:00Z');
  const start=await read();
+ check(start.headers.get('cache-control')==='private, no-store'&&start.headers.get('vary')==='Cookie'&&start.headers.get('x-content-type-options')==='nosniff',
+   'Private owner notification GET is noncacheable, cookie-varied and nosniff');
  check(start.status===200&&start.data.unread===2&&start.data.notifications.length===3,
    'Actual authenticated GET reports exactly two unread and one saved read notification');
  const originalRead=rows().find(x=>x.id===id(3)).read_at;
@@ -48,9 +50,18 @@ try{
    'Invalid mark-all value cannot change read state');
  rt.setOwner(null);
  const denied=await patch({all:true}),unreadDenied=await read();
+ check(unreadDenied.headers.get('cache-control')==='private, no-store'&&unreadDenied.headers.get('vary')==='Cookie'&&unreadDenied.headers.get('x-content-type-options')==='nosniff',
+   'Anonymous notification GET denial never leaks through a shared cache');
  check(denied.status===401&&unreadDenied.status===401&&rows().filter(x=>x.read_at===null).length===2,
    'Unknown owner cannot inspect or mark anyone\'s activity as read');
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const originalGetPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=()=>{throw Error('Synthetic notification D1 failure')};
+ try{
+   const unavailable=await read();
+   check(unavailable.status===503&&unavailable.data.error&&unavailable.headers.get('cache-control')==='private, no-store'&&unavailable.headers.get('vary')==='Cookie'&&unavailable.headers.get('x-content-type-options')==='nosniff',
+     'Database-outage notification GET fails closed with private no-store headers');
+ }finally{rt.env.DB.prepare=originalGetPrepare;}
  const first=await patch({all:true});
  check(first.status===200&&first.data.ok===true&&first.data.unread===0&&typeof first.data.readAt==='string',
    'Mark All returns success only after actual local database confirmation');
