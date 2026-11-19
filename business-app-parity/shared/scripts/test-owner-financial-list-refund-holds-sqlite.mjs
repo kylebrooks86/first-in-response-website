@@ -89,7 +89,10 @@ for(const [path,kind] of named){
  const GET=instantiate(path,scope.DB,false);
  const denied=kind==='customers'?await GET(new Request('https://fire-qa.invalid/api/customers')):await GET();
  assert.equal(denied.status,401);
- assert.equal(denied.headers.get('cache-control'),'no-store, private','Anonymous owner list denial is not cached');
+ // Existing estimates and customer/invoice routes use different token orders;
+ // both directives are independently required, regardless of header order.
+ assert.deepEqual((denied.headers.get('cache-control')??'').split(',').map(s=>s.trim()).sort(),
+   ['no-store','private'],'Anonymous owner list denial is private and never cached');
  assert.equal(denied.headers.get('vary'),'Cookie','Anonymous list denial varies by authenticated session');
  assert.equal(denied.headers.get('x-content-type-options'),'nosniff','Anonymous denial is not MIME sniffable');
  assert.equal(scope.counts().metadataQueries,0,'Owner auth precedes any schema probing');
