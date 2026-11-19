@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {ownerBrowserWriteScope} from '../../../lib/customer-write-request-guard.mjs';
 
 // A valid 15 MiB photo needs only a small multipart framing budget.
 // Bound bytes BEFORE request.formData(): a declared tiny length is not
@@ -59,6 +60,8 @@ async function authorized(){ const user=await getChatGPTUser(); return Boolean(u
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const deniedBrowserWrite=ownerBrowserWriteScope(request,false);
+  if(deniedBrowserWrite)return deniedBrowserWrite;
   try {
     if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable." }, { status: 503 });
     const parsed=await boundedPhotoForm(request);
