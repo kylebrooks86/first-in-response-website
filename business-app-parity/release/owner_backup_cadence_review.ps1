@@ -50,9 +50,33 @@ $sql = Safe-LocalFile $SqlFile 'RECORDS'
 $receipt = Safe-LocalFile ($sql.FullName+'.restore-review.json') 'RECORDS_RECEIPT'
 $photos = Safe-LocalFile $PhotosFile 'PHOTOS'
 if ($sql.Length -lt 1 -or $sql.Length -gt 134217728) { Stop-Review 'RECORDS_SIZE_INVALID' }
-if ($receipt.Length -lt 30 -or $receipt.Length -gt 1048576) { Stop-Review 'RECORDS_RECEIPT_SIZE_INVALID' }
+# Read the restore receipt under the same writer-denying access discipline as
+# its SQL export. Otherwise a concurrent writer could replace/truncate the JSON
+# between Get-Item and Get-Content, producing an inconsistent review or leaking
+# a private path in an unhandled filesystem exception.
+$receiptStream = $null
+$receiptTextReader = $null
+$checkedReceiptLength = [long]0
+$receiptText = ''
 try {
-    $saved = Get-Content -LiteralPath $receipt.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+    $receiptStream = [IO.File]::Open($receipt.FullName, [IO.FileMode]::Open,
+        [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    $checkedReceiptLength = $receiptStream.Length
+    if ($checkedReceiptLength -ge 30 -and $checkedReceiptLength -le 1048576) {
+        $receiptTextReader = [IO.StreamReader]::new($receiptStream, [Text.Encoding]::UTF8, $true)
+        $receiptText = $receiptTextReader.ReadToEnd()
+    }
+} catch {
+    Stop-Review 'RECORDS_RECEIPT_READ_UNAVAILABLE'
+} finally {
+    if ($null -ne $receiptTextReader) { $receiptTextReader.Dispose() }
+    if ($null -ne $receiptStream) { $receiptStream.Dispose() }
+}
+if ($checkedReceiptLength -lt 30 -or $checkedReceiptLength -gt 1048576) {
+    Stop-Review 'RECORDS_RECEIPT_SIZE_INVALID'
+}
+try {
+    $saved = $receiptText | ConvertFrom-Json
 } catch {
     Stop-Review 'RECORDS_RECEIPT_INVALID'
 }
