@@ -3,17 +3,19 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+// Owner notifications may include customer context and payment exception details.
+const privateNotificationHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
 export async function GET(){
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateNotificationHeaders});
   try{
     const result=await env.DB.prepare("SELECT COUNT(CASE WHEN n.read_at IS NULL THEN 1 END) OVER() AS unreadTotal,n.id,n.type,n.title,n.body,n.customer_id AS customerId,n.estimate_id AS estimateId,n.read_at AS readAt,n.resolved_at AS resolvedAt,n.resolution_note AS resolutionNote,n.created_at AS createdAt,(SELECT inv.id FROM invoices inv JOIN estimates e ON e.id=inv.estimate_id WHERE inv.estimate_id=n.estimate_id AND inv.customer_id=e.customer_id AND (n.customer_id IS NULL OR n.customer_id=e.customer_id) LIMIT 1) AS invoiceId FROM notifications n ORDER BY (n.read_at IS NULL) DESC,n.created_at DESC,n.id DESC LIMIT 40").all();
     const unread=result.results.length?Number(result.results[0].unreadTotal):0;
     if(!Number.isSafeInteger(unread)||unread<0)throw Error("Invalid unread total");
     const notifications=result.results.map(({unreadTotal,...item})=>item);
-    return Response.json({notifications,unread},{headers:{"Cache-Control":"no-store, private"}});
-  }catch{return Response.json({notifications:[],unread:0,error:"Notifications are temporarily unavailable."},{status:503});}
+    return Response.json({notifications,unread},{headers:privateNotificationHeaders});
+  }catch{return Response.json({notifications:[],unread:0,error:"Notifications are temporarily unavailable."},{status:503,headers:privateNotificationHeaders});}
 }
 
 export async function PATCH(request:Request){
