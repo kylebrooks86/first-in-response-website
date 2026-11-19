@@ -1,0 +1,17 @@
+# Nov 18, 2026 — Gate6 public standard estimate signing deposit integrity (source only)
+
+## Verified actual defect and fix
+
+The existing standard FIRE public estimate signature route `shared/app/api/public/estimates/[token]/accept/route.ts` confirmed a quote's total and service-item arithmetic before allowing a signed acceptance, but only required `deposit_cents <= total_cents`. The ordinary estimate price calculator `lib/discount-input.ts::quoteDiscounts` computes a standard **50% deposit as `Math.round(total / 2)`**, including rounding a one-cent remainder **up**. The public standard agreement says 50%; the separate, synthetic-only signed **revised deposit agreement** route handles owner-authorized exceptions. A persisted incorrect standard deposit amount could previously be signed without the route verifying that its cents matched the displayed promise.
+
+**Change [3d1f0d8](https://github.com/kylebrooks86/first-in-response-website/commit/3d1f0d8bd0bddcfb9b206858149b1ef0f0070c97)**: the existing atomic `UPDATE estimates ... WHERE id=? AND share_token=? ...` includes `AND deposit_cents=(total_cents+1)/2`, exact integer cents/round-up on odd totals. The write still requires current unrevoked share token, valid line items, subtotal-discount equality, eligible unsigned status and no disallowed synthetic deposit override; on mismatch, it changes **zero rows** and does not create an accepted-signature/notification. It does **not** rewrite an existing quote, change Stripe payments, alter customer prices, or add a database migration.
+
+**Regression [8bfc541](https://github.com/kylebrooks86/first-in-response-website/commit/8bfc5419e1144ffc85f6f5f8ef44659db9dca0fb)** extends existing production-source-extracted native SQLite signing tests `shared/scripts/test-public-accept-token-cas.mjs`. Cases: correct odd-cent discounted 17,001 total -> deposit 8,501 allowed, incorrect 8,500 and 8,502 rejected; 20,000 total -> understated 7,000 and overstated 11,000 rejected; refusal leaves saved signatures null. Existing token revocation/race/lost-ACK and stacked discounts tests remain. A separate local SQLite arithmetic check confirms these exact integer rounding semantics; **it is not a hosted sign-in or financial workflow test.**
+
+## CI / release boundary
+
+At initial entry, [exact-code staging parity workflow #44455603007](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44455603007) is queued: **do not call the new signed quote regression PASS until its job step has completed**. [Same-commit public-site/calculator guard #44455602853](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44455602853) has already completed SUCCESS. Earlier Gate9 webhook byte-length bound regression job #135327133155 completed SUCCESS with real `test-webhook-boundary.mjs` PASS at code/test SHA `9148d1a`; this is distinct prior evidence.
+
+**50/95 accepted, 45 open; formal 4/10 G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN.** G6-06 bearer-token, genuine hosted nonowner/customer denial and release Gate6 are not automatically closed by source tests. NEW LIVE remains DARK/NO-GO and first Job #0001 unissued. No Stripe, Cloudflare login, paid R2, Worker deploy, D1 provider migration, real customer records, Git merge, or production action.
+
+The actual Nov18 owner Acer Gate4 dual DARK GET-only action already STOPPED once; it is preserved and **must not be repeated**. See [owner STOP receipt](FIRE_G4_OWNER_ACER_DUAL_DARK_STOP_RECEIPT_20261118.md).
