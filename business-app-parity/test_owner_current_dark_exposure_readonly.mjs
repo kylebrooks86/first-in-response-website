@@ -60,7 +60,7 @@ const mock=async(_token,path)=>{
  calls.push(path);
  if(path.endsWith('/subdomain'))return success({enabled:false,previews_enabled:false});
  if(path.includes('/workers/domains?'))return {...success([]),result_info:{page:1,per_page:50,count:0,total_pages:0,total_count:0}};
- if(path.includes('/zones?'))return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:5}};
+ if(path.includes('/zones?'))return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:1}};
  if(path.endsWith('/workers/routes'))return success([]);
  throw Error('unexpected mock request '+path);
 };
@@ -155,4 +155,31 @@ await assert.rejects(
 );
 console.log('PASS changing custom-domain count across pages cannot certify absence');
 
-console.log('TOTAL',passed+8,'targeted Gate4 checks PASS');
+const incompleteAccountZones=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/zones?'))
+  return {...result,result_info:{...result.result_info,total_count:2}};
+ return result;
+};
+await assert.rejects(
+ captureDarkExposure('new-live',{token:'synthetic-only',request:incompleteAccountZones}),
+ /zones total_count does not match exhausted pages/
+);
+console.log('PASS incomplete account-zone result cannot hide an uninspected Worker route');
+
+const changingZoneTotals=async(_token,path)=>{
+ const result=await mock(_token,path);
+ if(path.includes('/zones?')&&path.includes('page=1'))
+  return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),
+   result_info:{page:1,per_page:50,count:1,total_pages:2,total_count:2}};
+ if(path.includes('/zones?')&&path.includes('page=2'))
+  return {...success([{id:foreign,account:{id:FIRE_DARK_ACCOUNT}}]),
+   result_info:{page:2,per_page:50,count:1,total_pages:2,total_count:3}};
+ return result;
+};
+await assert.rejects(
+ captureDarkExposure('dr',{token:'synthetic-only',request:changingZoneTotals}),
+ /zones total_count changed between pages/
+);
+console.log('PASS changing account-zone total between pages cannot certify DARK ingress');
+console.log('TOTAL',passed+11,'targeted Gate4 checks PASS');
