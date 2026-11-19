@@ -58,6 +58,11 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         AND total_cents BETWEEN 0 AND 9007199254740991
         AND deposit_cents BETWEEN 0 AND 9007199254740991
         AND discount_cents<=subtotal_cents AND total_cents>=deposit_cents
+        -- Standard customer agreement promises 50% before scheduling.
+        -- The pricing engine uses Math.round(totalCents/2) so integer
+        -- cents must round UP on odd totals. Owner-adjusted terms belong
+        -- only in the distinct signed revised-agreement route.
+        AND deposit_cents=(total_cents+1)/2
         -- A signed quote must reconcile to its exact current itemized price,
         -- including stacked discounts; validate inside the same atomic UPDATE.
         -- Bounds on individual money fields alone do not prove these totals.
