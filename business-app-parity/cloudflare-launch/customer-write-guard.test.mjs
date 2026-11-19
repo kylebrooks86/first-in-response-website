@@ -188,3 +188,28 @@ test("Gate6 destructive restore and photo upload require owner origin checks bef
  assert.ok(uploadAuth>=0&&uploadGuard>uploadAuth&&uploadGuard<uploadStorage&&uploadGuard<uploadBody,
   "Photo upload must reject forged browser writes before storage and multipart parsing");
 });
+
+test("Gate6 saved photo DELETE accepts same-origin intent without requiring a JSON body",()=>{
+ const valid=new Request(ownerEndpoint,{method:"DELETE",headers:{"origin":origin,"sec-fetch-site":"same-origin"}});
+ assert.equal(ownerBrowserWriteScope(valid,false),null);
+ const foreign=new Request(ownerEndpoint,{method:"DELETE",headers:{"origin":"https://untrusted.invalid","sec-fetch-site":"cross-site"}});
+ assert.equal(ownerBrowserWriteScope(foreign,false)?.status,403);
+ const sibling=new Request(ownerEndpoint,{method:"DELETE",headers:{"origin":origin,"sec-fetch-site":"same-site"}});
+ assert.equal(ownerBrowserWriteScope(sibling,false)?.status,403);
+ const noOrigin=new Request(ownerEndpoint,{method:"DELETE",headers:{"sec-fetch-site":"cross-site"}});
+ assert.equal(ownerBrowserWriteScope(noOrigin,false)?.status,403);
+});
+test("Gate6 actual photo DELETE route checks owner and browser boundary before D1 or bucket writes",()=>{
+ const route=readFileSync(fileURLToPath(new URL("../shared/app/api/customer-photos/[id]/route.ts",import.meta.url)),"utf8");
+ assert.match(route,/import \{ownerBrowserWriteScope\} from/);
+ const del=route.indexOf("export async function DELETE(");
+ assert.ok(del>0,"Photo deletion handler must exist");
+ const auth=route.indexOf("if (!await authorized())",del);
+ const scope=route.indexOf("ownerBrowserWriteScope(request,false)",del);
+ const bucket=route.indexOf("if (!env.BUCKET)",del);
+ const select=route.indexOf('SELECT object_key AS objectKey FROM customer_photos',del);
+ const remove=route.indexOf('DELETE FROM customer_photos WHERE id=? AND object_key=?',del);
+ const deleteBytes=route.indexOf('await env.BUCKET.delete(',del);
+ assert.ok(auth>del&&scope>auth&&scope<bucket&&scope<select&&scope<remove&&scope<deleteBytes,
+  "Photo DELETE refuses cross-origin browser intent before storage and irreversible metadata/byte writes");
+});
