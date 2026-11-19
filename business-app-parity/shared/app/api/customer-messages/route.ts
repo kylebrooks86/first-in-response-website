@@ -5,32 +5,34 @@ import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite
 import {usableCustomerPhone,usableCustomerEmail,customerReminderIsTomorrowInTulsa,tulsaReminderExpiryUtc} from "../../../lib/customer-contact-links";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Prepared texts can contain homeowner addresses, contact details and private invoice links.
+const privatePreparedHistoryHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
 
 
 // An interrupted SMS/Mail handoff can reload FIRE before the owner confirms
 // the send. Recover only exact scoped prepared records; no delivery is inferred.
 export async function GET(request:Request) {
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privatePreparedHistoryHeaders});
   const params=new URL(request.url).searchParams;
   const customerId=params.get("customerId")??"";
   const estimateId=params.get("estimateId")??"";
   const rawCursor=params.get("cursor");
   let cursor:{createdAt:string;id:string}|null=null;
   if(rawCursor!==null){
-    if(rawCursor.length>210)return Response.json({error:"Invalid prepared-message cursor."},{status:400});
+    if(rawCursor.length>210)return Response.json({error:"Invalid prepared-message cursor."},{status:400,headers:privatePreparedHistoryHeaders});
     const match=/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)\|([A-Za-z0-9:._-]{1,128})$/.exec(rawCursor);
-    if(!match||!Number.isFinite(Date.parse(match[1])))return Response.json({error:"Invalid prepared-message cursor."},{status:400});
+    if(!match||!Number.isFinite(Date.parse(match[1])))return Response.json({error:"Invalid prepared-message cursor."},{status:400,headers:privatePreparedHistoryHeaders});
     cursor={createdAt:match[1],id:match[2]};
   }
   if(!customerId||customerId.length>128||estimateId.length>128)
-    return Response.json({error:"A customer and optional job ID are required."},{status:400});
+    return Response.json({error:"A customer and optional job ID are required."},{status:400,headers:privatePreparedHistoryHeaders});
   try {
     const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
-    if(!customer)return Response.json({error:"Customer not found."},{status:404});
+    if(!customer)return Response.json({error:"Customer not found."},{status:404,headers:privatePreparedHistoryHeaders});
     if(estimateId){
       const linked=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=?").bind(estimateId,customerId).first();
-      if(!linked)return Response.json({error:"That job does not belong to the selected customer."},{status:409});
+      if(!linked)return Response.json({error:"That job does not belong to the selected customer."},{status:409,headers:privatePreparedHistoryHeaders});
     }
     const result=await env.DB.prepare(`
       SELECT m.id,m.customer_id AS customerId,m.estimate_id AS estimateId,
@@ -57,8 +59,8 @@ export async function GET(request:Request) {
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(last.createdAt)&&
       /^[A-Za-z0-9:._-]{1,128}$/.test(last.id)
         ?last.createdAt+"|"+last.id:null;
-    return Response.json({pending:page,mayHaveMore:rows.length>10,nextCursor},{headers:{"Cache-Control":"no-store, private"}});
-  }catch{return Response.json({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503,headers:{"Cache-Control":"no-store, private"}});}
+    return Response.json({pending:page,mayHaveMore:rows.length>10,nextCursor},{headers:privatePreparedHistoryHeaders});
+  }catch{return Response.json({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503,headers:privatePreparedHistoryHeaders});}
 }
 
 export async function POST(request: Request) {
