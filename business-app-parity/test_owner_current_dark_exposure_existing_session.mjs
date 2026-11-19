@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {parseExistingWranglerToken,readExistingWranglerToken} from './owner_current_dark_exposure_existing_session.mjs';
+import {parseExistingWranglerToken,readExistingWranglerToken,captureBothDarkExposures} from './owner_current_dark_exposure_existing_session.mjs';
 const secret='cfoat_'+('a'.repeat(45));
 let passed=0;
 const test=(label,fn)=>{fn();passed++;console.log('PASS',label)};
@@ -69,4 +69,61 @@ test('runner exception is sanitized and never retried',()=>{
  }}),/session token unavailable/);
  assert.equal(calls,1);
 });
+
+const success=result=>({success:true,errors:[],result});
+const emptyInfo={page:1,per_page:50,count:0,total_pages:0,total_count:0};
+const batchPaths=[];
+const cleanMock=async(_token,path)=>{
+ batchPaths.push(path);
+ if(path.endsWith('/subdomain'))return success({enabled:false,previews_enabled:false});
+ if(path.includes('/workers/domains?')||path.includes('/zones?'))
+  return {...success([]),result_info:emptyInfo};
+ throw new Error('unexpected offline mock path');
+};
+const both=await captureBothDarkExposures({token:secret,request:cleanMock});
+assert.equal(both.targets.length,2);
+assert.deepEqual(both.targets.map(x=>x.target),['dr','new-live']);
+assert.equal(both.publicEndpointsAbsentInSuppliedEvidence,true);
+assert.equal(both.providerReadbackVerified,false,'mock cannot be physical provider proof');
+assert.equal(both.accessPolicyProviderVerified,false);
+assert.equal(both.gate4Accepted,false);
+assert.equal(both.productionReady,false);
+assert.ok(!JSON.stringify(both).includes(secret),'no bearer token may appear in receipt');
+assert.equal(batchPaths.length,6,'two Workers, three GET inventory operations each');
+assert.ok(batchPaths.every(p=>p.startsWith('/client/v4/')));
+passed++;
+console.log('PASS one owner batch covers both DARK Worker targets with provider-free mock');
+
+const exposedLive=await captureBothDarkExposures({token:secret,request:async(_token,path)=>{
+ if(path.endsWith('/subdomain'))return success({
+  enabled:path.includes('/fire-fullapp-new-live/'),previews_enabled:false
+ });
+ return cleanMock(_token,path);
+}});
+assert.equal(exposedLive.targets[0].publicEndpointsAbsentInSuppliedEvidence,true);
+assert.equal(exposedLive.targets[1].publicEndpointsAbsentInSuppliedEvidence,false);
+assert.equal(exposedLive.publicEndpointsAbsentInSuppliedEvidence,false);
+assert.match(exposedLive.result,/REQUIRES_REVIEW/);
+assert.equal(exposedLive.gate4Accepted,false);
+passed++;
+console.log('PASS either-target public route exposure blocks combined clean verdict');
+
+await assert.rejects(captureBothDarkExposures({token:secret,request:async(_token,path)=>{
+ if(path.includes('/zones?'))return {...success([]),result_info:{...emptyInfo,total_count:1}};
+ return cleanMock(_token,path);
+}}),/zones total_count does not match exhausted pages/);
+passed++;
+console.log('PASS incomplete account-zone data refuses combined proof');
+
+const file=fileURLToPath(new URL('./owner_current_dark_exposure_existing_session.mjs',import.meta.url));
+const {spawnSync}=await import('node:child_process');
+const forbidden=spawnSync(process.execPath,[file,'--capture','both'],{
+ encoding:'utf8',env:{...process.env,CI:'true'}
+});
+assert.notEqual(forbidden.status,0);
+assert.match(forbidden.stderr,/FIRE EXISTING WRANGLER READ-ONLY STOP/);
+assert.ok(!forbidden.stdout.includes(secret));
+passed++;
+console.log('PASS noninteractive batch cannot contact provider or load owner credentials');
+
 console.log('TOTAL',passed,'preexisting-Wrangler owner-session safeguards PASS; mock only');
