@@ -134,9 +134,17 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
     console.log('SIMULATED_UPLOAD_BYTES='+sim.byteCount);
     console.log('NO HTTP, JWT, AUTHORIZATION, ASSET UPLOAD, VERSION OR TRAFFIC WRITES.');
   }catch(err){
-    const message=err instanceof Error&&
-      /^STOP: Gate9 synthetic asset session \[[A-Z_]+\]/.test(err.message)?
-      err.message:'STOP: Gate9 synthetic asset session [UNVERIFIED]. NO remote writes.';
+    // The asset-inventory helper emits ONLY fixed uppercase stage codes.
+    // Preserve that safe stage while redacting raw paths, rule text, bytes,
+    // tokens, provider responses and other untrusted exception messages.
+    const localStage=err instanceof Error
+      ? err.message.match(/^STOP: Local TEST asset inventory \[([A-Z_]+)\]\. NO upload\.$/)
+      : null;
+    const message=localStage
+      ? 'STOP: Gate9 synthetic asset session [ASSET_'+localStage[1]+']. NO remote writes.'
+      : err instanceof Error&&
+        /^STOP: Gate9 synthetic asset session \[[A-Z_]+\]/.test(err.message)?
+          err.message:'STOP: Gate9 synthetic asset session [UNVERIFIED]. NO remote writes.';
     console.error(message);
     process.exitCode=1;
   }
