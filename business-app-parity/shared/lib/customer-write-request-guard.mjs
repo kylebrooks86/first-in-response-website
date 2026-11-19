@@ -77,20 +77,11 @@ const refuse=(status,message)=>({
   value:undefined,
   response:Response.json({error:message},{status,headers:{'cache-control':'private, no-store'}})
 });
-/** Fail-closed browser metadata check for authenticated owner writes.
- * JSON owner routes and the records-restore route require application/json.
- * Multipart photo uploads retain their own strict body/content-type parser.
- * A request with neither browser Origin nor Fetch Metadata is tolerated for
- * existing internal/synthetic callers; authentication remains mandatory.
+/** Same-origin browser write boundary for owner JSON and multipart/restore routes.
+ * Requests without browser metadata remain eligible for internal/synthetic callers.
+ * Individual routes still require authenticated owner identity.
  */
 export function ownerBrowserWriteScope(request,requireJson=false){
-  const browserBoundary=ownerBrowserWriteScope(request,true);
-  if(browserBoundary)return {response:browserBoundary,value:undefined};
-  return null;
-}
-export async function readOwnerWriteObject(request,maxBytes){
-  if(!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>262144)
-    return refuse(400,'Invalid owner request configuration.');
   // Browser-originated requests must match the exact Worker origin, not only
   // the registrable domain. Cross-site HTML forms and sibling subdomains must
   // never reach an owner D1/Stripe write even with a valid ambient session.
@@ -109,11 +100,18 @@ export async function readOwnerWriteObject(request,maxBytes){
   }
   // A browser write must use JSON, never a simple text/plain/form encoding
   // that can be submitted by a foreign page without a CORS preflight.
-  if((browserOrigin!==null&&browserOrigin!==undefined)||
-      (fetchSite!==null&&fetchSite!==undefined)){
+  if(requireJson&&((browserOrigin!==null&&browserOrigin!==undefined)||
+      (fetchSite!==null&&fetchSite!==undefined))){
     if(!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get('content-type')??''))
       return refuse(415,'A JSON owner request is required.').response;
   }
+  return null;
+}
+export async function readOwnerWriteObject(request,maxBytes){
+  if(!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>262144)
+    return refuse(400,'Invalid owner request configuration.');
+  const browserBoundary=ownerBrowserWriteScope(request,true);
+  if(browserBoundary)return {response:browserBoundary,value:undefined};
   const rawLength=request?.headers?.get('content-length');
   if(rawLength!==null&&rawLength!==undefined&&
     (!/^(0|[1-9][0-9]*)$/.test(rawLength)||
