@@ -33,7 +33,7 @@ $root = "$HOME\FIRE-G7-Restore-Tools"
   -ExpectedD1Uuid "8ccfb1f8-1657-4074-b1b2-47de78f95003"
 ```
 
-This command performs **local read-only** checks: exact SQL+restore-receipt hash and target UUID, and bounds/structure of the encrypted photo file header; it reports coarse **age** to show whether a *new* backup may be due. It **cannot** decrypt photos, verify photo/customer relationships, prove off-device custody or certify an atomic cross-device snapshot. It never exports or modifies D1, photos or app files. Header PASS is not Gate 7 acceptance. Do not confuse it with the independently successful November 18 saved-file full restore.
+This command performs **local read-only** checks: exact SQL+restore-receipt hash and target UUID, and bounds/structure of the encrypted photo file header. It reports **local Windows file age only**, NOT authenticated backup capture age. An OLD archive copied or downloaded today can look newly modified; therefore recent file times emit `CADENCE=CAPTURE_AGE_UNVERIFIED` (never a misleading "within window" approval). Old local file times conservatively emit `CADENCE=REVIEW_NEW_BACKUP_DUE`. `AUTHENTIC_BACKUP_CAPTURE_AGE_VERIFIED=NO` always remains explicit until a future full authenticated archive/snapshot validation. It **cannot** decrypt photos, verify photo/customer relationships, prove off-device custody or certify an atomic cross-device snapshot. It never exports or modifies D1, photos or app files. Header PASS is not Gate 7 acceptance. Do not confuse it with the independently successful November 18 saved-file full restore.
 
 ## Full isolated recovery (on separately authorized scope)
 
