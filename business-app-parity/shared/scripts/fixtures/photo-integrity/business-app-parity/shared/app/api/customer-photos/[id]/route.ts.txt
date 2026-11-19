@@ -10,7 +10,7 @@ async function authorized(){ const user=await getChatGPTUser(); return Boolean(u
 // even when D1 metadata is accidentally corrupted or cross-linked.
 function photoKeyMatchesIdentity(id:string,customerId:string,objectKey:string):boolean{
   if(typeof id!=='string'||typeof customerId!=='string'||typeof objectKey!=='string'||
-     !/^[a-zA-Z0-9_-]{1,120}$/.test(id)||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))return false;
+     !/^[a-zA-Z0-9_-]{1,128}$/.test(id)||!/^[a-zA-Z0-9_-]{1,128}$/.test(customerId))return false;
   const prefix=`customers/${customerId}/${id}.`;
   return objectKey.startsWith(prefix)&&/^[a-zA-Z0-9]{1,8}$/.test(objectKey.slice(prefix.length));
 }
