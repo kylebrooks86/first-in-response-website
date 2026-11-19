@@ -1,5 +1,6 @@
-/** QA runtime verification must NOT demand a paid Cloudflare R2 bucket.
- * Test the real CLI against synthetic compiled manifest files, no provider.
+/** QA runtime verifier uses only synthetic manifests; never a provider call.
+ * Regressions: existing no-paid R2 placeholder, optional source-only Job #,
+ * optional owner-approved PIN/Access names, and hard negative refusals.
  */
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -20,6 +21,16 @@ const initial=()=>({
  FIRE_LOCAL_CUSTOMERS_CANDIDATE:'synthetic-only',
  SITE_ORIGIN:'https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev'}
 });
+const numbered=c=>{c.vars.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';};
+const quick=c=>{
+  Object.assign(c.vars,{
+    FIRE_QUICK_AUTH_MODE:'passkey-or-pin-v1',
+    FIRE_ACCESS_TEAM_DOMAIN:'fire-owner.cloudflareaccess.com',
+    FIRE_ACCESS_AUDIENCE:'0123456789abcdef0123456789abcdef',
+    FIRE_ACCESS_OWNER_EMAIL:'owner@example.test'
+  });
+  c.secrets.required.push('FIRE_QA_PIN_HASH','FIRE_QA_PIN_PEPPER');
+};
 let n=0;
 const pass=(c,msg)=>{assert.ok(c,msg);n++;};
 const run=(obj)=>{
@@ -56,6 +67,19 @@ try{
    out.gateAcceptanceAsserted===false,
    label+' never asserts provider change or formal gate acceptance');
  }
+ for(const [label,mutate,wantsNumbering,wantsQuick] of [
+  ['reviewed numbering source',numbered,true,false],
+  ['reviewed quick unlock source',quick,false,true],
+  ['both optional source modes',x=>{numbered(x);quick(x);},true,true]
+ ]){
+  const obj=initial();mutate(obj);
+  const proof=JSON.parse(run(obj));
+  pass(proof.sourceJobNumberModeRequested===wantsNumbering &&
+    proof.sourceQuickAuthModeRequested===wantsQuick,label+' optional flags correctly reported');
+  pass(proof.quickAuthAccessAndOwnerApproved===false &&
+    proof.jobNumbersPhysicalD1ProofVerified===false &&
+    proof.publicationAuthorized===false,label+' cannot claim owner or physical hosted proof');
+ }
  const negative=[
   ['unexpected R2 bucket',x=>{x.r2_buckets=[{binding:'BUCKET',bucket_name:'production-photos'}];}],
   ['unexpected second bucket',x=>{x.r2_buckets=[{binding:'BUCKET',bucket_name:'fire-fullapp-qa-photos-20261023'},
@@ -65,11 +89,25 @@ try{
   ['wrong physical QA D1',x=>{x.d1_databases[0].database_id='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';}],
   ['plaintext owner password',x=>{x.vars.FIRE_QA_PASSWORD_HASH='bad';}],
   ['unknown custom route',x=>{x.routes=['bad.example.com/*'];}],
-  ['unexpected R2-like var',x=>{x.vars.R2_BUCKET_NAME='bad';}]
+  ['unexpected R2-like var',x=>{x.vars.R2_BUCKET_NAME='bad';}],
+  ['unexpected secret field',x=>{x.secrets.extras=['FOREIGN_KEY'];}],
+  ['unapproved number mode',x=>{x.vars.FIRE_JOB_NUMBERS_CANDIDATE='true';}],
+  ['empty number mode',x=>{x.vars.FIRE_JOB_NUMBERS_CANDIDATE='';}],
+  ['unapproved quick auth mode',x=>{quick(x);x.vars.FIRE_QUICK_AUTH_MODE='on';}],
+  ['quick auth without PIN PEPPER secret',x=>{quick(x);x.secrets.required.pop();}],
+  ['plaintext PIN hash',x=>{quick(x);x.vars.FIRE_QA_PIN_HASH='bad';}],
+  ['PIN secrets without Access settings',x=>{x.secrets.required.push('FIRE_QA_PIN_HASH','FIRE_QA_PIN_PEPPER');}],
+  ['partial Access without quick mode',x=>{x.vars.FIRE_ACCESS_OWNER_EMAIL='owner@example.test';}],
+  ['wrong Access team',x=>{quick(x);x.vars.FIRE_ACCESS_TEAM_DOMAIN='evil.cloudflareaccess.com.attacker.tld';}],
+  ['wrong Access audience',x=>{quick(x);x.vars.FIRE_ACCESS_AUDIENCE='short';}],
+  ['wrong owner email',x=>{quick(x);x.vars.FIRE_ACCESS_OWNER_EMAIL='not an email';}],
+  ['unknown analytics binding',x=>{x.analytics_engine_datasets=[{binding:'LOGS'}];}],
+  ['unknown external browser binding',x=>{x.browser={binding:'HEADLESS'};}],
+  ['both modes with live mode var',x=>{numbered(x);quick(x);x.vars.STRIPE_LIVE='enabled';}]
  ];
  for(const [label,mutation] of negative){
   const obj=initial();mutation(obj);deny(obj,label);
  }
  console.log('PASS '+n+'/'+n+
-  ' QA runtime R2-free, exact legacy placeholder/no-R2 and resource denial checks. SOURCE ONLY; NO PROVIDER.');
+  ' QA runtime optional source modes, exact no-R2 shape and fail-closed negatives; no provider/approval');
 }finally{rmSync(temp,{recursive:true,force:true});}
