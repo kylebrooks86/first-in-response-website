@@ -9,9 +9,16 @@ New-Item -ItemType Directory -Path $root -ErrorAction Stop | Out-Null
 $records = Join-Path $root 'synthetic.sql'
 $photos = Join-Path $root 'synthetic.firephotos'
 function Invoke-Check {
-    param([string]$TargetUuid = $uuid,[int]$Age=7)
-    $lines = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -SqlFile $records -PhotosFile $photos -ExpectedD1Uuid $TargetUuid -MaxAgeDays $Age 2>&1 | ForEach-Object { [string]$_ })
-    return @{ Exit=$LASTEXITCODE; Lines=($lines -join [char]10) }
+    param([string]$TargetUuid = $uuid,[int]$Age=7,[string]$ProfileOverride='')
+    $previousProfile = $env:USERPROFILE
+    try {
+        if ($ProfileOverride) { $env:USERPROFILE = $ProfileOverride }
+        $lines = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -SqlFile $records -PhotosFile $photos -ExpectedD1Uuid $TargetUuid -MaxAgeDays $Age 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $env:USERPROFILE = $previousProfile
+    }
+    return @{ Exit=$exitCode; Lines=($lines -join [char]10) }
 }
 function Must([bool]$Passed,[string]$Reason) {if (-not $Passed) { throw ('FAIL: '+$Reason) }}
 try {
@@ -43,6 +50,12 @@ try {
     }
     Must (-not $good.Lines.Contains($hash)) 'private hash must not be printed'
     Must (-not $good.Lines.Contains($records)) 'private path must not be printed'
+    # A lookalike sibling such as "owner-other" must not be mistaken for
+    # a folder INSIDE "owner" just because the absolute path starts alike.
+    $notReallyAnAncestor = $root.Substring(0, $root.Length - 1)
+    $prefix = Invoke-Check -ProfileOverride $notReallyAnAncestor
+    Must ($prefix.Exit -ne 0 -and $prefix.Lines.Contains('RECORDS_OUTSIDE_OWNER_PROFILE')) 'text-prefix-only owner profile escape must be refused'
+    Must (-not $prefix.Lines.Contains($records)) 'rejected path must stay private'
     $wrong=Invoke-Check -TargetUuid '00000000-0000-0000-0000-000000000001'
     Must ($wrong.Exit -ne 0 -and $wrong.Lines.Contains('RECORDS_RECEIPT_MISMATCH')) 'wrong D1 UUID refused'
     [IO.File]::AppendAllText($records, 'tamper')
