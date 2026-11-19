@@ -502,6 +502,10 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           pnpm install --frozen-lockfile
           pnpm run build
+      - name: Gate 6 owner dashboard private-cache and financial job parity (native SQLite only)
+        run: |
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
       - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
@@ -530,9 +534,6 @@ jobs:
           node scripts/test-iphone-owner-preview-contracts.mjs .
           node scripts/test-estimate-viewed-row-layout.mjs
           node scripts/test-dashboard-visual-polish.mjs
-          # Run the actual owner-only dashboard API against disposable local
-          # SQLite to catch cache-control/customer-finance response regressions.
-          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node scripts/test-appwide-visual-system.mjs
           node scripts/test-mobile-payment-shortcut.mjs
           node scripts/test-estimate-payment-milestones.mjs
