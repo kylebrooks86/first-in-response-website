@@ -17,8 +17,11 @@ let total=0;
 function pass(name,predicate){assert.equal(Boolean(predicate),true,name);total++;console.log('PASS',name);}
 const root=new URL('./fixtures/photo-integrity/',import.meta.url);
 function harness(file,mode='success',authorized=true,bucket=true,found=true){
- const rows=new Map(found?[['photo-1',{objectKey:'customers/customer-1/photo-1.png',contentType:'image/png',sizeBytes:18}]]:[]);
+ const rows=new Map(found?[['photo-1',{customerId:'customer-1',objectKey:'customers/customer-1/photo-1.png',contentType:'image/png',sizeBytes:18}]]:[]);
  if(mode==='shared-key')rows.set('photo-2',{...rows.get('photo-1')});
+ if(mode==='wrong-customer-key')rows.set('photo-1',{...rows.get('photo-1'),objectKey:'customers/other-customer/photo-1.png'});
+ if(mode==='unsafe-object-key')rows.set('photo-1',{...rows.get('photo-1'),objectKey:'customers/customer-1/photo-1.png/../other'});
+
  const objects=new Map([['customers/customer-1/photo-1.png','original-png-bytes']]);
  const events=[];
  const env={
@@ -91,6 +94,21 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
     pass('current shared GET fails closed without storage',(await missingBucket.GET()).status===503&&missingBucket.rows.size===1&&missingBucket.events.length===0);
   }
   if(patched&&prefix.startsWith('business-app-parity')){
+    // A corrupted D1 object key is neither authority to show another
+    // customer's originals nor authority to delete any stored bytes.
+    for(const mode of ['wrong-customer-key','unsafe-object-key']){
+      const read=harness(file,mode);
+      const result=await read.GET(),payload=await result.json();
+      pass('Gate7 '+mode+' GET refuses cross-customer photo bytes before R2 access',
+        result.status===503&&payload.photoIntegrityUncertain===true&&
+        read.rows.size===1&&read.objects.size===1&&read.events.join(',')==='db-select');
+      const deletion=harness(file,mode);
+      const refused=await deletion.DELETE({'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin'});
+      const info=await refused.json();
+      pass('Gate7 '+mode+' DELETE refuses corrupt object key before any D1/R2 write',
+        refused.status===503&&info.cleanupUncertain===true&&
+        deletion.rows.size===1&&deletion.objects.size===1&&deletion.events.join(',')==='db-select');
+    }
     const denied=harness(file);
     const forbidden=await denied.DELETE({'origin':'https://foreign.example.invalid','sec-fetch-site':'cross-site'});
     pass('Owner shared photo DELETE cross-site refuses before D1/R2 mutation',
