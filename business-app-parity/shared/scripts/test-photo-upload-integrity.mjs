@@ -46,8 +46,8 @@ function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true){
   vm.runInNewContext(compiled,{exports,require(id){if(id==='cloudflare:workers')return {env};if(id==='../../chatgpt-auth'||id==='../../owner-auth')return {getChatGPTUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null,getOwnerUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null};if(id==='../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};throw Error('Unexpected import '+id);},Response,Request,FormData,File,crypto:webcrypto,Date,console},{filename});
   return {POST:exports.POST,objects,rows,counts:()=>({deletes,puts,dbWrites,photoSelects})};
 }
-function request({customerId='customer-1',mime='image/png',name='before.png',bytes=4,category='before'}={}){
-  const fd=new FormData();fd.set('customerId',customerId);fd.set('category',category);fd.set('caption','Before house wash');fd.set('photo',new File([new Uint8Array(bytes)],name,{type:mime}));return new Request('https://synthetic.invalid/api/customer-photos',{method:'POST',body:fd});
+function request({customerId='customer-1',mime='image/png',name='before.png',bytes=4,category='before',caption='Before house wash'}={}){
+  const fd=new FormData();fd.set('customerId',customerId);fd.set('category',category);fd.set('caption',caption);fd.set('photo',new File([new Uint8Array(bytes)],name,{type:mime}));return new Request('https://synthetic.invalid/api/customer-photos',{method:'POST',body:fd});
 }
 for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','legacy.original.ts','legacy.patched.ts']) {
   const patched=file.includes('patched');
@@ -81,6 +81,16 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
       const result=await m.POST(foreign);
       check('Owner photo browser cross-site POST is denied before R2/D1 reads or writes',
         result.status===403&&m.counts().puts===0&&m.counts().dbWrites===0&&m.counts().photoSelects===0);
+    }
+    for(const [description,options] of [
+      ['empty file',{bytes:0}],
+      ['oversized description',{caption:'x'.repeat(501)}],
+      ['oversized filename',{name:'x'.repeat(241)+'.png'}],
+    ]){
+      const m=loadRoute(file);
+      const res=await m.POST(request(options));
+      check('Customer photo '+description+' is rejected before R2 or D1',
+        res.status===400&&m.counts().puts===0&&m.counts().dbWrites===0&&m.counts().photoSelects===0);
     }
     {
       const m=loadRoute(file),bad=request({mime:'image/svg+xml',name:'invoice.svg'});
