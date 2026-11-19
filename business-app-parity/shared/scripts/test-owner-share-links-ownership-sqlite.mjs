@@ -9,6 +9,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {webcrypto} from 'node:crypto';
+import {ownerBrowserWriteScope} from '../lib/customer-write-request-guard.mjs';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
@@ -57,6 +58,7 @@ for(const kind of ['estimates','invoices']){
   vm.runInNewContext(code,{
     exports,
     require:name=>name==='cloudflare:workers'?{env:{DB:database}}:
+      name.endsWith('/customer-write-request-guard.mjs')?{ownerBrowserWriteScope}:
       {getChatGPTUser:async()=>owner?{email:'kylebrooks8605@gmail.com'}:null},
     Response,Request,crypto:webcrypto,console,
   },{filename:route});
