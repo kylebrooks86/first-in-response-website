@@ -72,6 +72,14 @@ export async function POST(request: Request) {
     const category = String(form.get("category") ?? "property").trim().toLowerCase();
     const caption = String(form.get("caption") ?? "").trim();
     if (!customerId || !(file instanceof File)) return Response.json({ error: "Choose a customer and photo." }, { status: 400 });
+    // An empty or metadata-bloated file must not become a permanent customer
+    // photo record or an unrecoverable object in storage. Check before any D1
+    // read or bucket write, preserving valid full-resolution originals.
+    if(file.size===0)return Response.json({error:"That photo is empty. Choose the original image."},
+      {status:400,headers:{"cache-control":"private, no-store"}});
+    if(caption.length>500||file.name.length>240)return Response.json(
+      {error:"The photo caption or file name is too long. Shorten its description before saving."},
+      {status:400,headers:{"cache-control":"private, no-store"}});
     const declaredMime=file.type.toLowerCase();
     const photoExtension=Object.hasOwn(PHOTO_TYPES,declaredMime)?PHOTO_TYPES[declaredMime]:null;
     // Raster still photos only. SVG/XML/HTML can be executable documents,
