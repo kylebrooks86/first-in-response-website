@@ -19,7 +19,7 @@ db.exec("UPDATE estimates SET share_token='synthetic-public-estimate' WHERE id='
 db.exec("INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at,share_token) VALUES('i','e','c','draft',10000,'now','synthetic-public-invoice')");
 const d1={
  prepare(sql){return {bind(...args){
-  return {first:async()=>db.prepare(sql).get(...args)??null};
+  return {sql,args,first:async()=>db.prepare(sql).get(...args)??null};
  }};},
  async batch(statements){
   db.exec('BEGIN');
