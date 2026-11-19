@@ -15,6 +15,7 @@ import {customerIdentityPredicate,duplicateCustomer,validInlineCustomerEmail,val
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+const ownerListHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 // Verify a permanent Job # only when the separately approved numbering
 // feature is enabled. Failure after a commit must report an UNCERTAIN save,
 // never tell the owner to create another estimate or allocate another Job #.
@@ -30,7 +31,7 @@ async function authorized(){ const user=await getChatGPTUser(); return Boolean(u
 type ItemRow={id:string;estimateId:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 
 export async function GET() {
-  if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401,headers:ownerListHeaders });
   // A full financial list requires known refund-ledger table and index
   // identities. Return a clear no-retry 503 instead of a SQL 500 or stale
   // balance if this target has not completed Gate5 migration review.
@@ -55,18 +56,27 @@ export async function GET() {
                (SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open') AS openCheckoutCount,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template IN ('winBack6','winBack11') AND cm.channel IN ('text','email','text_confirmed','email_confirmed')) AS lastRebookMessageAt
         FROM estimates e JOIN customers c ON c.id = e.customer_id
-        ORDER BY e.created_at DESC LIMIT 100
+        ORDER BY e.created_at DESC,e.id DESC LIMIT 100
       `),
-      env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id ORDER BY e.created_at DESC,i.rowid ASC`),
+      // Only fetch the exact same latest 100 validated quotes as the header query.
+      // Historical service rows remain durable but must not be loaded into the
+      // owner dashboard on every refresh. A bounded parent subquery protects
+      // the D1 Worker from unbounded service-line memory growth.
+      env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents
+        FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id
+        WHERE e.id IN (SELECT recent.id FROM estimates recent
+          JOIN customers valid_customer ON valid_customer.id=recent.customer_id
+          ORDER BY recent.created_at DESC,recent.id DESC LIMIT 100)
+        ORDER BY e.created_at DESC,e.id DESC,i.rowid ASC`),
     ]);
     const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
     const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimateResult.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
     const grouped=new Map<string,ItemRow[]>();
-    for(const raw of itemResult.results as unknown as ItemRow[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};grouped.set(row.estimateId,[...(grouped.get(row.estimateId)??[]),row]);}
+    for(const raw of itemResult.results as unknown as ItemRow[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const group=grouped.get(row.estimateId);if(group)group.push(row);else grouped.set(row.estimateId,[row]);}
     const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.id))??null}:{}),items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};});
-    return Response.json({ estimates });
+    return Response.json({ estimates },{headers:ownerListHeaders});
   } catch {
-    return Response.json({ estimates: [], message: "Estimates are temporarily unavailable." }, { status: 503 });
+    return Response.json({ estimates: [], message: "Estimates are temporarily unavailable." }, { status: 503,headers:ownerListHeaders });
   }
 }
 
