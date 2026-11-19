@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
+import {ownerBrowserWriteScope} from '../lib/customer-write-request-guard.mjs';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
 assert.equal(readFileSync(new URL('../app/api/customer-photos/[id]/route.ts',import.meta.url),'utf8'),readFileSync(new URL('./fixtures/photo-integrity/business-app-parity/shared/app/api/customer-photos/[id]/route.ts.txt',import.meta.url),'utf8'),'Current shared route must match the tested patched source');
@@ -62,10 +63,11 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
  vm.runInNewContext(compiled,{exports,Request,Response,Date,console,require(id){
    if(id==='cloudflare:workers')return {env};
    if(id==='../../../chatgpt-auth'||id==='../../../owner-auth')return {getChatGPTUser:async()=>authorized?{email:'kylebrooks8605@gmail.com'}:null,getOwnerUser:async()=>authorized?{email:'kylebrooks8605@gmail.com'}:null};
+   if(id==='../../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};
    throw Error('Unexpected import '+id);
  }},{filename:file});
  const context={params:Promise.resolve({id:'photo-1'})};
- return {GET:()=>exports.GET(new Request('https://synthetic.invalid/api/customer-photos/photo-1'),context),DELETE:()=>exports.DELETE(new Request('https://synthetic.invalid/api/customer-photos/photo-1',{method:'DELETE'}),context),rows,objects,events};
+ return {GET:()=>exports.GET(new Request('https://synthetic.invalid/api/customer-photos/photo-1'),context),DELETE:(headers={})=>exports.DELETE(new Request('https://synthetic.invalid/api/customer-photos/photo-1',{method:'DELETE',headers}),context),rows,objects,events};
 }
 for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]','fire-app-dr/app/api/customer-photos/[id]']){
  for (const patched of [false,true]){
@@ -87,6 +89,16 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
     pass('current shared GET forbids unauthorized photo reads',(await locked.GET()).status===401&&locked.events.length===0);
     const missingBucket=harness(file,'success',true,false);
     pass('current shared GET fails closed without storage',(await missingBucket.GET()).status===503&&missingBucket.rows.size===1&&missingBucket.events.length===0);
+  }
+  if(patched&&prefix.startsWith('business-app-parity')){
+    const denied=harness(file);
+    const forbidden=await denied.DELETE({'origin':'https://foreign.example.invalid','sec-fetch-site':'cross-site'});
+    pass('Owner shared photo DELETE cross-site refuses before D1/R2 mutation',
+      forbidden.status===403&&denied.events.length===0&&denied.rows.size===1&&denied.objects.size===1);
+    const normal=harness(file);
+    const allowed=await normal.DELETE({'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin'});
+    pass('Owner shared photo DELETE same-origin can remove saved synthetic photo',
+      allowed.status===200&&normal.rows.size===0&&normal.objects.size===0);
   }
   let t=harness(file);let res=await t.DELETE();pass(`${file} normal success removes both`,res.status===200&&t.rows.size===0&&t.objects.size===0);
   t=harness(file,'db-precommit-error');let threw=false;try{res=await t.DELETE();}catch{threw=true;}
