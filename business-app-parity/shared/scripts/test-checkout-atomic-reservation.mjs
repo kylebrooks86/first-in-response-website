@@ -131,6 +131,33 @@ for(const [label,siteOrigin,requestOrigin] of [
  const h=harness({siteOrigin:'https://synthetic.invalid/'});
  check((await h.post()).status===200,'Canonical HTTPS SITE_ORIGIN with trailing slash supports card checkout');
 }
+// An estimate bearer token must not let a foreign/sibling page submit a
+// browser form that locks the checkout reservation or creates a Stripe session.
+for(const [label,headers,expected] of [
+ ['foreign Origin',{'origin':'https://attacker.invalid'},403],
+ ['same-site sibling',{'origin':'https://sibling.synthetic.invalid','sec-fetch-site':'same-site'},403],
+ ['null browser Origin',{'origin':'null'},403],
+ ['cross-site Fetch Metadata without Origin',{'sec-fetch-site':'cross-site'},403],
+ ['mismatched Origin despite same-origin metadata',{'origin':'https://attacker.invalid','sec-fetch-site':'same-origin'},403],
+ ['browser simple text form',{'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'text/plain'},415],
+ ['browser urlencoded form',{'origin':'https://synthetic.invalid','content-type':'application/x-www-form-urlencoded'},415],
+ ['browser missing JSON content-type',{'sec-fetch-site':'same-origin','content-type':''},415]
+]){
+ const h=harness();
+ const reply=await h.post(body,headers);
+ check(reply.status===expected,label+' is refused before checkout reservation');
+ check(h.state.dbPrepares===0&&h.state.locks===0&&h.state.creates===0&&h.state.inspections===0,
+   label+' performs no customer D1 read, reservation or Stripe call');
+}
+{
+ const h=harness();
+ const reply=await h.post(body,{
+   origin:'https://synthetic.invalid','sec-fetch-site':'same-origin',
+   'content-type':'application/json; charset=UTF-8'
+ });
+ check(reply.status===200,'Real same-origin browser JSON checkout remains available');
+ check(h.state.locks===1&&h.state.creates===1,'Legitimate browser checkout creates exactly one session');
+}
 // Public checkout receives an unauthenticated request before its estimate
 // bearer token is checked. Refuse large/malformed JSON without any D1 read,
 // checkout reservation, financial write or Stripe call.
