@@ -1,6 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../../chatgpt-auth';
-import {readOwnerWriteObject} from '../../../../lib/customer-write-request-guard.mjs';
+import {readOwnerWriteObject} from '../../../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL='kylebrooks8605@gmail.com';
 const headers={'Cache-Control':'no-store, private'};
 type Context={params:Promise<{id:string}>};
