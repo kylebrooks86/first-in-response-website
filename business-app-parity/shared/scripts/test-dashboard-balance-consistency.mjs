@@ -28,6 +28,12 @@ function dashboardFrom(node){
 }
 let checks=0;
 function equal(actual,expected){assert.equal(actual,expected);checks++;}
+function assertPrivateMetricsResponse(response,label){
+ equal(response.headers.get('cache-control'),'private, no-store');
+ equal(response.headers.get('vary'),'Cookie');
+ equal(response.headers.get('x-content-type-options'),'nosniff');
+ equal(response.status,label==='unauthorized'?401:200);
+}
 function seed({status='completed',invoice=null,payments=[],total=10000,deposit=5000}){
  db.exec('DELETE FROM payments; DELETE FROM invoices; DELETE FROM estimate_items; DELETE FROM estimates; DELETE FROM customers;');
  db.prepare("INSERT INTO customers(id,name,created_at) VALUES('c','Synthetic QA','now')").run();
@@ -51,6 +57,7 @@ try {
  ];
  for(const [fixture,outstanding,openValue] of fixtures){
   seed(fixture);const rendered=dashboardFrom(await home.default());const refreshed=await (await api.GET()).json();
+  if(fixture.status==='draft')assertPrivateMetricsResponse(await api.GET(),'owner');
   equal(rendered.props.metrics.outstanding,outstanding);equal(refreshed.outstanding,outstanding);equal(rendered.props.metrics.openValue,openValue);equal(refreshed.openValue,openValue);equal(rendered.props.metrics.estimates,refreshed.estimates);
   const completed=fixture.status===undefined||fixture.status==='completed'?1:0;
   equal(rendered.props.metrics.completedJobs,completed);
@@ -77,6 +84,7 @@ try {
  const enabledHome=dashboardFrom(await home.default()),enabledSummary=await (await api.GET()).json();
  equal(enabledHome.props.metrics.completedJobs,12);
  equal(enabledSummary.completedJobs,12);
+ assertPrivateMetricsResponse(await api.GET(),'owner');
  // Feature disabled: full historical completed estimate count is still correct.
  env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
  equal(dashboardFrom(await home.default()).props.metrics.completedJobs,13);
@@ -99,6 +107,6 @@ try {
  equal(futureHome.props.metrics.upcomingJobs[0].id,'future-00');
  equal(futureApi.recent.length,8);
  equal(futureHome.props.estimates.length,8);
- user=null;equal((await api.GET()).status,401);user={email:'other@example.test',fullName:'Other'};equal((await api.GET()).status,401);equal((await home.default()).type,'main');
+ user=null;assertPrivateMetricsResponse(await api.GET(),'unauthorized');user={email:'other@example.test',fullName:'Other'};assertPrivateMetricsResponse(await api.GET(),'unauthorized');equal((await home.default()).type,'main');
  console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; whole-database completed counts beyond the eight displayed cards; owner access preserved. Synthetic SQLite only.`);
 }finally{db.close();}
