@@ -76,10 +76,19 @@ try {
  // Once permanent numbers are approved, two completed quote revisions are
  // still one completed JOB in BOTH the server-rendered Home and refreshed API.
  // This is a disposable in-memory fixture; no hosted migration is applied.
+ // The real immutable Job-number read joins BOTH root rows and links,
+ // including exact root.created_at. The old fixture created only links and
+ // falsely failed before exercising the current production route.
+ db.exec("CREATE TABLE fire_job_numbers(job_number INTEGER PRIMARY KEY,root_estimate_id TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL)");
  db.exec("CREATE TABLE fire_job_estimate_links(estimate_id TEXT PRIMARY KEY,job_number INTEGER NOT NULL)");
+ db.prepare("INSERT INTO fire_job_numbers(job_number,root_estimate_id,created_at) SELECT 1,id,created_at FROM estimates WHERE id='e'").run();
  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('e',1)").run();
  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('older-0',1)").run();
- for(let i=1;i<12;i++)db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)").run('older-'+i,i+1);
+ for(let i=1;i<12;i++){
+  const root='older-'+i;
+  db.prepare("INSERT INTO fire_job_numbers(job_number,root_estimate_id,created_at) SELECT ?,id,created_at FROM estimates WHERE id=?").run(i+1,root);
+  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)").run(root,i+1);
+ }
  env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
  const enabledHome=dashboardFrom(await home.default()),enabledSummary=await (await api.GET()).json();
  equal(enabledHome.props.metrics.completedJobs,12);
