@@ -74,8 +74,7 @@ try {
         [IO.FileAccess]::Read, [IO.FileShare]::Read)
     $checkedSqlLength = $sqlReader.Length
     $hasher = [Security.Cryptography.SHA256]::Create()
-    $actualHash = [BitConverter]::ToString($hasher.ComputeHash($sqlReader)).
-        Replace('-', '').ToLowerInvariant()
+    $actualHash = ([BitConverter]::ToString($hasher.ComputeHash($sqlReader))).Replace('-', '').ToLowerInvariant()
 } catch {
     Stop-Review 'RECORDS_READ_UNAVAILABLE'
 } finally {
