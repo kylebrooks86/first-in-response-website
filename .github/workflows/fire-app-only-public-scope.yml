@@ -30,6 +30,7 @@ on:
       - '.github/workflows/fire-new-live-attempt-readonly-reconciliation.yml'
       - '.github/workflows/fire-existing-dark-code-update-source-only.yml'
       - '.github/workflows/fire-owner-backup-cadence-offline.yml'
+      - '.github/workflows/fire-g6-standard-signing-offline.yml'
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
       - 'ci/test-site-verifier-scope.mjs'
@@ -97,6 +98,8 @@ jobs:
           # focused synthetic ignored-asset control tests; no new provider calls.
           # The newly reviewed local-only owner backup cadence workflow uses an exact
           # SHA-pinned blob; never allow a generic new-workflow exception.
+          # Gate6 standard signing was isolated after unrelated prior photo-browser
+          # failure; only its specific reviewed test-only workflow Git blob is allowed.
           # Real public pages, assets, calculator and unrelated paths remain protected.
           reviewed_paths=(
             verify-site.mjs verify-site-ci.mjs ci/test-site-verifier-scope.mjs
@@ -115,6 +118,7 @@ jobs:
             .github/workflows/fire-new-live-attempt-readonly-reconciliation.yml
             .github/workflows/fire-existing-dark-code-update-source-only.yml
             .github/workflows/fire-owner-backup-cadence-offline.yml
+            .github/workflows/fire-g6-standard-signing-offline.yml
           )
           reviewed_blobs=(
             4042570221cf4f31d2749534775bfd7d349ccfe1
@@ -135,6 +139,7 @@ jobs:
             332e5e89404710ee70df684e384978bf58f8959c
             a86ae1cf30d620e3304a54f32ab03627b6e8ea7f
             3630e3f96c9d557777a84f505772bed79e0dc4f3
+            cbc5ca2d2348ad2aaf003f1ae67028a1be1c927b
           )
           for i in "${!reviewed_paths[@]}"; do
             file="${reviewed_paths[$i]}"
@@ -151,7 +156,7 @@ jobs:
           fi
           for file in "${changed[@]}"; do
             case "$file" in
-              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml|.github/workflows/fire-gate7-saved-photo-offline-proof.yml|.github/workflows/fire-isolated-sqlite-full-recovery.yml|.github/workflows/fire-dr-private-owner-evidence.yml|.github/workflows/fire-dr-worker-only-noassetupload.yml|.github/workflows/fire-new-live-worker-only-noassetupload.yml|.github/workflows/fire-dr-existing-d1-prehost.yml|.github/workflows/fire-new-live-one-shot-migration-safety.yml|.github/workflows/fire-new-live-portable-schema-custody.yml|.github/workflows/fire-new-live-attempt-readonly-reconciliation.yml|.github/workflows/fire-existing-dark-code-update-source-only.yml|.github/workflows/fire-owner-backup-cadence-offline.yml|.github/workflows/fire-owner-dr-launcher-windows.yml|.github/workflows/fire-dr-dark-postcreate-readonly.yml)
+              verify-site.mjs|verify-site-ci.mjs|ci/test-site-verifier-scope.mjs|.github/workflows/verify-site.yml|business-app-parity/*|fire-app-dr/*|dr-parity-evidence/*|dr-parity-overlays/*|.github/workflows/fire-app-only-public-scope.yml|.github/workflows/fire-staging-offline-rehearsal.yml|.github/workflows/fire-numbered-core-recovery-v2-preflight.yml|.github/workflows/fire-numbered-v2-photo-archive-pair.yml|.github/workflows/fire-gate4-provider-identity-preflight.yml|.github/workflows/fire-qa-release-review-fail-closed.yml|.github/workflows/fire-qa-v25-private-backup-offline.yml|.github/workflows/fire-gate9-fullapp-offline-build.yml|.github/workflows/fire-gate9-readonly-version-inventory.yml|.github/workflows/fire-gate7-legacy-sites-offline-export.yml|.github/workflows/fire-new-independent-release-candidates.yml|.github/workflows/fire-pin-passkey-access.yml|.github/workflows/fire-gate7-saved-photo-offline-proof.yml|.github/workflows/fire-isolated-sqlite-full-recovery.yml|.github/workflows/fire-dr-private-owner-evidence.yml|.github/workflows/fire-dr-worker-only-noassetupload.yml|.github/workflows/fire-new-live-worker-only-noassetupload.yml|.github/workflows/fire-dr-existing-d1-prehost.yml|.github/workflows/fire-new-live-one-shot-migration-safety.yml|.github/workflows/fire-new-live-portable-schema-custody.yml|.github/workflows/fire-new-live-attempt-readonly-reconciliation.yml|.github/workflows/fire-existing-dark-code-update-source-only.yml|.github/workflows/fire-owner-backup-cadence-offline.yml|.github/workflows/fire-g6-standard-signing-offline.yml|.github/workflows/fire-owner-dr-launcher-windows.yml|.github/workflows/fire-dr-dark-postcreate-readonly.yml)
                 ;;
               *)
                 echo "BLOCKED: unreviewed non-app change: $file"
