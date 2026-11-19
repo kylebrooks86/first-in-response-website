@@ -42,6 +42,10 @@ try {
     Must ($good.Exit -eq 0) 'synthetic header and SQL receipt should be recognized'
     foreach($marker in @('LOCAL_SQL_HASH_RECEIPT=PASS',
       'ENCRYPTED_PHOTO_HEADER_STRUCTURE=PASS',
+      'CADENCE=CAPTURE_AGE_UNVERIFIED',
+      'AUTHENTIC_BACKUP_CAPTURE_AGE_VERIFIED=NO',
+      'RECORDS_LOCAL_FILE_AGE_DAYS=0',
+      'PHOTOS_LOCAL_FILE_AGE_DAYS=0',
       'RECORDS_PHOTOS_PAIRED_SNAPSHOT_VERIFIED=NO',
       'PHOTOS_AES_OR_ORIGINAL_HASH_VERIFIED=NO',
       'OFF_DEVICE_CUSTODY_VERIFIED=NO',
@@ -50,6 +54,15 @@ try {
     }
     Must (-not $good.Lines.Contains($hash)) 'private hash must not be printed'
     Must (-not $good.Lines.Contains($records)) 'private path must not be printed'
+    # A downloaded/copied OLD snapshot can have today's local file timestamp.
+    # The review must NOT certify such an archive as fresh just for being copied.
+    (Get-Item $records).LastWriteTimeUtc = [DateTime]::UtcNow
+    (Get-Item $photos).LastWriteTimeUtc = [DateTime]::UtcNow
+    $copiedOldBackup=Invoke-Check
+    Must ($copiedOldBackup.Exit -eq 0 -and
+          $copiedOldBackup.Lines.Contains('CADENCE=CAPTURE_AGE_UNVERIFIED') -and
+          $copiedOldBackup.Lines.Contains('AUTHENTIC_BACKUP_CAPTURE_AGE_VERIFIED=NO')) 'copied old backup must never be certified fresh'
+    Must (-not $copiedOldBackup.Lines.Contains('WITHIN_LOCAL_AGE_WINDOW')) 'no false freshness claim'
     # A lookalike sibling such as "owner-other" must not be mistaken for
     # a folder INSIDE "owner" just because the absolute path starts alike.
     $notReallyAnAncestor = $root.Substring(0, $root.Length - 1)
