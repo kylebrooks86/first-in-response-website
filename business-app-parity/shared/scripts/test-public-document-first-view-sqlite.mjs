@@ -59,14 +59,14 @@ try{
     // that bearer immediately BEFORE its conditional first-view D1 batch.
     db.prepare('UPDATE '+(kind==='invoice'?'invoices':'estimates')+' SET share_token=? WHERE id=?')
       .run('new-rotated-private-token',kind==='invoice'?f.i:f.e);
-    const before=rt.counters();
+    const before=db.prepare('SELECT total_changes() AS n').get().n;
     result=await view(f,kind);
     eq(result.allowed,false,'Rotated '+kind+' token cannot validate old page link');
     eq(result.newlyViewed,false,'Rotated '+kind+' token cannot claim viewed');
     eq(state(f,kind).seen,null,'Rotated '+kind+' token cannot mutate viewed timestamp');
     eq(state(f,kind).status,'draft','Rotated '+kind+' token cannot mark document as sent');
     eq(alerts(f,kind).length,0,'Rotated '+kind+' token cannot generate false viewed notification');
-    eq(rt.counters().writes,before.writes,'Rotated '+kind+' token wrote no row');
+    eq(db.prepare('SELECT total_changes() AS n').get().n,before,'Rotated '+kind+' token changed zero physical SQLite rows');
     result=await view(f,kind,{token:'new-rotated-private-token'});
     eq(result.allowed,true,'Actual new '+kind+' token still supports original owner workflow');
     eq(alerts(f,kind).length,1,'Actual new '+kind+' token creates one legitimate alert');
