@@ -41,6 +41,17 @@ try{
  job("zero",{paid:0,total:0});
  job("pending-refund");
  db.prepare("INSERT INTO payment_refunds(id,estimate_id,payment_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,?,?)").run("r-pending","e-pending-refund","p-pending-refund",1000,"Stripe","pending",stamp(1));
+ // Real refund confirmation writes both the immutable refund request and a
+ // negative payment. If a provider/write ACK is lost after finalizing only the
+ // request, gross payments can look paid-in-full: never prompt a review.
+ job("settled-refund-gap");
+ db.prepare("INSERT INTO payment_refunds(id,estimate_id,payment_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,?,?)").run("r-settled-gap","e-settled-refund-gap","p-settled-refund-gap",1000,"stripe","succeeded",stamp(1));
+ job("invoice-relinked");
+ db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,share_token,created_at) VALUES(?,?,?,?,?,?,?)").run("inv-foreign","e-invoice-relinked","c-prepared","paid",10000,"synthetic-foreign",stamp(1));
+ // A valid same-homeowner invoice must still allow the normal fully paid queue.
+ db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,share_token,created_at) VALUES(?,?,?,?,?,?,?)").run("inv-ready","e-ready","c-ready","paid",10000,"synthetic-owner",stamp(1));
+ // Failed / canceled refund attempts must not hide a genuinely paid job.
+ db.prepare("INSERT INTO payment_refunds(id,estimate_id,payment_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,?,?)").run("r-failed","e-ready","p-ready",1000,"stripe","failed",stamp(1));
  job("card-open");
  db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)").run("cs-test","e-card-open","balance",10000,"open",stamp(1));
  job("overage");
@@ -56,13 +67,17 @@ try{
   db.prepare("UPDATE payments SET created_at=? WHERE id=?").run(stamp(0),"p-partial-"+i);
  }
  let {response,data}=await read();
- check(response.status===200&&response.headers.get("cache-control").includes("no-store"),"Private owner-only successful read");
+ check(response.status===200&&response.headers.get("cache-control")==="private, no-store","Private owner-only successful read");
+ check(response.headers.get("vary")==="Cookie"&&response.headers.get("x-content-type-options")==="nosniff","Successful closeout records vary by session and forbid MIME sniffing");
  check(data.actions.length===3,"Only fully paid ready, prepared, copied jobs appear, even with 210 newer partial payments");
  check(data.mayHaveMore===false,"Partial payment history cannot masquerade as more valid review actions");
  check(data.actions.find(x=>x.estimateId==="e-ready")?.state==="ready","Unrequested job marked ready");
  check(data.actions.find(x=>x.estimateId==="e-prepared")?.state==="prepared","Prepared message not called sent");
  check(data.actions.find(x=>x.estimateId==="e-copy")?.state==="ready","Copy-only history never claims sent");
- check(!data.actions.some(x=>/approved|unpaid|overpaid|zero|pending|card|overage|refunded|tip|confirmed|received/.test(x.estimateId)),"No unfinished, unsafe, refunded or already requested work");
+ check(!data.actions.some(x=>/approved|unpaid|overpaid|zero|pending|card|overage|refunded|tip|confirmed|received|settled-refund-gap|invoice-relinked/.test(x.estimateId)),"No unfinished, unsafe, settled-refund-ACK-gap, foreign-invoice or already requested work");
+ check(!data.actions.some(x=>x.estimateId==="e-settled-refund-gap"),"Succeeded refund cannot be treated as paid-in-full when negative payment event is missing");
+ check(!data.actions.some(x=>x.estimateId==="e-invoice-relinked"),"Cross-homeowner invoice cannot mark paid job eligible for customer review");
+ check(data.actions.some(x=>x.estimateId==="e-ready"),"Correct homeowner invoice and failed refund attempt leave true paid review eligible");
  check(data.actions.every(x=>!["phone","email","body"].some(k=>k in x)),"No customer contact information or message body in action feed");
  // Historical/imported cross-customer message pointers must not suppress
  // the rightful homeowner's paid-job review action. A matching estimate alone
@@ -108,16 +123,21 @@ try{
  check(second.mayHaveMore===false&&second.nextCursor===null,"Final page ends with no next cursor");
  const broken=await api.GET(new Request("https://fire.test/api/payment-closeouts?cursor="+encodeURIComponent("not-a-cursor")));
  check(broken.status===400,"Malformed cursor fails closed before the ledger is read");
+ check(broken.headers.get("cache-control")==="private, no-store"&&broken.headers.get("vary")==="Cookie"&&broken.headers.get("x-content-type-options")==="nosniff","Invalid cursor owner result private/session-bound/nosniff");
  const queries=statements.length;
  owner=null;
- check((await api.GET()).status===401&&statements.length===queries,"Unauthenticated cannot inspect private payment closeouts");
+ const denied=await api.GET();
+ check(denied.status===401&&statements.length===queries,"Unauthenticated cannot inspect private payment closeouts");
+ check(denied.headers.get("cache-control")==="private, no-store"&&denied.headers.get("vary")==="Cookie"&&denied.headers.get("x-content-type-options")==="nosniff","Nonowner response cannot leak cached closeout information");
  check((await api.GET(new Request("https://fire.test/api/payment-closeouts?cursor=malformed"))).status===401&&statements.length===queries,
   "Unauthenticated cursor requests are denied before validating private query parameters");
  owner={email:"notowner@example.invalid"};
  check((await api.GET()).status===401&&statements.length===queries,"Other user denied before database read");
  owner={email:"kylebrooks8605@gmail.com"};
  const offline=load("app/api/payment-closeouts/route.ts",{"cloudflare:workers":{env:{DB:{prepare(){throw Error("Unavailable")}}}},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":ledgerTestOnly});
- check((await offline.GET()).status===503,"Database outage visible instead of false all-caught-up");
+ const unavailable=await offline.GET();
+ check(unavailable.status===503,"Database outage visible instead of false all-caught-up");
+ check(unavailable.headers.get("cache-control")==="private, no-store"&&unavailable.headers.get("vary")==="Cookie"&&unavailable.headers.get("x-content-type-options")==="nosniff","DB outage private/session-bound/nosniff and never misreported as paid");
  const dashboard=readFileSync("app/dashboard.tsx","utf8");
  const start=dashboard.indexOf("function PaymentsView("),end=dashboard.indexOf("\nfunction ",start+20);
  const ui=dashboard.slice(start,end);
