@@ -122,6 +122,25 @@ try{
   eq(r.counters(),before,label+' is rejected before any D1 reads/writes');
   eq(lines(id),saved,label+' preserves original estimate service lines');
  }
+ // The owner quote/appointment editor must reject large streams BEFORE any
+ // D1 quote read, even when a UTF-8 emoji body is shorter in JS characters.
+ const hugeJson=JSON.stringify({status:'draft',notes:'💥'.repeat(70_000)});
+ eq(hugeJson.length<262_144&&Buffer.byteLength(hugeJson,'utf8')>262_144,true,
+    'The synthetic oversized payload specifically tests UTF-8 bytes, not characters');
+ const streamBoundary=[
+  [{origin:'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'},hugeJson,413,'oversized actual UTF-8'],
+  [{origin:'https://synthetic.invalid','content-type':'application/json','content-length':'999999'},'{"status":"draft"}',413,'claimed oversized Content-Length'],
+  [{origin:'https://synthetic.invalid','content-type':'application/json','content-length':'5'},'{"status":"draft"}',400,'false short Content-Length'],
+  [{origin:'https://synthetic.invalid','content-type':'application/json'},'[]',400,'array rather than JSON object']
+ ];
+ for(const [headers,body,code,label] of streamBoundary){
+  const before=r.counters(),saved=lines(id);
+  const reply=await ownerPatch(new Request('https://synthetic.invalid/api/estimates/'+id,
+   {method:'PATCH',headers,body}),{params:Promise.resolve({id})});
+  eq(reply.status,code,'Authenticated owner estimate PATCH refuses '+label);
+  eq(r.counters(),before,label+' never reads or writes D1');
+  eq(lines(id),saved,label+' preserves every saved service line');
+ }
  const sameOrigin=await ownerPatch(new Request('https://synthetic.invalid/api/estimates/'+id,
   {method:'PATCH',headers:{origin:'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'},body:JSON.stringify({status:'draft'})}),
   {params:Promise.resolve({id})});
