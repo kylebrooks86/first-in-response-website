@@ -145,7 +145,7 @@ export async function POST(request: Request) {
       {status:403,headers:{"cache-control":"no-store"}});
   // Browser checkouts must not accept simple cross-site HTML form encodings.
   if((fetchSite!==null||browserOrigin!==null)&&
-     !/^application\\/json(?:\\s*;|\\s*$)/i.test(request.headers.get("content-type")??""))
+     !/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get("content-type")??""))
     return Response.json({error:"JSON card checkout request required."},
       {status:415,headers:{"cache-control":"no-store"}});
   try {
