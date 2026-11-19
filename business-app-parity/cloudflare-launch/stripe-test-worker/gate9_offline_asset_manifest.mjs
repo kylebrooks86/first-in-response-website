@@ -29,8 +29,44 @@ function compiledRoot(root) {
   insist(actual===path,'ROOT_SYMLINK'); // no symlink for compiled root
   return path;
 }
+// A Cloudflare .assetsignore control is executable upload policy, not just
+// inert Vite metadata. Never silently omit it: a wildcard could hide every
+// compiled JS/CSS file while giving a false complete-assets PASS.
+const SAFE_IGNORE_RULES=new Set([
+  '.vite','/.vite','.vite/**','/.vite/**','**/.vite/**',
+  '_headers','/_headers','_redirects','/_redirects',
+  '.assetsignore','/.assetsignore',
+  '*.map','**/*.map','/*.map',
+  '.DS_Store','**/.DS_Store'
+]);
+export function inspectAssetIgnoreControl(root) {
+  const base=compiledRoot(root);
+  const file=join(base,'.assetsignore');
+  if(!existsSync(file))return {present:false,sha256:null,ruleCount:0};
+  const st=lstatSync(file);
+  insist(st.isFile()&&!st.isSymbolicLink()&&st.size<=8192,
+    'ASSET_IGNORE_CONTROL_SHAPE');
+  const bytes=readFileSync(file);
+  insist(bytes.length===st.size&&!bytes.includes(0),
+    'ASSET_IGNORE_CONTROL_BYTES');
+  const lines=bytes.toString('utf8');
+  insist(Buffer.from(lines,'utf8').equals(bytes),
+    'ASSET_IGNORE_CONTROL_ENCODING');
+  let rules=0;
+  for(const raw of lines.split(/\r?\n/)){
+    const rule=raw.trim();
+    if(!rule||rule.startsWith('#'))continue;
+    insist(rule===raw && SAFE_IGNORE_RULES.has(rule),
+      'UNREVIEWED_ASSET_IGNORE_RULE');
+    rules++;
+    insist(rules<=32,'ASSET_IGNORE_RULE_LIMIT');
+  }
+  return {present:true,sha256:createHash('sha256').update(bytes).digest('hex'),
+    ruleCount:rules};
+}
 export function createLocalAssetManifest(root) {
   const base=compiledRoot(root);
+  inspectAssetIgnoreControl(base);
   const manifest={};
   let count=0, bytes=0;
   function walk(folder,parents=[]) {
@@ -41,7 +77,7 @@ export function createLocalAssetManifest(root) {
       // They are NOT public site assets and must never be uploaded.
       // Reject all other hidden entries, symlinks or unexpected shapes.
       if (parents.length === 0 && name === '.vite' && entry.isDirectory()) continue;
-      if (parents.length === 0 && name === '.assetsignore' && entry.isFile()) continue;
+      if (parents.length === 0 && name === '.assetsignore' && entry.isFile()) continue; // rules validated before walk
       // Cloudflare requires these exact extensionless control files as
       // text/plain Worker modules, NEVER ordinary static asset manifest items.
       if (parents.length === 0 && ['_headers','_redirects'].includes(name) && entry.isFile()) continue;
