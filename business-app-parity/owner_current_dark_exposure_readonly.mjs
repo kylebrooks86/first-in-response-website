@@ -96,7 +96,7 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
   const get=(path)=>request(token,path);
   const subdomain=await get('/client/v4/accounts/'+FIRE_DARK_ACCOUNT+'/workers/scripts/'+FIRE_DARK_WORKERS[target]+'/subdomain');
   const pages=async(path,label)=>{
-    let all=[],total=null,reportedDomainCount=null;
+    let all=[],total=null,reportedDomainCount=null,reportedZoneCount=null;
     for(let p=1;p<=20;p++){
       const r=await get(path+(path.includes('?')?'&':'?')+'page='+p+'&per_page=50');
       const items=apiResult(r,label);
@@ -107,8 +107,14 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
       // The domains endpoint is queried WITHOUT filters, so total_count
       // must equal all returned domains; an incomplete listing must not
       // be accepted as proof that the target Worker has no public domain.
-      // The account-filtered zones endpoint has different total_count
-      // semantics, so apply this additional invariant only to domains.
+      // Every account zone must be inventoried before claiming DARK ingress.
+      // Fail closed if a filtered-zone API count does not agree with pages;
+      // a partial zone list would silently omit routes on unseen zones.
+      if(label==='zones'){
+        if(reportedZoneCount!==null&&reportedZoneCount!==info.total_count)
+          fail('zones total_count changed between pages');
+        reportedZoneCount=info.total_count;
+      }
       if(label==='domains'){
         if(reportedDomainCount!==null&&reportedDomainCount!==info.total_count)
           fail('domains total_count changed between pages');
@@ -118,6 +124,8 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
       if(p===total){
         if(label==='domains'&&info.total_count!==all.length)
           fail('domains total_count does not match exhausted pages');
+        if(label==='zones'&&info.total_count!==all.length)
+          fail('zones total_count does not match exhausted pages');
         return all;
       }
       if(info.count===0)fail(label+' unexpectedly empty intermediate page');
