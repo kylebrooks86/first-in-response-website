@@ -68,6 +68,20 @@ try {
     } finally {
         $activeWriter.Dispose()
     }
+    # A concurrently writable receipt is not a stable hash/target attestation.
+    # The reader must reject it, without disclosing the owner's receipt filename.
+    $receiptPath = $records+'.restore-review.json'
+    $activeReceiptWriter = [IO.File]::Open($receiptPath, [IO.FileMode]::Open,
+        [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)
+    try {
+        $busyReceipt=Invoke-Check
+        Must ($busyReceipt.Exit -ne 0 -and
+              $busyReceipt.Lines.Contains('RECORDS_RECEIPT_READ_UNAVAILABLE')) 'active receipt writer cannot race snapshot validation'
+        Must (-not $busyReceipt.Lines.Contains($receiptPath)) 'receipt read failure must not disclose private path'
+        Must (-not $busyReceipt.Lines.Contains('LOCAL_SQL_HASH_RECEIPT=PASS')) 'busy receipt cannot produce a hash pass'
+    } finally {
+        $activeReceiptWriter.Dispose()
+    }
     # A SQL export with an active writable handle is not a stable backup.
     # Its digest must be read through a protected stream, with private errors suppressed.
     $activeSqlWriter = [IO.File]::Open($records, [IO.FileMode]::Open,
