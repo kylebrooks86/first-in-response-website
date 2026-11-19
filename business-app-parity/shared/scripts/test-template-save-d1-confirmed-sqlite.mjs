@@ -25,6 +25,38 @@ try{
   'Success requires actual durable D1 row and timestamp readback');
  check((await serverTemplate()).body==='Saved custom owner wording',
   'Subsequent real GET uses saved owner customization');
+ // The reset button sends a literal boolean TRUE; malformed API clients
+ // must not interpret "false", 1, [] or a mixed save/reset as permission to
+ // destroy a durable owner customization. Verify actual SQLite is untouched.
+ const preserved=JSON.stringify(stored());
+ for(const [label,payload] of [
+  ['string false reset',{reset:'false'}],
+  ['numeric reset',{reset:1}],
+  ['object reset',{reset:{force:false}}],
+  ['array reset',{reset:[]}],
+  ['mixed reset/edit',{reset:true,body:'Discard this text'}],
+  ['unknown field',{subject:'X',body:'X',erase:true}],
+  ['object subject',{subject:{value:'X'},body:'Normal message'}],
+  ['object message',{subject:'Normal',body:{value:'X'}}],
+  ['missing message',{subject:'Normal'}],
+  ['false reset without message',{reset:false}],
+ ]){
+   const result=await put(payload);
+   check(result.status===400&&JSON.stringify(stored())===preserved,
+     'Malformed '+label+' cannot delete or modify saved SQLite template');
+ }
+ const ownerGet=await route.GET();
+ check(ownerGet.status===200&&ownerGet.headers.get('cache-control')==='private, no-store'&&
+   ownerGet.headers.get('vary')==='Cookie'&&
+   ownerGet.headers.get('x-content-type-options')==='nosniff',
+   'Owner-authored template reads cannot be cached or MIME-sniffed');
+ rt.setOwner(null);
+ const foreignGet=await route.GET();
+ check(foreignGet.status===401&&foreignGet.headers.get('cache-control')==='private, no-store'&&
+   JSON.stringify(stored())===preserved,
+   'Anonymous template read is unauthorized and never changes saved copy');
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+
  // A real D1 COMMIT can succeed and the INSERT acknowledgment still throw.
  // Readback must recover exactly the just-committed owner template.
  rt.env.DB.prepare=function(sql){
