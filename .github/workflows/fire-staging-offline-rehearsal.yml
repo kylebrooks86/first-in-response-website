@@ -289,6 +289,8 @@ jobs:
           node scripts/test-followup-exact-lookup.mjs
           node --experimental-sqlite scripts/test-followup-concurrent-idempotency.mjs
           node --experimental-sqlite scripts/test-followup-saved-service-lines-sqlite.mjs
+          # Owner follow-up private response headers, 60-quote SQLite paging and cross-customer invoice denial.
+          node --experimental-sqlite scripts/test-owner-followups-private-sqlite.mjs
           # Real lead-visit and review reminder owner APIs: native SQLite and bounded-stream cases.
           node --experimental-sqlite scripts/test-door-knocking.mjs
           # Actual owner territory geocoder/SQLite route regression, including
