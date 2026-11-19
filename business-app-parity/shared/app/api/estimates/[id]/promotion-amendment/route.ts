@@ -3,6 +3,7 @@ import {getChatGPTUser} from '../../../../chatgpt-auth';
 import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,readPromotionAttribution} from '../../../../../lib/estimate-promotion-attribution';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions,evaluateSavedPromotions,validOwnerConfirmedBookingDate,fireDate} from '../../../../../lib/saved-promotions';
 import {FIRE_SERVICES} from '../../../../../lib/fire-services';
+import {readOwnerWriteObject} from '../../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER='kylebrooks8605@gmail.com';
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'cache-control':'private, no-store'}});
@@ -16,9 +17,10 @@ type Item={name:string};
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  const user=await getChatGPTUser();
  if(user?.email.toLowerCase()!==OWNER)return json({error:'Unauthorized'},401);
+ const parsed=await readOwnerWriteObject(request,4096);
+ if(parsed.response)return parsed.response;
  const {id}=await params;
- let raw:unknown;
- try{raw=await request.json();}catch{return json({error:'Provide one valid owner-confirmed booking date.'},400);}
+ const raw:unknown=parsed.value;
  if(!raw||typeof raw!=='object'||Array.isArray(raw)||
    Object.keys(raw).join(',')!=='bookingConfirmedOn')return json({error:'Provide only the owner-confirmed booking date.'},400);
  const bookingDate=(raw as Record<string,unknown>).bookingConfirmedOn;
