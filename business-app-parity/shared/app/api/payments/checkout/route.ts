@@ -132,6 +132,22 @@ export async function POST(request: Request) {
     return Response.json({error:"Card checkout is unavailable on this site address. Contact FIRE before paying."},
       {status:503,headers:{"cache-control":"no-store"}});
   }
+  // A public estimate link is a bearer credential, not permission for another
+  // website to submit a hidden form that creates or locks a Stripe checkout.
+  // Verify browser provenance before any customer D1 reads or Stripe calls.
+  // Internal/non-browser callers without Fetch Metadata remain subject to
+  // the existing share-token, environment, money and D1 invariants.
+  const fetchSite=request.headers.get("sec-fetch-site");
+  const browserOrigin=request.headers.get("origin");
+  if((fetchSite!==null&&fetchSite!=="same-origin")||
+     (browserOrigin!==null&&browserOrigin!==checkoutOrigin))
+    return Response.json({error:"Start card checkout from the current FIRE estimate page."},
+      {status:403,headers:{"cache-control":"no-store"}});
+  // Browser checkouts must not accept simple cross-site HTML form encodings.
+  if((fetchSite!==null||browserOrigin!==null)&&
+     !/^application\\/json(?:\\s*;|\\s*$)/i.test(request.headers.get("content-type")??""))
+    return Response.json({error:"JSON card checkout request required."},
+      {status:415,headers:{"cache-control":"no-store"}});
   try {
     const parsed=await boundedCheckoutBody(request);
     if(!parsed.ok)return Response.json({error:parsed.tooLarge?
