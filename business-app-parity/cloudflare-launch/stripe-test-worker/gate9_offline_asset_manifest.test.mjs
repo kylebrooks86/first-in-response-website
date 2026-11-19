@@ -122,10 +122,10 @@ test('asset manifest insertion order is identical despite opposite filesystem cr
 test('rejects wildcard asset ignore that would silently drop critical QA/STAGING client bundles',()=>{
  for(const rule of ['**/*','*','/_next/**','/_next/static/*',
    '/_next/static/chunks/app.js','/**/*.js','*.css','!.vite/**',
-   '/public/*','../secrets','.env','/_redirects\\n/_next/**']){
+   '/public/*','../secrets','.env','/_redirects\n/_next/**']){
   const x=fresh();
   try {
-   writeFileSync(join(x.folder,'.assetsignore'),rule+'\\n');
+   writeFileSync(join(x.folder,'.assetsignore'),rule+'\n');
    assert.throws(()=>createLocalAssetManifest(x.folder),
      /UNREVIEWED_ASSET_IGNORE_RULE/,'unreviewed rule must stop '+rule);
   }finally{rmSync(x.temporary,{recursive:true,force:true})}
@@ -138,7 +138,7 @@ test('rejects malformed asset ignore bytes, links and very long build exclusion 
   const file=join(x.folder,'.assetsignore');
   writeFileSync(file,Buffer.from([0,65,66]));
   assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_BYTES/);
-  writeFileSync(file,'/.vite/**\\n'.repeat(1024));
+  writeFileSync(file,'/.vite/**\n'.repeat(1024));
   assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_SHAPE/);
   rmSync(file);
   symlinkSync(join(x.folder,'_next','static','chunks','app.js'),file);
@@ -150,7 +150,7 @@ test('safe ignored private controls are SHA256-attested but cannot hide compiled
  const x=fresh();
  try{
   const file=join(x.folder,'.assetsignore');
-  writeFileSync(file,'# Vite private build controls\\n/.vite/**\\n/_headers\\n/_redirects\\n**/*.map\\n');
+  writeFileSync(file,'# Vite private build controls\n/.vite/**\n/_headers\n/_redirects\n**/*.map\n');
   const meta=inspectAssetIgnoreControl(x.folder);
   assert.equal(meta.present,true);
   assert.equal(meta.ruleCount,4);
