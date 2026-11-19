@@ -86,7 +86,9 @@ for(const scenario of [
    const data=await response.json();
    ok(data.code==='REFUND_LEDGER_SCHEMA_INCOMPLETE'&&data.retryable===false,
       scenario.label+' returns no-retry reason');
-   ok(response.headers.get('cache-control')==='no-store',scenario.label+' cannot cache financial hold');
+   ok(response.headers.get('cache-control')==='private, no-store',scenario.label+' keeps financial hold private and uncached');
+   ok(response.headers.get('vary')==='Cookie',scenario.label+' hold varies by owner session');
+   ok(response.headers.get('x-content-type-options')==='nosniff',scenario.label+' hold refuses MIME sniffing');
   }
   ok(count.meta===3,scenario.label+' uses exact one schema read per endpoint');
   ok(count.privateRows===0&&count.write===0&&count.network===0,scenario.label+' no private rows/financial writes/Stripe calls');
