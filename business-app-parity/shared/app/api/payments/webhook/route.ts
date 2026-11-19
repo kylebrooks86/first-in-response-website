@@ -40,6 +40,10 @@ async function readStripeWebhookBodyBounded(request:Request):Promise<string|null
       if(total>MAX_STRIPE_WEBHOOK_BYTES)return null;
       chunks.push(bytes);
     }
+    // Stripe's signature authenticates the raw bytes, but a contradictory
+    // Content-Length must never be silently accepted as a complete delivery.
+    // This also refuses zero-length declarations accompanied by real bytes.
+    if(claimed!==null&&total!==Number(claimed))return null;
     const body=new Uint8Array(total);
     let offset=0;
     for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
