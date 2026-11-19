@@ -15,6 +15,7 @@ import { CustomerReviewInvitation } from "../../../components/customer-review-in
 import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
 import { OwnerPreviewReturnLink } from "../../../components/owner-preview-return-link";
 import { canOfferManualPayment } from "../../../lib/public-payment-visibility.mjs";
+import {recordPublicDocumentFirstView} from "../../../lib/public-document-first-view.mjs";
 
 export const dynamic = "force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -68,11 +69,15 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const items=itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
   if (!ownerPreview&&!row.firstViewedAt) {
-    const now = new Date().toISOString();
-    await env.DB.batch([
-      env.DB.prepare("UPDATE invoices SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL").bind(now,row.id),
-      env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE type='invoice_viewed' AND estimate_id=?)`).bind(crypto.randomUUID(),"invoice_viewed",`${row.customer} viewed an invoice`,`${serviceSummary} invoice was opened for the first time.`,row.customerId,row.estimateId,now,row.estimateId),
-    ]);
+    // Public share tokens are revocable. Recheck this exact bearer token and
+    // invoice/customer/estimate ownership INSIDE both SQL first-view writes;
+    // a rotated link must never create an incorrect view alert.
+    const viewed=await recordPublicDocumentFirstView(env.DB,{
+      kind:"invoice",id:row.id,customerId:row.customerId,token,
+      customerName:row.customer,serviceSummary
+    });
+    if(!viewed.allowed)
+      return <main className="pay-page invoice-page"><section className="pay-card"><h1>Invoice link needs refreshing</h1><p>This invoice link changed or its current status could not be verified. Please request a new link from First In Response Exteriors.</p></section></main>;
   }
   const state=invoicePaymentState(row);
   const balance=state.balanceCents??0;
