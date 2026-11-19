@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     // read or bucket write, preserving valid full-resolution originals.
     if(file.size===0)return Response.json({error:"That photo is empty. Choose the original image."},
       {status:400,headers:{"cache-control":"private, no-store"}});
-    if(caption.length>500||file.name.length>240)return Response.json(
+    if(caption.length>2000||file.name.length>240)return Response.json(
       {error:"The photo caption or file name is too long. Shorten its description before saving."},
       {status:400,headers:{"cache-control":"private, no-store"}});
     const declaredMime=file.type.toLowerCase();
