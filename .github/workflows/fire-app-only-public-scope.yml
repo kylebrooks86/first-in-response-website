@@ -93,6 +93,8 @@ jobs:
           # all other verifier and protected website blobs remain unchanged.
           # NEW LIVE SQL custody workflow now reads the exact immutable same-run\n          # GitHub artifact ID directly and validates ZIP CRC, file paths and size.\n          # An earlier artifact-list-based download was racy; update only its pin.\n          # Gate9's former artifact-download race was repaired in an exact-scope
           # read-only same-run 5-attempt retry; update ONLY that workflow blob pin.
+          # The Gate9 source-only workflow is separately SHA-pinned after adding
+          # focused synthetic ignored-asset control tests; no new provider calls.
           # The newly reviewed local-only owner backup cadence workflow uses an exact
           # SHA-pinned blob; never allow a generic new-workflow exception.
           # Real public pages, assets, calculator and unrelated paths remain protected.
@@ -119,7 +121,7 @@ jobs:
             ccf96985afb7949af8999792708ab4761fa308b3
             5c4c28a43de2d6be5c1e6de0ba0cfd2b4c6e784e
             6c9aab68423963fa85a5b295ce4c1a16f676a7da
-            9be9aae55c7a6a410818ad1e5c47750e2b608b57
+            b4898e399ac09a11b054f5ba1df6925e6883fcb1
             b686776865e591cda8d692ef5ecc467925f098d7
             b290edbc2ae4d2134d5eecb5dc79b04b92235ae8
             39815146129c81a48cdc5631eff4370ae0116a58
