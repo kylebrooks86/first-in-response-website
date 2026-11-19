@@ -141,5 +141,16 @@ try{
   }
   eq(estimatePage.includes('if(syntheticOwnerException&&!viewed.newlyViewed)'),true,
     'Actual customer quote still suppresses obsolete revised-deposit 50% terms');
+  // The separately gated synthetic revised-agreement first-view SQL is also
+  // token/owner-bound; it must not silently keep the old unguarded batch.
+  eq(estimatePage.includes("WHERE id=? AND customer_id=? AND share_token=? AND first_viewed_at IS NULL AND status IN ('draft','sent')"),true,
+    'Revised-deposit first-view UPDATE compares current customer and bearer token');
+  eq(estimatePage.includes("FROM estimates WHERE id=? AND customer_id=? AND share_token=? AND first_viewed_at=? AND EXISTS"),true,
+    'Revised-deposit notification SELECT also compares the same bearer token');
+  eq(estimatePage.includes('.bind(viewedAt,row.id,row.customerId,token,amendment.totalCents,amendment.depositCents'),true,
+    'Revised-deposit first-view SQL binds the route owner/customer/token tuple');
+  eq(estimatePage.includes(".bind(crypto.randomUUID(),row.customer+' viewed revised deposit terms','Proposed deposit terms viewed; customer approval and payment are still pending.',viewedAt,row.id,row.customerId,token,viewedAt,row.id)"),true,
+    'Revised-deposit first-view notification binds exact owner/customer/token');
+
   console.log('PASS '+checks+'/'+checks+' public estimate/invoice real first-view helper, native SQLite token-revocation, customer ownership, false ACK, lost ACK and no duplicate notifications; NO HOSTED OPERATIONS.');
 }finally{db.close();}
