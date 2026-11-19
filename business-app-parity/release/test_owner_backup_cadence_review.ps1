@@ -68,6 +68,19 @@ try {
     } finally {
         $activeWriter.Dispose()
     }
+    # A SQL export with an active writable handle is not a stable backup.
+    # Its digest must be read through a protected stream, with private errors suppressed.
+    $activeSqlWriter = [IO.File]::Open($records, [IO.FileMode]::Open,
+        [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)
+    try {
+        $busySql=Invoke-Check
+        Must ($busySql.Exit -ne 0 -and
+              $busySql.Lines.Contains('RECORDS_READ_UNAVAILABLE')) 'active SQL writer must block receipt hash acceptance'
+        Must (-not $busySql.Lines.Contains($records)) 'SQL read failure must not expose private path'
+        Must (-not $busySql.Lines.Contains('LOCAL_SQL_HASH_RECEIPT=PASS')) 'busy SQL cannot produce a digest pass'
+    } finally {
+        $activeSqlWriter.Dispose()
+    }
     # A downloaded/copied OLD snapshot can have today's local file timestamp.
     # The review must NOT certify such an archive as fresh just for being copied.
     (Get-Item $records).LastWriteTimeUtc = [DateTime]::UtcNow
