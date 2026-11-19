@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 
@@ -8,11 +9,15 @@ const OWNER_EMAIL = "kylebrooks8605@gmail.com";
  * Existing schema intentionally uses "declined" (the historical/Lost lane).
  * This never deletes an estimate, an agreement, a ledger row, or a customer.
  */
-export async function POST(_request: Request, {params}: {params: Promise<{id:string}>}) {
+export async function POST(request: Request, {params}: {params: Promise<{id:string}>}) {
   const user = await getChatGPTUser();
   if (!user || user.email.toLowerCase() !== OWNER_EMAIL)
     return Response.json({error:"Unauthorized"},{status:401,headers:{"Cache-Control":"no-store"}});
 
+  // Reject cross-origin browser POST before a permanent status transition.
+  // Legitimate bodyless same-origin owner voids retain their existing behavior.
+  const browserBoundary=ownerBrowserWriteScope(request,false);
+  if(browserBoundary)return browserBoundary;
   const {id} = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
     return Response.json({error:"Invalid estimate ID."},{status:400,headers:{"Cache-Control":"no-store"}});
