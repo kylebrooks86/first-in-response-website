@@ -122,8 +122,15 @@ try{
   }
   {
     const f=seed('deposit-hold');
-    db.exec('CREATE TABLE IF NOT EXISTS deposit_policy_events(id TEXT PRIMARY KEY,estimate_id TEXT NOT NULL)');
-    db.prepare('INSERT INTO deposit_policy_events(id,estimate_id) VALUES(?,?)').run('synthetic-deposit-exception',f.e);
+    // Seed the ACTUAL immutable deposit audit schema (including required
+    // confirmation, owner, mode, exact cents and timestamp), not a reduced
+    // fabricated table. Existing 0021 migration is already in this fixture.
+    db.prepare(`INSERT INTO deposit_policy_events(
+      id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,
+      previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`)
+      .run('synthetic-deposit-exception',f.e,'synthetic-confirmation-deposit','owner@synthetic.invalid',
+        'waive',10000,5000,0,0,now);
     result=await view(f,'estimate',{requireNoDepositException:true});
     eq(result.allowed,false,'Revised deposit pending blocks obsolete 50% first-view transition');
     eq(result.newlyViewed,false,'Old agreement must not appear as newly viewed');
