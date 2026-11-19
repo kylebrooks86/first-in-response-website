@@ -18,7 +18,8 @@ database.prepare('INSERT INTO estimates VALUES (?,?)').run('e1','c1');
 database.prepare('INSERT INTO estimate_items VALUES (?,?,?)').run('i1','e1',service);
 database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x1','e1',category,description,1525,'2026-10-20T12:00:00.000Z','2026-10-20T12:00:00.000Z');
 database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x2',null,'Supplies',normal,275,'2026-10-19T12:00:00.000Z','2026-10-19T12:00:00.000Z');
-const backing={prepare(sql){const stmt=database.prepare(sql);return {bind(...v){return {all:async()=>({results:stmt.all(...v)})};},all:async()=>({results:stmt.all()})};}};
+let queryCount=0,failReads=false;
+const backing={prepare(sql){queryCount++;if(failReads)throw Error('Synthetic D1 unavailable');const stmt=database.prepare(sql);return {bind(...v){return {all:async()=>({results:stmt.all(...v)})};},all:async()=>({results:stmt.all()})};}};
 const source=readFileSync('app/api/expenses/route.ts','utf8');
 const owner=source.match(/OWNER_EMAIL="([^"]+)"/)?.[1];
 assert.ok(owner,'Original owner guard remains');
@@ -131,9 +132,47 @@ const pageSource=readFileSync('app/dashboard.tsx','utf8');
 eq(pageSource.includes('business-tax-prep')&&pageSource.includes('taxExpenses')&&pageSource.includes('api/expenses?format=csv&year='),true,'Business tax prep uses existing expense history and yearly Wave export');
 eq(pageSource.includes('expenseBusinessDay(item.incurredAt)?.slice(0,4)===taxYear'),true,'Visible Business tax summary groups records by shared Tulsa owner year');
 eq(pageSource.includes('expenseBusinessDateLabel(row.incurredAt)'),true,'Business expense row date comes from same validated Tulsa calendar helper');
+// Changed GET: private no-store on every status, including invalid inputs
+// rejected BEFORE D1 and SQL outages; corrupt legacy amounts cannot silently
+// become misleading accounting/tax values.
+const beforeInvalidYear=queryCount;
+const invalidYear=await context.exports.GET(new Request(url+'&year=20XX'));
+eq(invalidYear.status,400,'Malformed requested CSV tax year rejected before SQLite');
+eq(queryCount,beforeInvalidYear,'Malformed tax year does not read any financial rows');
+eq(invalidYear.headers.get('cache-control'),'private, no-store','Invalid tax export cannot be cached');
+eq(invalidYear.headers.get('vary'),'Cookie','Invalid tax export remains owner-session-specific');
+const csvPrivate=await context.exports.GET(new Request(url+'&year=2025'));
+eq(csvPrivate.headers.get('vary'),'Cookie','Valid Wave export varies by owner session');
+eq(csvPrivate.headers.get('x-content-type-options'),'nosniff','Valid export forbids MIME sniffing');
+let rawAmount=database.prepare("SELECT amount_cents AS cents FROM expenses WHERE id='x1'").get().cents;
+database.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run('not-a-whole-cent-amount');
+const invalidAmount=await context.exports.GET(new Request(url));
+eq(invalidAmount.status,503,'Corrupt legacy amount refuses a misleading Wave CSV');
+eq((await invalidAmount.json()).error.includes('amounts'),true,'Corrupt amount returns clear review instructions');
+eq(invalidAmount.headers.get('cache-control'),'private, no-store','Corrupt financial export never cacheable');
+eq(database.prepare("SELECT amount_cents FROM expenses WHERE id='x1'").get().amount_cents,'not-a-whole-cent-amount','Refusing invalid CSV never rewrites historical costs');
+database.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run(Number.MAX_SAFE_INTEGER);
+const largeExact=parseCSV(await (await context.exports.GET(new Request(url))).text());
+eq(largeExact[1][3],'90071992547409.91','Max-safe integer amount exported by exact whole-cent decimal arithmetic');
+database.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run(-123);
+const creditExact=parseCSV(await (await context.exports.GET(new Request(url))).text());
+eq(creditExact[1][3],'-1.23','Legacy negative expense adjustment preserved exactly rather than silently omitted');
+database.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run(rawAmount);
+failReads=true;
+try{
+ for(const path of [url,'https://synthetic.invalid/api/expenses']){
+  const unavailable=await context.exports.GET(new Request(path));
+  eq(unavailable.status,503,'D1 read outage returns controlled financial GET error');
+  eq(unavailable.headers.get('cache-control'),'private, no-store','D1 failure is private and never cached');
+  eq(unavailable.headers.get('vary'),'Cookie','D1 failure varies by owner session');
+  eq((await unavailable.json()).error.includes('were not changed'),true,'D1 failure never claims a successful empty expense history');
+ }
+}finally{failReads=false;}
 authorized=false;
 const denied=await context.exports.GET(new Request(url));
 eq(denied.status,401,'Unauthenticated export rejected');
+eq(denied.headers.get('cache-control'),'private, no-store','Anonymous expense export error cannot be cached');
+eq(denied.headers.get('vary'),'Cookie','Anonymous financial request varies by session');
 eq(database.prepare('SELECT count(*) AS n FROM expenses').get().n,3,'Export creates no records and preserves all three synthetic years');
 database.close();
 console.log('PASS '+checks+'/'+checks+': actual expense CSV safety, embedded quotes and whitespace, auth, unchanged stored records. Disposable SQLite only.');
