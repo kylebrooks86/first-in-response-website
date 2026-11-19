@@ -4,7 +4,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,symlinkSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
-import {createLocalAssetManifest,safeLocalManifestSummary,inspectSpecialWorkerModules}
+import {createLocalAssetManifest,safeLocalManifestSummary,inspectSpecialWorkerModules,inspectAssetIgnoreControl}
   from './gate9_offline_asset_manifest.mjs';
 
 function fresh() {
@@ -59,7 +59,8 @@ test('skips Vite private build metadata but rejects other hidden files',()=>{
  try {
   mkdirSync(join(x.folder,'.vite'));
   writeFileSync(join(x.folder,'.vite','manifest.json'),'{"private":true}');
-  writeFileSync(join(x.folder,'.assetsignore'),'/_next/static/chunks/private-build-control');
+  writeFileSync(join(x.folder,'.assetsignore'),'/.vite/**\n**/*.map\n/_headers\n');
+  assert.equal(inspectAssetIgnoreControl(x.folder).ruleCount,3);
   assert.equal(Object.keys(createLocalAssetManifest(x.folder)).length,2);
   writeFileSync(join(x.folder,'.env'),'DO_NOT_UPLOAD');
   assert.throws(()=>createLocalAssetManifest(x.folder));
@@ -115,4 +116,46 @@ test('asset manifest insertion order is identical despite opposite filesystem cr
   rmSync(a.temporary,{recursive:true,force:true});
   rmSync(b.temporary,{recursive:true,force:true});
  }
+});
+
+
+test('rejects wildcard asset ignore that would silently drop critical QA/STAGING client bundles',()=>{
+ for(const rule of ['**/*','*','/_next/**','/_next/static/*',
+   '/_next/static/chunks/app.js','/**/*.js','*.css','!.vite/**',
+   '/public/*','../secrets','.env','/_redirects\\n/_next/**']){
+  const x=fresh();
+  try {
+   writeFileSync(join(x.folder,'.assetsignore'),rule+'\\n');
+   assert.throws(()=>createLocalAssetManifest(x.folder),
+     /UNREVIEWED_ASSET_IGNORE_RULE/,'unreviewed rule must stop '+rule);
+  }finally{rmSync(x.temporary,{recursive:true,force:true})}
+ }
+});
+
+test('rejects malformed asset ignore bytes, links and very long build exclusion rules',()=>{
+ const x=fresh();
+ try{
+  const file=join(x.folder,'.assetsignore');
+  writeFileSync(file,Buffer.from([0,65,66]));
+  assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_BYTES/);
+  writeFileSync(file,'/.vite/**\\n'.repeat(1024));
+  assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_SHAPE/);
+  rmSync(file);
+  symlinkSync(join(x.folder,'_next','static','chunks','app.js'),file);
+  assert.throws(()=>createLocalAssetManifest(x.folder),/ASSET_IGNORE_CONTROL_SHAPE/);
+ }finally{rmSync(x.temporary,{recursive:true,force:true})}
+});
+
+test('safe ignored private controls are SHA256-attested but cannot hide compiled JS/CSS',()=>{
+ const x=fresh();
+ try{
+  const file=join(x.folder,'.assetsignore');
+  writeFileSync(file,'# Vite private build controls\\n/.vite/**\\n/_headers\\n/_redirects\\n**/*.map\\n');
+  const meta=inspectAssetIgnoreControl(x.folder);
+  assert.equal(meta.present,true);
+  assert.equal(meta.ruleCount,4);
+  assert.match(meta.sha256,/^[a-f0-9]{64}$/);
+  assert.equal(Object.keys(createLocalAssetManifest(x.folder)).length,2);
+  assert.equal(safeLocalManifestSummary(createLocalAssetManifest(x.folder)).assetsUploaded,false);
+ }finally{rmSync(x.temporary,{recursive:true,force:true})}
 });
