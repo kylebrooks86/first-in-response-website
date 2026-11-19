@@ -77,6 +77,17 @@ const refuse=(status,message)=>({
   value:undefined,
   response:Response.json({error:message},{status,headers:{'cache-control':'private, no-store'}})
 });
+/** Fail-closed browser metadata check for authenticated owner writes.
+ * JSON owner routes and the records-restore route require application/json.
+ * Multipart photo uploads retain their own strict body/content-type parser.
+ * A request with neither browser Origin nor Fetch Metadata is tolerated for
+ * existing internal/synthetic callers; authentication remains mandatory.
+ */
+export function ownerBrowserWriteScope(request,requireJson=false){
+  const browserBoundary=ownerBrowserWriteScope(request,true);
+  if(browserBoundary)return {response:browserBoundary,value:undefined};
+  return null;
+}
 export async function readOwnerWriteObject(request,maxBytes){
   if(!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>262144)
     return refuse(400,'Invalid owner request configuration.');
@@ -87,21 +98,21 @@ export async function readOwnerWriteObject(request,maxBytes){
   // callers; authentication and all route-level invariants still apply.
   const fetchSite=request?.headers?.get('sec-fetch-site');
   if(fetchSite!==null&&fetchSite!==undefined&&fetchSite!=='same-origin')
-    return refuse(403,'Owner action requires a same-origin app request.');
+    return refuse(403,'Owner action requires a same-origin app request.').response;
   const browserOrigin=request?.headers?.get('origin');
   if(browserOrigin!==null&&browserOrigin!==undefined){
     let exactOrigin;
     try{exactOrigin=new URL(request.url).origin;}
-    catch{return refuse(403,'Invalid owner request origin.');}
+    catch{return refuse(403,'Invalid owner request origin.').response;}
     if(browserOrigin!==exactOrigin)
-      return refuse(403,'Owner action requires a same-origin app request.');
+      return refuse(403,'Owner action requires a same-origin app request.').response;
   }
   // A browser write must use JSON, never a simple text/plain/form encoding
   // that can be submitted by a foreign page without a CORS preflight.
   if((browserOrigin!==null&&browserOrigin!==undefined)||
       (fetchSite!==null&&fetchSite!==undefined)){
     if(!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get('content-type')??''))
-      return refuse(415,'A JSON owner request is required.');
+      return refuse(415,'A JSON owner request is required.').response;
   }
   const rawLength=request?.headers?.get('content-length');
   if(rawLength!==null&&rawLength!==undefined&&
