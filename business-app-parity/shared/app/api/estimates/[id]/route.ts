@@ -3,7 +3,7 @@ import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,readPromotionAttribution,promotion
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,depositSchedulingGuard,type DepositPolicyRow} from '../../../../lib/deposit-policy';
-import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
+import {readOwnerWriteObject} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -12,16 +12,17 @@ type EditItem={id?:string;name:string;description:string;quantity:number;unit:st
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  // Before reading the request body or consulting D1, reject forged browser
-  // origin and non-JSON owner writes. Internal clients still require owner auth.
-  const browserBoundary=ownerBrowserWriteScope(request,true);
-  if(browserBoundary)return browserBoundary;
+  // Quote/service edits can include the original saved quote snapshot.
+  // Stream-limit browser JSON and require exact same-origin intent before
+  // reading price/schedule D1 rows. This preserves the prior owner checks.
+  const parsed=await readOwnerWriteObject(request,262_144);
+  if(parsed.response)return parsed.response;
   let guardedSchedule=false;
   let estimateWriteAttempted=false;
   let statusWriteAttempted=false;
   try {
     const { id } = await params;
-    const body = await request.json() as Record<string, unknown>;
+    const body=parsed.value as Record<string,unknown>;
     if(depositPolicyEnabled(env)&&Object.keys(body).some(key=>/^(?:deposit|overrideDeposit|allowSchedulingBeforeDeposit)/i.test(key)))return Response.json({error:'Deposit exceptions are not enabled. This request cannot change deposit terms or bypass collection.'},{status:400});
     if(Object.prototype.hasOwnProperty.call(body,'bundleDiscountCents')&&!Array.isArray(body.items))return Response.json({error:'Discount changes require the complete current service list.'},{status:400});
     const status = String(body.status ?? "").trim();
