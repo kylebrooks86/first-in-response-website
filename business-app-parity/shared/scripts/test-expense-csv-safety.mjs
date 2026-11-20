@@ -23,8 +23,8 @@ const backing={prepare(sql){queryCount++;if(failReads)throw Error('Synthetic D1 
 const source=readFileSync('app/api/expenses/route.ts','utf8');
 const owner=source.match(/OWNER_EMAIL="([^"]+)"/)?.[1];
 assert.ok(owner,'Original owner guard remains');
-let authorized=true;
-const auth=async()=>authorized?{email:owner}:null;
+let authorized=true,principal={email:owner};
+const auth=async()=>authorized?principal:null;
 const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 const expenseDateCode=ts.transpileModule(readFileSync('lib/expense-date.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 const expenseDates={exports:{},Intl,Date,Number};
@@ -168,6 +168,18 @@ try{
   eq((await unavailable.json()).error.includes('were not changed'),true,'D1 failure never claims a successful empty expense history');
  }
 }finally{failReads=false;}
+// Even a nominally authenticated identity with malformed email must never
+// reach owner tax data, produce a 500, or query the saved expense ledger.
+for(const malformedEmail of [undefined,123]){
+ principal=malformedEmail===undefined?{}:{email:malformedEmail};
+ const beforeBadPrincipal=queryCount;
+ const malformed=await context.exports.GET(new Request(url));
+ eq(malformed.status,401,'Malformed authenticated expense CSV principal denied 401');
+ eq(malformed.headers.get('cache-control'),'private, no-store','Malformed principal financial denial is noncacheable');
+ eq(malformed.headers.get('vary'),'Cookie','Malformed principal denial varies by session');
+ eq(queryCount,beforeBadPrincipal,'Malformed principal cannot read tax or owner expense data');
+}
+principal={email:owner};
 authorized=false;
 const denied=await context.exports.GET(new Request(url));
 eq(denied.status,401,'Unauthenticated export rejected');
