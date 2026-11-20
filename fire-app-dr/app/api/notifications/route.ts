@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-async function authorized(){const user=await getOwnerUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){try{const user=await getOwnerUser();return typeof user?.email==="string" && user.email.toLowerCase()===OWNER_EMAIL;}catch{return false;}}
 
 export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
@@ -44,9 +44,14 @@ export async function PATCH(request:Request){
         FROM estimates e WHERE e.id=?`).bind(value.estimateId).first<{paidCents:number;totalCents:number;invoiceOwnershipMismatch:number}>();
       if(!billing)return Response.json({error:"Estimate not found."},{status:404});
       if(Number(billing.invoiceOwnershipMismatch)!==0)return Response.json({error:"This invoice belongs to another customer. Reconcile ownership before resolving this overpayment."},{status:409});
-      const paidBefore=Math.max(0,Number(billing.paidCents)||0);
-      const billedTotal=Math.max(0,Number(billing.totalCents)||0);
-      if(!Number.isSafeInteger(paidBefore)||!Number.isSafeInteger(billedTotal))return Response.json({error:"Billing totals are outside FIRE's safe accounting range. Stop and review this job before reconciling the overpayment."},{status:409});
+      // A corrupt or missing saved amount must not be silently coerced to
+      // zero before deciding whether an overpayment can be kept.
+      const paidBefore=Number(billing.paidCents);
+      const billedTotal=Number(billing.totalCents);
+      if(billing.paidCents==null||billing.totalCents==null||
+         !Number.isSafeInteger(paidBefore)||!Number.isSafeInteger(billedTotal)||
+         paidBefore<0||billedTotal<0)
+        return Response.json({error:"Billing totals are outside FIRE's safe accounting range. Stop and review this job before reconciling the overpayment."},{status:409});
       const currentOverpaymentCents=paidBefore-billedTotal;
       if(currentOverpaymentCents<=0)return Response.json({error:"This job is no longer overpaid. Refresh the job before resolving this billing exception."},{status:409});
       const kept=await env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=?, resolution_note='kept_overpayment'
