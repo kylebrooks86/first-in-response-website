@@ -98,16 +98,6 @@ try{
    const r=await routeUnderTest.GET();assert.equal(r.status,503);assert.ok(isOwnerPrivate(r));
   }
  });env.BUCKET=bucket;
- await check('complete photo storage archive keeps private streaming ZIP and existing filename',async()=>{
-  const r=await storageRoute.GET();assert.equal(r.status,200);assert.ok(isOwnerPrivate(r));
-  assert.equal(r.headers.get('content-type'),'application/zip');
-  assert.match(r.headers.get('content-disposition')??'',/fire-photo-storage-/);
-  // Only assert the new privacy/header contract here. The existing archive
-  // coverage check below independently reads and validates every ZIP byte.
-  // Cancel this extra synthetic stream so a duplicate export cannot stall workerd.
-  assert.ok(r.body,'streaming ZIP body must exist');
-  await r.body.cancel();
- });
  env.BUCKET={head:k=>bucket.head(k),list:async()=>{throw Error('Synthetic lost read acknowledgement');}};
  await check('actual route reports uncertain inspection without retry or writes',async()=>{const r=await route.GET();assert.equal(r.status,503);assert.equal((await r.json()).inspectionUncertain,true);});env.BUCKET=bucket;
  await check('read-only inspection leaves native metadata and bytes unchanged',async()=>{const before=await reader.all('SELECT * FROM customer_photos'),digest=createHash('sha256').update(Buffer.from(await (await bucket.get(key)).arrayBuffer())).digest('hex');await inspect();assert.deepEqual(await reader.all('SELECT * FROM customer_photos'),before);assert.equal(createHash('sha256').update(Buffer.from(await (await bucket.get(key)).arrayBuffer())).digest('hex'),digest);});
@@ -174,7 +164,9 @@ try{
  });
  let completeFile;
  await check('actual complete archive covers referenced and unreferenced native bytes',async()=>{
-  const response=await load(join(source,'app/api/backup/photos/storage/route.ts')).GET();assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
+  const response=await storageRoute.GET();assert.equal(response.status,200);assert.ok(isOwnerPrivate(response));
+  assert.equal(response.headers.get('content-type'),'application/zip');
+  assert.match(response.headers.get('content-disposition')??'',/fire-photo-storage-/);
   completeFile=join(temp,'complete.zip');writeFileSync(completeFile,Buffer.from(await response.arrayBuffer()));
   const valid=spawnSync('python3',[join(source,'scripts/validate-photo-storage-archive.py'),completeFile],{encoding:'utf8'});assert.equal(valid.status,0,valid.stdout+valid.stderr);const result=JSON.parse(valid.stdout);assert.equal(result.declaredNamespaceCoverageValidated,true);assert.equal(result.cryptographicChecksumsVerified,true);assert.equal(result.unreferencedObjectsPreserved,1);assert.equal(result.objectsValidated,2);assert.equal(result.restoreExecutionAuthorized,false);
  });
