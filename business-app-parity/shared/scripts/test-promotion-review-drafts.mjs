@@ -26,6 +26,32 @@ const draftInput={bookingConfirmedOn:date,expectedOriginalTotalCents:43500,expec
 const snapshot=()=>JSON.stringify(['customers','estimates','estimate_items','invoices','payments'].map(t=>r.db.prepare('SELECT * FROM '+t+' ORDER BY rowid').all()));
 const source=snapshot(),before=r.counters();
 try{
+ // The loaded production route must NEVER expose a saved internal quote note,
+ // proposal cents or draft metadata to a malformed/foreign principal. These
+ // tests exercise GET, POST and DELETE before any SQLite read/write.
+ const privateReply=(reply,label)=>{
+  eq(reply.headers.get('cache-control'),'private, no-store',label+' no-store');
+  eq(reply.headers.get('vary'),'Cookie',label+' owner-session Vary');
+  eq(reply.headers.get('x-content-type-options'),'nosniff',label+' prevents sniffing');
+ };
+ const noIdentityD1=r.counters();
+ const invalidIdentities=[
+  [null,'anonymous'],[{},'missing email'],[{email:null},'null email'],
+  [{email:123},'numeric email'],[{email:'foreign@example.invalid'},'foreign owner'],
+  [{get email(){throw Error('Synthetic principal getter failed')}},'unreadable identity']
+ ];
+ for(const [principal,label] of invalidIdentities){
+  r.setOwner(principal);
+  for(const [method,payload] of [
+   ['GET',undefined],['POST',draftInput],['DELETE',{expectedRevision:uuid(3)}]
+  ]){
+   const refused=await call(method,estimate,payload);
+   eq(refused.status,401,label+' '+method+' denied fail-closed');
+   privateReply(refused,label+' '+method);
+  }
+  eq(r.counters(),noIdentityD1,label+' cannot access owner financial D1');
+ }
+ r.setOwner({email:'kylebrooks8605@gmail.com'});
  // Real compiled route sources, not a mocked guard: a foreign-origin browser
  // cannot preview private financial details or create/remove review metadata.
  const scoped=(route,method,payload,headers)=>route[method](new Request(
@@ -41,7 +67,9 @@ try{
  ]){
   for(const [headers,desc] of [[crossSite,'cross-origin'],[sibling,'sibling-site']]){
    const counts=r.counters();
-   eq((await scoped(route,method,payload,headers)).status,403,name+' '+desc+' browser write denied');
+   const blocked=await scoped(route,method,payload,headers);
+   eq(blocked.status,403,name+' '+desc+' browser write denied');
+   if(route===api)privateReply(blocked,name+' '+desc+' guard rejection');
    eq(r.counters(),counts,name+' '+desc+' rejected before all D1 reads and writes');
   }
   const counts=r.counters();
@@ -52,8 +80,8 @@ try{
   eq(r.counters(),counts,name+' oversized request stopped before all D1 access');
  }
  eq((await scoped(previewApi,'POST',{bookingConfirmedOn:date},sameOrigin)).status,200,'Legitimate same-origin booking preview preserved');
- let response=await get(estimate);eq(response.status,200,'Owner sees no saved review initially');eq((await response.json()).draft,null,'Absent draft not confused with accepted quote');
- response=await post(estimate,draftInput);eq(response.status,200,'Internal proposal saves');let body=await response.json();
+ let response=await get(estimate);eq(response.status,200,'Owner sees no saved review initially');privateReply(response,'Owner GET no saved draft');eq((await response.json()).draft,null,'Absent draft not confused with accepted quote');
+ response=await post(estimate,draftInput);eq(response.status,200,'Internal proposal saves');privateReply(response,'Owner POST saved review');let body=await response.json();
  eq(body.confirmed,true,'Save confirms internal draft only');eq(body.alreadySaved,false,'First save creates revision');
  eq(body.draft.originalTotalCents,43500,'Original quote remains $435');eq(body.draft.proposedTotalCents,36600,'Internal potential total $366');
  eq(body.draft.originalDepositCents,21750,'Original recorded deposit $217.50');eq(body.draft.proposedDepositCents,18300,'Potential deposit $183');
@@ -101,7 +129,7 @@ try{
  r.setOwner({email:'fake@example.invalid'});eq((await del(estimate,{expectedRevision:second})).status,401,'Nonowner cannot delete');
  r.setOwner({email:'kylebrooks8605@gmail.com'});
  eq((await del(estimate,{expectedRevision:null})).status,400,'Unverified delete revision rejected');
- response=await del(estimate,{expectedRevision:second});eq(response.status,200,'Owner discards just the internal review');eq((await response.json()).discarded,true,'Exact draft discarded');
+ response=await del(estimate,{expectedRevision:second});eq(response.status,200,'Owner discards just the internal review');privateReply(response,'Owner DELETE review');eq((await response.json()).discarded,true,'Exact draft discarded');
  eq(r.db.prepare('SELECT body FROM message_templates WHERE key=?').get(key),undefined,'Review draft key removed');
  eq((await get(estimate)).status,200,'Readback after discard works');eq((await (await get(estimate)).json()).draft,null,'Discard not mistaken for deleted estimate');
  eq((await del(estimate,{expectedRevision:second})).status,409,'Repeated discard requires readback');
