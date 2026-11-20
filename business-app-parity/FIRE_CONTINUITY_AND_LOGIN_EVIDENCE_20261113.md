@@ -1,3 +1,12 @@
+<!-- FIRE-NOV19-G6-TASK-WRITE-PRIVATE-D1-20261119 -->
+## November 19 — [x] G6 owner task mutation response privacy and D1 read-outage source repaired, exact CI pending
+
+New actual `POST/PATCH /api/tasks` changes on existing main-target unmerged Draft PR282. Code commit `e450c8b71968c3fd40b4dfa2cb0bd4ea74e7407b`, real-route/native SQLite POST test commit `820304a888326b277617ab893fa94d6b1e4a9af4`, and PATCH test/executable source SHA `177140026dabbd4ae5a7e74712b1911a1a87c7f4`. Initial linked-job or customer lookup unavailable now returns private 503 without task insert, preserving stable-ID retry, no false 404/500; all task mutation success, invalid, unauthorized, lost-ACK, CAS conflict, stream-guard and D1-unavailable responses carry private no-store, Cookie Vary and nosniff. Existing task completion/reopening, reschedule, linked customer rules and saved D1 records unchanged. Focused original SQLite route tests extended; [source and test scope](evidence/FIRE_G6_OWNER_TASK_MUTATION_D1_PRIVATE_20261119.md).
+
+**[x] Source and targeted regression changes committed. [ ] Exact new SHA task steps/CI completion**: automatic staging/QA run `44680788074` was still IN PROGRESS at first readback; do not claim pass until verified. **Formal checklist remains 51/95 checked, 44 OPEN** after previously accepted G9-03 offline TEST package seal; **whole gates 4/10** G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN. DR/NEW LIVE DARK and first real Job #0001 untouched. No Git merge, Cloudflare deployment/login/route/Access, remote SQL/photo, Stripe action, paid R2 subscription, public-site edit or repeated Acer/iPhone checks. Existing owner evidence and all older checkpoints preserved.
+
+---
+
 <!-- FIRE-G9-03-171d-CI-FINAL-SCOPED-20261119 -->
 ## Final scope correction — Nov 19 PR282 exact executable SHA 171d25e CI
 
