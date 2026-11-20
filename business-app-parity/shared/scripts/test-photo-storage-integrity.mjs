@@ -101,6 +101,57 @@ try{
  env.BUCKET={head:k=>bucket.head(k),list:async()=>{throw Error('Synthetic lost read acknowledgement');}};
  await check('actual route reports uncertain inspection without retry or writes',async()=>{const r=await route.GET();assert.equal(r.status,503);assert.equal((await r.json()).inspectionUncertain,true);});env.BUCKET=bucket;
  await check('read-only inspection leaves native metadata and bytes unchanged',async()=>{const before=await reader.all('SELECT * FROM customer_photos'),digest=createHash('sha256').update(Buffer.from(await (await bucket.get(key)).arrayBuffer())).digest('hex');await inspect();assert.deepEqual(await reader.all('SELECT * FROM customer_photos'),before);assert.equal(createHash('sha256').update(Buffer.from(await (await bucket.get(key)).arrayBuffer())).digest('hex'),digest);});
+ // Photo archive regression: security and integrity failures must return
+ // private, controlled receipts BEFORE contacting the object store.
+ await check('legacy ZIP archive denies malformed owner sessions with private headers',async()=>{
+  for(const invalid of [null,{}, {email:null}, {email:42}, {email:{}}, {email:'someone-else@example.invalid'}]){
+   user=invalid;
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,401);assert.ok(isOwnerPrivate(response));
+  }
+  user={email:'kylebrooks8605@gmail.com'};
+ });
+ await check('legacy ZIP archive fails closed on D1 read outage without touching storage',async()=>{
+  const original=env.DB;env.DB={prepare(){throw Error('Synthetic D1 read outage')}};
+  try{
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,503);assert.ok(isOwnerPrivate(response));
+   assert.equal((await response.json()).archiveUncertain,true);
+  }finally{env.DB=original;}
+ });
+ await check('legacy ZIP archive rejects unsafe customer object path before any R2 HEAD',async()=>{
+  await db.prepare('UPDATE customer_photos SET object_key=? WHERE id=?')
+   .bind('customers/customer-1/../forged.png','photo-1').run();
+  const original=env.BUCKET;env.BUCKET={head(){throw Error('Metadata refusal must occur before R2 read')}};
+  try{
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,409);assert.ok(isOwnerPrivate(response));
+   assert.equal((await response.json()).archiveIncomplete,true);
+  }finally{
+   env.BUCKET=original;
+   await db.prepare('UPDATE customer_photos SET object_key=? WHERE id=?').bind(key,'photo-1').run();
+  }
+ });
+ await check('legacy ZIP archive rejects negative byte size before any R2 HEAD',async()=>{
+  await db.prepare('UPDATE customer_photos SET size_bytes=-1 WHERE id=?').bind('photo-1').run();
+  const original=env.BUCKET;env.BUCKET={head(){throw Error('Invalid size must not read object')}};
+  try{
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,409);assert.ok(isOwnerPrivate(response));
+   assert.equal((await response.json()).archiveIncomplete,true);
+  }finally{
+   env.BUCKET=original;
+   await db.prepare('UPDATE customer_photos SET size_bytes=? WHERE id=?').bind(bytes.length,'photo-1').run();
+  }
+ });
+ await check('legacy ZIP archive rejects duplicated object references without exporting',async()=>{
+  await db.prepare("INSERT INTO customer_photos SELECT 'photo-2',customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at FROM customer_photos WHERE id='photo-1'").run();
+  try{
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,409);assert.ok(isOwnerPrivate(response));
+   assert.equal((await response.json()).archiveIncomplete,true);
+  }finally{await db.prepare("DELETE FROM customer_photos WHERE id='photo-2'").run();}
+ });
  // Exercise the real existing archive exporter and recover only its referenced synthetic image into a fresh native bucket.
  await check('actual archive export retains byte-identical referenced photo',async()=>{
   const archive=await load(join(source,'app/api/backup/photos/route.ts')).GET();assert.equal(archive.status,200);
