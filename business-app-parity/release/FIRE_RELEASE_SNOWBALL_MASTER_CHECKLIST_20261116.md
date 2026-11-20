@@ -1,3 +1,11 @@
+## November 19 — [x] STAGING G5-01 real physical migration journal FULL ROWS verified; G5-01 itself still [ ]
+
+The owner's two new **authenticated Cloudflare STAGING D1 Console screenshots** display the complete **22/22 physically applied migration names and IDs 1–22**, with overlapping photo rows. Compared against the live GitHub branch's original `adapters/doomsday/drizzle/` directory, **each of the first 22 names matches exactly in order**. This newly resolves the missing full STAGING journal-name evidence in the accepted Oct 29 owner count/last-three-name readback. Exact private original screenshot SHA-256 fingerprints and complete transcription are permanently preserved in [FIRE_STAGING_COMPLETE_PHYSICAL_JOURNAL_OWNER_20261119.md](../evidence/FIRE_STAGING_COMPLETE_PHYSICAL_JOURNAL_OWNER_20261119.md); original account screenshots are **not published in GitHub**. Do **NOT** request or execute that STAGING journal query again.
+
+**Remaining physical distinction:** STAGING displays only 22, whereas three subsequent Doomsday-family source migrations 0022–0024 exist but have **not** been installed in STAGING by this work. Accepted QA 25 preflight and DR/NEW LIVE 26/26 already exist; preserve them without repeat. **Formal G5-01 [ ]**, not promoted from a one-target full journal to four-target bound-schema parity. **Official 50/95 accepted, 45 OPEN; 4/10 gates G1/G2/G3/G8 accepted, NEW LIVE DARK/NO-GO; first Job #0001 untouched.** No migrations, D1 writes, Cloudflare/Stripe/Access changes, paid R2, merges or deployments.
+
+---
+
 ## November 19 — [x] NEW actual owner payment-history source fix, not formal hosted G5/G6 acceptance
 
 - [x] **Source implementation:** `GET /api/payments` no longer escapes unhandled D1 query failures; returns controlled 503 and owner-private, no-store, Cookie-varying, nosniff status on successful/denied/corrupt/outage responses. Existing exact principal/tip/refund schema, original 50% deposit rules, customer and provider records and public site preserved.
