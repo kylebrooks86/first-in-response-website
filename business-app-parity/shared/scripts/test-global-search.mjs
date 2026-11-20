@@ -96,7 +96,7 @@ try{
  const broad=await search('Generic');eq(broad.hasMore,true);eq(broad.results.length,8);eq(broad.results.every(x=>x.kind==='estimate'),true);
  for(const scope of ['customers','estimates','invoices','jobs']){const r=await search('Synthetic',scope);eq(r.results.every(x=>x.kind===scope.slice(0,-1)),true);}
  for(const q of ["%' OR 1=1 --",'not-found-xyz','%','_'])eq((await search(q)).results.length,0);
- const headers=(await get('6528')).headers;eq(headers.get('cache-control'),'no-store, private');eq(headers.get('vary'),'Cookie');
+ const headers=(await get('6528')).headers;eq(headers.get('cache-control'),'private, no-store');eq(headers.get('vary'),'Cookie');
  fail=true;const down=await get('Synthetic');eq(down.status,503);eq('results' in await down.json(),false);fail=false;
  // Mismatched invoice ownership never yields an invoice result.
  db.prepare("UPDATE invoices SET customer_id='other' WHERE id LIKE '6528%'").run();eq((await search('6528','invoices')).results.length,0);
