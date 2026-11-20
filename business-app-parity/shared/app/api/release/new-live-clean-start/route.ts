@@ -6,7 +6,9 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {inspectNewLiveFirstJobCleanStart} from '../../../../lib/new-live-first-job-preflight.mjs';
 
-const headers={'cache-control':'private, no-store','x-content-type-options':'nosniff'};
+// This inspection exposes owner-only NEW LIVE schema/first-job evidence;
+// every success and refusal must stay bound to the authenticating session.
+const headers={'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'};
 const fail=(status:number,message:string)=>Response.json({
  error:message,releaseApproved:false,providerIdentityVerified:false
 },{status,headers});
