@@ -60,6 +60,19 @@ try{
  check(writes===noAuthWrites,'No financial record written by anonymous request');
  user={email:'stranger@example.invalid'};
  check((await call(base(1))).status===401,'Nonowner expense POST denied');
+ // An authentication layer may supply a principal without an email. It must
+ // fail closed as 401, never throw 500 or touch the owner financial ledger.
+ const beforeMalformedReads=reads,beforeMalformedWrites=writes;
+ user={};
+ const missingEmail=await call(base(1));
+ check(missingEmail.status===401,'Authenticated expense principal with no email is denied 401');
+ check(missingEmail.headers.get('cache-control')==='private, no-store'&&
+  missingEmail.headers.get('vary')==='Cookie'&&missingEmail.headers.get('x-content-type-options')==='nosniff',
+  'Malformed financial principal denial remains private, session-varied and nosniff');
+ user={email:123};
+ check((await call(base(1))).status===401,'Non-string authenticated email fails closed before expense SQL');
+ check(reads===beforeMalformedReads&&writes===beforeMalformedWrites,
+  'Malformed owner principals issue zero expense D1 reads and writes');
  user={email:'kylebrooks8605@gmail.com'};
  // Changed-function security regression on the actual financial POST:
  // an invalid/oversized stream must never reach SELECT or INSERT, and
