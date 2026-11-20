@@ -39,7 +39,8 @@ try{
  note('received-note','received',flags.REVIEW_RECEIVED_NOTE);
  const response=await api.GET(),data=await response.json();
  check(response.status===200,'Owner can read review-check list');
- check(response.headers.get('cache-control').includes('no-store'),'Review data is never cached');
+ check(response.headers.get('cache-control')==='private, no-store','Review data is never cached or shared');
+ check(response.headers.get('vary')==='Cookie'&&response.headers.get('x-content-type-options')==='nosniff','Review list binds cache to owner session and blocks content sniffing');
  check(data.checks.length===2&&data.checks.some(row=>row.customerId==='due')&&data.checks.some(row=>row.customerId==='cross-job'),'Only completed-job confirmed overdue requests without a review are returned');
  check(data.checks.find(row=>row.customerId==='due')?.elapsedDays===12&&data.checks.find(row=>row.customerId==='cross-job')?.elapsedDays===12,'Elapsed days derive from confirmed requests on completed work, not newer unfinished jobs');
  check(!data.checks.some(row=>['unsent','received','unfinished','malformed','waiting','future','other-job'].includes(row.customerId)),'Unsent, received, unfinished, malformed, future and unrelated-job requests excluded');
@@ -54,6 +55,7 @@ try{
  check(later.length===1&&later[0].customerId==='cross-job','Logging received review removes only that customer from review checks');
  const broken=load('app/api/dashboard-review-checks/route.ts',{'cloudflare:workers':{env:{DB:{prepare:()=>{throw Error('Synthetic D1 failure')}}}},'../../chatgpt-auth':{getChatGPTUser:async()=>user},'../../../lib/dashboard-review-checks':checksLib});
  const error=await broken.GET();
+ check(error.headers.get('cache-control')==='private, no-store'&&error.headers.get('vary')==='Cookie'&&error.headers.get('x-content-type-options')==='nosniff','Database-outage review response remains session-private');
  check(error.status===503&&(await error.json()).error.includes('Unable to verify'),'Read error is not silently treated as no follow-ups');
  console.log(`PASS ${count} owner-only dashboard review-check API tests; no deployment, real database, or messages.`);
 }finally{db.close();}
