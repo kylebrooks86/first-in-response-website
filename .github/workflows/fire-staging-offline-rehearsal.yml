@@ -295,6 +295,10 @@ jobs:
           node --experimental-sqlite scripts/test-owner-followups-private-sqlite.mjs
           # Real lead-visit and review reminder owner APIs: native SQLite and bounded-stream cases.
           node --experimental-sqlite scripts/test-door-knocking.mjs
+          # Actual owner Dashboard/review/history SQLite APIs: 200/401/503 private session headers.
+          node --experimental-sqlite scripts/test-dashboard-review-checks.mjs
+          node --experimental-sqlite scripts/test-dashboard-yard-signs.mjs
+          node --experimental-sqlite scripts/test-job-closeout-history.mjs
           # Actual owner territory geocoder/SQLite route regression, including
           # streamed UTF-8 request limits and exact browser-origin refusal.
           node --experimental-sqlite scripts/test-territory.mjs
