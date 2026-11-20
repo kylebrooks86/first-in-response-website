@@ -5,7 +5,7 @@ import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()===OWNER;}
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}});
 export async function GET(){
  if(!await authorized())return json({error:'Unauthorized'},401);
  try{
