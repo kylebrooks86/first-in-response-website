@@ -1,0 +1,79 @@
+{
+  "parent": "d0ec60a11e63afe15f296eff76706cfaf39a37d2",
+  "status": "VERIFIED_INACTIVE_SYNTHETIC_ENCRYPTED_UPDATES",
+  "nativeBrowserChecks": {
+    "passed": 105,
+    "total": 105,
+    "perTarget": 35
+  },
+  "targets": {
+    "live": {
+      "chunk_id": "289f75",
+      "wall_time_seconds": 4.501924748,
+      "exit_code": 0,
+      "original_token_count": 607,
+      "output": "PASS: uninitialized vault fails closed instead of returning empty business data\nPASS: invalid customer archive fails before storage writes\nPASS: weak passphrase cannot initialize vault\nPASS: wrong namespace cannot initialize vault\nPASS: interrupted native initialization commits no encrypted snapshot\nPASS: quota fault preserves uninitialized state\nPASS: locking during asynchronous encryption prevents initialization\nPASS: retry commits only encrypted customer snapshot\nPASS: unlock exposes validated detached records only to its session\nPASS: wrong passphrase rejects and preserves encrypted bytes\nPASS: reinitialization cannot overwrite existing snapshot\nPASS: explicit session lock blocks all future getters and export\nPASS: vault lock revokes every outstanding session\nPASS: lock during key derivation cannot publish a late unlocked session\nPASS: account and target remain isolated\nPASS: two-tab initialization race has one winner without overwrite\nPASS: unlock and read work offline with a locked vault\nPASS: graceful browser restart retains encrypted storage and offline unlock\nPASS: wrong phrase cannot rewrite encrypted customer data\nPASS: invalid fields and stale customer revision reject without writes\nPASS: aborted native ciphertext replacement preserves disk and session revision\nPASS: quota failure preserves prior encrypted snapshot\nPASS: session lock during encryption cancels pending replacement\nPASS: offline successful edit advances customer/history only after commit\nPASS: exact duplicate write retry leaves ciphertext unchanged\nPASS: operation ID cannot be reused for a different encrypted change\nPASS: old operation retry never rewinds newer encrypted edits\nPASS: caller mutation cannot alter a scheduled encrypted customer create\nPASS: two-tab edits compare-and-swap with exactly one winner\nPASS: stale encrypted snapshot cannot lose unrelated newer customers\nPASS: raw persisted edits remain ciphertext without customer plaintext\nPASS: encrypted edits and operation history survive graceful restart\nPASS: ciphertext tampering fails closed without replacing stored snapshot\nPASS: close revokes access and prevents reopening through stale handle\nPASS: no external app, database or Stripe requests\n{\"passed\":35,\"total\":35,\"browser\":\"153.0.8010.0\",\"nativeWebCrypto\":true,\"realIndexedDB\":true,\"syntheticOnly\":true,\"encryptedAtRestSnapshotTested\":true,\"appOfflineColdLaunchTested\":false,\"iPhoneTested\":false}\n"
+    },
+    "staging": {
+      "chunk_id": "006c52",
+      "wall_time_seconds": 4.428285693,
+      "exit_code": 0,
+      "original_token_count": 607,
+      "output": "PASS: uninitialized vault fails closed instead of returning empty business data\nPASS: invalid customer archive fails before storage writes\nPASS: weak passphrase cannot initialize vault\nPASS: wrong namespace cannot initialize vault\nPASS: interrupted native initialization commits no encrypted snapshot\nPASS: quota fault preserves uninitialized state\nPASS: locking during asynchronous encryption prevents initialization\nPASS: retry commits only encrypted customer snapshot\nPASS: unlock exposes validated detached records only to its session\nPASS: wrong passphrase rejects and preserves encrypted bytes\nPASS: reinitialization cannot overwrite existing snapshot\nPASS: explicit session lock blocks all future getters and export\nPASS: vault lock revokes every outstanding session\nPASS: lock during key derivation cannot publish a late unlocked session\nPASS: account and target remain isolated\nPASS: two-tab initialization race has one winner without overwrite\nPASS: unlock and read work offline with a locked vault\nPASS: graceful browser restart retains encrypted storage and offline unlock\nPASS: wrong phrase cannot rewrite encrypted customer data\nPASS: invalid fields and stale customer revision reject without writes\nPASS: aborted native ciphertext replacement preserves disk and session revision\nPASS: quota failure preserves prior encrypted snapshot\nPASS: session lock during encryption cancels pending replacement\nPASS: offline successful edit advances customer/history only after commit\nPASS: exact duplicate write retry leaves ciphertext unchanged\nPASS: operation ID cannot be reused for a different encrypted change\nPASS: old operation retry never rewinds newer encrypted edits\nPASS: caller mutation cannot alter a scheduled encrypted customer create\nPASS: two-tab edits compare-and-swap with exactly one winner\nPASS: stale encrypted snapshot cannot lose unrelated newer customers\nPASS: raw persisted edits remain ciphertext without customer plaintext\nPASS: encrypted edits and operation history survive graceful restart\nPASS: ciphertext tampering fails closed without replacing stored snapshot\nPASS: close revokes access and prevents reopening through stale handle\nPASS: no external app, database or Stripe requests\n{\"passed\":35,\"total\":35,\"browser\":\"153.0.8010.0\",\"nativeWebCrypto\":true,\"realIndexedDB\":true,\"syntheticOnly\":true,\"encryptedAtRestSnapshotTested\":true,\"appOfflineColdLaunchTested\":false,\"iPhoneTested\":false}\n"
+    },
+    "doomsday": {
+      "chunk_id": "dd2603",
+      "wall_time_seconds": 4.297724832,
+      "exit_code": 0,
+      "original_token_count": 607,
+      "output": "PASS: uninitialized vault fails closed instead of returning empty business data\nPASS: invalid customer archive fails before storage writes\nPASS: weak passphrase cannot initialize vault\nPASS: wrong namespace cannot initialize vault\nPASS: interrupted native initialization commits no encrypted snapshot\nPASS: quota fault preserves uninitialized state\nPASS: locking during asynchronous encryption prevents initialization\nPASS: retry commits only encrypted customer snapshot\nPASS: unlock exposes validated detached records only to its session\nPASS: wrong passphrase rejects and preserves encrypted bytes\nPASS: reinitialization cannot overwrite existing snapshot\nPASS: explicit session lock blocks all future getters and export\nPASS: vault lock revokes every outstanding session\nPASS: lock during key derivation cannot publish a late unlocked session\nPASS: account and target remain isolated\nPASS: two-tab initialization race has one winner without overwrite\nPASS: unlock and read work offline with a locked vault\nPASS: graceful browser restart retains encrypted storage and offline unlock\nPASS: wrong phrase cannot rewrite encrypted customer data\nPASS: invalid fields and stale customer revision reject without writes\nPASS: aborted native ciphertext replacement preserves disk and session revision\nPASS: quota failure preserves prior encrypted snapshot\nPASS: session lock during encryption cancels pending replacement\nPASS: offline successful edit advances customer/history only after commit\nPASS: exact duplicate write retry leaves ciphertext unchanged\nPASS: operation ID cannot be reused for a different encrypted change\nPASS: old operation retry never rewinds newer encrypted edits\nPASS: caller mutation cannot alter a scheduled encrypted customer create\nPASS: two-tab edits compare-and-swap with exactly one winner\nPASS: stale encrypted snapshot cannot lose unrelated newer customers\nPASS: raw persisted edits remain ciphertext without customer plaintext\nPASS: encrypted edits and operation history survive graceful restart\nPASS: ciphertext tampering fails closed without replacing stored snapshot\nPASS: close revokes access and prevents reopening through stale handle\nPASS: no external app, database or Stripe requests\n{\"passed\":35,\"total\":35,\"browser\":\"153.0.8010.0\",\"nativeWebCrypto\":true,\"realIndexedDB\":true,\"syntheticOnly\":true,\"encryptedAtRestSnapshotTested\":true,\"appOfflineColdLaunchTested\":false,\"iPhoneTested\":false}\n"
+    }
+  },
+  "typechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "builds": {
+    "passed": 3,
+    "total": 3
+  },
+  "standaloneStrictTypecheck": true,
+  "sharedFilesMatched": 122,
+  "negativeControl": {
+    "exitCode": 1,
+    "mutation": "Omit atomic sealed-row identity comparison",
+    "failure": "Two concurrent edits succeed instead of exactly one: 2 !== 1"
+  },
+  "capabilities": [
+    "Offline synthetic customer create/edit inside an unlocked encrypted vault",
+    "Customer revision checks",
+    "Atomic ciphertext compare-and-swap inside native IndexedDB readwrite transaction",
+    "Operation receipt retry without rewind",
+    "Aborted/quota-failed writes preserve ciphertext and session snapshot",
+    "Lock during encryption prevents pending save",
+    "Encrypted edits survive graceful browser restart"
+  ],
+  "limits": [
+    "Inactive foundation; no real-record UI integration or plaintext migration",
+    "Whole snapshot encrypted per new operation; phrase supplied per write; iPhone cost unmeasured",
+    "Stale sessions must unlock again; no cross-tab logout or idle/background lifecycle integration",
+    "Lock after native commit can reject acknowledgement while data is committed: unlock and inspect operation receipt before retry",
+    "No installed-PWA offline cold-launch, Safari/iPhone, eviction, power-loss or permanent storage durability proof",
+    "Navigation reset preserved; whole-screen shaking remains unresolved"
+  ],
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false,
+  "realRecordsActivated": false,
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "ready": false
+  },
+  "sourceSha256": {
+    "shared/lib/local-customer-vault.ts": "26cc8ed9b8810f3f34b110c7fb29db42c06dd4a3bce9c1e23d062933ec6f1a0b",
+    "shared/scripts/test-local-customer-vault-browser.mjs": "52c6ca735c6b413fb3dfbf85f4cf75ac3f9859866057466369c6e930e3c7f2f7"
+  }
+}

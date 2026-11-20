@@ -1,0 +1,25 @@
+{
+  "fire_release": "v138",
+  "package_version": "1.0.0-rc.138",
+  "release_name": "Restore failure audit completeness milestone",
+  "strict_parity_required": true,
+  "strict_parity_status": "NOT_YET_FULLY_VERIFIED",
+  "production_sync_status": "PENDING",
+  "authoritative_files": [
+    "CURRENT_VERSION.json",
+    "FIRE_UNIFIED_RELEASE.json",
+    "SHARED_CORE_MANIFEST.json",
+    "CURRENT_PARITY_AUDIT.md",
+    "PARITY_EVIDENCE_MANIFEST.json",
+    "STRICT_PARITY_MATRIX.md",
+    "LIVE_MASTER_PARITY_CHECKLIST.md",
+    "RELEASE_STATUS.md"
+  ],
+  "recovery_assets": [
+    "fixtures/strict-parity-records.json",
+    "fixtures/strict-parity-photos.zip",
+    "scripts/restore-records-backup.mjs",
+    "scripts/restore-photo-archive.mjs"
+  ],
+  "shared_core_fingerprint_sha256": "7a1889d5f9c07483536630ebb8ba3b18d9e6746f874c641c2d5e9a6633f20896"
+}

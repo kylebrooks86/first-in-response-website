@@ -1,0 +1,21 @@
+name: FIRE Owner Backup Cadence Safety (OFFLINE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/release/owner_backup_cadence_review.ps1'
+      - 'business-app-parity/release/test_owner_backup_cadence_review.ps1'
+      - '.github/workflows/fire-owner-backup-cadence-offline.yml'
+permissions:
+  contents: read
+jobs:
+  windows-local-no-provider:
+    name: Synthetic local encrypted photo and SQL receipt cadence checks
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run offline fail-closed Windows PowerShell tests
+        shell: powershell
+        run: ./business-app-parity/release/test_owner_backup_cadence_review.ps1

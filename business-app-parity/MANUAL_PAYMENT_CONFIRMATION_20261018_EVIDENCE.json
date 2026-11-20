@@ -1,0 +1,42 @@
+{
+  "baseCommit": "77b48e44cbda4c4bdc72be5c749884ffb1ba655b",
+  "officialReadiness": {
+    "accepted": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "scope": "Development source and isolated synthetic candidates, no hosted mutation or deployment",
+  "implemented": [
+    "Authenticated owner-only GET payment confirmation by job and stable request ID; consistent read batch, private/no-store response and no mutations",
+    "Client validates exact stored payment/tip IDs, amount, method, reference and fee accounting before confirming",
+    "Read ledger after lost or slow POST response; reconcile saved result instead of automatically repeating financial mutation",
+    "Explicit same-attempt retries check recorded state before any user-requested POST; wrong-job/partial/malformed receipts remain blocked",
+    "Synchronous in-flight lock prevents immediate double submission",
+    "Pending saved attempt remains accessible after reload even when deposit already fully recorded",
+    "Confirmed payment cleared before parent update; parent callback failure cannot become a payment retry"
+  ],
+  "tests": {
+    "nativeSqliteRoutesAndReceipts": "46/46 per candidate",
+    "savedAttemptState": "24/24 per candidate",
+    "builtWorkerNativeD1HttpsChromium": "58/58, slow/lost acknowledgements, double tap, read outage, full reload, wrong-job refusal, GET-only confirmation and complete backup integrity",
+    "customerInvoicePrincipal": "208/208 per candidate",
+    "paymentLoadRecovery": "298/298 per candidate, mocked reads",
+    "financial": "Processing fees across four candidates, final tipping across three non-QA candidates",
+    "typescript": "Four candidates passed",
+    "builds": "Four final-source candidate builds passed; initial staging build stopped before completion marker, isolated rerun completed",
+    "sourceParity": {
+      "qa": 379,
+      "live": 374,
+      "doomsday": 379,
+      "staging": 375
+    }
+  },
+  "limitations": [
+    "Original intermittent 10-second iPhone/hosted transport failure root cause remains unproven",
+    "No real iPhone or hosted acceptance claimed for this candidate; owner synthetic workflow observations recorded separately",
+    "Customer creation save recovery, global search, invoice state copy/exit, remaining notification targets, Safari scrolling, resolved change history, scheduling warnings, owner deposit exceptions and Areas of Concern remain backlog",
+    "No existing hosted financial/customer records, signatures, photo permissions, databases, Stripe configuration, credentials or deployment bindings changed"
+  ],
+  "nextBatch": "Customer-create operation identity and read confirmation; then customer-facing paid invoice state and safe owner invoice exit",
+  "deploymentPerformed": false
+}

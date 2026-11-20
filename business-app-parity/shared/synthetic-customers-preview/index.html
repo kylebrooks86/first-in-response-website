@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>FIRE • Synthetic Customers Preview</title><link rel="stylesheet" href="/preview.css"></head>
+<body class="fire-synthetic-preview">
+<a class="skip-link" href="#customers">Skip to customers</a>
+<header class="preview-topbar"><a class="brand" href="#customers" aria-label="FIRE synthetic preview home"><span class="brand-mark" aria-hidden="true">F</span><span>FIRE<small>Customers preview</small></span></a><button id="theme" type="button">Switch to dark mode</button></header>
+<main class="preview-shell">
+<section class="preview-notice" aria-label="Preview scope"><strong>Synthetic development screen</strong><p>Contact records only. This screen has no production sign-in, customer connection, payments or server sync. Use fictional details and a test phrase.</p></section>
+<section class="setup-card" aria-labelledby="setup-title"><h2 id="setup-title">Start a separate test vault</h2><p>This preview uses its own account and target namespace. Creating a test vault never replaces an existing vault.</p><form id="fixture"><label>New test phrase<input id="fixture-phrase" type="password" minlength="16" maxlength="1024" autocomplete="off" required></label><button type="submit">Create empty synthetic test vault</button></form><p id="setup-status" role="status">Checking preview storage…</p></section>
+<section id="customers" class="customer-workspace" aria-label="Synthetic local Customers" tabindex="-1"></section>
+<footer>Isolated preview • Encrypted local contact storage • Server sync unavailable</footer>
+</main><script type="module" src="/preview-bootstrap.js"></script>
+</body></html>
