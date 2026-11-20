@@ -1,0 +1,81 @@
+{
+  "parent": "9cc28d390234e12fb1432422ddd86e963a62f3de",
+  "scope": "Test-only native-browser encrypted customer recovery",
+  "checks": {
+    "passed": 60,
+    "total": 60
+  },
+  "browser": "Chromium 153.0.8010.0",
+  "browserExecutableSha256": "53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0",
+  "targets": {
+    "live": {
+      "passed": 20,
+      "total": 20,
+      "exitCode": 0,
+      "evidence": "Complete sequential tool invocation stdout includes all 20 PASS lines and final JSON summary; retained in conversation tool results."
+    },
+    "staging": {
+      "passed": 20,
+      "total": 20,
+      "exitCode": 0,
+      "evidence": "Complete sequential tool invocation stdout includes all 20 PASS lines and final JSON summary; retained in conversation tool results."
+    },
+    "doomsday": {
+      "passed": 20,
+      "total": 20,
+      "exitCode": 0,
+      "evidence": "Complete sequential tool invocation stdout includes all 20 PASS lines and final JSON summary; retained in conversation tool results."
+    }
+  },
+  "testHarnessSha256": "8b81da57ec8dcfe32e5a24d0a0be0409716d146c1fe637a861e640584bdd07f9",
+  "moduleSha256": {
+    "shared/lib/local-customer-store.ts": "5bcbda94c8c08f384e726ffba91d83cece9167885a51df132f50328ffea3ee0c",
+    "shared/lib/local-customer-backup.ts": "0a9b77c41691dea84aa4444c86be5862acce35b333ac2b8d83f46d69d9256709"
+  },
+  "sharedSourceParity": {
+    "passed": 121,
+    "total": 121,
+    "differences": []
+  },
+  "negativeControl": {
+    "scratchMutation": "Skip decrypted schema/namespace validation",
+    "exitCode": 1,
+    "detectedBy": "Wrong namespace must cause zero writes",
+    "unsafeNativeWritesDetected": 5
+  },
+  "verified": [
+    "Native WebCrypto + IndexedDB encrypted recovery integration",
+    "Wrong phrase/namespace, tampering and malformed encrypted archives reject before restore writes",
+    "Correctly authenticated malformed customer payload also rejects",
+    "Native transaction interruption rolls back both stores",
+    "Offline retry restores two missing customers and three operation receipts",
+    "Exact retry is a no-op",
+    "Graceful full browser restart retains records/history",
+    "Encrypted recovery works again offline after harness reload",
+    "Older backup cannot rewind newer edits",
+    "No external network requests"
+  ],
+  "limitations": [
+    "Synthetic test profiles only; no runtime/UI activation",
+    "Harness loaded online before network disabled; not installed PWA cold launch",
+    "Chromium only; Safari/iPhone unverified",
+    "Graceful restart and explicit transaction abort; no power-loss/crash guarantee",
+    "Local database still plaintext; backup encryption is not local unlock",
+    "Whole-screen shaking unresolved; navigation reset preserved"
+  ],
+  "executionIssues": [
+    "Yielded/concurrent file logs were incomplete and discarded; complete sequential tool stdout is authoritative. Harness defaults to failure until final summary."
+  ],
+  "typeScriptAndBuild": "Runtime code unchanged; parent 3/3 TypeScript and 3/3 builds retained, not rerun for test-only work",
+  "syntaxCheck": "PASS",
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "migrations": false,
+  "stripeCalls": false,
+  "paidOperations": false
+}

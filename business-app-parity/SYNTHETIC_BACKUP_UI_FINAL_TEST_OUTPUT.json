@@ -1,0 +1,119 @@
+[
+  {
+    "candidate": "protected-backup-live",
+    "checks": [
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-backup-ui-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: actual encrypted JSON download works offline and excludes plaintext\nPASS: reading actual downloaded file verifies revision and receipts without writes\nPASS: wrong phrase fails without changing encrypted records\nPASS: malformed and tampered files preserve existing records\nPASS: foreign namespaces and valid encrypted non-synthetic data are rejected\nPASS: oversized archive is rejected before decryption or writes\nPASS: restore requires explicit empty-vault confirmation\nPASS: confirmed restore cannot overwrite an existing vault\nPASS: lock during encryption prevents a late download or result\nPASS: lock during file decryption clears fields and suppresses late verification\nPASS: invalid recovery into an empty vault never writes a snapshot\nPASS: interrupted IndexedDB recovery leaves the empty vault untouched\nPASS: actual saved file recovers into separate empty offline browser context\nPASS: repeated recovery preserves the newly recovered vault\nPASS: recovered revision survives offline reload and unlock\nPASS: no external services or production requests and screen fits mobile width\n{\"passed\":16,\"total\":16,\"actualDownloadedFile\":true,\"offlineExportVerifyRecover\":true,\"separateEmptyContext\":true,\"sourceVaultPreserved\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneFilesTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-pages-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: only the exact proposed origin can be packaged\nPASS: existing review destinations are preserved\nPASS: exact-origin HTTPS lab installs under scoped headers and strict CSP\nPASS: declared MIME types and narrow maximum worker scope match assets\nPASS: unlisted API routes do not become the app shell\nPASS: same-origin pages outside the directory have no worker controller\nPASS: copied shell refuses registration on an unapproved HTTPS origin\nPASS: prepared HTTPS shell cold launches offline and retains encrypted revision\nPASS: requests remain isolated from production services\n{\"passed\":9,\"total\":9,\"httpsLab\":true,\"localOnlyProxy\":true,\"temporaryCertificateBypass\":true,\"cloudflarePublished\":false,\"realTlsVerified\":false,\"iPhoneTested\":false,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true}\n"
+      },
+      {
+        "command": [
+          "npx",
+          "tsc",
+          "--noEmit"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> site-creator-vinext-starter@0.1.0 build\n> node scripts/run-framework.mjs build\n\n\n  vinext build  (Vite 8.0.13)\n\n\u001b[33m\u25b2 \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1mProxy environment variables detected. We'll use your proxy for fetch requests.\u001b[0m\n\n\n[1/5] analyze client references...\n\u001b[2K\ntransforming...\u2713 284 modules transformed.\nrendering chunks...\n\u2713 built in 1.94s\n[2/5] analyze server references...\n\u001b[2K\ntransforming...\u2713 268 modules transformed.\nrendering chunks...\n\u2713 built in 701ms\n[3/5] build rsc environment...\n\u001b[2K\ntransforming...\u2713 281 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.44s\n[4/5] build client environment...\n\u001b[2K\ntransforming...\u2713 2024 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 2.86s\n[5/5] build ssr environment...\n\u001b[2K\ntransforming...\u2713 273 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.21s\n\u001b[0m\n  Route (app)\n  \u250c \u0192 /                                          \n  \u251c \u03bb /api/app-version                           \n  \u251c \u03bb /api/backup                                \n  \u251c \u03bb /api/backup/photos                         \n  \u251c \u03bb /api/customer-messages                     \n  \u251c \u03bb /api/customer-notes                        \n  \u251c \u03bb /api/customer-photos                       \n  \u251c \u03bb /api/customer-photos/:id                   \n  \u251c \u03bb /api/customers                             \n  \u251c \u03bb /api/dashboard-summary                     \n  \u251c \u03bb /api/estimates                             \n  \u251c \u03bb /api/estimates/:id                         \n  \u251c \u03bb /api/estimates/:id/share                   \n  \u251c \u03bb /api/expenses                              \n  \u251c \u03bb /api/invoices                              \n  \u251c \u03bb /api/invoices/:id                          \n  \u251c \u03bb /api/invoices/:id/share                    \n  \u251c \u03bb /api/job-reports                           \n  \u251c \u03bb /api/message-templates                     \n  \u251c \u03bb /api/notifications                         \n  \u251c \u03bb /api/payments                              \n  \u251c \u03bb /api/payments/checkout                     \n  \u251c \u03bb /api/payments/refund                       \n  \u251c \u03bb /api/payments/webhook                      \n  \u251c \u03bb /api/public/estimates/:token/accept        \n  \u251c \u03bb /api/public/estimates/:token/change-request\n  \u251c \u03bb /api/tasks                                 \n  \u251c \u03bb /api/weather                               \n  \u251c \u0192 /estimate/:token                           \n  \u251c \u0192 /invoice/:token                            \n  \u2514 \u0192 /pay/:id                                   \n\n  \u03bb API  \u0192 Dynamic\n\n  Build complete. Run `vinext start` to start the production server.\n\n"
+      }
+    ]
+  },
+  {
+    "candidate": "protected-backup-staging",
+    "checks": [
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-backup-ui-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: actual encrypted JSON download works offline and excludes plaintext\nPASS: reading actual downloaded file verifies revision and receipts without writes\nPASS: wrong phrase fails without changing encrypted records\nPASS: malformed and tampered files preserve existing records\nPASS: foreign namespaces and valid encrypted non-synthetic data are rejected\nPASS: oversized archive is rejected before decryption or writes\nPASS: restore requires explicit empty-vault confirmation\nPASS: confirmed restore cannot overwrite an existing vault\nPASS: lock during encryption prevents a late download or result\nPASS: lock during file decryption clears fields and suppresses late verification\nPASS: invalid recovery into an empty vault never writes a snapshot\nPASS: interrupted IndexedDB recovery leaves the empty vault untouched\nPASS: actual saved file recovers into separate empty offline browser context\nPASS: repeated recovery preserves the newly recovered vault\nPASS: recovered revision survives offline reload and unlock\nPASS: no external services or production requests and screen fits mobile width\n{\"passed\":16,\"total\":16,\"actualDownloadedFile\":true,\"offlineExportVerifyRecover\":true,\"separateEmptyContext\":true,\"sourceVaultPreserved\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneFilesTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-pages-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: only the exact proposed origin can be packaged\nPASS: existing review destinations are preserved\nPASS: exact-origin HTTPS lab installs under scoped headers and strict CSP\nPASS: declared MIME types and narrow maximum worker scope match assets\nPASS: unlisted API routes do not become the app shell\nPASS: same-origin pages outside the directory have no worker controller\nPASS: copied shell refuses registration on an unapproved HTTPS origin\nPASS: prepared HTTPS shell cold launches offline and retains encrypted revision\nPASS: requests remain isolated from production services\n{\"passed\":9,\"total\":9,\"httpsLab\":true,\"localOnlyProxy\":true,\"temporaryCertificateBypass\":true,\"cloudflarePublished\":false,\"realTlsVerified\":false,\"iPhoneTested\":false,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true}\n"
+      },
+      {
+        "command": [
+          "npx",
+          "tsc",
+          "--noEmit"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> site-creator-vinext-starter@0.1.0 build\n> node scripts/run-framework.mjs build\n\n\n  vinext build  (Vite 8.0.13)\n\n\u001b[33m\u25b2 \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1mProxy environment variables detected. We'll use your proxy for fetch requests.\u001b[0m\n\n\n[1/5] analyze client references...\n\u001b[2K\ntransforming...\u2713 285 modules transformed.\nrendering chunks...\n\u001b[33m[PLUGIN_TIMINGS] \u001b[0mYour build spent significant time in plugins. Here is a breakdown:\n  - vinext:middleware-server-only (18%)\n  - rsc:virtual-client-package (14%)\n  - alias (13%)\n  - vinext:css-data-url (9%)\n  - vinext:og-inline-fetch-assets (8%)\nSee https://rolldown.rs/options/checks#plugintimings for more details.\n\n\u2713 built in 3.24s\n[2/5] analyze server references...\n\u001b[2K\ntransforming...\u2713 268 modules transformed.\nrendering chunks...\n\u2713 built in 1.02s\n[3/5] build rsc environment...\n\u001b[2K\ntransforming...\u2713 282 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.82s\n[4/5] build client environment...\n\u001b[2K\ntransforming...\u2713 2024 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 2.69s\n[5/5] build ssr environment...\n\u001b[2K\ntransforming...\u2713 273 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.12s\n\u001b[0m\n  Route (app)\n  \u250c \u0192 /                                          \n  \u251c \u03bb /api/app-version                           \n  \u251c \u03bb /api/backup                                \n  \u251c \u03bb /api/backup/photos                         \n  \u251c \u03bb /api/customer-messages                     \n  \u251c \u03bb /api/customer-notes                        \n  \u251c \u03bb /api/customer-photos                       \n  \u251c \u03bb /api/customer-photos/:id                   \n  \u251c \u03bb /api/customers                             \n  \u251c \u03bb /api/dashboard-summary                     \n  \u251c \u03bb /api/estimates                             \n  \u251c \u03bb /api/estimates/:id                         \n  \u251c \u03bb /api/estimates/:id/share                   \n  \u251c \u03bb /api/expenses                              \n  \u251c \u03bb /api/invoices                              \n  \u251c \u03bb /api/invoices/:id                          \n  \u251c \u03bb /api/invoices/:id/share                    \n  \u251c \u03bb /api/job-reports                           \n  \u251c \u03bb /api/message-templates                     \n  \u251c \u03bb /api/notifications                         \n  \u251c \u03bb /api/payments                              \n  \u251c \u03bb /api/payments/checkout                     \n  \u251c \u03bb /api/payments/refund                       \n  \u251c \u03bb /api/payments/webhook                      \n  \u251c \u03bb /api/public/estimates/:token/accept        \n  \u251c \u03bb /api/public/estimates/:token/change-request\n  \u251c \u03bb /api/staging-fixtures                      \n  \u251c \u03bb /api/tasks                                 \n  \u251c \u03bb /api/weather                               \n  \u251c \u0192 /estimate/:token                           \n  \u251c \u0192 /invoice/:token                            \n  \u2514 \u0192 /pay/:id                                   \n\n  \u03bb API  \u0192 Dynamic\n\n  Build complete. Run `vinext start` to start the production server.\n\n"
+      }
+    ]
+  },
+  {
+    "candidate": "customer-backup-ui-doomsday",
+    "checks": [
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-backup-ui-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: actual encrypted JSON download works offline and excludes plaintext\nPASS: reading actual downloaded file verifies revision and receipts without writes\nPASS: wrong phrase fails without changing encrypted records\nPASS: malformed and tampered files preserve existing records\nPASS: foreign namespaces and valid encrypted non-synthetic data are rejected\nPASS: oversized archive is rejected before decryption or writes\nPASS: restore requires explicit empty-vault confirmation\nPASS: confirmed restore cannot overwrite an existing vault\nPASS: lock during encryption prevents a late download or result\nPASS: lock during file decryption clears fields and suppresses late verification\nPASS: invalid recovery into an empty vault never writes a snapshot\nPASS: interrupted IndexedDB recovery leaves the empty vault untouched\nPASS: actual saved file recovers into separate empty offline browser context\nPASS: repeated recovery preserves the newly recovered vault\nPASS: recovered revision survives offline reload and unlock\nPASS: no external services or production requests and screen fits mobile width\n{\"passed\":16,\"total\":16,\"actualDownloadedFile\":true,\"offlineExportVerifyRecover\":true,\"separateEmptyContext\":true,\"sourceVaultPreserved\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneFilesTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-pages-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: only the exact proposed origin can be packaged\nPASS: existing review destinations are preserved\nPASS: exact-origin HTTPS lab installs under scoped headers and strict CSP\nPASS: declared MIME types and narrow maximum worker scope match assets\nPASS: unlisted API routes do not become the app shell\nPASS: same-origin pages outside the directory have no worker controller\nPASS: copied shell refuses registration on an unapproved HTTPS origin\nPASS: prepared HTTPS shell cold launches offline and retains encrypted revision\nPASS: requests remain isolated from production services\n{\"passed\":9,\"total\":9,\"httpsLab\":true,\"localOnlyProxy\":true,\"temporaryCertificateBypass\":true,\"cloudflarePublished\":false,\"realTlsVerified\":false,\"iPhoneTested\":false,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true}\n"
+      },
+      {
+        "command": [
+          "npx",
+          "tsc",
+          "--noEmit"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> site-creator-vinext-starter@0.1.0 build\n> node scripts/run-framework.mjs build\n\n\n  vinext build  (Vite 8.0.13)\n\n\u001b[33m\u25b2 \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1mProxy environment variables detected. We'll use your proxy for fetch requests.\u001b[0m\n\n\n[1/5] analyze client references...\n\u001b[2K\ntransforming...\u2713 288 modules transformed.\nrendering chunks...\n\u2713 built in 2.27s\n[2/5] analyze server references...\n\u001b[2K\ntransforming...\u2713 269 modules transformed.\nrendering chunks...\n\u2713 built in 666ms\n[3/5] build rsc environment...\n\u001b[2K\ntransforming...\u2713 285 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.48s\n[4/5] build client environment...\n\u001b[2K\ntransforming...\u2713 2025 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 2.65s\n[5/5] build ssr environment...\n\u001b[2K\ntransforming...\u2713 274 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.17s\n\u001b[0m\n  Route (app)\n  \u250c \u0192 /                                          \n  \u251c \u03bb /api/app-version                           \n  \u251c \u03bb /api/auth/login                            \n  \u251c \u03bb /api/auth/logout                           \n  \u251c \u03bb /api/backup                                \n  \u251c \u03bb /api/backup/photos                         \n  \u251c \u03bb /api/customer-messages                     \n  \u251c \u03bb /api/customer-notes                        \n  \u251c \u03bb /api/customer-photos                       \n  \u251c \u03bb /api/customer-photos/:id                   \n  \u251c \u03bb /api/customers                             \n  \u251c \u03bb /api/dashboard-summary                     \n  \u251c \u03bb /api/estimates                             \n  \u251c \u03bb /api/estimates/:id                         \n  \u251c \u03bb /api/estimates/:id/share                   \n  \u251c \u03bb /api/expenses                              \n  \u251c \u03bb /api/invoices                              \n  \u251c \u03bb /api/invoices/:id                          \n  \u251c \u03bb /api/invoices/:id/share                    \n  \u251c \u03bb /api/job-reports                           \n  \u251c \u03bb /api/message-templates                     \n  \u251c \u03bb /api/notifications                         \n  \u251c \u03bb /api/payments                              \n  \u251c \u03bb /api/payments/checkout                     \n  \u251c \u03bb /api/payments/refund                       \n  \u251c \u03bb /api/payments/webhook                      \n  \u251c \u03bb /api/public/estimates/:token/accept        \n  \u251c \u03bb /api/public/estimates/:token/change-request\n  \u251c \u03bb /api/tasks                                 \n  \u251c \u03bb /api/weather                               \n  \u251c \u0192 /estimate/:token                           \n  \u251c \u0192 /invoice/:token                            \n  \u251c ? /login                                     \n  \u2514 \u0192 /pay/:id                                   \n\n  \u03bb API  \u0192 Dynamic  ? Unknown\n\n  ? Some routes could not be classified. vinext currently uses static analysis\n    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.\n    Automatic classification will be improved in a future release.\n\n  Build complete. Run `vinext start` to start the production server.\n\n"
+      }
+    ]
+  }
+]

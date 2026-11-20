@@ -1,0 +1,120 @@
+{
+  "scope": "FIRE Business App only",
+  "parent": "af756f6d5d853468aa48b21d651e9c9d341af626",
+  "asOf": "2026-10-09",
+  "readOnly": true,
+  "site": {
+    "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+    "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+    "accessMode": "public",
+    "latestVersion": 3
+  },
+  "deployment": {
+    "id": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+    "versionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+    "status": "succeeded",
+    "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+    "environmentRevision": 2,
+    "updatedAt": "2026-10-08T19:50:54.872235+00:00"
+  },
+  "savedVersions": [
+    {
+      "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+      "version": 3,
+      "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+      "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+      "archive": {
+        "contentHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+        "fileCount": 169
+      }
+    },
+    {
+      "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_68d3a1c45e7c81918d4217448c030134",
+      "version": 2,
+      "sourceCommit": "8219bf038b997456213cfbacb7a8c35858fbccbd",
+      "deploymentId": "appgdep_6ac7f178e6b88191aee59cfdd21cbe69",
+      "archive": {
+        "contentHash": "sha256:5ae086c6cc388c87158366141b6713ec9909c56f0bf28b02142a6eeef5a89b39",
+        "fileCount": 169
+      }
+    },
+    {
+      "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_0aecafb9b6308191b4b04104f744962f",
+      "version": 1,
+      "sourceCommit": "657b48f14a3326d87523be3424aabac9f92d13ab",
+      "deploymentId": "appgdep_6ac7e99fd4c48191897186fc3578c428",
+      "archive": {
+        "contentHash": "sha256:5fb2b554b24ce14e5570163adcf6185f758389e9ef05225344710975d04e6993",
+        "fileCount": 169
+      }
+    }
+  ],
+  "runtime": {
+    "revision": 2,
+    "FIRE_ENV": "staging",
+    "SITE_ORIGIN": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+    "secretNames": [
+      "STAGING_SETUP_SECRET",
+      "STRIPE_RESTRICTED_KEY",
+      "STRIPE_WEBHOOK_SECRET"
+    ],
+    "secretValuesInspected": false,
+    "keyModeVerified": false
+  },
+  "databaseOverview": {
+    "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+    "bindings": [
+      "DB"
+    ],
+    "selected_binding_name": "DB",
+    "tables": [
+      "auth_rate_limits",
+      "customer_messages",
+      "customer_notes",
+      "customer_photos",
+      "customers",
+      "estimate_change_requests",
+      "estimate_items",
+      "estimates",
+      "expenses",
+      "invoice_items",
+      "invoice_revisions",
+      "invoices",
+      "job_reports",
+      "message_templates",
+      "notifications",
+      "payment_checkout_sessions",
+      "payment_refunds",
+      "payments",
+      "tasks"
+    ],
+    "model_projection": {
+      "truncated": false,
+      "omitted_project_id": false,
+      "omitted_selected_binding": false,
+      "omitted_bindings": 0,
+      "omitted_tables": 0
+    }
+  },
+  "checks": {
+    "stagingProjectAndPublishedVersion": true,
+    "runtimeLabelAndOrigin": true,
+    "savedRollbackVersionIdentified": true,
+    "independentDatabaseResourceId": false,
+    "remoteColumnsIndexesJournals": false,
+    "sandboxCredentialsAndWebhookRouting": false,
+    "syntheticOnlyDatabase": false,
+    "rollbackRestoreValidated": false
+  },
+  "completeChecks": 3,
+  "totalChecks": 8,
+  "percent": 37.5,
+  "readyForStagingUpdate": false,
+  "limitations": [
+    "D1 overview gives table names, not resource IDs, columns, indexes or journals.",
+    "Masked secrets establish presence only; sandbox mode and webhook destination remain unverified.",
+    "Saved version 3 is an identified code rollback, not a verified database backup or restore.",
+    "Previous sandbox endpoint-to-LIVE finding is historical and was not re-audited in this batch.",
+    "No candidate deployment or hosted/mobile parity established."
+  ]
+}

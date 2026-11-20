@@ -1,0 +1,295 @@
+{
+  "scope": "Deployed refund staging column-name comparison only",
+  "parent": "664fc407a9adc655a11d094f1c21ec66c1a9be93",
+  "asOf": "2026-10-09",
+  "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+  "binding": "DB",
+  "source": "Sites read_database_overview followed by bounded read_database_table_rows(limit=1,offset=0); only schema metadata retained",
+  "tables": [
+    {
+      "name": "payments",
+      "columns": [
+        "id",
+        "estimate_id",
+        "type",
+        "amount_cents",
+        "status",
+        "provider_id",
+        "created_at",
+        "gross_received_cents",
+        "bundled_tip_cents",
+        "processing_fee_cents",
+        "processing_method"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "payment_refunds",
+      "columns": [
+        "id",
+        "payment_id",
+        "estimate_id",
+        "amount_cents",
+        "mode",
+        "status",
+        "provider_refund_id",
+        "note",
+        "created_at",
+        "completed_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "payment_checkout_sessions",
+      "columns": [
+        "id",
+        "estimate_id",
+        "type",
+        "amount_cents",
+        "status",
+        "created_at",
+        "expired_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "auth_rate_limits",
+      "columns": [
+        "key",
+        "attempts",
+        "window_started_at",
+        "blocked_until"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "customer_messages",
+      "columns": [
+        "id",
+        "customer_id",
+        "estimate_id",
+        "channel",
+        "template",
+        "body",
+        "created_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "customer_notes",
+      "columns": [
+        "id",
+        "customer_id",
+        "body",
+        "created_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "customer_photos",
+      "columns": [
+        "id",
+        "customer_id",
+        "category",
+        "caption",
+        "filename",
+        "content_type",
+        "size_bytes",
+        "object_key",
+        "created_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "customers",
+      "columns": [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "address",
+        "created_at",
+        "lead_source"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "estimate_change_requests",
+      "columns": [
+        "id",
+        "estimate_id",
+        "customer_id",
+        "message",
+        "status",
+        "created_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "estimate_items",
+      "columns": [
+        "id",
+        "estimate_id",
+        "name",
+        "quantity",
+        "unit",
+        "total_cents",
+        "description"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "estimates",
+      "columns": [
+        "id",
+        "customer_id",
+        "status",
+        "subtotal_cents",
+        "discount_cents",
+        "total_cents",
+        "deposit_cents",
+        "created_at",
+        "scheduled_at",
+        "share_token",
+        "first_viewed_at",
+        "accepted_at",
+        "signed_name",
+        "signed_at",
+        "contract_version",
+        "contract_initials",
+        "photo_release",
+        "appreciation_discount",
+        "additional_discount_type",
+        "additional_discount_value"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "expenses",
+      "columns": [
+        "id",
+        "estimate_id",
+        "category",
+        "description",
+        "amount_cents",
+        "incurred_at",
+        "created_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "invoice_items",
+      "columns": [
+        "id",
+        "invoice_id",
+        "name",
+        "description",
+        "quantity",
+        "unit",
+        "total_cents"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "invoice_revisions",
+      "columns": [
+        "id",
+        "invoice_id",
+        "subtotal_cents",
+        "discount_cents",
+        "discount_type",
+        "discount_value",
+        "total_cents",
+        "due_at",
+        "status",
+        "items_json",
+        "created_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "invoices",
+      "columns": [
+        "id",
+        "estimate_id",
+        "customer_id",
+        "status",
+        "total_cents",
+        "due_at",
+        "created_at",
+        "share_token",
+        "first_viewed_at",
+        "subtotal_cents",
+        "discount_cents",
+        "discount_type",
+        "discount_value"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "job_reports",
+      "columns": [
+        "id",
+        "estimate_id",
+        "customer_id",
+        "checklist",
+        "notes",
+        "airflow_before",
+        "airflow_after",
+        "status",
+        "created_at",
+        "completed_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "message_templates",
+      "columns": [
+        "key",
+        "subject",
+        "body",
+        "updated_at"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "notifications",
+      "columns": [
+        "id",
+        "type",
+        "title",
+        "body",
+        "customer_id",
+        "estimate_id",
+        "read_at",
+        "created_at",
+        "resolved_at",
+        "resolution_note"
+      ],
+      "omittedColumns": 0
+    },
+    {
+      "name": "tasks",
+      "columns": [
+        "id",
+        "title",
+        "customer_id",
+        "estimate_id",
+        "due_at",
+        "status",
+        "notes",
+        "created_at",
+        "completed_at"
+      ],
+      "omittedColumns": 0
+    }
+  ],
+  "rowValuesPersisted": false,
+  "followupRowPagesRequested": false,
+  "columnTypesVerified": false,
+  "indexesVerified": false,
+  "migrationJournalVerified": false,
+  "databaseResourceIsolationVerified": false,
+  "completeRemoteSchemaVerified": false,
+  "productionReady": false
+}

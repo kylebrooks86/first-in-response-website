@@ -1,0 +1,101 @@
+{
+  "baseCommit": "76eb81068a0bee6ceb9efb435fbdd895a0baa536",
+  "dateUtc": "2026-10-14",
+  "scope": "Property backup validation foundation and metadata-only legacy restore bypass closure; recovery remains blocked",
+  "propertyContractPassed": 28,
+  "propertyContractTotal": 28,
+  "fileGuardPassed": 8,
+  "fileGuardTotal": 8,
+  "serviceLocationContractPassed": 13,
+  "serviceLocationContractTotal": 13,
+  "schemaContractPassed": 7,
+  "schemaContractTotal": 7,
+  "browsers": [
+    {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "disabled property capability reads no new schema and preserves legacy backup and estimate paths",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "live",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false
+    },
+    {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual independent auth rejects invalid signed-cookie fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "disabled property capability reads no new schema and preserves legacy backup and estimate paths",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "doomsday",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false
+    },
+    {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "disabled property capability reads no new schema and preserves legacy backup and estimate paths",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "staging",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false
+    }
+  ],
+  "browserPassed": 21,
+  "browserTotal": 21,
+  "financialPassed": 207,
+  "financialTotal": 207,
+  "typeScriptPassed": 3,
+  "fullBuildsPassed": 3,
+  "sharedFilesChecked": 146,
+  "sourceParity": true,
+  "propertyRecoveryEnabled": false,
+  "propertyUserFacingCreationEnabled": false,
+  "nativePropertyRestoreTested": false,
+  "propertyMilestonesPassed": 3,
+  "propertyMilestonesTotal": 5,
+  "propertyMilestonesPercent": 60,
+  "passedReleaseGates": 3,
+  "totalReleaseGates": 10,
+  "officialReleaseReadinessPercent": 30,
+  "productionChanges": 0,
+  "initialVerificationIssues": [
+    "npm registry unavailable; cancelled installation and reused compatible existing local dependencies",
+    "browser executable discovery corrected before final passing runs"
+  ],
+  "nextTask": "Native atomic property recovery preserving archived historical links and rejecting occupied destinations"
+}

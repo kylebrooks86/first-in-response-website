@@ -1,0 +1,13 @@
+# FIRE Gate 9 — owner-confirmed production D1 binding on isolated Stripe TEST Worker (2026-11-15)
+
+**Real owner Cloudflare screenshot:** `IMG_4353.png` (original conversation upload), **320,720 bytes**, SHA-256 `adede46fee31ef33bd69bbe1f3fbabd6c4d787696cb639c4b9be57140746ddaa`. Original image is preserved in owner chat; this file is evidence metadata, not the image.
+
+**Directly observed:** Cloudflare Workers & Pages > `fire-stripe-test-20261101` > Settings > Bindings > **Production** displays one visible row: Type **D1 database**, binding Name **`DB`**, target database **`fire-stripe-test-db-20261101`**. The screen also shows Observability Logs toggle enabled, which is not a log receipt and does not establish webhook execution.
+
+**Scope limitations:** This screenshot confirms the current configured binding *name and target D1 database name*, not the **physical UUID**. Previously independently accepted provider TEST D1 UUID `dba421ba-fc66-4cf8-9c31-51616f8249ba` remains historical evidence; do not claim it was re-read from this screenshot. Neither exact active Worker code/version/source bytes nor TEST D1 migration state, webhook signature-secret value, sandbox payment ledger writes or refund reconciliation is proven by the bindings row.
+
+**Adjacent real owner Cloudflare evidence:** Production variables `FIRE_STRIPE_MODE=disabled`, `FIRE_ENV=cloudflare-staging`, `FIRE_ACCESS_REQUIRED=enabled`; encrypted secret name `STRIPE_WEBHOOK_SECRET` exists but its value is unknown. Real Stripe sandbox destination `https://fire-stripe-test-20261101.kyle-bfc.workers.dev/api/payments/webhook` Active, but zero displayed event deliveries; owner TEST customer route anonymous GET redirects to Cloudflare Access login, separate webhook anonymous GET returned 405. No recorded signed POST/ledger receipts. A prior owner-reported revoked exposed read-only token must remain revoked.
+
+**Do not repeat:** Earlier accepted physical independent TEST D1 receipt, DR/NEW LIVE DARK Workers versions and URL OFF + four 404s, Cloudflare logins, customer/webhook HTTP checks, or the failed read-only API checker. Do not touch bindings, secrets, Access, Stripe event sending, Worker, SQL or payments without exact owner authorization. A real signed TEST delivery would need verified active test-only source, exact access exception, deliberate mode activation and isolated D1 ledger audit; the current runtime remains disabled.
+
+**Formal status:** G1/G2/G3/G8 accepted **4/10**; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO. No Cloudflare, Stripe, D1, Access, R2, DNS, deployment, payment, migration or merge change from this screenshot.

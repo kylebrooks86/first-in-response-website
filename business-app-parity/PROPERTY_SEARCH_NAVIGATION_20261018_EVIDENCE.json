@@ -1,0 +1,38 @@
+{
+  "baseCommit": "bf73a8c3a989862f01cc4fae9c3ee34d4d03cfe2",
+  "officialReadiness": {"passed":3,"total":10,"percent":30},
+  "scope": "Shared development source; disposable synthetic local candidates only",
+  "implemented": [
+    "Add gated service-property results and Properties filter to the existing shared universal search",
+    "Search partial address, building/unit designation, property ID and owning customer contact information; retain bounded results and exact-match ranking",
+    "Identify active versus archived properties and distinguish similar customer names using contact details",
+    "Open the owning customer profile and focus the exact property, including retained archived properties beyond the first fifty rows",
+    "Use the existing customer-scoped selected-property lookup; verify returned identity, owner, address, designation, activity and revision before navigation",
+    "Searching does not explicitly select a service property, reactivate archived records, enable gated property workflows or modify any records",
+    "Generation and fresh-read guards prevent old responses from focusing repeated targets; unavailable and mismatched targets show a warning and permit deliberate reselection",
+    "Wrap property labels within narrow layouts and provide an accessible focus outline"
+  ],
+  "verification": {
+    "searchRoute": "107/107 per four candidates, including property gate-off behavior, partial lookup, archived retention, bounded pagination, private authentication and unchanged stored property rows",
+    "builtQaNativeD1HttpsChromium": "125/125: prior customer-lookup integration plus 24 property-search checks at 320/390/768/1366 widths; actual 52-property fixture proves navigation beyond page one, explicit-selection preservation, archived viewing, missing-target recovery and mismatched-owner refusal",
+    "readOnlySearchIntegrity": "Full backup tables identical before/after search and navigation; separate explicit synthetic archival is snapshotted before testing archived navigation and recovery",
+    "networkIsolation": "No external network dispatched or uncaught framework errors; one existing synthetic profile map iframe intercepted and aborted by the established lookup fixture",
+    "propertyBackup": "30 backup validation contracts, 8 CLI/file guards and 7 schema contracts passed per four candidates",
+    "financial": "194 invoice-state and 208 customer/invoice-balance checks plus processing-fee and public-document regressions per four candidates; final-tipping suite on LIVE candidate",
+    "uiRecovery": "111 payment-header browser checks and 1460 mocked customer-load/error/stale/unmount checks passed on LIVE candidate",
+    "typeScript": "4/4 passed",
+    "builds": "4/4 passed with complete-build markers",
+    "sourceParity": {"qa":396,"live":391,"doomsday":396,"staging":392}
+  },
+  "limitations": [
+    "Property results require existing development property and service-location gates; normal hosted QA is not activated or changed",
+    "This does not complete photo/document metadata or encrypted offline search",
+    "Existing SQLite case handling retained; full Unicode normalization not verified",
+    "No real iPhone/iPad acceptance, hosted identity/schema proof or production approval inferred",
+    "Deposit exceptions, unresolved hosted latency, broader notifications/status work and remaining release gates stay open"
+  ],
+  "nextBatch": "Implement the deposit-policy safety foundation and tests for owner-only exceptions while preserving previously scheduled jobs, accepted agreements and recorded principal",
+  "deploymentPerformed":false,
+  "hostedDatabaseChanged":false,
+  "stripeOrCredentialsChanged":false
+}

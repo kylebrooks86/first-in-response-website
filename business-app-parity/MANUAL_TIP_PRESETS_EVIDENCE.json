@@ -1,0 +1,62 @@
+{
+  "parent": "5c2e3a42accc55a097b0316d21e9ae1ba9ae3afe",
+  "evidenceFile": "MANUAL_TIP_PRESETS_EVIDENCE.json",
+  "candidateSnapshotCommits": {
+    "live": "147257e7eeff7001212d40f45b8f8f20e2c07410",
+    "doomsday": "516f5fd1996488c4033fd5f619f4b8e045f82183",
+    "staging": "4feee7c3bd7b7e93024b0c7f39d83063fd5256cd"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/manual-tip-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/manual-tip-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/manual-tip-staging"
+  },
+  "newChecksPerTarget": 54,
+  "newChecksPassed": 162,
+  "newChecksTotal": 162,
+  "suiteRunsPassed": 12,
+  "suiteRunsTotal": 12,
+  "suiteNames": [
+    "test-manual-tip-presets.mjs",
+    "test-final-tip-ui.mjs",
+    "test-payment-mobile-ui.mjs",
+    "test-processing-fees.mjs"
+  ],
+  "negativeControlPriorDialogRejected": true,
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "buildCompletionVerifiedInLogs": true,
+  "sharedFilesMatched": 119,
+  "sharedFilesChecked": 119,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "asOf": "2026-10-09",
+  "scope": "isolated FIRE Business App candidates only",
+  "changedFilesSha256": {
+    "shared/app/dashboard.tsx": "5debbe6e1569b4a1fcc9e41ba1838659416aa6a6f9375ff0da48dd501769df5b",
+    "shared/scripts/test-manual-tip-presets.mjs": "e867b65d3a92a900b4a9b16bcd2ecea09304a921dea0d9f18761015089991324",
+    "shared/scripts/test-final-tip-ui.mjs": "2a208a48644bb1a64a2d7db3081f3fcd37e9a2005b1612e5f04b9da9517be57f"
+  },
+  "behavior": [
+    "Completed-job manual payment dialog offers No tip, 5%, 10%, 15%, Custom.",
+    "No tip default and reopen reset. Percentages based on full revised invoice total, rounded to cents.",
+    "Custom amounts keep existing invoice/$500 limits and invalid amount guards.",
+    "Principal amount and processing fee payload remain separate; tip-only recording remains available after full payment.",
+    "Shared existing final-tip CSS supplies two-column preset cards and full-width Custom; saving disables controls."
+  ],
+  "method": "Actual RecordPayment and amountDueNow extracted with TypeScript AST; seeded hook state and mocked request capture execute selectors and save handlers. No processor/database writes by new test.",
+  "existingTestRepair": "Public final-tip suite netTips expression context updated from payments to receivedPayments after prior paid-status summary fix; no runtime change from this test repair.",
+  "candidateRenderedInBrowser": false,
+  "realMobileEvidenceCaptured": false,
+  "remoteDatabaseWrites": false,
+  "stripeMutations": false,
+  "priorManifest": "Historical release manifest retained; newer source is not sealed by it."
+}
