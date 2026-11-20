@@ -15,9 +15,14 @@ const legacy=Object.fromEntries([...steps,'Customer walkthrough completed'].map(
 const absent={...Object.fromEntries(steps.map(k=>[k,true])), 'Customer walkthrough completed':false,
  'Customer absent — completion documented for follow-up':true};
 const input={estimateId:'report-job',customerId:customer,checklist:legacy,notes:'Customer met me after work; verified finished property.',airflowBefore:'11',airflowAfter:'20',status:'complete'};
-const post=async value=>{const response=await route.POST(new Request('https://fixture.invalid/api/job-reports',{method:'POST',body:JSON.stringify(value)}));return {status:response.status,data:await response.json()};};
+const post=async value=>{const response=await route.POST(new Request('https://fixture.invalid/api/job-reports',{method:'POST',body:JSON.stringify(value)}));assertPrivatePost(response,'owner report POST');return {status:response.status,data:await response.json()};};
 const row=(id='report-job')=>db.prepare('SELECT id,estimate_id AS estimateId,customer_id AS customerId,checklist,notes,airflow_before AS airflowBefore,airflow_after AS airflowAfter,status,created_at AS createdAt,completed_at AS completedAt FROM job_reports WHERE estimate_id=?').get(id);
 let checks=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++};
+const assertPrivatePost=(response,label)=>{
+ eq(response.headers.get('cache-control'),'private, no-store',label+' blocks shared caching');
+ eq(response.headers.get('vary'),'Cookie',label+' distinguishes owner session');
+ eq(response.headers.get('x-content-type-options'),'nosniff',label+' rejects content sniffing');
+};
 const orig=rt.env.DB.prepare;
 try{
  // Real owner POST should refuse invalid/oversized streamed input before ANY
@@ -35,6 +40,7 @@ try{
   const before=rt.counters();
   const denied=await route.POST(req);
   eq(denied.status,expected,name+' rejected before report save');
+  assertPrivatePost(denied,name+' streamed guard');
   eq(rt.counters(),before,name+' performs no DB reads or writes');
  }
  const saved=await post(input);
