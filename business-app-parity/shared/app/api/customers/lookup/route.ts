@@ -6,7 +6,8 @@ import {customerNumberingReady,parseCustomerNumberQuery} from '../../../../lib/c
 const customerColumns="id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address";
 export async function GET(request:Request){
  const user=await getChatGPTUser();
- const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','vary':'Cookie'}});
+ // Every lookup result, including denials and transient failures, is owner-session private.
+ const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}});
  if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
  const url=new URL(request.url),id=url.searchParams.get('customerId'),query=(url.searchParams.get('q')??'').trim();
  if(query.length>160||id!==null&&(!id.trim()||id.length>128)||id!==null&&url.searchParams.has('q'))return json({error:'Invalid customer lookup.'},400);
