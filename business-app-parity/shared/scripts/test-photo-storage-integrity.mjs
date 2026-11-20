@@ -63,10 +63,47 @@ try{
  const storageModule=compile(join(source,'lib/photo-storage-archive.ts'),id=>id.endsWith('photo-storage-integrity')?{inspectPhotoStorage}:id.endsWith('photo-storage-zip')?zipModule:(()=>{throw Error('Unexpected archive dependency');})());
  const load=path=>compile(path,id=>id==='cloudflare:workers'?{env}:id.endsWith('chatgpt-auth')?{getChatGPTUser:async()=>user}:id.endsWith('photo-storage-archive')?storageModule:id.endsWith('photo-storage-integrity')?{inspectPhotoStorage}:(()=>{throw Error('Unexpected import '+id)})());
  const route=load(join(source,'app/api/backup/photos/integrity/route.ts'));
- await check('actual owner route returns no-store read-only report',async()=>{const r=await route.GET();assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');assert.equal((await r.json()).writesAttempted,0);});
- user=null;await check('actual route rejects unauthenticated access',async()=>assert.equal((await route.GET()).status,401));
- user={email:'other@example.invalid'};await check('actual route rejects different owner',async()=>assert.equal((await route.GET()).status,401));
- user={email:'kylebrooks8605@gmail.com'};env.BUCKET=null;await check('actual route preserves records when storage unavailable',async()=>assert.equal((await route.GET()).status,503));env.BUCKET=bucket;
+ const storageRoute=load(join(source,'app/api/backup/photos/storage/route.ts'));
+ const isOwnerPrivate=response=>{
+  const cache=response.headers.get('cache-control')?.toLowerCase().split(',').map(x=>x.trim())??[];
+  return cache.includes('private')&&cache.includes('no-store')&&
+    response.headers.get('vary')?.toLowerCase().split(',').map(x=>x.trim()).includes('cookie')&&
+    response.headers.get('x-content-type-options')==='nosniff';
+ };
+ await check('actual owner route returns private read-only report',async()=>{
+  const r=await route.GET();assert.equal(r.status,200);assert.ok(isOwnerPrivate(r));
+  assert.equal((await r.json()).writesAttempted,0);
+ });
+ user=null;await check('both photo evidence routes reject unauthenticated access privately',async()=>{
+  for(const routeUnderTest of [route,storageRoute]){
+   const r=await routeUnderTest.GET();assert.equal(r.status,401);assert.ok(isOwnerPrivate(r));
+  }
+ });
+ user={email:'other@example.invalid'};await check('both photo evidence routes reject another owner privately',async()=>{
+  for(const routeUnderTest of [route,storageRoute]){
+   const r=await routeUnderTest.GET();assert.equal(r.status,401);assert.ok(isOwnerPrivate(r));
+  }
+ });
+ for(const [name,invalid] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}]]){
+  user=invalid;
+  await check('malformed '+name+' owner cannot read either photo archive or integrity evidence',async()=>{
+   for(const routeUnderTest of [route,storageRoute]){
+    const r=await routeUnderTest.GET();assert.equal(r.status,401);assert.ok(isOwnerPrivate(r));
+   }
+  });
+ }
+ user={email:'kylebrooks8605@gmail.com'};env.BUCKET=null;
+ await check('both photo routes return private 503 without storage',async()=>{
+  for(const routeUnderTest of [route,storageRoute]){
+   const r=await routeUnderTest.GET();assert.equal(r.status,503);assert.ok(isOwnerPrivate(r));
+  }
+ });env.BUCKET=bucket;
+ await check('complete photo storage archive keeps private streaming ZIP and existing filename',async()=>{
+  const r=await storageRoute.GET();assert.equal(r.status,200);assert.ok(isOwnerPrivate(r));
+  assert.equal(r.headers.get('content-type'),'application/zip');
+  assert.match(r.headers.get('content-disposition')??'',/fire-photo-storage-/);
+  const file=await r.arrayBuffer();assert.ok(file.byteLength>100);
+ });
  env.BUCKET={head:k=>bucket.head(k),list:async()=>{throw Error('Synthetic lost read acknowledgement');}};
  await check('actual route reports uncertain inspection without retry or writes',async()=>{const r=await route.GET();assert.equal(r.status,503);assert.equal((await r.json()).inspectionUncertain,true);});env.BUCKET=bucket;
  await check('read-only inspection leaves native metadata and bytes unchanged',async()=>{const before=await reader.all('SELECT * FROM customer_photos'),digest=createHash('sha256').update(Buffer.from(await (await bucket.get(key)).arrayBuffer())).digest('hex');await inspect();assert.deepEqual(await reader.all('SELECT * FROM customer_photos'),before);assert.equal(createHash('sha256').update(Buffer.from(await (await bucket.get(key)).arrayBuffer())).digest('hex'),digest);});
