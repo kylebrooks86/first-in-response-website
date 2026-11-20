@@ -202,8 +202,13 @@ test("Gate6 saved photo DELETE accepts same-origin intent without requiring a JS
 test("Gate6 actual photo DELETE route checks owner and browser boundary before D1 or bucket writes",()=>{
  const route=readFileSync(fileURLToPath(new URL("../shared/app/api/customer-photos/[id]/route.ts",import.meta.url)),"utf8");
  assert.match(route,/import \{ownerBrowserWriteScope\} from/);
- const del=route.indexOf("export async function DELETE(");
- assert.ok(del>0,"Photo deletion handler must exist");
+ // The exported route applies private response headers after the inner
+ // deletion handler. Inspect that *real* inner handler's safety order.
+ const del=route.indexOf("async function deletePhoto(");
+ const exported=route.indexOf("export async function DELETE(");
+ assert.ok(del>0&&exported>del,"Photo deletion and its privacy-wrapped export must exist");
+ assert.ok(route.slice(exported).includes("privatePhotoResponse(await deletePhoto(request,context))"),
+  "Exported photo deletion must wrap every actual response in owner-private headers");
  const auth=route.indexOf("if (!await authorized())",del);
  const scope=route.indexOf("ownerBrowserWriteScope(request,false)",del);
  const bucket=route.indexOf("if (!env.BUCKET)",del);
