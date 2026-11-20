@@ -418,7 +418,15 @@ try{
  if(process.argv.includes('--customer-note-recovery'))await exerciseCustomerNoteRecovery({page,origin,request,check});
  if(process.argv.includes('--door-knocking'))await exerciseDoorKnocking({page,origin,request,check});
  if(process.argv.includes('--saved-promotions-integration'))await exerciseSavedPromotionsIntegration({page,origin,request,check});
- if(process.argv.includes('--gate6-share-isolation'))await exerciseGate6ShareIsolation({
+ if(process.argv.includes('--gate6-share-isolation')){
+  // The full browser suite has already exercised many independent routes and
+  // synthetic workerd restarts. Start this isolated two-customer regression
+  // in a fresh worker process against the SAME persisted local D1, so a
+  // prior suite's runtime heap or leaked socket cannot corrupt its verdict.
+  // This neither retries a failed Gate6 assertion nor changes hosted code.
+  await stop();
+  await start();
+  await exerciseGate6ShareIsolation({
   request,browser,origin,check,
   mutateSyntheticD1:async sql=>{
     // In the existing disposable local Workerd/Wrangler fixture only.
@@ -427,7 +435,17 @@ try{
       '--config',configPath,'--command',sql]);
     await start();
   }
- });
+  });
+ }
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
+}catch(error){
+ // Preserve the real failure. Diagnostic output is limited to the disposable
+ // local runner and redacts both randomly generated QA secrets.
+ console.error('Gate8/6 local Workerd failure context',{
+  workerExitCode:worker?.exitCode,workerSignal:worker?.signalCode,
+  localLogTail:workerLog.slice(-2500).replaceAll(password,'[synthetic-password]')
+    .replaceAll(sessionSecret,'[synthetic-session]')
+ });
+ throw error;
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}
