@@ -41,6 +41,20 @@ rt.env.DB.prepare=function(sql){
  return stmt;
 };
 try{
+ // The actual owner roster GET is sensitive customer/job context, including
+ // private task notes. Test success, missing authentication and D1 outage.
+ const taskRoster=await api.GET();
+ check(taskRoster.status===200,'Owner task roster remains available');
+ check(taskRoster.headers.get('cache-control')==='private, no-store','Task roster is not share-cacheable');
+ check(taskRoster.headers.get('vary')==='Cookie','Task roster varies by authenticated session');
+ check(taskRoster.headers.get('x-content-type-options')==='nosniff','Task roster refuses MIME sniffing');
+ const rosterPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){if(sql.includes('FROM tasks t LEFT JOIN customers'))throw Error('Synthetic roster D1 outage');return rosterPrepare(sql);};
+ const taskOutage=await api.GET();
+ rt.env.DB.prepare=rosterPrepare;
+ check(taskOutage.status===503,'D1 roster failure is explicitly unavailable, not a false empty task list');
+ check(taskOutage.headers.get('cache-control')==='private, no-store','D1 roster failure stays private');
+ check(taskOutage.headers.get('vary')==='Cookie'&&taskOutage.headers.get('x-content-type-options')==='nosniff','D1 failure preserves session and MIME protection');
  const first=await post(body(1));
  check(first.status===201&&first.data.confirmed===true,'First linked owner task saved with exact D1 receipt');
  check(first.data.task?.customerId===customer&&first.data.task?.estimateId==='task-job','Task receipt keeps original customer and job together');
@@ -95,6 +109,9 @@ try{
  check(standalone.status===201&&standalone.data.task.estimateId===null,'General owner task with no linked customer remains supported');
 
  rt.setOwner(null);
+ const unauthRoster=await api.GET();
+ check(unauthRoster.status===401,'Unauthenticated task roster denies owner-only customer details');
+ check(unauthRoster.headers.get('cache-control')==='private, no-store'&&unauthRoster.headers.get('vary')==='Cookie'&&unauthRoster.headers.get('x-content-type-options')==='nosniff','Unauthorized task roster response has private session headers');
  const before=count();
  check((await post(body(7))).status===401,'Unauthenticated task create rejected');
  check(count()===before,'No database writes on unauthorized task request');
