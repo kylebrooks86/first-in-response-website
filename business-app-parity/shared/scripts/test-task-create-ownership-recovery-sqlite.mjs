@@ -58,7 +58,8 @@ try{
  const first=await post(body(1));
  check(first.status===201&&first.data.confirmed===true,'First linked owner task saved with exact D1 receipt');
  check(first.data.task?.customerId===customer&&first.data.task?.estimateId==='task-job','Task receipt keeps original customer and job together');
- check(first.headers.get('cache-control')==='no-store, private','Private customer/task creation receipt is not cached');
+ check(first.headers.get('cache-control')==='private, no-store','Private customer/task creation receipt is not cached');
+ check(first.headers.get('vary')==='Cookie'&&first.headers.get('x-content-type-options')==='nosniff','Task creation receipt stays bound to owner session and refuses MIME sniffing');
  const originalCreated=row(key(1)).createdAt;
  const replay=await post(body(1));
  check(replay.status===200&&replay.data.confirmed===true&&count()===1,'Lost HTTP response replay cannot duplicate task');
@@ -66,6 +67,30 @@ try{
  check((await post(body(1,{title:'Changed title'}))).status===409,'Reused immutable ID cannot overwrite task title');
  check((await post(body(2,{customerId:other}))).status===409,'Initial job/customer mismatch rejected');
  check(count()===1,'Preflight mismatch causes no task creation');
+ // A D1 outage during the initial job/customer lookup is not a 404 and must
+ // never become an unhandled 500, write a task or leak a cacheable response.
+ const beforeLookupOutage=count();
+ const lookupBeforeOutage=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.startsWith('SELECT customer_id AS customerId FROM estimates WHERE id=?'))throw Error('Synthetic unavailable linked job D1');
+  return lookupBeforeOutage(sql);
+ };
+ const jobOutage=await post(body(91));
+ rt.env.DB.prepare=lookupBeforeOutage;
+ check(jobOutage.status===503&&/temporarily unavailable/.test(jobOutage.data.error),'Task-linked job lookup outage fails closed as 503');
+ check(jobOutage.headers.get('cache-control')==='private, no-store'&&jobOutage.headers.get('vary')==='Cookie'&&jobOutage.headers.get('x-content-type-options')==='nosniff','Task linked-job outage response stays session-private');
+ check(count()===beforeLookupOutage&&!row(key(91)),'Task linked-job lookup outage performs zero D1 writes');
+ rt.env.DB.prepare=function(sql){
+  if(sql.startsWith('SELECT id FROM customers WHERE id=?'))throw Error('Synthetic unavailable customer D1');
+  return lookupBeforeOutage(sql);
+ };
+ const customerOutage=await post(body(92,{estimateId:null}));
+ rt.env.DB.prepare=lookupBeforeOutage;
+ check(customerOutage.status===503&&/temporarily unavailable/.test(customerOutage.data.error),'Customer-only task lookup outage fails closed as 503');
+ check(customerOutage.headers.get('cache-control')==='private, no-store'&&customerOutage.headers.get('vary')==='Cookie','Customer lookup outage cannot be cached/shared');
+ check(count()===beforeLookupOutage&&!row(key(92)),'Task customer lookup outage performs zero D1 writes');
+ const retryAfterOutage=await post(body(91));
+ check(retryAfterOutage.status===201&&row(key(91)).customerId===customer,'Original task request ID safely saves once after D1 recovery');
 
  // Another phone reassigns the job AFTER the app checked ownership. The actual
  // conditional SQL INSERT must refuse the now-wrong customer.
@@ -113,7 +138,9 @@ try{
  check(unauthRoster.status===401,'Unauthenticated task roster denies owner-only customer details');
  check(unauthRoster.headers.get('cache-control')==='private, no-store'&&unauthRoster.headers.get('vary')==='Cookie'&&unauthRoster.headers.get('x-content-type-options')==='nosniff','Unauthorized task roster response has private session headers');
  const before=count();
- check((await post(body(7))).status===401,'Unauthenticated task create rejected');
+ const deniedTask=await post(body(7));
+ check(deniedTask.status===401,'Unauthenticated task create rejected');
+ check(deniedTask.headers.get('cache-control')==='private, no-store'&&deniedTask.headers.get('vary')==='Cookie'&&deniedTask.headers.get('x-content-type-options')==='nosniff','Unauthorized task create denial is never cached across sessions');
  check(count()===before,'No database writes on unauthorized task request');
  console.log('PASS '+checks+'/'+checks+' FIRE task POST: owner binding race, lost ACK, idempotency, genuine receipt, unrelated tasks (local SQLite only)');
 }finally{rt.env.DB.prepare=original;db.close();}
