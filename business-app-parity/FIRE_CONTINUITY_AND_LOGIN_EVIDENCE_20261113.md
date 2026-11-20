@@ -1,3 +1,19 @@
+<!-- FIRE-NOV20-OWNER-PAGES-DEPLOYMENT-404-20261120 -->
+## November 20 — [x] exact provider-listed Pages deployment URL anonymous HTTP result captured (owner Acer, GET only)
+
+Original owner Acer PowerShell screenshot, SHA-256 `cc2accda2ae523d3ea5f9c0736b869acb21b36ec60b189b7977525c98f4a4855` (JPEG, original remains attached to owner ChatGPT conversation), shows two completed `curl.exe -sS -L --max-time 20 -o NUL -w ...` read-only requests, **no request body or credentials**:
+
+1. **FIELD**: `https://7613d7a4.fire-field-calculator-live.pages.dev/` -> `HTTP=404`, `FINAL=https://7613d7a4.fire-field-calculator-live.pages.dev/`.
+2. **BEST-OF-BOTH**: `https://5e0bfcca.fire-calculator-best-of-both-preview.pages.dev/` -> `HTTP=404`, `FINAL=https://5e0bfcca.fire-calculator-best-of-both-preview.pages.dev/`.
+
+These are exactly the unique version-specific URLs read from the actual account's prior `wrangler.cmd pages deployment list --project-name ... --json` evidence, [Issue #19 prior Pages deployment-list receipt #7043999836](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7043999836). The project/subdomain listings and distinct project-root 404 retrievals were already documented in [#7043435695](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7043435695). Neither of those CLI actions, screenshot inventories, nor these curl probes need repeating.
+
+**New exact conclusion:** both *provider-listed historical Pages deployment* root URLs returned 404 over the owner Acer's anonymous network, with no redirect to a different final URL shown. This adds actual version-specific negative ingress evidence to **G4-05** rather than only showing deployment metadata or guessed hosts. It **does not prove** why the Pages addresses give 404 (project routing/content/retirement/other causes), that the main public FIRE site or QA/STAGING/DR/NEW LIVE Workers are down, successful owner/nonowner Access protection, exact active Worker bytes, Cloudflare zone-wide route absence beyond the accepted empty Domains view, all target source parity or a repair. No claimed 200 content or absence of deployment.
+
+**[x] Unique Pages URL response subproof captured. [ ] Numbered G4-05 still OPEN:** account-wide ingress/route and Worker preview/Access protection criteria remain compound and independently gated. Formal master **51/95 checked, 44 open; 4/10 gates accepted (G1/G2/G3/G8)**; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK / NO-GO; first genuine Job #0001 unused. No Cloudflare login/retry, provider write, paid Cloudflare/R2 subscription, Worker/Pages deploy, DNS/route/Access, D1 SQL, Stripe/payment, Git merge or customer-data mutation.
+
+---
+
 <!-- FIRE-NOV20-27OF27-G6-LOCAL-WORKER-20261120 -->
 ## November 20 — [x] genuine failed G6 local browser regression resolved, all 27/27 exact-source CI SUCCESS
 
