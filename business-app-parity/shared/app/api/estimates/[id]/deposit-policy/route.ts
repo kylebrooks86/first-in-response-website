@@ -2,10 +2,18 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../../chatgpt-auth';
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,type DepositPolicyRow} from '../../../../../lib/deposit-policy';
 import {readOwnerWriteObject} from '../../../../../lib/customer-write-request-guard.mjs';
-const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
+const headers={'Cache-Control':'no-store, private','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
+// A malformed or unavailable identity must not reach a customer's quote or
+// the synthetic-only deposit audit. Keep all request paths fail-closed.
+const verifiedOwner=async()=>{
+ try{
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com'?user:null;
+ }catch{return null;}
+};
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
- const user=await getChatGPTUser();
- if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
+ const user=await verifiedOwner();
+ if(!user)return Response.json({error:'Unauthorized'},{status:401,headers});
  try{
   const {id}=await params;
   const synthetic=mutationEnabled(env);
@@ -59,8 +67,8 @@ const customerExposureColumns=",e.first_viewed_at AS firstViewedAt,"+
  "(SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS openChangeCount";
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
- const user=await getChatGPTUser();
- if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ const user=await verifiedOwner();
+ if(!user)return json({error:'Unauthorized'},401);
  if(!mutationEnabled(env))return json({error:'Owner deposit changes are not activated.'},404);
  const expectedOrigin=new URL(request.url).origin;
  if(request.headers.get('Origin')!==expectedOrigin)return json({error:'The request must originate from this app.'},403);
