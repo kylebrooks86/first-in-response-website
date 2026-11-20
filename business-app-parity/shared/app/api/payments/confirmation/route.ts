@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store, private'}});
+// Lost-acknowledgement receipts contain owner financial details: never share or sniff.
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 // Read only: a lost acknowledgement must never trigger another financial write.
 export async function GET(request:Request){
  const owner=await getChatGPTUser();
