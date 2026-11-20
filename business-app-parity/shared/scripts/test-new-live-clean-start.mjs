@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import ts from 'typescript';
 import {assertNewLiveFirstJobState,verifyNewLiveFirstJobState} from '../lib/new-live-clean-start.mjs';
 const empty={customers:0,estimates:0,numberedCustomers:0,numberedJobs:0,jobLinks:0,customerSequence:0,jobSequence:0,invalidCustomers:0,invalidJobLinks:0};
 assert.equal(assertNewLiveFirstJobState(empty),true);
@@ -70,27 +69,35 @@ assert.match(communications,/customer_messages WHERE id=\? AND customer_id=\? AN
 // Exercise the actual private NEW LIVE read-only route (not a mocked response).
 // All identities, flags and D1 inspection below are synthetic; no hosted calls.
 const cleanSource=readFileSync(new URL('../app/api/release/new-live-clean-start/route.ts',import.meta.url),'utf8');
-const cleanJs=ts.transpileModule(cleanSource,{compilerOptions:{
- target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS
-}}).outputText;
+// This independent NEW LIVE CI job has no npm installation. Load the exact
+// production route by removing ONLY three audited imports and two TS-only
+// annotations; fail if its shape changes rather than installing dependencies.
+assert.equal([...cleanSource.matchAll(/^import [^\\n]+;$/gm)].length,3,
+ 'Only the three reviewed production dependencies may be replaced');
+assert.match(cleanSource,/const fail=\\(status:number,message:string\\)/);
+assert.match(cleanSource,/const flags=env as typeof env & \\{[\\s\\S]*?\\};/);
+assert.match(cleanSource,/export async function GET\\(\\)/);
+const cleanJs=cleanSource
+ .replace(/^import [^\\n]+;$/gm,'')
+ .replace('const fail=(status:number,message:string)','const fail=(status,message)')
+ .replace(/const flags=env as typeof env & \\{[\\s\\S]*?\\};/,'const flags=env;')
+ .replace('export async function GET()','async function GET()')+
+ '\\nexports.GET=GET;\\n';
 let cleanUser=null,cleanReads=0,cleanFailure=false;
 const cleanEnv={DB:{},FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_CLEAN_START:'required'};
 const cleanRoute={};
-vm.runInNewContext(cleanJs,{exports:cleanRoute,Response,require:(name)=>{
- if(name==='cloudflare:workers')return {env:cleanEnv};
- if(name==='../../../chatgpt-auth')return {getChatGPTUser:async()=>{
+vm.runInNewContext(cleanJs,{
+ exports:cleanRoute,Response,env:cleanEnv,
+ getChatGPTUser:async()=>{
   if(cleanUser==='throw')throw Error('Synthetic principal unavailable');
   return cleanUser;
- }};
- if(name==='../../../../lib/new-live-first-job-preflight.mjs')return {
-  inspectNewLiveFirstJobCleanStart:async()=>{
-   cleanReads++;
-   if(cleanFailure)throw Error('Synthetic D1 unavailable');
-   return {firstJobNumberExpected:'0001',tableRecordsAllEmpty:true};
-  }
- };
- throw Error('Unexpected clean-start route import: '+name);
-}},{filename:'new-live-clean-start/route.ts'});
+ },
+ inspectNewLiveFirstJobCleanStart:async()=>{
+  cleanReads++;
+  if(cleanFailure)throw Error('Synthetic D1 unavailable');
+  return {firstJobNumberExpected:'0001',tableRecordsAllEmpty:true};
+ }
+},{filename:'new-live-clean-start/route.ts'});
 const privateClean=(response,status)=>{
  assert.equal(response.status,status);
  assert.equal(response.headers.get('cache-control'),'private, no-store');
