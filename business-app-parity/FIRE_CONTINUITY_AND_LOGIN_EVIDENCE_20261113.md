@@ -1,3 +1,11 @@
+## Nov 19, 2026 — real STAGING Worker SERVING version/ingress/no-Access screenshots; NO REPEAT
+
+Three owner-supplied authenticated Cloudflare STAGING Production screenshots `IMG_4497.png`–`IMG_4499.png` **conclusively establish** current production active version **prefix `7838d0ea` at 100% traffic** (full immutable ID/source bytes unverified), **ON production and wildcard preview workers.dev URLs**, Dashboard "Anyone with this URL can visit", and **STAGING Worker NOT protected by Worker-specific Cloudflare Access** (explicit warning). Exact original screenshot SHA256 fingerprints are preserved in [STAGING hosted ingress evidence](evidence/FIRE_STAGING_SERVING_DOMAINS_ACCESS_OWNER_20261119.md); RAW images retained only privately. A Custom Domains and Routes heading is shown, but list itself not visible, so custom route absence is *unverified*. Application-level server auth/private API exposure not assessed: **do not claim leaked customer records**. Account-wide Access toggle OFF prior accepted separately; DR/NEW LIVE DARK evidence still applies separately.
+
+**G4-05/06 STAGING public ingress and lack of Worker Access are real hosted release blockers**, source/hosted 7838d0ea identity + wrong named secret `STRIPE_SECRET_KEY` (missing expected `FIRE_ADMIN_PASSWORD_HASH`) from immediately prior settings remains unresolved. Don't toggle Access, domain URLs, delete secrets, deploy or contact Stripe without exact-scoped authorization. These three hosted pages **already captured; do not request repeat**. G4-01/04/05/06/07 all still [ ], 50/95 accepted, 4/10 gates; NEW LIVE remains dark and Job #0001 untouched.
+
+---
+
 ## Nov 19, 2026 — original STAGING Worker production secrets/bindings screens (NOT to be repeated)
 
 Two additional real owner Cloudflare STAGING Worker Production Settings photos `IMG_4495.png`/`IMG_4496.png` show **Production** secret names `FIRE_SESSION_SECRET` and `STRIPE_SECRET_KEY` (both values encrypted), and sole visible Production D1 binding `DB` -> `fire-app-staging-db`, no R2 binding in visible list. Exact original image SHA-256 and structured findings permanently saved privately by reference in [STAGING Worker evidence](evidence/FIRE_STAGING_PRODUCTION_SECRETS_BINDING_OWNER_20261119.md); **screenshots remain private**. Read-only captured once; do not request repeat.
