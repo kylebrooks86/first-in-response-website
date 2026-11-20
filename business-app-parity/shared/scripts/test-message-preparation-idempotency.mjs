@@ -41,19 +41,27 @@ db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cen
 db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)").run("p-job3","job3","Cash",10000,"paid",at);
 const uid=i=>"00000000-0000-4000-8000-"+String(i).padStart(12,"0");
 const payload={customerId:"alice",estimateId:"job1",channel:"text_prepared",template:"review",body:"Please leave an honest review."};
-async function post(data){const response=await api.POST(new Request("https://fire.test/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(data)}));return {status:response.status,data:await response.json()}}
+async function post(data){const response=await api.POST(new Request("https://fire.test/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(data)}));return {status:response.status,data:await response.json(),headers:response.headers}}
 const count=id=>db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE id=?").get(id).n;
 let n=0;const check=(ok,label)=>{assert.ok(ok,label);n++};
+const privatePost=(result,label)=>{
+ check(result.headers.get("cache-control")==="private, no-store",label+" private no-store");
+ check((result.headers.get("vary")??"").split(",").some(x=>x.trim().toLowerCase()==="cookie"),label+" Cookie Vary");
+ check(result.headers.get("x-content-type-options")==="nosniff",label+" nosniff");
+};
 try{
  const id="owner-message-prep:"+uid(1);
  let first=await post({...payload,requestId:uid(1)});
  check(first.status===201&&first.data.message.id===id&&count(id)===1,"First review text preparation writes exactly one immutable record");
+ privatePost(first,"Owner first prepared-message 201");
  check(first.data.message.channel==="text_prepared"&&first.data.message.template==="review","Preparation never claims a sent message");
  const lostAck=await post({...payload,requestId:uid(1)});
  check(lostAck.status===200&&lostAck.data.duplicate===true&&lostAck.data.message.createdAt===first.data.message.createdAt&&count(id)===1,"Lost acknowledgement returns original receipt without second write");
+ privatePost(lostAck,"Owner exact-ID replay 200");
  const beforeWrites=writes;
  const conflict=await post({...payload,body:"Different review text",requestId:uid(1)});
  check(conflict.status===409&&writes===beforeWrites,"Same operation cannot silently prepare different message body");
+ privatePost(conflict,"Owner changed-content conflict 409");
  check((await post({...payload,channel:"email_prepared",requestId:uid(1)})).status===409,"Same operation cannot cross from text to email");
  check((await post({...payload,customerId:"bob",estimateId:"job2",requestId:uid(1)})).status===409,"Same operation cannot cross customers");
  check((await post({...payload,estimateId:"job3",requestId:uid(1)})).status===409,"Same operation cannot cross jobs even for same customer");
@@ -85,9 +93,21 @@ try{
  check((await post({...payload,requestId:uid(1)})).status===409,
    "A subsequently opened card checkout blocks retry of a previously prepared review message");
  db.prepare("UPDATE payment_checkout_sessions SET status='expired' WHERE id=?").run("checkout-after-prep");
+ const wrongType=await api.POST(new Request("https://fire.test/api/customer-messages",{
+  method:"POST",headers:{"content-type":"text/plain"},body:"not json"
+ }));
+ check(wrongType.status===415,"Non-JSON message preparation denied before any D1 write");
+ privatePost({headers:wrongType.headers},"Bounded owner request-reader 415");
  let q=queries;
- owner=null;check((await post({...payload,requestId:uid(5)})).status===401&&queries===q,"Anonymous cannot read or write private draft receipts");
- owner={email:"attacker@example.invalid"};check((await post({...payload,requestId:uid(5)})).status===401&&queries===q,"Non-owner cannot read or write private draft receipts");
+ owner=null;const anonymous=await post({...payload,requestId:uid(5)});
+ check(anonymous.status===401&&queries===q,"Anonymous cannot read or write private draft receipts");
+ privatePost(anonymous,"Anonymous prepared-message 401");
+ owner={email:"attacker@example.invalid"};const nonowner=await post({...payload,requestId:uid(5)});
+ check(nonowner.status===401&&queries===q,"Non-owner cannot read or write private draft receipts");
+ privatePost(nonowner,"Nonowner prepared-message 401");
+ owner={};const noEmail=await post({...payload,requestId:uid(5)});
+ check(noEmail.status===401&&queries===q,"Authenticated principal missing email denies safely without DB");
+ privatePost(noEmail,"Missing-email principal 401");
  owner={email:"kylebrooks8605@gmail.com"};
  const dashboard=readFileSync("app/dashboard.tsx","utf8");
  const a=dashboard.indexOf("function MessageComposer("),b=dashboard.indexOf("\nfunction ",a+20),ui=dashboard.slice(a,b);

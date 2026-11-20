@@ -7,7 +7,21 @@ import {usableCustomerPhone,usableCustomerEmail,customerReminderIsTomorrowInTuls
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // Prepared texts can contain homeowner addresses, contact details and private invoice links.
 const privatePreparedHistoryHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
-async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+// Prepared and owner-confirmed customer messages may include private contacts,
+// quote URLs and prices. Wrap every write response without changing its status,
+// body, set-cookie or the underlying exact-ID D1 save/recovery behavior.
+function privatePreparedWriteResponse(response:Response):Response {
+  response.headers.set("Cache-Control","private, no-store");
+  const vary=response.headers.get("Vary");
+  if(!vary||!vary.split(",").some(token=>token.trim().toLowerCase()==="cookie"))
+    response.headers.set("Vary",vary?vary+", Cookie":"Cookie");
+  response.headers.set("X-Content-Type-Options","nosniff");
+  return response;
+}
+function privatePreparedWriteJson(value:unknown,init?:ResponseInit):Response {
+  return privatePreparedWriteResponse(Response.json(value,init));
+}
+async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&typeof user.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL); }
 
 
 // An interrupted SMS/Mail handoff can reload FIRE before the owner confirms
@@ -64,13 +78,13 @@ export async function GET(request:Request) {
 }
 
 export async function POST(request: Request) {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return privatePreparedWriteJson({ error: "Unauthorized" }, { status: 401 });
   let uncertainOperation:{id:string;customerId:string;estimateId:string;channel:string;template:string;body:string}|null=null;
   try {
     // Bound owner-prepared message bytes before parsing; keep existing
     // prepared-ID retry and customer/job ownership verification unchanged.
     const parsed=await readOwnerWriteObject(request,64_000);
-    if(parsed.response)return parsed.response;
+    if(parsed.response)return privatePreparedWriteResponse(parsed.response);
     const value=parsed.value as Record<string,unknown>;
     const customerId = String(value.customerId ?? "").trim();
     const estimateId = String(value.estimateId ?? "").trim();
@@ -81,25 +95,25 @@ export async function POST(request: Request) {
     // external Text/Email handoff. Old clients without a snapshot retain the
     // existing semantics, but still must pass fresh server contact checks.
     if(value.recipientSnapshot!==undefined&&typeof value.recipientSnapshot!=="string")
-      return Response.json({error:"Invalid message recipient snapshot."},{status:400});
+      return privatePreparedWriteJson({error:"Invalid message recipient snapshot."},{status:400});
     const recipientSnapshot=typeof value.recipientSnapshot==="string"?value.recipientSnapshot:null;
     // Raw saved timestamp is a concurrency token for appointment messages.
     // A different future date is NOT the date the owner already previewed.
     const appointmentScheduledAt=typeof value.appointmentScheduledAt==="string"?value.appointmentScheduledAt:"";
-    if (!customerId || !body || !["text_prepared","email_prepared","copy"].includes(channel)) return Response.json({ error: "Customer, channel, and message are required." }, { status: 400 });
+    if (!customerId || !body || !["text_prepared","email_prepared","copy"].includes(channel)) return privatePreparedWriteJson({ error: "Customer, channel, and message are required." }, { status: 400 });
     // New mobile clients keep the same operation UUID across uncertain POST
     // acknowledgements. Legacy clients without a UUID remain supported.
     const requestId=value.requestId;
     if(requestId!==undefined&&(typeof requestId!=="string"||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))
-      return Response.json({error:"Invalid message preparation request identifier."},{status:400});
+      return privatePreparedWriteJson({error:"Invalid message preparation request identifier."},{status:400});
     const stableId=typeof requestId==="string"?"owner-message-prep:"+requestId:null;
     if(stableId)uncertainOperation={id:stableId,customerId,estimateId,channel,template,body};
     const matches=(row:{customerId:string;estimateId:string|null;channel:string;template:string;body:string})=>
       row.customerId===customerId&&(row.estimateId??"")===(estimateId||"")&&row.channel===channel&&row.template===template&&row.body===body;
     const customer=await env.DB.prepare("SELECT id,phone,email FROM customers WHERE id=? LIMIT 1")
       .bind(customerId).first<{id:string;phone:string|null;email:string|null}>();
-    if(!customer)return Response.json({error:"Customer not found."},{status:404});
+    if(!customer)return privatePreparedWriteJson({error:"Customer not found."},{status:404});
     // A saved customer can lose or change contact details on another device.
     // Never rely only on the React button check or create a misleading
     // text/email-prepared receipt for a missing, malformed or changed recipient.
@@ -109,10 +123,10 @@ export async function POST(request: Request) {
       contactColumn==="email"?usableCustomerEmail(savedContact):null;
     const contactError="Customer contact details are missing or changed. Reopen this customer and verify the saved phone or email before preparing the message.";
     if(contactColumn&&(!contactReady||(recipientSnapshot!==null&&recipientSnapshot!==savedContact)))
-      return Response.json({error:contactError},{status:409,headers:{"Cache-Control":"no-store, private"}});
+      return privatePreparedWriteJson({error:contactError},{status:409,headers:{"Cache-Control":"no-store, private"}});
     if(estimateId){
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
-      if(!linkedEstimate)return Response.json({error:"That estimate does not belong to this customer."},{status:409});
+      if(!linkedEstimate)return privatePreparedWriteJson({error:"That estimate does not belong to this customer."},{status:409});
     }
     // The client rechecks at the actual Text/Email/Copy click, but its
     // browser state can be stale or bypassed. Confirm the *saved* appointment
@@ -124,20 +138,20 @@ export async function POST(request: Request) {
     const appointmentError="This saved appointment is no longer confirmed for a future time. Review the job status and schedule before preparing an appointment message.";
     const reminderError="A 24-hour reminder can only be prepared the day before this saved appointment in Tulsa. Choose Appointment confirmation for a later date.";
     if(appointmentTemplate){
-      if(!estimateId)return Response.json({error:appointmentError},{status:409});
+      if(!estimateId)return privatePreparedWriteJson({error:appointmentError},{status:409});
       const currentJob=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
         .bind(estimateId,customerId).first<{status:string;scheduledAt:string|null}>();
       const time=currentJob?.scheduledAt?Date.parse(currentJob.scheduledAt):NaN;
       if(currentJob?.status!=="scheduled"||!Number.isFinite(time)||time<=appointmentClock||
          !appointmentScheduledAt||currentJob.scheduledAt!==appointmentScheduledAt)
-        return Response.json({error:appointmentError},{status:409});
+        return privatePreparedWriteJson({error:appointmentError},{status:409});
       // The canned reminder says "tomorrow"; a future date next week is
       // a valid confirmation, NOT a truthful 24-hour reminder.
       if(template==="appointmentReminder"&&!customerReminderIsTomorrowInTulsa(currentJob.scheduledAt,appointmentClock))
-        return Response.json({error:reminderError},{status:409});
+        return privatePreparedWriteJson({error:reminderError},{status:409});
     }
     if(template==="review"){
-      if(!estimateId)return Response.json({error:"A completed paid job is required before requesting a review."},{status:409});
+      if(!estimateId)return privatePreparedWriteJson({error:"A completed paid job is required before requesting a review."},{status:409});
       const reviewState=await env.DB.prepare(`SELECT e.status,
         COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents) AS billingTotalCents,
         (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id) AS invoiceOwnershipMismatch,
@@ -150,7 +164,7 @@ export async function POST(request: Request) {
         status:reviewState.status,totalCents:Number(reviewState.billingTotalCents),
         paidCents:Number(reviewState.paidCents),paymentReviewPending:Number(reviewState.paymentOverageOpen)>0||Number(reviewState.pendingRefundCount)>0||Number(reviewState.openCheckoutCount)>0
       }))
-        return Response.json({error:"Complete the job, verify exact final payment and resolve any checkout, refund or billing hold before preparing a review request."},{status:409});
+        return privatePreparedWriteJson({error:"Complete the job, verify exact final payment and resolve any checkout, refund or billing hold before preparing a review request."},{status:409});
     }
     // Review eligibility must be revalidated even for an old identical
     // request. A later refund or open checkout cannot authorize a handoff.
@@ -159,11 +173,11 @@ export async function POST(request: Request) {
         id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
       }>();
       if(existing){
-        if(!matches(existing))return Response.json({error:"That message operation already belongs to different content. Review saved messages before retrying."},{status:409});
+        if(!matches(existing))return privatePreparedWriteJson({error:"That message operation already belongs to different content. Review saved messages before retrying."},{status:409});
         const closed=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
           .bind(stableId+":owner-confirmed",stableId+":owner-cancelled").first();
-        if(closed)return Response.json({error:"This prepared message has already been marked sent or discarded. Review saved history; no new handoff was started."},{status:409});
-        return Response.json({message:existing,duplicate:true},{status:200});
+        if(closed)return privatePreparedWriteJson({error:"This prepared message has already been marked sent or discarded. Review saved history; no new handoff was started."},{status:409});
+        return privatePreparedWriteJson({message:existing,duplicate:true},{status:200});
       }
     }
     const id=stableId??crypto.randomUUID();
@@ -213,15 +227,15 @@ export async function POST(request: Request) {
     const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
       id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
     }>();
-    if(!saved)return Response.json({error:template==="review"?
+    if(!saved)return privatePreparedWriteJson({error:template==="review"?
       "Review invitation eligibility changed during preparation. Recheck job completion, payment and refund status before trying again.":
       appointmentTemplate?(template==="appointmentReminder"?reminderError:appointmentError):
       contactColumn?contactError:
       "Message preparation is not verified. Check saved drafts before retrying."},
       {status:(template==="review"||appointmentTemplate||contactColumn)&&write.meta.changes===0?409:503,
        headers:{"Cache-Control":"no-store, private"}});
-    if(!matches(saved))return Response.json({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
-    return Response.json({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
+    if(!matches(saved))return privatePreparedWriteJson({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
+    return privatePreparedWriteJson({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
   } catch {
     // D1 can commit a prepared handoff before its acknowledgement is lost.
     // Recover only the EXACT saved operation, never infer an SMS/email send.
@@ -235,18 +249,18 @@ export async function POST(request: Request) {
         if(saved){
           if(saved.customerId!==op.customerId||(saved.estimateId??'')!==op.estimateId||
              saved.channel!==op.channel||saved.template!==op.template||saved.body!==op.body)
-            return Response.json({error:'This preparation identifier belongs to different saved content. No handoff was started.'},
+            return privatePreparedWriteJson({error:'This preparation identifier belongs to different saved content. No handoff was started.'},
               {status:409,headers:{"Cache-Control":"no-store, private"}});
           const terminal=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
             .bind(op.id+':owner-confirmed',op.id+':owner-cancelled').first();
-          if(terminal)return Response.json({error:'This prepared message was already confirmed or discarded. Reopen its history; no new handoff was started.'},
+          if(terminal)return privatePreparedWriteJson({error:'This prepared message was already confirmed or discarded. Reopen its history; no new handoff was started.'},
             {status:409,headers:{"Cache-Control":"no-store, private"}});
-          return Response.json({message:saved,duplicate:true,recoveredAfterUncertainPreparation:true,
+          return privatePreparedWriteJson({message:saved,duplicate:true,recoveredAfterUncertainPreparation:true,
             deliveryConfirmed:false},{status:200,headers:{"Cache-Control":"no-store, private"}});
         }
       }catch{/* No authoritative readback means no asserted save or delivery. */}
     }
-    return Response.json({error:"Message preparation could not be confirmed. Reopen the saved drafts before retrying.",
+    return privatePreparedWriteJson({error:"Message preparation could not be confirmed. Reopen the saved drafts before retrying.",
       saveUncertain:true,requestId:uncertainOperation?.id??null,deliveryConfirmed:false},
       {status:503,headers:{"Cache-Control":"no-store, private"}});
   }
@@ -254,20 +268,20 @@ export async function POST(request: Request) {
 
 // Confirmation appends evidence; preparation and legacy history stay immutable.
 export async function PATCH(request: Request) {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return privatePreparedWriteJson({ error: "Unauthorized" }, { status: 401 });
   let confirmationOperation:{id:string;customerId:string;channel:string;cancelled:boolean;preparedId:string;estimateId:string|null;template:string;body:string}|null=null;
   try {
     // Confirm only a bounded owner request; never infer delivery or
     // alter an idempotent prepared-message receipt on malformed input.
     const parsed=await readOwnerWriteObject(request,64_000);
-    if(parsed.response)return parsed.response;
+    if(parsed.response)return privatePreparedWriteResponse(parsed.response);
     const value=parsed.value as Record<string,unknown>;
     const id=String(value.preparedMessageId??"").trim();
     const customerId=String(value.customerId??"").trim();
     const confirmed=value.ownerConfirmedSent===true, cancelled=value.ownerConfirmedNotSent===true;
-    if(!id||!customerId||confirmed===cancelled)return Response.json({error:"Explicitly confirm either sent or not sent, but never both."},{status:400});
+    if(!id||!customerId||confirmed===cancelled)return privatePreparedWriteJson({error:"Explicitly confirm either sent or not sent, but never both."},{status:400});
     const prepared=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(id,customerId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
-    if(!prepared||!["text_prepared","email_prepared"].includes(prepared.channel))return Response.json({error:"A matching prepared message is required."},{status:409});
+    if(!prepared||!["text_prepared","email_prepared"].includes(prepared.channel))return privatePreparedWriteJson({error:"A matching prepared message is required."},{status:409});
     const confirmedId=prepared.id+":owner-confirmed";
     const cancelledId=prepared.id+":owner-cancelled";
     const channel=prepared.channel==="text_prepared"?"text_confirmed":"email_confirmed";
@@ -282,21 +296,21 @@ export async function PATCH(request: Request) {
         AND NOT EXISTS(SELECT 1 FROM customer_messages c WHERE c.id=? AND c.channel IN ('text_confirmed','email_confirmed'))`)
         .bind(cancelledId,createdAt,prepared.id,customerId,confirmedId).run();
       const receipt=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
-      if(!receipt)return Response.json({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
-      return Response.json({message:receipt,cancelled:true,ownerConfirmedSent:false,
+      if(!receipt)return privatePreparedWriteJson({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
+      return privatePreparedWriteJson({message:receipt,cancelled:true,ownerConfirmedSent:false,
         deliveryConfirmed:false,confirmationSource:'owner'},
         {headers:{"Cache-Control":"no-store, private"}});
     }
     const alreadyCancelled=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
-    if(alreadyCancelled)return Response.json({error:"This draft was marked not sent. A later confirmation cannot change its history."},{status:409});
+    if(alreadyCancelled)return privatePreparedWriteJson({error:"This draft was marked not sent. A later confirmation cannot change its history."},{status:409});
     await env.DB.batch([
       env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,customer_id,estimate_id,?,template,body,? FROM customer_messages WHERE id=? AND customer_id=? AND channel=? AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=?) AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND channel='send_cancelled')").bind(confirmedId,channel,createdAt,prepared.id,customerId,prepared.channel,confirmedId,cancelledId),
       env.DB.prepare("UPDATE estimates SET status='sent' WHERE id=? AND customer_id=? AND status='draft' AND NOT EXISTS (SELECT 1 FROM invoices WHERE estimate_id=estimates.id) AND EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND customer_id=? AND estimate_id=estimates.id AND template='estimate' AND channel IN ('text_confirmed','email_confirmed'))").bind(prepared.estimateId,customerId,confirmedId,customerId),
     ]);
     const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
-    if(!message)return Response.json({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
+    if(!message)return privatePreparedWriteJson({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
     const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
-    return Response.json({message,estimateStatus:estimate?.status,ownerConfirmedSent:true,
+    return privatePreparedWriteJson({message,estimateStatus:estimate?.status,ownerConfirmedSent:true,
       deliveryConfirmed:false,confirmationSource:'owner'},
       {headers:{"Cache-Control":"no-store, private"}});
   }catch{
@@ -313,17 +327,17 @@ export async function PATCH(request: Request) {
           if(receipt.customerId!==op.customerId||(receipt.estimateId??'')!==(op.estimateId??'')||
              receipt.channel!==op.channel||receipt.template!==op.template||receipt.body!==expectedBody||
              typeof receipt.createdAt!=='string'||!Number.isFinite(Date.parse(receipt.createdAt)))
-            return Response.json({error:'Saved send decision does not match this prepared message. Review message history.',
+            return privatePreparedWriteJson({error:'Saved send decision does not match this prepared message. Review message history.',
               saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
           const otherId=op.id.replace(/:(owner-confirmed|owner-cancelled)$/,op.cancelled?':owner-confirmed':':owner-cancelled');
           const conflicting=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
             .bind(otherId,op.customerId).first();
-          if(conflicting)return Response.json({error:'Conflicting send decisions require manual review.',
+          if(conflicting)return privatePreparedWriteJson({error:'Conflicting send decisions require manual review.',
             saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
           const estimate=op.estimateId&&!op.cancelled?
             await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
               .bind(op.estimateId,op.customerId).first<{status:string}>():null;
-          return Response.json({message:receipt,cancelled:op.cancelled,
+          return privatePreparedWriteJson({message:receipt,cancelled:op.cancelled,
             ...(estimate?{estimateStatus:estimate.status}:{}),
             recoveredAfterUncertainConfirmation:true,ownerConfirmedSent:!op.cancelled,
             deliveryConfirmed:false,confirmationSource:'owner'},
@@ -331,7 +345,7 @@ export async function PATCH(request: Request) {
         }
       }catch{/* No authoritative evidence; never infer delivery. */}
     }
-    return Response.json({error:"Send confirmation could not be verified. Reopen the saved message history; no delivery is inferred.",
+    return privatePreparedWriteJson({error:"Send confirmation could not be verified. Reopen the saved message history; no delivery is inferred.",
       saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
   }
 }
