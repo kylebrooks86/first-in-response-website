@@ -15,11 +15,17 @@ export async function GET() {
   if (!user || user.email.toLowerCase() !== OWNER_EMAIL) {
     return privateJson({ error: "Unauthorized" },401);
   }
-  const summary=await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
-  if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')
-    return privateJson(summary);
-  const row=await env.DB.prepare(COMPLETED_JOB_COUNT_SQL).first<{completedJobs:number}>();
-  const count=completedJobCount(row);
-  if(count===null)return privateJson({error:'Completed-job count could not be verified.'},503);
-  return privateJson({...summary,completedJobs:count});
+  try {
+    const summary=await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
+    if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')
+      return privateJson(summary);
+    const row=await env.DB.prepare(COMPLETED_JOB_COUNT_SQL).first<{completedJobs:number}>();
+    const count=completedJobCount(row);
+    if(count===null)return privateJson({error:'Completed-job count could not be verified.'},503);
+    return privateJson({...summary,completedJobs:count});
+  }catch{
+    // An unavailable D1 read must not produce an unhandled 500 or be shown as
+    // an empty/paid-up dashboard. No financial records are changed by this GET.
+    return privateJson({error:'Dashboard could not be verified. Retry when records are available.'},503);
+  }
 }
