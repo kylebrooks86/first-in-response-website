@@ -64,12 +64,12 @@ def ordered_journal(db):
 
 def schema_objects(db):
     return {name: (kind, table, sql) for kind, name, table, sql in db.execute(
-        "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY name")}
+        "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE lower(substr(name,1,7)) <> 'sqlite_' ORDER BY name")}
 
 
 def fingerprints(db):
     """Per-table complete row hashes stay in memory; only pass/fail is returned."""
-    tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+    tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND lower(substr(name,1,7)) <> 'sqlite_' ORDER BY name")]
     result = {}
     for name in tables:
         quoted = '"' + name.replace('"', '""') + '"'
