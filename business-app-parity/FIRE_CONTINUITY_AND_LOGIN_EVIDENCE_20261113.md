@@ -1,3 +1,14 @@
+<!-- FIRE-NOV20-PRICING-IDENTITY-REVISION-FIX-44F423F -->
+## November 20, 2026 — [x] actual owner pricing fail-closed source defect repaired, native CI pending (NO DEPLOY)
+
+Existing unmerged main-target Draft PR [#282](https://github.com/kylebrooks86/first-in-response-website/pull/282) gained [source commit `13e76a2d`](https://github.com/kylebrooks86/first-in-response-website/commit/13e76a2d1108cd8735581384709337ec8dd1e2a4) and [existing test-suite commit `44f423f6`](https://github.com/kylebrooks86/first-in-response-website/commit/44f423f675362c507c363f1a91b3e335f373e141). `shared/app/api/service-pricing/route.ts` now refuses missing/null/non-string identity email with controlled owner-only 401 instead of a missing-email TypeError; its saved standard price `expectedRevision` now validates genuine UUIDv4/version/variant before touching D1. Existing 58-service catalog, custom descriptions, saved rates, stale revision CAS, lost-ACK recovery and real financial history preserved. Existing CI-wired `test-custom-service-pricing.mjs` now verifies missing/non-string/foreign caller GET+PUT denial with zero D1 reads/writes and malformed revision refusal.
+
+Original GitHub [QA/STAGING exact code+test SHA workflow 44814450834](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44814450834) began automatically, target owner settings native SQLite test initially pending; do **NOT** claim suite PASS without fresh exact-SHA readback. [Issue #19 receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7050253339). No owner/Cloudflare or deployed test repeated; documentation-only commit not a new executed source.
+
+**No numbered hosted checkbox closed by a source patch:** official master **51/95 accepted, 44 open; 4/10 formal gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, true first Job #0001 not issued. Existing 14:29 STAGING Preview OFF remains accepted; separate 14:10 owner approval for owner-only exact production-hostname Access remains pending and is not fulfilled by source work. Never broaden to worker/account-wide Access, change production route, request paid R2, reattempt Cloudflare sign-in, deploy, migrate, merge, charge Stripe or mutate hosted records.
+
+---
+
 <!-- FIRE-1429-PREVIEW-OFF-RECONFIRMED -->
 ## Nov 20, 2026, 14:29 CST — latest original owner STAGING preview OFF after transient ON; production Access separately authorized and PENDING
 
