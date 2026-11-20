@@ -95,6 +95,75 @@ def execute_source(db, file):
         raise Blocked(f"Migration {file.name} failed: {type(error).__name__}") from None
 
 
+def verify_tail_behavior(files):
+    """Exercise real pending uniqueness/append-only guards on synthetic SQLite.
+
+    Never copies owner rows or writes to the owner export. Mere index/trigger
+    NAMES are insufficient: an accidentally non-unique index or no-op
+    immutability trigger must fail the same offline upgrade rehearsal.
+    """
+    probe = sqlite3.connect(':memory:')
+    try:
+        probe.execute('PRAGMA foreign_keys=ON')
+        probe.executescript(
+            'CREATE TABLE estimates(id TEXT PRIMARY KEY);'
+            'CREATE TABLE payments(id TEXT PRIMARY KEY, provider_id TEXT);'
+        )
+        for file in files[22:]:
+            execute_source(probe, file)
+        estimate_id = 'staging-source-behavior-probe-estimate-0001'
+        probe.execute('INSERT INTO estimates(id) VALUES (?)', (estimate_id,))
+        for n, provider_id in enumerate(('cs_staging-behavior-probe',
+                                         'refund:staging-behavior-probe')):
+            probe.execute('INSERT INTO payments(id,provider_id) VALUES (?,?)',
+                          (f'original-{n}', provider_id))
+            try:
+                probe.execute('INSERT INTO payments(id,provider_id) VALUES (?,?)',
+                              (f'duplicate-{n}', provider_id))
+            except sqlite3.IntegrityError:
+                pass
+            else:
+                raise Blocked('Stripe provider uniqueness index does not reject duplicate checkout/refund IDs')
+
+        probe.execute(
+            'INSERT INTO deposit_policy_events '
+            '(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,'
+            'previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) '
+            'VALUES (?,?,?,?,?,0,0,0,0,?)',
+            (estimate_id, estimate_id, 'staging-behavior-confirmation',
+             'offline@example.invalid', 'standard', '2026-01-01T00:00:00Z'))
+        probe.execute(
+            'INSERT INTO deposit_agreement_snapshots '
+            '(event_id,estimate_id,document_version,document_digest,total_cents,deposit_cents,mode,'
+            'scope_json,agreement_text,signed_name,photo_release,signed_at,accepted_at) '
+            "VALUES (?,?,?,?,0,0,'standard','{}',?,?,?,'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')",
+            (estimate_id, estimate_id, 'deposit-exception-v1:' + estimate_id,
+             '0' * 64,
+             'Synthetic local deposit agreement for verifying immutable audit protections without owner data.',
+             'Synthetic Tester', 'no'))
+        for table, key in (('deposit_policy_events', 'id'),
+                           ('deposit_agreement_snapshots', 'event_id')):
+            for operation, sql in (
+                ('UPDATE', f'UPDATE {table} SET {key}={key} WHERE {key}=?'),
+                ('DELETE', f'DELETE FROM {table} WHERE {key}=?')
+            ):
+                try:
+                    probe.execute(sql, (estimate_id,))
+                except sqlite3.IntegrityError:
+                    pass
+                else:
+                    raise Blocked(f'Immutable {table} {operation} trigger allows mutation')
+            require(probe.execute(
+                f'SELECT COUNT(*) FROM {table} WHERE {key}=?',
+                (estimate_id,)).fetchone()[0] == 1,
+                f'Immutable {table} original synthetic row disappeared')
+        require(probe.execute('PRAGMA integrity_check').fetchone() == ('ok',),
+                'Synthetic tail integrity failed')
+        require(not probe.execute('PRAGMA foreign_key_check').fetchall(),
+                'Synthetic tail foreign keys failed')
+    finally:
+        probe.close()
+
 def rehearse(folder=SOURCE, sql_export=None):
     files = migration_files(Path(folder))
     db = sqlite3.connect(':memory:')
@@ -153,8 +222,10 @@ def rehearse(folder=SOURCE, sql_export=None):
                 'Post-upgrade expected index/tables/triggers missing')
         require(after['deposit_policy_events'][0] == 0 and after['deposit_agreement_snapshots'][0] == 0,
                 'New audit tables unexpectedly contain rows')
+        verify_tail_behavior(files)
         return {'rehearsalPassed': True, 'baseline': mode, 'appliedInMemory': list(TAIL),
                 'preservedExistingTables': len(before), 'schemaIntegrity': True,
+                'syntheticTailBehaviorVerified': True,
                 'actualCloudflareD1Migrated': False, 'hostedWorkerUpdated': False,
                 'privateExportReplayedInMemory': sql_export is not None, 'productionReady': False}
     finally:

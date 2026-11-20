@@ -13,12 +13,12 @@ CREATE TABLE payment_checkout_sessions(id TEXT PRIMARY KEY);
 CREATE TABLE sqliteX_owner_backup_data(id TEXT PRIMARY KEY, payload TEXT NOT NULL);"""
 TAIL_SQL = (
  "CREATE UNIQUE INDEX idx_payments_stripe_provider_unique ON payments(provider_id) WHERE provider_id GLOB 'cs_*' OR provider_id GLOB 'refund:*';",
- """CREATE TABLE deposit_policy_events(id TEXT PRIMARY KEY REFERENCES estimates(id));
+ """CREATE TABLE deposit_policy_events(id TEXT PRIMARY KEY REFERENCES estimates(id), estimate_id TEXT, confirmation_id TEXT, actor_email TEXT, mode TEXT, previous_total_cents INTEGER, previous_deposit_cents INTEGER, new_deposit_cents INTEGER, paid_principal_cents INTEGER, created_at TEXT);
  CREATE INDEX idx_deposit_policy_events_estimate_time ON deposit_policy_events(id);
  CREATE TRIGGER deposit_policy_events_no_update BEFORE UPDATE ON deposit_policy_events BEGIN SELECT RAISE(ABORT,'immutable'); END;
  CREATE TRIGGER deposit_policy_events_no_delete BEFORE DELETE ON deposit_policy_events BEGIN SELECT RAISE(ABORT,'immutable'); END;""",
- """CREATE TABLE deposit_agreement_snapshots(id TEXT PRIMARY KEY REFERENCES deposit_policy_events(id));
- CREATE INDEX idx_deposit_agreement_snapshots_estimate ON deposit_agreement_snapshots(id);
+ """CREATE TABLE deposit_agreement_snapshots(event_id TEXT PRIMARY KEY REFERENCES deposit_policy_events(id), estimate_id TEXT, document_version TEXT, document_digest TEXT, total_cents INTEGER, deposit_cents INTEGER, mode TEXT, scope_json TEXT, agreement_text TEXT, signed_name TEXT, photo_release TEXT, signed_at TEXT, accepted_at TEXT);
+ CREATE INDEX idx_deposit_agreement_snapshots_estimate ON deposit_agreement_snapshots(event_id);
  CREATE TRIGGER deposit_agreement_snapshots_no_update BEFORE UPDATE ON deposit_agreement_snapshots BEGIN SELECT RAISE(ABORT,'immutable'); END;
  CREATE TRIGGER deposit_agreement_snapshots_no_delete BEFORE DELETE ON deposit_agreement_snapshots BEGIN SELECT RAISE(ABORT,'immutable'); END;""",
 )
@@ -67,6 +67,7 @@ class RehearsalTests(unittest.TestCase):
         self.assertFalse(report['actualCloudflareD1Migrated'])
         self.assertEqual(len(report['appliedInMemory']), 3)
         self.assertFalse(report['privateExportReplayedInMemory'])
+        self.assertTrue(report['syntheticTailBehaviorVerified'])
 
     def test_private_export_rehearsal_preserves_all_existing_rows(self):
         report = rehearse(self.root, self.export())
@@ -74,6 +75,7 @@ class RehearsalTests(unittest.TestCase):
         self.assertTrue(report['privateExportReplayedInMemory'])
         self.assertTrue(report['rehearsalPassed'])
         self.assertEqual(report['preservedExistingTables'], 7)
+        self.assertTrue(report['syntheticTailBehaviorVerified'])
 
     def test_rejects_duplicate_stripe_provider_ids(self):
         with self.assertRaisesRegex(Blocked, 'collision'):
@@ -113,6 +115,29 @@ class RehearsalTests(unittest.TestCase):
         sql = self.root / TAIL[-1]
         sql.write_text(sql.read_text() + '\nCREATE TABLE sqliteX_unreviewed_business_data(id TEXT PRIMARY KEY);\n')
         with self.assertRaisesRegex(Blocked, 'Unreviewed post-upgrade schema objects'):
+            rehearse(self.root)
+
+    def test_rejects_named_but_nonunique_provider_index(self):
+        # Names alone previously passed. Real checkout/refund duplicates must fail.
+        sql = self.root / TAIL[0]
+        sql.write_text(sql.read_text().replace('CREATE UNIQUE INDEX', 'CREATE INDEX'))
+        with self.assertRaisesRegex(Blocked, 'Stripe provider uniqueness'):
+            rehearse(self.root)
+
+    def test_rejects_named_but_noop_policy_update_trigger(self):
+        sql = self.root / TAIL[1]
+        sql.write_text(sql.read_text().replace("SELECT RAISE(ABORT,'immutable')",
+                                               'SELECT 1', 1))
+        with self.assertRaisesRegex(Blocked, 'deposit_policy_events UPDATE'):
+            rehearse(self.root)
+
+    def test_rejects_named_but_noop_agreement_delete_trigger(self):
+        sql = self.root / TAIL[2]
+        original = "BEFORE DELETE ON deposit_agreement_snapshots BEGIN SELECT RAISE(ABORT,'immutable')"
+        self.assertIn(original, sql.read_text())
+        sql.write_text(sql.read_text().replace(original,
+                       'BEFORE DELETE ON deposit_agreement_snapshots BEGIN SELECT 1'))
+        with self.assertRaisesRegex(Blocked, 'deposit_agreement_snapshots DELETE'):
             rehearse(self.root)
 
     def test_rejects_missing_migration(self):
