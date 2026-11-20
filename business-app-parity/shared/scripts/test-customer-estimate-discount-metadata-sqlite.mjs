@@ -36,6 +36,9 @@ try{
  eq(a.totalCents,34300,'Original agreed total retained');
  eq(a.items.length,2,'Full original service lines retained');
  const saved=await r.get(first.id);eq(saved.status,200,'Independent saved bundle read');
+ eq(saved.headers.get('cache-control'),'private, no-store','Owner discount response is not cacheable');
+ eq(saved.headers.get('vary'),'Cookie','Owner discount history varies by session');
+ eq(saved.headers.get('x-content-type-options'),'nosniff','Owner saved discount receipt prevents content sniffing');
  const bundle=(await saved.json()).bundleDiscountCents;
  eq(bundle,2500,'Saved bundle component remains separate and verified');
  const pricing=discount.quoteDiscounts(a.subtotalCents,Boolean(a.appreciationDiscount),a.additionalDiscountType,a.additionalDiscountValue,bundle);
@@ -46,8 +49,23 @@ try{
  eq(d.additionalDiscountValue,1200,'Separate $12 amount stored as exact cents');
  eq(d.appreciationDiscount,0,'Separate quote has no appreciation discount');
  eq(discount.quoteDiscounts(d.subtotalCents,false,d.additionalDiscountType,d.additionalDiscountValue,0).total,d.totalCents,'Separate dollar-discount quote can also be safely edited from Customers');
+ const beforeBadId=r.counters().reads;
+ let denied=await r.get('bad estimate!');eq(denied.status,400,'Malformed discount estimate ID denied');
+ eq(denied.headers.get('vary'),'Cookie','Invalid ID denial stays session-private');
+ eq(r.counters().reads,beforeBadId,'Invalid ID causes no D1 query');
  r.setOwner({email:'nonowner@example.invalid'});
  eq((await customers.GET(new Request('https://synthetic.invalid/api/customers'))).status,401,'Nonowner cannot read customer discounts');
+ denied=await r.get(first.id);eq(denied.status,401,'Nonowner cannot read saved discount snapshot');
+ eq(denied.headers.get('cache-control'),'private, no-store','Foreign owner denial is never shared-cacheable');
+ r.setOwner({});const beforeNoEmail=r.counters().reads;
+ denied=await r.get(first.id);eq(denied.status,401,'Malformed owner principal without email fails closed');
+ eq(denied.headers.get('x-content-type-options'),'nosniff','Malformed principal denial cannot be sniffed');
+ eq(r.counters().reads,beforeNoEmail,'Absent owner email makes zero D1 reads');
+ r.setOwner({email:42});denied=await r.get(first.id);
+ eq(denied.status,401,'Nonstr ing principal email refuses owner discounts'.replace('Nonstr ing','Nonstring'));
+ eq(r.counters().reads,beforeNoEmail,'Nonstr ing email makes zero D1 reads'.replace('Nonstr ing','Nonstring'));
+ r.setOwner(null);denied=await r.get(first.id);eq(denied.status,401,'Anonymous discount request denied');
+ eq(denied.headers.get('vary'),'Cookie','Anonymous denial varies by session');
  eq(network,0,'No external network or payments');
  console.log('PASS '+checks+'/'+checks+': actual Customers API preserves per-estimate appreciation and exact original percentage/dollar discount terms without changing quote, bundle, or deposit.');
 }finally{globalThis.fetch=originalFetch;r.db.close();}
