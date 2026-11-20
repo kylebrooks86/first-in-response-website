@@ -22,7 +22,7 @@ const resolveMiniflare = () => {
 const Miniflare = resolveMiniflare();
 const source=resolve(new URL('..',import.meta.url).pathname),target=readFileSync(join(source,'app/local-customer-deployment.ts'),'utf8').match(/= '(\w+)'/)[1];
 const temp=mkdtempSync(join(tmpdir(),'fire-photo-reconciliation-'));let passed=0;const checks=[];
-const check=async(name,fn)=>{await fn();passed++;checks.push(name);};
+const check=async(name,fn)=>{console.log('START '+name);await fn();passed++;checks.push(name);console.log('PASS '+name);};
 const compile=(path,imports)=>{const module={exports:{}};new Function('require','module','exports',ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(imports,module,module.exports);return module.exports;};
 const {inspectPhotoStorage}=compile(join(source,'lib/photo-storage-integrity.ts'),()=>{throw Error('Unexpected dependency');});
 const mf=new Miniflare({modules:true,script:'export default {fetch(){return new Response("synthetic-only")}}',compatibilityDate:'2026-05-15',d1Databases:{DB:'synthetic-photo-integrity-'+target},r2Buckets:{BUCKET:'synthetic-photo-integrity-'+target},d1Persist:false,r2Persist:false});
@@ -102,7 +102,11 @@ try{
   const r=await storageRoute.GET();assert.equal(r.status,200);assert.ok(isOwnerPrivate(r));
   assert.equal(r.headers.get('content-type'),'application/zip');
   assert.match(r.headers.get('content-disposition')??'',/fire-photo-storage-/);
-  const file=await r.arrayBuffer();assert.ok(file.byteLength>100);
+  // Only assert the new privacy/header contract here. The existing archive
+  // coverage check below independently reads and validates every ZIP byte.
+  // Cancel this extra synthetic stream so a duplicate export cannot stall workerd.
+  assert.ok(r.body,'streaming ZIP body must exist');
+  await r.body.cancel();
  });
  env.BUCKET={head:k=>bucket.head(k),list:async()=>{throw Error('Synthetic lost read acknowledgement');}};
  await check('actual route reports uncertain inspection without retry or writes',async()=>{const r=await route.GET();assert.equal(r.status,503);assert.equal((await r.json()).inspectionUncertain,true);});env.BUCKET=bucket;
