@@ -89,21 +89,23 @@ await assert.rejects(()=>weather.loadTulsaHourlyForecast(day,async()=>{
  offsite++;return offsite===1?Response.json({properties:{forecastHourly:'https://evil.invalid/forecast'}}):Response.json({properties:{periods}});
 },now),/Invalid forecast source/);checks++;check(offsite===1,'Offsite hourly URL rejected without fetching');
 await assert.rejects(()=>weather.loadTulsaHourlyForecast('2026-02-30',async()=>{throw Error('No request allowed');},now),/Invalid hourly forecast date/);checks++;
-let authorized=false,loadCalls=0;
-globalThis.__weatherHourlyOwner=()=>authorized?{email:'kylebrooks8605@gmail.com'}:null;
+let currentHourlyOwner=null,loadCalls=0;
+globalThis.__weatherHourlyOwner=()=>currentHourlyOwner;
 globalThis.__weatherHourlyLoad=async date=>{loadCalls++;return{date,location:'Tulsa',updatedAt:'2026-10-20T17:00:00Z',hours:[hourly.hours[0]]};};
 const route=await importTs('app/api/weather/hourly/route.ts',
  'const getChatGPTUser=async()=>globalThis.__weatherHourlyOwner();\n'+
  'const isValidHourlyForecastDate=(date)=>/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)&&date==="2026-10-20";\n'+
  'const loadTulsaHourlyForecast=(date)=>globalThis.__weatherHourlyLoad(date);\n');
 const url='https://synthetic.invalid/api/weather/hourly?date=2026-10-20';
-check((await route.GET(new Request(url))).status===401,'Unauthenticated hourly forecast refused');
-authorized=true;let response=await route.GET(new Request('https://synthetic.invalid/api/weather/hourly?date=invalid'));
-check(response.status===400&&loadCalls===0,'Invalid calendar date refused before any remote work');
+const checkPrivateHourly=response=>{check(response.headers.get('vary')==='Cookie','Weather session caches vary by Cookie');check(response.headers.get('x-content-type-options')==='nosniff','Weather MIME sniffing denied');check((response.headers.get('cache-control')??'').includes('private'),'Weather response is private');};
+let response=await route.GET(new Request(url));check(response.status===401,'Unauthenticated hourly forecast refused');checkPrivateHourly(response);check(response.headers.get('cache-control').includes('no-store'),'Denied hourly forecast is no-store');
+currentHourlyOwner={};response=await route.GET(new Request(url));check(response.status===401,'Identity missing email must be denied');checkPrivateHourly(response);
+currentHourlyOwner={email:'kylebrooks8605@gmail.com'};response=await route.GET(new Request('https://synthetic.invalid/api/weather/hourly?date=invalid'));
+check(response.status===400&&loadCalls===0,'Invalid calendar date refused before any remote work');checkPrivateHourly(response);
 response=await route.GET(new Request(url));
-check(response.status===200&&(await response.json()).hours.length===1,'Owner-only hourly forecast responds for one day');
+check(response.status===200&&(await response.json()).hours.length===1,'Owner-only hourly forecast responds for one day');checkPrivateHourly(response);
 check(response.headers.get('cache-control')==='private, max-age=300','Only authenticated hourly data may be privately cached briefly');
 globalThis.__weatherHourlyLoad=async()=>{throw Error('Synthetic NWS outage');};
 response=await route.GET(new Request(url));
-check(response.status===503&&response.headers.get('cache-control').includes('no-store'),'Hourly outage fails independently without exposing stale weather');
+check(response.status===503&&response.headers.get('cache-control').includes('no-store'),'Hourly outage fails independently without exposing stale weather');checkPrivateHourly(response);
 console.log('PASS '+checks+' hourly NWS, exact Tulsa dates, day boundaries, missing metrics, SSRF prevention, auth, safe outage.');

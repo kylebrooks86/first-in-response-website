@@ -266,6 +266,12 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-offline-photo-vault.mjs
+      - name: Gate 6 private owner weather and offline map responses (synthetic, no provider)
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          node scripts/test-weather-photo-safety.mjs
+          node scripts/test-weather-hourly.mjs
+          node --experimental-sqlite scripts/test-offline-map-proxy.mjs
       - name: Gate 5 missing refund table/indexes block all three public financial pages before private data lookup (new TSX SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
