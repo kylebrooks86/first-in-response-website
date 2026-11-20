@@ -6,8 +6,8 @@ import {randomUUID} from 'node:crypto';
 import {confirmedManualPayment} from '../lib/manual-payment-retry-state.ts';
 import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
-let writes=0,failRead=false,failAfterCommit=false,beforePaymentInsert=null,owner={email:'kylebrooks8605@gmail.com'};
-function statement(sql){return {sql,values:[],bind(...values){return {...this,values}},async first(){return db.prepare(sql).get(...this.values)??null},async all(){return {results:db.prepare(sql).all(...this.values)}},async run(){writes++;if(sql.trim().startsWith('INSERT INTO payments')&&beforePaymentInsert){
+let writes=0,failRead=false,failAfterCommit=false,failHistoryRead=false,beforePaymentInsert=null,owner={email:'kylebrooks8605@gmail.com'};
+function statement(sql){return {sql,values:[],bind(...values){return {...this,values}},async first(){return db.prepare(sql).get(...this.values)??null},async all(){if(failHistoryRead&&/FROM payments p\\s+JOIN estimates e/i.test(sql))throw Error('Synthetic owner payment history D1 outage');return {results:db.prepare(sql).all(...this.values)}},async run(){writes++;if(sql.trim().startsWith('INSERT INTO payments')&&beforePaymentInsert){
  const mutation=beforePaymentInsert;beforePaymentInsert=null;mutation();
 }const changes=Number(db.prepare(sql).run(...this.values).changes);if(failAfterCommit&&sql.trim().startsWith('INSERT INTO payments')){failAfterCommit=false;throw Error('Synthetic lost acknowledgement after insert')}return {meta:{changes}}}};}
 const env={DB:{prepare:statement,async batch(rows){if(failRead&&rows.every(r=>/^SELECT/.test(r.sql)))throw Error('Synthetic offline confirmation');
@@ -27,6 +27,21 @@ const attempt={requestId:randomUUID(),amountCents:10000,tipCents:0,method:'Cash'
 try{
  seed('a');seed('b');seed('tip','completed');
  owner=null;eq((await get('a',attempt.requestId)).status,401);owner={email:'customer@example.invalid'};eq((await get('a',attempt.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
+ // Owner payment-history GET must never be cached across signed-in sessions,
+ // and failed D1 reads must return a safe 503, not a fabricated empty balance.
+ let history=await pay.GET();
+ eq(history.status,200);
+ eq(history.headers.get('cache-control'),'private, no-store');
+ eq(history.headers.get('vary'),'Cookie');
+ eq(history.headers.get('x-content-type-options'),'nosniff');
+ failHistoryRead=true;
+ history=await pay.GET();
+ eq(history.status,503,'Source D1 failure cannot turn owner payments into an empty history');
+ eq(history.headers.get('cache-control'),'private, no-store');
+ eq(history.headers.get('vary'),'Cookie');
+ eq(history.headers.get('x-content-type-options'),'nosniff');
+ eq((await history.json()).payments,undefined,'No misleading payment list on D1 outage');
+ failHistoryRead=false;
  eq((await get('a','bad')).status,400);eq((await get('missing',attempt.requestId)).status,404);
  let response=await get('a',attempt.requestId);eq(response.status,200);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
  // The actual financial-write API must reject malformed, primitive or giant
