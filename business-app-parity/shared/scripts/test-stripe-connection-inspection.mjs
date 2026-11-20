@@ -94,6 +94,19 @@ try{
  check(privateResult(deniedResponse),'Foreign principal receives session-private Stripe denial');
  owner={};deniedResponse=await route.GET();check(deniedResponse.status===401&&calls.length===0,'Missing-email principal is denied before provider read');
  check(privateResult(deniedResponse),'Missing-email denial is private');
+ for(const [label,principal] of [
+  ['null',{email:null}],
+  ['numeric',{email:42}],
+  ['object',{email:{}}],
+  ['array',{email:[]}],
+ ]){
+  owner=principal;calls=[];
+  const malformed=await route.GET();
+  check(malformed.status===401&&calls.length===0,
+    'Non-string '+label+' owner email fails closed before Stripe provider access');
+  check(privateResult(malformed),'Malformed '+label+' owner denial remains private');
+ }
+
  owner={email:'kylebrooks8605@gmail.com'};
  env.FIRE_STRIPE_MODE='disabled';calls=[];
  const disabledResponse=await route.GET();
