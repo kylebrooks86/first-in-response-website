@@ -532,6 +532,7 @@ jobs:
           node --experimental-sqlite scripts/test-custom-service-pricing.mjs
           node --experimental-sqlite scripts/test-saved-promotions.mjs
           node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
+          node --experimental-sqlite scripts/test-promotion-review-drafts.mjs
           node --experimental-sqlite scripts/test-estimate-promotion-attribution.mjs
           node --experimental-sqlite scripts/test-customer-estimate-discount-metadata-sqlite.mjs
           node --experimental-sqlite scripts/test-quote-packages.mjs
