@@ -1,3 +1,8 @@
+## November 20 — G4-05 selected-account zone review complete
+
+- [x] The owner’s account Domains page (IMG_4522.png, 4:00) shows an empty search field and “No data available.” Zero zones are listed in this account view, so there are no listed zones requiring a zone-specific route-table capture. IMG_4521.png repeats the previously accepted account-home overview. Reuse these and the completed eight-project inventory for this release.
+- G4-05 remains open for verification of externally reachable endpoints and preview aliases against the accepted hostname and Access inventory. The empty Domains page settles the account-zone question only. Formal total 51/95 and 4/10 gates.
+
 ## November 20 — STAGING Step 13 continuation verified
 
 - [x] Reconciled the seven previously pending owner photographs covering the end of the STAGING Step 13 schema query. No repeat capture is needed. [Column coverage and seven hashes](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-private-notes-followup-search-20261119/business-app-parity/evidence/FIRE_STAGING_DEEP_INTEGRITY_INDEX_LINK_LEDGER_OWNER_20261119.md).
