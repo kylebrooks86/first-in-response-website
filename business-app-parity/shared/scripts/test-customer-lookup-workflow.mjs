@@ -1,5 +1,14 @@
 /** Invoked only by the disposable built-QA HTTPS / native D1 harness. */
 import assert from 'node:assert/strict';
+// Next/HTTP may append additional Vary/cache directives. Check security meaning,
+// not fragile byte-for-byte formatting, and log ONLY the three safe header values.
+const privateLookupHeaders=(headers)=>{
+ const cache=String(headers['cache-control']??'').toLowerCase().split(',').map(x=>x.trim());
+ const vary=String(headers['vary']??'').toLowerCase().split(',').map(x=>x.trim());
+ return cache.includes('private')&&cache.includes('no-store')&&vary.includes('cookie')&&
+   String(headers['x-content-type-options']??'').toLowerCase()==='nosniff';
+};
+const safeLookupHeaders=(headers)=>JSON.stringify({cacheControl:headers['cache-control']??null,vary:headers['vary']??null,nosniff:headers['x-content-type-options']??null});
 export async function exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId}){
  const make=async data=>{const response=await request('/api/customers','POST',data);assert.equal(response.status(),201);return (await response.json()).customer;};
  const a=await make({name:'Lookup Twin',email:'lookup-a@example.invalid',phone:'(918) 010-1010',address:'10 North Fixture Way'});
@@ -9,14 +18,14 @@ export async function exerciseCustomerLookup({page,context,browser,origin,reques
  const anonymous=await browser.newContext({ignoreHTTPSErrors:true});
  const unauthorized=await anonymous.request.get(origin+'/api/customers/lookup?q=Lookup');
  check(unauthorized.status()===401,'Customer lookup never exposes saved customer details without owner authentication');
- check(unauthorized.headers()['cache-control']==='private, no-store'&&unauthorized.headers()['vary']==='Cookie'&&unauthorized.headers()['x-content-type-options']==='nosniff','Anonymous lookup denial also stays session-private and nosniff');await anonymous.close();
+ check(privateLookupHeaders(unauthorized.headers()),'Anonymous lookup denial also stays session-private and nosniff: '+safeLookupHeaders(unauthorized.headers()));await anonymous.close();
  for(const query of ['lookUP','lookup-a@','010-101','North Fixture','North Service Property','+1 9180101010']){
   const response=await request('/api/customers/lookup?q='+encodeURIComponent(query)),data=await response.json();
   check(response.status()===200&&data.customers.some(row=>row.id===a.id),'Native D1 partial customer search: '+query);
-  check(response.headers()['cache-control']==='private, no-store'&&response.headers()['vary']==='Cookie'&&response.headers()['x-content-type-options']==='nosniff'&&data.customers.every(row=>Object.keys(row).sort().join(',')==='address,email,id,name,phone'),'Lookup result is owner-session-private/nosniff and contains only customer identity fields');
+  check(privateLookupHeaders(response.headers())&&data.customers.every(row=>Object.keys(row).sort().join(',')==='address,email,id,name,phone'),'Lookup result is owner-session-private/nosniff and contains only customer identity fields: '+safeLookupHeaders(response.headers()));
  }
  const invalidLookup=await request('/api/customers/lookup?customerId=&q=bad');
- check(invalidLookup.status()===400&&invalidLookup.headers()['cache-control']==='private, no-store'&&invalidLookup.headers()['vary']==='Cookie'&&invalidLookup.headers()['x-content-type-options']==='nosniff','Malformed owner lookup also returns private and nosniff 400');
+ check(invalidLookup.status()===400&&privateLookupHeaders(invalidLookup.headers()),'Malformed owner lookup also returns private and nosniff 400: '+safeLookupHeaders(invalidLookup.headers()));
  check((await (await request('/api/customers/lookup?q='+encodeURIComponent("%' OR 1=1 --"))).json()).customers.length===0,'Bound literal search safely handles SQL and wildcard characters without dumping matches');
  const blank=await (await request('/api/customers/lookup?q=')).json();check(blank.customers.length===0,'Empty lookup does not dump the customer directory');
  const dialog=()=>page.getByRole('dialog',{name:'Create estimate',exact:true});
