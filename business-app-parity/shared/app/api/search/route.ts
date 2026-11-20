@@ -4,7 +4,7 @@ import {CUSTOMER_PHONE_SQL} from '../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
 import {attachedJobNumbers,jobNumberLabel,jobNumberingReady,parseJobNumberQuery} from '../../../lib/job-numbering.mjs';
-const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
+const headers={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
 const scopes=['all','customers','estimates','invoices','jobs','payments','notes','properties'];
 export async function GET(request:Request){
   const user=await getChatGPTUser();
