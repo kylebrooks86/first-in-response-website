@@ -16,17 +16,24 @@ const id=n=>'ab123456-1234-4234-8234-'+String(n).padStart(12,'0');
 const base={customerId:'owner-property-a',address:'100 Real Owner Synthetic Street',designation:'Front building',operationId:id(1)};
 const post=async value=>{
  const response=await route.POST(new Request('https://synthetic.invalid/api/customer-properties',{method:'POST',body:JSON.stringify(value)}));
+ checkResponsePrivacy(response,'owner property mutation');
  return {status:response.status,body:await response.json()};
 };
 const raw=body=>new Request('https://synthetic.invalid/api/customer-properties',{method:'POST',body});
 const patch=async value=>{
  const response=await route.PATCH(new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:JSON.stringify(value)}));
+ checkResponsePrivacy(response,'owner property mutation');
  return {status:response.status,body:await response.json()};
 };
 const stored=key=>db.prepare('SELECT * FROM customer_properties WHERE id=?').get(key)??null;
 const n=()=>db.prepare('SELECT COUNT(*) AS n FROM customer_properties').get().n;
 let checks=0;
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
+const checkResponsePrivacy=(response,label)=>{
+ eq(response.headers.get('cache-control'),'private, no-store',label+' is never shared/cached');
+ eq(response.headers.get('vary'),'Cookie',label+' varies by owner session');
+ eq(response.headers.get('x-content-type-options'),'nosniff',label+' refuses MIME sniffing');
+};
 const old=rt.env.DB.prepare;
 try{
  for(const [label,request,expected] of [
@@ -37,7 +44,9 @@ try{
   ['JSON array',raw('[]'),400],
  ]){
   const before=rt.counters();
-  eq((await route.POST(request)).status,expected,label+' refused before query');
+  const response=await route.POST(request);
+  eq(response.status,expected,label+' refused before query');
+  checkResponsePrivacy(response,label+' POST rejection');
   eq(rt.counters(),before,label+' performs no D1 reads or writes');
  }
  let result=await post(base);
@@ -124,7 +133,9 @@ try{
   ['PATCH JSON array',new Request('https://synthetic.invalid/api/customer-properties',{method:'PATCH',body:'[]'}),400],
  ]){
   const before=rt.counters();
-  eq((await route.PATCH(request)).status,expected,label+' rejected before D1 access');
+  const response=await route.PATCH(request);
+  eq(response.status,expected,label+' rejected before D1 access');
+  checkResponsePrivacy(response,label+' PATCH rejection');
   eq(rt.counters(),before,label+' does not touch D1');
  }
  let archived=await patch(archiveBase);
