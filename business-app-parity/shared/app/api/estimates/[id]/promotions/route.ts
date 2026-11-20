@@ -2,12 +2,14 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../../chatgpt-auth';
 import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,readPromotionAttribution} from '../../../../../lib/estimate-promotion-attribution';
 
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
+const privateHeaders={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:privateHeaders});
 /** Owner-only immutable rule-at-save audit; never reruns present-day promotion rules. */
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
  const user=await getChatGPTUser();
- if(user?.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
  const {id}=await params;
+ if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))return json({error:'Invalid estimate.'},400);
  try{
   const estimate=await env.DB.prepare('SELECT id,appreciation_discount AS appreciationDiscount,additional_discount_type AS additionalDiscountType,additional_discount_value AS additionalDiscountValue,subtotal_cents AS subtotalCents,total_cents AS totalCents,deposit_cents AS depositCents FROM estimates WHERE id=?').bind(id).first<{appreciationDiscount:number;additionalDiscountType:string;additionalDiscountValue:number;id:string;subtotalCents:number;totalCents:number;depositCents:number}>();
   if(!estimate)return json({error:'Estimate not found.'},404);
