@@ -1,3 +1,11 @@
+## November 20 — [x] exact-source CI defect resolved: 27/27 full workflow PASS; formal hosted gates unchanged
+
+The original full built-QA synthetic local Worker suite's two-customer share-token test stopped on a local `ECONNRESET` after prior owner/nonowner denials. **Actual code committed** on current draft PR282 [`c6adce5`](https://github.com/kylebrooks86/first-in-response-website/commit/c6adce5eeba4780fd3b6f0196f19a4f5d27698dc): start that exact same test with a fresh disposable Worker process preserving the prior local D1, and retain redacted failure diagnostics without suppressing assertions. No hosted change. **Real exact-SHA automatic GitHub Actions: 27/27 completed SUCCESS, 0 failures/cancellations/pending**, including [QA/STAGING 6/6 jobs success #44717733245](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44717733245), both owner task POST/PATCH real-route SQLite steps SUCCESS, and previously failing two-synthetic-customer G6 browser step SUCCESS. [Sanitized full CI/failure/fix evidence](../evidence/FIRE_G6_TWO_CUSTOMER_LOCAL_WORKER_CI_RECOVERY_20261120.md).
+
+**[x] Previously pending development/CI evidence subtask complete.** This does **not** satisfy any still-unchecked original hosted checklist criterion: official **51/95 checked, 44 open, 4/10 formal gates accepted (G1/G2/G3/G8)**. G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, first genuine Job #0001 unused. No repeated owner Acer/iPhone screenshots/Cloudflare logins, no TEST upload, paid R2, provider write, Stripe payment, merge or deployment.
+
+---
+
 ## November 20 — [x] NEW hosted preview-origin subproof + [x] real paid-review source CI receipt (no deployment)
 
 - [x] **G4-05 NEW external preview subproof:** Anonymous external read-only GETs of exact known version-prefix aliases: STAGING `7838d0ea` `/api/customers` **401**, QA `08d77fb1` `/api/customers` **401**, Stripe TEST `96e32262` classified **login_required** (the retrieval layer did NOT disclose a numeric HTTP status). QA production `/api/customers` also 401; one account-listed synthetic Pages project loads its clearly synthetic-only demo. We did not repeat older STAGING production endpoint GETs, Acer guarded stops, D1, dashboard screenshots or logins. [Exact scope and partial gaps](../evidence/FIRE_G4_EXTERNAL_VERSION_PREVIEW_INGRESS_20261120.md).
