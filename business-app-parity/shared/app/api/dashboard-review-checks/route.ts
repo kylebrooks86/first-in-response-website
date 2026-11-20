@@ -3,9 +3,10 @@ import {getChatGPTUser} from "../../chatgpt-auth";
 import {dueReviewChecks,type ReviewRequestRow} from "../../../lib/dashboard-review-checks";
 export const dynamic="force-dynamic";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+const readHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(){
  const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
+ if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:readHeaders});
  try{
   // Read only completed-work customers with a confirmed review request.
   // Prepared/copied messages never qualify. Manual "review received" logs
@@ -29,6 +30,6 @@ export async function GET(){
        AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed')
        AND EXISTS(SELECT 1 FROM estimates e WHERE e.id=m.estimate_id AND e.customer_id=c.id AND e.status='completed'))
    ORDER BY c.name ASC,c.id ASC`).all<ReviewRequestRow>();
-  return Response.json({checks:dueReviewChecks(results.results??[])},{headers:{"Cache-Control":"no-store, private"}});
- }catch{return Response.json({error:"Unable to verify review checks. Try again."},{status:503,headers:{"Cache-Control":"no-store"}});}
+  return Response.json({checks:dueReviewChecks(results.results??[])},{headers:readHeaders});
+ }catch{return Response.json({error:"Unable to verify review checks. Try again."},{status:503,headers:readHeaders});}
 }
