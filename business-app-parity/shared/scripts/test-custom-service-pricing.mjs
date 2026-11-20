@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';import{readFileSync}from'node:fs';import{pricingRuntime}from'./pricing-test-runtime.mjs';
 const r=pricingRuntime();let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 try{
- let {response,data}=await r.get();eq(response.status,200);eq(response.headers.get('cache-control'),'no-store');eq(data.rates.length,58);
+ let {response,data}=await r.get();eq(response.status,200);eq(response.headers.get('cache-control'),'private, no-store','Owner price API is session-private and not cacheable');eq(response.headers.get('vary'),'Cookie','Owner price response varies by login session');eq(response.headers.get('x-content-type-options'),'nosniff','Owner price API is MIME-sniffing safe');eq(data.rates.length,58);
  for(const service of r.catalog.FIRE_SERVICES)eq(data.rates.find(s=>s.id===service.id),{id:service.id,rateCents:service.rate,revision:null});
  const {priceCents,validServiceRates}=r.pricing;
  for(const [raw,expected]of [['0',0],['.22',22],['00.40',40],['0.22',22],['1.50',150],['0.40',40],['999.99',99999],['12.3',1230]])eq(priceCents(raw),expected);

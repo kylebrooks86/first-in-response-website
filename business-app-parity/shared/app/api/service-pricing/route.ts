@@ -6,7 +6,7 @@ import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){const user=await getChatGPTUser();return user?.email.toLowerCase()===OWNER;}
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}});
 // Existing owner-settings override storage: distinct namespaced keys, never
 // template keys. Existing full-table backups already preserve these records.
 export async function GET(){
