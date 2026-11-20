@@ -171,7 +171,7 @@ try{
    const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
    assert.equal(response.status,409);
    assert.equal(response.headers.get('content-type'),'application/json');
-   assert.equal(response.headers.get('cache-control'),'no-store');
+   assert.ok(isOwnerPrivate(response),'A damaged archived photo must retain private Cookie-varying response headers');
    assert.equal((await response.json()).archiveIncomplete,true);
   } finally {await bucket.put(key,bytes,{httpMetadata:{contentType:'image/png'}});}
  });
