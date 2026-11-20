@@ -1,3 +1,14 @@
+<!-- FIRE-NOV20-1429-PREVIEW-OFF-AGAIN -->
+## November 20, 2026, 14:29 CST — latest owner screenshot reconfirms STAGING preview OFF after transient ON screenshot
+
+**Original current-session owner iPhone Safari authenticated dashboard PNG:** 1320×2868, SHA-256 `ebdba5c96af0acd641991954d7278698e8ba63c7852dff33d31a8961ce308a36` (original image stays in private chat; do **not** publish image/cookies to GitHub). Actual `fire-app-independent-staging` → Production → Domains screen at **2:29 PM** shows exact `*-fire-app-independent-staging.kyle-bfc.workers.dev` **Preview OFF (gray)**, `fire-app-independent-staging.kyle-bfc.workers.dev` **Production ON (blue)**, and **No custom domains** listed. The intervening **2:28 PM** owner screenshot had Preview ON, so this 2:29 image is the newer state. Earlier 13:59 OFF and 14:13 ON receipts remain valid *at their capture times*, not conflicting current states. **No repeat screenshot needed** absent another material state change.
+
+**Strict evidence limit:** authenticated Worker dashboard UI state, not external HTTP denial, propagated edge enforcement, account-wide routes, or actual Cloudflare Access policy. Production URL remains publicly visitable per previous owner dashboard; Access is **not proven configured**. Separate approved **14:10 CST owner-only hostname-scoped production Access** remains **pending execution** and is not silently revoked by the completed preview-only toggle. Approval expressly excludes other Workers, wildcard preview, account-wide Access, paid Cloudflare/R2, deployments, SQL/D1, Stripe, secrets and public routes. No such actions were performed by assistant.
+
+**Checklist:** [x] updated timestamped G4-05 preview-toggle UI **subproof**, [ ] full numbered G4-05 and G4-06 remain OPEN pending actual ingress/Access evidence. Official count **51/95 accepted, 44 open; 4/10 gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; first actual Job #0001 unissued**. No new numbered checkbox counted for an already credited subproof. Latest draft remains unmerged PR282; no hosted deployment implied.
+
+---
+
 # Nov 19, 2026 — STAGING actual serving version, enabled production/preview URLs and missing Worker Access policy (owner screenshots)
 
 **Target:** Cloudflare **Workers & Pages → `fire-app-independent-staging` → Production** for the independently hosted STAGING Worker, **not** NEW LIVE/DR/QA or the legacy Sites app. **Owner submitted three new authenticated Dashboard screenshots** at approximately 9:01–9:02 PM CST November 19, 2026. These are original owner-private screenshot files from the same conversation, with raw-byte hashes independently computed locally; they were not uploaded into public GitHub.
