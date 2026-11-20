@@ -1,3 +1,9 @@
+## Nov 19, 2026 — STAGING complete original 22/22 migration journal image proof, DO NOT RE-REQUEST
+
+The owner supplied two original, authenticated Cloudflare D1 Console photos showing the *entire* applied 22-row `fire-app-staging-db` journal, IDs 1–22, with overlapping rows 10–14. We compared all 22 names against the current unmerged source `business-app-parity/adapters/doomsday/drizzle/`; exact ordered match, unlike the different `adapters/staging` history. This **newly closes the original Oct29 missing first-19-row-name subproof** recorded in Issue #19 comment #6513700760; the overall 22-row count was already accepted before these photos. **Never ask the owner again for STAGING's same migration-journal query.** Full transcription, original image SHA-256 hashes and no-repeat boundary are in [G5-01 STAGING physical complete journal](evidence/FIRE_STAGING_COMPLETE_PHYSICAL_JOURNAL_OWNER_20261119.md). Original owner screenshots stay private, not published to GitHub. STAGING physically remains 22/25 source migrations; 0022/0023/0024 have not been run. QA 25 and DR/NEW LIVE 26 accepted proof stays credited. Formal G5-01 **[ ]** until all-target actually bound schema+journal is reconciled; official 50/95, four of ten accepted gates. No provider SQL write, rollout, merge, migration, paid Cloudflare/R2 or payment modifications.
+
+---
+
 <!-- FIRE-G5-G6-PAYMENT-HISTORY-PR282-20261119 -->
 ## November 19 — actual owner payment-history private GET and D1 outage source fix (PR282)
 
