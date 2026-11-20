@@ -1,3 +1,9 @@
+## November 20 — G4-05 project-level custom-domain inventory complete
+
+- [x] Matched the five Workers and three Pages projects in the owner's 1–8 of 8 listing to their individual domain views. QA, independent STAGING and Stripe TEST list zero custom domains or zone routes. QA and STAGING show both their default and wildcard preview URLs enabled with “Anyone with this URL can visit.” Stripe TEST shows an Access policy on both URL rows. DR and NEW LIVE show workers.dev disabled and empty custom-domain and route fields.
+- [x] The synthetic offline test, live field calculator and best-of-both calculator each show their own pages.dev hostname, zero listed custom domains, production branch main, and a “Restrict previews” control. The production hostname policy is managed separately. Owner screenshot sequence IMG_4501–IMG_4520 supplements the [accepted account and Access inventory](evidence/FIRE_G4_ACCOUNT_WORKERS_ACCESS_SCREENSHOTS_20261117.md).
+- The eight project views complete this evidence substep. G4-05 still needs the account's zone list and applicable zone route/alias evidence. G4-06 still needs approved protected ingress. Existing application authentication and signed webhook evidence retain their prior scope. The STAGING DB binding and active deployment alone do not establish source/configuration parity. No hosted changes or new tests. Formal count 51/95, four of ten gates accepted.
+
 ## November 20 — STAGING Step 13 continuation verified
 
 - [x] Reconciled the seven previously pending owner photographs covering the end of the STAGING Step 13 schema query. No repeat capture is needed. [Column coverage and seven hashes](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-private-notes-followup-search-20261119/business-app-parity/evidence/FIRE_STAGING_DEEP_INTEGRITY_INDEX_LINK_LEDGER_OWNER_20261119.md).
