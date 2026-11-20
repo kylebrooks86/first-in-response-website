@@ -40,6 +40,12 @@ try{
  check((await action.POST(req("ready",1,at))).status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Anonymous cannot access owner data");
  owner={email:"not-the-owner@example.invalid"};
  check((await action.POST(req("ready",1,at))).status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Wrong owner denied before DB");
+ for(const identity of [{},{email:null},{email:42}]){
+  owner=identity;
+  const denied=await action.POST(req("ready",1,at));
+  check(denied.status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Malformed review-snooze principal denied without D1 work");
+  check(denied.headers.get("cache-control")==="private, no-store"&&denied.headers.get("vary")==="Cookie"&&denied.headers.get("x-content-type-options")==="nosniff","Snooze 401 remains session-private");
+ }
  owner={email:"kylebrooks8605@gmail.com"};
  for(const [label,body,headers,expected] of [
   ["declared excessive review-check input","{}",{"content-length":"4097"},413],
@@ -51,6 +57,7 @@ try{
   const before={reads,writes};
   const result=await action.POST(new Request("https://fire.invalid/api/dashboard-review-checks/snooze",{method:"POST",headers,body}));
   check(result.status===expected,label+" fails before stored review checks");
+  check(result.headers.get("cache-control")==="private, no-store"&&result.headers.get("vary")==="Cookie"&&result.headers.get("x-content-type-options")==="nosniff",label+" receipt stays session-private");
   check(before.reads===reads&&before.writes===writes,label+" leaves all D1 reads/writes untouched");
  }
  check((await action.POST(req("draft",2,draft))).status===409,"Prepared-only review cannot be deferred");
@@ -58,6 +65,7 @@ try{
  check((await action.POST(req("recent",4,recent))).status===409,"Only reviews at least seven days old qualify");
  check((await action.POST(req("received",5,received))).status===409,"Owner-logged received review cannot be deferred");
  const first=await action.POST(req("ready",1,at)),data=await first.json();
+ check(first.headers.get("cache-control")==="private, no-store"&&first.headers.get("vary")==="Cookie"&&first.headers.get("x-content-type-options")==="nosniff","Confirmed snooze receipt stays session-private");
  check(first.status===201&&data.saved&&data.customerId==="ready"&&Date.parse(data.snoozeUntil)>Date.now()+6*86400000,"Owner saved a seven-day status check pause");
  check(savedCount("ready")===1&&(await due()).length===0,"Deferral suppresses Dashboard check without creating a message send");
  const rows=db.prepare("SELECT id,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE customer_id=?").all("ready");

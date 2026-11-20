@@ -5,7 +5,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
-const root=process.cwd();let checks=0,owner={email:'kylebrooks8605@gmail.com'},writes=0,lookupCalls=0,failLookup=false;
+const root=process.cwd();let checks=0,owner={email:'kylebrooks8605@gmail.com'},writes=0,lookupCalls=0,failLookup=false,directoryBatches=0;
 const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 function load(path,imports={},extra={}){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:99,module:1}}).outputText,{exports,require:k=>{if(!(k in imports))throw Error(k);return imports[k];},Response,Request,URL,URLSearchParams,AbortSignal,crypto,Date,Set,Map,Object,TextEncoder,structuredClone,...extra});return exports;}
 const model=load('lib/door-knocking.ts'),territory=load('lib/territory.ts',{'./door-knocking':model}),service=load('lib/service-location.ts');
@@ -14,7 +14,7 @@ for(const bad of [null,{},'Tulsa',{lat:91,lng:-96,zoom:10},{lat:36,lng:-181,zoom
 const offlineModel=load('lib/territory-offline.ts',{'./door-knocking':model});
 const db=new DatabaseSync(':memory:');for(const p of readdirSync('drizzle').filter(p=>p.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+p,'utf8'));
 db.exec(readFileSync('db/candidate-service-locations.sql','utf8'));
-const env={FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',DB:{prepare(sql){return {sql,values:[],bind(...values){this.values=values;return this;},async first(){return db.prepare(sql).get(...this.values)??null;},async run(){writes++;return {meta:{changes:Number(db.prepare(sql).run(...this.values).changes)}};}};},async batch(queries){return queries.map(q=>({results:db.prepare(q.sql).all(...q.values)}));}}};
+const env={FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',DB:{prepare(sql){return {sql,values:[],bind(...values){this.values=values;return this;},async first(){return db.prepare(sql).get(...this.values)??null;},async run(){writes++;return {meta:{changes:Number(db.prepare(sql).run(...this.values).changes)}};}};},async batch(queries){directoryBatches++;return queries.map(q=>({results:db.prepare(q.sql).all(...q.values)}));}}};
 const auth={getChatGPTUser:async()=>owner};
 const api=load('app/api/door-knocking/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':auth,'../../../lib/door-knocking':model,'../../../lib/customer-write-request-guard.mjs':{readOwnerWriteObject}});
 const directory=load('app/api/territory/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':auth,'../../../lib/service-location':service});
@@ -119,5 +119,20 @@ try{
  eq((await lookup({address:'100 Synthetic St, Tulsa OK',note:'Never send this'})).status,400);
  eq((await lookup(null)).status,400);
  count=lookupCalls;const beforeWrites=writes;for(const u of [null,{email:'other@example.invalid'}]){owner=u;eq((await directory.GET()).status,401);eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,401);eq((await post({...moved,requestId:uid(15)})).status,401);}eq(lookupCalls,count,'Unauthorized lookup never contacts provider');eq(writes,beforeWrites,'Unauthorized map cannot write');
+ const priorDirectoryBatches=directoryBatches;
+ for(const identity of [{},{email:null},{email:42}]){
+  owner=identity;
+  const denied=await directory.GET();
+  eq(denied.status,401,'Malformed map owner must be denied');
+  eq(denied.headers.get('cache-control'),'private, no-store','Denied territory map cannot be cached');
+  eq(denied.headers.get('vary'),'Cookie','Denied map varies by owner session');
+  eq(denied.headers.get('x-content-type-options'),'nosniff','Denied map blocks MIME sniffing');
+  eq(directoryBatches,priorDirectoryBatches,'Malformed principal never reads customer/estimate map D1');
+ }
+ owner={email:'kylebrooks8605@gmail.com'};
+ const verifiedDirectory=await directory.GET();
+ eq(verifiedDirectory.status,200,'Valid owner still reads territory');
+ eq(verifiedDirectory.headers.get('vary'),'Cookie','Valid territory responses remain session-private');
+ eq(verifiedDirectory.headers.get('x-content-type-options'),'nosniff','Owner map records cannot be MIME-sniffed');
  console.log(`PASS ${checks} territory model/SQLite/API checks.`);
 }finally{db.close();}

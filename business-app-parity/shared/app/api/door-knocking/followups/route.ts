@@ -5,7 +5,7 @@ export const dynamic='force-dynamic';
 const send=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 export async function GET(){
  const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return send({error:'Unauthorized'},401);
+ if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return send({error:'Unauthorized'},401);
  try{
   const row=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DOOR_BOOK_KEY).first<{body:string}>();
   const today=doorTodayInTulsa();

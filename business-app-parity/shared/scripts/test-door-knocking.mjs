@@ -57,5 +57,16 @@ try{
   eq({reads,writes},before,kind+' touches no database records');
  }
  for(const bad of [null,[],{},'bad json',{...visit,status:'unknown-outcome'},{...visit,note:'x'.repeat(1001)},{...visit,latitude:123}])eq((await post(bad)).status,400);
- const count=writes;for(const user of [null,{email:'nonowner@example.invalid'}]){owner=user;eq((await api.GET()).status,401);eq((await post(add)).status,401);eq((await revisit()).status,401,'Revisit dashboard requires owner authentication');}eq(writes,count);owner={email:'kylebrooks8605@gmail.com'};db.prepare('UPDATE message_templates SET body=? WHERE key=?').run('bad',model.DOOR_BOOK_KEY);eq((await api.GET()).status,503);eq((await revisit()).status,503,'Corrupt saved visit history never appears as an empty due queue');eq((await post(add)).status,503);console.log('PASS '+checks+' door-knocking SQLite/API safety checks.');
+ const count=writes;for(const user of [null,{email:'nonowner@example.invalid'}]){owner=user;eq((await api.GET()).status,401);eq((await post(add)).status,401);eq((await revisit()).status,401,'Revisit dashboard requires owner authentication');}eq(writes,count);
+ const beforeMalformed={reads,writes};
+ for(const identity of [{},{email:null},{email:42}]){
+  owner=identity;
+  for(const [kind,response] of [['house GET',await api.GET()],['house POST',await post(add)],['revisit GET',await revisit()]]){
+   eq(response.status,401,'Malformed owner principal denies '+kind);
+   eq(response.headers.get('vary'),'Cookie','Denied '+kind+' remains session-scoped');
+   eq(response.headers.get('x-content-type-options'),'nosniff','Denied '+kind+' blocks MIME sniffing');
+  }
+  eq({reads,writes},beforeMalformed,'Malformed principal cannot read or write door history');
+ }
+ owner={email:'kylebrooks8605@gmail.com'};db.prepare('UPDATE message_templates SET body=? WHERE key=?').run('bad',model.DOOR_BOOK_KEY);eq((await api.GET()).status,503);eq((await revisit()).status,503,'Corrupt saved visit history never appears as an empty due queue');eq((await post(add)).status,503);console.log('PASS '+checks+' door-knocking SQLite/API safety checks.');
 }finally{db.close();}

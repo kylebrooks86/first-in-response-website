@@ -1,10 +1,11 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 /** Minimal read-only directory: no contacts, signatures, messages or financial data. */
 export async function GET(){
- if((await getChatGPTUser())?.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ const user=await getChatGPTUser();
+ if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
  try{
   const enabled=serviceLocationsEnabled(env);
   const [customers,jobs]=await env.DB.batch([
