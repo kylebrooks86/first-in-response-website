@@ -16,6 +16,11 @@ if(process.env.GITHUB_WORKSPACE){
 let total=0;
 function pass(name,predicate){assert.equal(Boolean(predicate),true,name);total++;console.log('PASS',name);}
 const root=new URL('./fixtures/photo-integrity/',import.meta.url);
+const isOwnerPrivate=response=>{
+ const cache=(response.headers.get('cache-control')||'').toLowerCase().split(',').map(x=>x.trim());
+ const vary=(response.headers.get('vary')||'').toLowerCase().split(',').map(x=>x.trim());
+ return cache.includes('private')&&cache.includes('no-store')&&vary.includes('cookie')&&response.headers.get('x-content-type-options')==='nosniff';
+};
 function harness(file,mode='success',authorized=true,bucket=true,found=true){
  const rows=new Map(found?[['photo-1',{customerId:'customer-1',objectKey:'customers/customer-1/photo-1.png',contentType:'image/png',sizeBytes:18}]]:[]);
  if(mode==='shared-key')rows.set('photo-2',{...rows.get('photo-1')});
@@ -65,7 +70,10 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
  const compiled=ts.transpileModule(readFileSync(new URL(file+'.txt',root),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  vm.runInNewContext(compiled,{exports,Request,Response,Date,console,require(id){
    if(id==='cloudflare:workers')return {env};
-   if(id==='../../../chatgpt-auth'||id==='../../../owner-auth')return {getChatGPTUser:async()=>authorized?{email:'kylebrooks8605@gmail.com'}:null,getOwnerUser:async()=>authorized?{email:'kylebrooks8605@gmail.com'}:null};
+   if(id==='../../../chatgpt-auth'||id==='../../../owner-auth'){
+     const principal=authorized===true?{email:'kylebrooks8605@gmail.com'}:authorized===false?null:authorized;
+     return {getChatGPTUser:async()=>principal,getOwnerUser:async()=>principal};
+   }
    if(id==='../../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};
    throw Error('Unexpected import '+id);
  }},{filename:file});
@@ -80,6 +88,7 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
     const photo=await getCase.GET();
     pass('current shared GET serves original synthetic bytes without changing records',photo.status===200&&(await photo.text())==='original-png-bytes'&&getCase.rows.size===1&&getCase.objects.size===1&&getCase.events.join(',')==='db-select,bucket-get');
     pass('current shared GET prevents sensitive photo caching',photo.headers.get('cache-control')==='private, no-store');
+    pass('current GET includes owner session variation and safe MIME on image bytes',isOwnerPrivate(photo));
     pass('current shared GET prevents MIME-type sniffing',photo.headers.get('x-content-type-options')==='nosniff');
     pass('current shared GET isolates inline image content',photo.headers.get('content-security-policy')==='sandbox'&&photo.headers.get('content-disposition')==='inline');
     for(const mode of ['get-size-mismatch','get-mime-mismatch','get-r2-error']){
@@ -89,7 +98,18 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
         result.status===503&&data.photoIntegrityUncertain===true&&changed.rows.size===1&&changed.objects.size===1);
     }
     const locked=harness(file,'success',false);
-    pass('current shared GET forbids unauthorized photo reads',(await locked.GET()).status===401&&locked.events.length===0);
+    const anonymousRead=await locked.GET();
+    pass('current shared GET forbids unauthorized photo reads',anonymousRead.status===401&&locked.events.length===0);
+    pass('current GET anonymous denial is private and session varying',isOwnerPrivate(anonymousRead));
+    for(const [label,principal] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}]]){
+      const malformed=harness(file,'success',principal);
+      const refusedRead=await malformed.GET();
+      const refusedDelete=await malformed.DELETE();
+      pass('Owner photo GET/DELETE safely denies malformed '+label+' identity without D1/R2 work',
+        refusedRead.status===401&&refusedDelete.status===401&&
+        isOwnerPrivate(refusedRead)&&isOwnerPrivate(refusedDelete)&&
+        malformed.events.length===0&&malformed.rows.size===1&&malformed.objects.size===1);
+    }
     const missingBucket=harness(file,'success',true,false);
     pass('current shared GET fails closed without storage',(await missingBucket.GET()).status===503&&missingBucket.rows.size===1&&missingBucket.events.length===0);
   }
@@ -119,10 +139,11 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
       allowed.status===200&&normal.rows.size===0&&normal.objects.size===0);
   }
   let t=harness(file);let res=await t.DELETE();pass(`${file} normal success removes both`,res.status===200&&t.rows.size===0&&t.objects.size===0);
+  if(patched)pass(`${file} successful owner photo DELETE response is private`,isOwnerPrivate(res));
   t=harness(file,'db-precommit-error');let threw=false;try{res=await t.DELETE();}catch{threw=true;}
   pass(`${file} precommit failure preserves metadata`,t.rows.size===1);
   pass(`${file} precommit failure ${patched?'preserves bytes':'DELETES bytes (negative control)'}`,t.objects.size===(patched?1:0));
-  if(patched){const data=await res.json();pass(`${file} precommit reports uncertainty`,res.status===503&&data.deleteUncertain===true);}
+  if(patched){const data=await res.json();pass(`${file} precommit reports uncertainty`,res.status===503&&data.deleteUncertain===true&&isOwnerPrivate(res));}
   t=harness(file,'db-postcommit-error');threw=false;try{res=await t.DELETE();}catch{threw=true;}
   pass(`${file} postcommit failure does not claim success`,patched?res.status===503:threw);
   pass(`${file} postcommit failure ${patched?'preserves backup bytes':'deletes original bytes'}`,t.objects.size===(patched?1:0));

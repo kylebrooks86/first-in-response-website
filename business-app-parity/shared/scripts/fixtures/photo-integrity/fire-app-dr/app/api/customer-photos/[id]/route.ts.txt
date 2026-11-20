@@ -2,9 +2,9 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getOwnerUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){ const user=await getOwnerUser(); return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL; }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+async function getPhoto(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
@@ -26,7 +26,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+async function deletePhoto(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
@@ -87,4 +87,19 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     }, { status: 503,headers:{"cache-control":"private, no-store"} });
   }
   return Response.json({ ok: true },{headers:{"cache-control":"private, no-store"}});
+}
+
+// Session-varying owner photos must stay private on EVERY success, denial,
+// integrity hold and uncertain delete receipt, including binary image bodies.
+function privatePhotoResponse(response:Response):Response{
+  response.headers.set('Cache-Control','private, no-store');
+  response.headers.set('Vary','Cookie');
+  response.headers.set('X-Content-Type-Options','nosniff');
+  return response;
+}
+export async function GET(request:Request,context:{params:Promise<{id:string}>}){
+  return privatePhotoResponse(await getPhoto(request,context));
+}
+export async function DELETE(request:Request,context:{params:Promise<{id:string}>}){
+  return privatePhotoResponse(await deletePhoto(request,context));
 }
