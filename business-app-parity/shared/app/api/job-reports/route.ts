@@ -18,16 +18,22 @@ const reportColumns = `id,estimate_id AS estimateId,customer_id AS customerId,ch
   created_at AS createdAt,completed_at AS completedAt`;
 const privateHeaders = { "Cache-Control": "no-store, private" };
 
+const privateReportReadHeaders = { "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: Request) {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401, headers: privateReportReadHeaders });
   const estimateId = new URL(request.url).searchParams.get("estimateId") || "";
-  const rows = await env.DB.prepare(`SELECT ${reportColumns} FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC`)
-    .bind(estimateId).all<SavedReport>();
-  // Duplicate historical reports are not safe evidence for marking a job complete.
-  if (rows.results.length > 1)
-    return Response.json({ error: "More than one report is linked to this job. Review its saved history before changing completion status." },
-      { status: 409, headers: privateHeaders });
-  return Response.json({ reports: rows.results }, { headers: privateHeaders });
+  try {
+    const rows = await env.DB.prepare(`SELECT ${reportColumns} FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC`)
+      .bind(estimateId).all<SavedReport>();
+    // Duplicate historical reports are not safe evidence for marking a job complete.
+    if (rows.results.length > 1)
+      return Response.json({ error: "More than one report is linked to this job. Review its saved history before changing completion status." },
+        { status: 409, headers: privateReportReadHeaders });
+    return Response.json({ reports: rows.results }, { headers: privateReportReadHeaders });
+  } catch {
+    return Response.json({ error: "Saved job reports are temporarily unavailable. No reports were changed." },
+      { status: 503, headers: privateReportReadHeaders });
+  }
 }
 
 export async function POST(request: Request) {
