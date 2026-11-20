@@ -1,3 +1,12 @@
+<!-- FIRE-1429-PREVIEW-OFF-RECONFIRMED -->
+## November 20, 14:29 CST — [x] Latest G4-05 STAGING wildcard Preview OFF (second real owner receipt)
+
+Owner original authenticated `fire-app-independent-staging` Domains screenshot `IMG_4549.png`, 1320×2868 PNG SHA-256 `ebdba5c96af0acd641991954d7278698e8ba63c7852dff33d31a8961ce308a36`: wildcard Preview **OFF gray**, production workers.dev **ON blue**, no custom domains displayed. Chronology: 13:59 OFF, 14:13 and 14:28 ON, **14:29 OFF latest**. Preserve earlier receipts, avoid screenshot repeats. [Evidence](../evidence/FIRE_STAGING_SERVING_DOMAINS_ACCESS_OWNER_20261119.md) · [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7049935589).
+
+**G4-05 owner UI subproof [x] already credited. Full numbered G4-05 [ ] and G4-06 [ ] remain OPEN** (no external HTTP-denial status, production hostname Access still unconfigured, other identity/parity unfinished). Separate narrowly approved 14:10 STAGING **production hostname owner-only Access** work still PENDING with exact verified owner-email Allow and scope review; no app creation yet. No new original numbered checkbox: **51/95 [x], 44 [ ]; formal 4/10 Gates G1/G2/G3/G8 accepted, NEW LIVE DARK and Job #0001 unused.** No Cloudflare action by assistant, migration, deployed code, paid service, Stripe or production write.
+
+---
+
 <!-- FIRE-NOV20-STAGING-PREVIEW-OFF-G4-05 -->
 ## November 20, 13:59 CST — [x] STAGING wildcard preview URL OFF, owner screenshot VERIFIED (only G4-05 partial)
 
