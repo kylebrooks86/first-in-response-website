@@ -5,7 +5,7 @@ import { SERVICE_RATE_PREFIX,decodeServiceRate,validRate,validDetails,customServ
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
-async function authorized(){const user=await getChatGPTUser();return user?.email.toLowerCase()===OWNER;}
+async function authorized(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER;}
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}});
 // Existing owner-settings override storage: distinct namespaced keys, never
 // template keys. Existing full-table backups already preserve these records.
@@ -25,7 +25,7 @@ export async function PUT(request:Request){
   const parsed=await readOwnerWriteObject(request,24_000);
   if(parsed.response)return parsed.response;
   const body=parsed.value as Record<string,unknown>;
-  if(!['expectedRevision,id,rateCents','details,expectedRevision,id,rateCents'].includes(Object.keys(body).sort().join(','))||!(FIRE_SERVICES.some(s=>s.id===body.id)||customServiceId(body.id))||(body.details!==undefined&&!validDetails(body.details))||!validRate(body.rateCents)||!(body.expectedRevision===null||typeof body.expectedRevision==='string'&&/^[0-9a-f-]{36}$/.test(body.expectedRevision)))return json({error:'Choose an existing service and a nonnegative price in whole cents.'},400);
+  if(!['expectedRevision,id,rateCents','details,expectedRevision,id,rateCents'].includes(Object.keys(body).sort().join(','))||!(FIRE_SERVICES.some(s=>s.id===body.id)||customServiceId(body.id))||(body.details!==undefined&&!validDetails(body.details))||!validRate(body.rateCents)||!(body.expectedRevision===null||typeof body.expectedRevision==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.expectedRevision)))return json({error:'Choose an existing service and a nonnegative price in whole cents.'},400);
   try{
     const key=SERVICE_RATE_PREFIX+body.id;
     const stored=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(key).first<{body:string}>();
