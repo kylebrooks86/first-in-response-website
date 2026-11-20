@@ -8,9 +8,12 @@ import {readFileSync} from 'node:fs';
 const src=readFileSync('app/api/backup/route.ts','utf8');
 const helperAt=src.indexOf('const privateRecordsHeaders=');
 const getAt=src.indexOf('export async function GET() {',helperAt);
-const postAt=src.indexOf('export async function POST(request: Request) {',getAt);
-assert.ok(helperAt>0&&getAt>helperAt&&postAt>getAt,'Real owner backup route and private-header helper exist');
-const get=src.slice(getAt,postAt);
+const restoreAt=src.indexOf('async function restoreRecords(request: Request) {',getAt);
+const postAt=src.indexOf('export async function POST(request: Request) {',restoreAt);
+assert.ok(helperAt>0&&getAt>helperAt&&restoreAt>getAt&&postAt>restoreAt,'Real owner backup, guarded restore and private POST wrapper exist');
+const get=src.slice(getAt,restoreAt);
+const restore=src.slice(restoreAt,postAt);
+const post=src.slice(postAt);
 const helper=src.slice(helperAt,getAt).replace('body:unknown,init:ResponseInit={}','body,init={}');
 assert.ok(!helper.includes('ResponseInit')&&!helper.includes('body:unknown'),'Execute real helper without TS-only annotations');
 const context={Response,Headers};
@@ -37,4 +40,34 @@ assert.match(get,/headers:\{\.\.\.privateRecordsHeaders,'content-type':'applicat
 assert.match(get,/headers:\s*\{\s*\.\.\.privateRecordsHeaders,/);checks++;
 assert.ok(!get.includes('await request.text()')&&!get.includes('await request.json()'),
  'Owner GET performs no consumer-upload parsing');checks++;
-console.log('PASS '+checks+'/'+checks+' owner full-record export GET privacy, auth, denial, schema-error and two downloads; source only, no provider');
+
+const authAt=src.indexOf('async function authorized() {');
+const authEnd=src.indexOf('// A full records export carries customer contact data',authAt);
+assert.ok(authAt>=0&&authEnd>authAt,'Production owner check exists');checks++;
+let principal=null,authThrows=false;
+const authCtx={OWNER_EMAIL:'synthetic-owner@example.invalid',getChatGPTUser:async()=>{
+ if(authThrows)throw Error('Synthetic identity provider unavailable');
+ return principal;
+}};
+vm.runInNewContext(src.slice(authAt,authEnd)+'\nthis.authorized=authorized;',authCtx);
+for(const malformed of [null,{}, {email:null},{email:123},{email:{}},{email:'another@example.invalid'}]){
+ principal=malformed;eq(await authCtx.authorized(),false,'Malformed/unrelated owner refuses both backup directions');
+}
+authThrows=true;eq(await authCtx.authorized(),false,'Session provider failure denies records backup and restore');authThrows=false;
+principal={email:'SYNTHETIC-OWNER@example.invalid'};
+eq(await authCtx.authorized(),true,'Valid owner email preserves authorized backup flows');
+
+assert.ok(restore.includes('readBoundedRecordsRestoreText(request)')&&
+ restore.includes('ownerBrowserWriteScope(request,true)'),'Production restore keeps original body budget and origin guard');checks++;
+const ctx={Response,Headers,privateRecordsHeaders:context.privateRecordsHeaders,restoreRecords:async()=>Response.json({error:'Synthetic private restore result'},{status:409,headers:{'cache-control':'public, max-age=3600','vary':'Accept-Encoding','x-content-type-options':'unsafe'}})};
+vm.runInNewContext(post.replace('export async function POST(request: Request) {','async function POST(request) {')+'\nthis.POST=POST;',ctx);
+for(const code of [200,400,401,409,503]){
+ ctx.restoreRecords=async()=>Response.json({synthetic:true},{status:code,headers:{'cache-control':'public, max-age=3600','vary':'Accept-Encoding','x-content-type-options':'unsafe'}});
+ const res=await ctx.POST({});
+ eq(res.status,code,'Private restore wrapper preserves original status');
+ eq(res.headers.get('cache-control'),'private, no-store','Never cache owner restore receipt');
+ eq(res.headers.get('vary'),'Cookie','Restore receipts isolate owner session');
+ eq(res.headers.get('x-content-type-options'),'nosniff','Restore receipts disable content sniffing');
+ eq((await res.json()).synthetic,true,'Restore payload preserved without mutation');
+}
+console.log('PASS '+checks+'/'+checks+' actual owner records GET/POST session denial, private restore receipts, body/financial guard preservation; synthetic only, NO HOSTED WRITES.');
