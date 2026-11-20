@@ -64,6 +64,40 @@ try {
   equal(refreshed.completedJobs,completed);
   equal(rendered.props.estimates[0].paidCents,refreshed.recent[0].paidCents);
  }
+ // A physically valid but mis-owned legacy invoice must NEVER override
+ // another homeowner's balance or expose its share link on dashboard cards.
+ // This intentionally exercises the REAL dashboard SQL on disposable SQLite.
+ seed({status:'completed'});
+ db.prepare("INSERT INTO customers(id,name,created_at) VALUES('other','Unrelated Synthetic Owner','now')").run();
+ db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,share_token,created_at) VALUES('foreign','e','other','sent',99000,'foreign-private-token','now')").run();
+ const mismatchedHome=dashboardFrom(await home.default()),mismatchedApi=await (await api.GET()).json();
+ equal(mismatchedHome.props.metrics.outstanding,10000);
+ equal(mismatchedApi.outstanding,10000);
+ equal(mismatchedHome.props.estimates[0].invoiceId,null);
+ equal(mismatchedApi.recent[0].invoiceId,null);
+ equal(mismatchedApi.recent[0].invoiceTotalCents,null);
+ equal(mismatchedApi.recent[0].invoiceShareToken,null);
+ // Reuse the SAME invalid legacy association for a future scheduled job.
+ // The upcoming shortcut must not acquire another customer's bearer URL.
+ db.prepare("UPDATE estimates SET status='scheduled', scheduled_at='2099-12-01T14:00:00Z' WHERE id='e'").run();
+ const scheduledMismatch=await (await api.GET()).json();
+ equal(scheduledMismatch.upcomingJobs.length,1);
+ equal(scheduledMismatch.upcomingJobs[0].id,'e');
+ equal(scheduledMismatch.upcomingJobs[0].invoiceId,null);
+ equal(scheduledMismatch.upcomingJobs[0].invoiceShareToken,null);
+ equal(scheduledMismatch.upcomingJobs[0].invoiceTotalCents,null);
+ // Network/database outages must remain explicit 503, never an all-clear
+ // zero-dollar dashboard or an HTML 500 that the PWA cannot interpret.
+ const normalBatch=env.DB.batch;
+ env.DB.batch=async()=>{throw Error('Injected disposable D1 read failure');};
+ try{
+  const unavailable=await api.GET();
+  equal(unavailable.status,503);
+  equal(unavailable.headers.get('cache-control'),'private, no-store');
+  equal(unavailable.headers.get('vary'),'Cookie');
+  equal(unavailable.headers.get('x-content-type-options'),'nosniff');
+  equal((await unavailable.json()).error,'Dashboard could not be verified. Retry when records are available.');
+ }finally{env.DB.batch=normalBatch;}
  // The dashboard only renders eight recent jobs. The completed count must
  // still include every completed database record rather than those eight.
  seed({status:'completed'});
