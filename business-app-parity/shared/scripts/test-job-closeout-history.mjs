@@ -40,6 +40,15 @@ try{
  for(let n=0;n<205;n++){const c='page-'+String(n).padStart(3,'0');customer(c);job('job-'+c,c);msg(c,'job-'+c,'text_confirmed','review',stamp(10));}
  const seen=[];let cursor='';do{r=await get(cursor);eq(r.status,200);assert.ok(r.data.items.length<=200);seen.push(...r.data.items.map(x=>x.customerId));cursor=r.data.nextCursor?'?cursor='+encodeURIComponent(r.data.nextCursor):'';}while(cursor);eq(new Set(seen).size,seen.length,'Keyset pages never duplicate customer records');eq(seen.length,215);
  eq((await get('?cursor=%27OR%201%3D1')).status,400);const calls=reads;owner=null;eq((await get('?cursor=bad!')).status,401);eq(reads,calls);owner={email:'other@example.invalid'};eq((await get()).status,401);
+ for(const identity of [{},{email:null},{email:42}]){
+  owner=identity;
+  const denied=await get();
+  eq(denied.status,401,'Malformed identity denied owner review history');
+  eq(denied.cache,'private, no-store','Malformed principal denial never cached publicly');
+  eq(denied.vary,'Cookie','Malformed principal denial varies by session');
+  eq(denied.nosniff,'nosniff','Malformed principal denial blocks sniffing');
+  eq(reads,calls,'Denied identity has zero review-history D1 reads');
+ }
  const dashboard=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let customerAction,jobAction;
  function visit(n){if(ts.isJsxSelfClosingElement(n)&&n.tagName.getText(dashboard)==='PaymentsView')for(const attr of n.attributes.properties){if(attr.name?.text==='onOpenCustomerReview')customerAction=attr.initializer.expression.getText(dashboard);if(attr.name?.text==='onOpenEstimate')jobAction=attr.initializer.expression.getText(dashboard);}ts.forEachChild(n,visit);}visit(dashboard);assert.ok(customerAction&&jobAction);
  const captured={},callbacks={exports:{},customerActivityRequest:{current:0}};for(const name of ['setSearchQuery','setGlobalQuery','setCustomerActivityFocus','setFocusCustomerId','setFocusCustomerSection','setTab','setFocusEstimateId','setEstimateRefreshKey'])callbacks[name]=value=>{captured[name]=typeof value==='function'?value(0):value;return true;};

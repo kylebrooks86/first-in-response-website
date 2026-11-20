@@ -10,7 +10,7 @@ const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cac
  */
 export async function GET(request?:Request){
  const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ if(typeof user?.email!=="string"||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
  const rawCursor=request?new URL(request.url).searchParams.get("cursor"):null;
  let cursor:{lastPaidAt:string;estimateId:string}|null=null;
  if(rawCursor!==null){

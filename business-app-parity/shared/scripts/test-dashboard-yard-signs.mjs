@@ -45,6 +45,12 @@ try{
  const reads=observed.length;
  user=null;check((await api.GET()).status===401&&observed.length===reads,'Unauthenticated owner dashboard cannot read sign locations');
  user={email:'someone@example.invalid'};check((await api.GET()).status===401&&observed.length===reads,'Wrong owner cannot read sign locations');
+ for(const identity of [{},{email:null},{email:42}]){
+  user=identity;
+  const denied=await api.GET();
+  check(denied.status===401&&observed.length===reads,'Malformed principal gets 401 before sign D1 reads');
+  check(denied.headers.get('cache-control')==='private, no-store'&&denied.headers.get('vary')==='Cookie'&&denied.headers.get('x-content-type-options')==='nosniff','Denied sign data stays session-private');
+ }
  user={email:'kylebrooks8605@gmail.com'};
  insertNote('b-2','b',flags.SIGN_PICKED_UP_NOTE,'2026-10-20T15:00:00Z');
  const after=await (await api.GET()).json();

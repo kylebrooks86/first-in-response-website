@@ -220,6 +220,16 @@ try{
  eq(rt.counters(),before,'Unauthorized caller does not query D1');
  rt.setOwner({email:'other@example.invalid'});
  eq((await post({...base,operationId:id(5)})).status,401,'Nonowner cannot create property');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const noAccess=rt.counters();
+  const deniedList=await route.GET(new Request('https://synthetic.invalid/api/customer-properties?customerId=owner-property-a'));
+  eq(deniedList.status,401,'Malformed identity cannot read private property addresses');
+  eq(deniedList.headers.get('cache-control'),'private, no-store','Malformed identity has private denial headers');
+  eq((await post({...base,operationId:id(5)})).status,401,'Malformed identity cannot create owner property');
+  eq((await patch(archiveBase)).status,401,'Malformed identity cannot archive owner property');
+  eq(rt.counters(),noAccess,'Malformed identity cannot reach property D1');
+ }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
  rt.env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE='disabled';
  eq((await post({...base,operationId:id(5)})).status,404,'Candidate disabled feature does not activate itself');

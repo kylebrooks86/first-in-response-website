@@ -6,7 +6,7 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const readHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(){
  const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:readHeaders});
+ if(typeof user?.email!=="string"||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:readHeaders});
  try{
   // Read only completed-work customers with a confirmed review request.
   // Prepared/copied messages never qualify. Manual "review received" logs

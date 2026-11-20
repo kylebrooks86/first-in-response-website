@@ -143,5 +143,16 @@ try{
  check(deniedTask.status===401,'Unauthenticated task create rejected');
  check(deniedTask.headers.get('cache-control')==='private, no-store'&&deniedTask.headers.get('vary')==='Cookie'&&deniedTask.headers.get('x-content-type-options')==='nosniff','Unauthorized task create denial is never cached across sessions');
  check(count()===before,'No database writes on unauthorized task request');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const readsBefore=JSON.stringify(rt.counters());
+  const roster=await api.GET();
+  check(roster.status===401&&roster.headers.get('cache-control')==='private, no-store','Malformed task identity cannot read roster');
+  const deniedCreate=await post(body(7));
+  check(deniedCreate.status===401,'Malformed task identity cannot create task');
+  const deniedPatch=await api.PATCH(new Request('https://synthetic.invalid/api/tasks',{method:'PATCH',body:'{}'}));
+  check(deniedPatch.status===401&&deniedPatch.headers.get('vary')==='Cookie','Malformed task identity cannot edit task');
+  check(JSON.stringify(rt.counters())===readsBefore,'Malformed task identity cannot touch D1');
+ }
  console.log('PASS '+checks+'/'+checks+' FIRE task POST: owner binding race, lost ACK, idempotency, genuine receipt, unrelated tasks (local SQLite only)');
 }finally{rt.env.DB.prepare=original;db.close();}

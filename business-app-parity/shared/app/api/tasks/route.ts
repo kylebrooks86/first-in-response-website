@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL;}
 
 const privateTaskReadHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 function privateTaskJson(payload:unknown,init:ResponseInit={}){

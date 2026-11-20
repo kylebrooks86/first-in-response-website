@@ -133,6 +133,12 @@ try{
   "Unauthenticated cursor requests are denied before validating private query parameters");
  owner={email:"notowner@example.invalid"};
  check((await api.GET()).status===401&&statements.length===queries,"Other user denied before database read");
+ for(const identity of [{},{email:null},{email:42}]){
+  owner=identity;
+  const denial=await api.GET();
+  check(denial.status===401&&statements.length===queries,"Malformed identity gets controlled 401 without closeout D1 read");
+  check(denial.headers.get("cache-control")==="private, no-store"&&denial.headers.get("vary")==="Cookie"&&denial.headers.get("x-content-type-options")==="nosniff","Malformed owner closeout denial stays private");
+ }
  owner={email:"kylebrooks8605@gmail.com"};
  const offline=load("app/api/payment-closeouts/route.ts",{"cloudflare:workers":{env:{DB:{prepare(){throw Error("Unavailable")}}}},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":ledgerTestOnly});
  const unavailable=await offline.GET();

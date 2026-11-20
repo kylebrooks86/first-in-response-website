@@ -3,7 +3,7 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {customerPropertiesEnabled,propertyWorkflowTestEnabled,type CustomerProperty} from '../../../lib/customer-properties';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const columns='id,customer_id AS customerId,address,designation,active,revision,created_at AS createdAt';
-async function owner(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()==='kylebrooks8605@gmail.com');}
+async function owner(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';}
 function id(value:unknown){return typeof value==='string'&&value.trim().length>0&&value.trim().length<=128?value.trim():'';}
 const privateReadHeaders={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
 const privateJson=(data:unknown,status=200)=>Response.json(data,{status,headers:privateReadHeaders});

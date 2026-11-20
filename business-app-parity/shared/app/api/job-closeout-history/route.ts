@@ -5,7 +5,7 @@ export const dynamic='force-dynamic';
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 /** Customer-level tracking from existing completed-job messages/flags; no message bodies or writes. */
 export async function GET(request:Request){
- const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ const user=await getChatGPTUser();if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
  const cursor=new URL(request.url).searchParams.get('cursor');
  if(cursor!==null&&!/^[A-Za-z0-9:_-]{1,128}$/.test(cursor))return json({error:'Invalid closeout history cursor.'},400);
  try{

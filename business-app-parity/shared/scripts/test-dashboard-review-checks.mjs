@@ -49,6 +49,12 @@ try{
  const reads=queries.length;
  user=null;check((await api.GET()).status===401&&queries.length===reads,'Unauthenticated users cannot read review checks');
  user={email:'unauthorized@example.invalid'};check((await api.GET()).status===401&&queries.length===reads,'Non-owner users cannot read review checks');
+ for(const identity of [{},{email:null},{email:42}]){
+  user=identity;
+  const denied=await api.GET();
+  check(denied.status===401&&queries.length===reads,'Malformed identity gets 401 before review-check D1 read');
+  check(denied.headers.get('cache-control')==='private, no-store'&&denied.headers.get('vary')==='Cookie'&&denied.headers.get('x-content-type-options')==='nosniff','Denied review-check response stays private');
+ }
  user={email:'kylebrooks8605@gmail.com'};
  note('due-review-note','due',flags.REVIEW_RECEIVED_NOTE);
  const later=(await (await api.GET()).json()).checks;
