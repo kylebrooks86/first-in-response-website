@@ -35,7 +35,7 @@ try{
  insertNote('d-3','d',flags.REVIEW_RECEIVED_NOTE,'2026-10-20T12:00:02Z');
  const response=await api.GET(),data=await response.json();
  check(response.status===200,'Owner can read summarized sign locations');
- check(response.headers.get('cache-control')==='no-store','Dashboard pickup reads cannot be cached');
+ check(response.headers.get('cache-control')==='private, no-store'&&response.headers.get('vary')==='Cookie'&&response.headers.get('x-content-type-options')==='nosniff','Owner yard sign locations are private, session-bound and nosniff');
  check(data.signs.length===2,'Only real outstanding placements are returned');
  check(data.signs[0].customerId==='b'&&data.signs[0].pickupDate==='2026-10-20','Urgent pickup appears before later dates');
  check(data.signs[1].customerId==='a'&&data.signs[1].location==='Side gate'&&data.signs[1].pickupDate==='2026-10-28','New placement after pickup remains active and retains exact location');
@@ -51,6 +51,7 @@ try{
  check(after.signs.length===1&&after.signs[0].customerId==='a','Confirmed sign pickup removes it without impacting other customers');
  const broken=load('app/api/dashboard-yard-signs/route.ts',{'cloudflare:workers':{env:{DB:{prepare:()=>{throw Error('Synthetic read failure');}}}},'../../chatgpt-auth':{getChatGPTUser:async()=>user},'../../../lib/dashboard-yard-signs':helper});
  const failure=await broken.GET();
+ check(failure.headers.get('cache-control')==='private, no-store'&&failure.headers.get('vary')==='Cookie'&&failure.headers.get('x-content-type-options')==='nosniff','DB-failed yard sign read remains session-private');
  check(failure.status===503&&(await failure.json()).error.includes('Unable to verify'),'Database failures never masquerade as zero outstanding signs');
  console.log(`PASS ${checks} read-only sign API checks; synthetic D1-compatible SQLite, owner auth, pickup lifecycle and honest error handling.`);
 }finally{db.close();}
