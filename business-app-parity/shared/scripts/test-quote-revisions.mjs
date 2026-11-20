@@ -13,6 +13,24 @@ try{
  const count=r.db.prepare('SELECT COUNT(*) n FROM estimates').get().n;response=await r.post(revision);eq(response.status,200,'Lost response reuses original create receipt');eq(r.db.prepare('SELECT COUNT(*) n FROM estimates').get().n,count);
  response=await r.post({...revision,requestId:crypto.randomUUID()});eq(response.status,409,'Already replaced originals cannot create another live quote');
  const audit=JSON.parse(r.db.prepare('SELECT body FROM message_templates WHERE key=?').get('fire:quote-revision:v1:'+original.id).body);eq(audit.replacementId,revised.id);eq(audit.originalSignedAt,'original-signature');const versions=r.load('app/api/estimates/[id]/versions/route.ts').GET;const history=await versions(new Request('https://synthetic.invalid/versions'),{params:Promise.resolve({id:revised.id})});eq(history.status,200);eq((await history.json()).links[0].originalId,original.id,'Replacement links back to original history');
+ const privateReceipt=response=>{eq(response.headers.get('cache-control'),'private, no-store','History receipt stays private');eq(response.headers.get('vary'),'Cookie','History receipt varies by owner session');eq(response.headers.get('x-content-type-options'),'nosniff','History receipt forbids MIME sniffing');};
+ privateReceipt(history);
+ const historyRequest=()=>new Request('https://synthetic.invalid/api/estimates/'+revised.id+'/versions');
+ const versionsFor=id=>versions(historyRequest(),{params:Promise.resolve({id})});
+ const beforeInvalid=r.counters().reads;
+ const invalidHistory=await versionsFor('wrong/id');eq(invalidHistory.status,400,'Invalid revision ID is refused');privateReceipt(invalidHistory);eq(r.counters().reads,beforeInvalid,'Invalid revision ID never reads D1');
+ for(const principal of [null,{}, {email:null},{email:42},{email:'nonowner@example.invalid'}]){
+  r.setOwner(principal);
+  const beforeDeny=r.counters().reads;
+  const denied=await versionsFor(revised.id);eq(denied.status,401,'Nonowner or malformed owner principal denied without throwing');privateReceipt(denied);eq(r.counters().reads,beforeDeny,'Unauthorized version request never reads D1');
+ }
+ r.setOwner({email:'kylebrooks8605@gmail.com'});
+ const auditKey='fire:quote-revision:v1:'+original.id;
+ const originalAuditBody=r.db.prepare('SELECT body FROM message_templates WHERE key=?').get(auditKey).body;
+ r.db.prepare('UPDATE message_templates SET body=? WHERE key=?').run('{invalid-json',auditKey);
+ const uncertainHistory=await versionsFor(revised.id);eq(uncertainHistory.status,503,'Unverifiable D1 revision ledger fails closed');privateReceipt(uncertainHistory);
+ r.db.prepare('UPDATE message_templates SET body=? WHERE key=?').run(originalAuditBody,auditKey);
+ eq((await versionsFor(revised.id)).status,200,'Valid saved quote history remains accessible after correction');
  eq((await r.patch(original.id,{scheduledAt:'2026-11-05T17:00:00Z'})).status,409,'Historical original cannot be scheduled');
  const accept=r.load('app/api/public/estimates/[token]/accept/route.ts').POST;
  eq((await accept(new Request('https://synthetic.invalid/accept',{method:'POST',headers:{Origin:'https://synthetic.invalid','content-type':'application/json'},body:JSON.stringify({signedName:'Original signer',photoRelease:'no',acceptedTerms:true})}),{params:Promise.resolve({token:original.shareToken})})).status,409,'Old link cannot be accepted again');
