@@ -1,3 +1,8 @@
+## November 20 — G4-05 selected-account zone review complete
+
+- [x] The owner’s account Domains page (IMG_4522.png, 4:00) shows an empty search field and “No data available.” Zero zones are listed in this account view, so there are no listed zones requiring a zone-specific route-table capture. IMG_4521.png repeats the previously accepted account-home overview. Reuse these and the completed eight-project inventory for this release.
+- G4-05 remains open for verification of externally reachable endpoints and preview aliases against the accepted hostname and Access inventory. The empty Domains page settles the account-zone question only. Formal total 51/95 and 4/10 gates.
+
 ## November 20 — G4-05 project-level custom-domain inventory complete
 
 - [x] Matched the five Workers and three Pages projects in the owner's 1–8 of 8 listing to their individual domain views. QA, independent STAGING and Stripe TEST list zero custom domains or zone routes. QA and STAGING show both their default and wildcard preview URLs enabled with “Anyone with this URL can visit.” Stripe TEST shows an Access policy on both URL rows. DR and NEW LIVE show workers.dev disabled and empty custom-domain and route fields.
