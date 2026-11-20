@@ -41,7 +41,8 @@ await assertNoSql('array instead of invoice object',invoiceHandler,
  ownerRequest('invoices','[]'),400);
 
 const statusEndpoint=runtime.load('app/api/estimates/create-status/route.ts').GET;
-const lookup=async requestId=>{const response=await statusEndpoint(new Request('https://synthetic.invalid/api/estimates/create-status?requestId='+encodeURIComponent(requestId)));return {status:response.status,body:await response.json(),cache:response.headers.get('cache-control')};};
+const lookup=async requestId=>{const response=await statusEndpoint(new Request('https://synthetic.invalid/api/estimates/create-status?requestId='+encodeURIComponent(requestId)));return {status:response.status,body:await response.json(),cache:response.headers.get('cache-control'),vary:response.headers.get('vary'),nosniff:response.headers.get('x-content-type-options')};};
+const privateReceipt=(receipt,label)=>{eq(Boolean(receipt.cache?.toLowerCase().includes('private')&&receipt.cache?.toLowerCase().includes('no-store')),true,label+' is session-private and uncacheable');eq(Boolean(receipt.vary?.split(',').some(v=>v.trim().toLowerCase()==='cookie')),true,label+' varies on session Cookie');eq(receipt.nosniff,'nosniff',label+' prevents content sniffing');};
 const post=async body=>{const response=await runtime.post(body);return {status:response.status,body:await response.json()};};
 const quote={requestId:uuid(1),customer:'Synthetic safe replay',email:'safe-replay@example.invalid',phone:'9185550100',address:'100 Synthetic Tulsa St',items:[{name:'House Wash',description:'Front and rear',quantity:1540,unit:'sq ft',totalCents:38500},{name:'Gutter Cleaning + Flush',description:'One section',quantity:50,unit:'linear ft',totalCents:7500}],appreciationDiscount:false,additionalDiscountType:'percent',additionalDiscountValue:1500,bundleDiscountCents:2500};
 const count=table=>Number(db.prepare('SELECT COUNT(*) AS count FROM '+table).get().count);
@@ -76,9 +77,13 @@ try{
  eq(found.body.recognized,true,'Creation audit proof matches saved quote identity');
  eq(found.body.estimate.id,quote.requestId,'Recovery returns the exact quote, not an arbitrary recent quote');
  eq(found.body.estimate.depositCents,18300,'Recovery displays persisted original deposit');
- eq(found.cache,'private, no-store','Authenticated quote-recovery replies cannot be cached');
- eq((await lookup(uuid(999))).body.found,false,'Missing UUID does not return an unrelated quote');
- eq((await lookup('not-uuid')).status,400,'Malformed exact-lookup ID rejected');
+ privateReceipt(found,'Confirmed owner quote recovery');
+ const absent=await lookup(uuid(999));
+ eq(absent.body.found,false,'Missing UUID does not return an unrelated quote');
+ privateReceipt(absent,'Missing owner quote recovery');
+ const invalid=await lookup('not-uuid');
+ eq(invalid.status,400,'Malformed exact-lookup ID rejected');
+ privateReceipt(invalid,'Invalid owner quote recovery');
  // Read-only recovery must never mark an altered saved quote as verified.
  const savedTotal=first.body.totalCents;
  db.prepare('UPDATE estimates SET total_cents=total_cents+1 WHERE id=?').run(quote.requestId);
@@ -120,8 +125,8 @@ try{
   eq(result.status,409,'Same request UUID cannot be reassigned to altered customer/scope/money');
   eq(financialSnapshot(),before,'Conflicting reuse leaves all rows unchanged');
  }
- const invalid=[null,1,'not-a-uuid','ccaa0000-aaaa-1000-8000-000000000001','ccaa0000-aaaa-4000-0000-000000000001'];
- for(const requestId of invalid){eq((await post({...quote,requestId})).status,400,'Invalid operation UUID is rejected before writes');eq(financialSnapshot(),before,'Invalid operation leaves persisted financial state intact');}
+ const invalidIds=[null,1,'not-a-uuid','ccaa0000-aaaa-1000-8000-000000000001','ccaa0000-aaaa-4000-0000-000000000001'];
+ for(const requestId of invalidIds){eq((await post({...quote,requestId})).status,400,'Invalid operation UUID is rejected before writes');eq(financialSnapshot(),before,'Invalid operation leaves persisted financial state intact');}
  eq((await post({...quote,requestId:uuid(2),customer:'New customer',email:'other@example.invalid',items:[]})).status,400,'Missing service list safely rejected');
  eq(count('estimates'),1,'Malformed new attempt never adds an estimate');
  // New Estimate has its own inline-customer INSERT path and must not bypass
@@ -165,10 +170,19 @@ try{
  eq((await post(quote)).status,409,'Corrupted persisted request proof fails closed');
  db.prepare("UPDATE message_templates SET body=? WHERE key=?").run(proofRaw,proofKey+quote.requestId);
  runtime.setOwner(null);
- eq((await lookup(quote.requestId)).status,401,'Unauthenticated exact lookup cannot disclose quotes');
+ const anonReceipt=await lookup(quote.requestId);
+ eq(anonReceipt.status,401,'Unauthenticated exact lookup cannot disclose quotes');
+ privateReceipt(anonReceipt,'Anonymous owner quote recovery denial');
  eq((await post(quote)).status,401,'Unauthenticated owner cannot enumerate UUID receipts');
  runtime.setOwner({email:'other@example.invalid'});
- eq((await lookup(quote.requestId)).status,401,'Nonowner exact lookup refused');
+ const foreignReceipt=await lookup(quote.requestId);
+ eq(foreignReceipt.status,401,'Nonowner exact lookup refused');
+ privateReceipt(foreignReceipt,'Foreign owner quote recovery denial');
+ runtime.setOwner({});
+ const noEmail=await lookup(quote.requestId);
+ eq(noEmail.status,401,'Principal without an email fails closed');
+ privateReceipt(noEmail,'Missing-principal-email denial');
+ runtime.setOwner({email:'other@example.invalid'});
  eq((await post(quote)).status,401,'Nonowner session cannot replay existing quote');
  runtime.setOwner({email:'kylebrooks8605@gmail.com'});
  // When the immutable creation receipt cannot be written, the entire customer/estimate batch rolls back.
