@@ -4,7 +4,7 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const headers={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(request:Request){
  const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers});
+ if(typeof user?.email!=="string"||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers});
  const params=new URL(request.url).searchParams,estimateId=params.get("estimateId")??"",customerId=params.get("customerId")??"";
  if(!/^[A-Za-z0-9:_-]{1,128}$/.test(estimateId)||!/^[A-Za-z0-9:_-]{1,128}$/.test(customerId))
    return Response.json({error:"Valid customer and estimate identifiers are required."},{status:400,headers});

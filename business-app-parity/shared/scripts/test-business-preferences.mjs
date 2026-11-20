@@ -44,5 +44,16 @@ try{
  const followups=r.load('app/api/followups/route.ts');eq((await followups.GET(new Request('https://synthetic.invalid/api/followups'))).status,200);
  r.setOwner(null);eq((await api.GET()).status,401);eq((await request(prefs)).status,401);
  r.setOwner({email:'other@example.invalid'});eq((await api.GET()).status,401);
+ // Both business settings routes must fail closed before any owner D1 read/write.
+ for(const identity of [{},{email:null},{email:42}]){
+   r.setOwner(identity);
+   const before=r.counters();
+   const deniedGet=await api.GET(),deniedPut=await request(prefs);
+   eq(deniedGet.status,401,'Malformed owner preferences GET denied');
+   eq(deniedPut.status,401,'Malformed owner preferences PUT denied');
+   eq(deniedGet.headers.get('cache-control'),'private, no-store','Denied preference GET never cached');
+   eq(deniedPut.headers.get('vary'),'Cookie','Denied preference PUT varies by owner session');
+   eq(r.counters(),before,'Malformed principal never reads/writes business settings D1');
+ }
  console.log('PASS '+count+' retired availability, preserved repeat settings, booking and authorization checks.');
 }finally{r.db.close();}

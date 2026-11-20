@@ -8,7 +8,7 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 // Every owner history response includes customer identities, financial figures or auth state.
 const privateHistoryHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(request:Request){
- const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:privateHistoryHeaders});
+ const user=await getChatGPTUser();if(typeof user?.email!=="string"||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:privateHistoryHeaders});
  const url=new URL(request.url),sizeText=url.searchParams.get("limit")??"50";
  if(!/^(?:[1-9]|[1-4][0-9]|50)$/.test(sizeText))return Response.json({error:"Page size must be 1 through 50."},{status:400,headers:privateHistoryHeaders});
  const focus=url.searchParams.get("focus"),search=(url.searchParams.get("q")??"").trim(),status=url.searchParams.get("status")??"all";

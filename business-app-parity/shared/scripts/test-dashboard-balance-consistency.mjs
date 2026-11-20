@@ -154,6 +154,10 @@ try {
  equal(futureHome.props.metrics.upcomingJobs[0].id,'future-00');
  equal(futureApi.recent.length,8);
  equal(futureHome.props.estimates.length,8);
+ for(const principal of [{},{email:null},{email:42}]){
+  user=principal;
+  assertPrivateMetricsResponse(await api.GET(),'unauthorized');
+ }
  user=null;assertPrivateMetricsResponse(await api.GET(),'unauthorized');user={email:'other@example.test',fullName:'Other'};assertPrivateMetricsResponse(await api.GET(),'unauthorized');equal((await home.default()).type,'main');
  console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; whole-database completed counts beyond the eight displayed cards; owner access preserved. Synthetic SQLite only.`);
 }finally{db.close();}

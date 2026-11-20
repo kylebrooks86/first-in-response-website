@@ -58,6 +58,14 @@ try{
    'Anonymous notification GET denial never leaks through a shared cache');
  check(denied.status===401&&unreadDenied.status===401&&rows().filter(x=>x.read_at===null).length===2,
    'Unknown owner cannot inspect or mark anyone\'s activity as read');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const before=rt.counters();
+  const deniedGet=await read(),deniedPatch=await patch({all:true});
+  check(deniedGet.status===401&&deniedPatch.status===401,'Malformed notification principal cannot read or mark notifications');
+  assertPrivatePatch(deniedPatch,'Malformed owner notification PATCH');
+  check(JSON.stringify(rt.counters())===JSON.stringify(before),'Malformed notification principal performs zero D1 calls');
+ }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
  const originalGetPrepare=rt.env.DB.prepare;
  rt.env.DB.prepare=()=>{throw Error('Synthetic notification D1 failure')};

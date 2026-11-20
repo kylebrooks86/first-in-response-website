@@ -202,5 +202,16 @@ try{
  rt.setOwner(null);
  eq((await post(input)).status,401,'Nonowner cannot modify report');
  eq((await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'))).status,401,'Nonowner cannot read saved report');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const before=rt.counters();
+  const deniedPost=await route.POST(new Request('https://fixture.invalid/api/job-reports',{method:'POST',body:JSON.stringify(input)}));
+  assertPrivatePost(deniedPost,'Malformed job-report principal');
+  eq(deniedPost.status,401,'Malformed identity cannot save a job report');
+  const deniedGet=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+  eq(deniedGet.status,401,'Malformed identity cannot read a job report');
+  eq(deniedGet.headers.get('cache-control'),'private, no-store','Malformed report read stays private');
+  eq(rt.counters(),before,'Malformed job report principal performs zero D1 calls');
+ }
  console.log('PASS '+checks+'/'+checks+' real JobReport API/native SQLite readback, legacy history, contact-free, no-op writes, lost-ack recovery and owner authorization. NO HOSTED WRITES.');
 }finally{rt.env.DB.prepare=orig;db.close();}

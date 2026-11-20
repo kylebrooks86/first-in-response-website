@@ -5,7 +5,7 @@ import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mj
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 // Owner notifications may include customer context and payment exception details.
 const privateNotificationHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
-async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){const user=await getChatGPTUser();return typeof user?.email==="string" && user.email.toLowerCase()===OWNER_EMAIL;}
 
 export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateNotificationHeaders});

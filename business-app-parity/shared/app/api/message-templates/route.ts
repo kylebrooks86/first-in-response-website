@@ -4,7 +4,7 @@ import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mj
 import { FIRE_TEMPLATES, SERVICE_AGREEMENT, businessTemplateOverride } from "../../../lib/fire-templates";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){const user=await getChatGPTUser();return typeof user?.email==="string" && user.email.toLowerCase()===OWNER_EMAIL;}
 const privateReadHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 
 export async function GET(){

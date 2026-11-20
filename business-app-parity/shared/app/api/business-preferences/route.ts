@@ -4,7 +4,7 @@ import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mj
 import {BUSINESS_PREFERENCES_KEY,decodeBusinessPreferences,validBusinessPreferences} from '../../../lib/business-preferences';
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}});
-async function owner(){return (await getChatGPTUser())?.email.toLowerCase()==='kylebrooks8605@gmail.com';}
+async function owner(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';}
 export async function GET(){if(!await owner())return json({error:'Unauthorized'},401);try{return json({preferences:decodeBusinessPreferences(await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>())});}catch{return json({error:'Availability and repeat reminders could not be verified.'},503);}}
 export async function PUT(request:Request){
  if(!await owner())return json({error:'Unauthorized'},401);

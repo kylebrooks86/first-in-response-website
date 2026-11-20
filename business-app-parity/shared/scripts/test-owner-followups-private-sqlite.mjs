@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 
-const rt=stackedRuntime(),db=rt.db,route=rt.load('app/api/followups/route.ts');
+const rt=stackedRuntime(),db=rt.db,route=rt.load('app/api/followups/route.ts'),contactHistory=rt.load('app/api/followup-contact-history/route.ts');
 let checks=0;
 const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 const get=(query='')=>route.GET(new Request('https://synthetic.invalid/api/followups'+query));
@@ -24,6 +24,14 @@ try{
   r=await get();
   eq(r.status,401,'Distinct nonowner cannot retrieve customer follow-ups');
   secure(r,'Nonowner denial');
+  for(const identity of [{},{email:null},{email:42}]){
+    rt.setOwner(identity);
+    const before=rt.counters();
+    const denied=await contactHistory.GET(new Request('https://synthetic.invalid/api/followup-contact-history?estimateId=synthetic&customerId=synthetic'));
+    eq(denied.status,401,'Malformed authenticated identity denied from customer contact history');
+    secure(denied,'Malformed contact-history principal');
+    eq(rt.counters(),before,'Malformed contact-history principal performs zero D1 calls');
+  }
   rt.setOwner({email:'kylebrooks8605@gmail.com'});
   for(const q of ['?limit=0','?limit=51','?estimateId=bad%20id','?estimateId=a&limit=1','?cursor=%23broken']){
     before=rt.counters();r=await get(q);

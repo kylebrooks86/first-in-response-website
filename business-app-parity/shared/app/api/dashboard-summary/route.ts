@@ -12,7 +12,7 @@ const privateJson=(body:unknown,status=200)=>Response.json(body,{status,headers:
 
 export async function GET() {
   const user = await getChatGPTUser();
-  if (!user || user.email.toLowerCase() !== OWNER_EMAIL) {
+  if (typeof user?.email !== "string" || user.email.toLowerCase() !== OWNER_EMAIL) {
     return privateJson({ error: "Unauthorized" },401);
   }
   try {

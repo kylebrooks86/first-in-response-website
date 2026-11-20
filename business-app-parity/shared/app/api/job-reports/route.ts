@@ -5,7 +5,7 @@ import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mj
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
   const user = await getChatGPTUser();
-  return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
+  return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
 }
 
 type SavedReport = {

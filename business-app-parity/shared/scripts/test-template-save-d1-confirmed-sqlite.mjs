@@ -55,6 +55,15 @@ try{
  check(foreignGet.status===401&&foreignGet.headers.get('cache-control')==='private, no-store'&&
    JSON.stringify(stored())===preserved,
    'Anonymous template read is unauthorized and never changes saved copy');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const before=rt.counters();
+  const deniedRead=await route.GET();
+  const deniedWrite=await put({subject:'Unauthorized',body:'Must not save'});
+  check(deniedRead.status===401&&deniedWrite.status===401,'Malformed template owner cannot read or write');
+  check(deniedRead.headers.get('cache-control')==='private, no-store','Malformed owner template read private');
+  check(JSON.stringify(rt.counters())===JSON.stringify(before),'Malformed template principal performs no D1 reads/writes');
+ }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
 
  // A real D1 COMMIT can succeed and the INSERT acknowledgment still throw.

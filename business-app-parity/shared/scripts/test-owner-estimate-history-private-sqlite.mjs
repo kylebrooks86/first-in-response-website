@@ -25,6 +25,14 @@ try{
   r=await get();
   eq(r.status,401,'Genuine nonowner cannot read customer or estimate history');
   secure(r,'Nonowner denial');
+  for(const identity of [{},{email:null},{email:42}]){
+    rt.setOwner(identity);
+    before=rt.counters();
+    r=await get();
+    eq(r.status,401,'Malformed authenticated principal denied from owner estimate history');
+    secure(r,'Malformed estimate-history principal');
+    eq(rt.counters(),before,'Malformed history principal performs zero D1 calls');
+  }
   rt.setOwner({email:'kylebrooks8605@gmail.com'});
   for(const query of ['?limit=51','?limit=0','?status=invalid','?q='+('x'.repeat(129)),'?cursor=%23not-base64']){
     before=rt.counters();
