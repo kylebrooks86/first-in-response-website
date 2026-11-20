@@ -6,7 +6,7 @@ function load(file,imports){const exports={};vm.runInNewContext(ts.transpileModu
 const flags=load('lib/customer-activity-flags.ts',{}),lib=load('lib/job-closeout-history.ts',{'./customer-activity-flags':flags});
 const api=load('app/api/job-closeout-history/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/job-closeout-history':lib});
 const now=Date.now(),stamp=n=>new Date(now-n*86400000).toISOString();let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
-const get=async(cursor='')=>{const r=await api.GET(new Request('https://example.invalid/api/job-closeout-history'+cursor));return{status:r.status,data:await r.json()}};
+const get=async(cursor='')=>{const r=await api.GET(new Request('https://example.invalid/api/job-closeout-history'+cursor));return{status:r.status,data:await r.json(),cache:r.headers.get('cache-control'),vary:r.headers.get('vary'),nosniff:r.headers.get('x-content-type-options')}};
 const customer=id=>db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(id,'Synthetic '+id,stamp(20));
 const job=(id,c,status='completed')=>db.prepare('INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)').run(id,c,status,10000,10000,5000,stamp(12));
 let seq=0;const msg=(c,e,channel,template,at,body='PRIVATE SYNTHETIC MESSAGE')=>db.prepare('INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)').run('message-'+(++seq),c,e,channel,template,body,at);
@@ -24,7 +24,7 @@ try{
  msg('invalid','job-invalid','text_confirmed','review','invalid-date');msg('future','job-future','text_confirmed','review',stamp(-3));
  msg('unfinished','job-unfinished','text_confirmed','review',stamp(10));msg('foreign','job-due','text_confirmed','review',stamp(10));
  const snapshot=()=>JSON.stringify(['customers','estimates','payments','customer_messages','customer_notes'].map(t=>db.prepare('SELECT * FROM '+t+' ORDER BY id').all()));const before=snapshot();
- let r=await get();eq(r.status,200);eq(snapshot(),before,'History endpoint never edits existing records');
+ let r=await get();eq(r.status,200);eq(r.cache,'private, no-store','Review customer history must never be cached in public');eq(r.vary,'Cookie','Review history must vary by owner session');eq(r.nosniff,'nosniff','History response must block sniffing');eq(snapshot(),before,'History endpoint never edits existing records');
  const item=c=>r.data.items.find(i=>i.customerId===c);
  eq(item('due').state,'due');eq(item('due').requestedAt,stamp(8),'Latest confirmed request controls one customer reminder');eq(item('due').estimateId,'job-due');eq(r.data.items.filter(i=>i.customerId==='due').length,1);
  eq(item('waiting').state,'waiting');eq(item('received').state,'received');eq(item('flag-only').state,'received');eq(item('prepared'),undefined,'Prepared message never invents a confirmed review request');eq(item('copy'),undefined);
