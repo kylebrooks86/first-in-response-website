@@ -82,8 +82,8 @@ exact_replace(
 )
 exact_replace(
     "app/api/quote-packages/route.ts",
-    "async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()===OWNER;}",
-    "async function authorized(){return Boolean(OWNER && (await getChatGPTUser())?.email.toLowerCase()===OWNER);}",
+    "async function authorized(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER;}",
+    "async function authorized(){const user=await getChatGPTUser();return Boolean(OWNER&&typeof user?.email==='string'&&user.email.toLowerCase()===OWNER);}",
 )
 required = [
     ("app/chatgpt-auth.ts", "verifyFireAccessJWT"),
