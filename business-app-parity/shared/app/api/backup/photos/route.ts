@@ -78,7 +78,7 @@ async function preparePhotoArchive() {
     const safeId = (value: unknown) => typeof value === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(value);
     const prefix = `customers/${photo.customerId}/${photo.id}.`;
     const suffix = typeof photo.objectKey === "string" && photo.objectKey.startsWith(prefix) ? photo.objectKey.slice(prefix.length) : "";
-    const zipName = `photos/${photo.customerId}/${photo.id}-${safeName(photo.filename ?? "")}`;
+    const zipName = typeof photo.filename === "string" ? `photos/${photo.customerId}/${photo.id}-${safeName(photo.filename)}` : "";
     if (!safeId(photo.id) || !safeId(photo.customerId) ||
         !/^[a-zA-Z0-9]{1,8}$/.test(suffix) ||
         typeof photo.filename !== "string" || typeof photo.contentType !== "string" ||
