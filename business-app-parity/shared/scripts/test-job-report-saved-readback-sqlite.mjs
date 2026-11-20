@@ -92,6 +92,28 @@ try{
  const get=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
  eq(get.status,200,'Authenticated saved GET retrieves matching job report');
  eq((await get.json()).reports[0].id,row().id,'GET reads same database identity as saved receipt');
+ for(const [name,response] of [['saved report',get]]){
+  eq(response.headers.get('cache-control'),'private, no-store',name+' is not cacheable');
+  eq(response.headers.get('vary'),'Cookie',name+' varies with private owner session');
+  eq(response.headers.get('x-content-type-options'),'nosniff',name+' cannot be content-sniffed');
+ }
+ rt.setOwner(null);
+ const deniedReport=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+ eq(deniedReport.status,401,'Anonymous owner report history denied');
+ for(const h of [get,deniedReport])eq(h.headers.get('vary'),'Cookie','Allowed and denied report history both separate owner sessions');
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const reportPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.includes('FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC'))throw Error('synthetic owner report D1 outage');
+  return reportPrepare(sql);
+ };
+ const unavailableReport=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+ rt.env.DB.prepare=reportPrepare;
+ eq(unavailableReport.status,503,'D1 outage cannot manufacture a completed report or a generic cacheable error');
+ eq(unavailableReport.headers.get('cache-control'),'private, no-store','Report outage is never stored');
+ eq(unavailableReport.headers.get('vary'),'Cookie','Report outage is session-specific');
+ eq(unavailableReport.headers.get('x-content-type-options'),'nosniff','Report outage is not content-sniffed');
+
  // Simulate a second iPhone inserting after the first request checked for
  // an existing report but BEFORE its SQL INSERT. The SQL condition must see it.
  rt.env.DB.prepare=function(sql){
@@ -167,6 +189,8 @@ try{
   .run('historic-duplicate','report-job',customer,'{}','Synthetic older duplicate',at);
  const duplicateRead=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
  eq(duplicateRead.status,409,'Duplicate historical reports must not authorize completed UI');
+ eq(duplicateRead.headers.get('cache-control'),'private, no-store','Duplicate conflict remains private');
+ eq(duplicateRead.headers.get('vary'),'Cookie','Duplicate report conflict separates owner sessions');
  eq((await post(input)).status,409,'Duplicate historical reports fail closed on owner POST');
  eq(db.prepare("SELECT COUNT(*) AS n FROM job_reports WHERE estimate_id='report-job'").get().n,2,'No duplicated history was silently deleted');
  rt.setOwner(null);
