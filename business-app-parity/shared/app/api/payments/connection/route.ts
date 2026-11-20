@@ -11,7 +11,7 @@ const privateDiagnostic=(body:unknown,status:number)=>Response.json(body,{status
 export async function GET(){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return privateDiagnostic({error:"Synthetic QA disables all Stripe actions and connection probes."},503);
  const owner=await getChatGPTUser();
- if(owner?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return privateDiagnostic({error:'Unauthorized'},401);
+ if(typeof owner?.email!=='string'||owner.email.toLowerCase()!=='kylebrooks8605@gmail.com')return privateDiagnostic({error:'Unauthorized'},401);
  const runtime=env as RuntimeEnv;
  // Treat dark DR, prelaunch NEW LIVE, QA and unknown runtime labels as
  // isolated TEST targets despite the shared compiled "live" adapter.
