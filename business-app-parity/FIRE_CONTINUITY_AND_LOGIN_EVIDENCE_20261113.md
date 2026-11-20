@@ -1,3 +1,14 @@
+<!-- FIRE-NOV20-NOTIFICATION-PATCH-PRIVACY-7A6647E -->
+## November 20 — real G6 owner notification PATCH privacy defect repaired on existing QA-master Draft PR282 (source, NOT hosted)
+
+**New actual changed source:** [commit cb352955aedb197815cafd09a606a7012c15d11e](https://github.com/kylebrooks86/first-in-response-website/commit/cb352955aedb197815cafd09a606a7012c15d11e) updates only `business-app-parity/shared/app/api/notifications/route.ts`: all owner notification PATCH HTTP responses—including malformed 400/413, unauthenticated 401, missing 404, financial overpayment 409, database/uncertain 500/503, and successful 200 receipts—now carry `Cache-Control: private, no-store`, `Vary: Cookie`, `X-Content-Type-Options: nosniff`. The wrapper keeps the exact prior status, body and any other headers. Existing auth, bounded JSON, SQLite transaction, notification state, overpayment refund adjustment and all Stripe/payment semantics remain unchanged. It closes a real code-level private receipt omission, not an Access/hosted release requirement.
+
+**Actual changed-code regression:** [commit 7a6647e9461cc5beb16f0ebf933700d507c6fb7b](https://github.com/kylebrooks86/first-in-response-website/commit/7a6647e9461cc5beb16f0ebf933700d507c6fb7b) extends the existing real-route `test-notification-mark-all-sqlite.mjs` to assert these headers on real synthetic request-reader rejections, unauthorized PATCH 401, valid mark-all 200, conflicting actions 400, missing ID 404 and saved resolution 200. It retains all original local D1 assertions without bypassing them. At documentation time exact SHA CI was **22/27 SUCCESS, 5 RUNNING, no finished failures**; do not label it full green until all finish. CI execution is automatic on existing draft, not a repeated owner iPhone/Acer/Cloudflare test.
+
+**Formal tracker remains 51/95 checked, 44 open; 4/10 full gates accepted G1/G2/G3/G8. G6-08/G6-09 hosted evidence still OPEN; G4/G5/G6/G7/G9/G10 overall OPEN.** NEW LIVE DARK/NO-GO, Job #0001 unused. No Cloudflare login or deployment, migration, Access/route changes, paid R2, Git merge, Stripe transaction/configuration, customer record or money changes. Existing Acer Pages 404 and other accepted screenshot evidence not repeated.
+
+---
+
 <!-- FIRE-NOV20-OWNER-PAGES-DEPLOYMENT-404-20261120 -->
 ## November 20 — [x] exact provider-listed Pages deployment URL anonymous HTTP result captured (owner Acer, GET only)
 
