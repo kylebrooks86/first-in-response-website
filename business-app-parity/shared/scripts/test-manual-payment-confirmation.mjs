@@ -18,6 +18,8 @@ db.exec('BEGIN');try{const result=rows.map(r=>/^SELECT/.test(r.sql)?{results:db.
 const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),pay=load('app/api/payments/route.ts'),confirm=load('app/api/payments/confirmation/route.ts');
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
 const get=(id,requestId)=>confirm.GET(new Request('https://synthetic.invalid/api/payments/confirmation?'+new URLSearchParams({estimateId:id,requestId})));
+// Real route responses contain owner-only financial receipts, even on denial or D1 outage.
+const privateReceipt=(response)=>{eq(response.headers.get('cache-control'),'private, no-store');eq(response.headers.get('vary'),'Cookie');eq(response.headers.get('x-content-type-options'),'nosniff');};
 const post=(id,a)=>pay.POST(new Request('https://synthetic.invalid/api/payments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estimateId:id,...a})}));
 const postRaw=(raw,headers={})=>pay.POST(new Request('https://synthetic.invalid/api/payments',{
  method:'POST',headers:{'Content-Type':'application/json',...headers},body:raw
@@ -26,7 +28,7 @@ function seed(id,status='approved'){db.prepare('INSERT INTO customers(id,name,cr
 const attempt={requestId:randomUUID(),amountCents:10000,tipCents:0,method:'Cash',reference:'synthetic',processingFeeCents:null};
 try{
  seed('a');seed('b');seed('tip','completed');
- owner=null;eq((await get('a',attempt.requestId)).status,401);owner={email:'customer@example.invalid'};eq((await get('a',attempt.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
+ owner=null;let deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);owner={email:'customer@example.invalid'};deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);owner={email:'kylebrooks8605@gmail.com'};
  // Owner payment-history GET must never be cached across signed-in sessions,
  // and failed D1 reads must return a safe 503, not a fabricated empty balance.
  let history=await pay.GET();
@@ -42,8 +44,8 @@ try{
  eq(history.headers.get('x-content-type-options'),'nosniff');
  eq((await history.json()).payments,undefined,'No misleading payment list on D1 outage');
  failHistoryRead=false;
- eq((await get('a','bad')).status,400);eq((await get('missing',attempt.requestId)).status,404);
- let response=await get('a',attempt.requestId);eq(response.status,200);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
+ let invalidReceipt=await get('a','bad');eq(invalidReceipt.status,400);privateReceipt(invalidReceipt);invalidReceipt=await get('missing',attempt.requestId);eq(invalidReceipt.status,404);privateReceipt(invalidReceipt);
+ let response=await get('a',attempt.requestId);eq(response.status,200);privateReceipt(response);eq((await response.json()).confirmed,false);eq(writes,0);
  // The actual financial-write API must reject malformed, primitive or giant
  // owner bodies BEFORE any payment or tip write. Do not silently parse JSON
  // via an unbounded request.json() from a stale or hostile client.
@@ -104,7 +106,7 @@ try{
  for(const patch of [{amountCents:9999},{method:'Venmo'},{reference:'different'},{tipCents:100},{processingFeeCents:1},{requestId:randomUUID()}])eq(confirmedManualPayment(receipt,'a',{...attempt,...patch}),null);
  for(const patch of [{confirmed:false},{paidCents:'10000'},{paidCents:NaN},{paidCents:-1},{requestId:randomUUID()},{records:[]},{records:[...receipt.records,...receipt.records]}])eq(confirmedManualPayment({...receipt,...patch},'a',attempt),null);
  for(const patch of [{status:'pending'},{estimateId:'b'},{amountCents:10001},{processingFeeCents:3},{grossReceivedCents:1},{bundledTipCents:5},{processingMethod:'Other'}])eq(confirmedManualPayment({...receipt,records:[{...receipt.records[0],...patch}]},'a',attempt),null);
- eq(writes,savedWrites);failRead=true;eq((await get('a',attempt.requestId)).status,503);failRead=false;eq(writes,savedWrites);
+ eq(writes,savedWrites);failRead=true;const unavailableReceipt=await get('a',attempt.requestId);eq(unavailableReceipt.status,503);privateReceipt(unavailableReceipt);failRead=false;eq(writes,savedWrites);
  // Explicit same-ID replay never creates another payment, after deposit is already fully paid.
  eq((await post('a',attempt)).status,200);eq(db.prepare("SELECT COUNT(*) AS n FROM payments WHERE estimate_id='a'").get().n,1);
  const combined={...attempt,requestId:randomUUID(),amountCents:20000,tipCents:1200,method:'Venmo',processingFeeCents:450};eq((await post('tip',combined)).status,201);const bundle=await (await get('tip',combined.requestId)).json();eq(confirmedManualPayment(bundle,'tip',combined),20000);eq(bundle.records.length,2);eq(confirmedManualPayment({...bundle,records:bundle.records.slice(0,1)},'tip',combined),null);
@@ -249,7 +251,7 @@ try{
  const ownerReadWrites=writes;
  let review=await get('foreign',foreign.requestId);
  eq(review.status,409,'Read-only manual confirmation refuses a foreign-customer invoice');
- eq(review.headers.get('cache-control'),'no-store, private');
+ privateReceipt(review);
  eq(paymentsFor('foreign'),1,'The original paid ledger remains untouched');
  eq(writes,ownerReadWrites,'Wrong-customer confirmation never writes or auto-repairs billing');
  db.prepare("UPDATE invoices SET customer_id='c-foreign' WHERE id='invoice-foreign'").run();
