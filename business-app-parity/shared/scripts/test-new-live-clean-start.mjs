@@ -72,17 +72,17 @@ const cleanSource=readFileSync(new URL('../app/api/release/new-live-clean-start/
 // This independent NEW LIVE CI job has no npm installation. Load the exact
 // production route by removing ONLY three audited imports and two TS-only
 // annotations; fail if its shape changes rather than installing dependencies.
-assert.equal([...cleanSource.matchAll(/^import [^\\n]+;$/gm)].length,3,
+assert.equal([...cleanSource.matchAll(/^import [^\n]+;$/gm)].length,3,
  'Only the three reviewed production dependencies may be replaced');
-assert.match(cleanSource,/const fail=\\(status:number,message:string\\)/);
-assert.match(cleanSource,/const flags=env as typeof env & \\{[\\s\\S]*?\\};/);
-assert.match(cleanSource,/export async function GET\\(\\)/);
+assert.match(cleanSource,/const fail=\(status:number,message:string\)/);
+assert.match(cleanSource,/const flags=env as typeof env & \{[\s\S]*?\};/);
+assert.match(cleanSource,/export async function GET\(\)/);
 const cleanJs=cleanSource
- .replace(/^import [^\\n]+;$/gm,'')
+ .replace(/^import [^\n]+;$/gm,'')
  .replace('const fail=(status:number,message:string)','const fail=(status,message)')
- .replace(/const flags=env as typeof env & \\{[\\s\\S]*?\\};/,'const flags=env;')
+ .replace(/const flags=env as typeof env & \{[\s\S]*?\};/,'const flags=env;')
  .replace('export async function GET()','async function GET()')+
- '\\nexports.GET=GET;\\n';
+ '\nexports.GET=GET;\n';
 let cleanUser=null,cleanReads=0,cleanFailure=false;
 const cleanEnv={DB:{},FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_CLEAN_START:'required'};
 const cleanRoute={};
