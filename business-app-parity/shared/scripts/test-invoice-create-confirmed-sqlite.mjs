@@ -164,6 +164,18 @@ try{
  eq(deniedList.status,401,'Nonowner cannot list private invoice contacts or bearer tokens');
  eq(deniedList.headers.get('cache-control'),'no-store, private','Nonowner invoice list denial is never cached');
  eq(deniedList.headers.get('vary'),'Cookie','Nonowner denial is session-varying');
+ for(const [label,malformed] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}]]){
+  owner=malformed;
+  const beforeWrites=mutations;
+  const deniedMalformedList=await route.GET();
+  eq(deniedMalformedList.status,401,'Malformed '+label+' owner principal denied private invoice list');
+  eq(deniedMalformedList.headers.get('cache-control'),'no-store, private','Malformed '+label+' invoice denial private');
+  eq(deniedMalformedList.headers.get('vary'),'Cookie','Malformed '+label+' invoice denial varies by session');
+  eq(deniedMalformedList.headers.get('x-content-type-options'),'nosniff','Malformed '+label+' invoice denial is nosniff');
+  eq((await post('normal')).status,401,'Malformed '+label+' principal cannot create or replay invoice');
+  eq(mutations,beforeWrites,'Malformed '+label+' principal cannot write D1');
+ }
+ owner={email:'intruder@example.invalid'};
  response=await post('normal');
  eq(response.status,401,'Nonowner cannot request invoice');
  eq(remote,0,'No external provider or Stripe calls');

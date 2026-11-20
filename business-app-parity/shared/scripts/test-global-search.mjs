@@ -18,7 +18,16 @@ try{
  for(let i=0;i<65;i++){const id='estimate-'+String(i).padStart(3,'0');db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at,scheduled_at) VALUES(?,'c',?,20000,20000,10000,?,?)").run(id,i===0?'scheduled':'sent','2026-10-'+String(1+i%18).padStart(2,'0'),i===0?'2026-10-20T15:00:00Z':null);db.prepare("INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES(?,?,?,'Gutter limitation details',1,'job',20000)").run('item-'+i,id,i===0?'Special Search Gutter Service':'Generic Search Service');}
  db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,total_cents,created_at) VALUES('6528c9aa-0000-4000-8000-000000000001','estimate-000','c',20000,'2026-10-18')").run();
  db.prepare("INSERT INTO invoice_items(id,invoice_id,name,description,quantity,unit,total_cents) VALUES('ii','6528c9aa-0000-4000-8000-000000000001','Invoice Search Service','Invoice-only metadata',1,'job',20000)").run();
- const before=reads;user=null;const denied=await get('6528C9');eq(denied.status,401);privateReply(denied,'unauthenticated search');user={email:'other@example.invalid'};eq((await get('Synthetic')).status,401);eq(reads,before);user={email:'kylebrooks8605@gmail.com'};
+ const before=reads;user=null;const denied=await get('6528C9');eq(denied.status,401);privateReply(denied,'unauthenticated search');user={email:'other@example.invalid'};eq((await get('Synthetic')).status,401);eq(reads,before);
+ for(const [label,malformed] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}]]){
+  user=malformed;
+  const beforePrivateReads=reads;
+  const deniedMalformed=await get('Synthetic');
+  eq(deniedMalformed.status,401,'Malformed '+label+' identity denied search');
+  privateReply(deniedMalformed,'Malformed '+label+' search denial');
+  eq(reads,beforePrivateReads,'Malformed '+label+' identity makes zero D1 reads');
+ }
+ user={email:'kylebrooks8605@gmail.com'};
  const bad=await get('a'.repeat(161));eq(bad.status,400);privateReply(bad,'invalid search');eq((await get('a','private')).status,400);const empty=await get('');privateReply(empty,'authenticated search');eq((await empty.json()).results,[]);
  for(const q of ['6528C9','6528c9','#6528C9','Invoice #6528c9','6528c9aa-0000-4000-8000-000000000001']){const r=await search(q);eq(r.results[0].id,'6528c9aa-0000-4000-8000-000000000001');eq(r.results[0].title,'Invoice #6528C9');eq(r.results[0].kind,'invoice');eq(r.results.some(x=>'shareToken' in x),false);}
  for(const q of ['sYnThEtIc SaMe','first@','918-555-010','+1 9185550101','Synthetic QA La'])eq((await search(q,'customers')).results.some(x=>x.id==='c'),true);

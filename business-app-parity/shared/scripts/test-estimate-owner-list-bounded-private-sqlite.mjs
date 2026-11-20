@@ -48,6 +48,16 @@ try{
   rt.setOwner({email:'different@invalid.example'});
   r=await response();
   eq(r.status,401,'Genuine nonowner identity cannot read financial/customer roster');
+  for(const [label,malformed] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}]]){
+    rt.setOwner(malformed);
+    before=rt.counters();
+    r=await response();
+    eq(r.status,401,'Malformed '+label+' owner principal cannot list private estimates');
+    eq(r.headers.get('cache-control'),'private, no-store','Malformed '+label+' estimate denial stays private');
+    eq(r.headers.get('vary'),'Cookie','Malformed '+label+' estimate denial varies by session');
+    eq(r.headers.get('x-content-type-options'),'nosniff','Malformed '+label+' estimate denial is nosniff');
+    eq(rt.counters(),before,'Malformed '+label+' owner principal cannot read or write D1');
+  }
   rt.setOwner({email:'kylebrooks8605@gmail.com'});
 
   before=rt.counters();

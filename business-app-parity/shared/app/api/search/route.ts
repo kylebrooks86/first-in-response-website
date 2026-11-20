@@ -8,7 +8,7 @@ const headers={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Ty
 const scopes=['all','customers','estimates','invoices','jobs','payments','notes','properties'];
 export async function GET(request:Request){
   const user=await getChatGPTUser();
-  if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
+  if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
   const url=new URL(request.url),q=(url.searchParams.get('q')??'').trim(),scope=url.searchParams.get('scope')??'all';
   if(q.length>160||!scopes.includes(scope))return Response.json({error:'Enter a search of up to 160 characters and a supported filter.'},{status:400,headers});
   if(!q)return Response.json({results:[],hasMore:false,scope},{headers});

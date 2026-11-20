@@ -26,7 +26,7 @@ async function savedJobReference(estimateId:string):Promise<number|null>{
     return jobNumberLabel(row?.jobNumber)?Number(row!.jobNumber):null;
   }catch{return null;}
 }
-async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){ const user=await getChatGPTUser(); return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL; }
 
 type ItemRow={id:string;estimateId:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 
