@@ -1,3 +1,11 @@
+## Nov 19, 2026 — STAGING Steps 7–12 physically completed, DO NOT REPEAT; Step13 continuation supplied
+
+Current private owner console evidence [FIRE_STAGING_DEEP_INTEGRITY_INDEX_LINK_LEDGER_OWNER_20261119.md](evidence/FIRE_STAGING_DEEP_INTEGRITY_INDEX_LINK_LEDGER_OWNER_20261119.md) contains ten original screenshot SHA-256 fingerprints and redacted findings: actual STAGING `quick_check=ok`; 5 finance unique-index **exact SQL**/partial WHERE definitions; 7 real customer/estimate/invoice/payment/refund/photo FKs; 8 mismatch/orphan/photo/message/note counts all 0 (photo/message/note tables **empty**); four finance amount flags all 0; sole one-estimate half-deposit match; stored state grouping completed estimate 1, partial invoice 1, payments Refund/Tip/balance paid 1 each and stripe-mode refund succeeded 1. **Do not mistake stored Stripe status for signed Stripe TEST external provider verification.** Read-only schema Step13 has initial auth/messages/notes/photos/customers columns documented and seven more follow-on images received in chat, which have not been independently SHA-256 processed.
+
+Prior **Steps 1–6 and now Steps 7–12 of owner STAGING console checks are ALL DONE and preserved; never ask to redo** unless a later actual STAGING schema change creates a genuine need. G5 full acceptance still [ ], 50/95, 4/10; STAGING remains 22/25 migrations without unapproved provider migrations; no SQL writes, paid service, real Stripe, Access, deployment or merge.
+
+---
+
 ## Nov 19, 2026 — Original 6-step STAGING console evidence fully collected; NO REPEAT
 
 The same already authenticated owner STAGING Cloudflare D1 Console has now supplied **four additional original screenshots** after the 22/22 full ordered migration journal and ten schema/finance inventory photos. [Original image hashes & exact observed values](evidence/FIRE_STAGING_FK_COUNTS_TIMETRAVEL_OWNER_20261119.md) are preserved in GitHub; the actual screenshots remain **private**.
