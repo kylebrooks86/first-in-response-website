@@ -119,7 +119,8 @@ try{
  check(privateResult(missingPin),'Incomplete Stripe diagnostic remains private');
 }finally{globalThis.fetch=previous;}
 // Even with the compiled "live" deployment adapter, actual DR and NEW LIVE
-// prelaunch must refuse Stripe diagnostics while TEST mode is disabled.
+// prelaunch (including absent/blank FIRE_ENV) must refuse Stripe diagnostics
+// while TEST mode is disabled. Blank was formerly classified as LIVE.
 // This test goes through the ACTUAL owner-authenticated route, not a regex
 // source assertion or provider connection.
 const darkRuntime={...env,FIRE_STRIPE_MODE:'disabled',FIRE_ENV:'isolated-dr'};
@@ -132,7 +133,7 @@ const darkRoute=load('../app/api/payments/connection/route.ts',{
 const beforeFetch=globalThis.fetch;
 globalThis.fetch=async()=>{throw Error('Dark Worker must not contact Stripe');};
 try{
- for(const target of ['isolated-dr','new-live-prelaunch','cloudflare-qa','unrecognized-private-target']){
+ for(const target of ['','  ','isolated-dr','new-live-prelaunch','cloudflare-qa','unrecognized-private-target']){
   darkRuntime.FIRE_ENV=target;
   const response=await darkRoute.GET();
   const body=await response.json();
