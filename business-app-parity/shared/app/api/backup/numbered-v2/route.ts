@@ -14,13 +14,19 @@ import {serviceLocationsEnabled} from '../../../../lib/service-location';
 import {customerPropertiesEnabled} from '../../../../lib/customer-properties';
 
 const ownerEmail='kylebrooks8605@gmail.com';
-const blockedHeaders={'cache-control':'private, no-store','x-content-type-options':'nosniff'};
+const blockedHeaders={'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
 const errorResponse=(status:number,message:string)=>Response.json({error:message,completeBackup:false},{status,headers:blockedHeaders});
 
 export async function GET(){
- const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!==ownerEmail)
+ // Malformed, unavailable or throwing session identities must be denied before
+ // any review flags or private D1 records are examined.
+ try{
+  const user=await getChatGPTUser();
+  if(typeof user?.email!=='string'||user.email.toLowerCase()!==ownerEmail)
+   return errorResponse(401,'Unauthorized');
+ }catch{
   return errorResponse(401,'Unauthorized');
+ }
  // This candidate is never enabled by ordinary numbering flags.
  const flags=env as typeof env & {FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE?:string;FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE?:string};
  const full=flags.FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE==='owner-review-only';
