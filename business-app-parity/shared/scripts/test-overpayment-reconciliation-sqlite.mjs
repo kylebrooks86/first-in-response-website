@@ -48,6 +48,31 @@ try{
  const denied=await patch(bad,'refund',2000);
  check(denied.status===401&&paid(bad)===before&&!alert(bad).resolvedAt,'Nonowner cannot reconcile a real job');
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ // A bad stored money projection must never be normalized into a plausible
+ // zero-cent balance before either Record refund or Keep is authorized.
+ const originalBalancePrepare=rt.env.DB.prepare;
+ for(const [label,badBalances] of [
+   ['negative paid',{paidCents:-2000,totalCents:10000}],
+   ['negative invoice',{paidCents:12000,totalCents:-1000}],
+   ['missing paid',{paidCents:null,totalCents:10000}],
+   ['missing invoice',{paidCents:12000,totalCents:null}],
+   ['fractional cents',{paidCents:12000.25,totalCents:10000}],
+   ['unsafe cents',{paidCents:Number.MAX_SAFE_INTEGER+1,totalCents:10000}],
+ ]) {
+   rt.env.DB.prepare=function(sql){
+     if(typeof sql==='string'&&sql.includes('AS paidCents')&&
+        sql.includes('AS totalCents')&&sql.includes('AS invoiceOwnershipMismatch'))
+       return {bind:()=>({first:async()=>({...badBalances,invoiceOwnershipMismatch:0})})};
+     return originalBalancePrepare(sql);
+   };
+   for(const mode of ['refund','keep']){
+     const refused=await patch(bad,mode,mode==='refund'?2000:undefined);
+     check(refused.status===409&&adjustment(bad).length===0&&paid(bad)===before&&
+       !alert(bad).resolvedAt&&invoiceStatus(bad)==='sent',
+       label+' saved money cannot authorize '+mode+' or mutate the ledger');
+   }
+ }
+ rt.env.DB.prepare=originalBalancePrepare;
  const originalBatch=rt.env.DB.batch;
  rt.env.DB.batch=async statements=>statements.map(()=>({success:true,meta:{changes:1}}));
  const falselyAcked=await patch(bad,'refund',2000);
@@ -148,6 +173,23 @@ try{
   }));
   return {status:response.status,data:await response.json()};
  };
+ // The independent DR path must enforce the same exact-cent readback.
+ for(const [label,badBalances] of [
+   ['negative invoice',{paidCents:12000,totalCents:-1000}],
+   ['null invoice',{paidCents:12000,totalCents:null}],
+   ['unsafe paid',{paidCents:Number.MAX_SAFE_INTEGER+1,totalCents:10000}],
+ ]) {
+   rt.env.DB.prepare=function(sql){
+     if(typeof sql==='string'&&sql.includes('AS paidCents')&&
+        sql.includes('AS totalCents')&&sql.includes('AS invoiceOwnershipMismatch'))
+       return {bind:()=>({first:async()=>({...badBalances,invoiceOwnershipMismatch:0})})};
+     return originalBalancePrepare(sql);
+   };
+   const refusal=await drKeep(bad);
+   check(refusal.status===409&&adjustment(bad).length===1&&paid(bad)===10000,
+     'DR '+label+' cannot silently resolve an overpayment from invalid cents');
+ }
+ rt.env.DB.prepare=originalBalancePrepare;
  const drPending=await drKeep(pendingJob);
  check(drPending.status===409&&paid(pendingJob)===12000&&!alert(pendingJob).resolvedAt,
    'Independent DR also refuses Keep while a refund is pending');
