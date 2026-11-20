@@ -174,6 +174,7 @@ try{
   return {status:response.status,data:await response.json()};
  };
  // The independent DR path must enforce the same exact-cent readback.
+ const drMoneyJob=seed('dr-money-projection');
  for(const [label,badBalances] of [
    ['negative invoice',{paidCents:12000,totalCents:-1000}],
    ['null invoice',{paidCents:12000,totalCents:null}],
@@ -185,8 +186,9 @@ try{
        return {bind:()=>({first:async()=>({...badBalances,invoiceOwnershipMismatch:0})})};
      return originalBalancePrepare(sql);
    };
-   const refusal=await drKeep(bad);
-   check(refusal.status===409&&adjustment(bad).length===1&&paid(bad)===10000,
+   const refusal=await drKeep(drMoneyJob);
+   check(refusal.status===409&&adjustment(drMoneyJob).length===0&&paid(drMoneyJob)===12000&&
+     !alert(drMoneyJob).resolvedAt,
      'DR '+label+' cannot silently resolve an overpayment from invalid cents');
  }
  rt.env.DB.prepare=originalBalancePrepare;
