@@ -593,6 +593,8 @@ jobs:
           # Exercise REAL quote/inline-customer source and transactional D1
           # with invalid contact inputs and immutable save replay.
           node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
+          # Exercise actual owner-only revision-history 200/400/401/503 responses and fail-closed D1 linkage.
+          node --experimental-sqlite scripts/test-quote-revisions.mjs
           # The actual owner estimate PATCH must reject forged browser origins
           # before D1 reads/writes while retaining valid same-origin edits.
           node --experimental-sqlite scripts/test-estimate-edit-confirmed-lines-sqlite.mjs
