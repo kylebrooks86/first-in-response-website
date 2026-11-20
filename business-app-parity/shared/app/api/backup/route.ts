@@ -226,41 +226,55 @@ async function authorized() {
   return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
 }
 
+// A full records export carries customer contact data, signed agreements and
+// payment/refund records. Never allow any owner-session response, including a
+// denial, schema refusal or failed export, to be retained by a shared cache.
+const privateRecordsHeaders={
+  "Cache-Control":"private, no-store",
+  "Vary":"Cookie",
+  "X-Content-Type-Options":"nosniff",
+};
+function privateRecordsJson(body:unknown,init:ResponseInit={}){
+  const headers=new Headers(init.headers);
+  for(const [name,value] of Object.entries(privateRecordsHeaders))headers.set(name,value);
+  return Response.json(body,{...init,headers});
+}
+
 export async function GET() {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if(await numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
-  if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware backup is not verified yet. Candidate export is blocked to prevent omitted property records.'},{status:409});
+  if (!await authorized()) return privateRecordsJson({ error: "Unauthorized" }, { status: 401 });
   try {
-    if(propertyRecoveryTestEnabled(env)){const payload=await exportPropertyRecords(env.DB);return new Response(JSON.stringify(payload),{headers:{'cache-control':'no-store','content-type':'application/json','content-disposition':'attachment; filename=fire-property-records-backup.json'}});}
+  if(await numberedIdentityBackupLocked())return privateRecordsJson({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
+  if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return privateRecordsJson({error:'Property-aware backup is not verified yet. Candidate export is blocked to prevent omitted property records.'},{status:409});
+    if(propertyRecoveryTestEnabled(env)){const payload=await exportPropertyRecords(env.DB);return new Response(JSON.stringify(payload),{headers:{...privateRecordsHeaders,'content-type':'application/json','content-disposition':'attachment; filename=fire-property-records-backup.json'}});}
     const snapshotEnabled=serviceLocationsEnabled(env);
     const exportTables:readonly string[]=snapshotEnabled?[...TABLES,"estimate_service_locations"]:TABLES;
     const results = await env.DB.batch(exportTables.map((table) => env.DB.prepare(`SELECT * FROM ${table}`)));
     if(results.some(result=>!Array.isArray(result.results)))throw Error("Incomplete backup read");
     const tables = Object.fromEntries(exportTables.map((table, index) => [table, results[index].results]));
     const refundIntegrityError=validateRefundIntegrity(tables);
-    if(refundIntegrityError)return Response.json({error:`Records backup stopped: ${refundIntegrityError}`},{status:409});
+    if(refundIntegrityError)return privateRecordsJson({error:`Records backup stopped: ${refundIntegrityError}`},{status:409});
     const auditError=validateDepositAuditIntegrity(tables,true);
-    if(auditError)return Response.json({error:`Records backup stopped: ${auditError}`},{status:409});
+    if(auditError)return privateRecordsJson({error:`Records backup stopped: ${auditError}`},{status:409});
     const signatureError=validateSignedAgreementSnapshots(tables,true);
-    if(signatureError)return Response.json({error:`Records backup stopped: ${signatureError}`},{status:409});
+    if(signatureError)return privateRecordsJson({error:`Records backup stopped: ${signatureError}`},{status:409});
     const commitmentError=await verifySignedAgreementDigests(tables);
-    if(commitmentError)return Response.json({error:`Records backup stopped: ${commitmentError}`},{status:409});
+    if(commitmentError)return privateRecordsJson({error:`Records backup stopped: ${commitmentError}`},{status:409});
     if(Array.isArray(tables.customer_photos)){
       const photoIds=new Set<string>();
       const objectKeys=new Set<string>();
       const customerIds=new Set((Array.isArray(tables.customers)?tables.customers:[]).filter(isRecord).map((row)=>String(row.id??"")));
       for(const raw of tables.customer_photos){
-        if(!isRecord(raw))return Response.json({error:"Records backup stopped: invalid customer photo metadata."},{status:409});
+        if(!isRecord(raw))return privateRecordsJson({error:"Records backup stopped: invalid customer photo metadata."},{status:409});
         const id=String(raw.id??""); const customerId=String(raw.customer_id??""); const objectKey=String(raw.object_key??"");
         const contentType=String(raw.content_type??""); const category=String(raw.category??""); const sizeBytes=Number(raw.size_bytes);
-        if(!id||photoIds.has(id))return Response.json({error:`Records backup stopped: duplicate/blank photo id ${id}.`},{status:409});
+        if(!id||photoIds.has(id))return privateRecordsJson({error:`Records backup stopped: duplicate/blank photo id ${id}.`},{status:409});
         photoIds.add(id);
-        if(!customerIds.has(customerId))return Response.json({error:`Records backup stopped: photo ${id} references missing customer.`},{status:409});
-        if(!objectKey.startsWith(`customers/${customerId}/${id}.`)||objectKey.includes(".."))return Response.json({error:`Records backup stopped: photo ${id} has unsafe object metadata.`},{status:409});
-        if(objectKeys.has(objectKey))return Response.json({error:`Records backup stopped: duplicate photo object key.`},{status:409});
+        if(!customerIds.has(customerId))return privateRecordsJson({error:`Records backup stopped: photo ${id} references missing customer.`},{status:409});
+        if(!objectKey.startsWith(`customers/${customerId}/${id}.`)||objectKey.includes(".."))return privateRecordsJson({error:`Records backup stopped: photo ${id} has unsafe object metadata.`},{status:409});
+        if(objectKeys.has(objectKey))return privateRecordsJson({error:`Records backup stopped: duplicate photo object key.`},{status:409});
         objectKeys.add(objectKey);
         if(!contentType.startsWith("image/")||!["before","after","property"].includes(category)||!Number.isSafeInteger(sizeBytes)||sizeBytes<0||sizeBytes>20*1024*1024)
-          return Response.json({error:`Records backup stopped: photo ${id} has invalid metadata.`},{status:409});
+          return privateRecordsJson({error:`Records backup stopped: photo ${id} has invalid metadata.`},{status:409});
       }
     }
     const exportedAt = new Date().toISOString();
@@ -284,16 +298,16 @@ export async function GET() {
       ...(snapshotEnabled?{serviceLocationSnapshots:serviceLocationManifest(tables.estimate_service_locations as Record<string,unknown>[])}:{}),
     };
     const snapshotError=serviceLocationBackupError(payload,tables);
-    if(snapshotError)return Response.json({error:`Records backup stopped: ${snapshotError}`},{status:409});
+    if(snapshotError)return privateRecordsJson({error:`Records backup stopped: ${snapshotError}`},{status:409});
     return new Response(JSON.stringify(payload, null, 2), {
       headers: {
-        "cache-control": "no-store",
+        ...privateRecordsHeaders,
         "content-disposition": `attachment; filename=fire-app-records-backup-${exportedAt.slice(0, 10)}.json`,
         "content-type": "application/json; charset=utf-8",
       },
     });
   } catch {
-    return Response.json({ error: "The records backup could not be created. No records were changed." }, { status: 503 });
+    return privateRecordsJson({ error: "The records backup could not be created. No records were changed." }, { status: 503 });
   }
 }
 
