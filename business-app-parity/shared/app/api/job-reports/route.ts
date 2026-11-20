@@ -36,7 +36,21 @@ export async function GET(request: Request) {
   }
 }
 
+// Keep every owner-only report save, denial, conflict and uncertain receipt
+// out of shared caches, including responses from the bounded stream reader.
+// This wrapper does not alter report data, status, SQL or retry semantics.
+function privateJobReportResponse(response: Response): Response {
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Vary", "Cookie");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  return response;
+}
+
 export async function POST(request: Request) {
+  return privateJobReportResponse(await saveJobReport(request));
+}
+
+async function saveJobReport(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   let body: {
     estimateId?: string; customerId?: string; checklist?: unknown; notes?: string;
