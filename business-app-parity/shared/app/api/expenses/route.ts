@@ -4,7 +4,7 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const privateExpenseGetHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
-async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){const user=await getChatGPTUser();return Boolean(user&&typeof user.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL);}
 
 export async function GET(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateExpenseGetHeaders});
