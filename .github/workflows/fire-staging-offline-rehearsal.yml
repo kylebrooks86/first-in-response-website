@@ -528,6 +528,7 @@ jobs:
           node --experimental-sqlite scripts/test-owner-settings-confirmed-cas-sqlite.mjs
           node --experimental-sqlite scripts/test-custom-service-pricing.mjs
           node --experimental-sqlite scripts/test-saved-promotions.mjs
+          node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
           node --experimental-sqlite scripts/test-quote-packages.mjs
           node --experimental-sqlite scripts/test-business-preferences.mjs
       - name: Gate 6 Doomsday PIN login and owner session hardening (new negative cases, disposable SQLite)
