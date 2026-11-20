@@ -53,6 +53,13 @@ try{
  check(anonymous.status===401&&reads===before.reads&&writes===before.writes,"No anonymous snooze or database access");
  check(privateReceipt(anonymous),"Anonymous owner review action denial is session-private and nosniff");
  user={email:"notowner@example.invalid"};check((await snooze.POST(req("ready",1))).status===401&&reads===before.reads&&writes===before.writes,"Wrong owner rejected before DB");
+ for(const malformedOwner of [{},{email:47},{email:null}]){
+  user=malformedOwner;
+  const denied=await snooze.POST(req("ready",1));
+  check(denied.status===401,"Malformed owner principal cannot snooze a review");
+  check(privateReceipt(denied),"Malformed owner denial remains session-private and nosniff");
+  check(reads===before.reads&&writes===before.writes,"Malformed owner identity touches no D1");
+ }
  user={email:"kylebrooks8605@gmail.com"};
  // The route itself rejects malformed/oversized owner bytes before D1.
  for(const [label,body,headers,expected] of [
