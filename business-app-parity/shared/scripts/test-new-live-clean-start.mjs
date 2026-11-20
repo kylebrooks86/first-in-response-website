@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
 import {assertNewLiveFirstJobState,verifyNewLiveFirstJobState} from '../lib/new-live-clean-start.mjs';
 const empty={customers:0,estimates:0,numberedCustomers:0,numberedJobs:0,jobLinks:0,customerSequence:0,jobSequence:0,invalidCustomers:0,invalidJobLinks:0};
 assert.equal(assertNewLiveFirstJobState(empty),true);
@@ -65,4 +67,62 @@ assert.match(communications,/message:receipt,cancelled:true,ownerConfirmedSent:f
 assert.match(communications,/saveUncertain:true/);
 assert.match(communications,/uncertainOperation\.template!=='review'/);
 assert.match(communications,/customer_messages WHERE id=\? AND customer_id=\? AND channel=\?/);
+// Exercise the actual private NEW LIVE read-only route (not a mocked response).
+// All identities, flags and D1 inspection below are synthetic; no hosted calls.
+const cleanSource=readFileSync(new URL('../app/api/release/new-live-clean-start/route.ts',import.meta.url),'utf8');
+const cleanJs=ts.transpileModule(cleanSource,{compilerOptions:{
+ target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS
+}}).outputText;
+let cleanUser=null,cleanReads=0,cleanFailure=false;
+const cleanEnv={DB:{},FIRE_ENV:'new-live-prelaunch',FIRE_NEW_LIVE_CLEAN_START:'required'};
+const cleanRoute={};
+vm.runInNewContext(cleanJs,{exports:cleanRoute,Response,require:(name)=>{
+ if(name==='cloudflare:workers')return {env:cleanEnv};
+ if(name==='../../../chatgpt-auth')return {getChatGPTUser:async()=>{
+  if(cleanUser==='throw')throw Error('Synthetic principal unavailable');
+  return cleanUser;
+ }};
+ if(name==='../../../../lib/new-live-first-job-preflight.mjs')return {
+  inspectNewLiveFirstJobCleanStart:async()=>{
+   cleanReads++;
+   if(cleanFailure)throw Error('Synthetic D1 unavailable');
+   return {firstJobNumberExpected:'0001',tableRecordsAllEmpty:true};
+  }
+ };
+ throw Error('Unexpected clean-start route import: '+name);
+}},{filename:'new-live-clean-start/route.ts'});
+const privateClean=(response,status)=>{
+ assert.equal(response.status,status);
+ assert.equal(response.headers.get('cache-control'),'private, no-store');
+ assert.equal(response.headers.get('vary'),'Cookie','Never share owner-only first-job D1 evidence between sessions');
+ assert.equal(response.headers.get('x-content-type-options'),'nosniff');
+};
+privateClean(await cleanRoute.GET(),401);
+assert.equal(cleanReads,0,'Anonymous first-job readback must not inspect D1');
+cleanUser={};
+privateClean(await cleanRoute.GET(),401);
+cleanUser={email:'nonowner@example.invalid'};
+privateClean(await cleanRoute.GET(),401);
+assert.equal(cleanReads,0,'Invalid owner identity never reads release schema');
+cleanUser={email:'kylebrooks8605@gmail.com'};
+cleanEnv.FIRE_ENV='staging';
+privateClean(await cleanRoute.GET(),404);
+assert.equal(cleanReads,0,'STAGING cannot inspect NEW LIVE clean-start');
+cleanEnv.FIRE_ENV='new-live-prelaunch';
+const checked=await cleanRoute.GET();
+privateClean(checked,200);
+const inspectedProof=await checked.json();
+assert.equal(inspectedProof.firstJobNumberExpected,'0001');
+assert.equal(inspectedProof.readOnly,true);
+assert.equal(inspectedProof.releaseApproved,false);
+assert.equal(inspectedProof.providerIdentityVerified,false);
+assert.equal(inspectedProof.orderedMigrationsVerified,false);
+assert.equal(cleanReads,1,'Only correct authenticated release target can inspect');
+cleanFailure=true;
+privateClean(await cleanRoute.GET(),409);
+assert.equal(cleanReads,2,'D1 failure cannot become a success receipt');
+cleanUser='throw';
+privateClean(await cleanRoute.GET(),401);
+assert.equal(cleanReads,2,'Identity failure never inspects D1');
+console.log('PASS: NEW LIVE clean-start actual-route 401/404/200/409, session-private response headers, no release approval or provider write');
 console.log('PASS: NEW LIVE numbering, customer save and communication uncertain-ACK recovery contracts');
