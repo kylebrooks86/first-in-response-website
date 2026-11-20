@@ -2,7 +2,7 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {DOOR_BOOK_KEY,decodeDoorBook,validDoorBook,houseKey,doorId,doorStatus,latestDoorVisit,doorSuppressed,validDoorFollowUpDate,validDoorPoint,validDoorCapturedAt} from '../../../lib/door-knocking';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()==='kylebrooks8605@gmail.com';}
 export async function GET(){
  if(!await authorized())return json({error:'Unauthorized'},401);
