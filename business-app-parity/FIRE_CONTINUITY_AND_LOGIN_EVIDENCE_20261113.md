@@ -1,3 +1,16 @@
+<!-- FIRE-NOV20-NEW-LIVE-OWNER-READBACK-PRIVACY-9AE952F -->
+## November 20, 2026 — NEW LIVE private clean-start endpoint corrected and actual-route regression committed (SOURCE ONLY)
+
+On the **existing unmerged main-target Draft PR #282**, the read-only owner NEW LIVE initial Job #0001 / physical D1 clean-start route `business-app-parity/shared/app/api/release/new-live-clean-start/route.ts` was found to omit `Vary: Cookie` even though it reveals owner-only first-job schema/prelaunch evidence. Actual code [`615273826b8120e5ac86d1b545d29b737eb2780f`](https://github.com/kylebrooks86/first-in-response-website/commit/615273826b8120e5ac86d1b545d29b737eb2780f) makes its **200/401/404/409 response headers** uniformly `Cache-Control: private, no-store`, `Vary: Cookie`, `X-Content-Type-Options: nosniff` without changing authentication, D1 inspection, Job #0001 rules, migration journal or live activation flags.
+
+Actual [`9ae952f55e0eeee699faa1a3e5418baa0179123b`](https://github.com/kylebrooks86/first-in-response-website/commit/9ae952f55e0eeee699faa1a3e5418baa0179123b) adds executable loaded-route TypeScript/VM regressions to the already-existing `shared/scripts/test-new-live-clean-start.mjs`: anonymous, missing/foreign email 401 before D1, wrong-target 404, owner-only verified read-only 200 with no false release flags, D1 outage 409 and auth-session throw 401; all paths retain private headers. The **exact changed route rehydrated locally** also passed **7/7 narrow VM response scenarios** with synthetic principal/D1 and no provider calls. GitHub automatically started **27 pull-request CI groups** for this exact source+test SHA, but **full exact-head CI verdict remains pending until independently read**. Do not claim an accepted hosted Gate4/5/6/10 from this source-only patch.
+
+Latest owner Cloudflare correction from [Issue #19 #7050983973](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7050983973) remains authoritative: STAGING Access form was **unsaved**, no Allow policy configured, do NOT repeat navigation/screenshot requests. Prior STAGING Preview OFF at 14:29 is accepted and need not be rechecked. The separate narrowly approved **exact STAGING production-hostname owner-email Access** configuration remains pending, not secretly executed. Owner has asked source/GitHub progress before more Cloudflare UI.
+
+**Formal master tracker unchanged**: **51/95 accepted, 44 open; G1/G2/G3/G8 = 4/10 full gates**, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE **DARK/NO-GO** and actual first Job #0001 unused. No Git merge/deploy, Cloudflare Access/routes/Worker, SQL/migration, Stripe/provider/payment, paid Cloudflare/R2, owner-device testing or customer-data changes performed.
+
+---
+
 <!-- FIRE-NOV20-PRICING-IDENTITY-REVISION-FIX-44F423F -->
 ## November 20, 2026 — [x] actual owner pricing fail-closed source defect repaired, native CI pending (NO DEPLOY)
 
