@@ -1,7 +1,7 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-const headers={"Cache-Control":"no-store, private"};
+const headers={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(request:Request){
  const user=await getChatGPTUser();
  if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers});
