@@ -59,6 +59,7 @@ try{
  // Current property/location features are disabled in this legacy-format fixture.
  // Use the production validators for any included manifest rather than stubs.
  const globals=`const env={get DB(){return globalThis.__recordsRecoveryDb;}};
+const getChatGPTUser=async()=>{if(globalThis.__recordsRecoveryAuthThrows)throw Error('Synthetic owner session error');return globalThis.__recordsRecoveryAuth;};
 const serviceLocationsEnabled=(env)=>env.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
 const customerPropertiesEnabled=(env)=>serviceLocationsEnabled(env)&&env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
 const propertyRecoveryTestEnabled=(env)=>customerPropertiesEnabled(env)&&env.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
@@ -66,9 +67,30 @@ const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLoca
 const exportPropertyRecords=()=>{throw Error('Property export must not run without synthetic feature flags')};
 const restorePropertyRecords=()=>{throw Error('Property restore must not run without synthetic feature flags')};
 `;
- const source=globals+raw.replace(/^import .*?;\n/gm,'').replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');
+ const source=globals+raw.replace(/^import .*?;\n/gm,'');
  const backupApi=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
- const exported=await backupApi.GET();equal(exported.status,200);const backup=await exported.json();
+ const ownerEmail=raw.match(/const OWNER_EMAIL = "([^"]+)";/)?.[1];
+ assert.ok(ownerEmail,'Must use real production authorization guard');checks++;
+ const privateReceipt=(res,label)=>{
+  for(const [key,value] of Object.entries({'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}))
+   equal(res.headers.get(key),value,label+' '+key);
+ };
+ const normalDb=globalThis.__recordsRecoveryDb;
+ globalThis.__recordsRecoveryDb={prepare(){throw Error('Unauthorized DB read');},batch(){throw Error('Unauthorized DB batch');}};
+ for(const identity of [null,{}, {email:null}, {email:42}, {email:{}}, {email:'foreign@example.invalid'}]){
+  globalThis.__recordsRecoveryAuth=identity;
+  const get=await backupApi.GET();equal(get.status,401,'Malformed/foreign user GET denied before D1');privateReceipt(get,'GET 401');
+  const post=await backupApi.POST(new Request('https://synthetic.invalid/api/backup',{method:'POST',body:'{}'}));
+  equal(post.status,401,'Malformed/foreign user POST denied before D1');privateReceipt(post,'POST 401');
+ }
+ globalThis.__recordsRecoveryAuthThrows=true;
+ const unavailableGet=await backupApi.GET();equal(unavailableGet.status,401,'Failed identity lookup denies GET');privateReceipt(unavailableGet,'GET auth failure');
+ const unavailablePost=await backupApi.POST(new Request('https://synthetic.invalid/api/backup',{method:'POST',body:'{}'}));
+ equal(unavailablePost.status,401,'Failed identity lookup denies POST');privateReceipt(unavailablePost,'POST auth failure');
+ globalThis.__recordsRecoveryAuthThrows=false;
+ globalThis.__recordsRecoveryAuth={email:ownerEmail};
+ globalThis.__recordsRecoveryDb=normalDb;
+ const exported=await backupApi.GET();equal(exported.status,200);privateReceipt(exported,'GET owner export');const backup=await exported.json();
 // The actual v1 JSON backup must fail closed on an already-migrated numbered
 // schema even if feature flags were subsequently disabled. This is a
 // disposable local SQLite test; no real customer IDs or hosted D1 touched.
@@ -78,6 +100,7 @@ for(const identityTable of ['fire_customer_numbers','fire_job_numbers','fire_job
  equal(deniedExport.status,409,identityTable+' blocks incomplete JSON export even with feature OFF');
  const deniedRestore=await backupApi.POST(new Request('https://synthetic.invalid/api/backup',{method:'POST',body:JSON.stringify(backup)}));
  equal(deniedRestore.status,409,identityTable+' blocks unsafe JSON import before writes');
+ privateReceipt(deniedRestore,identityTable+' unsafe restore');
  equal(sourceDb.prepare('SELECT COUNT(*) n FROM customers').get().n,1,
   identityTable+' refuses the import without touching original customers');
  sourceDb.exec('DROP TABLE '+identityTable);
@@ -97,6 +120,7 @@ equal(backup.tables.payment_refunds.length,4);equal(validateRefundIntegrity(back
  equal(new DatabaseSync(targetPath).prepare('SELECT COUNT(*) n FROM customers').get().n,0,'incomplete declared refund export cannot write customers');
  const rejectedApi=await backupApi.POST(new Request('https://synthetic.invalid/api/backup',{method:'POST',body:JSON.stringify(droppedRefunds)}));
  equal(rejectedApi.status,400,'owner restore API rejects declared-but-missing refund history before writes');
+ privateReceipt(rejectedApi,'Rejected refund-ledger restore');
  assert.match((await rejectedApi.json()).error,/declares refund history but omits payment_refunds/);checks++;
  save(backup);
  let result=restore(targetPath,false);equal(result.status,0,result.stderr);equal(new DatabaseSync(targetPath).prepare('SELECT COUNT(*) n FROM customers').get().n,0,'dry run writes nothing');
