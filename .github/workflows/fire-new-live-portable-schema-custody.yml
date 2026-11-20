@@ -1,0 +1,142 @@
+name: FIRE NEW LIVE reviewed 26-SQL source custody packet (OFFLINE, NO MIGRATION)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/prepare_new_live_portable_schema_packet.mjs'
+      - 'business-app-parity/test_new_live_portable_schema_packet.mjs'
+      - '.github/workflows/fire-new-live-portable-schema-custody.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fire-live-reviewed-sql-custody-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  seal-original-26-sql-only:
+    name: Portable immutable 26 SQL + existing LIVE D1 source (NO PROVIDER/NO APPLY)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - name: Checkout reviewed source, without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check only new source packet and tests syntax
+        run: |
+          node --check business-app-parity/prepare_new_live_portable_schema_packet.mjs
+          node --check business-app-parity/test_new_live_portable_schema_packet.mjs
+      - name: Exercise only new offline source integrity and negative tests
+        run: node business-app-parity/test_new_live_portable_schema_packet.mjs
+      - name: Produce new, separate source-only artifact from original reviewed 26 SQL files
+        run: |
+          node business-app-parity/prepare_new_live_portable_schema_packet.mjs \
+            "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source"
+          test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source" -type f | wc -l)" -eq 31
+          test "$(find "$RUNNER_TEMP/fire-new-live-26-sql-reviewed-source/new-live-schema-source/migrations" -name '*.sql' -type f | wc -l)" -eq 26
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const root=process.env.RUNNER_TEMP+'/fire-new-live-26-sql-reviewed-source';
+          const r=JSON.parse(readFileSync(root+'/portable-schema-source-receipt.json'));
+          const c=JSON.parse(readFileSync(root+'/new-live-schema-source/wrangler.json'));
+          assert.equal(r.remoteMigrationAuthorized,false);
+          assert.equal(r.remoteMigrationAttempted,false);
+          assert.equal(r.workerDeployed,false);
+          assert.equal(r.physicalFirstJob0001Verified,false);
+          assert.equal(r.cloudflareContacted,false);
+          assert.equal(r.paidR2Required,false);
+          assert.equal(c.d1_databases.length,1);
+          assert.equal(c.d1_databases[0].database_id,'0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662');
+          console.log('PASS 31 file-only source package; real NEW LIVE migrations NOT applied.');
+          NODE
+      - name: Keep portable original SQL packet in GitHub WITHOUT provider writes
+        id: immutable_sql_packet_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-NEW-LIVE-26-SQL-PINNED-NEVER-MIGRATE-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-new-live-26-sql-reviewed-source
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+      - name: Read exact same-run retained GitHub archive by immutable ID (bounded GET)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_ARTIFACT_ID: ${{ steps.immutable_sql_packet_upload.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo 'No exact same-run archive ID; STOP'; exit 1; }
+          # The upload response already supplies the immutable ID. GitHub's
+          # workflow-artifact LIST endpoint can briefly return 0 results even
+          # though GET by that same ID succeeds. Do not silently accept some
+          # other run, re-upload, invoke Cloudflare or rerun an applied SQL.
+          archive="$RUNNER_TEMP/fire-new-live-sql-retained.zip"
+          ready=0
+          for attempt in {1..10}; do
+            if gh api --method GET -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/actions/artifacts/${EXPECTED_ARTIFACT_ID}/zip" \
+              > "$archive" 2>/dev/null; then
+              if [[ -s "$archive" ]]; then ready=1; break; fi
+            fi
+            rm -f "$archive"
+            if (( attempt < 10 )); then sleep 4; fi
+          done
+          if (( ready != 1 )); then
+            echo 'Exact same-run GitHub artifact ZIP not readable; STOP with no provider action'; exit 1
+          fi
+          # Do not extract an untrusted ZIP directly. Enforce closed paths,
+          # no links, bounded bytes, exact file count and CRC before readback.
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile, BadZipFile
+          import os, stat
+          base=Path(os.environ['RUNNER_TEMP'])
+          source=base/'fire-new-live-sql-retained.zip'
+          destination=base/'fire-new-live-sql-readback'
+          if not source.is_file() or source.stat().st_size>5_000_000 or source.stat().st_size<22:
+              raise SystemExit('Exact GitHub archive exceeds safe source-only ZIP limits')
+          with ZipFile(source) as z:
+              files=[i for i in z.infolist() if not i.is_dir()]
+              if len(files)!=31 or len({i.filename for i in files})!=31:
+                  raise SystemExit('Expected exactly 31 unique reviewed source files')
+              total=0
+              for i in files:
+                  p=PurePosixPath(i.filename)
+                  mode=i.external_attr>>16
+                  if p.is_absolute() or len(p.parts)<1 or any(x in ('','..','.') for x in p.parts) or '\\' in i.filename or ':' in p.parts[0] or stat.S_ISLNK(mode):
+                      raise SystemExit('Unsafe source archive path or link')
+                  total+=i.file_size
+                  if i.file_size>2_000_000 or total>10_000_000:
+                      raise SystemExit('Source archive expands beyond safe size limit')
+              if z.testzip() is not None:
+                  raise SystemExit('Stored GitHub source archive failed ZIP CRC verification')
+              destination.mkdir(parents=True,exist_ok=True)
+              for i in files:
+                  path=destination.joinpath(*PurePosixPath(i.filename).parts)
+                  path.parent.mkdir(parents=True,exist_ok=True)
+                  path.write_bytes(z.read(i))
+          print('PASS: exact immutable same-run GitHub artifact ZIP recovered with 31 CRC-verified safe files')
+          PY
+      - name: Verify RETAINED 26 reviewed Git-SQL blobs and fail-closed release receipt
+        run: |
+          test "$(find "$RUNNER_TEMP/fire-new-live-sql-readback" -type f | wc -l)" -eq 31
+          test "$(find "$RUNNER_TEMP/fire-new-live-sql-readback/new-live-schema-source/migrations" -type f -name '*.sql' | wc -l)" -eq 26
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {verifyNewLivePortableSchemaPacket} from './business-app-parity/prepare_new_live_portable_schema_packet.mjs';
+          const root=process.env.RUNNER_TEMP+'/fire-new-live-sql-readback';
+          const v=verifyNewLivePortableSchemaPacket(root);
+          assert.equal(v.status,'EXACT_26_REVIEWED_NEW_LIVE_SQL_SOURCE_CUSTODY_VERIFIED');
+          assert.equal(v.sqlFiles,26);
+          assert.equal(v.cloudflareContacted,false);
+          assert.equal(v.schemaMigrated,false);
+          assert.equal(v.firstJob0001Verified,false);
+          assert.equal(v.remoteWriteApproved,false);
+          console.log('PASS GitHub RETAINED actual 31-file archive; all 26 original SQL Git blobs exact, NO D1 migration.');
+          NODE

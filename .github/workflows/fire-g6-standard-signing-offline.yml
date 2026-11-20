@@ -1,0 +1,63 @@
+name: FIRE G6 Standard Signed Quote Deposit (OFFLINE, NO PROVIDER)
+
+on:
+  push:
+    branches:
+      - work/fire-main-qa-dr-live-unified-source-20261114
+    paths:
+      - 'business-app-parity/shared/app/api/public/estimates/[token]/accept/route.ts'
+      - 'business-app-parity/shared/scripts/test-public-accept-token-cas.mjs'
+      - 'business-app-parity/shared/lib/discount-input.ts'
+      - '.github/workflows/fire-g6-standard-signing-offline.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/public/estimates/[token]/accept/route.ts'
+      - 'business-app-parity/shared/scripts/test-public-accept-token-cas.mjs'
+      - 'business-app-parity/shared/lib/discount-input.ts'
+      - '.github/workflows/fire-g6-standard-signing-offline.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  exact-cents-native-sqlite:
+    name: Signed agreement exact 50 percent and revoked token (native SQLite only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Check out reviewed source without retained write credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Refuse a PR merge-checkout tree that differs from exact source head
+        shell: bash
+        env:
+          REVIEW_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REVIEW_HEAD" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          test "$(git rev-parse HEAD^{tree})" = "$(git rev-parse "$REVIEW_HEAD^{tree}")" || {
+            echo 'STOP: checkout tree does not match exact reviewed source'; exit 1;
+          }
+          echo 'PASS: exact reviewed source tree pinned'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Use pinned package manager without install hooks
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm --dir business-app-parity/shared install --frozen-lockfile --ignore-scripts
+      - name: Execute actual standard quote approval SQL and customer token race negatives (no provider)
+        working-directory: business-app-parity/shared
+        run: |
+          node --experimental-sqlite scripts/test-public-accept-token-cas.mjs .
