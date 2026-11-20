@@ -1,0 +1,253 @@
+{
+  "dateUtc": "2026-10-14",
+  "reviewedCandidateCommit": "6231fb5a1bc3b6cd888f7665cca1b02a99e73adf",
+  "scope": "Read-only release gate review; no customer/payment rows or secret values read",
+  "sites": [
+    {
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "title": "FIRE App",
+      "liveUrl": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "latestVersionNumber": 61,
+      "siteUpdatedAt": "2026-10-08T01:23:39.747570+00:00",
+      "siteAccessMode": "public",
+      "databaseOverview": {
+        "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      },
+      "immutableDatabaseUuid": null
+    },
+    {
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "title": "FIRE LIVE — Isolated Refund Staging",
+      "liveUrl": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "latestVersionNumber": 3,
+      "siteUpdatedAt": "2026-10-08T19:50:54.931582+00:00",
+      "siteAccessMode": "public",
+      "databaseOverview": {
+        "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payment_refunds",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      },
+      "immutableDatabaseUuid": null
+    }
+  ],
+  "versions": [
+    {
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "versionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+      "versionNumber": 61,
+      "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+      "archive": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_00000000519c81f585b4507ec02bfa3c",
+        "content_hash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2",
+        "size_bytes": 3778560,
+        "file_count": 163
+      },
+      "deploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5"
+    },
+    {
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "versionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+      "versionNumber": 3,
+      "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+      "archive": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_00000000bee881f5b4c164d2bbd540fd",
+        "content_hash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+        "size_bytes": 3880960,
+        "file_count": 169
+      },
+      "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8"
+    }
+  ],
+  "deployments": [
+    {
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "deploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+      "versionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+      "status": "succeeded",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "providerDeploymentId": "site---6aaf416f82c88191a292fa2e13a9ea61",
+      "envSetRevision": 9,
+      "updatedAt": "2026-10-08T01:23:39.590116+00:00"
+    },
+    {
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+      "versionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+      "status": "succeeded",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "providerDeploymentId": "site---6ac7e8e358dc81918d0a47c4034c4a41",
+      "envSetRevision": 2,
+      "updatedAt": "2026-10-08T19:50:54.872235+00:00"
+    }
+  ],
+  "gateDecision": {
+    "passedGates": 3,
+    "totalGates": 10,
+    "readinessPercent": 30,
+    "newlyPassedGates": 0,
+    "ready": false
+  },
+  "findings": [
+    "Current LIVE binding exposes 18 tables and lacks payment_refunds; this is a candidate promotion blocker, not proof legacy LIVE is broken.",
+    "Refund staging exposes 19 table names; full SQL constraints/indexes/journal and immutable resource isolation remain unverified.",
+    "Saved version/source/archive/deployment links verified for both Sites targets; current development candidate is not their published source.",
+    "Owner screenshots confirm Doomsday binding label fire-app-staging-db and a dashboard 0-table display with UUID prefix afb2c05a-d794-4a9a. A dashboard display is not a schema query.",
+    "IMG_1850 is an edit dialog, not proof a deployment was submitted. IMG_1852 title is truncated and build settings are not a full independent runtime seal.",
+    "No remaining complete gate can be closed from the available read-only evidence."
+  ],
+  "remainingGates": [
+    {
+      "gate": 4,
+      "name": "Deployed identities",
+      "missing": [
+        "LIVE/refund-staging immutable D1 UUIDs and cross-target isolation",
+        "Current authenticated runtime routing/version seals",
+        "Independent artifact/runtime linkage for Doomsday"
+      ]
+    },
+    {
+      "gate": 5,
+      "name": "Remote schema/journals",
+      "missing": [
+        "Complete SQL/index/constraint/journal captures per exact resource",
+        "LIVE candidate schema gap payment_refunds",
+        "Doomsday historical 0022 gap needs current exact-resource confirmation"
+      ]
+    },
+    {
+      "gate": 6,
+      "name": "Authentication adapter",
+      "missing": [
+        "Actual hosted configuration/session/owner isolation verification for coordinated release; local fixtures do not establish this"
+      ]
+    },
+    {
+      "gate": 7,
+      "name": "Photo storage",
+      "missing": [
+        "Verified hosted storage capability and safe round-trip evidence for each target; retained Doomsday capture reports R2 not provisioned"
+      ]
+    },
+    {
+      "gate": 8,
+      "name": "Mobile evidence",
+      "missing": [
+        "Same-device light/dark complete workflows for the exact coordinated release; original apps' reported smooth scrolling does not prove unpublished candidate parity"
+      ]
+    },
+    {
+      "gate": 9,
+      "name": "Sandbox integration",
+      "missing": [
+        "Separately authorized isolated test-mode end-to-end financial integration; current no-Stripe-action restriction remains"
+      ]
+    },
+    {
+      "gate": 10,
+      "name": "Rollback/seal",
+      "missing": [
+        "Exact coordinated candidate artifacts/resources/schema/backup/rollback approval packet and final release seals"
+      ]
+    }
+  ],
+  "safety": {
+    "deployments": 0,
+    "migrations": 0,
+    "databaseWrites": 0,
+    "customerRowsRead": 0,
+    "paymentRowsRead": 0,
+    "secretValuesRead": 0,
+    "stripeActions": 0,
+    "paidServices": 0,
+    "deviceVaultChanges": 0
+  },
+  "screenshots": [
+    {
+      "filename": "IMG_1850.png",
+      "sha256": "0044a00d0336e53d0d8d62668eba42de944446b75095f768e136bd308041f403"
+    },
+    {
+      "filename": "IMG_1851.png",
+      "sha256": "a414f6383af3bcd5c94e8f443afd0084cc2acf4046efc489091a7e5d0634c002"
+    },
+    {
+      "filename": "IMG_1852.png",
+      "sha256": "2fef090ba82e4ae1ad769d5eac71ccce7ead9efc18f6c6b53e3e96fd197e5275"
+    },
+    {
+      "filename": "IMG_1855.png",
+      "sha256": "10c2ed3effabfb12e1652e9ff1033ac2dd23809ebeec49eb6e6296b8d6ebf23d"
+    },
+    {
+      "filename": "IMG_1856.png",
+      "sha256": "232a426a15712827811d1bc47961cc7b752fd20e3568f2681979db96e48efef1"
+    },
+    {
+      "filename": "IMG_1857.png",
+      "sha256": "60710f942421190149ab28a733610d67538aeeb77a4b962e05b990ac61dcb04b"
+    }
+  ]
+}

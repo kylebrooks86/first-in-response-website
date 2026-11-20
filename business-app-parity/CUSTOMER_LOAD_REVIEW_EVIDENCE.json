@@ -1,0 +1,26 @@
+{
+  "manifestFile": "CUSTOMER_LOAD_REVIEW_MANIFEST.json",
+  "manifestSha256": "03bf390068c3f5679e01399f8a5b352427b5edb18f3512da28eae8a28d90065a",
+  "manifestVerified": true,
+  "candidateSnapshotReferences": {
+    "live": "fc545602e4dceee2781c635e4304e4bfab70de8d",
+    "doomsday": "bf6d62c314bcfd7e640f8e16237f2410614f1de5",
+    "staging": "6940453b02ad1ba7d966f67d114cc4736a212a04"
+  },
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30.0,
+    "meaning": "verified release gates, not effort or time remaining"
+  },
+  "productionReady": false,
+  "publicationAuthorized": false,
+  "deployed": false,
+  "historicalFilesPreservedSha256": {
+    "DOOMSDAY_0022_MIGRATION_PLAN.md": "ed4feba043c6be4d9445c163e8e9cd17e3c61fc017104c1ba916427d1958f9b6",
+    "DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json": "c160b6196b8274294f85a077df977b81ffbf6bb1f4e61f9784bd8c646168a6d5",
+    "shared/app/globals.css": "d20d722b17dc72f344bc13f74d1e0761cf4db27cbdfd44a8f6e1159031f10d18",
+    "shared/app/api/customers/route.ts": "b8774e7144a76b1a24f1abe74c31c6b1714c0d50fc1ad4a888308e207397fb02"
+  },
+  "limits": "Local review only; no additional deployed/mobile/schema evidence. Owner Doomsday findings and migration restrictions remain preserved."
+}

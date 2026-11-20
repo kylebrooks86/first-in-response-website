@@ -1,0 +1,40 @@
+{
+  "recordedOn": "2026-10-16",
+  "scope": "Owner-confirmed read-only active independent Doomsday Worker -> bound D1 identity; no LIVE/refund Sites claim",
+  "screenshot": {
+    "origin": "Owner-supplied PowerShell screenshot in FIRE Business App conversation",
+    "filename": "IMG_533C0705-D627-4D0F-92AE-13212855EC48.jpeg",
+    "sha256": "6f98579e6db136f5872621f47b1397565a82442a1ac262c4fb0a2e75541e1fdc",
+    "screenshotBytesExcludedFromRepository": true
+  },
+  "command": "py -3 .../business-app-parity/capture_doomsday_worker_identity_read_only.py --capture",
+  "toolResult": "INDEPENDENT_DOOMSDAY_READ_ONLY_BINDING_MATCH",
+  "observations": {
+    "activeWorker": "fire-app-independent-staging",
+    "activeWorkerVersionId": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+    "versionChangedSincePriorCheckpoint": false,
+    "boundDbBinding": "DB",
+    "boundD1DatabaseId": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+    "accountD1InventoryMatch": true
+  },
+  "evidenceLimitations": {
+    "status": "Owner-executed authenticated Wrangler read-only CLI and visible programmatic verification; not an independently signed hosting-provider attestation",
+    "providerRawResponseArchived": false,
+    "deploymentRoutingSourceArtifactShaVerified": false,
+    "liveDbUuidVerified": false,
+    "refundStagingDbUuidVerified": false,
+    "allThreeTargetsPhysicalIsolationVerified": false,
+    "post0022DoomsdayCandidateHosted": false,
+    "appCustomerOrPaymentRowsRead": false,
+    "databaseModified": false,
+    "deploymentModified": false
+  },
+  "gate4Passed": false,
+  "gate5Passed": false,
+  "officialReadinessPercent": 30,
+  "remaining": [
+    "LIVE and refund staging physical DB mappings and isolation verified by Sites hosting provider",
+    "Independent source/artifact fingerprint linked to current Doomsday Worker version",
+    "Hosted candidate migrations including Doomsday 0022 require owner-reviewed preflight, writer protection and explicit separate authorization"
+  ]
+}

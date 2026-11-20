@@ -1,0 +1,39 @@
+# FIRE Gate 7 — job-linked original photo ownership and protected recovery (November 17, 2026)
+
+**Scope:** actual application source changes on existing unmerged Draft PR #270. All operations below are code commits, synthetic tests, or GitHub Actions only. **Not hosted proof, owner-device restore proof, a full same-snapshot D1/photo pair, gate acceptance or authorization to deploy.**
+
+## Existing history honored
+- October 27 owner iPhone successfully restored the three archived original QA photos into the customer gallery, retained them across restart and confirmed them offline. Those owner tests are accepted and must **not** be repeated.
+- Older ZIPs contain customer-only photos without `jobId`; they remain valid. No R2 bucket, subscription, cloud photo upload, new D1 table or migration was introduced.
+
+## Actual source repairs
+1. `business-app-parity/shared/lib/offline-photo-backup.ts` and `local-photo-vault.ts` already preserved optional bounded `jobId` fields and SHA-verifiable original bytes.
+2. `business-app-parity/shared/lib/numbered-photo-recovery-pair.mjs` now proves an archived `jobId` exists in the same numbered-D1 snapshot, resolves root estimate and additional `fire_job_estimate_links` IDs to the actual job, and requires that job's customer to match the photo customer; cross-customer, unknown, conflicting and unsupported identifiers fail closed. Source commits [c70b7f7](https://github.com/kylebrooks86/first-in-response-website/commit/c70b7f7b6dc574890983608e8878e430d9b111ce) and [2a87f08](https://github.com/kylebrooks86/first-in-response-website/commit/2a87f08851255cefd7e76cce6c1a197a20bf8f14).
+3. `local-photo-vault.ts` now requires a verified **job → customer** inventory before writing job-linked restored photos, not merely a list of plausible job IDs. Missing/unknown/duplicated/cross-customer job references fail *before IndexedDB writes*. Existing customer-only ZIPs remain importable without a job inventory ([fd8450d](https://github.com/kylebrooks86/first-in-response-website/commit/fd8450d1ccb8bc31584161a184a3ac80750db81f)).
+4. The real `offline-customer-photos.tsx` displays an optional saved-job selector and tags new originals with the verified job's immutable estimate ID. The owner online `dashboard.tsx` supplies job/customer pairs from authenticated `/api/customers` data; offline cached-name fallback supplies no job inventory. The UI preflights ownership **before** its durable mutation journal and rejects stale/foreign links. It shows a saved job label, or a warning to check restored job records, without inventing a job owner ([ef3f323](https://github.com/kylebrooks86/first-in-response-website/commit/ef3f323ab7109c0c3fb87ae0468767b6ca2c4f5a), [100da72](https://github.com/kylebrooks86/first-in-response-website/commit/100da72e64350a4f663c563d1416e817b2973d00)).
+5. The independent saved protected ZIP verifier now rejects invalid/missing/foreign job associations before reporting a backup verified; previous customer-only ZIPs are unchanged ([aa91d51](https://github.com/kylebrooks86/first-in-response-website/commit/aa91d51da7622cd02e97cd84c33ab2e805098280)).
+
+## Changed-function tests
+- Paired-records synthetic cases cover a valid numbered root estimate, additional valid same-customer linked estimate, unknown ID, display-only number, customer mismatch, valid multi-customer snapshot, and altered original bytes ([c23fe04](https://github.com/kylebrooks86/first-in-response-website/commit/c23fe04bf9498b0451c898f0a0733ca2ae91b36d), [efbe9b0](https://github.com/kylebrooks86/first-in-response-website/commit/efbe9b07f1e3f9337d14eb930a7700a3b1e92241)).
+- Actual photo source unit tests cover missing inventory, unknown jobs, duplicate job keys, cross-customer rejection, customer-only compatibility and pre-mutation UI wiring ([fc7a571](https://github.com/kylebrooks86/first-in-response-website/commit/fc7a57178a91f05abc96a490bc8495f4ea4df807)).
+- Disposable Chrome IndexedDB test saves a job-linked original, exports and hashes an actual ZIP, deletes the synthetic original, rejects three unverified restores **without writing**, and confirms original bytes/customer/job metadata after correct-owner restore ([52a3d3a](https://github.com/kylebrooks86/first-in-response-website/commit/52a3d3aeac51839faca9dd91a5f4f3869697fd73)). It is now explicitly executed in the existing pinned-Chrome staging CI ([65bf530](https://github.com/kylebrooks86/first-in-response-website/commit/65bf530e8c4c2706e10207e12720abd50c133045)); no browser download, provider call or actual owner records.
+
+On source commit `65bf530e8c4c2706e10207e12720abd50c133045`, [Gate7 protected saved-file CI #44120832550](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44120832550), [numbered v2/photo-pair CI #44120832566](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44120832566) and [public website/calculator integration guard #44120833505](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44120833505) completed **SUCCESS**. [Staging/real Chrome CI #44120832586](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44120832586) was still in progress at this evidence creation; only its eventual exact-head result can establish the new IndexedDB test PASS.
+
+## Unresolved release requirements — never infer from this source work
+- G7-03/G7-04: a separately protected and saved **actual owner** original-photo ZIP, paired with complete same-snapshot actual D1 records/journals, hash/count/association verification and independent custody.
+- G7-07: **actual owner target-bound** photo restore/reopen, correct job/customer associations and original byte hashes with the matching record restore; old October 3-photo customer-only restoration remains valid but is a narrower test.
+- G4/G5/G6/G9/G10: independently hosted QA/STAGING/DR/LIVE parity/Access/nonowner denial, Stripe-signed TEST payment/refund and final release authorizations remain separate.
+
+**Checklist remains 45/95 checked; formal gates remain G1/G2/G3/G8 accepted (4/10).** G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO, first real Job #0001 not created. No Cloudflare login, provider mutation, SQL, Stripe, paid Cloudflare/R2, merge, DNS, Access or deployment performed.
+
+## Exact focused Chrome outcome (later readback)
+
+The added, genuinely executable [staging workflow run #44120832586](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44120832586) on exact app code SHA `65bf530e8c4c2706e10207e12720abd50c133045` confirmed the following specific steps **COMPLETED SUCCESS**:
+- **Gate 7 numbered job-linked photo capture/restore and customer isolation (real disposable Chrome IndexedDB)**
+- **Gate 7 changed protected photo UI actual Chrome export/verify/restore (synthetic only)**
+- **Gate 7 bounded photo upload, safe viewing and verified deletion (no remote storage)**
+- **Gate 7 strict offline photo ZIP restore rejects forged directory metadata (no provider)**
+
+At this job-step readback the entire staging workflow still had in-progress jobs; **do not represent full workflow as green until GitHub reports completion**. This targeted evidence verifies changed source functions and disposable local browser only. It proves neither actual iPhone owner/job restore nor protected hosted source/owner pairing.
+

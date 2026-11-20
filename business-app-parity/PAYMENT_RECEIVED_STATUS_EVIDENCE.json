@@ -1,0 +1,71 @@
+{
+  "parent": "24708d37eba591401045cfeb0784d86a8b13cf15",
+  "evidenceFile": "PAYMENT_RECEIVED_STATUS_EVIDENCE.json",
+  "candidateSnapshotCommits": {
+    "live": "5290ffeffc7446629375210ab006e7f11a0f9772",
+    "doomsday": "76f3e5d950509a253f4547ecd44bf787d66a2c1b",
+    "staging": "ab76755b1e87d09fc81d696d3622cee0ccd80fa4"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/payment-status-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/payment-status-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/payment-status-staging"
+  },
+  "newChecksPerTarget": 98,
+  "newChecksPassed": 294,
+  "newChecksTotal": 294,
+  "suiteRunsPassed": 9,
+  "suiteRunsTotal": 9,
+  "suiteNames": [
+    "test-payment-received-status.mjs",
+    "test-payment-mobile-ui.mjs",
+    "test-processing-fees.mjs"
+  ],
+  "priorMobileStructuralChecksPassed": 33,
+  "priorMobileStructuralChecksTotal": 33,
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "buildCompletionVerifiedInLogs": true,
+  "sharedFilesMatched": 119,
+  "sharedFilesChecked": 119,
+  "negativeControlPreFixRejected": true,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "asOf": "2026-10-09",
+  "scope": "isolated FIRE Business App candidates only",
+  "changedFilesSha256": {
+    "shared/app/dashboard.tsx": "f3c633ff5a48d7b747b74f0c60434c55c51dba4ef00e9c3eb65ac7481c31717c",
+    "shared/scripts/test-payment-received-status.mjs": "9e0d838d56896897dd08265ea6105beec99c3b9460bec25527e670b2186c7ecd"
+  },
+  "verifiedFinding": "Payments GET returns all statuses. Previously Total recorded, Net tips and processing report counted pending/failed entries as received.",
+  "fixedBehavior": [
+    "Only paid entries feed Total recorded, Net tips and processing report.",
+    "Paid negative refund and tip-refund ledger entries remain in totals.",
+    "All history entries remain visible and show their status.",
+    "Non-paid history rows do not show net-received details or refund controls."
+  ],
+  "fixtures": [
+    "mixed statuses",
+    "pending only",
+    "failed only",
+    "paid refunds",
+    "empty",
+    "zero amount",
+    "unknown status",
+    "unpaid refunds with paid tip"
+  ],
+  "method": "Actual Payments GET executes against fully migrated in-memory SQLite. Actual PaymentsView extracted by TypeScript AST and executed with seeded component state. Negative control substitutes parent component; assertions fail.",
+  "mockedStripe": true,
+  "realMobileEvidenceCaptured": false,
+  "remoteDatabaseWrites": false,
+  "stripeMutations": false,
+  "priorManifest": "CANDIDATE_RELEASE_MANIFEST.json retained historical; newer source is not sealed by that manifest."
+}

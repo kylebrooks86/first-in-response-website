@@ -1,0 +1,302 @@
+{
+  "asOf": "2026-10-10",
+  "scope": "Independent read-only public response/hash checks; not automated iPhone testing or authenticated account audit",
+  "expectedURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+  "expectedSourceCommit": "5279d071ec8651c0ba5e963b4aa0d3bb4c84ccc7",
+  "shellVersion": "b9cbe0f7beff59d57f092c55",
+  "checks": [
+    {
+      "file": "synthetic-customer-demo/index.html",
+      "expectedSha256": "caedc936f4567b19d264d4bcef65bbb08af44557ec07f495b221f88f7b5c6edc",
+      "observedSha256": "caedc936f4567b19d264d4bcef65bbb08af44557ec07f495b221f88f7b5c6edc",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/html",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null,
+      "canonicalFetchURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+      "initialHTMLPathRedirect": "308 Pages clean-URL redirect; empty redirect body is not an asset hash"
+    },
+    {
+      "file": "synthetic-customer-demo/store.js",
+      "expectedSha256": "ee59b1729d0056fe5b98d278677465ee5b62e4bb3261f6fb992109b5f71cfef5",
+      "observedSha256": "ee59b1729d0056fe5b98d278677465ee5b62e4bb3261f6fb992109b5f71cfef5",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/backup.js",
+      "expectedSha256": "cb60be09855273596cbc509e8e63c32aa6dc35f63bcc4f43384f56ca9228742c",
+      "observedSha256": "cb60be09855273596cbc509e8e63c32aa6dc35f63bcc4f43384f56ca9228742c",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/vault.js",
+      "expectedSha256": "1d71303ffa28ea65b004a1c907d2f3d7bdf53032667f0c514ca3aba9232a8216",
+      "observedSha256": "1d71303ffa28ea65b004a1c907d2f3d7bdf53032667f0c514ca3aba9232a8216",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/demo.js",
+      "expectedSha256": "93966ed34241067dec04e8fc98624ca2a5f8cdf3c3cc8b6f866b5dd710e8c8a5",
+      "observedSha256": "93966ed34241067dec04e8fc98624ca2a5f8cdf3c3cc8b6f866b5dd710e8c8a5",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/manifest.webmanifest",
+      "expectedSha256": "198fae91029f98d0f4dc475df522b8e5822d2a64561f5a467c86a0b12644cebe",
+      "observedSha256": "198fae91029f98d0f4dc475df522b8e5822d2a64561f5a467c86a0b12644cebe",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "application/manifest+json",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/icon-180.png",
+      "expectedSha256": "fcbb211e73f9014a615dbaf7c279bffb1880413a3b3bb4b82eee8880d38d93ea",
+      "observedSha256": "fcbb211e73f9014a615dbaf7c279bffb1880413a3b3bb4b82eee8880d38d93ea",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "image/png",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/icon-512.png",
+      "expectedSha256": "81fe4d599db8af72b6bb4b6ea6f7eb0889f392c1cc589a41a49ea093350869e8",
+      "observedSha256": "81fe4d599db8af72b6bb4b6ea6f7eb0889f392c1cc589a41a49ea093350869e8",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "image/png",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-fire-synthetic-asset": "1",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "synthetic-customer-demo/worker.js",
+      "expectedSha256": "d07dd58a7160f832d9211d825a8721a673c45ce1b42d9115130185736dab8d4d",
+      "observedSha256": "d07dd58a7160f832d9211d825a8721a673c45ce1b42d9115130185736dab8d4d",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "service-worker-allowed": "/synthetic-customer-demo/",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    },
+    {
+      "file": "404.html",
+      "expectedSha256": "63ac13e9d4ea50691f7c0ccda0d12aa5addd128c4fd7c79dda978064a6e6f7f1",
+      "observedSha256": "63ac13e9d4ea50691f7c0ccda0d12aa5addd128c4fd7c79dda978064a6e6f7f1",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null,
+      "canonicalFetchURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/404",
+      "initialHTMLPathRedirect": "308 Pages clean-URL redirect; empty redirect body is not an asset hash"
+    },
+    {
+      "file": "robots.txt",
+      "expectedSha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "observedSha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "hashMatches": true,
+      "curlExit": 0,
+      "statusLines": [
+        "HTTP/1.1 200 OK",
+        "HTTP/2 200 "
+      ],
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; script-src 'self' 'sha256-KWqK0SrJWWeR0AJnZIfvjC5ufaC1+3Ex6urnQgMIshA='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow",
+        "server": "cloudflare"
+      },
+      "error": null
+    }
+  ],
+  "fileHashes": {
+    "passed": 11,
+    "total": 11
+  },
+  "transport": "curl HTTPS through managed network/proxy; no --insecure, no temporary certificate bypass; direct Cloudflare certificate chain was not separately inspected",
+  "configurationFilesNotPubliclyFetched": [
+    "_headers",
+    "_redirects"
+  ],
+  "accountBindingsFunctionsBilling": "UNVERIFIED via authenticated account; static approved inventory remains prior source evidence",
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "deploymentsPerformedByThisBatch": 0,
+  "hostedHeaderChecks": {
+    "responsesPassed": 11,
+    "responsesTotal": 11,
+    "expectedMimeTypes": true,
+    "noStore": true,
+    "nosniffFrameDenyReferrerNoRobots": true,
+    "cspPresent": true,
+    "workerDirectoryScopeExact": true,
+    "providerCORS": "*",
+    "directCloudflareCertificateChainInspected": false
+  }
+}

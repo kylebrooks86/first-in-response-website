@@ -1,0 +1,58 @@
+{
+  "parentRuntimeCommit": "53984f88cf2152cfc52d727adb82e810b3279927",
+  "scope": "shared candidate source; no deployed offline verification",
+  "checkedSourceSha256": {
+    "app/page.tsx": "ab7f0851eaf6e295066ab7b83904f2e695d65447660766df98e55768a5460a46",
+    "app/manifest.ts": "3c1d6f22efaec04e576f8d8c62be8483017d0990be650abffbae65efad1e1d07",
+    "app/dashboard.tsx": "768673d8092135587b39abf3943f0575e1fbe9fadaf13a29c8e1632775f1cc6d",
+    "app/api/backup/route.ts": "cc8b4ca51eee42bc290a9a4f4c5f77fe293021dbdf6e852ee2c32fc893fef262",
+    "app/api/backup/photos/route.ts": "aa10e3cfbdb5c4451cc6488c1a25a303703088d58f8606ead2f5a23181cd70ac"
+  },
+  "offlineImplementationTokens": {
+    "serviceWorker": [],
+    "indexedDB": [],
+    "caches.open": []
+  },
+  "literalDashboardFetchEndpoints": [
+    "/api/backup",
+    "/api/customer-messages",
+    "/api/customer-notes",
+    "/api/customer-photos",
+    "/api/customers",
+    "/api/dashboard-summary",
+    "/api/estimates",
+    "/api/expenses",
+    "/api/invoices",
+    "/api/job-reports",
+    "/api/message-templates",
+    "/api/notifications",
+    "/api/payments",
+    "/api/payments/refund",
+    "/api/tasks",
+    "/api/weather"
+  ],
+  "endpointScanLimit": "Literal calls only; template/dynamic URLs omitted. Not an exhaustive runtime traffic inventory.",
+  "homeRouteServerAuthAndD1": true,
+  "offlineRecordsImplemented": false,
+  "offlineColdLaunchVerified": false,
+  "actualIphoneOfflineVerified": false,
+  "plan": "OFFLINE_FIRST_IMPLEMENTATION_PLAN.md",
+  "runtimeChanged": false,
+  "deployments": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServices": false,
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "ready": false
+  },
+  "verification": {
+    "contentChecksPassed": 8,
+    "contentChecksTotal": 8,
+    "runtimeTestsRerun": false,
+    "buildsRerun": false,
+    "reason": "Documentation-only batch; previous runtime evidence retained."
+  }
+}
