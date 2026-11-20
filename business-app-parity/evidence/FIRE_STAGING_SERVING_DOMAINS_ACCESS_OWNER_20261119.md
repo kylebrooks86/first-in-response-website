@@ -42,3 +42,18 @@
 **Correct current STAGING ingress composite:** workers.dev Production **ON**, wildcard Preview **ON**, no STAGING Worker-specific Cloudflare Access, no STAGING Worker custom domains/zone routes displayed, account-wide Access OFF in previously accepted evidence. The existing Worker has *publicly visitable endpoints* in Dashboard terminology; that fact does **not** prove a private application API is accessible without its own authentication. An empty custom routes list is NOT evidence that production/preview URLs are disabled.
 
 **Subproofs completed:** G4-01 physical current 100%-serving STAGING full version ID; G4-05 target-specific **Custom Domains and Routes empty-state** and public production/preview URL settings. **Formal G4-01 and G4-05 still [ ]** due full source/other-target/account-wide externally probed ingress and Access scope. G4-06 missing protected ingress design and G4-04 secret mismatch still [ ]. Owner must not repeat these exact STAGING Dashboard screens. No Cloudflare setting or Worker/DB/Access/secret/provider/R2/Stripe change, test login, download, deploy or merge.
+
+
+---
+
+<!-- FIRE-STAGING-PREVIEW-OFF-OWNER-20261120 -->
+## November 20, 2026, 13:59 CST — owner-authorized STAGING wildcard preview OFF (physical UI evidence)
+
+The owner explicitly authorized **only** turning OFF the Cloudflare **STAGING** Worker `fire-app-independent-staging` wildcard preview URLs, preserving the existing production workers.dev URL and every other Worker, Access setting, D1, Stripe, subscription and deployment. This narrow operation is now physically documented by the owner's authenticated Safari Cloudflare **Worker → Production → Domains** screenshot (707×1536 PNG, original kept privately in owner conversation; SHA-256 `ffc0ea9be093d338ce5fdc9332b7c91f64dbd19319dc69a8572a4f8091ccd778`). [Issue #19 original evidence receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7049337365).
+
+- `*-fire-app-independent-staging.kyle-bfc.workers.dev`: **Preview OFF (gray)**, replacing the Nov19 ON observation above. **[x] This exact STAGING wildcard toggle/UI subproof is complete; do not re-request the screenshot.**
+- `fire-app-independent-staging.kyle-bfc.workers.dev`: **Production ON (blue)**, intentionally unchanged under owner scope.
+- Worker-level **Custom Domains and Routes** list still shows no listed entries. Production URL row says **“Anyone with this URL can visit. Enable Access.”** Previously accepted Worker Access page shows no Worker-specific policy; no Access change was authorized.
+- The screenshot is real Cloudflare authenticated UI-state evidence. It is **not** an independent anonymous HTTP denial result, an exhaustive Cloudflare account-wide alias/zone inspection, a source-code/asset hash, a secret-scope repair or a hosted customer privacy test. An attempted unauthenticated assistant-side network lookup afterward did not yield an HTTP status and therefore provides **no additional pass/fail proof**.
+
+**Formal status unchanged:** original numbered **G4-05 [ ]** and **G4-06 [ ]** remain OPEN pending remaining ingress/Access requirements; G4-04 secret-name mismatch and STAGING 22/25 applied migration journal persist. **51/95 checklist accepted, 44 open; 4/10 full gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unissued.** This is documentation of an owner-performed narrowly approved toggle, not additional authorization to disable production, enable Access, change secrets, deploy, migrate, create R2, touch Stripe, or merge.
