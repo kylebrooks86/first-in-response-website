@@ -14,12 +14,15 @@ sql.exec(`
  INSERT INTO estimates VALUES ('job-synthetic','owner-synthetic');
 `);
 let user={email:'kylebrooks8605@gmail.com'},writes=0,reads=0;
-let throwAfterCommit=false,skipWrite=false,throwReadback=false;
+let throwAfterCommit=false,skipWrite=false,throwReadback=false,throwEstimateLookup=false;
 const prepare=query=>({
  values:[],
  bind(...values){this.values=values;return this;},
  async first(){
    reads++;
+   if(throwEstimateLookup&&query.includes('SELECT id FROM estimates WHERE id=?')){
+     throwEstimateLookup=false;throw Error('synthetic linked job D1 outage');
+   }
    if(throwReadback&&query.includes('FROM expenses WHERE id=?')){
      throwReadback=false;throw Error('synthetic readback outage');
    }
@@ -50,7 +53,10 @@ let tests=0;const check=(condition,label)=>{assert.ok(condition,label);tests++;c
 try{
  user=null;
  const noAuthWrites=writes;
- check((await call(base(1))).status===401,'Anonymous expense POST rejected before D1');
+ const anonymous=await call(base(1));
+ check(anonymous.status===401,'Anonymous expense POST rejected before D1');
+ check(anonymous.headers.get('cache-control')==='private, no-store'&&anonymous.headers.get('vary')==='Cookie'&&
+  anonymous.headers.get('x-content-type-options')==='nosniff','Anonymous owner financial denial stays session-private and nosniff');
  check(writes===noAuthWrites,'No financial record written by anonymous request');
  user={email:'stranger@example.invalid'};
  check((await call(base(1))).status===401,'Nonowner expense POST denied');
@@ -65,8 +71,9 @@ try{
  }));
  let blocked=await rawExpense(JSON.stringify(base(91,{description:'x'.repeat(32_100)})));
  check(blocked.status===413,'Expense payload over 32000 bytes rejected before parsing');
- check(blocked.headers.get('cache-control')==='private, no-store',
-  'Rejected oversized owner expense never cacheable');
+ check(blocked.headers.get('cache-control')==='private, no-store'&&blocked.headers.get('vary')==='Cookie'&&
+  blocked.headers.get('x-content-type-options')==='nosniff',
+  'Rejected oversized owner expense is private, session-varied and nosniff');
  blocked=await rawExpense(JSON.stringify(base(92)),32001);
  check(blocked.status===413,'Oversize declared length stops before reading expense body');
  blocked=await rawExpense(JSON.stringify(base(93)),5);
@@ -85,7 +92,8 @@ try{
  check(response.status===201,'Undated expense saved once with server-generated timestamp');
  let receipt=await response.json();
  check(receipt.confirmed===true&&receipt.requestId===firstRequest.requestId&&receipt.expense.id===firstRequest.requestId,'First save returns exact immutable record identity');
- check(response.headers.get('cache-control')==='private, no-store','Financial record save receipt not cached');
+ check(response.headers.get('cache-control')==='private, no-store'&&response.headers.get('vary')==='Cookie'&&
+  response.headers.get('x-content-type-options')==='nosniff','Financial save receipt is session-private and nosniff');
  const firstDate=receipt.expense.incurredAt,firstCreated=receipt.expense.createdAt;
  check(Number.isFinite(Date.parse(firstDate))&&Number.isFinite(Date.parse(firstCreated)),'Server-created expense timestamps are valid');
 
@@ -137,7 +145,20 @@ try{
 
  check((await call(base(6,{incurredAt:'not-an-instant'}))).status===400,'Invalid expense date rejected');
  check((await call(base(7,{estimateId:'not-a-job'}))).status===404,'Unknown job expense link rejected');
- check(count()===4,'Invalid inputs do not create expenses');
+ const beforeOutageWrites=writes,beforeOutageCount=count();
+ throwEstimateLookup=true;
+ response=await call(base(70,{description:'Linked job lookup D1 outage'}));
+ const outageBody=await response.json();
+ check(response.status===503&&outageBody.error.includes('No expense was saved'),
+   'Transient linked job lookup D1 failure returns controlled 503, not misleading 404/500');
+ check(response.headers.get('cache-control')==='private, no-store'&&response.headers.get('vary')==='Cookie'&&
+  response.headers.get('x-content-type-options')==='nosniff','Financial outage response is private, session-varied and nosniff');
+ check(writes===beforeOutageWrites&&count()===beforeOutageCount,
+   'Failed linked job lookup attempts ZERO expense writes');
+ response=await call(base(70,{description:'Linked job lookup D1 outage'}));
+ check(response.status===201&&count()===beforeOutageCount+1,
+   'Retry with same stable expense request ID recovers cleanly when D1 returns');
+ check(count()===5,'Invalid requests and recovered job outage leave only intended expenses');
  // Date-only input is a real older-client/API path. Midnight UTC becomes
  // December 30 in Tulsa; this must persist the selected Dec 31 tax day.
  const calendar=base(8,{description:'Year-end selected calendar purchase',incurredAt:'2026-12-31'});
@@ -161,6 +182,6 @@ try{
   check(response.status===400,'Invalid/ambiguous expense date '+incurredAt+' is rejected');
   check(stored(invalid.requestId)===null,'No invalid-date financial record saved for '+incurredAt);
  }
- check(count()===5,'Invalid dates cannot add a financial expense');
+ check(count()===6,'Invalid dates cannot add a financial expense');
  console.log('PASS '+tests+'/'+tests+' actual owner expense POST and native SQLite: idempotent undated/date-only/explicit dates, stable Tulsa year-end tax dates, invalid rollover refusal, lost ACK, immutable receipt and identity; synthetic-only.');
 } finally{sql.close();}
