@@ -4,7 +4,11 @@ import {DISCOUNT_SNAPSHOT_PREFIX,verifiedSavedDiscounts} from '../../../../../li
 const privateHeaders={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:privateHeaders});
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
- const user=await getChatGPTUser();if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return reply({error:'Unauthorized'},401);
+ // A failed/malformed owner identity cannot access saved discount amounts.
+ try{
+  const user=await getChatGPTUser();
+  if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return reply({error:'Unauthorized'},401);
+ }catch{return reply({error:'Unauthorized'},401);}
  const {id}=await params;
  if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))return reply({error:'Invalid estimate.'},400);
  try{

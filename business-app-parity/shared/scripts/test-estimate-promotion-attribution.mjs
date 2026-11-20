@@ -47,6 +47,26 @@ try{
  same(saved.depositCents,18300,'Half deposit $183');
  same(saved.promotionAttributionSaved,true,'Receipt confirms atomic rule audit');
  const quoteId=saved.id;
+ // Real loaded owner-only GET routes must reject malformed or unreadable
+ // principals before any discount/quote D1 read. Public customer routes are
+ // intentionally not exercised or changed by this source-only regression.
+ const sealedBeforeAuth=current();
+ for(const principal of [
+  null,{}, {email:null},{email:31},{email:'not-the-owner@example.invalid'},
+  {get email(){throw Error('Synthetic session principal getter failed')}}
+ ]){
+  r.setOwner(principal);
+  for(const [label,readPrivate] of [['discounts',()=>r.get(quoteId)],['promotion history',()=>read(quoteId)]]){
+   const calls=r.counters(),denied=await readPrivate();
+   same(denied.status,401,label+' refuses malformed/nonowner identity');
+   same(denied.headers.get('cache-control'),'private, no-store',label+' denial is private');
+   same(denied.headers.get('vary'),'Cookie',label+' denial varies by session');
+   same(denied.headers.get('x-content-type-options'),'nosniff',label+' denial is not sniffable');
+   same(r.counters(),calls,label+' denied before all D1 reads/writes');
+  }
+ }
+ r.setOwner({email:'kylebrooks8605@gmail.com'});
+ same(current(),sealedBeforeAuth,'Malformed sessions cannot touch saved quote/discount records');
  const row=r.db.prepare('SELECT body FROM message_templates WHERE key=?').get(audit.ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+quoteId);
  truth(Boolean(row?.body),'Frozen attribution persisted');
  let frozen=JSON.parse(row.body);

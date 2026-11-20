@@ -6,8 +6,12 @@ const privateHeaders={'Cache-Control':'private, no-store','Vary':'Cookie','X-Con
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:privateHeaders});
 /** Owner-only immutable rule-at-save audit; never reruns present-day promotion rules. */
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
- const user=await getChatGPTUser();
- if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ // Do not read frozen private promotion receipts if session retrieval fails,
+ // or the resolved principal has a missing/non-string/throwing email field.
+ try{
+  const user=await getChatGPTUser();
+  if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ }catch{return json({error:'Unauthorized'},401);}
  const {id}=await params;
  if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))return json({error:'Invalid estimate.'},400);
  try{
