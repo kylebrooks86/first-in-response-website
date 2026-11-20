@@ -51,6 +51,13 @@ try{
   check(denied.status===401&&observed.length===reads,'Malformed principal gets 401 before sign D1 reads');
   check(denied.headers.get('cache-control')==='private, no-store'&&denied.headers.get('vary')==='Cookie'&&denied.headers.get('x-content-type-options')==='nosniff','Denied sign data stays session-private');
  }
+ const failedSession=load('app/api/dashboard-yard-signs/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>{throw Error('Synthetic session lookup failure');}},'../../../lib/dashboard-yard-signs':helper});
+ const unavailable=await failedSession.GET();
+ check(unavailable.status===401&&observed.length===reads,'Throwing owner session denies sign data without D1');
+ check(unavailable.headers.get('cache-control')==='private, no-store'&&unavailable.headers.get('vary')==='Cookie'&&unavailable.headers.get('x-content-type-options')==='nosniff','Session failure sign denial remains private');
+ user={get email(){throw Error('Synthetic unreadable identity');}};
+ const malformedSession=await api.GET();
+ check(malformedSession.status===401&&observed.length===reads,'Throwing owner email getter denies sign data before D1');
  user={email:'kylebrooks8605@gmail.com'};
  insertNote('b-2','b',flags.SIGN_PICKED_UP_NOTE,'2026-10-20T15:00:00Z');
  const after=await (await api.GET()).json();

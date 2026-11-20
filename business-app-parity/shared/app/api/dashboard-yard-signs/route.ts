@@ -5,8 +5,11 @@ export const dynamic="force-dynamic";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const readHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 export async function GET(){
- const user=await getChatGPTUser();
- if(typeof user?.email!=="string"||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:readHeaders});
+ // Failed, malformed or throwing owner-session lookups must deny BEFORE any D1 query.
+ try{
+  const user=await getChatGPTUser();
+  if(typeof user?.email!=="string"||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:readHeaders});
+ }catch{return Response.json({error:"Unauthorized"},{status:401,headers:readHeaders});}
  try{
   // Read only the small set of yard-sign events; do not pull all customer finances,
   // photo metadata, or other customer notes into the Dashboard.

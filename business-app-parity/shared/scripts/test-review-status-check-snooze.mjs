@@ -46,6 +46,13 @@ try{
   check(denied.status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Malformed review-snooze principal denied without D1 work");
   check(denied.headers.get("cache-control")==="private, no-store"&&denied.headers.get("vary")==="Cookie"&&denied.headers.get("x-content-type-options")==="nosniff","Snooze 401 remains session-private");
  }
+ const failedSession=load("app/api/dashboard-review-checks/snooze/route.ts",{"cloudflare:workers":{env},"../../../chatgpt-auth":{getChatGPTUser:async()=>{throw Error("Synthetic session lookup failure");}},"../../../../lib/customer-write-request-guard.mjs":{readOwnerWriteObject}});
+ const deniedSession=await failedSession.POST(req("ready",1,at));
+ check(deniedSession.status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Throwing owner session denies review snooze before D1");
+ check(deniedSession.headers.get("cache-control")==="private, no-store"&&deniedSession.headers.get("vary")==="Cookie"&&deniedSession.headers.get("x-content-type-options")==="nosniff","Session failure snooze receipt remains private");
+ owner={get email(){throw Error("Synthetic unreadable identity");}};
+ const malformedSession=await action.POST(req("ready",1,at));
+ check(malformedSession.status===401&&reads===snapshot.reads&&writes===snapshot.writes,"Throwing owner email getter denies review snooze before D1");
  owner={email:"kylebrooks8605@gmail.com"};
  for(const [label,body,headers,expected] of [
   ["declared excessive review-check input","{}",{"content-length":"4097"},413],

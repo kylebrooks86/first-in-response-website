@@ -8,8 +8,11 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
 type Receipt={id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string};
 /** A review-status CHECK snooze. Never sends a review request or claims a review arrived. */
 export async function POST(request:Request){
- const owner=await getChatGPTUser();
- if(typeof owner?.email!=="string"||owner.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ // Never allow an unavailable or malformed owner session to reach review writes.
+ try{
+  const owner=await getChatGPTUser();
+  if(typeof owner?.email!=="string"||owner.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ }catch{return json({error:"Unauthorized"},401);}
  const parsed=await readOwnerWriteObject(request,4096);
  if(parsed.response){
   // Do not spread Headers into an object: differently-cased Cache-Control keys
