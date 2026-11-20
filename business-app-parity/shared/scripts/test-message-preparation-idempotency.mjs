@@ -94,7 +94,7 @@ try{
    "A subsequently opened card checkout blocks retry of a previously prepared review message");
  db.prepare("UPDATE payment_checkout_sessions SET status='expired' WHERE id=?").run("checkout-after-prep");
  const wrongType=await api.POST(new Request("https://fire.test/api/customer-messages",{
-  method:"POST",headers:{"content-type":"text/plain"},body:"not json"
+  method:"POST",headers:{"content-type":"text/plain","Origin":"https://fire.test"},body:"not json"
  }));
  check(wrongType.status===415,"Non-JSON message preparation denied before any D1 write");
  privatePost({headers:wrongType.headers},"Bounded owner request-reader 415");
