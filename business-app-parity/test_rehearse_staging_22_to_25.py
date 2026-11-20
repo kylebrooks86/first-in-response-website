@@ -9,7 +9,8 @@ BASE = """CREATE TABLE customers(id TEXT PRIMARY KEY);
 CREATE TABLE estimates(id TEXT PRIMARY KEY REFERENCES customers(id));
 CREATE TABLE payments(id TEXT PRIMARY KEY, provider_id TEXT);
 CREATE TABLE payment_refunds(id TEXT PRIMARY KEY);
-CREATE TABLE payment_checkout_sessions(id TEXT PRIMARY KEY);\nCREATE TABLE sqliteX_owner_backup_data(id TEXT PRIMARY KEY, payload TEXT NOT NULL);"""
+CREATE TABLE payment_checkout_sessions(id TEXT PRIMARY KEY);
+CREATE TABLE sqliteX_owner_backup_data(id TEXT PRIMARY KEY, payload TEXT NOT NULL);"""
 TAIL_SQL = (
  "CREATE UNIQUE INDEX idx_payments_stripe_provider_unique ON payments(provider_id) WHERE provider_id GLOB 'cs_*' OR provider_id GLOB 'refund:*';",
  """CREATE TABLE deposit_policy_events(id TEXT PRIMARY KEY REFERENCES estimates(id));
@@ -52,6 +53,7 @@ class RehearsalTests(unittest.TestCase):
                 db.executemany("INSERT INTO payments(id, provider_id) VALUES (?, 'cs_collision')", [('a',), ('b',)])
             else:
                 db.execute("INSERT INTO payments(id, provider_id) VALUES ('a','cs_synthetic')")
+            db.execute("INSERT INTO sqliteX_owner_backup_data(id,payload) VALUES ('owner-test-row','preserve-this-private-row')")
             if already:
                 db.execute('CREATE TABLE deposit_policy_events(id TEXT)')
             db.commit()
@@ -65,14 +67,13 @@ class RehearsalTests(unittest.TestCase):
         self.assertFalse(report['actualCloudflareD1Migrated'])
         self.assertEqual(len(report['appliedInMemory']), 3)
         self.assertFalse(report['privateExportReplayedInMemory'])
-        # sqliteX_ is a legitimate business prefix, not SQLite's reserved sqlite_.
-        self.assertEqual(report['preservedExistingTables'], 7)
 
     def test_private_export_rehearsal_preserves_all_existing_rows(self):
         report = rehearse(self.root, self.export())
         self.assertEqual(report['baseline'], 'owner-private-export')
         self.assertTrue(report['privateExportReplayedInMemory'])
         self.assertTrue(report['rehearsalPassed'])
+        self.assertEqual(report['preservedExistingTables'], 7)
 
     def test_rejects_duplicate_stripe_provider_ids(self):
         with self.assertRaisesRegex(Blocked, 'collision'):
@@ -99,6 +100,13 @@ class RehearsalTests(unittest.TestCase):
     def test_rejects_partially_applied_schema(self):
         with self.assertRaisesRegex(Blocked, 'already exist'):
             rehearse(self.root, self.export(already=True))
+
+    def test_rejects_changed_private_rows_in_legitimate_sqlitex_table(self):
+        # A pending migration must not silently delete records from a real sqliteX table.
+        sql = self.root / TAIL[-1]
+        sql.write_text(sql.read_text() + '\nDELETE FROM sqliteX_owner_backup_data;\n')
+        with self.assertRaisesRegex(Blocked, 'Existing table data/columns changed'):
+            rehearse(self.root, self.export())
 
     def test_rejects_unreviewed_sqlitex_object_created_by_tail(self):
         # The old LIKE 'sqlite_%' treated '_' as a wildcard and hid this table.
