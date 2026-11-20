@@ -14,7 +14,8 @@ const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const stamp='2026-10-20T12:00:00Z';
 const route=rt.load('app/api/notifications/route.ts');
 const read=async()=>{const r=await route.GET();return{status:r.status,data:await r.json(),headers:r.headers};};
-const patch=async body=>{const r=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)}));return{status:r.status,data:await r.json()};};
+const patch=async body=>{const r=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)}));return{status:r.status,data:await r.json(),headers:r.headers};};
+const assertPrivatePatch=(r,label)=>check(r.headers.get('cache-control')==='private, no-store'&&r.headers.get('vary')==='Cookie'&&r.headers.get('x-content-type-options')==='nosniff',label+' is session-private, cookie-varying and nosniff');
 const rows=()=>rt.db.prepare('SELECT id,read_at,resolved_at FROM notifications ORDER BY id').all();
 const put=(n,readAt=null)=>rt.db.prepare('INSERT INTO notifications(id,type,title,body,read_at,created_at) VALUES (?,?,?,?,?,?)')
   .run(id(n),'estimate_viewed','Synthetic activity '+n,'No customer data',readAt,stamp);
@@ -33,6 +34,7 @@ try{
    method:'PATCH',headers:{'content-type':'application/json',...headers},body
   }));
   check(refused.status===expected,label+' fails closed with exact HTTP status');
+  assertPrivatePatch(refused,label+' malformed owner PATCH rejection');
   check(JSON.stringify(rt.counters())===JSON.stringify(before),label+' touches no D1 state');
  }
  put(1);put(2);put(3,'2026-10-19T12:00:00Z');
@@ -43,6 +45,7 @@ try{
    'Actual authenticated GET reports exactly two unread and one saved read notification');
  const originalRead=rows().find(x=>x.id===id(3)).read_at;
  const bad=await patch({all:true,id:id(1)});
+ assertPrivatePatch(bad,'Conflicting notification actions 400');
  check(bad.status===400&&rows().filter(x=>x.read_at===null).length===2,
    'Mixed mark-all and one-record action is rejected with no writes');
  const nonBoolean=await patch({all:1});
@@ -50,6 +53,7 @@ try{
    'Invalid mark-all value cannot change read state');
  rt.setOwner(null);
  const denied=await patch({all:true}),unreadDenied=await read();
+ assertPrivatePatch(denied,'Anonymous notification PATCH 401');
  check(unreadDenied.headers.get('cache-control')==='private, no-store'&&unreadDenied.headers.get('vary')==='Cookie'&&unreadDenied.headers.get('x-content-type-options')==='nosniff',
    'Anonymous notification GET denial never leaks through a shared cache');
  check(denied.status===401&&unreadDenied.status===401&&rows().filter(x=>x.read_at===null).length===2,
@@ -63,6 +67,7 @@ try{
      'Database-outage notification GET fails closed with private no-store headers');
  }finally{rt.env.DB.prepare=originalGetPrepare;}
  const first=await patch({all:true});
+ assertPrivatePatch(first,'Confirmed notification mark-all PATCH 200');
  check(first.status===200&&first.data.ok===true&&first.data.unread===0&&typeof first.data.readAt==='string',
    'Mark All returns success only after actual local database confirmation');
  const saved=rows();
@@ -87,12 +92,14 @@ try{
  check((await read()).data.unread===0,'Second reload retains correct unread count after individual mark');
  const previous=JSON.stringify(rows());
  const missing=await patch({id:id(99)});
+ assertPrivatePatch(missing,'Missing notification PATCH 404');
  check(missing.status===404&&JSON.stringify(rows())===previous,
    'Missing notification cannot claim successful mark or alter other records');
  // A regular notification's resolve action must produce a verified saved
  // resolution (not just an uninspected SQLite write ACK).
  put(6);
  const resolved=await patch({id:id(6),resolve:true});
+ assertPrivatePatch(resolved,'Confirmed notification resolve PATCH 200');
  const savedResolution=rows().find(x=>x.id===id(6));
  check(resolved.status===200&&resolved.data.ok===true&&
        resolved.data.resolvedAt===savedResolution.resolved_at&&
