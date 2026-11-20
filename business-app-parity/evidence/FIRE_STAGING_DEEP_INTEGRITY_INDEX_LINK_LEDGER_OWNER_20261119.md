@@ -1,3 +1,19 @@
+## November 20 — STAGING Step 13 continuation verified
+
+The seven archived STAGING D1 Console photographs were recovered, individually SHA-256 hashed and visually read against the `fire-app-staging-db` identifier. They complete the Step 13 continuation through `tasks.completed_at` and the query footer. From `estimate_change_requests` through `tasks`, 78 distinct column positions across ten tables are visible. These are physical schema observations. G5-01 and G5-02 still require all-target evidence. The 22-entry STAGING journal still lacks migrations 0022–0024.
+
+| Original IMG filename prefix | Visible table and zero-based column positions | Original SHA-256 |
+|---|---|---|
+| 728A683F | customer_photos 7–8, customers 0–6, estimate_change_requests 0–4 | `b2b3216bf30aeb47fb3c365a4e46a3a12e1ecdb254299d81483ea3db2491253f` |
+| FDF955D4 | estimate_change_requests 4–5, estimate_items 0–6, expenses 0–3 | `fe4f50abac836c2ddaca50bd310e59c9137657d52cc834bb05ffad74e8fdc4ce` |
+| 96043AED | expenses 4–6, invoice_items 0–6, invoice_revisions 0–2 | `0551881000f0991a0d704f626988d5ee2dccbe03c194d772bb8f8e991a48c47a` |
+| BD79E7C3 | invoice_revisions 3–10, job_reports 0–4 | `f9116d1a13337d7ec11ce26647c678035e39f9e5d5b144883dda98f972c5ab5b` |
+| 0AC3FB79 | job_reports 5–9, message_templates 0–3, notifications 0–3 | `a132330396063759dbf2a76fd22af6b77eaf3ddf34f68626aa744499a09cc001` |
+| F0BCE4B2 | notifications 4–9, payment_checkout_sessions 0–6 | `6b2d7f250d7f14a67cb4a8c3b30176b2908ed787fb83679837d0d0fc46cca935` |
+| D85D786E | payment_checkout_sessions 4–6, tasks 0–8, query timing footer | `5ef09996848d2abe14f77f977fbbe20e5a014e71982e2571074cee815ee6904a` |
+
+The two additional foreign-key photos show the already credited seven relationships. The raw photographs stay private. The earlier pending note below records the original checkpoint.
+
 # Nov 19, 2026 — physical Cloudflare STAGING deep SQLite integrity / financial uniqueness / relationships / ledger state
 
 **Target:** owner-authenticated `fire-app-staging-db` Cloudflare D1 Console, previously independently bound physical UUID `afb2c05a-d794-4a9a-b580-924ce01c26ad`, with applied 22-row Doomsday-family migration lineage.
