@@ -1,3 +1,12 @@
+<!-- FIRE-G5-G6-PAYMENT-HISTORY-PR282-20261119 -->
+## November 19 — actual owner payment-history private GET and D1 outage source fix (PR282)
+
+**[x] Actual application code changed and committed**, not just evidence review: `GET /api/payments` owner 200/401/409/503 now uses private no-store, Cookie Vary and nosniff. Any payment or pending-checkout D1 list outage after valid refund-ledger metadata returns explicit private 503 instead of an unhandled exception. Previously verified failed refund-ledger schema hold retained unchanged. No payment rows, money amounts, billing policy or SQL mutations changed. **New test assertions committed** in the existing financial schema/denial and manual-payment native SQLite suites; exact source/test SHA `97600aa6f15bd73f7be8b835b311a5fdedf7f60d`, prior code commit `ab8b3a638f7467f4be8b6134685294df3a0cb300`. [Sanitized code + test evidence](evidence/FIRE_G5_G6_OWNER_PAYMENT_HISTORY_D1_PRIVACY_20261119.md). CI outcome on this new executable SHA **NOT YET ATTESTED**; docs-only HEAD must not be confused with tested executable source.
+
+**Formal checklist** unchanged until actual relevant hosted provider/owner proof: **50/95 accepted, 45 open; 4/10 gates accepted (1,2,3,8)**, G4/G5/G6/G7/G9/G10 open; NEW LIVE DARK/NO-GO, Job #0001 unissued. Existing owner Acer, Cloudflare, iPhone/QA, photo restore, payment and accepted CI proofs remain accepted; **do not repeat**. No merge, deploy, Cloudflare Access/route, D1 migration, paid R2, Stripe charge/provider change, outbound contact or public-site modification.
+
+---
+
 <!-- FIRE-G6-NOTES-FOLLOWUP-SEARCH-PR282-20261119 -->
 ## November 19 — NEW G6 actual owner note/follow-up/search privacy source + focused CI fixtures (DRAFT #282)
 
