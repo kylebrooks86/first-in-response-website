@@ -11,7 +11,7 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 export async function POST(request:Request){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const owner=await getChatGPTUser();
-  if(!owner||owner.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
+  if(typeof owner?.email!=="string"||owner.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401,headers:{"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"}});
   const runtime=env as RuntimeEnv;
   // The compiled app's "live" adapter is NOT authorization for a dark DR,
   // NEW LIVE prelaunch or unrecognized environment to touch LIVE Stripe.
