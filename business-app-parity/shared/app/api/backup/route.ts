@@ -222,8 +222,12 @@ function validateRefundIntegrity(tables: Record<string, unknown>) {
 }
 
 async function authorized() {
-  const user = await getChatGPTUser();
-  return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
+  try {
+    const user = await getChatGPTUser();
+    return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
+  } catch {
+    return false;
+  }
 }
 
 // A full records export carries customer contact data, signed agreements and
@@ -311,7 +315,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function restoreRecords(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const deniedBrowserWrite=ownerBrowserWriteScope(request,true);
   if(deniedBrowserWrite)return deniedBrowserWrite;
@@ -737,4 +741,12 @@ export async function POST(request: Request) {
       restoreAudit,
     }, { status: restoreAudit.writesAttempted ? 500 : 400 });
   }
+}
+
+// Preserve restore response status, body, and audit while ensuring every receipt is session-private.
+export async function POST(request: Request) {
+  const response = await restoreRecords(request);
+  const headers = new Headers(response.headers);
+  for (const [name, value] of Object.entries(privateRecordsHeaders)) headers.set(name, value);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
