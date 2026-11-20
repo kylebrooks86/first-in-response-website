@@ -6,7 +6,7 @@ import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mj
 
 const OWNER='kylebrooks8605@gmail.com';
 async function authorized(){const user=await getChatGPTUser();return user?.email.toLowerCase()===OWNER;}
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private','vary':'Cookie','x-content-type-options':'nosniff'}});
 export async function GET(){
   if(!await authorized())return json({error:'Unauthorized'},401);
   try{
