@@ -11,12 +11,12 @@ let js=src.slice(src.indexOf('const ownerEmail='))
  .replace('env as typeof env & {FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE?:string;FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE?:string}','env')
  .replace('export async function GET()','async function GET()');
 assert.ok(js.includes('async function GET()'));
-let count=0,fullCount=0,providerRequests=0,authEmail=null,enabled='',fullEnabled='',property=false,location=false,throwCapture=false;
+let count=0,fullCount=0,providerRequests=0,authEmail=null,authThrows=false,enabled='',fullEnabled='',property=false,location=false,throwCapture=false;
 const source={format:'fire-numbered-core-records-snapshot',version:2,tables:{customers:[{id:'synthetic'}]}};
 const ctx={
  Response,
  env:{DB:{marker:'synthetic-db'},get FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE(){return enabled},get FIRE_COMPLETE_D1_RECORDS_REVIEW_CANDIDATE(){return fullEnabled}},
- getChatGPTUser:async()=>authEmail===null?null:{email:authEmail},
+ getChatGPTUser:async()=>{if(authThrows)throw Error('Sensitive synthetic owner session error');return authEmail===null?null:{email:authEmail}}, 
  captureNumberedCoreV2ReadOnly:async db=>{count++;assert.equal(db,ctx.env.DB);if(throwCapture)throw new Error('Sensitive synthetic private failure');return source},
  serviceLocationsEnabled:()=>location,
  customerPropertiesEnabled:()=>property,
@@ -33,22 +33,46 @@ const ctx={
 vm.runInNewContext(js+'\nthis.handler=GET;',ctx);
 let checks=0;
 const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++};
+const privateHeaders=(res,label)=>{
+ for(const [header,value] of Object.entries({'cache-control':'private, no-store','vary':'Cookie',
+  'x-content-type-options':'nosniff','referrer-policy':'no-referrer'}))
+  eq(res.headers.get(header),value,`${label}: ${header}`);
+};
 const response=async()=>await ctx.handler();
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async()=>{providerRequests++;throw new Error('No external calls authorized')};
 try{
  let res=await response();
  eq(res.status,401,'Unauthenticated GET refused');
- eq(res.headers.get('cache-control'),'private, no-store','Denied response is private no-store');
+ privateHeaders(res,'Anonymous refusal');
  eq(count,0,'No database export on unauthorized request');
+ enabled='owner-review-only';fullEnabled='owner-review-only';
+ for(const badIdentity of [undefined,42,{},true]){
+  authEmail=badIdentity;res=await response();
+  eq(res.status,401,'Missing/non-string owner email denies access to records');
+  privateHeaders(res,'Malformed owner session');
+  eq(count,0,'Malformed owner identity cannot read core D1');
+  eq(fullCount,0,'Malformed owner identity cannot read expanded D1');
+ }
+ authThrows=true;res=await response();
+ eq(res.status,401,'Throwing owner session denies access to records');
+ privateHeaders(res,'Unavailable owner session');
+ eq(count,0,'Throwing owner session cannot read core D1');
+ eq(fullCount,0,'Throwing owner session cannot read expanded D1');
+ assert.ok(!(await res.text()).includes('Sensitive synthetic owner session error'));checks++;
+ authThrows=false;fullEnabled='';
  authEmail='someone@example.com';enabled='owner-review-only';
  eq((await response()).status,401,'Nonowner cannot read candidate');
  eq(count,0,'Nonowner never reaches core data');
  authEmail='kylebrooks8605@gmail.com';enabled='';
- eq((await response()).status,404,'Owner cannot export without exact separate flag');
+ res=await response();
+ eq(res.status,404,'Owner cannot export without exact separate flag');
+ privateHeaders(res,'Disabled owner review');
  eq(count,0,'Default-disabled candidate never accesses D1');
  enabled='owner-review-only';property=true;
- eq((await response()).status,409,'Property schema requires expanded archive contract');
+ res=await response();
+ eq(res.status,409,'Property schema requires expanded archive contract');
+ privateHeaders(res,'Incomplete property review');
  eq(count,0,'Property schema refuses pre-export');
  property=false;location=true;
  eq((await response()).status,409,'Service location schema also blocked');
@@ -56,8 +80,7 @@ try{
  location=false;
  res=await response();
  eq(res.status,200,'Approved review-only owner can capture core records');
- eq(res.headers.get('cache-control'),'private, no-store','Core record response cannot be cached');
- eq(res.headers.get('x-content-type-options'),'nosniff','Sensitive export response disables content sniffing');
+ privateHeaders(res,'Core record export');
  assert.match(res.headers.get('content-disposition')??'',/NOT-FULL-BACKUP/);checks++;
  const data=await res.json();
  eq(data.completeBackup,false,'Review export cannot declare itself complete backup');
@@ -73,7 +96,7 @@ try{
  property=false;location=false;
  res=await response();
  eq(res.status,200,'Explicitly authorized owner gets expanded transactional record review');
- eq(res.headers.get('cache-control'),'private, no-store','Expanded private data never cached');
+ privateHeaders(res,'Expanded D1 review export');
  assert.match(res.headers.get('content-disposition')??'',/NOT-PROTECTED-BACKUP/);checks++;
  const full=await res.json();
  eq(full.format,'fire-complete-d1-records-owner-review','Complete source review has its own distinct output contract');
@@ -88,11 +111,13 @@ try{
  property=false;location=false;
  throwCapture=true;res=await response();
  eq(res.status,503,'Complete-read errors fail without returning partial customer data');
+ privateHeaders(res,'Expanded D1 error');
  assert.ok(!(await res.text()).includes('Private source-read error'));checks++;
  fullEnabled='';enabled='owner-review-only';
  throwCapture=true;
  res=await response();
  eq(res.status,503,'Database corruption or error blocks export');
+ privateHeaders(res,'Core D1 error');
  const body=await res.text();
  assert.ok(!body.includes('Sensitive synthetic private failure'));checks++;
  eq(providerRequests,0,'No network or provider actions used in tests');
