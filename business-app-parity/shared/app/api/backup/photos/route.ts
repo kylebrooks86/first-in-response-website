@@ -20,7 +20,7 @@ type CentralEntry = { name: Uint8Array; crc: number; size: number; offset: numbe
 
 async function authorized() {
   const user = await getChatGPTUser();
-  return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
+  return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
 }
 
 function crcTable() {
@@ -57,16 +57,41 @@ function safeName(value: string) {
   return value.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").replace(/\s+/g, " ").trim().slice(0, 120) || "photo";
 }
 
-export async function GET() {
+async function preparePhotoArchive() {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable." }, { status: 503 });
 
-  const result = await env.DB.prepare(`SELECT id,customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,object_key AS objectKey,created_at AS createdAt FROM customer_photos ORDER BY created_at`).all<PhotoRow>();
-  const photos = result.results ?? [];
-  const expectedBytes = photos.reduce((sum, photo) => sum + Number(photo.sizeBytes || 0), 0);
-  if (expectedBytes > 2_000_000_000) return Response.json({ error: "The photo library is too large for one archive. A managed export is required." }, { status: 413 });
+  // Validate every D1 reference BEFORE reading any stored photo bytes.
+  // Malformed paths, duplicate ZIP entries or NaN sizes must not produce a
+  // seemingly successful but unsafe or incomplete recovery archive.
+  let photos: PhotoRow[];
+  try {
+    const result = await env.DB.prepare(`SELECT id,customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,object_key AS objectKey,created_at AS createdAt FROM customer_photos ORDER BY created_at`).all<PhotoRow>();
+    photos = result.results ?? [];
+  } catch {
+    return Response.json({ error: "Photo records could not be read. No archive was created.", archiveUncertain: true }, { status: 503 });
+  }
   if (photos.length > 65_000) return Response.json({ error: "The photo library contains too many files for one archive. A managed export is required." }, { status: 413 });
-
+  const seenIds = new Set<string>(), seenKeys = new Set<string>(), seenZipNames = new Set<string>();
+  let expectedBytes = 0;
+  for (const photo of photos) {
+    const safeId = (value: unknown) => typeof value === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(value);
+    const prefix = `customers/${photo.customerId}/${photo.id}.`;
+    const suffix = typeof photo.objectKey === "string" && photo.objectKey.startsWith(prefix) ? photo.objectKey.slice(prefix.length) : "";
+    const zipName = `photos/${photo.customerId}/${photo.id}-${safeName(photo.filename ?? "")}`;
+    if (!safeId(photo.id) || !safeId(photo.customerId) ||
+        !/^[a-zA-Z0-9]{1,8}$/.test(suffix) ||
+        typeof photo.filename !== "string" || typeof photo.contentType !== "string" ||
+        typeof photo.createdAt !== "string" || !Number.isFinite(Date.parse(photo.createdAt)) ||
+        !Number.isSafeInteger(photo.sizeBytes) || photo.sizeBytes <= 0 ||
+        seenIds.has(photo.id) || seenKeys.has(photo.objectKey) || seenZipNames.has(zipName)) {
+      return Response.json({ error: "Saved photo metadata is inconsistent. No archive was created.", archiveIncomplete: true }, { status: 409 });
+    }
+    seenIds.add(photo.id); seenKeys.add(photo.objectKey); seenZipNames.add(zipName);
+    expectedBytes += photo.sizeBytes;
+    if (!Number.isSafeInteger(expectedBytes) || expectedBytes > 2_000_000_000)
+      return Response.json({ error: "The photo library is too large for one archive. A managed export is required." }, { status: 413 });
+  }
   // Verify every referenced R2 file before returning a successful download.
   // A manifest warning inside an apparently valid ZIP is not a safe backup.
   // These are read-only HEAD requests; no remote object is modified.
@@ -181,4 +206,22 @@ export async function GET() {
     "content-disposition": `attachment; filename=fire-app-photo-archive-${date}.zip`,
     "content-type": "application/zip",
   } });
+}
+
+// Apply session-private headers to owner ZIP bytes, missing identity, malformed
+// D1 records, interrupted preflight and all other archive responses alike.
+function privateArchiveResponse(response: Response): Response {
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Vary", "Cookie");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  return response;
+}
+export async function GET(): Promise<Response> {
+  try { return privateArchiveResponse(await preparePhotoArchive()); }
+  catch {
+    return privateArchiveResponse(Response.json({
+      error: "Photo archive preparation could not be verified. Existing photo records and bytes were preserved.",
+      archiveUncertain: true,
+    }, { status: 503 }));
+  }
 }
