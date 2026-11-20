@@ -2,7 +2,7 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {closeoutHistoryItem,type CloseoutHistoryRow} from '../../../lib/job-closeout-history';
 export const dynamic='force-dynamic';
-const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store, private'}});
+const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 /** Customer-level tracking from existing completed-job messages/flags; no message bodies or writes. */
 export async function GET(request:Request){
  const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
