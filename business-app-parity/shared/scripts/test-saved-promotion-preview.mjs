@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 let checks=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
@@ -26,7 +27,8 @@ const services=load('lib/fire-services.ts',{});
 const model=load('lib/saved-promotions.ts',{'./fire-services':services,'./discount-input':load('lib/discount-input.ts',{})});
 const api=load('app/api/saved-promotions/preview/route.ts',{
  'cloudflare:workers':{env},'../../../chatgpt-auth':{getChatGPTUser:async()=>owner},
- '../../../../lib/fire-services':services,'../../../../lib/saved-promotions':model});
+ '../../../../lib/fire-services':services,'../../../../lib/saved-promotions':model,
+ '../../../../lib/customer-write-request-guard.mjs':{readOwnerWriteObject}});
 const uid=n=>'bbbbbbbb-bbbb-4bbb-8bbb-'+String(n).padStart(12,'0');
 const booking={id:uid(1),name:'October 15%',type:'percent',valueCents:1500,enabled:true,autoApply:true,startOn:'2026-10-01',endOn:'2026-10-31',dateBasis:'booking-confirmed',requiredServiceIds:[]};
 const bundle={id:uid(2),name:'House plus gutters',type:'dollar',valueCents:2500,enabled:true,autoApply:true,startOn:null,endOn:null,dateBasis:'estimate-created',requiredServiceIds:['house-wash','gutters']};
@@ -107,6 +109,34 @@ try{
   {...valid,serviceIds:['gutters','gutters']},{...valid,appreciationDiscount:'false'},
   {...valid,checkedOn:'2026-10-22'},{...valid,bookedOn:'2026-10-22'}
  ])eq((await preview(bad)).status,400,'Malformed or forged eligibility is refused');
+ // Actual preview route rejects hostile browser posts before any database read.
+ const apiUrl='https://synthetic.invalid/api/saved-promotions/preview';
+ async function scoped(headers,body=valid){
+  return api.POST(new Request(apiUrl,{method:'POST',headers,body:typeof body==='string'?body:JSON.stringify(body)}));
+ }
+ const beforeRejectedReads=reads,beforeRejectedWrites=writes;
+ for(const headers of [
+  {origin:'https://foreign.invalid','content-type':'application/json'},
+  {origin:'https://sibling.synthetic.invalid','content-type':'application/json'},
+  {'sec-fetch-site':'cross-site','content-type':'application/json'}
+ ])eq((await scoped(headers)).status,403,'Forged browser promotion preview refused');
+ eq((await scoped({origin:'https://synthetic.invalid','content-type':'text/plain'})).status,415,'Cross-site-compatible form body refused');
+ const oversized=await scoped({'content-type':'application/json'},'x'.repeat(32769));
+ eq(oversized.status,413,'Real streamed input over 32 KiB refused before JSON parse');
+ const mismatched=await scoped({'content-type':'application/json','content-length':'1'});
+ eq(mismatched.status,400,'Forged declared body length refused');
+ eq(reads,beforeRejectedReads,'Rejected preview requests make zero D1 reads');
+ eq(writes,beforeRejectedWrites,'Rejected preview requests make zero D1 writes');
+ for(const blocked of [oversized,mismatched]){
+  eq(blocked.headers.get('cache-control'),'private, no-store','Blocked owner financial preview is private');
+  eq(blocked.headers.get('vary'),'Cookie','Blocked preview varies by session');
+  eq(blocked.headers.get('x-content-type-options'),'nosniff','Blocked preview prevents MIME sniffing');
+ }
+ const genuine=await scoped({origin:'https://synthetic.invalid','content-type':'application/json','sec-fetch-site':'same-origin'});
+ eq(genuine.status,200,'Legitimate same-origin browser promotion preview is still available');
+ eq(genuine.headers.get('vary'),'Cookie','Successful owner financial preview varies by session');
+ eq(genuine.headers.get('x-content-type-options'),'nosniff','Successful owner preview prevents MIME sniffing');
+ owner={};eq((await preview(valid)).status,401,'Authenticated principal lacking email fails closed');
  owner=null;eq((await preview(valid)).status,401,'Unauthenticated user refused');
  owner={email:'intruder@example.invalid'};eq((await preview(valid)).status,401,'Nonowner refused');
  owner={email:'kylebrooks8605@gmail.com'};
