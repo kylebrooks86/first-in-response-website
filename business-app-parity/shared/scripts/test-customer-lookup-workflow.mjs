@@ -7,12 +7,16 @@ export async function exerciseCustomerLookup({page,context,browser,origin,reques
  const property=async(customer,address)=>{const r=await request('/api/customer-properties','POST',{customerId:customer.id,address});assert.equal(r.status(),201);return (await r.json()).property;};
  const pa=await property(a,'11 North Service Property'),pb=await property(b,'21 South Service Property');await property(b,'22 South Second Property');
  const anonymous=await browser.newContext({ignoreHTTPSErrors:true});
- check((await anonymous.request.get(origin+'/api/customers/lookup?q=Lookup')).status()===401,'Customer lookup never exposes saved customer details without owner authentication');await anonymous.close();
+ const unauthorized=await anonymous.request.get(origin+'/api/customers/lookup?q=Lookup');
+ check(unauthorized.status()===401,'Customer lookup never exposes saved customer details without owner authentication');
+ check(unauthorized.headers()['cache-control']==='private, no-store'&&unauthorized.headers()['vary']==='Cookie'&&unauthorized.headers()['x-content-type-options']==='nosniff','Anonymous lookup denial also stays session-private and nosniff');await anonymous.close();
  for(const query of ['lookUP','lookup-a@','010-101','North Fixture','North Service Property','+1 9180101010']){
   const response=await request('/api/customers/lookup?q='+encodeURIComponent(query)),data=await response.json();
   check(response.status()===200&&data.customers.some(row=>row.id===a.id),'Native D1 partial customer search: '+query);
-  check(response.headers()['cache-control']==='no-store'&&data.customers.every(row=>Object.keys(row).sort().join(',')==='address,email,id,name,phone'),'Lookup response is uncached and contains only customer identity fields');
+  check(response.headers()['cache-control']==='private, no-store'&&response.headers()['vary']==='Cookie'&&response.headers()['x-content-type-options']==='nosniff'&&data.customers.every(row=>Object.keys(row).sort().join(',')==='address,email,id,name,phone'),'Lookup result is owner-session-private/nosniff and contains only customer identity fields');
  }
+ const invalidLookup=await request('/api/customers/lookup?customerId=&q=bad');
+ check(invalidLookup.status()===400&&invalidLookup.headers()['cache-control']==='private, no-store'&&invalidLookup.headers()['vary']==='Cookie'&&invalidLookup.headers()['x-content-type-options']==='nosniff','Malformed owner lookup also returns private and nosniff 400');
  check((await (await request('/api/customers/lookup?q='+encodeURIComponent("%' OR 1=1 --"))).json()).customers.length===0,'Bound literal search safely handles SQL and wildcard characters without dumping matches');
  const blank=await (await request('/api/customers/lookup?q=')).json();check(blank.customers.length===0,'Empty lookup does not dump the customer directory');
  const dialog=()=>page.getByRole('dialog',{name:'Create estimate',exact:true});
