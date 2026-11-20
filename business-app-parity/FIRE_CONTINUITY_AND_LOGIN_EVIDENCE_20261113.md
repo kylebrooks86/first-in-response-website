@@ -1,3 +1,14 @@
+<!-- FIRE-NOV20-LEGACY-PHOTO-ZIP-G7-20261120 -->
+## November 20, 2026 — actual source-only Gate7 referenced-photo ZIP corruption/privacy fix (NO PROVIDER CHANGES)
+
+Current existing MAIN-based **unmerged DRAFT PR #282** is preserved; no restart, main merge or hosted write. Real legacy `GET /api/backup/photos` source fix commits [932bc77](https://github.com/kylebrooks86/first-in-response-website/commit/932bc77eb895cfc9cec8b7b4faac48e5ad526882) and [b04e6ec](https://github.com/kylebrooks86/first-in-response-website/commit/b04e6ecd0e8880bc2846ed9ade7ea2fe010270d9) now reject missing/non-string auth identities, invalid/out-of-namespace customer photo object keys, duplicate record/object/ZIP references, malformed dates, zero/negative/unsafe/unbounded byte totals **before accessing stored objects**. It fails closed on D1 preflight outages and applies private no-store, Cookie Vary and nosniff to **all** owner ZIP/denial/409/503 receipts. No business/customer/price/financial data or no-R2 deployment configuration changed.
+
+Actual native Miniflare D1/R2 regression scenarios added at [6e903b4](https://github.com/kylebrooks86/first-in-response-website/commit/6e903b48b19ae53d67d02cf69cc3a2b8bad29677) in existing `test-photo-storage-integrity.mjs`, plus CI source-path trigger [945103b](https://github.com/kylebrooks86/first-in-response-website/commit/945103ba40c2326e62e8bb079fbcb11d22f5360b). Real GitHub job [136599306829](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44826199374/job/136599306829) confirmed **all five new scenarios PASS**; then an older exact-string assertion required weaker `Cache-Control: no-store`, causing the job to fail. Test-only repair [bea2421](https://github.com/kylebrooks86/first-in-response-website/commit/bea2421fcd95b9d808b2deefe496665137a790d3) now asserts **all three** desired privacy headers; fresh exact-source CI not yet claimed green as of this checkpoint. No manual owner/Cloudflare device retest.
+
+**Boundary:** This is the existing referenced-photos-only *R2-capable legacy archive route*, NOT a new paid R2 requirement or proof of the owner-device-ZIP no-R2 recovery mode, which remains the chosen current candidate. It cannot establish off-device encrypted custody, multi-device photo sync, full-future D1+photo recovery or hosted Gate7. Formal acceptance remains **51/95 checklist items, 4/10 release gates G1/G2/G3/G8**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO and real first Job #0001 unused. No paid Cloudflare/R2, remote SQL, Worker/deploy/Access/Stripe/payments, Git merge or production operations.
+
+---
+
 <!-- FIRE-NOV20-NEW-LIVE-OWNER-READBACK-PRIVACY-9AE952F -->
 ## November 20, 2026 — NEW LIVE private clean-start endpoint corrected and actual-route regression committed (SOURCE ONLY)
 
