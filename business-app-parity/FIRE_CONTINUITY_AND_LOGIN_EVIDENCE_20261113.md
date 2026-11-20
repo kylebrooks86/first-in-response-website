@@ -1,3 +1,11 @@
+## Nov 19, 2026 — Original 6-step STAGING console evidence fully collected; NO REPEAT
+
+The same already authenticated owner STAGING Cloudflare D1 Console has now supplied **four additional original screenshots** after the 22/22 full ordered migration journal and ten schema/finance inventory photos. [Original image hashes & exact observed values](evidence/FIRE_STAGING_FK_COUNTS_TIMETRAVEL_OWNER_20261119.md) are preserved in GitHub; the actual screenshots remain **private**.
+
+`PRAGMA foreign_key_check;` shows **successful execution and zero displayed violation rows**, and a **read-only seven-field record count** returns customer1/estimate1/invoice1/payment3/refund1/notification6/task0; D1 Time Travel displays a **7-day restore window** and irreversible warning, with **NO restore or bookmark retrieval performed**. This is supporting Gate5/G7 evidence only, not all-target schema, app identity/security, restored backup/photo bytes or actual Stripe TEST. The complete original user-provided STAGING SQL/UI evidence checklist (Steps 1–6) is now **captured**; do NOT demand another run of any of these exact checks without a new target change. Official 50/95, 4/10 gates remain.
+
+---
+
 ## Nov 19, 2026 — STAGING additional read-only physical schema/financial object evidence, original 10 screenshots
 
 User supplied **ten** authenticated Cloudflare D1 Console photographs from existing `fire-app-staging-db` session, saved in [exact-source STAGING owner evidence](evidence/FIRE_STAGING_OBJECTS_FINANCIAL_COLUMNS_OWNER_20261119.md) (with original-file private SHA-256 fingerprints; no raw screenshot/PII posted publicly). **STAGING schema inventory, 12-object financial protection presence matrix and complete 4-table financial column readback have been captured. Do NOT ask owner to rerun any of these or earlier 22-name migration journal** absent actual schema change.
