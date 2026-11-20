@@ -1,0 +1,82 @@
+{
+  "baseCommit": "463055c7df457c9878a1f648d2afc5c3e1e9a80a",
+  "scope": "Shared top-bar payments entry, all materialized candidates including synthetic QA",
+  "implemented": [
+    "One compact $ button at phone, tablet and desktop widths; removed orange dot/text alternative",
+    "Preserved existing Payments tab navigation, accessible label/title, hydration disabled guard, light/dark styling and narrow-phone sizing"
+  ],
+  "verification": {
+    "headerBrowserAssertions": 111,
+    "headerBrowserWidths": [
+      320,
+      390,
+      768,
+      1024,
+      1440
+    ],
+    "headerBrowserThemes": [
+      "light",
+      "dark"
+    ],
+    "headerBrowserScope": "Actual header JSX and shared CSS in localhost React fixture; utility siblings stubbed; no real payments or hosted/device acceptance",
+    "typescriptTargetsPassed": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "buildTargetsPassed": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "sharedSourceAndShortcutTargetsPassed": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "financialSuitesPassed": {
+      "live": [
+        "processing-fees",
+        "final-tipping",
+        "stripe-refunds"
+      ],
+      "doomsday": [
+        "processing-fees",
+        "final-tipping",
+        "stripe-refunds"
+      ],
+      "staging": [
+        "processing-fees",
+        "final-tipping",
+        "stripe-refunds"
+      ],
+      "qa": [
+        "processing-fees",
+        "stripe-refunds"
+      ]
+    },
+    "qaExpectedInapplicableSuite": "Positive final-tipping checkout test got intentional 503 because synthetic QA forbids Stripe. QA policy unchanged; dedicated isolation test passed 48/48.",
+    "qaAuthAssertions": 30,
+    "qaDatabasePreflightAssertions": 59,
+    "qaLocalSchemaAudit": "passed with 23 disposable migrations",
+    "postBuildSourceFilesMatched": {
+      "live": 349,
+      "doomsday": 354,
+      "staging": 350,
+      "qa": 354
+    },
+    "qaBuiltVerifier": "passed; temporary shared node_modules symlink excluded for strict inventory verification"
+  },
+  "deployed": false,
+  "databaseOrCredentialsChanged": false,
+  "physicalDeviceAccepted": false,
+  "releaseReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "nextAction": "Review this exact commit/CI, then obtain narrowly scoped QA update approval; preserve QA D1, secrets, installed vaults and rollback version. LIVE/Doomsday/refund-staging publication remains unauthorized."
+}

@@ -1,0 +1,48 @@
+name: FIRE NEW LIVE previous migration attempt — safe read-only reconciliation (OFFLINE TESTS)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_new_live_attempt_readonly_reconcile.mjs'
+      - 'business-app-parity/owner_new_live_initialized_journal_readonly.mjs'
+      - 'business-app-parity/owner_new_live_postlock_recovery_once_separately_approved.mjs'
+      - 'business-app-parity/test_owner_new_live_postlock_recovery_once.mjs'
+      - 'business-app-parity/new_live_initialized_journal_recovery_guard.mjs'
+      - 'business-app-parity/test_owner_new_live_attempt_readonly_reconcile.mjs'
+      - '.github/workflows/fire-new-live-attempt-readonly-reconciliation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-new-live-locked-readonly-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  read-only-no-provider:
+    name: NEW LIVE lock preservation, journal classification and refusal tests (NO Cloudflare)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout reviewed PR source, no persistent token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check only changed NEW LIVE read-only source and its test
+        run: |
+          node --check business-app-parity/owner_new_live_attempt_readonly_reconcile.mjs
+          node --check business-app-parity/new_live_initialized_journal_recovery_guard.mjs
+          node --check business-app-parity/owner_new_live_initialized_journal_readonly.mjs
+          node --check business-app-parity/owner_new_live_postlock_recovery_once_separately_approved.mjs
+          node --check business-app-parity/test_owner_new_live_postlock_recovery_once.mjs
+          node --check business-app-parity/test_owner_new_live_attempt_readonly_reconcile.mjs
+      - name: Offline lock/schema/journal tamper checks — no provider or D1 access
+        run: |
+          node business-app-parity/test_owner_new_live_attempt_readonly_reconcile.mjs
+          node business-app-parity/owner_new_live_initialized_journal_readonly.mjs
+          node business-app-parity/test_owner_new_live_postlock_recovery_once.mjs
+          node business-app-parity/owner_new_live_postlock_recovery_once_separately_approved.mjs
+          echo 'PASS: source-only NEW LIVE recovery checks, no migration retry or remote access.'

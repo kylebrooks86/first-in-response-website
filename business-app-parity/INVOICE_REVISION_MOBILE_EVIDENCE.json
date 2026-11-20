@@ -1,0 +1,48 @@
+{
+  "parent": "ea23b19be01fd8ecabd2cf57f70069b23aef44c3",
+  "scope": "isolated FIRE invoice revision mobile layout",
+  "candidateSnapshotCommits": {
+    "live": "cb345fca76c7b54e91eb18d78396eaa1d35954cf",
+    "doomsday": "85e7eda6478050cd203fbb4b22b883f4a3715a48",
+    "staging": "715e05afae2617cb7104a79138ff4f03810c2cf2"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/invoice-revision-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/invoice-revision-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/invoice-revision-staging"
+  },
+  "changedFilesSha256": {
+    "app/globals.css": "998582d672aa9d3169db9a25ee8bf2cc488abf9f10bff4835ec9626475773e43",
+    "scripts/test-invoice-revision-mobile.mjs": "eab6b6eefa537ed891d3af6aff657b23d664465237b31a0a041709893cde9273"
+  },
+  "sharedFilesMatched": 118,
+  "sharedFilesChecked": 118,
+  "selectedSuiteRunsPassed": 6,
+  "selectedSuiteRunsTotal": 6,
+  "newRevisionChecksPerTarget": 7,
+  "newRevisionCheckExecutionsPassed": 21,
+  "newRevisionCheckExecutionsTotal": 21,
+  "preservedPaymentChecksPerTarget": 11,
+  "suiteNames": [
+    "test-invoice-revision-mobile.mjs",
+    "test-payment-mobile-ui.mjs"
+  ],
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "buildCompletionVerifiedInLogs": true,
+  "initialIncompleteBuilds": [
+    "live",
+    "staging"
+  ],
+  "incompleteBuildsRetriedIndividually": true,
+  "typescriptRerun": false,
+  "reasonNoTypeScriptRerun": "CSS-only runtime change; prior customer-payment TypeScript 3/3 preserved",
+  "candidateRenderedInBrowser": false,
+  "realMobileEvidenceCaptured": false,
+  "remoteSchemasVerified": 0,
+  "productionReadinessPassed": 3,
+  "productionReadinessTotal": 10,
+  "productionReady": false,
+  "deployed": false,
+  "preservedNewerRemoteCommit": "af67d5af1142399a89df5897c1dfd77180adae7a"
+}

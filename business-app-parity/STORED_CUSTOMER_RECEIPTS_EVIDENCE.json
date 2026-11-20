@@ -1,0 +1,256 @@
+{
+  "baseCheckpoint": "62a381529a218426650f8a8c2f9ebc0c047dfa58",
+  "scope": "Development candidates only; synthetic fixtures",
+  "browserChecks": {
+    "passed": 249,
+    "total": 249
+  },
+  "suiteTotals": {
+    "view": {
+      "passed": 63,
+      "total": 63
+    },
+    "repository": {
+      "passed": 84,
+      "total": 84
+    },
+    "controller": {
+      "passed": 54,
+      "total": 54
+    },
+    "framework": {
+      "passed": 48,
+      "total": 48
+    }
+  },
+  "fullBuilds": {
+    "passed": 3,
+    "total": 3
+  },
+  "fullTypechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "financialRegression": {
+    "passed": 207,
+    "total": 207
+  },
+  "sourceParity": {
+    "files": 131,
+    "differences": 0,
+    "candidateCount": 3
+  },
+  "fileHashes": {
+    "components/local-customer-view.ts": "b7f203d2ca6626b03040ba545c947d7397724b2c3b161cda126b743bcf36fe1b",
+    "lib/local-customer-repository.ts": "1c32f511a5769d8f5a86e9d0c9b6e0dc6ace1e91d6884a10a50a3b23f4833d19",
+    "lib/local-customer-vault.ts": "1b50e99e2940edacf4bbe261b71438cd0c1b070063ad698a4072f0594b5c9faf",
+    "lib/synthetic-customer-controller.ts": "8f0c9090ba94017a88ea903386fcadc9f0dea526c36d7252636144175ccc327d",
+    "scripts/test-local-customer-repository-browser.mjs": "5451153bc76a0a2a403df9c17c7cdfa5c689eaa8f623b437595dc4cbd8f35749",
+    "scripts/test-local-customer-view-browser.mjs": "9968b359933bc55e212fc306a75b08faf0c2bbdb108a85bcce46c751b606c75c",
+    "scripts/test-local-customers-framework-browser.mjs": "f7a431a7807f00c296a9eb46bacf73596454aed933e130abcdbb9c33af76606a"
+  },
+  "inspectionWritesStorage": false,
+  "automaticRetryEnabled": false,
+  "inspectionUpdatesEditingSession": false,
+  "productionActivated": false,
+  "physicalIPhoneTested": false,
+  "wholeScreenShaking": "UNRESOLVED",
+  "candidates": {
+    "view": {
+      "live": {
+        "passed": 21,
+        "total": 21,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "productionActivated": false,
+        "iPhoneTested": false
+      },
+      "doomsday": {
+        "passed": 21,
+        "total": 21,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "productionActivated": false,
+        "iPhoneTested": false
+      },
+      "staging": {
+        "passed": 21,
+        "total": 21,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "productionActivated": false,
+        "iPhoneTested": false
+      }
+    },
+    "repository": {
+      "live": {
+        "passed": 28,
+        "total": 28,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      "doomsday": {
+        "passed": 28,
+        "total": 28,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      "staging": {
+        "passed": 28,
+        "total": 28,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      }
+    },
+    "controller": {
+      "live": {
+        "passed": 18,
+        "total": 18,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "serverAuthenticationVerified": false,
+        "productionActivated": false
+      },
+      "doomsday": {
+        "passed": 18,
+        "total": 18,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "serverAuthenticationVerified": false,
+        "productionActivated": false
+      },
+      "staging": {
+        "passed": 18,
+        "total": 18,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "serverAuthenticationVerified": false,
+        "productionActivated": false
+      }
+    },
+    "framework": {
+      "live": {
+        "passed": 16,
+        "total": 16,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual framework reads stored receipts offline without server acknowledgement",
+          "stored receipt report fits actual 320px dark screen",
+          "stored receipt report fits actual 320px light screen",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "live",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "doomsday": {
+        "passed": 16,
+        "total": 16,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual independent auth rejects invalid signed-cookie fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual framework reads stored receipts offline without server acknowledgement",
+          "stored receipt report fits actual 320px dark screen",
+          "stored receipt report fits actual 320px light screen",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "doomsday",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "staging": {
+        "passed": 16,
+        "total": 16,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual framework reads stored receipts offline without server acknowledgement",
+          "stored receipt report fits actual 320px dark screen",
+          "stored receipt report fits actual 320px light screen",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "staging",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      }
+    }
+  },
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}

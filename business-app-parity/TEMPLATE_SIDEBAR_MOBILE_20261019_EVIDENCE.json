@@ -1,0 +1,33 @@
+{
+  "baseCommit": "e276853b7f7db7fa377381001f589a0d05f065af",
+  "scope": "Shared Templates editor width constraints and persisted-theme sidebar presentation",
+  "releaseReadiness": {"acceptedGates": 3, "totalGates": 10, "percent": 30},
+  "implemented": [
+    "Constrain template grid items, native textarea sizing, long words and form controls without hiding whole-app overflow",
+    "Wrap template header and save/reset controls on narrow screens, retain vertical textarea resizing and 16px mobile input text",
+    "Apply existing light theme to sidebar, account text, borders and selected navigation; preserve dark navy styling",
+    "Run actual shared SettingsView and sidebar JSX with compiled Tailwind in CI"
+  ],
+  "verification": {
+    "templateSidebarBrowserChecksPerCandidate": 122,
+    "candidates": ["qa", "live", "doomsday", "staging"],
+    "viewportWidths": [320, 390, 768, 1024, 1440],
+    "themes": ["light", "dark"],
+    "estimateEditorBrowserChecks": 171,
+    "paymentsHeaderBrowserChecks": 111,
+    "invoiceCurrentStateChecks": 194,
+    "templateCompatibility": "passed; stored defaults and custom text preserved",
+    "processingFeeRegression": "passed with synthetic route/database mocks",
+    "finalTippingRegression": "passed on isolated LIVE candidate with synthetic mocks; QA adapter intentionally blocks Stripe probes",
+    "typescript": "4/4 passed",
+    "builds": "4/4 passed",
+    "sharedAdapterSourceParity": "4/4 passed",
+    "baselineRegressionCheck": "Previous CSS fails the 320px light sidebar assertion"
+  },
+  "limitations": [
+    "Chromium fixture is not native iPhone/iPad or deployed QA acceptance",
+    "This batch does not implement offline reports, deposit amount overrides or pending-payment recovery",
+    "No deployment, remote database operation, customer communication or Stripe network request performed"
+  ],
+  "nextBatch": "Bounded encrypted offline read access for previously synchronized job reports and costs; investigate pending payment label using read-only receipt state"
+}

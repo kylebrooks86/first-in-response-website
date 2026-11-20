@@ -1,0 +1,15 @@
+{
+  "name": "fire-stripe-test-20261101",
+  "main": "./index.mjs",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fire-stripe-test-db-20261101",
+      "database_id": "dba421ba-fc66-4cf8-9c31-51616f8249ba"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "parent": "773d4a528e5929302b0914677e1e6628a9a1703d",
+  "scope": "Inactive local customer IndexedDB foundation only",
+  "testEnvironment": "Node v24.19.0 native TypeScript stripping; event-driven simulated IDBFactory. No browser engine installed.",
+  "targets": {
+    "live": {
+      "testExitCode": 0,
+      "simulatedChecksPassed": 20,
+      "simulatedChecksTotal": 20,
+      "root": "/workspace/scratch/a307f8c9f987/offline-customers-live"
+    },
+    "doomsday": {
+      "testExitCode": 0,
+      "simulatedChecksPassed": 20,
+      "simulatedChecksTotal": 20,
+      "root": "/workspace/scratch/a307f8c9f987/offline-customers-doomsday"
+    },
+    "staging": {
+      "testExitCode": 0,
+      "simulatedChecksPassed": 20,
+      "simulatedChecksTotal": 20,
+      "root": "/workspace/scratch/a307f8c9f987/offline-customers-staging"
+    }
+  },
+  "suiteRunsPassed": 3,
+  "suiteRunsTotal": 3,
+  "checksPassed": 60,
+  "checksTotal": 60,
+  "sharedFilesMatched": 120,
+  "sharedFilesChecked": 120,
+  "syntaxChecksPassed": 2,
+  "syntaxChecksTotal": 2,
+  "typechecks": "BLOCKED: previous node_modules symlink target /workspace/sites/fire-live-refund-staging/node_modules is absent; no TypeScript compiler available. Node strips types but does not check them.",
+  "builds": "BLOCKED_DEPENDENCIES; not run. No network install or paid operation attempted.",
+  "realIndexedDBVerified": false,
+  "iPhoneVerified": false,
+  "uiActivated": false,
+  "offlineAppImplemented": false,
+  "migrationExecuted": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "deploymentPerformed": false,
+  "changedFilesSha256": {
+    "shared/lib/local-customer-store.ts": "8c9e46fe15096c6d299fc57a27cd51d24fdd0e2cb401b81891e726f90ce3f937",
+    "shared/scripts/test-local-customer-store.mjs": "6cde7fc9525b896df4506b0cd190c22eb2af2826f01e64d68d5cee4cac072429"
+  },
+  "productionReadiness": {
+    "passed": 3,
+    "required": 10,
+    "percent": 30,
+    "ready": false
+  },
+  "previousVerifiedRuntime": "53984f88cf2152cfc52d727adb82e810b3279927",
+  "candidateEvidencePointers": "Prior fully tested runtime pointers preserved; inactive foundation is not promoted to verified release candidate."
+}
