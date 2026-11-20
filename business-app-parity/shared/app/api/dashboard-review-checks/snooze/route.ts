@@ -11,7 +11,13 @@ export async function POST(request:Request){
  const owner=await getChatGPTUser();
  if(typeof owner?.email!=="string"||owner.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
  const parsed=await readOwnerWriteObject(request,4096);
- if(parsed.response)return new Response(parsed.response.body,{status:parsed.response.status,headers:{...Object.fromEntries(parsed.response.headers),...privateHeaders}});
+ if(parsed.response){
+  // Do not spread Headers into an object: differently-cased Cache-Control keys
+  // can coexist and combine, leaving a rejected owner write with stale headers.
+  // Keep the guard reply status, Content-Type and original body unchanged.
+  for(const [name,value] of Object.entries(privateHeaders))parsed.response.headers.set(name,value);
+  return parsed.response;
+ }
  try{
   const input=parsed.value as Record<string,unknown>;
   const {customerId,requestedAt,operationId}=input;
