@@ -80,6 +80,10 @@ for(const mode of scenarios){
  const count=Number(db.prepare('SELECT COUNT(*) AS n FROM customer_photos').get().n);
  const expected=mode==='success';
  check(response.status===(expected?201:mode==='bucket-failure'?500:503),mode+' HTTP status never falsely claims saved');
+ check(response.headers.get('cache-control')==='private, no-store'
+  &&response.headers.get('vary')==='Cookie'
+  &&response.headers.get('x-content-type-options')==='nosniff',
+  mode+' photo save response is session-private, uncached and nosniff');
  if(expected){
   const row=db.prepare('SELECT * FROM customer_photos LIMIT 1').get();
   check(count===1&&objects.size===1&&reads===1&&writes===1&&puts===1,'Acknowledged photo has one verified SQL record and R2 object');
@@ -102,12 +106,18 @@ for(const mode of scenarios){
  if(mode==='success'){
   // A nonowner/anonymous caller must not reach the private R2/D1 write path.
   const previousWrites=writes,previousPuts=puts;
-  for(const email of [null,'other@example.invalid']){
-   user=email?{email}:null;
+  const previousReads=reads;
+  for(const principal of [null,{email:'other@example.invalid'},{},{email:null},{email:42}]){
+   user=principal;
    const denied=await exports.POST(request());
-   check(denied.status===401,'Anonymous/nonowner photograph upload denied');
+   check(denied.status===401,'Anonymous/nonowner/malformed principal photograph upload denied');
+   check(denied.headers.get('cache-control')==='private, no-store'
+     &&denied.headers.get('vary')==='Cookie'
+     &&denied.headers.get('x-content-type-options')==='nosniff',
+     'Rejected photo upload is session-private, uncached and nosniff');
   }
-  check(writes===previousWrites&&puts===previousPuts,'Denied photo requests cause zero storage or D1 writes');
+  check(writes===previousWrites&&puts===previousPuts&&reads===previousReads,
+    'Denied or malformed photo principals cause zero storage or D1 work');
  }
  db.close();
 }

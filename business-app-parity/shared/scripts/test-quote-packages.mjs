@@ -81,6 +81,14 @@ try{
  eq((await put([mix],null)).status,401,'Unauthenticated package write rejected');
  r.setOwner({email:'other@example.invalid'});
  eq((await read()).status,401,'Nonowner cannot read service packages');
+ const authReads=r.counters().reads,authWrites=r.counters().writes;
+ for(const invalidPrincipal of [{},{email:null},{email:42}]){
+  r.setOwner(invalidPrincipal);
+  eq((await read()).status,401,'Malformed authenticated principal cannot read owner packages');
+  eq((await put([mix],null)).status,401,'Malformed authenticated principal cannot save owner packages');
+ }
+ eq(r.counters().reads,authReads,'Malformed principals cause zero package database reads');
+ eq(r.counters().writes,authWrites,'Malformed principals cause zero package database writes');
  r.setOwner({email:'kylebrooks8605@gmail.com'});
  r.db.prepare('UPDATE message_templates SET body=? WHERE key=?').run('{broken',model.QUOTE_PACKAGES_KEY);
  eq((await read()).status,503,'Corrupt saved catalog cannot silently become empty');

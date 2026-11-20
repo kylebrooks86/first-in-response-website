@@ -4,7 +4,7 @@ import {QUOTE_PACKAGES_KEY,decodeQuotePackages,validQuotePackages} from '../../.
 import {confirmedSettingCAS} from '../../../lib/confirmed-setting-cas.mjs';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
-async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()===OWNER;}
+async function authorized(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER;}
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'}});
 export async function GET(){
  if(!await authorized())return json({error:'Unauthorized'},401);

@@ -56,9 +56,20 @@ async function boundedPhotoForm(request:Request):Promise<FormData|Response>{
 }
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){ const user=await getChatGPTUser(); return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL; }
 
+// A private photo-save receipt, error, or rejected browser request must not
+// enter shared caches or get reused under another owner's session.
+function privatePhotoResponse(response:Response):Response{
+  response.headers.set("Cache-Control","private, no-store");
+  response.headers.set("Vary","Cookie");
+  response.headers.set("X-Content-Type-Options","nosniff");
+  return response;
+}
 export async function POST(request: Request) {
+  return privatePhotoResponse(await savePhoto(request));
+}
+async function savePhoto(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const deniedBrowserWrite=ownerBrowserWriteScope(request,false);
   if(deniedBrowserWrite)return deniedBrowserWrite;

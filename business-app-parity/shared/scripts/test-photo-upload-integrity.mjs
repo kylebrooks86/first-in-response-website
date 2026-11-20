@@ -81,6 +81,10 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
       const result=await m.POST(foreign);
       check('Owner photo browser cross-site POST is denied before R2/D1 reads or writes',
         result.status===403&&m.counts().puts===0&&m.counts().dbWrites===0&&m.counts().photoSelects===0);
+      check('Photo browser-origin denial is owner-private, uncached and nosniff',
+        result.headers.get('cache-control')==='private, no-store'
+        &&result.headers.get('vary')==='Cookie'
+        &&result.headers.get('x-content-type-options')==='nosniff');
     }
     for(const [description,options] of [
       ['empty file',{bytes:0}],
@@ -91,6 +95,10 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
       const res=await m.POST(request(options));
       check('Customer photo '+description+' is rejected before R2 or D1',
         res.status===400&&m.counts().puts===0&&m.counts().dbWrites===0&&m.counts().photoSelects===0);
+      check('Invalid photo input retains owner-private cache/session headers',
+        res.headers.get('cache-control')==='private, no-store'
+        &&res.headers.get('vary')==='Cookie'
+        &&res.headers.get('x-content-type-options')==='nosniff');
     }
     {
       const m=loadRoute(file),bad=request({mime:'image/svg+xml',name:'invoice.svg'});
