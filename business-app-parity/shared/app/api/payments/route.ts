@@ -5,14 +5,18 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import { readOwnerWriteObject } from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Every owner payment/checkout-history response must be private to this session,
+// including denial, incomplete refund schema, accounting holds and D1 outage.
+const ownerPaymentHistoryHeaders = {"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized() {
   const user = await getChatGPTUser();
   return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
 }
 
 export async function GET() {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (!await refundLedgerObjectsPresent(env.DB)) return refundLedgerNotReady();
+  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401, headers: ownerPaymentHistoryHeaders });
+  try {
+    if (!await refundLedgerObjectsPresent(env.DB)) return refundLedgerNotReady();
   const result = await env.DB.prepare(`
     SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,
       p.provider_id AS reference,p.created_at AS createdAt,c.id AS customerId,c.name AS customer,
@@ -31,7 +35,7 @@ export async function GET() {
     const refundable=Number(row.refundableCents??0);
     return Number.isSafeInteger(amount)&&Number.isSafeInteger(refunded)&&refunded>=0&&Number.isSafeInteger(refundable)&&refundable>=0;
   });
-  if(!paymentRowsSafe)return Response.json({error:"Payment history contains accounting values that require owner review."},{status:409});
+  if(!paymentRowsSafe)return Response.json({error:"Payment history contains accounting values that require owner review."},{status:409,headers:ownerPaymentHistoryHeaders});
   // Show all open Stripe checkout records, including tracked sessions that
   // may have expired remotely but still block manual payment until verified.
   const checkoutIssues=await env.DB.prepare(`SELECT s.id,s.estimate_id AS estimateId,
@@ -41,7 +45,13 @@ export async function GET() {
     JOIN customers c ON c.id=e.customer_id
     WHERE s.status='open'
     ORDER BY s.created_at DESC LIMIT 50`).all();
-  return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});
+  return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:ownerPaymentHistoryHeaders});
+  } catch {
+    // A failed financial D1 read cannot masquerade as an empty payment list or
+    // escape as an unhandled 500 with missing session-private headers.
+    return Response.json({error:"Payment history is temporarily unavailable. No payment records were changed."},
+      {status:503,headers:ownerPaymentHistoryHeaders});
+  }
 }
 
 export async function POST(request: Request) {
