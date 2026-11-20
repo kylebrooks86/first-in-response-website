@@ -5,7 +5,7 @@ db.exec("INSERT INTO customers(id,name,created_at) VALUES('a','Synthetic A','now
 const env={DB:{prepare(sql){return{bind(...args){return{async first(){if(loseReceipt&&sql.startsWith('SELECT id,customer_id AS customerId,body')){loseReceipt=false;throw Error('Synthetic response interruption after insert');}return db.prepare(sql).get(...args)??null;},async run(){writes++;if(skipWrite&&sql.startsWith('INSERT OR IGNORE INTO customer_notes')){skipWrite=false;return{meta:{changes:1}};}const outcome=db.prepare(sql).run(...args);if(loseWriteAck&&sql.startsWith('INSERT OR IGNORE INTO customer_notes')){loseWriteAck=false;throw Error('Synthetic D1 committed note, lost INSERT acknowledgment');}return{meta:{changes:outcome.changes}};}};}};}}};
 const route=createRouteFixtureLoader(process.cwd(),env,()=>owner)('app/api/customer-notes/route.ts');const post=body=>route.POST(new Request('https://fixture.invalid/api/customer-notes',{method:'POST',body:JSON.stringify(body)}));let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;},rows=()=>db.prepare('SELECT * FROM customer_notes ORDER BY id').all();
 try{
- const body={customerId:'a',body:'  Gate instruction\nKeep side gate closed.  ',requestId:randomUUID()};let response=await post(body);eq(response.status,201);const first=await response.json();eq(first.note.body,body.body.trim());eq(first.note.id,body.requestId);eq(first.confirmed,true);eq(response.headers.get('cache-control'),'no-store, private');
+ const body={customerId:'a',body:'  Gate instruction\nKeep side gate closed.  ',requestId:randomUUID()};let response=await post(body);eq(response.status,201);const first=await response.json();eq(first.note.body,body.body.trim());eq(first.note.id,body.requestId);eq(first.confirmed,true);eq(response.headers.get('cache-control'),'private, no-store');eq(response.headers.get('vary'),'Cookie');eq(response.headers.get('x-content-type-options'),'nosniff');
  response=await post(body);eq(response.status,200);eq(await response.json(),first,'Same request returns the original timestamp and content');eq(rows().length,1);
  for(const change of [{...body,customerId:'b'},{...body,body:'Changed content'}]){const before=rows();eq((await post(change)).status,409);eq(rows(),before,'Conflicting reuse never overwrites a saved note');}
  const parallel={...body,requestId:randomUUID()};eq((await Promise.all([post(parallel),post(parallel)])).map(r=>r.status).sort(),[200,201]);eq(rows().length,2,'Concurrent duplicate requests insert once');
@@ -20,7 +20,7 @@ try{
  // A lost SELECT acknowledgment, unlike a lost INSERT ACK, must NOT be
  // reported as a confirmed save.
  const lost={...body,requestId:randomUUID()};loseReceipt=true;
- let uncertainResponse=await post(lost);eq(uncertainResponse.status,503);
+ let uncertainResponse=await post(lost);eq(uncertainResponse.status,503);eq(uncertainResponse.headers.get('cache-control'),'private, no-store');eq(uncertainResponse.headers.get('vary'),'Cookie');eq(uncertainResponse.headers.get('x-content-type-options'),'nosniff');
  let uncertainBody=await uncertainResponse.json();
  eq(uncertainBody.saveUncertain,true);eq(uncertainBody.requestId,lost.requestId);
  const saved=rows().find(r=>r.id===lost.requestId);eq(Boolean(saved),true);
@@ -86,6 +86,6 @@ try{
   eq(rows(),beforeRows,file+' '+method+' cannot alter saved notes');
   eq(writes,beforeWrites,file+' '+method+' performs zero D1 writes');
  }
- const frozen=rows(),writeCount=writes;for(const user of [null,{email:'other@example.invalid'}]){owner=user;eq((await post(body)).status,401);eq(rows(),frozen);eq(writes,writeCount);}
+ const frozen=rows(),writeCount=writes;for(const user of [null,{email:'other@example.invalid'}]){owner=user;const denied=await post(body);eq(denied.status,401);eq(denied.headers.get('cache-control'),'private, no-store');eq(denied.headers.get('vary'),'Cookie');eq(denied.headers.get('x-content-type-options'),'nosniff');eq(rows(),frozen);eq(writes,writeCount);}
  console.log('PASS '+checks+' actual customer-note SQLite/API checks: lost INSERT ACK recovery, lost SELECT ACK fail-closed, fake write ACK refusal, retry, concurrency, immutable timestamps, conflicts, malformed input, limits and owner authorization.');
 }finally{db.close();}
