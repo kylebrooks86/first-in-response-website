@@ -336,6 +336,9 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node scripts/test-qa-worker-http-browser.mjs
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
+          # The existing owner-only customer lookup browser exercise is opt-in;
+          # explicitly run it so header/denial assertions are NOT silently skipped.
+          node scripts/test-qa-worker-http-browser.mjs --customer-lookup
       - name: Gate 6 two-customer public share-token isolation (disposable local QA, never hosted)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
