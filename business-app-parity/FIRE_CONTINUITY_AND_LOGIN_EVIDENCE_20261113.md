@@ -1,3 +1,14 @@
+<!-- FIRE-1429-PREVIEW-OFF-RECONFIRMED -->
+## Nov 20, 2026, 14:29 CST — latest original owner STAGING preview OFF after transient ON; production Access separately authorized and PENDING
+
+Original owner authenticated Cloudflare Domains screenshot `IMG_4549.png`, private PNG 1320×2868 SHA-256 `ebdba5c96af0acd641991954d7278698e8ba63c7852dff33d31a8961ce308a36`, shows `fire-app-independent-staging` wildcard Preview **OFF gray**, exact STAGING Production workers.dev URL **ON blue**, no custom domains listed. This supersedes interim 14:13 and 14:28 owner ON sightings for **current** UI state, preserving all time-scoped history. No repeat owner screenshots. [Detailed GitHub evidence](evidence/FIRE_STAGING_SERVING_DOMAINS_ACCESS_OWNER_20261119.md) · [Issue #19 newest receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7049935589).
+
+The **separate owner 14:10 approval** for exact-hostname `fire-app-independent-staging.kyle-bfc.workers.dev` **owner-only Access** remains active but **not yet executed**; do not conflate it with earlier preview-only consent. No Access app or policy should be claimed created on the earlier unsaved Creation screen. The production URL currently lacks proven Cloudflare Access. Next safe configuration: protect ONLY the exact production hostname with Allow exact owner-verified email; confirm application domain and policy BEFORE Create. Never use worker-wide or account-wide scope, everyone/domain-wide allow, paid Cloudflare/R2, other Worker changes. No source, D1, Stripe or deployment changes.
+
+**Official formal release tally remains 51/95 accepted, 44 open, 4/10 gates G1/G2/G3/G8 accepted; G4-05 and G4-06 [ ] and others OPEN; NEW LIVE DARK/NO-GO, first real Job #0001 unused.** New preview OFF is already credited G4-05 screenshot subproof, not a new numbered check.
+
+---
+
 <!-- FIRE-STAGING-PREVIEW-TOGGLE-VERIFIED-20261120 -->
 ## November 20, 2026, 13:59 CST — [x] STAGING preview OFF owner UI proof, scope preserved
 
