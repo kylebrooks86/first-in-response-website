@@ -1,3 +1,10 @@
+<!-- FIRE-G9-03-171d-CI-FINAL-SCOPED-20261119 -->
+## Final scope correction — Nov 19 PR282 exact executable SHA 171d25e CI
+
+The final automatic Actions readback (after documentation-only follow-ons) for **executable SHA `171d25e76a9a4aa3f63be70249806e66bb2d53c1`** is **26/27 workflow groups SUCCESS, one staging/QA group CANCELLED**, not full 27/27. Within the cancelled group, the actual `QA/staging shared app source and isolated staging build` **JOB succeeded**, including the `Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)` **STEP SUCCESS** with new owner private response checks. The separate Windows, Stripe TEST contract, migration and built QA HTTPS jobs also SUCCEEDED; the group's synthetic Chrome declined-deposit job was CANCELLED. **No repeat or misleading full-green claim.** Independent G9-03 exact full-app offline workflow #44680167451 completed SUCCESS, source seal remains byte-for-byte rehydrated. This final CI state does **not** invalidate the narrowly verified job-report changed-route step or sealed G9-03 source preparation; it also does **not** establish hosted approval. Formal 51/95; 4/10 gates accepted; all provider release changes remain unauthorized.
+
+---
+
 <!-- FIRE-NOV19-G9-03-OFFLINE-SEAL-51-OF-95-20261119 -->
 ## November 19 late — MASTER CHECKLIST REAL ITEM CLOSED: G9-03 exact TEST-only inactive source seal (51/95)
 
