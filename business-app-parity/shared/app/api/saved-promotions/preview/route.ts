@@ -1,17 +1,24 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
+import {readOwnerWriteObject} from '../../../../lib/customer-write-request-guard.mjs';
 import {FIRE_SERVICES} from '../../../../lib/fire-services';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions,evaluateSavedPromotions,fireDate,validOwnerConfirmedBookingDate} from '../../../../lib/saved-promotions';
 
 const OWNER='kylebrooks8605@gmail.com';
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
+const privateHeaders={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:privateHeaders});
 export async function POST(request:Request){
  const user=await getChatGPTUser();
- if(user?.email.toLowerCase()!==OWNER)return json({error:'Unauthorized'},401);
- let input:unknown;
- try{input=await request.json();}catch{return json({error:'Invalid promotion preview request.'},400);}
- if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'Invalid promotion preview request.'},400);
- const body=input as Record<string,unknown>;
+ if(user?.email?.toLowerCase()!==OWNER)return json({error:'Unauthorized'},401);
+ // Bound owner input before pricing reads, and refuse cross-origin browser requests.
+ // This is a preview only; it never mutates promotions, estimates or Stripe.
+ const parsed=await readOwnerWriteObject(request,32768);
+ if(parsed.response){
+  parsed.response.headers.set('Vary','Cookie');
+  parsed.response.headers.set('X-Content-Type-Options','nosniff');
+  return parsed.response;
+ }
+ const body=parsed.value as Record<string,unknown>;
  const known=new Set(FIRE_SERVICES.map(service=>service.id));
  if(Object.keys(body).sort().join(',')!==(Object.prototype.hasOwnProperty.call(body,'bookingConfirmedOn')?'appreciationDiscount,bookingConfirmedOn,serviceIds,subtotalCents':'appreciationDiscount,serviceIds,subtotalCents')||
     (Object.prototype.hasOwnProperty.call(body,'bookingConfirmedOn')&&!validOwnerConfirmedBookingDate(body.bookingConfirmedOn,new Date()))||
