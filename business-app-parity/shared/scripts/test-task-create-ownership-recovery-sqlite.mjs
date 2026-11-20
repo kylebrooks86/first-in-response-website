@@ -89,8 +89,7 @@ try{
  check(customerOutage.status===503&&/temporarily unavailable/.test(customerOutage.data.error),'Customer-only task lookup outage fails closed as 503');
  check(customerOutage.headers.get('cache-control')==='private, no-store'&&customerOutage.headers.get('vary')==='Cookie','Customer lookup outage cannot be cached/shared');
  check(count()===beforeLookupOutage&&!row(key(92)),'Task customer lookup outage performs zero D1 writes');
- const retryAfterOutage=await post(body(91));
- check(retryAfterOutage.status===201&&row(key(91)).customerId===customer,'Original task request ID safely saves once after D1 recovery');
+
 
  // Another phone reassigns the job AFTER the app checked ownership. The actual
  // conditional SQL INSERT must refuse the now-wrong customer.
@@ -132,6 +131,8 @@ try{
  check(newCustomer.status===201&&newCustomer.data.task.customerId===customer,'Customer-only task still works without a linked job');
  const standalone=await post(body(6,{estimateId:null,customerId:null}));
  check(standalone.status===201&&standalone.data.task.estimateId===null,'General owner task with no linked customer remains supported');
+ const retryAfterOutage=await post(body(91));
+ check(retryAfterOutage.status===201&&row(key(91)).customerId===customer,'Original task request ID safely saves once after D1 recovery');
 
  rt.setOwner(null);
  const unauthRoster=await api.GET();
