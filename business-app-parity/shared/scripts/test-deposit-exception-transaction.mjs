@@ -6,11 +6,12 @@ import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
 for(const f of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+f,'utf8'));
-let user={email:'kylebrooks8605@gmail.com'},beforeBatch=null,lostResponse=false,checks=0;
+let user={email:'kylebrooks8605@gmail.com'},beforeBatch=null,lostResponse=false,checks=0,routeD1Calls=0;
 const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE:'synthetic-contract-tests-only',
- DB:{prepare(sql){return {sql,values:[],bind(...values){return {...this,values};},async first(){return db.prepare(sql).get(...this.values)??null;},
+ DB:{prepare(sql){routeD1Calls++;return {sql,values:[],bind(...values){return {...this,values};},async first(){return db.prepare(sql).get(...this.values)??null;},
  async all(){return {results:db.prepare(sql).all(...this.values)};}}},
  async batch(statements){
+  routeD1Calls++;
   if(beforeBatch){const f=beforeBatch;beforeBatch=null;f();}
   db.exec('BEGIN');
   try{
@@ -20,7 +21,10 @@ const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXC
    return result;
   }catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e;}
  }}};
-const load=createRouteFixtureLoader(process.cwd(),env,()=>user);
+const load=createRouteFixtureLoader(process.cwd(),env,()=>{
+ if(user==='session-error')throw Error('Synthetic session lookup failed');
+ return user;
+});
 const route=load('app/api/estimates/[id]/deposit-policy/route.ts');
 const edit=load('app/api/estimates/[id]/route.ts');
 const publicAccept=load('app/api/public/estimates/[token]/accept/route.ts');
@@ -53,8 +57,32 @@ try{
  user={email:'impostor@example.invalid'};eq((await post('disabled',request('disabled')[0])).status,401);
  user={email:'kylebrooks8605@gmail.com'};eq(events('disabled').length,0);
  eq((await post('disabled',request('disabled')[0],)).status,201);eq(row('disabled').deposit_cents,0);
+ // Exercise the actual GET and POST routes against malformed/unavailable
+ // authentication before any D1 read. These are real response headers, not
+ // static source assertions or an assumed Cloudflare Access policy.
+ seed('identity');const pristineIdentity=snapshot('identity');
+ const privateReceipt=(reply,status)=>{
+  eq(reply.status,status);
+  eq(reply.headers.get('cache-control'),'no-store, private');
+  eq(reply.headers.get('vary'),'Cookie');
+  eq(reply.headers.get('x-content-type-options'),'nosniff');
+ };
+ const principals=[
+  null,{}, {email:null},{email:17},{email:{toLowerCase(){return 'kylebrooks8605@gmail.com';}}},
+  {email:'other@example.invalid'}, {get email(){throw Error('Unusable principal getter');}},
+  'session-error'
+ ];
+ for(const principal of principals){
+  user=principal;const beforeD1=routeD1Calls;
+  await privateReceipt(await route.GET(new Request('https://synthetic.invalid/api/estimates/identity/deposit-policy'),{params:Promise.resolve({id:'identity'})}),401);
+  await privateReceipt(await post('identity',request('identity')[0]),401);
+  eq(routeD1Calls,beforeD1);
+ }
+ user={email:'kylebrooks8605@gmail.com'};
+ eq(snapshot('identity'),pristineIdentity);
+ await privateReceipt(await route.GET(new Request('https://synthetic.invalid/api/estimates/identity/deposit-policy'),{params:Promise.resolve({id:'identity'})}),200);
  seed('headers');
- eq((await post('headers',request('headers')[0],)).status,201);
+ await privateReceipt(await post('headers',request('headers')[0]),201);
  seed('origin');
  eq((await post('origin',request('origin')[0],)).status,201);
  seed('attacks');
@@ -207,5 +235,5 @@ try{
  const editing=await edit.PATCH(new Request('https://synthetic.invalid/api/estimates/lost',{method:'PATCH',headers:{'content-type':'application/json'},
   body:JSON.stringify({items:[{name:'Updated work',description:'Synthetic',quantity:1,unit:'job',totalCents:18001}]})}),{params:Promise.resolve({id:'lost'})});
  eq(editing.status,409);eq(JSON.stringify(events('lost')),before);eq(row('lost').deposit_cents,1000);
- console.log('PASS '+checks+'/'+checks+': synthetic double-gated owner deposit writes; all six modes, owner audit, forged replay refusal, customer exposure and approval refusal, audit CAS, before-batch races, signed and paid refusal, lost acknowledgement, and edit protection. No hosted resources or payments.');
+ console.log('PASS '+checks+'/'+checks+': synthetic private GET/POST, malformed-session and D1-denial owner checks; double-gated owner deposit writes; all six modes, owner audit, forged replay refusal, customer exposure and approval refusal, audit CAS, before-batch races, signed and paid refusal, lost acknowledgement, and edit protection. No hosted resources or payments.');
 }finally{db.close();}
