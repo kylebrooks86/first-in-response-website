@@ -18,7 +18,7 @@ export async function GET(){
   }catch{return Response.json({notifications:[],unread:0,error:"Notifications are temporarily unavailable."},{status:503,headers:privateNotificationHeaders});}
 }
 
-export async function PATCH(request:Request){
+async function patchNotification(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   // Even owner-authenticated notification and overpayment actions must not
   // buffer an arbitrary request body before authorization-sensitive D1 reads.
@@ -176,4 +176,16 @@ export async function PATCH(request:Request){
     }
     else return Response.json({error:"Choose a notification."},{status:400});
   }catch{return Response.json({error:"Notifications could not be updated."},{status:500});}
+}
+
+// All owner notification PATCH receipts (including payment-overage decisions,
+// request validation, unauthenticated denial and D1 errors) are private to the
+// current session. Do not alter the handler's saved state or HTTP status.
+function privateNotificationWriteResponse(response:Response):Response {
+  const headers=new Headers(response.headers);
+  for(const [name,value] of Object.entries(privateNotificationHeaders))headers.set(name,value);
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
+export async function PATCH(request:Request){
+  return privateNotificationWriteResponse(await patchNotification(request));
 }
