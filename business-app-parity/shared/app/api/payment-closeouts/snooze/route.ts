@@ -8,7 +8,7 @@ const OP=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 /** Owner-controlled seven-day review-request snooze; never sends a message. */
 export async function POST(request:Request){
  const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ if(typeof user?.email!=="string"||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
  const parsed=await readOwnerWriteObject(request,4096);
  if(parsed.response){parsed.response.headers.set("Vary","Cookie");parsed.response.headers.set("X-Content-Type-Options","nosniff");return parsed.response;}
  try{
