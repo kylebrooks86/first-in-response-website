@@ -55,25 +55,39 @@ export async function GET(request:Request){
 
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request:Request){
- if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+ if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateExpenseGetHeaders});
  // Expenses affect owner financial records, so never buffer arbitrary JSON
  // before validating the payload. Reuse the same owner-only bounded reader
  // already used by Estimate/Invoice CREATE; no extra Worker module or changes
  // to valid amounts, calendar dates, request IDs or persistence semantics.
  const parsed=await readOwnerWriteObject(request,32_000);
- if(parsed.response)return parsed.response;
+ if(parsed.response){
+   // The shared request guard already rejects unsafe bodies; preserve its status
+   // and error while making every financial POST response session-private.
+   for(const [name,value] of Object.entries(privateExpenseGetHeaders))
+     parsed.response.headers.set(name,value);
+   return parsed.response;
+ }
  const body=parsed.value as Record<string,unknown>;
  const description=String(body.description??"").trim();
  const rawAmount=body.amountCents;
  if((typeof rawAmount!=="number"&&typeof rawAmount!=="string")||(typeof rawAmount==="string"&&!rawAmount.trim())||!Number.isSafeInteger(Number(rawAmount))||Number(rawAmount)<=0||!description)
-  return Response.json({error:"Description and a valid whole-cent amount are required."},{status:400});
+  return Response.json({error:"Description and a valid whole-cent amount are required."},{status:400,headers:privateExpenseGetHeaders});
  const amountCents=Number(rawAmount);
- if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid expense request ID is required."},{status:400});
+ if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid expense request ID is required."},{status:400,headers:privateExpenseGetHeaders});
  const id=typeof body.requestId==="string"?body.requestId:crypto.randomUUID();
  const estimateId=String(body.estimateId??"").trim()||null;
  if(estimateId){
-  const estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();
-  if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404});
+  // Never turn a temporary D1 lookup outage into an unhandled 500 or an
+  // apparent missing job. No expense INSERT is attempted in either case.
+  let estimate:{id:string}|null;
+  try{
+    estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();
+  }catch{
+    return Response.json({error:"The linked job could not be verified. No expense was saved; retry using the same request ID."},
+      {status:503,headers:privateExpenseGetHeaders});
+  }
+  if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404,headers:privateExpenseGetHeaders});
  }
  // If no purchase date was supplied, the server chooses the timestamp only
  // for the FIRST write. Never compare a fresh "now" against a committed retry:
@@ -87,13 +101,13 @@ export async function POST(request:Request){
  const stableDate=dateOnly?expenseDateInstant(rawIncurredAt):null;
  // Refuse impossible rollover dates and timestamps without a timezone.
  if((dateOnly&&!stableDate)||(!dateOnly&&!expenseBusinessDay(rawIncurredAt)))
-   return Response.json({error:"Choose a valid expense date with a verified business day."},{status:400});
+   return Response.json({error:"Choose a valid expense date with a verified business day."},{status:400,headers:privateExpenseGetHeaders});
  const parsedIncurredAt=new Date(stableDate??rawIncurredAt);
- if(!Number.isFinite(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400});
+ if(!Number.isFinite(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400,headers:privateExpenseGetHeaders});
  const category=String(body.category??"Supplies");
  const incurredAt=parsedIncurredAt.toISOString();
  const createdAt=new Date().toISOString();
- const privateHeaders={"cache-control":"private, no-store"};
+ const privateHeaders=privateExpenseGetHeaders;
  const uncertain=()=>Response.json({error:"Expense save could not be verified. Reopen saved expenses and keep the original request ID before trying again.",saveUncertain:true},
    {status:503,headers:privateHeaders});
  // A successful D1 acknowledgement is NOT proof of persistence. A thrown
