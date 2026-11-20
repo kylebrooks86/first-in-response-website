@@ -9,6 +9,13 @@ import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 const r=stackedRuntime();
 let checks=0;
 const test=(condition,label)=>{assert.ok(condition,label);checks++;};
+const expectPrivateRead=(response,label)=>{
+ test((response.headers.get('cache-control')??'').includes('private')&&
+      (response.headers.get('cache-control')??'').includes('no-store'),
+   label+': private non-cacheable response');
+ test(response.headers.get('vary')==='Cookie',label+': varies by owner session');
+ test(response.headers.get('x-content-type-options')==='nosniff',label+': prevents MIME sniffing');
+};
 const uid=n=>'eeeeeeee-eeee-4eee-8eee-'+String(n).padStart(12,'0');
 const promotion=(n,name,type,valueCents,requiredServiceIds=[])=>({
  id:uid(n),name,type,valueCents,enabled:true,autoApply:true,startOn:null,endOn:null,
@@ -104,6 +111,23 @@ try{
   }
   const fresh=await get(spec);
   test(fresh.status===200,spec.name+': initial route GET succeeds');
+  const route=r.load('app/api/'+spec.route+'/route.ts');
+  expectPrivateRead(await route.GET(),spec.name+' owner 200');
+  const beforeDenial=JSON.stringify(r.counters());
+  r.setOwner(null);
+  let denied;
+  try{denied=await route.GET();}
+  finally{r.setOwner({email:'kylebrooks8605@gmail.com'});}
+  test(denied.status===401,spec.name+': nonowner cannot read private settings');
+  expectPrivateRead(denied,spec.name+' nonowner 401');
+  test(JSON.stringify(r.counters())===beforeDenial,spec.name+': nonowner denied before D1');
+  const priorDbPrepare=r.env.DB.prepare;
+  let dbDown;
+  r.env.DB.prepare=()=>{throw Error('synthetic D1 owner setting read failed');};
+  try{dbDown=await route.GET();}
+  finally{r.env.DB.prepare=priorDbPrepare;}
+  test(dbDown.status===503,spec.name+': D1 read failure cannot become a false empty catalog');
+  expectPrivateRead(dbDown,spec.name+' unavailable D1 503');
   test(stored(spec.key)===null,spec.name+': no initial settings row');
 
   // INSERT truly committed; transport says failed. Recover exact durable revision.
