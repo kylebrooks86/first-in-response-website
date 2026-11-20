@@ -166,7 +166,7 @@ try{
  check(response.status===201&&receipt.expense.incurredAt==='2026-12-31T12:00:00.000Z',
   'Date-only December 31 is normalized to stable Tulsa business day');
  response=await call(calendar);
- check(response.status===200&&count()===5,
+ check(response.status===200&&count()===6,
   'Canonical date-only expense replays without duplication or false conflict');
  check(stored(calendar.requestId).incurred_at==='2026-12-31T12:00:00.000Z',
   'Persisted date-only timestamp remains December 31 in Tulsa');
