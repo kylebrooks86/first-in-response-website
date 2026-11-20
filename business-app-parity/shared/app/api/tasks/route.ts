@@ -5,27 +5,36 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
 const privateTaskReadHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+function privateTaskJson(payload:unknown,init:ResponseInit={}){
+ // All saved task receipts, validation/denial errors and D1 outages are private.
+ return Response.json(payload,{...init,headers:{...init.headers,...privateTaskReadHeaders}});
+}
+function privateTaskGuardResponse(response:Response){
+ // Keep the body/status from the shared bounded stream reader unchanged.
+ return new Response(response.body,{status:response.status,statusText:response.statusText,
+  headers:{...Object.fromEntries(response.headers.entries()),...privateTaskReadHeaders}});
+}
 export async function GET(){
- if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateTaskReadHeaders});
+ if(!await authorized())return privateTaskJson({error:"Unauthorized"},{status:401,headers:privateTaskReadHeaders});
  try{
   const rows=await env.DB.prepare(`SELECT t.id,t.title,t.customer_id AS customerId,t.estimate_id AS estimateId,t.due_at AS dueAt,t.status,t.notes,t.created_at AS createdAt,t.completed_at AS completedAt,c.name AS customer FROM tasks t LEFT JOIN customers c ON c.id=t.customer_id ORDER BY CASE WHEN t.status='open' THEN 0 ELSE 1 END,CASE WHEN t.status='open' AND t.due_at IS NOT NULL THEN 0 ELSE 1 END,t.due_at ASC,t.created_at DESC`).all();
-  return Response.json({tasks:rows.results},{headers:privateTaskReadHeaders});
+  return privateTaskJson({tasks:rows.results},{headers:privateTaskReadHeaders});
  }catch{
-  return Response.json({error:"Saved tasks are temporarily unavailable. No tasks were changed."},{status:503,headers:privateTaskReadHeaders});
+  return privateTaskJson({error:"Saved tasks are temporarily unavailable. No tasks were changed."},{status:503,headers:privateTaskReadHeaders});
  }
 }
 
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request:Request){
- if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+ if(!await authorized())return privateTaskJson({error:"Unauthorized"},{status:401});
  // Stream-bound owner task creation before JSON parse. All existing
  // immutable request-ID and customer/job D1 checks remain authoritative.
  const parsed=await readOwnerWriteObject(request,64_000);
- if(parsed.response)return parsed.response;
+ if(parsed.response)return privateTaskGuardResponse(parsed.response);
  const body=parsed.value as Record<string,unknown>;
  const title=String(body.title??"").trim();
- if(!title)return Response.json({error:"Task title is required."},{status:400});
- if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid task request ID is required."},{status:400});
+ if(!title)return privateTaskJson({error:"Task title is required."},{status:400});
+ if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return privateTaskJson({error:"A valid task request ID is required."},{status:400});
  const id=typeof body.requestId==="string"?body.requestId:crypto.randomUUID();
  const createdAt=new Date().toISOString();
  let customerId=String(body.customerId??"").trim()||null;
@@ -34,18 +43,22 @@ export async function POST(request:Request){
  let dueAt:string|null=null;
  if(rawDueAt){
   const parsedDueAt=new Date(rawDueAt);
-  if(!Number.isFinite(parsedDueAt.getTime()))return Response.json({error:"Choose a valid task due date."},{status:400});
+  if(!Number.isFinite(parsedDueAt.getTime()))return privateTaskJson({error:"Choose a valid task due date."},{status:400});
   dueAt=parsedDueAt.toISOString();
  }
  const notes=String(body.notes??"").trim()||null;
  if(estimateId){
-  const linked=await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?").bind(estimateId).first<{customerId:string}>();
-  if(!linked)return Response.json({error:"Job not found. Refresh before creating this task."},{status:404});
-  if(customerId&&linked.customerId!==customerId)return Response.json({error:"That job does not belong to the selected customer."},{status:409});
+  let linked:{customerId:string}|null;
+  try{linked=await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?").bind(estimateId).first<{customerId:string}>();}
+  catch{return privateTaskJson({error:"Saved jobs are temporarily unavailable. No task was created. Retry using the same request ID."},{status:503});}
+  if(!linked)return privateTaskJson({error:"Job not found. Refresh before creating this task."},{status:404});
+  if(customerId&&linked.customerId!==customerId)return privateTaskJson({error:"That job does not belong to the selected customer."},{status:409});
   customerId=linked.customerId;
  }else if(customerId){
-  const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first<{id:string}>();
-  if(!customer)return Response.json({error:"Customer not found."},{status:404});
+  let customer:{id:string}|null;
+  try{customer=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first<{id:string}>();}
+  catch{return privateTaskJson({error:"Saved customers are temporarily unavailable. No task was created. Retry using the same request ID."},{status:503});}
+  if(!customer)return privateTaskJson({error:"Customer not found."},{status:404});
  }
  // The job/customer preflight above is not atomic with task creation:
  // a second device could reassign the job after the SELECT. Recheck the
@@ -56,7 +69,7 @@ export async function POST(request:Request){
   :customerId?"EXISTS(SELECT 1 FROM customers c WHERE c.id=?)":"1=1";
  const guardArgs=estimateId?[estimateId,customerId]:customerId?[customerId]:[];
  const privateHeaders={"Cache-Control":"no-store, private"};
- const uncertain=()=>Response.json({error:"Task save was not confirmed. Reopen saved tasks and retry using the original request ID.",saveUncertain:true},
+ const uncertain=()=>privateTaskJson({error:"Task save was not confirmed. Reopen saved tasks and retry using the original request ID.",saveUncertain:true},
    {status:503,headers:privateHeaders});
  // A missing D1 acknowledgement cannot establish noncommit. Read the
  // immutable task ID even when the INSERT appears to have failed.
@@ -82,7 +95,7 @@ export async function POST(request:Request){
          await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?").bind(estimateId).first<{customerId:string}>():
          await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
        if(!current||(estimateId&&"customerId" in current&&current.customerId!==customerId))
-         return Response.json({error:"The linked job or customer changed while creating the task. Refresh saved customers and jobs before trying again."},
+         return privateTaskJson({error:"The linked job or customer changed while creating the task. Refresh saved customers and jobs before trying again."},
            {status:409,headers:privateHeaders});
      }catch{return uncertain();}
    }
@@ -90,7 +103,7 @@ export async function POST(request:Request){
  }
  if(saved.id!==id||saved.title!==title||saved.customerId!==customerId||
     saved.estimateId!==estimateId||saved.dueAt!==dueAt||saved.notes!==notes)
-   return Response.json({error:"That task request ID is already associated with different details. Review saved tasks before trying again."},
+   return privateTaskJson({error:"That task request ID is already associated with different details. Review saved tasks before trying again."},
      {status:409,headers:privateHeaders});
  // Check again after readback. No success for a completed task save whose
  // job now points to a different homeowner, even if its INSERT once passed.
@@ -98,39 +111,39 @@ export async function POST(request:Request){
    if(estimateId){
      const current=await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?")
        .bind(estimateId).first<{customerId:string}>();
-     if(current?.customerId!==customerId)return Response.json({error:"This job changed customers during task creation. Review the current job and task history before proceeding.",saveUncertain:true},
+     if(current?.customerId!==customerId)return privateTaskJson({error:"This job changed customers during task creation. Review the current job and task history before proceeding.",saveUncertain:true},
        {status:409,headers:privateHeaders});
    }else if(customerId){
      const current=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
-     if(!current)return Response.json({error:"The task's customer is no longer available. Refresh saved records before retrying.",saveUncertain:true},
+     if(!current)return privateTaskJson({error:"The task's customer is no longer available. Refresh saved records before retrying.",saveUncertain:true},
        {status:409,headers:privateHeaders});
    }
  }catch{return uncertain();}
- return Response.json({task:{...saved,customer:null},requestId:id,confirmed:true},
+ return privateTaskJson({task:{...saved,customer:null},requestId:id,confirmed:true},
    {status:inserted?.success!==false&&inserted?.meta?.changes===1?201:200,headers:privateHeaders});
 }
 
 export async function PATCH(request:Request){
- if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+ if(!await authorized())return privateTaskJson({error:"Unauthorized"},{status:401});
  const parsed=await readOwnerWriteObject(request,64_000);
- if(parsed.response)return parsed.response;
+ if(parsed.response)return privateTaskGuardResponse(parsed.response);
  const body=parsed.value as {id?:unknown;status?:unknown;expectedStatus?:unknown;operation?:unknown;dueAt?:unknown;expectedDueAt?:unknown};
  const id=typeof body.id==="string"?body.id.trim():"";
  // Rescheduling is separate from status toggles: it cannot complete a task,
  // alter linked customer/estimate identities, or rewrite a yard-sign/review marker.
  if(body.operation!==undefined&&body.operation!=="reschedule")
-  return Response.json({error:"Unknown task operation."},{status:400});
+  return privateTaskJson({error:"Unknown task operation."},{status:400});
  if(body.operation==="reschedule"){
   const taskId=typeof body.id==="string"?body.id.trim():"";
   const next=body.dueAt,expected=body.expectedDueAt;
   const validSaved=(value:unknown)=>value===null||(typeof value==="string"&&value.length<=64&&Number.isFinite(Date.parse(value)));
   const validNew=(value:unknown)=>value===null||(typeof value==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value);
   if(!taskId||taskId.length>128||body.status!==undefined||body.expectedStatus!=="open"||!validSaved(expected)||!validNew(next))
-   return Response.json({error:"Choose a valid open task and a precise due date."},{status:400});
+   return privateTaskJson({error:"Choose a valid open task and a precise due date."},{status:400});
   // A conditional write protects a newer edit or completion on another phone.
   // NULL and date values must both match the caller's last verified GET.
   const headers={"Cache-Control":"no-store, private"};
-  const uncertain=()=>Response.json({error:"Task due-date save could not be verified. Refresh saved tasks before changing the deadline again.",saveUncertain:true},
+  const uncertain=()=>privateTaskJson({error:"Task due-date save could not be verified. Refresh saved tasks before changing the deadline again.",saveUncertain:true},
     {status:503,headers});
   // D1 can commit the compare-and-swap UPDATE before the acknowledgement is
   // lost. A second UPDATE would be unsafe; independently inspect this exact
@@ -146,19 +159,19 @@ export async function PATCH(request:Request){
       .bind(taskId).first<{status:string;dueAt:string|null}>();
   }catch{return uncertain();}
   if(!saved)return changed?.meta?.changes===0?
-    Response.json({error:"Task not found. Refresh saved tasks."},{status:404,headers}):uncertain();
-  if(saved.status!=="open")return Response.json({error:"Task is no longer open. Refresh saved tasks before editing."},{status:409,headers});
+    privateTaskJson({error:"Task not found. Refresh saved tasks."},{status:404,headers}):uncertain();
+  if(saved.status!=="open")return privateTaskJson({error:"Task is no longer open. Refresh saved tasks before editing."},{status:409,headers});
   // Never claim a D1 error receipt is a confirmed write, even if another
   // device independently moved the task to the same deadline.
   if(changed?.success===false)return uncertain();
-  if(saved.dueAt===next)return Response.json({ok:true,id:taskId,status:"open",
+  if(saved.dueAt===next)return privateTaskJson({ok:true,id:taskId,status:"open",
     dueAt:saved.dueAt,replayed:changed?.meta?.changes!==1},{headers});
   if(changed===null||changed?.meta?.changes===1)return uncertain();
-  return Response.json({error:"The task due date changed on another device. Refresh saved tasks before rescheduling.",currentDueAt:saved.dueAt},
+  return privateTaskJson({error:"The task due date changed on another device. Refresh saved tasks before rescheduling.",currentDueAt:saved.dueAt},
     {status:409,headers});
  }
  if(!id||id.length>128||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
-  return Response.json({error:"Choose a valid task and status."},{status:400});
+  return privateTaskJson({error:"Choose a valid task and status."},{status:400});
  const status=body.status;
  const completedAt=status==="completed"?new Date().toISOString():null;
  // A repeated request that already reached the target must never rewrite completed_at.
@@ -173,13 +186,13 @@ export async function PATCH(request:Request){
  let lostAcknowledgement=false;
  try{result=await statement.run();}
  catch{lostAcknowledgement=true;/* D1 may have committed before the reply was lost. */}
- const uncertain=()=>Response.json({error:"Task status save could not be confirmed. Refresh saved tasks before updating again.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
+ const uncertain=()=>privateTaskJson({error:"Task status save could not be confirmed. Refresh saved tasks before updating again.",saveUncertain:true},{status:503,headers:{"Cache-Control":"no-store, private"}});
  if(result&&(result.success===false||result.meta?.changes!==0&&result.meta?.changes!==1))return uncertain();
  let saved:{status:string;completedAt:string|null}|null=null;
  try{saved=await env.DB.prepare("SELECT status,completed_at AS completedAt FROM tasks WHERE id=?").bind(id).first<{status:string;completedAt:string|null}>();}
  catch{return uncertain();}
  if(!saved)return lostAcknowledgement||result?.meta?.changes===1?uncertain():
-   Response.json({error:"Task not found. Refresh the task list."},{status:404});
+   privateTaskJson({error:"Task not found. Refresh the task list."},{status:404});
  if(saved.status===status){
   if(status==="completed"&&(typeof saved.completedAt!=="string"||!Number.isFinite(Date.parse(saved.completedAt))))return uncertain();
   if(status==="open"&&saved.completedAt!==null)return uncertain();
@@ -189,10 +202,10 @@ export async function PATCH(request:Request){
   // The exact created timestamp proves the completed transition.
   if(lostAcknowledgement&&status==="completed"&&saved.completedAt!==completedAt)
     return uncertain();
-  return Response.json({ok:true,id,status:saved.status,completedAt:saved.completedAt,
+  return privateTaskJson({ok:true,id,status:saved.status,completedAt:saved.completedAt,
     ...(lostAcknowledgement?{recoveredAfterUncertainWrite:true}:{} )},
     {headers:{"Cache-Control":"no-store, private"}});
  }
  return lostAcknowledgement||result?.meta?.changes===1?uncertain():
-   Response.json({error:"The task changed elsewhere. Refresh the task list before updating it again.",currentStatus:saved.status},{status:409});
+   privateTaskJson({error:"The task changed elsewhere. Refresh the task list before updating it again.",currentStatus:saved.status},{status:409});
 }
