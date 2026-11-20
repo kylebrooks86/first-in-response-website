@@ -25,7 +25,7 @@ export async function GET(request:Request){
   return privateJson({enabled:true,selectedProperty:selected.results[0]??null,properties:rows,total:Number(stats.total),activeCount:Number(stats.activeCount??0),soleActiveProperty:soleRows.length===1?soleRows[0]:null,nextCursor:page.results.length>Number(limit)?rows.at(-1)?.id:null,estimateAssociationReady:propertyWorkflowTestEnabled(env)});
  }catch{return privateJson({error:'Properties could not be read. No records changed.'},503);}
 }
-export async function POST(request:Request){
+async function postProperty(request:Request){
  if(!await owner())return Response.json({error:'Unauthorized'},{status:401});
  if(!customerPropertiesEnabled(env))return Response.json({error:'Property management is not enabled.'},{status:404});
  const parsed=await readOwnerWriteObject(request,8192);
@@ -77,7 +77,7 @@ export async function POST(request:Request){
   return uncertain();
  }catch{return uncertain();}
 }
-export async function PATCH(request:Request){
+async function patchProperty(request:Request){
  if(!await owner())return Response.json({error:'Unauthorized'},{status:401});
  if(!customerPropertiesEnabled(env))return Response.json({error:'Property management is not enabled.'},{status:404});
  const parsed=await readOwnerWriteObject(request,8192);
@@ -117,3 +117,14 @@ export async function PATCH(request:Request){
   return conflict();
  }catch{return uncertain();}
 }
+
+// Apply one consistent owner-session boundary to every mutation receipt,
+// including request-reader denials, lost-ack retries and feature-disabled errors.
+// Preserve original status/body and any existing response headers.
+function privateWriteResponse(response:Response):Response {
+ const headers=new Headers(response.headers);
+ for(const [name,value] of Object.entries(privateReadHeaders))headers.set(name,value);
+ return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
+export async function POST(request:Request){return privateWriteResponse(await postProperty(request));}
+export async function PATCH(request:Request){return privateWriteResponse(await patchProperty(request));}
