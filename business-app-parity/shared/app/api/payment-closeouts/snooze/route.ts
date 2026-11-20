@@ -2,7 +2,7 @@ import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../../chatgpt-auth";
 import {readOwnerWriteObject} from "../../../../lib/customer-write-request-guard.mjs";
 export const dynamic="force-dynamic";
-const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store, private"}});
+const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"}});
 type SnoozeReceipt={id:string;customerId:string;estimateId:string;channel:string;template:string;body:string;createdAt:string};
 const OP=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Owner-controlled seven-day review-request snooze; never sends a message. */
@@ -10,7 +10,7 @@ export async function POST(request:Request){
  const user=await getChatGPTUser();
  if(!user||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
  const parsed=await readOwnerWriteObject(request,4096);
- if(parsed.response)return parsed.response;
+ if(parsed.response){parsed.response.headers.set("Vary","Cookie");parsed.response.headers.set("X-Content-Type-Options","nosniff");return parsed.response;}
  try{
   const value=parsed.value as Record<string,unknown>;
   const {estimateId,customerId,operationId}=value;
@@ -31,16 +31,21 @@ export async function POST(request:Request){
    INSERT OR IGNORE INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at)
    SELECT ?,e.customer_id,e.id,'review_snoozed','reviewSnooze',?,? FROM estimates e
    WHERE e.id=? AND e.customer_id=? AND e.status='completed'
-    AND COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)>0
+    -- Never approve a paid review snooze when a historical invoice points
+    -- to another homeowner, or when an owner-linked invoice is inconsistent.
+    AND NOT EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
+    AND COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)>0
     AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
-      =COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
+      =COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
     AND EXISTS(SELECT 1 FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.amount_cents>0 AND p.type NOT IN ('Tip','Tip Refund'))
-    AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
+    -- A settled refund can be awaiting its negative payment ledger write:
+    -- gross paid totals must not falsely qualify that job for review.
+    AND NOT EXISTS(SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status IN ('pending','succeeded'))
     AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
     AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
-    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed'))
+    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed'))
     AND NOT EXISTS(SELECT 1 FROM customer_notes n WHERE n.customer_id=e.customer_id AND n.body='[FIRE FLAG] REVIEW_RECEIVED')
-    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.channel='review_snoozed' AND m.template='reviewSnooze' AND m.body>?)
+    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id AND m.channel='review_snoozed' AND m.template='reviewSnooze' AND m.body>?)
   `).bind(id,until,now.toISOString(),estimateId,customerId,now.toISOString()).run();
   const after=await existing();
   if(after){
