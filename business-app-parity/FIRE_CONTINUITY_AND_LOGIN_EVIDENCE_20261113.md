@@ -1,3 +1,12 @@
+<!-- FIRE-G7-DRIVE-7Z-HEADER-CRC-20261119 -->
+## Nov 19 — [x] Real Drive 7z ciphertext header and CRC verified, NOT a recovered records pair
+
+Read-only from already connected Drive, owner-private `FIRE-Private-Backups.7z` file ID `1Hu91l16dy4K5jsbPylCovVjrKX121Ntf`, 10,815 bytes, exact original SHA-256 `ca65d9c9a9ecad63aac5fc43ebb19d84a35606c742e9fe54f17af2a4edcc49de` (same previously accepted Nov 19 raw digest). Newly checked actual saved bytes: correct 7z signature/version, **StartHeader CRC32 PASS**, exact in-bounds **NextHeader CRC32 PASS**, encoded-header marker `0x17` with 7z AES method signature `06 f1 07 01`. This is authentic encrypted *header* structure, not evidence of which files are inside; no key/password/decryption/restore. [New sanitized evidence](evidence/FIRE_G7_DRIVE_7Z_ENCODED_HEADER_CRC_OWNER_20261119.md), no ciphertext or personal data in GitHub. Drive filename searches did not find separately named `.firerecords` or `.firepair` files; cannot claim global absence.
+
+**[x] Newly verified off-device 7z byte/header integrity subproof**; **[ ] G7-03/04/07/10 and formal Gate7 OPEN**, since exact FIRE records+photos pairing and actual isolated owner future-data restore were not proven. Prior actual owner iPhone photo restore stays accepted. Official **50/95, 4/10 G1/G2/G3/G8**, NEW LIVE DARK/NO-GO and first Job #0001 unused. No provider, payment, data, R2 subscription, merge or deploy action.
+
+---
+
 <!-- FIRE-PR282-LATEST-HEAD-27-CI-SEAL-20261119 -->
 ## November 19 — PR #282 exact-HEAD final automatic CI proof (no hosted release)
 
