@@ -22,6 +22,7 @@ const named=[
   ['app/api/customers/route.ts','customers'],
   ['app/api/estimates/route.ts','estimates'],
   ['app/api/invoices/route.ts','invoices'],
+  ['app/api/payments/route.ts','payments'],
 ];
 const makeDb=({table=false,indexes=false,error=false}={})=>{
  const db=new DatabaseSync(':memory:');
@@ -113,6 +114,22 @@ for(const [path,kind] of named){
  assert.equal(scope.counts().metadataQueries,0);
  assert.equal(scope.counts().confirmQueries,1);
  assert.equal(scope.counts().rowQueries,0);
+ scope.sqlite.close();
+ passed++;
+}
+// When real payment-history D1 SELECTs fail after schema validation, do not
+// return a false empty ledger or an unhandled 500 without private headers.
+{
+ const scope=makeDb({table:true,indexes:true});
+ const GET=instantiate('app/api/payments/route.ts',scope.DB,true);
+ const unavailable=await GET();
+ assert.equal(unavailable.status,503,'Payment history D1 read outage returns explicit unavailable');
+ assert.equal(unavailable.headers.get('cache-control'),'private, no-store');
+ assert.equal(unavailable.headers.get('vary'),'Cookie');
+ assert.equal(unavailable.headers.get('x-content-type-options'),'nosniff');
+ assert.match((await unavailable.json()).error,/temporarily unavailable/i);
+ assert.equal(scope.counts().metadataQueries,1);
+ assert.equal(scope.counts().rowQueries,1);
  scope.sqlite.close();
  passed++;
 }
