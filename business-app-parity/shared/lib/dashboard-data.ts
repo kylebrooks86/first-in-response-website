@@ -1,4 +1,7 @@
 import {serviceAddressColumns} from "./service-location";
+// Financial dashboard cards must only read invoices belonging to the SAME
+// customer as the estimate. An inconsistent historical invoice is never
+// authority for another homeowner's amount, bearer link or job status.
 export async function loadDashboardData(db: D1Database, serviceLocations=false) {
   const [summaryResult,recentResult,upcomingResult] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS estimates,
@@ -7,7 +10,7 @@ export async function loadDashboardData(db: D1Database, serviceLocations=false) 
       COALESCE(SUM(CASE WHEN status IN ('draft','sent') THEN total_cents ELSE 0 END),0) AS openValue,
       COALESCE(SUM(CASE
         WHEN status IN ('approved','scheduled') THEN MAX(0, deposit_cents-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')))
-        WHEN status='completed' THEN MAX(0, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=estimates.id LIMIT 1), total_cents)-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')))
+        WHEN status='completed' THEN MAX(0, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=estimates.id AND inv.customer_id=estimates.customer_id LIMIT 1), total_cents)-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')))
         ELSE 0
       END),0) AS outstanding
       FROM estimates`),
@@ -16,9 +19,9 @@ export async function loadDashboardData(db: D1Database, serviceLocations=false) 
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
-      (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
-      (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
-      (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+      (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceId,
+      (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceShareToken,
+      (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceTotalCents,
       (SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS pendingChangeCount,
       (SELECT message FROM estimate_change_requests cr WHERE cr.estimate_id=e.id ORDER BY cr.created_at DESC LIMIT 1) AS latestChangeRequest
       FROM estimates e JOIN customers c ON c.id=e.customer_id
@@ -30,9 +33,9 @@ export async function loadDashboardData(db: D1Database, serviceLocations=false) 
       e.deposit_cents AS depositCents,e.scheduled_at AS scheduledAt,e.share_token AS shareToken,
       e.created_at AS createdAt,c.name AS customer,c.email,c.phone,${serviceAddressColumns(serviceLocations)},
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
-      (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
-      (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
-      (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+      (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceShareToken,
+      (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceId,
+      (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1) AS invoiceTotalCents,
       COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e JOIN customers c ON c.id=e.customer_id
       WHERE e.status='scheduled' AND e.scheduled_at IS NOT NULL AND julianday(e.scheduled_at)>=julianday('now')
