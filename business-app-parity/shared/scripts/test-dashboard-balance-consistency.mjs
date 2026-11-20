@@ -79,7 +79,7 @@ try {
  equal(mismatchedApi.recent[0].invoiceShareToken,null);
  // Reuse the SAME invalid legacy association for a future scheduled job.
  // The upcoming shortcut must not acquire another customer's bearer URL.
- db.prepare("UPDATE estimates SET status='scheduled', scheduled_at='2099-12-01T14:00:00Z' WHERE id='e'").run();
+ db.prepare("UPDATE estimates SET status='scheduled', scheduled_at='2099-12-01T14:00:00Z', created_at='2026-11-19T12:00:00Z' WHERE id='e'").run();
  const scheduledMismatch=await (await api.GET()).json();
  equal(scheduledMismatch.upcomingJobs.length,1);
  equal(scheduledMismatch.upcomingJobs[0].id,'e');
