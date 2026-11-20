@@ -25,7 +25,7 @@ const load=(path,extra={})=>{
    network++;
    assert.ok(['cs_test_ownerfix','cs_test_trackedfix','cs_test_trackedpaid'].some(id=>url==='https://api.stripe.com/v1/checkout/sessions/'+id));
    return remote?Response.json(remote):Response.json({error:'missing'},{status:404});
- },async()=>owner?{email:'kylebrooks8605@gmail.com'}:null,extra.deployment??'doomsday',extra.reconcileStripeCheckout,readOwnerWriteObject);
+ },async()=>owner===true?{email:'kylebrooks8605@gmail.com'}:owner===false?null:owner,extra.deployment??'doomsday',extra.reconcileStripeCheckout,readOwnerWriteObject);
  return exports;
 };
 const stripe=load('lib/stripe-payments.ts');
@@ -48,6 +48,19 @@ const call=(rid=reserve,sid=sessionId)=>api.POST(new Request('https://synthetic.
 const status=()=>sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id=?").get(reserve)?.status;
 const paymentCount=()=>sql.prepare("SELECT COUNT(*) n FROM payments").get().n;
 owner=false;let net=network;check((await call()).status===401,'Non-owner blocked before Stripe lookup');check(network===net,'Non-owner cannot retrieve Stripe sessions');
+for(const [name,principal] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['array',{email:[]}]]) {
+ owner=principal;
+ const beforeNet=network,beforePayments=paymentCount(),beforeStatus=status();
+ const response=await call();
+ check(response.status===401,'Malformed '+name+' Stripe reconciliation identity receives 401');
+ const cache=response.headers.get('cache-control')?.toLowerCase().split(',').map(x=>x.trim())??[];
+ check(cache.includes('private')&&cache.includes('no-store')&&
+       response.headers.get('vary')?.toLowerCase()==='cookie'&&
+       response.headers.get('x-content-type-options')==='nosniff',
+       'Malformed '+name+' Stripe reconciliation denial remains private');
+ check(network===beforeNet&&paymentCount()===beforePayments&&status()===beforeStatus,
+       'Malformed '+name+' Stripe reconciliation cannot read provider or alter financial D1');
+}
 owner=true;
 // Before TEST activation, even a correctly signed-in owner cannot retrieve
 // a Stripe session or change a checkout lock, invoice, or financial ledger.
