@@ -13,10 +13,11 @@ export async function GET(){
  const owner=await getChatGPTUser();
  if(typeof owner?.email!=='string'||owner.email.toLowerCase()!=='kylebrooks8605@gmail.com')return privateDiagnostic({error:'Unauthorized'},401);
  const runtime=env as RuntimeEnv;
- // Treat dark DR, prelaunch NEW LIVE, QA and unknown runtime labels as
- // isolated TEST targets despite the shared compiled "live" adapter.
+ // Treat dark DR, prelaunch NEW LIVE, QA, and MISSING/unknown runtime labels
+ // as isolated TEST targets, even when compiled with the shared "live" adapter.
+ // An absent FIRE_ENV must never implicitly authorize a LIVE-mode Stripe probe.
  const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=='live'||
-   !['','live','production','cloudflare-live'].includes(String(runtime.FIRE_ENV??'').trim().toLowerCase());
+   !['live','production','cloudflare-live'].includes(String(runtime.FIRE_ENV??'').trim().toLowerCase());
  if(sandbox && runtime.FIRE_STRIPE_MODE !== 'test')
    return privateDiagnostic({connectionReady:false,diagnosticOnly:true,endToEndVerified:false,reason:'stripe_test_mode_disabled'},503);
  const result=await inspectStripeConnection({key:runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY,
