@@ -5,9 +5,19 @@ import {BOOKING_REVIEW_DRAFT_PREFIX,readBookingReviewDraft,type BookingReviewDra
 import {estimateScopeFingerprint} from '../../../../../../lib/estimate-scope-fingerprint';
 import {readOwnerWriteObject} from '../../../../../../lib/customer-write-request-guard.mjs';
 const OWNER='kylebrooks8605@gmail.com';
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
+const privateHeaders={'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'};
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:privateHeaders});
+const privateGuardRefusal=(response:Response)=>{
+ for(const [name,value] of Object.entries(privateHeaders))response.headers.set(name,value);
+ return response;
+};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-async function authorized(){const u=await getChatGPTUser();return u?.email.toLowerCase()===OWNER;}
+async function authorized(){
+ try{
+  const u=await getChatGPTUser();
+  return typeof u?.email==='string'&&u.email.toLowerCase()===OWNER;
+ }catch{return false;}
+}
 type Preview={estimateId:string;bookingConfirmedOn:string;status:string;originalCatalogRevision:string|null;
  customerAlreadyAccepted:boolean;hasFinancialActivity:boolean;
  current:{totalCents:number;depositCents:number};
@@ -53,7 +63,7 @@ export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  if(!await authorized())return json({error:'Unauthorized'},401);
  const parsed=await readOwnerWriteObject(request,8192);
- if(parsed.response)return parsed.response;
+ if(parsed.response)return privateGuardRefusal(parsed.response);
  const {id}=await params;
  const body=parsed.value as Record<string,unknown>;
  if(Object.keys(body).sort().join(',')!=='bookingConfirmedOn,expectedOriginalTotalCents,expectedProposedTotalCents,expectedRevision,ownerNote'||
@@ -102,7 +112,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
 export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
  if(!await authorized())return json({error:'Unauthorized'},401);
  const parsed=await readOwnerWriteObject(request,4096);
- if(parsed.response)return parsed.response;
+ if(parsed.response)return privateGuardRefusal(parsed.response);
  const {id}=await params;
  const body:unknown=parsed.value;
  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).join(',')!=='expectedRevision'||
