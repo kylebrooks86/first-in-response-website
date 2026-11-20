@@ -19,6 +19,7 @@ on:
       - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
       - 'business-app-parity/shared/lib/photo-storage-archive.ts'
       - 'fire-app-dr/lib/photo-storage-archive.ts'
+      - 'business-app-parity/shared/app/api/backup/photos/route.ts'
       - 'business-app-parity/shared/scripts/test-photo-storage-integrity.mjs'
       - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
   push:
@@ -41,6 +42,7 @@ on:
       - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
       - 'business-app-parity/shared/lib/photo-storage-archive.ts'
       - 'fire-app-dr/lib/photo-storage-archive.ts'
+      - 'business-app-parity/shared/app/api/backup/photos/route.ts'
       - 'business-app-parity/shared/scripts/test-photo-storage-integrity.mjs'
       - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
 concurrency:
