@@ -13,7 +13,7 @@ export async function exerciseSearchMetadata({page,context,browser,origin,reques
  const pr=await request('/api/payments','POST',{estimateId:estimate.id,requestId:randomUUID(),amountCents:10000,method:'Cash',reference});assert.equal(pr.status(),201);const payment=(await pr.json()).payment;
  const before=(await (await request('/api/backup')).json()).tables;
  const anonymous=await browser.newContext({ignoreHTTPSErrors:true});for(const scope of ['notes','payments'])check((await anonymous.request.get(origin+'/api/search?q=METADATA&scope='+scope)).status()===401,'Unauthenticated '+scope+' search cannot disclose private records');await anonymous.close();
- const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, jobs, or addresses'}),panel=()=>page.getByRole('region',{name:'FIRE search results'});
+ const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, permanent job numbers, invoices or addresses'}),panel=()=>page.getByRole('region',{name:'FIRE search results'});
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});await page.goto(origin+'/');await search().fill('meta-reference');const match=panel().getByRole('option').filter({hasText:reference});await match.waitFor();
   const receipt=await match.innerText();check(receipt.includes('metadata-a@example.invalid')&&receipt.includes('$100.00')&&receipt.toLowerCase().includes('paid'),'Payment result identifies customer, recorded status, reference and amount at '+width);

@@ -10,7 +10,7 @@ export async function exercisePropertySearch({page,context,origin,request,check}
  assert.equal((await request('/api/customer-properties','POST',{customerId:noise.id,address:'Synthetic unrelated property location',designation:'Unrelated phone-only result'})).status(),201);
  const first=await (await request('/api/customer-properties?customerId='+customer.id)).json();check(first.properties.length===50&&!first.properties.some(p=>p.id===target.id),'Property search fixture target is beyond the first fifty retained properties');
  const original=(await (await request('/api/backup')).json()).tables;
- const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, jobs, or addresses'}),panel=()=>page.getByRole('region',{name:'FIRE search results'});
+ const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, permanent job numbers, invoices or addresses'}),panel=()=>page.getByRole('region',{name:'FIRE search results'});
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});await page.goto(origin+'/');await search().fill(target.address);await panel().getByRole('button',{name:'Properties',exact:true}).click();
   // The previous All request can finish while the filter click is being

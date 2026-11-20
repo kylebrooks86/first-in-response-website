@@ -13,7 +13,7 @@ export async function exerciseGlobalSearch({page,context,browser,origin,request,
  ]){const r=await request(path,method,body,headers);assert.ok(r.ok(),await r.text());}
  const inv=await request('/api/invoices','POST',{estimateId:estimate.id});assert.equal(inv.status(),201);const invoice=await inv.json(),number=invoice.id.slice(0,6).toUpperCase();
  const anonymous=await browser.newContext({ignoreHTTPSErrors:true});check((await anonymous.request.get(origin+'/api/search?q='+number)).status()===401,'Global search requires owner auth before disclosing records');await anonymous.close();
- const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, jobs, or addresses',exact:true}),panel=()=>page.getByRole('region',{name:'FIRE search results'}),option=()=>panel().getByRole('option');
+ const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, permanent job numbers, invoices or addresses',exact:true}),panel=()=>page.getByRole('region',{name:'FIRE search results'}),option=()=>panel().getByRole('option');
  for(const [width,height] of [[768,1024],[320,568],[390,844],[1366,900]]){
   await page.setViewportSize({width,height});await page.goto(origin+'/');await search().fill(number.toLowerCase());const match=option().filter({hasText:'Invoice #'+number});await match.waitFor();
   const inputBox=await search().boundingBox(),box=await panel().boundingBox();check(inputBox.width>100&&box.x>=0&&box.x+box.width<=width+1&&box.y+box.height<=height+1,'Persistent search and results remain in viewport at '+width);
