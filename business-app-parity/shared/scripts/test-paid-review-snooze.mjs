@@ -39,7 +39,7 @@ function job(id,{status="completed",paid=10000}={}){
 const op=n=>"10000000-0000-4000-8000-"+String(n).padStart(12,"0");
 const req=(id,n,customer=id)=>new Request("https://fire.invalid/api/payment-closeouts/snooze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:"e-"+id,customerId:"c-"+customer,operationId:op(n)})});
 async function list(){const res=await closeouts.GET();return {res,body:await res.json()};}
-const count=(id)=>db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE estimate_id=? AND channel='review_snoozed'").get("e-"+id).n;
+const count=(id)=>db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE estimate_id=? AND customer_id=? AND channel='review_snoozed'").get("e-"+id,"c-"+id).n;
 const privateReceipt=response=>response.headers.get("cache-control")==="private, no-store"&&
  response.headers.get("vary")==="Cookie"&&response.headers.get("x-content-type-options")==="nosniff";
 try{
