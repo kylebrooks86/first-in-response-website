@@ -43,6 +43,15 @@ const DB={prepare(sql){return {bind(...args){return {
    const result=db.prepare(sql).run(...args);return {success:true,meta:{changes:Number(result.changes)}};
  }
 };}};}};
+// Simulate D1 batched confirmation commits, including a lost response after
+// the true SQLite commit. No hosted resources or customer communications.
+let failBatchAfterWrite=false;
+DB.batch=async statements=>{
+ const results=[];
+ for(const statement of statements)results.push(await statement.run());
+ if(failBatchAfterWrite){failBatchAfterWrite=false;throw Error('synthetic lost D1 batch acknowledgement');}
+ return results;
+};
 const exports={};
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{
  target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS
@@ -54,7 +63,7 @@ vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{
    throw Error('Unexpected route dependency: '+id);
  }
 });
-const {POST,GET}=exports;
+const {POST,GET,PATCH}=exports;
 let checks=0;
 function eq(actual,expected,label){assert.deepEqual(actual,expected,label);checks++;}
 function privacy(response,label){
@@ -216,4 +225,100 @@ pageResponse=await history('?customerId=c1');
 eq(pageResponse.status,503,'DR D1 malformed history result is not false empty');
 malformedHistory=false;
 
-console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/SQLite assertions');
+// DR now shares QA's owner-only immutable prepare-decision endpoint.
+// This is a saved human decision, NOT a real SMS/email delivery.
+async function decision(id,customerId='c1',intent={ownerConfirmedNotSent:true},headers={}){
+ return PATCH(new Request(endpoint,{method:'PATCH',headers:{'content-type':'application/json',...headers},
+   body:JSON.stringify({preparedMessageId:id,customerId,...intent})}));
+}
+const receiptCount=id=>db.prepare('SELECT COUNT(*) AS n FROM customer_messages WHERE id=?').get(id).n;
+let d=await decision('drpending-04','c2');
+eq(d.status,409,'Unrelated customer cannot discard another customer draft');
+privacy(d,'DR unrelated-customer decision');
+eq(receiptCount('drpending-04:owner-cancelled'),0,'Foreign decision created no receipt');
+for(const [label,id,c,flags,expected] of [
+ ['missing intent','drpending-04','c1',{},400],
+ ['contradictory intents','drpending-04','c1',{ownerConfirmedSent:true,ownerConfirmedNotSent:true},400],
+ ['unknown prepared record','not-a-draft','c1',{ownerConfirmedSent:true},409],
+ ['terminal non-draft record','drpending-01:owner-confirmed','c1',{ownerConfirmedSent:true},409]
+]){
+ d=await decision(id,c,flags);
+ eq(d.status,expected,'DR '+label+' refused');privacy(d,'DR '+label);
+}
+let beforeDecision=reads+writes;
+owner=null;
+d=await decision('drpending-04');
+eq(d.status,401,'Unauthenticated DR confirmation rejected');
+privacy(d,'DR anonymous PATCH');
+eq(reads+writes,beforeDecision,'DR anonymous PATCH avoided all D1 reads/writes');
+owner={email:'kylebrooks8605@gmail.com'};
+beforeDecision=reads+writes;
+d=await decision('drpending-04','c1',{ownerConfirmedNotSent:true},{origin:'https://foreign.synthetic.invalid'});
+eq(d.status,403,'Foreign-origin DR owner decision rejected');
+privacy(d,'DR wrong-origin PATCH');
+eq(reads+writes,beforeDecision,'Foreign-origin PATCH denied before D1');
+
+d=await decision('drpending-04');
+eq(d.status,200,'DR owner cancellation appends audit receipt');
+privacy(d,'DR cancelled PATCH');
+let decisionBody=await d.json();
+eq(decisionBody.cancelled,true,'DR cancellation response identifies not-sent intent');
+eq(decisionBody.deliveryConfirmed,false,'DR cancellation never claims delivery');
+eq(decisionBody.message.id,'drpending-04:owner-cancelled','DR cancel uses stable linked receipt ID');
+eq(decisionBody.message.channel,'send_cancelled','DR cancellation channel matches QA');
+eq(receiptCount('drpending-04'),1,'Original prepared text preserved immutably');
+eq(receiptCount('drpending-04:owner-cancelled'),1,'One cancellation receipt persisted');
+d=await decision('drpending-04');
+eq(d.status,200,'Repeated DR cancellation idempotent');privacy(d,'DR idempotent cancel');
+eq(receiptCount('drpending-04:owner-cancelled'),1,'Repeated cancellation writes no duplicate');
+d=await decision('drpending-04','c1',{ownerConfirmedSent:true});
+eq(d.status,409,'Cancelled DR message cannot later become confirmed sent');
+eq(receiptCount('drpending-04:owner-confirmed'),0,'No contradictory send receipt');
+
+db.prepare('INSERT INTO estimates(id,customer_id,status,total_cents) VALUES (?,?,?,?)')
+ .run('dr-draft','c1','draft',12000);
+db.prepare('INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+ .run('dr-estimate-prep','c1','dr-draft','email_prepared','estimate','Synthetic estimate handoff','2026-11-21T17:10:00.000Z');
+d=await decision('dr-estimate-prep','c1',{ownerConfirmedSent:true});
+eq(d.status,200,'DR owner confirms previously prepared estimate handoff');
+privacy(d,'DR confirmed estimate PATCH');
+decisionBody=await d.json();
+eq(decisionBody.ownerConfirmedSent,true,'DR explicit owner-confirmed sent status');
+eq(decisionBody.deliveryConfirmed,false,'DR confirmation cannot claim external delivery');
+eq(decisionBody.confirmationSource,'owner','DR confirmation provenance is owner intent');
+eq(decisionBody.message.id,'dr-estimate-prep:owner-confirmed','DR confirmation exact immutable receipt ID');
+eq(decisionBody.message.channel,'email_confirmed','DR confirmation distinguishes sent email');
+eq(decisionBody.estimateStatus,'sent','DR estimate handoff advances matching draft to sent');
+eq(db.prepare('SELECT status FROM estimates WHERE id=?').get('dr-draft').status,'sent',
+ 'DR SQLite estimate now sent after owner affirmation');
+d=await decision('dr-estimate-prep','c1',{ownerConfirmedSent:true});
+eq(d.status,200,'DR same confirmation can safely be retried');
+eq(receiptCount('dr-estimate-prep:owner-confirmed'),1,'Repeated DR sent-confirmation no duplicate');
+d=await decision('dr-estimate-prep');
+eq(d.status,409,'Confirmed DR message cannot be marked not sent afterward');
+eq(receiptCount('dr-estimate-prep:owner-cancelled'),0,'No conflicting not-sent audit after confirmed send');
+
+db.prepare('INSERT INTO estimates(id,customer_id,status,total_cents) VALUES (?,?,?,?)')
+ .run('dr-lost-ack','c1','draft',11000);
+db.prepare('INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+ .run('dr-lost-prep','c1','dr-lost-ack','text_prepared','estimate','Synthetic interrupted confirmation','2026-11-21T17:11:00.000Z');
+failBatchAfterWrite=true;
+d=await decision('dr-lost-prep','c1',{ownerConfirmedSent:true});
+eq(d.status,200,'DR recovers exact confirmed receipt after lost batch acknowledgement');
+privacy(d,'DR recovered confirmation');
+decisionBody=await d.json();
+eq(decisionBody.recoveredAfterUncertainConfirmation,true,'DR recovery explicitly shows uncertain acknowledgement');
+eq(decisionBody.deliveryConfirmed,false,'Recovered confirmation does not infer SMS delivery');
+eq(receiptCount('dr-lost-prep:owner-confirmed'),1,'Lost acknowledgement created exactly one immutable receipt');
+
+softWriteFailure=true;
+d=await decision('drpending-05');
+eq(d.status,409,'D1 soft-failed cancellation cannot be reported as completed');
+privacy(d,'DR noncommitted cancellation');
+eq(receiptCount('drpending-05:owner-cancelled'),0,'D1 failed write added no cancellation audit');
+softWriteFailure=false;
+
+pageResponse=await history('?customerId=c1');
+eq((await pageResponse.json()).pending.some(row=>row.id==='drpending-04'),false,
+ 'DR GET no longer shows owner-cancelled prepared message');
+console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/confirmation/SQLite assertions');
