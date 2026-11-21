@@ -14,7 +14,7 @@ assert.ok(path,'Pin actual independent DR TypeScript source from the PR checkout
 const source=readFileSync(path,'utf8');
 const db=new DatabaseSync(':memory:');
 db.exec(`
- CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT);
+ CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT,phone TEXT,email TEXT);
  CREATE TABLE estimates(id TEXT PRIMARY KEY,customer_id TEXT,status TEXT,total_cents INTEGER);
  CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT,total_cents INTEGER);
  CREATE TABLE payments(id TEXT PRIMARY KEY,estimate_id TEXT,status TEXT,type TEXT,amount_cents INTEGER);
@@ -321,4 +321,58 @@ softWriteFailure=false;
 pageResponse=await history('?customerId=c1');
 eq((await pageResponse.json()).pending.some(row=>row.id==='drpending-04'),false,
  'DR GET no longer shows owner-cancelled prepared message');
+// Newly implemented QA-compatible DR prepared handoffs must use the actual
+// saved contact; manual Text/Email is not sent by this route.
+const prepText={customerId:'c1',estimateId:'',channel:'text_prepared',template:'custom',
+ body:'Synthetic prepared Google Voice handoff'};
+const prepEmail={...prepText,channel:'email_prepared',body:'Synthetic prepared email handoff'};
+let prepared=await send(prepText);
+eq(prepared.status,409,'No saved phone blocks DR text preparation');
+privacy(prepared,'Missing saved text recipient');
+prepared=await send(prepEmail);
+eq(prepared.status,409,'No saved email blocks DR email preparation');
+privacy(prepared,'Missing saved email recipient');
+const prepCount=count();
+db.prepare('UPDATE customers SET phone=?,email=? WHERE id=?')
+ .run('918-555-0102','synthetic@example.invalid','c1');
+prepared=await send({...prepText,recipientSnapshot:42});
+eq(prepared.status,400,'Nonstring recipient snapshot cannot prepare a text');
+privacy(prepared,'Invalid snapshot');
+prepared=await send({...prepText,recipientSnapshot:'918-555-9999'});
+eq(prepared.status,409,'Changed customer phone blocks stale owner draft');
+privacy(prepared,'Changed phone');
+prepared=await send({...prepEmail,recipientSnapshot:'stale@example.invalid'});
+eq(prepared.status,409,'Changed customer email blocks stale owner draft');
+privacy(prepared,'Changed email');
+eq(count(),prepCount,'Rejected prepared attempts made no messages');
+prepared=await send({...prepText,recipientSnapshot:'918-555-0102'});
+eq(prepared.status,201,'Matching saved phone permits manual text preparation');
+privacy(prepared,'Prepared text');
+const savedText=(await prepared.json()).message;
+eq(savedText.channel,'text_prepared','DR saves QA-compatible prepared text channel');
+eq(receiptCount(savedText.id),1,'Prepared text persisted exactly once');
+prepared=await send({...prepEmail,recipientSnapshot:'synthetic@example.invalid'});
+eq(prepared.status,201,'Matching saved email permits manual email preparation');
+privacy(prepared,'Prepared email');
+const savedEmail=(await prepared.json()).message;
+eq(savedEmail.channel,'email_prepared','DR saves QA-compatible prepared email channel');
+eq(receiptCount(savedEmail.id),1,'Prepared email persisted exactly once');
+prepared=await decision(savedText.id,'c1',{ownerConfirmedSent:true});
+eq(prepared.status,200,'Fresh DR text preparation can be owner-confirmed');
+privacy(prepared,'Owner confirmed new text');
+eq((await prepared.json()).deliveryConfirmed,false,'New text confirms intent, not delivery');
+prepared=await decision(savedEmail.id);
+eq(prepared.status,200,'Fresh DR email preparation can be cancelled');
+privacy(prepared,'Owner cancelled new email');
+eq((await prepared.json()).ownerConfirmedSent,false,'New email cancellation does not claim send');
+eq(receiptCount(savedText.id+':owner-confirmed'),1,'Text confirmation saved exact linked row');
+eq(receiptCount(savedEmail.id+':owner-cancelled'),1,'Email cancellation saved exact linked row');
+db.prepare('UPDATE customers SET phone=?,email=? WHERE id=?')
+ .run('bad phone','invalid','c1');
+prepared=await send(prepText);
+eq(prepared.status,409,'Malformed saved phone cannot create prepared text');
+privacy(prepared,'Malformed phone');
+prepared=await send(prepEmail);
+eq(prepared.status,409,'Malformed saved email cannot create prepared email');
+privacy(prepared,'Malformed email');
 console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/confirmation/SQLite assertions');
