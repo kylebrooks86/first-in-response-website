@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-DR-DECISION-RECEIPTS-947BF1 -->
+## NOVEMBER 21 — SAME DRAFT PR #282, owner send/not-sent decision receipt integrity repaired in DR SOURCE (NO DEPLOY)
+
+**Current integrated executable/test SHA** [`947bf1a1cad3df04be21507b86f16a7ed41bd750`](https://github.com/kylebrooks86/first-in-response-website/commit/947bf1a1cad3df04be21507b86f16a7ed41bd750), based on [`fb07bdb9b5e07ddaf5872beb76c9c187bc837399`](https://github.com/kylebrooks86/first-in-response-website/commit/fb07bdb9b5e07ddaf5872beb76c9c187bc837399), continuing **existing main-target unmerged DRAFT PR #282** and not any old #244/#270 checkpoint. Subsequent documentation-only commits are *not* executable code changes. This exact source adds one shared immutable-D1 decision-receipt verification to DR `PATCH /api/customer-messages`: match original prepared customer/estimate/channel/template/body, receipt ID/time and absence of opposing sent/not-sent decision on normal writes and lost-batch-ACK readback. False confirmed/cancelled 200 from previously inserted malformed or contradictory records is replaced by owner-private 503 uncertainty, no message delivery inferred. The existing real DR TypeScript handler/native SQLite suite was extended (three new realistic malformed/contradictory historical D1 cases) within the already wired QA/STAGING workflow.
+
+**Checkoff actually saved in master snowball tracker:** [x] complete source repair + new native SQLite regression *authorship/commit*; [ ] still-unverified changed-route CI on [run #44940656461](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44940656461). Last readback before docs: 25/27 auto-started associated workflows SUCCESS, staging local D1 stage still running, new actual-route step pending. Never claim new 27/27 or a hosted pass until physically observed. The previously accepted source `3eec313c` 27/27 CI remains historical only. [Issue #19 exact record](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7067992402).
+
+**Formal release state unchanged:** original **51/95**, **4/10 formal whole gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 OPEN; STAGING hosted D1 22/25; independent DR and NEW LIVE DARK; LIVE NO-GO; Job #0001 reserved. Original Cloudflare Work/owner screenshot, Access, preview, domains, D1, QA/phone/Acer test history all retained; no repeat evidence request. No paid Cloudflare or R2 subscription, no Cloudflare login/Access/Worker/route/hosted D1/SQL, customer/photo/Stripe/payment, merge, release or website mutation.
+
+---
+
 <!-- FIRE-NOV21-PR282-CI-ONE-CHECKBOX-VERIFIED-560DF3C -->
 ## NOVEMBER 21, 2026 — REAL CHECKBOX CLOSED: CURRENT DR APPOINTMENT/REMINDER SOURCE CI, NO HOSTED RELEASE
 
