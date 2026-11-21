@@ -6,8 +6,15 @@ const CACHED_HEADERS = {...PRIVATE_HEADERS,"cache-control":"private, max-age=300
 /** Owner-only, on-demand NWS hourly forecast for one Tulsa calendar date.
  * No saved data, payments, or other hosted resources are touched. */
 export async function GET(request:Request){
- const owner=await getChatGPTUser();
- if(owner?.email?.toLowerCase()!=="kylebrooks8605@gmail.com")
+ let isOwner=false;
+ try {
+  const owner=await getChatGPTUser();
+  isOwner=typeof owner?.email==="string"&&owner.email.toLowerCase()==="kylebrooks8605@gmail.com";
+ }catch{
+  // Deny failed session resolution before parsing dates or fetching NWS.
+  isOwner=false;
+ }
+ if(!isOwner)
   return Response.json({error:"Unauthorized"},{status:401,headers:PRIVATE_HEADERS});
  const date=new URL(request.url).searchParams.get("date")??"";
  if(!isValidHourlyForecastDate(date))
