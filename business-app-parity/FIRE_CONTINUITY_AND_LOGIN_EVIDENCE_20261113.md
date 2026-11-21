@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-DR-INVOICE-SOURCE-34BA94F -->
+## Nov 21 — DR final invoice POST owner/JSON security and private receipt source corrected (NO DEPLOY; CI PENDING)
+
+Continuing existing unmerged Draft PR [#282](https://github.com/kylebrooks86/first-in-response-website/pull/282), [code `dfe0c64`](https://github.com/kylebrooks86/first-in-response-website/commit/dfe0c64e1d00e309317d66923faf3022ae0b03e9) changes the independent DR final-invoice POST from unbounded `request.json()` and potentially cacheable billing/share-token receipts to the existing QA-master 16,000-byte streamed JSON/exact browser Origin and Fetch Metadata guard, after owner authentication and before financial D1. Every POST receipt is normalized via native `Headers` to private/no-store, Vary Cookie, nosniff. The same source also prevents an estimate total exceeding service subtotal and stops zero-dollar complimentary invoices being called paid without positive recorded principal. Other DR invoice save/transactional differences remain open and are **not** claimed complete.
+
+[Existing real-handler test `34ba94f`](https://github.com/kylebrooks86/first-in-response-website/commit/34ba94f411fa8fceafc500d640c0deba359865ad) now loads the actual DR stream parser and calls the real DR POST for denied sessions, forged/sibling origin and fetch metadata, browser form, malformed/array/empty/bad-length/oversized UTF-8 JSON. Requires exact private denial, rejected requests making ZERO D1 financial reads/binds, and private 503/saveUncertain if the synthetic database refuses a legitimate request. Existing native customer invoice GET tests preserved. [Master checklist source-subtask [x] record](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md).
+
+**Verification state at documentation save:** exact changed-code SHA `34ba94f411fa8fceafc500d640c0deba359865ad` CI still in progress; automatic [QA/STAGING #44960837146](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44960837146) must prove the test result. Previously accepted 27/27 for `37becc1` remains for its own source only. **Formal release count unchanged: 51/95 originals, 4/10 gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 OPEN; physical STAGING last known 22/25; DR/NEW LIVE DARK, actual LIVE Job #0001 unissued. No Git merge, Cloudflare/Access/route/D1/SQL, Stripe/payment, paid R2, backup or photo/customer mutation, device repeat, deployment or publication.
+
+---
+
 <!-- FIRE-NOV21-37BECC1-TASK-CUSTOMER-CI-VERIFIED -->
 ## Nov 21 — independent DR task and customer owner-write repairs CI VERIFIED at exact source 37becc1 (NO DEPLOY)
 
