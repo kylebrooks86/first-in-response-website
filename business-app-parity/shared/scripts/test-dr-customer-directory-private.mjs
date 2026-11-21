@@ -4,9 +4,13 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 const routePath=process.argv[2];
 assert.ok(routePath,'Pass independent DR customers/route.ts from the PR checkout');
+// Import the actual DR owner streaming/origin guard, never a permissive test stub.
+const {readOwnerWriteObject}=await import(pathToFileURL(resolve(dirname(routePath),'../../../lib/customer-write-request-guard.mjs')).href);
 const db=new DatabaseSync(':memory:');
 db.exec([
   'CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT,email TEXT,phone TEXT,address TEXT,lead_source TEXT,created_at TEXT)',
@@ -31,7 +35,7 @@ db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,s
   .run('i1','e1','c1','sent',10000,'SYNTHETIC-OWNER-ONLY','2026-11-21T03:00:00Z');
 db.prepare('INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)')
   .run('line1','e1','Synthetic house wash','Local-only sample',1,'job',10000);
-let principal='owner',mode='',readBatches=0,writes=0,seenQueries=[];
+let principal='owner',mode='',readBatches=0,prepares=0,writes=0,seenQueries=[];
 const backing={async batch(statements){
   readBatches++;
   if(mode==='throw')throw Error('Synthetic D1 outage');
@@ -44,7 +48,7 @@ const backing={async batch(statements){
     return {success:true,results:db.prepare(sql).all()};
   });
   return data;
-},prepare(sql){return {sql,bind(){writes++;throw Error('GET must not bind or write');}};}};
+},prepare(sql){prepares++;return {sql,bind(){writes++;throw Error('GET must not bind or write');}};}};
 const getOwnerUser=async()=>{
   if(principal==='throw')throw Error('Broken owner session');
   if(principal==='missing')return null;
@@ -56,10 +60,11 @@ const getOwnerUser=async()=>{
 const code=ts.transpileModule(readFileSync(routePath,'utf8'),{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
-const scope={exports:{},Response,Number,Array,String,JSON,Map,crypto:globalThis.crypto,Date,
+const scope={exports:{},Response,Headers,Number,Array,String,JSON,Map,crypto:globalThis.crypto,Date,
   require(name){
     if(name==='cloudflare:workers')return {env:{DB:backing}};
     if(name==='../../owner-auth')return {getOwnerUser};
+    if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};
     throw Error('Unexpected DR route import '+name);
   }};
 vm.runInNewContext(code,scope);
@@ -120,5 +125,37 @@ try{
   eq(writes,0,'GET never prepares D1 mutations');
   assert.equal(seenQueries.every(sql=>sql.trim().startsWith('SELECT')),true,'all directory statements remain read-only');
   checks++;
-  console.log('PASS '+checks+' independent DR customer directory actual SQL/owner privacy/foreign invoice/confirmed D1 checks (native SQLite, NO HOSTED OPERATIONS)');
+  // Invoke the REAL independent DR POST handler, not a source-string guess.
+  // Every rejected request must be session-private and touch ZERO D1 statements.
+  const POST=scope.exports.POST;
+  eq(typeof POST,'function','independent DR owner customer POST exists');
+  const url='https://synthetic.invalid/api/customers';
+  const normalBody=JSON.stringify({name:'Synthetic new homeowner'});
+  for(const identity of ['missing','numeric','unreadable','other','throw']){
+    principal=identity;
+    const before=prepares;
+    const denied=await POST(new Request(url,{method:'POST',headers:{'content-type':'application/json'},body:normalBody}));
+    eq(denied.status,401,identity+' cannot create a customer');
+    privateHeaders(denied,identity+' customer POST');
+    eq(prepares,before,identity+' cannot prepare customer D1 write');
+  }
+  principal='owner';
+  const rejected=[
+    {name:'foreign Origin',status:403,headers:{origin:'https://evil.synthetic.invalid','content-type':'application/json'},body:normalBody},
+    {name:'same-site sibling metadata',status:403,headers:{'sec-fetch-site':'same-site','content-type':'application/json'},body:normalBody},
+    {name:'cross-site metadata',status:403,headers:{'sec-fetch-site':'cross-site','content-type':'application/json'},body:normalBody},
+    {name:'browser form encoding',status:415,headers:{origin:'https://synthetic.invalid','content-type':'text/plain'},body:normalBody},
+    {name:'excessive declared bytes',status:413,headers:{'content-type':'application/json','content-length':'64001'},body:normalBody},
+    {name:'malformed JSON',status:400,headers:{'content-type':'application/json'},body:'{'},
+    {name:'array JSON',status:400,headers:{'content-type':'application/json'},body:'[]'},
+    {name:'empty JSON',status:400,headers:{'content-type':'application/json'},body:''}
+  ];
+  for(const scenario of rejected){
+    const before=prepares;
+    const denied=await POST(new Request(url,{method:'POST',headers:scenario.headers,body:scenario.body}));
+    eq(denied.status,scenario.status,'owner customer POST rejects '+scenario.name);
+    privateHeaders(denied,scenario.name);
+    eq(prepares,before,scenario.name+' cannot prepare a customer D1 mutation');
+  }
+  console.log('PASS '+checks+' independent DR customer directory GET and guarded owner POST real-route/privacy/D1 assertions (native SQLite, NO HOSTED OPERATIONS)');
 }finally{db.close();}
