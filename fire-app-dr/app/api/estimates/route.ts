@@ -3,14 +3,15 @@ import { getOwnerUser } from "../../owner-auth";
 import {submittedDiscountCents,quoteDiscounts,discountSnapshot,DISCOUNT_SNAPSHOT_PREFIX} from "../../../lib/discount-input";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getOwnerUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){try{const user=await getOwnerUser();return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL;}catch{return false;}}
+const estimateResponse=(body:unknown,status=200)=>Response.json(body,{status,headers:{"cache-control":"private, no-store","vary":"Cookie","x-content-type-options":"nosniff"}});
 
 type ItemRow={id:string;estimateId:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 
 export async function GET() {
-  if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if(!await authorized()) return estimateResponse({ error: "Unauthorized" },401);
   try {
-    const [estimateResult,itemResult]=await env.DB.batch([
+    const batch=await env.DB.batch([
       env.DB.prepare(`
         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.total_cents AS totalCents,e.deposit_cents AS depositCents,
                e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
@@ -30,27 +31,35 @@ export async function GET() {
       `),
       env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id WHERE e.id IN (SELECT id FROM estimates ORDER BY created_at DESC LIMIT 100) ORDER BY e.created_at DESC,i.rowid ASC`),
     ]);
+    // D1 may return success:false without throwing or omit a query's results.
+    // Both the estimate rows and service-line rows must be confirmed together.
+    if(!Array.isArray(batch)||batch.length!==2||batch.some(item=>!item||(item as {success?:boolean}).success===false||!Array.isArray(item.results)))
+      return estimateResponse({estimates:[],message:"Estimates are temporarily unavailable."},503);
+    const [estimateResult,itemResult]=batch;
     // A stale invoice association must never render another homeowner's
     // payment total or share-token from the recovered application.
     // Refuse the entire page until the owner reconciles the relationship.
     if((estimateResult.results as Record<string,unknown>[]).some(row=>Number(row.invoiceOwnershipMismatch)!==0))
-      return Response.json({error:"Estimate billing has a customer ownership mismatch. Review invoice associations before continuing."},
-        {status:409,headers:{"cache-control":"private, no-store"}});
+      return estimateResponse({error:"Estimate billing has a customer ownership mismatch. Review invoice associations before continuing."},409);
     const grouped=new Map<string,ItemRow[]>();
-    for(const raw of itemResult.results as unknown as ItemRow[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};grouped.set(row.estimateId,[...(grouped.get(row.estimateId)??[]),row]);}
+    for(const raw of itemResult.results as unknown as ItemRow[]){
+      const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};
+      const saved=grouped.get(row.estimateId);
+      if(saved)saved.push(row);else grouped.set(row.estimateId,[row]);
+    }
     const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{
       const {invoiceOwnershipMismatch,...safe}=row;
       const items=grouped.get(String(row.id))??[];
       return {...safe,items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};
     });
-    return Response.json({ estimates },{headers:{"cache-control":"private, no-store"}});
+    return estimateResponse({estimates});
   } catch {
-    return Response.json({ estimates: [], message: "Estimates are temporarily unavailable." }, { status: 503 });
+    return estimateResponse({estimates:[],message:"Estimates are temporarily unavailable."},503);
   }
 }
 
 export async function POST(request: Request) {
-  if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if(!await authorized()) return estimateResponse({ error: "Unauthorized" },401);
   try {
     const body = await request.json() as Record<string, unknown>;
     const existingCustomerId = String(body.customerId ?? "").trim();

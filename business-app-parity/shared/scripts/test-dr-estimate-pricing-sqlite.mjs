@@ -53,6 +53,12 @@ const DB={
  async batch(statements){
   events.push('batch:'+batchMode);
   if(batchMode==='drop-ack')return [];
+  if(statements.length===2&&statements.every(s=>/^\s*SELECT\b/i.test(s.queryText??''))){
+    if(batchMode==='read-soft')return [{success:false,results:[]},{success:true,results:[]}];
+    if(batchMode==='read-missing')return [{success:true,results:[]},{success:true}];
+    if(batchMode==='read-short')return [{success:true,results:[]}];
+    if(batchMode==='read-throw')throw Error('Synthetic unconfirmed D1 owner estimate read');
+  }
   if(batchMode==='accepted-before-write')db.prepare("UPDATE estimates SET accepted_at='2026-11-11T00:00:00Z' WHERE id=?").run(currentId);
   if(batchMode==='schedule-before-write')db.prepare("UPDATE estimates SET scheduled_at='2026-11-15T08:00:00.000Z' WHERE id=?").run(currentId);
   if(batchMode==='payment-before-write')db.prepare("INSERT INTO payments VALUES(?,'paid','deposit',2500)").run(currentId);
@@ -221,6 +227,31 @@ setup();
  const foreign=await api.GET();const wrong=await foreign.json();
  check(foreign.status===409&&typeof wrong.error==='string'&&!wrong.estimates,
    'Actual DR estimate list refuses crossed-customer invoice totals and public share tokens');
+}
+// DR owner estimate history: a successful empty list is different from D1 failure.
+setup();
+{
+ user={email:'kylebrooks8605@gmail.com'};
+ const headers=(r)=>r.headers.get('cache-control')==='private, no-store'&&
+   r.headers.get('vary')==='Cookie'&&r.headers.get('x-content-type-options')==='nosniff';
+ const actualEmpty=await api.GET();
+ check(actualEmpty.status===200&&headers(actualEmpty)&&(await actualEmpty.json()).estimates.length===0,
+   'Independent DR confirmed genuinely empty estimates render owner-private 200');
+ for(const [mode,label] of [['read-soft','nonthrowing unsuccessful estimate query'],['read-missing','missing service-line result array'],['read-short','truncated D1 batch'],['read-throw','throwing D1 owner read']]){
+  batchMode=mode;
+  const failed=await api.GET();const body=await failed.json();
+  check(failed.status===503&&headers(failed)&&body.estimates?.length===0&&body.message?.includes('unavailable'),
+    'Independent DR '+label+' cannot become a successful empty list');
+ }
+ batchMode='normal';
+ for(const [label,p] of [['missing email',{}],['numeric email',{email:42}],['unreadable email',{get email(){throw Error('Synthetic unreadable session')}}],['foreign email',{email:'other@synthetic.invalid'}]]){
+  user=p;
+  const before=events.length;
+  const denied=await api.GET();
+  check(denied.status===401&&headers(denied)&&events.length===before,
+    'Independent DR '+label+' is denied with private headers before D1');
+ }
+ user={email:'kylebrooks8605@gmail.com'};
 }
 db.close();
 console.log('PASS '+checks+'/'+checks+' actual DR quote pricing, job lifecycle and owner-safe estimate listing (disposable native SQLite, no provider calls).');
