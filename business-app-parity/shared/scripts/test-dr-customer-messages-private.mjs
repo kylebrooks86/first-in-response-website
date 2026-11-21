@@ -341,6 +341,45 @@ privacy(d,'DR noncommitted cancellation');
 eq(receiptCount('drpending-05:owner-cancelled'),0,'D1 failed write added no cancellation audit');
 softWriteFailure=false;
 
+// A pre-existing receipt with the right ID but wrong contents must NOT
+// certify an owner decision. These simulate corrupted/imported D1 history.
+// Old DR code incorrectly returned 200 solely because the row existed.
+const addDecisionRow=(id,channel,template,body)=>db.prepare(
+ 'INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)'
+).run(id,'c1',null,channel,template,body,'2026-11-21T17:12:00.000Z');
+addDecisionRow('drpending-06:owner-cancelled','send_cancelled','wrong-template',
+ 'Owner confirmed this prepared message was not sent.');
+d=await decision('drpending-06');
+eq(d.status,503,'Corrupt cancellation receipt cannot falsely confirm not-sent');
+privacy(d,'DR corrupted not-sent receipt');
+eq((await d.json()).saveUncertain,true,'Corrupt cancellation requires manual history review');
+eq(receiptCount('drpending-06'),1,'Malformed cancellation leaves original prepared message intact');
+db.prepare('DELETE FROM customer_messages WHERE id=?').run('drpending-06:owner-cancelled');
+
+addDecisionRow('drpending-07:owner-confirmed','text_confirmed','custom',
+ 'Incorrect historical content');
+d=await decision('drpending-07','c1',{ownerConfirmedSent:true});
+eq(d.status,503,'Corrupt sent receipt cannot falsely confirm original text');
+privacy(d,'DR corrupted sent receipt');
+eq((await d.json()).deliveryConfirmed,false,'Corrupt receipt never claims delivery');
+eq(receiptCount('drpending-07'),1,'Malformed confirmation leaves original prepared message intact');
+db.prepare('DELETE FROM customer_messages WHERE id=?').run('drpending-07:owner-confirmed');
+
+// Conflicting old send/not-sent rows are possible after an incomplete
+// historical import; a new owner action cannot turn that into a clean 200.
+addDecisionRow('drpending-08:owner-confirmed','text_confirmed','custom',
+ 'Synthetic unsent draft 8');
+addDecisionRow('drpending-08:owner-cancelled','send_cancelled','custom',
+ 'Owner confirmed this prepared message was not sent.');
+d=await decision('drpending-08');
+eq(d.status,503,'Opposite historical send decisions reject cancellation success');
+privacy(d,'DR contradictory decision history');
+eq((await d.json()).saveUncertain,true,'Conflicting decisions require owner review');
+eq(receiptCount('drpending-08:owner-confirmed'),1,'Contradictory confirmed receipt never overwritten');
+eq(receiptCount('drpending-08:owner-cancelled'),1,'Contradictory cancelled receipt never overwritten');
+db.prepare('DELETE FROM customer_messages WHERE id IN (?,?)').run(
+ 'drpending-08:owner-confirmed','drpending-08:owner-cancelled');
+
 pageResponse=await history('?customerId=c1');
 eq((await pageResponse.json()).pending.some(row=>row.id==='drpending-04'),false,
  'DR GET no longer shows owner-cancelled prepared message');
