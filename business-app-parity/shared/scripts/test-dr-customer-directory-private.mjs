@@ -35,7 +35,7 @@ db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,s
   .run('i1','e1','c1','sent',10000,'SYNTHETIC-OWNER-ONLY','2026-11-21T03:00:00Z');
 db.prepare('INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)')
   .run('line1','e1','Synthetic house wash','Local-only sample',1,'job',10000);
-let principal='owner',mode='',readBatches=0,prepares=0,writes=0,seenQueries=[];
+let principal='owner',mode='',readBatches=0,prepares=0,writes=0,customerInserts=0,seenQueries=[];
 const backing={async batch(statements){
   readBatches++;
   if(mode==='throw')throw Error('Synthetic D1 outage');
@@ -48,7 +48,27 @@ const backing={async batch(statements){
     return {success:true,results:db.prepare(sql).all()};
   });
   return data;
-},prepare(sql){prepares++;return {sql,bind(){writes++;throw Error('GET must not bind or write');}};}};
+},prepare(sql){
+  prepares++;
+  return {sql,bind(...values){
+    writes++;
+    return {
+      async first(){
+        if(mode==='readbackDown')throw Error('Synthetic D1 readback outage');
+        if(mode==='readbackMissing')return null;
+        return db.prepare(sql).get(...values)??null;
+      },
+      async run(){
+        if(mode==='writeBeforeCommit')throw Error('Synthetic D1 refused write');
+        customerInserts++;
+        db.prepare(sql).run(...values);
+        if(mode==='writeAckLost')throw Error('Synthetic D1 ACK lost after commit');
+        if(mode==='writeSoft')return {success:false};
+        return {success:true};
+      }
+    };
+  }};
+}};
 const getOwnerUser=async()=>{
   if(principal==='throw')throw Error('Broken owner session');
   if(principal==='missing')return null;
@@ -157,5 +177,82 @@ try{
     privateHeaders(denied,scenario.name);
     eq(prepares,before,scenario.name+' cannot prepare a customer D1 mutation');
   }
-  console.log('PASS '+checks+' independent DR customer directory GET and guarded owner POST real-route/privacy/D1 assertions (native SQLite, NO HOSTED OPERATIONS)');
+  // Actual successful DR writes must be independently confirmed from D1.
+  // Retry the SAME UUID like QA master, never allocate another customer ID.
+  const postCustomer=(payload)=>POST(new Request(url,{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify(payload)
+  }));
+  const requestId='11111111-2222-4333-8444-555555555555';
+  const details={requestId,name:'Synthetic homeowner saved',email:'owner@example.invalid',
+    phone:'9185550101',address:'1 Synthetic Lane',leadSource:'Referral'};
+  let insertBefore=customerInserts;
+  r=await postCustomer(details);
+  eq(r.status,201,'confirmed new DR customer insert');privateHeaders(r,'confirmed create');
+  data=await r.json();
+  eq(data.requestId,requestId,'confirmed customer request identity');
+  eq(data.customer.id,requestId,'confirmed customer ID');
+  eq(data.customer.name,details.name,'confirmed customer fields');
+  eq(db.prepare('SELECT count(*) AS n FROM customers WHERE id=?').get(requestId).n,1,'exact one persisted customer');
+  eq(customerInserts,insertBefore+1,'one real insertion');
+  insertBefore=customerInserts;
+  r=await postCustomer(details);
+  eq(r.status,200,'stable same-request replay');privateHeaders(r,'replayed create');
+  data=await r.json();
+  eq(data.duplicate,true,'replay receipt marked duplicate');
+  eq(data.customer.createdAt.length>0,true,'replay returns original saved creation timestamp');
+  eq(customerInserts,insertBefore,'replay never inserts twice');
+  r=await postCustomer({...details,name:'Forged different customer'});
+  eq(r.status,409,'conflicting UUID fails closed');privateHeaders(r,'conflicting replay');
+  eq(customerInserts,insertBefore,'conflicting retry never writes');
+  const invalidBefore=prepares;
+  r=await postCustomer({...details,requestId:'not-a-uuid'});
+  eq(r.status,400,'invalid caller operation ID refused');privateHeaders(r,'invalid request ID');
+  eq(prepares,invalidBefore,'invalid operation ID has zero D1 prepares');
+
+  const lostId='22222222-3333-4333-8444-555555555555';
+  mode='writeAckLost';insertBefore=customerInserts;
+  r=await postCustomer({...details,requestId:lostId});
+  eq(r.status,200,'lost INSERT acknowledgement recovered by D1 readback');
+  privateHeaders(r,'recovered after lost ACK');
+  data=await r.json();
+  eq(data.recoveredAfterUncertainSave,true,'lost ACK explicitly recovered');
+  eq(data.customer.id,lostId,'same lost ACK operation recovered');
+  eq(customerInserts,insertBefore+1,'lost ACK never inserts again');
+  mode='';
+  r=await postCustomer({...details,requestId:lostId});
+  eq(r.status,200,'repeat after lost ACK remains idempotent');
+  eq(customerInserts,insertBefore+1,'no second write after lost ACK replay');
+
+  const softId='33333333-4444-4333-8444-555555555555';
+  mode='writeSoft';insertBefore=customerInserts;
+  r=await postCustomer({...details,requestId:softId});
+  eq(r.status,200,'nonthrowing unsuccessful ACK readback can recover a committed row');
+  privateHeaders(r,'soft unsuccessful write ACK');
+  eq(customerInserts,insertBefore+1,'soft failed ACK inserted exactly once');
+  mode='';
+  const refusedId='44444444-5555-4333-8444-555555555555';
+  mode='writeBeforeCommit';insertBefore=customerInserts;
+  r=await postCustomer({...details,requestId:refusedId});
+  eq(r.status,503,'failed precommit write cannot claim success');
+  privateHeaders(r,'precommit failure');
+  data=await r.json();
+  eq(data.saveUncertain,true,'precommit failure warns of uncertainty');
+  eq(data.requestId,refusedId,'uncertain response preserves retry ID');
+  eq(customerInserts,insertBefore,'failed precommit has zero inserts');
+  mode='';
+  const unreadId='55555555-6666-4333-8444-555555555555';
+  mode='readbackDown';insertBefore=customerInserts;
+  r=await postCustomer({...details,requestId:unreadId});
+  eq(r.status,503,'unavailable D1 verification never reports fake create');
+  privateHeaders(r,'readback unavailable');
+  eq((await r.json()).saveUncertain,true,'readback outage preserves uncertain-save marker');
+  eq(customerInserts,insertBefore+1,'readback outage performed only original insert');
+  mode='';
+  r=await postCustomer({...details,requestId:unreadId});
+  eq(r.status,200,'stable retry recovers prior committed customer');
+  privateHeaders(r,'retry after failed readback');
+  eq(customerInserts,insertBefore+1,'stable retry after readback outage never reinserts');
+
+  console.log('PASS '+checks+' independent DR customer directory GET and guarded/idempotent owner POST real-route/privacy/D1 assertions (native SQLite, NO HOSTED OPERATIONS)');
 }finally{db.close();}
