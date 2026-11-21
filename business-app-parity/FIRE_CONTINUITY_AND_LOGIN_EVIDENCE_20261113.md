@@ -1,3 +1,12 @@
+<!-- FIRE-NOV21-PR282-CI-ONE-CHECKBOX-VERIFIED-560DF3C -->
+## NOVEMBER 21, 2026 — REAL CHECKBOX CLOSED: CURRENT DR APPOINTMENT/REMINDER SOURCE CI, NO HOSTED RELEASE
+
+**Confirmed last executable/test Git SHA:** [`3eec313c3eef8470be92cebb4400015a0274a793`](https://github.com/kylebrooks86/first-in-response-website/commit/3eec313c3eef8470be92cebb4400015a0274a793), SAME open unmerged DRAFT PR #282 `work/fire-private-notes-followup-search-20261119`. **27/27 exact-code GitHub Actions groups completed SUCCESS**; [QA/STAGING run 44938704474](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44938704474) **6/6 jobs success**. Its unmodified original [job 136950997505](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44938704474/job/136950997505) log states **PASS 398 independent DR customer-message actual TypeScript/native SQLite privacy/payment/pending-history/confirmation/SQLite assertions**, including the newly added future-scheduled appointment, Tulsa tomorrow reminder, write-time race refusal and retry protection. [QA/browser job 136950997654](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44938704474/job/136950997654) completed success. Code not deployed, no SMS/email sent. The historical `97600aa6` had 24 successes/3 cancelled superseded runs; do not misstate that past SHA as 27/27.
+
+**Action actually recorded:** [Master 95-row checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md) previously had a combined `[ ]` for source CI/hosted acceptance; documentation-only [commit `560df3cb`](https://github.com/kylebrooks86/first-in-response-website/commit/560df3cb3f844d1b9667e641789d00d0eba437d7) splits it into a genuine **`[x]` source CI verification subtask** plus **`[ ]` hosted release acceptance**. This is the one completed subtask requested; it does **not** increment the original numbered total or pretend a hosted gate closed. **Original release remains 51/95 completed, 44 open; 4/10 accepted G1/G2/G3/G8, G4/G5/G6/G7/G9/G10 OPEN; STAGING hosted D1 22/25, DR/NEW LIVE dark, NEW LIVE NO-GO, Job #0001 untouched.** Prior Cloudflare owner proof and phone/Acer testing remain credited. No owner screenshot needed; no Cloudflare/R2 subscription, account login, route/Access/Worker/D1/SQL, Stripe/payment, merge, deployment, or live traffic changes.
+
+---
+
 <!-- FIRE-NOV21-DR-OWNER-MESSAGE-DECISION-CI-242 -->
 ## NOVEMBER 21, 2026 — EXACT VERIFIED INTEGRATED DRAFT PR #282 DR OWNER CONFIRM/CANCEL PARITY (NO DEPLOY)
 
