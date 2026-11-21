@@ -23,7 +23,7 @@ add('completed','completed','2026-11-20T11:00:00Z','2026-11-21T03:00:00Z');
 let principal='owner',mode='',prepares=0,reads=0,writes=0;
 const backing={prepare(sql){
   prepares++;
-  if(!/^\\s*SELECT\\b/i.test(sql)){writes++;throw Error('DR task GET attempted a database write');}
+  if(!sql.trimStart().toUpperCase().startsWith('SELECT ')){writes++;throw Error('DR task GET attempted a database write');}
   return {async all(){
     reads++;
     if(mode==='throw')throw Error('Synthetic D1 outage');
