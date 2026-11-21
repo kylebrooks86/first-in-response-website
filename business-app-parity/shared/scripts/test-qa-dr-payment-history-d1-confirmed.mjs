@@ -3,9 +3,13 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 const [qaPath,drPath]=process.argv.slice(2);
 assert.ok(qaPath&&drPath,'Supply QA-master and DR route paths from this PR checkout');
+// Exercise the actual shared owner-stream guard used by the DR payment route.
+const {readOwnerWriteObject:drOwnerJsonGuard}=await import(pathToFileURL(resolve(dirname(drPath),'../../../lib/customer-write-request-guard.mjs')).href);
 let checks=0;
 const eq=(actual,expected,label)=>{assert.equal(actual,expected,label);checks++;};
 const payment={id:'synthetic-p1',estimateId:'synthetic-e1',amountCents:12500,refundedCents:0,refundableCents:12500,status:'paid'};
@@ -52,7 +56,7 @@ for(const [label,file] of [['QA',qaPath],['DR',drPath]]){
       if(name==='../../../lib/processing-fees')return {processingAmounts:()=>({})};
       if(name==='../../../lib/refund-ledger-readiness')
         return {refundLedgerObjectsPresent:async()=>true,refundLedgerNotReady:()=>Response.json({error:'Not ready'}, {status:503})};
-      if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:async()=>({value:{}})};
+      if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:drOwnerJsonGuard};
       throw Error('Unexpected payment API dependency '+name);
     }};
   vm.runInNewContext(code,scope);
@@ -105,6 +109,36 @@ for(const [label,file] of [['QA',qaPath],['DR',drPath]]){
       if(who==='owner'){
         eq((await response.json()).error.includes('disabled'),true,'DR no provider payment without TEST approval');
       }
+    // The previously unbounded DR POST parser accepted cross-site forms and
+    // silently rounded fractional cents if DR TEST mode was enabled.
+    // Verify the REAL exported handler + REAL guard now reject these BEFORE
+    // touching any payment D1 rows; DR stays disabled outside this fixture.
+    principal='owner';
+    env.FIRE_STRIPE_MODE='test';
+    const good={estimateId:'synthetic-e1',amountCents:100,tipCents:0,method:'Cash'};
+    const jsonHeaders={'origin':'https://dr.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+    const badWrites=[
+      ['cross-site browser',{...jsonHeaders,origin:'https://evil.invalid','sec-fetch-site':'cross-site'},JSON.stringify(good),403],
+      ['sibling browser',{...jsonHeaders,origin:'https://sibling.dr.invalid','sec-fetch-site':'same-site'},JSON.stringify(good),403],
+      ['form encoding',{...jsonHeaders,'content-type':'text/plain'},JSON.stringify(good),415],
+      ['oversized declared UTF-8',{...jsonHeaders,'content-length':'16001'},JSON.stringify(good),413],
+      ['fractional cents',jsonHeaders,JSON.stringify({...good,amountCents:100.6}),400],
+      ['string cents',jsonHeaders,JSON.stringify({...good,amountCents:'100'}),400],
+      ['null tip',jsonHeaders,JSON.stringify({...good,tipCents:null}),400],
+      ['check payment',jsonHeaders,JSON.stringify({...good,method:'Paper check'}),400],
+      ['nonobject body',jsonHeaders,'[]',400],
+      ['malformed JSON',jsonHeaders,'{',400],
+    ];
+    for(const [label,headers,body,expected] of badWrites){
+      const before=reads;
+      const response=await scope.exports.POST(new Request('https://dr.invalid/api/payments',{
+        method:'POST',headers,body
+      }));
+      eq(response.status,expected,'DR payment POST '+label+' denied before D1');
+      privateResponse(response,'DR payment POST '+label);
+      eq(reads,before,'DR payment POST '+label+' no D1 or Stripe action');
+    }
+    env.FIRE_STRIPE_MODE='disabled';
     }
   }
 }
