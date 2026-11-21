@@ -15,7 +15,7 @@ const source=readFileSync(path,'utf8');
 const db=new DatabaseSync(':memory:');
 db.exec(`
  CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT,phone TEXT,email TEXT);
- CREATE TABLE estimates(id TEXT PRIMARY KEY,customer_id TEXT,status TEXT,total_cents INTEGER);
+ CREATE TABLE estimates(id TEXT PRIMARY KEY,customer_id TEXT,status TEXT,total_cents INTEGER,scheduled_at TEXT);
  CREATE TABLE invoices(id TEXT PRIMARY KEY,estimate_id TEXT,customer_id TEXT,total_cents INTEGER);
  CREATE TABLE payments(id TEXT PRIMARY KEY,estimate_id TEXT,status TEXT,type TEXT,amount_cents INTEGER);
  CREATE TABLE notifications(id TEXT PRIMARY KEY,estimate_id TEXT,type TEXT,resolved_at TEXT);
@@ -34,6 +34,7 @@ let owner={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,softWriteFailure=f
 let fakeWriteAcknowledged=false,fakeZeroChanges=false,softHistoryFailure=false,malformedHistory=false;
 let losePreparedInsertAck=false,changeContactDuringInsert=false;
 let refundDuringReviewInsert=false,checkoutDuringReviewInsert=false;
+let rescheduleDuringAppointmentInsert=false;
 const DB={prepare(sql){return {bind(...args){return {
  async first(){reads++;return db.prepare(sql).get(...args)??null;},
  async all(){reads++;if(softHistoryFailure)return {success:false,results:[]};
@@ -55,7 +56,12 @@ const DB={prepare(sql){return {bind(...args){return {
      if(refundDuringReviewInsert){db.prepare('INSERT INTO payment_refunds(id,estimate_id,status) VALUES (?,?,?)').run('race-refund','e1','pending');refundDuringReviewInsert=false;}
      if(checkoutDuringReviewInsert){db.prepare('INSERT INTO payment_checkout_sessions(id,estimate_id,status) VALUES (?,?,?)').run('race-checkout','e1','open');checkoutDuringReviewInsert=false;}
    }
-   const result=db.prepare(sql).run(...args);
+   // The other owner device can reschedule AFTER the route preflight SELECT.
+    if(rescheduleDuringAppointmentInsert&&sql.includes('INSERT OR IGNORE INTO customer_messages')&&sql.includes("e.scheduled_at=?")){
+      db.prepare("UPDATE estimates SET scheduled_at=datetime('now','+8 days') WHERE id=?").run('appt-c1');
+      rescheduleDuringAppointmentInsert=false;
+    }
+    const result=db.prepare(sql).run(...args);
    if(losePreparedInsertAck){losePreparedInsertAck=false;throw Error('synthetic lost D1 prepared INSERT acknowledgement');}
    return {success:true,meta:{changes:Number(result.changes)}};
  }
@@ -469,4 +475,76 @@ atomic=await send(atomicReview);
 eq(atomic.status,201,'Reconciled exact payment permits new DR review after holds clear');
 privacy(atomic,'Atomic reviewed success');
 eq(count(),beforeAtomic+1,'Exactly one valid review message persisted after holds cleared');
+// QA-master scheduled-message parity: verify persisted future appointment,
+// Tulsa-local tomorrow reminder and the same-statement reschedule race.
+const tulsaDayKey=value=>{
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',
+    year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));
+  const find=key=>parts.find(part=>part.type===key)?.value??'';
+  return find('year')+'-'+find('month')+'-'+find('day');
+};
+const now=Date.now(),today=tulsaDayKey(now);
+let startTomorrow=0;
+for(let hours=1;hours<=49;hours++){
+  const candidate=now+hours*3600_000;
+  if(tulsaDayKey(candidate)!==today){startTomorrow=candidate;break;}
+}
+assert.ok(startTomorrow>now,'Found next Tulsa calendar day');
+const tomorrowTime=new Date(startTomorrow+4*3600_000).toISOString();
+const farFuture=new Date(now+7*24*3600_000).toISOString();
+db.prepare('INSERT INTO estimates(id,customer_id,status,total_cents,scheduled_at) VALUES (?,?,?,?,?)')
+  .run('appt-c1','c1','scheduled',0,farFuture);
+const appointment={...prepText,estimateId:'appt-c1',template:'appointment',
+  body:'Synthetic confirmed appointment'};
+const reminder={...appointment,template:'appointmentReminder',
+  body:'Synthetic tomorrow appointment reminder'};
+const beforeAppointment=count();
+let appt=await send({...appointment,appointmentScheduledAt:''});
+eq(appt.status,409,'Appointment without exact saved timestamp is rejected');
+privacy(appt,'Missing appointment concurrency token');
+appt=await send({...appointment,appointmentScheduledAt:'2020-01-01T00:00:00.000Z'});
+eq(appt.status,409,'Old previewed date cannot prepare a new scheduled message');
+privacy(appt,'Outdated appointment date');
+appt=await send({...reminder,appointmentScheduledAt:farFuture});
+eq(appt.status,409,'Seven-day appointment cannot be called a 24-hour Tulsa reminder');
+privacy(appt,'Premature 24-hour reminder');
+eq(count(),beforeAppointment,'Invalid appointment/reminder requests save no messages');
+appt=await send({...appointment,appointmentScheduledAt:farFuture});
+eq(appt.status,201,'Matching saved future appointment can prepare a confirmation');
+privacy(appt,'Confirmed scheduled job preparation');
+eq(count(),beforeAppointment+1,'One truthful scheduled confirmation saved');
+db.prepare('UPDATE estimates SET status=? WHERE id=?').run('completed','appt-c1');
+appt=await send({...appointment,appointmentScheduledAt:farFuture});
+eq(appt.status,409,'Completed job cannot prepare stale appointment after status change');
+privacy(appt,'Job no longer scheduled');
+db.prepare('UPDATE estimates SET status=?,scheduled_at=? WHERE id=?')
+  .run('scheduled',tomorrowTime,'appt-c1');
+appt=await send({...reminder,appointmentScheduledAt:tomorrowTime});
+eq(appt.status,201,'Tomorrow in Tulsa permits prepared 24-hour reminder');
+privacy(appt,'Valid Tulsa reminder');
+eq(count(),beforeAppointment+2,'One saved 24-hour reminder row added');
+const pastTime=new Date(now-3600_000).toISOString();
+db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(pastTime,'appt-c1');
+appt=await send({...appointment,appointmentScheduledAt:pastTime});
+eq(appt.status,409,'Past appointment refuses prepared confirmation despite scheduled status');
+privacy(appt,'Past scheduled clock');
+db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(farFuture,'appt-c1');
+const raceAppointmentId='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+rescheduleDuringAppointmentInsert=true;
+appt=await send({...appointment,requestId:raceAppointmentId,
+  appointmentScheduledAt:farFuture,body:'Synthetic concurrent appointment reschedule'});
+eq(appt.status,409,'Atomic D1 scheduled timestamp check refuses concurrent reschedule');
+privacy(appt,'Concurrent appointment edit');
+eq(receiptCount('owner-message-prep:'+raceAppointmentId),0,
+  'Rescheduling race creates no stale prepared appointment');
+eq(count(),beforeAppointment+2,'No stale appointment row added by concurrent owner edit');
+db.prepare('UPDATE estimates SET scheduled_at=? WHERE id=?').run(farFuture,'appt-c1');
+appt=await send({...appointment,requestId:raceAppointmentId,
+  appointmentScheduledAt:farFuture,body:'Synthetic concurrent appointment reschedule'});
+eq(appt.status,201,'Corrected saved schedule allows exact prepared retry');
+privacy(appt,'Corrected appointment retry');
+eq(receiptCount('owner-message-prep:'+raceAppointmentId),1,
+  'Corrected appointment wrote exactly one eligible prepared handoff');
+eq(count(),beforeAppointment+3,'Appointment tests add only three verified saved messages');
+
 console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/confirmation/SQLite assertions');
