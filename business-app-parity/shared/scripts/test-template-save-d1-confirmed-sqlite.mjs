@@ -51,6 +51,26 @@ try{
  check(readOutage.status===503&&readOutage.headers.get('cache-control')==='private, no-store'&&readOutage.headers.get('vary')==='Cookie'&&readOutage.headers.get('x-content-type-options')==='nosniff'&&
    JSON.stringify(stored())===preserved,'D1 outage returns controlled private 503 without inventing an empty template list');
  rt.env.DB.prepare=originalPrepare;
+
+ // A nonthrowing unsuccessful/malformed D1 .all() is just as unavailable as
+ // an exception. Never show defaults over the owner's saved custom wording.
+ for(const [label,outcome] of [
+  ['soft-failed',{success:false,results:[]}],
+  ['missing rows',{success:true}],
+  ['null rows',{success:true,results:null}],
+  ['scalar rows',{success:true,results:'bad'}]
+ ]){
+  rt.env.DB.prepare=function(sql){
+   if(sql.startsWith('SELECT key,subject,body,updated_at AS updatedAt FROM message_templates'))
+    return {all:async()=>outcome};
+   return originalPrepare(sql);
+  };
+  const result=await route.GET();
+  check(result.status===503&&result.headers.get('cache-control')==='private, no-store'&&
+    result.headers.get('vary')==='Cookie'&&result.headers.get('x-content-type-options')==='nosniff'&&
+    JSON.stringify(stored())===preserved,label+' D1 cannot silently replace saved owner templates with defaults');
+ }
+ rt.env.DB.prepare=originalPrepare;
  const ownerGet=await route.GET();
  check(ownerGet.status===200&&ownerGet.headers.get('cache-control')==='private, no-store'&&
    ownerGet.headers.get('vary')==='Cookie'&&

@@ -21,7 +21,11 @@ export async function GET(){
   if(!await authorized())return privateJson({error:"Unauthorized"},401);
   try {
     const saved=await env.DB.prepare("SELECT key,subject,body,updated_at AS updatedAt FROM message_templates").all<{key:string;subject:string;body:string;updatedAt:string}>();
-    const overrides=new Map((saved.results??[]).map((item)=>[item.key,item]));
+    // Missing/soft-failed D1 results must not masquerade as an empty DR
+    // customization table: that could display defaults over saved wording.
+    if((saved as unknown as {success?:boolean}).success===false||!Array.isArray(saved.results))
+      return privateJson({error:"Message templates could not be read. Saved templates were not changed."},503);
+    const overrides=new Map(saved.results.map((item)=>[item.key,item]));
     return privateJson({templates:FIRE_TEMPLATES.map((item)=>{
       const override=overrides.get(item.key);
       if(item.key==="contractTerms"&&override?.body.startsWith("I authorize First In Response Exteriors to perform the services listed"))

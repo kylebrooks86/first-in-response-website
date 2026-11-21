@@ -19,7 +19,12 @@ export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateReadHeaders});
   try{
   const saved=await env.DB.prepare("SELECT key,subject,body,updated_at AS updatedAt FROM message_templates").all<{key:string;subject:string;body:string;updatedAt:string}>();
-  const overrides=new Map((saved.results??[]).map((item)=>[item.key,businessTemplateOverride(item)]));
+  // D1 can report a nonthrowing failed read. Never replace saved owner
+  // wording with apparent defaults unless an empty result is CONFIRMED.
+  if((saved as unknown as {success?:boolean}).success===false||!Array.isArray(saved.results))
+    return Response.json({error:"Message templates are temporarily unavailable. Your saved wording has not been changed."},
+      {status:503,headers:privateReadHeaders});
+  const overrides=new Map(saved.results.map((item)=>[item.key,businessTemplateOverride(item)]));
   return Response.json({templates:FIRE_TEMPLATES.map((item)=>{const override=overrides.get(item.key);if(item.key==="contractTerms"&&override?.body.startsWith("I authorize First In Response Exteriors to perform the services listed"))return {...item,body:SERVICE_AGREEMENT};return {...item,...override};})},{headers:privateReadHeaders});
   }catch{return Response.json({error:"Message templates are temporarily unavailable. Your saved wording has not been changed."},{status:503,headers:privateReadHeaders});}
 }

@@ -13,10 +13,11 @@ assert.ok(path,'Pin the real independent DR source path from the PR checkout');
 const source=readFileSync(path,'utf8');
 let user={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,failRead=false,failWrite=false;
 let rows=[{key:'estimate',subject:'Owner subject',body:'Owner saved message',updatedAt:'2026-11-20T00:00:00Z'}];
+let readOutcome=null;
 const DB={prepare(sql){
   if(sql.startsWith('SELECT key,subject,body,updated_at')){
     reads++;
-    return {all:async()=>{if(failRead)throw Error('Synthetic DR D1 read unavailable');return {results:structuredClone(rows)};}};
+    return {all:async()=>{if(failRead)throw Error('Synthetic DR D1 read unavailable');return readOutcome??{results:structuredClone(rows)};}};
   }
   if(sql.startsWith('INSERT INTO message_templates')||sql.startsWith('DELETE FROM message_templates')){
     return {bind(...args){return {run:async()=>{
@@ -82,6 +83,26 @@ eq(unavailable.status,503,'D1 read outage returns controlled 503, not empty defa
 headers(unavailable,'D1 outage');
 eq((await unavailable.json()).error.includes('not changed'),true,'Outage does not imply deleted settings');
 failRead=false;
+
+
+for(const [label,outcome] of [
+ ['soft-failed',{success:false,results:[]}],
+ ['missing rows',{success:true}],
+ ['null rows',{success:true,results:null}],
+ ['scalar rows',{success:true,results:'bad'}]
+]){
+ readOutcome=outcome;
+ const denied=await route.GET();
+ eq(denied.status,503,label+' D1 result never shows false-default saved templates');
+ headers(denied,label+' D1 read failure');
+ eq((await denied.json()).error.includes('not changed'),true,label+' keeps saved wording status uncertain');
+}
+readOutcome={success:true,results:[]};
+const confirmedEmpty=await route.GET();
+eq(confirmedEmpty.status,200,'True empty D1 template table may return defaults');
+headers(confirmedEmpty,'Confirmed empty DR templates');
+eq((await confirmedEmpty.json()).templates[0].body,'Default wording','Confirmed empty DR table uses approved defaults');
+readOutcome=null;
 
 const invalid=await put('{');
 eq(invalid.status,400,'Malformed JSON returns controlled 400');headers(invalid,'Malformed body');
