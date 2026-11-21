@@ -1,3 +1,15 @@
+<!-- FIRE-NOV21-OWNER-G9-INACTIVE-TEST-CONSENT-IMG4602 -->
+## November 21, 2026 — EXACT scoped owner G9-04 TEST inactive-version approval RECEIVED; provider operation NOT executed
+
+**Owner decision at 2:00 PM CST:** The owner replied **"yes approve"** to the precise proposal for a **single TEST-only inactive Cloudflare Worker version at 0% traffic** with independent verification and unchanged 100% serving predecessor. Preserve original conversation evidence `IMG_4602.jpeg` (272,907 bytes; SHA-256 `2933d720f6b7358055db68fb94e1040aae559889f0f97d8ac8f8ca9d62245580`). The response is specific consent for that operation, not another general-release-intent request. A new owner decision is unnecessary for precisely the same pinned/safe attempt; any materially changed target, source or higher-impact action is outside scope.
+
+**Source/custody pins:** Current last independently certified executable/test commit `56ba4b5cbc35d5592670f846fb61c637eb786ae8` on integrated unmerged draft PR #282; inactive TEST candidate compiled digest SHA-256 `e0a3ef689ded1e1338590e57d50a9f11f56aced4dfc8227d1a082eb2ad724189`; existing private Drive-backup ZIP digest `d65ea4f65282415ec8c4bdbab158a6add9056d08b160188446af19f4ddb62cf9` (3,166,283 bytes, GitHub artifact #14722665007). Target `fire-stripe-test-20261101`, physical TEST D1 UUID `dba421ba-fc66-4cf8-9c31-51616f8249ba`; historical serving predecessor `96e32262-fa33-4f04-a161-bee11f0353e2` at 100%. All physical target properties MUST be freshly preflight-checked **only when supported execution access is available**, not assumed current from history.
+
+**Hard stop rules:** Exactly ONE new inactive 0%-traffic TEST version, independent provider modules/assets/D1/secret-name/traffic readback, no promotion or activation. No existing serving-version alteration, D1/SQL/migrations, Access/preview/routing/DNS changes, Stripe charge/test payment/webhook, customer data, paid Cloudflare/R2, Git merge, public deployment or old error-10013 registration retry. Preserve existing locks; do not retry failed Cloudflare Work sign-ins. Existing available browser profiles do not list a saved Cloudflare sign-in, so a supportable authenticated provider execution path is **not** established by this session. No Cloudflare POST was attempted, no version created, approval still **unconsumed**.
+
+**Checkoff:** [x] Narrow G9-04 owner authorization-evidence subtask saved in existing master checklist [commit `49a84027a25da7a9b4df28157db39482366a0aa4`](https://github.com/kylebrooks86/first-in-response-website/commit/49a84027a25da7a9b4df28157db39482366a0aa4); [ ] actual numbered G9-04 provider inactive-version/readback, [ ] G9-05+ activation/payment proof. Formal original 51/95 checked, 44 open; full gates 4/10 G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO; first genuine Job #0001 untouched. Do not repeat this approval request or accepted Cloudflare/iPhone/Acer evidence.
+
+---
 <!-- FIRE-NOV21-G9-LATEST-SEALED-DRIVE-READBACK-9B56BD9 -->
 ## November 21 — REAL current TEST Gate9 source package independently preserved and verified in owner-only Drive (NO UPLOAD TO CLOUDFLARE)
 
