@@ -32,14 +32,20 @@ export async function GET(request:Request){
     // Fail closed for both JSON history and Wave CSV to avoid false books.
     if((rows as {success?:boolean}).success===false || !Array.isArray(rows?.results))
       throw new Error("D1 expense read not confirmed");
-    if(isCsv){
-    // A late December 31 owner expense can be January 1 in UTC.
-    // Never group it under the wrong tax year or silently omit an invalid date.
-    const datedRows=(rows.results??[]).map(item=>({item,day:expenseBusinessDay(item.incurredAt)}));
+    // Both the dashboard's JSON ledger and tax CSV must refuse malformed
+    // saved financial rows. Otherwise a damaged timestamp or amount can be
+    // presented as an apparently successful owner history and corrupt totals.
+    // Verify the complete read before filtering by tax year.
+    const datedRows=rows.results.map(item=>({item,day:expenseBusinessDay(item.incurredAt)}));
     if(datedRows.some(row=>!row.day))return Response.json(
-      {error:"Saved expense dates could not be verified. Review the records before exporting."},
+      {error:"Saved expense dates could not be verified. Review the records before continuing."},
       {status:503,headers:privateExpenseGetHeaders}
     );
+    if(datedRows.some(({item})=>typeof item.amountCents!=="number"||!Number.isSafeInteger(item.amountCents)))
+      return Response.json({error:"Saved expense amounts could not be verified. Review the records before continuing."},
+        {status:503,headers:privateExpenseGetHeaders});
+    if(isCsv){
+    // A late December 31 owner expense can be January 1 in UTC.
     const exportRows=selectedYear?datedRows.filter(row=>row.day!.slice(0,4)===selectedYear):datedRows;
     // Excel and other spreadsheet tools can evaluate formula-looking CSV cells even when quoted.
     // Prefix text with an apostrophe when its first non-whitespace character is a formula operator.
@@ -48,10 +54,6 @@ export async function GET(request:Request){
       const safe=/^[\s\u0000-\u001f\uFEFF]*[=+\-@]/u.test(original)?"'"+original:original;
       return `"${safe.replaceAll('"','""')}"`;
     };
-    // An invalid legacy amount must never create a plausible but wrong Wave tax line.
-    if(datedRows.some(({item})=>typeof item.amountCents!=="number"||!Number.isSafeInteger(item.amountCents)))
-      return Response.json({error:"Saved expense amounts could not be verified. Review the records before exporting."},
-        {status:503,headers:privateExpenseGetHeaders});
     // Whole-cent integer arithmetic avoids IEEE-754 rounding in large legacy amounts.
     const formatAmount=(cents:number)=>{
       const value=BigInt(Math.abs(cents));
