@@ -72,7 +72,8 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
    if(id==='cloudflare:workers')return {env};
    if(id==='../../../chatgpt-auth'||id==='../../../owner-auth'){
      const principal=authorized===true?{email:'kylebrooks8605@gmail.com'}:authorized===false?null:authorized;
-     return {getChatGPTUser:async()=>principal,getOwnerUser:async()=>principal};
+     const session=async()=>{if(authorized==='session-reject')throw Error('Synthetic owner session unavailable');return principal;};
+     return {getChatGPTUser:session,getOwnerUser:session};
    }
    if(id==='../../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};
    throw Error('Unexpected import '+id);
@@ -101,7 +102,7 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
     const anonymousRead=await locked.GET();
     pass('current shared GET forbids unauthorized photo reads',anonymousRead.status===401&&locked.events.length===0);
     pass('current GET anonymous denial is private and session varying',isOwnerPrivate(anonymousRead));
-    for(const [label,principal] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}]]){
+    for(const [label,principal] of [['missing',{}],['null',{email:null}],['numeric',{email:42}],['object',{email:{}}],['getter-throws',{get email(){throw Error('Unreadable owner email');}}],['session-reject','session-reject']]){
       const malformed=harness(file,'success',principal);
       const refusedRead=await malformed.GET();
       const refusedDelete=await malformed.DELETE();
