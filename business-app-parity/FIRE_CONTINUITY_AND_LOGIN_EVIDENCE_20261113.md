@@ -1,3 +1,18 @@
+<!-- FIRE-CURRENT-AUTHORITATIVE-PR282-CHECKPOINT-20261121 -->
+## CURRENT AUTHORITATIVE DEVELOPMENT CHECKPOINT — November 21, 2026 — PR #282 (supersedes old PR #244/#270/#232 snapshots)
+
+**Owner-confirmed operating rule:** Before any FIRE Business App development or release status report, read live GitHub [release tracker #19](https://github.com/kylebrooks86/first-in-response-website/issues/19), latest comments, [integrated draft PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282), this continuity register and its current Git HEAD; do not assume that #282 remains numerically latest after future PRs are opened. **PR #282 is the current main-target integrated development checkpoint as checked November 21, not historical PR #244.**
+
+- **At this checkpoint, verified BEFORE this documentation-only update:** #282 OPEN **DRAFT**, base `main`, branch `work/fire-private-notes-followup-search-20261119`, precise latest SHA [`ad1a853501db24ace3e54ed0ccb900a381624f7b`](https://github.com/kylebrooks86/first-in-response-website/commit/ad1a853501db24ace3e54ed0ccb900a381624f7b). This is the prior branch HEAD used to anchor the checkpoint; the documentation commit that adds this section necessarily advances the branch HEAD. Always retrieve the live new HEAD before subsequent code edits.
+- **Actual CI at immutable SHA `ad1a853501db24ace3e54ed0ccb900a381624f7b`:** GitHub Actions query returned **27/27 workflow runs completed SUCCESS**, including the staging/shared-app parity workflow. This is source/offline CI, **NOT** proof of a Cloudflare deployment, hosted customer denial, data restore or actual Stripe TEST events. Future source changes require only scoped changed-code verification.
+- **Most recent integrated development:** QA/DR task read fail-closed and ordering parity; DR invoice, estimate, dashboard and customer-directory cross-customer/financial read privacy; DR notification and customer-note private, idempotent APIs; customer-note real handler synthetic SQLite tests and existing CI wiring. Preserve all previous commits, branches, screenshots, tests and decisions.
+- **Formal release tracker:** Original **51/95 checklist checked, 44 OPEN**, only **G1, G2, G3, G8 = 4/10 accepted**. G4/G5/G6/G7/G9/G10 OPEN. STAGING hosted migration proof **22/25**; independent DR and NEW LIVE remain DARK; NEW LIVE **NO-GO**, first real Job **#0001 reserved/unissued**. Source code is **unmerged and undeployed**.
+- **Do not repeat:** Already accepted owner Cloudflare Worker/Access/preview/Domains/account inventory screenshots, external STAGING anonymous login challenge, owner Acer and iPhone QA checks. Do not ask for another screenshot absent a genuinely NEW, specifically identified provider-evidence gap.
+- **Hard safety limits:** No paid Cloudflare/R2 subscription, repeated login attempt, Worker/Access/route/secret/D1/Stripe/payment change, provider write, live customer/photo data operation, source merge, migration, deployment, LIVE switch or old app retirement without exact fresh owner authorization. QA is the functional AND visual master; all approved app features and independent environment boundaries must survive.
+- **Working next:** Continue targeted source fixes and existing CI on draft #282 where gaps are concrete, and pursue genuinely missing hosted G4 resource/parity/Access evidence, G5 true migration parity, G6 distinct-nonowner/customer isolation, G7 complete future-data-and-files recovery, G9 signed Stripe TEST, and G10 final owner-controlled release—never mark physical gates passed from source-only tests.
+
+---
+
 <!-- FIRE-NOV21-DR-DASHBOARD-CF48FE5-9BAD9A5-FF91E1D -->
 ## November 21, 2026 — independent DR dashboard private billing + cross-customer ownership (ACTUAL SOURCE+TEST, NO DEPLOY)
 
