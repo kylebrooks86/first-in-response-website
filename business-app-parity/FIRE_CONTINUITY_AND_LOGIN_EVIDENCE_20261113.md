@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-OWNER-RELEASE-INTENT-7068206086 -->
+## November 21, 2026 — owner release authorization RECEIVED; original final gate still evidence-bound
+
+Owner direct statement in this project's chat: **“i authorize release”**, in answer to a request for explicit approval and supporting evidence. [Permanent Issue #19 owner-intent record](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7068206086). **[x] Real G10 direct owner-authorization receipt subtask is now checked in [master checklist](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md), commit [`988dd825`](https://github.com/kylebrooks86/first-in-response-website/commit/988dd825a543c2f0757a1544e92c55f8bd9fb1b3).** Never request that same general intent again.
+
+**Scope**: This owner expression approves proceeding toward release, but does not identify a specific final source SHA, named deployment/SQL/Access/route/Stripe step, or final rollback acceptance. The original G10-06 exact-operation approvals and G10-10 pinned-release final LIVE go/no-go remain [ ]. Do not treat this as waiver of physical hosted gates or permission for blind Git merge/deployment, payments or legacy retirement. No provider actions taken in recording it.
+
+**Current immutable record at receipt**: integrated main-target draft PR #282, branch `work/fire-private-notes-followup-search-20261119`, source branch previously read at `56ba4b5cbc35d5592670f846fb61c637eb786ae8`; same branch received documentation-only owner-intent checklist commit `988dd825a543c2f0757a1544e92c55f8bd9fb1b3`. Another editor updated NEW LIVE test guard immediately before this receipt; do not duplicate or overwrite that work. Exact newer changed-code CI must be read independently before acceptance. **Official status 51/95 accepted, 44 open; 4/10 gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN**, STAGING physical D1 22/25, DR and NEW LIVE DARK/NO-GO, actual first Job #0001 unused. All prior owner screenshots, Access/preview/domains, non-R2 constraints and accepted QA tests retained. No Cloudflare login, Worker/Access/route/SQL, TEST Stripe activation/payment, paid R2, merge, deploy or public release occurred.
+
+---
+
 <!-- FIRE-NOV21-QA-OWNER-DECISION-PARITY-3863A9A -->
 ## November 21 — QA-master saved owner communication decisions now fail closed; source/test checkoff completed
 
