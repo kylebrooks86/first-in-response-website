@@ -7,7 +7,7 @@ import ts from 'typescript';
 
 const path='app/api/weather/route.ts';
 const source=readFileSync(path,'utf8').replace(/^import .*;\n/gm,'');
-const prefix=`const getChatGPTUser=async()=>globalThis.__fireDailyOwner;
+const prefix=`const getChatGPTUser=async()=>{if(globalThis.__fireDailyRejectSession)throw Error('synthetic rejected session');return globalThis.__fireDailyOwner;};
 const loadTulsaWeather=async()=>{globalThis.__fireDailyLoads++;if(globalThis.__fireDailyOutage)throw Error('synthetic outage');return {location:'Tulsa',daily:[]};};
 `;
 const code=ts.transpileModule(prefix+source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
@@ -27,6 +27,16 @@ privateHeaders(response,'private, no-store');eq(globalThis.__fireDailyLoads,0,'I
 globalThis.__fireDailyOwner={email:'other@example.invalid'};
 response=await route.GET();eq(response.status,401,'Different principal denied');
 privateHeaders(response,'private, no-store');eq(globalThis.__fireDailyLoads,0,'Nonowner never calls upstream');
+globalThis.__fireDailyOwner={email:43};
+response=await route.GET();eq(response.status,401,'Numeric email must not escape owner guard');
+privateHeaders(response,'private, no-store');eq(globalThis.__fireDailyLoads,0,'Malformed identity never calls NWS');
+globalThis.__fireDailyOwner={get email(){throw Error('synthetic getter failure')}};
+response=await route.GET();eq(response.status,401,'Throwing identity getter denied');
+privateHeaders(response,'private, no-store');eq(globalThis.__fireDailyLoads,0,'Throwing getter never calls NWS');
+globalThis.__fireDailyOwner=null;globalThis.__fireDailyRejectSession=true;
+response=await route.GET();eq(response.status,401,'Rejected owner-session provider denied');
+privateHeaders(response,'private, no-store');eq(globalThis.__fireDailyLoads,0,'Rejected session never calls NWS');
+globalThis.__fireDailyRejectSession=false;
 globalThis.__fireDailyOwner={email:'kylebrooks8605@gmail.com'};
 response=await route.GET();eq(response.status,200,'Owner daily forecast allowed');
 privateHeaders(response,'private, max-age=300');eq((await response.json()).location,'Tulsa','Original owner forecast preserved');
