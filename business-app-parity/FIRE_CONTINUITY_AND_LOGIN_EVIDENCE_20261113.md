@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-EXPENSE-HISTORY-FULL-CI-936465D-D9D290B -->
+## November 21 — actual QA/DR expense-history source CI 27/27 SUCCESS; previously unchecked verification subtask now [x]
+
+Current integrated unmerged DRAFT PR #282 executable/test SHA [`936465d240c8d6da07693e1a27cfe9eb6868a3c2`](https://github.com/kylebrooks86/first-in-response-website/commit/936465d240c8d6da07693e1a27cfe9eb6868a3c2) was rechecked **read-only**, not rerun: all **27/27 associated GitHub Actions workflow groups completed SUCCESS** with 0 failure/cancel/pending. [QA/STAGING run 44945059523](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44945059523) achieved **6/6 independent jobs SUCCESS**, including original QA/staging source and native-SQLite [job 136970513962](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44945059523/job/136970513962). Prior confirmed same-SHA focused log: QA 137 + independent DR 178 + expense POST 65 tests SUCCESS (380 focused assertions). Existing QA and DR expense GET route guards return private 503 for malformed persisted expense date/non-cent amount before owner dashboard JSON can show bad records; no D1 write or provider mutation.
+
+**New actual [x] checklist subtask saved** in [commit `d9d290b108430a6d1ddb3e9d9d15718536b84e4b`](https://github.com/kylebrooks86/first-in-response-website/commit/d9d290b108430a6d1ddb3e9d9d15718536b84e4b). This is fresh changed-source CI evidence, **not** a newly accepted original numbered gate or Cloudflare hosted parity. Original release board remains **51/95 accepted, 44 open; formal 4/10 G1/G2/G3/G8**. Hosted STAGING D1 last proven 22/25; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, true Job #0001 unused.
+
+**Previously approved narrow Gate9 TEST inactive version stays unexecuted:** exact owner-approved candidate remains historical source `56ba4b5`, original compiled digest `e0a3ef68...`, ZIP digest `d65ea4f...`; the newer expense code did not change or broaden that specific approval. Do not repeat owner request, reuse failed Cloudflare login or old HTTP 500/10013 POST, or assume this newer source can be uploaded under the old consent. No Git merge/deploy, remote Worker/Access/route/D1/Stripe/payment, R2 subscription, customer send or owner screenshot occurred.
+
+---
+
 <!-- FIRE-NOV21-OWNER-G9-INACTIVE-TEST-CONSENT-IMG4602 -->
 ## November 21, 2026 — EXACT scoped owner G9-04 TEST inactive-version approval RECEIVED; provider operation NOT executed
 
