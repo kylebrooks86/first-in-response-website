@@ -657,8 +657,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-task-status-confirmation.mjs
-          # Independent DR task GET: real route/SQLite, owner-only private receipts, D1 fail closed and QA priority.
-          node --experimental-sqlite scripts/test-dr-tasks-private-read.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/tasks/route.ts"
+          # QA-master + independent DR task GET: actual routes, private receipts, fail-closed D1 and matching priority.
+          node --experimental-sqlite scripts/test-dr-tasks-private-read.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/tasks/route.ts" "$GITHUB_WORKSPACE/business-app-parity/shared/app/api/tasks/route.ts"
           node --experimental-strip-types scripts/test-task-due.mjs
       - name: FIRE Google Voice review invitation eligibility at atomic database save (synthetic only)
         run: |
