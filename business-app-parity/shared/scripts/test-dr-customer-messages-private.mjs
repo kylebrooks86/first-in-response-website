@@ -68,7 +68,7 @@ for(const [label,identity] of [
  ['anonymous',null],['different owner',{email:'not-owner@invalid.test'}],
  ['numeric email',{email:42}],['missing email',{}],
  ['throwing email',{get email(){throw Error('bad principal');}}],
- ['rejected session',Promise.reject(Error('unavailable synthetic session'))]
+ ['rejected session',{then(_resolve,reject){reject(Error('unavailable synthetic session'));}}]
 ]){
  const before=reads+writes;
  owner=identity;
