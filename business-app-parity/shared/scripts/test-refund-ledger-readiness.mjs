@@ -33,14 +33,14 @@ const objects=[
 const guardExports={};
 new Function("exports","Response",compile("../lib/refund-ledger-readiness.ts"))(guardExports,Response);
 const {refundLedgerObjectsPresent,refundLedgerNotReady}=guardExports;
-function dbFor(rows,{throwOnQuery=false}={}){
+function dbFor(rows,{throwOnQuery=false,reportedSuccess=true}={}){
  const calls={read:0,other:0,write:0,queries:[]};
  const db={prepare(sql){
   calls.queries.push(sql);
   if(sql.includes("sqlite_master")){
    calls.read++;
    if(throwOnQuery)throw Error("Synthetic D1 metadata error");
-   return {all:async()=>({results:rows})};
+   return {all:async()=>({success:reportedSuccess,results:rows})};
   }
   calls.other++;
   if(/\b(?:INSERT|UPDATE|DELETE)\b/i.test(sql))calls.write++;
@@ -66,6 +66,11 @@ for(const [name,rows,expected] of [
 const broken=dbFor(objects,{throwOnQuery:true});
 eq(await refundLedgerObjectsPresent(broken.db),false,"provider metadata exception fails closed");
 eq(broken.calls.write,0,"unavailable provider metadata never causes write");
+const deniedResult=dbFor(objects,{reportedSuccess:false});
+eq(await refundLedgerObjectsPresent(deniedResult.db),false,"D1 metadata result success:false cannot prove refund ledger readiness even with all four expected objects");
+eq(deniedResult.calls.read,1,"unsuccessful metadata result requires only the attempted schema SELECT");
+eq(deniedResult.calls.other,0,"unsuccessful metadata result never reads financial rows");
+eq(deniedResult.calls.write,0,"unsuccessful metadata result never causes a money write");
 const blocked=refundLedgerNotReady();
 eq(blocked.status,503,"schema blocker uses non-success 503");
 eq(blocked.headers.get("cache-control"),"no-store","financial blocker is never cached");
