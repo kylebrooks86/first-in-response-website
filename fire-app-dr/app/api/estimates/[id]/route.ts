@@ -1,17 +1,31 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
+import {readOwnerWriteObject} from "../../../../lib/customer-write-request-guard.mjs";
 import {submittedDiscountCents,quoteDiscounts,discountSnapshot,verifiedSavedDiscounts,DISCOUNT_SNAPSHOT_PREFIX} from "../../../../lib/discount-input";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getOwnerUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){
+  try{const user=await getOwnerUser();return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL;}
+  catch{return false;}
+}
+const privateEstimatePatch=(response:Response):Response=>{
+  response.headers.set("Cache-Control","private, no-store");
+  response.headers.set("Vary","Cookie");
+  response.headers.set("X-Content-Type-Options","nosniff");
+  return response;
+};
 const statuses = new Set(["draft","sent","approved","scheduled","completed","declined"]);
 type EditItem={id?:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function saveEstimate(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const { id } = await params;
-    const body = await request.json() as Record<string, unknown>;
+    // Reuse the QA-master exact-browser-origin and 256 KiB streamed JSON
+    // limit before touching mutable estimates, invoice or financial D1 state.
+    const parsed=await readOwnerWriteObject(request,262_144);
+    if(parsed.response)return parsed.response;
+    const body=parsed.value as Record<string, unknown>;
     const status = String(body.status ?? "").trim();
     let scheduledAt = String(body.scheduledAt ?? "").trim();
     if(scheduledAt){const parsedSchedule=new Date(scheduledAt);if(Number.isNaN(parsedSchedule.getTime()))return Response.json({error:"Choose a valid job date and time."},{status:400});scheduledAt=parsedSchedule.toISOString();}
@@ -160,6 +174,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     return Response.json({ estimate: responseFields },{headers:{"cache-control":"private, no-store"}});
   } catch {
-    return Response.json({ error: "We couldn't update this estimate. Please try again." }, { status: 500 });
+    return Response.json({error:"The estimate save could not be verified. Reopen the job and review saved status before retrying.",saveUncertain:true},{status:503});
   }
 }
+
+// Every accepted or denied owner estimate edit carries identical private
+// cache/session headers, including malformed JSON and lost-D1-ACK outcomes.
+export async function PATCH(request:Request,context:{params:Promise<{id:string}>}){
+  try{return privateEstimatePatch(await saveEstimate(request,context));}
+  catch{return privateEstimatePatch(Response.json({error:"The estimate save could not be verified. Reopen the job before retrying.",saveUncertain:true},{status:503}));}
+}
+
