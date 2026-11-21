@@ -33,6 +33,7 @@ db.prepare('INSERT INTO payments(id,estimate_id,status,type,amount_cents) VALUES
 let owner={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,softWriteFailure=false;
 let fakeWriteAcknowledged=false,fakeZeroChanges=false,softHistoryFailure=false,malformedHistory=false;
 let losePreparedInsertAck=false,changeContactDuringInsert=false;
+let refundDuringReviewInsert=false,checkoutDuringReviewInsert=false;
 const DB={prepare(sql){return {bind(...args){return {
  async first(){reads++;return db.prepare(sql).get(...args)??null;},
  async all(){reads++;if(softHistoryFailure)return {success:false,results:[]};
@@ -46,6 +47,13 @@ const DB={prepare(sql){return {bind(...args){return {
    if(changeContactDuringInsert&&sql.includes('INSERT OR IGNORE INTO customer_messages')&&sql.includes('SELECT 1 FROM customers')){
      db.prepare('UPDATE customers SET phone=? WHERE id=?').run('918-555-7777','c1');
      changeContactDuringInsert=false;
+   }
+   // Simulate an independently committed financial hold between the route's
+   // initial eligibility SELECT and its review INSERT. Genuine SQLite must
+   // reject the review in that same INSERT, not rely on the stale preflight.
+   if(sql.includes('FROM estimates e WHERE e.id=?')&&sql.includes('FROM payment_refunds r')){
+     if(refundDuringReviewInsert){db.prepare('INSERT INTO payment_refunds(id,estimate_id,status) VALUES (?,?,?)').run('race-refund','e1','pending');refundDuringReviewInsert=false;}
+     if(checkoutDuringReviewInsert){db.prepare('INSERT INTO payment_checkout_sessions(id,estimate_id,status) VALUES (?,?,?)').run('race-checkout','e1','open');checkoutDuringReviewInsert=false;}
    }
    const result=db.prepare(sql).run(...args);
    if(losePreparedInsertAck){losePreparedInsertAck=false;throw Error('synthetic lost D1 prepared INSERT acknowledgement');}
@@ -440,4 +448,25 @@ eq(stable.status,201,'Owner retry after restoring saved phone can prepare safely
 privacy(stable,'Contact corrected');
 eq(receiptCount('owner-message-prep:'+raceId),1,'Corrected contact created exact one prepared row');
 
+// A concurrently pending refund or checkout appearing AFTER the paid-job
+// preflight must fail the same-statement financial review gate. Native SQLite
+// applies the route's real conditional INSERT against the injected change.
+const atomicReview={...review,channel:'text',body:'Synthetic atomic paid-job review request'};
+const beforeAtomic=count();
+refundDuringReviewInsert=true;
+let atomic=await send(atomicReview);
+eq(atomic.status,409,'New pending refund during DR INSERT denies paid review');
+privacy(atomic,'Atomic refund hold');
+eq(count(),beforeAtomic,'Concurrent refund created no customer review message');
+db.prepare('DELETE FROM payment_refunds WHERE id=?').run('race-refund');
+checkoutDuringReviewInsert=true;
+atomic=await send(atomicReview);
+eq(atomic.status,409,'New open checkout during DR INSERT denies paid review');
+privacy(atomic,'Atomic checkout hold');
+eq(count(),beforeAtomic,'Concurrent checkout created no customer review message');
+db.prepare('DELETE FROM payment_checkout_sessions WHERE id=?').run('race-checkout');
+atomic=await send(atomicReview);
+eq(atomic.status,201,'Reconciled exact payment permits new DR review after holds clear');
+privacy(atomic,'Atomic reviewed success');
+eq(count(),beforeAtomic+1,'Exactly one valid review message persisted after holds cleared');
 console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/confirmation/SQLite assertions');
