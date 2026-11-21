@@ -1,3 +1,16 @@
+<!-- FIRE-NOV21-DR-PENDING-CUSTOMER-MESSAGE-RECOVERY-66DB598 -->
+## November 21, 2026 — independent DR pending customer-message recovery implementation (SOURCE ONLY)
+
+**Current integrated development** remains **main-target Draft PR #282**, branch `work/fire-private-notes-followup-search-20261119`; never reset to #244 or earlier. This checkpoint follows the prior exact-source `7619c2f6a6bc1c55cf8dde3c57de32034a8cabfa` **27/27 completed SUCCESS** source-only Actions verification, including STAGING/QA run [44926364209](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44926364209) **6/6 successful jobs**.
+
+**Actual new source development (NO DEPLOY):** DR `fire-app-dr/app/api/customer-messages/route.ts` had POST only, while QA-master exposes GET for recoverable, unconfirmed customer Text/Email drafts. The independent DR now also offers a **read-only GET matching QA's private pending prepared-message contract**: exact customer/optional estimate scope, confirmed/cancelled-history exclusion, bounded 10-record cursor paging, owner authentication before D1, and controlled private 503 on D1 missing/malformed/soft-failure rather than false empty. Existing DR POST and payments remain unchanged. Implementation commits [`81a009a`](https://github.com/kylebrooks86/first-in-response-website/commit/81a009ad1e2e26c79aadd4c7c2bd53a473f96828) and canonical QA regex correction [`fd5e851`](https://github.com/kylebrooks86/first-in-response-website/commit/fd5e8518b73cb822820d4fb3bdeeb6fe736af7aa).
+
+**Actual focused regression committed** [`66db59845b064cfad5b5ff17f9ac1c7cb85631b8`](https://github.com/kylebrooks86/first-in-response-website/commit/66db59845b064cfad5b5ff17f9ac1c7cb85631b8) extends the existing CI-wired DR TypeScript/native SQLite test. It adds owner/anonymous and malformed-principal denial, wrong-customer estimate refusal, precise unrelated-customer separation, completed and cancelled draft exclusion, 10-record cursor pagination, invalid cursor/IDs before D1, and D1 `success:false`/malformed-results private 503. No workflow duplication or hosted test. Initial exact-head [STAGING/QA run 44930165637](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44930165637) was **IN PROGRESS** as this checkpoint was written; **do not call this new source PASS unless the specific test step and all relevant Actions complete successfully**.
+
+**Limits:** This implements DR read-only recovery of previously saved QA-compatible `text_prepared`/`email_prepared` records; it does **NOT** yet establish full QA POST/PATCH prepare/owner-confirmation parity in DR, authenticated hosted parity, a physical D1 read, or Gate6 acceptance. Do not imply SMS/email sends. New DR GET currently does not change legacy DR POST channel values. Formal release remains **51/95 checked, 44 OPEN; 4/10 accepted G1/G2/G3/G8 only**, G4/G5/G6/G7/G9/G10 OPEN, STAGING physical D1 22/25; DR and NEW LIVE dark, LIVE NO-GO, first genuine Job #0001 unissued. Previously accepted Cloudflare screenshots/owner tests are not to be repeated. No Cloudflare, Access, worker, D1, Stripe, paid R2, payment, merge, deployment, public-site or LIVE operation approved or performed.
+
+---
+
 <!-- FIRE-NOV21-DR-CUSTOMER-MESSAGES-EXACT-CI-6F70047 -->
 ## CURRENT VERIFIED SOURCE CHECKPOINT — Nov 21, 2026 — PR #282 independent DR customer messages
 
