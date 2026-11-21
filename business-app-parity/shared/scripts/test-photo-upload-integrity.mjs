@@ -17,7 +17,7 @@ function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true,auth
   const objects=new Map();const rows=new Map();let deletes=0,puts=0,dbWrites=0,photoSelects=0;
   const env={
     BUCKET:hasBucket?{
-      async put(key,stream){puts++;if(mode==='bucket-error')throw Error('R2 failed');objects.set(key,stream);},
+      async put(key,stream){puts++;if(mode==='bucket-error')throw Error('R2 failed');objects.set(key,stream);if(mode==='bucket-lost-ack')throw Error('Synthetic stored original but acknowledgement lost');},
       async delete(key){deletes++;objects.delete(key);}
     }:null,
     DB:{prepare(query){return {bind(...args){return {
@@ -64,7 +64,11 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
     if(patched)check('patched precommit error leaves uploaded bytes for later reconciliation',m.objects.size===1&&m.counts().deletes===0);
   }
   {
-    const m=loadRoute(file,'bucket-error');const response=await m.POST(request());check(`${file} R2 failure refuses DB insert`,response.status===500&&m.rows.size===0&&m.counts().dbWrites===0);
+    const m=loadRoute(file,'bucket-error');const response=await m.POST(request());check(`${file} R2 failure refuses DB insert`,response.status===(patched?503:500)&&m.rows.size===0&&m.counts().dbWrites===0);
+    if(file==='customer-photos.patched.ts'){
+      const payload=await response.json();
+      check('Uncertain bucket PUT failure cannot tell owner to blindly retry',payload.saveUncertain===true);
+    }
   }
   {
     const m=loadRoute(file,'success',false);const response=await m.POST(request());check(`${file} unauthorized request does not touch bucket or DB`,response.status===401&&m.counts().puts===0&&m.counts().dbWrites===0);
@@ -103,6 +107,16 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
       check('Customer photo '+label+' fails before R2 or D1',
         deniedRoute.counts().puts===0&&deniedRoute.counts().dbWrites===0
         &&deniedRoute.counts().photoSelects===0);
+    }
+    {
+      const m=loadRoute(file,'bucket-lost-ack'),response=await m.POST(request());
+      const payload=await response.json();
+      check('Original object saved but bucket ACK lost is an uncertain 503, not retryable success',
+        response.status===503&&payload.saveUncertain===true
+        &&payload.error.includes('before uploading again'));
+      check('Lost bucket ACK preserves original bytes and refuses any D1 photo claim',
+        m.objects.size===1&&m.counts().puts===1
+        &&m.counts().dbWrites===0&&m.counts().deletes===0);
     }
     for(const [description,options] of [
       ['empty file',{bytes:0}],

@@ -82,6 +82,8 @@ async function savePhoto(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const deniedBrowserWrite=ownerBrowserWriteScope(request,false);
   if(deniedBrowserWrite)return deniedBrowserWrite;
+  // A storage PUT might commit its original bytes even if the ACK is lost.
+  let storageWriteAttempted=false;
   try {
     if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable." }, { status: 503 });
     const parsed=await boundedPhotoForm(request);
@@ -115,6 +117,7 @@ async function savePhoto(request: Request) {
     // not attacker-controlled filename suffixes (e.g. photo.html or svg).
     const extension = photoExtension;
     const objectKey = `customers/${customerId}/${id}.${extension || "jpg"}`;
+    storageWriteAttempted=true;
     await env.BUCKET.put(objectKey, file.stream(), { httpMetadata: { contentType: file.type } });
     const filename = file.name || `photo.${extension || "jpg"}`;
     // An ACK is not a saved photo. The photo's D1 metadata must be verified
@@ -142,6 +145,10 @@ async function savePhoto(request: Request) {
     }
     return Response.json({ photo: { id, customerId, category: safeCategory, caption, filename, contentType: file.type, sizeBytes: file.size, createdAt } }, { status: 201, headers: { "cache-control": "private, no-store" } });
   } catch {
+    if(storageWriteAttempted)return Response.json({
+      error:"Photo upload status is uncertain. Check this customer's Photos and protected original-photo storage before uploading again.",
+      saveUncertain:true,
+    },{status:503});
     return Response.json({ error: "We couldn't save this photo. Please try again." }, { status: 500 });
   }
 }

@@ -14,7 +14,7 @@ const code=ts.transpileModule(readFileSync('app/api/customer-photos/route.ts','u
 }).outputText;
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;};
-const scenarios=['success','ack-missing-change','ack-false','lost-ack','no-insert','read-failure','read-missing','read-wrong-key','bucket-failure'];
+const scenarios=['success','ack-missing-change','ack-false','lost-ack','no-insert','read-failure','read-missing','read-wrong-key','bucket-failure','bucket-lost-ack'];
 for(const mode of scenarios){
  const db=new DatabaseSync(':memory:');
  db.exec("CREATE TABLE customers(id TEXT PRIMARY KEY); INSERT INTO customers VALUES ('synthetic-customer'); "+
@@ -27,6 +27,7 @@ for(const mode of scenarios){
     if(mode==='bucket-failure')throw Error('Synthetic R2 failure');
     const bytes=new Uint8Array(await new Response(stream).arrayBuffer());
     objects.set(key,{bytes,contentType:options?.httpMetadata?.contentType});
+    if(mode==='bucket-lost-ack')throw Error('Synthetic original committed but bucket ACK lost');
    },
    async delete(){deletes++;throw Error('Forbidden deletion of uncertain photo bytes')}
   },
@@ -79,7 +80,7 @@ for(const mode of scenarios){
  const response=await exports.POST(request()),payload=await response.json();
  const count=Number(db.prepare('SELECT COUNT(*) AS n FROM customer_photos').get().n);
  const expected=mode==='success';
- check(response.status===(expected?201:mode==='bucket-failure'?500:503),mode+' HTTP status never falsely claims saved');
+ check(response.status===(expected?201:503),mode+' HTTP status never falsely claims saved');
  check(response.headers.get('cache-control')==='private, no-store'
   &&response.headers.get('vary')==='Cookie'
   &&response.headers.get('x-content-type-options')==='nosniff',
@@ -93,10 +94,14 @@ for(const mode of scenarios){
   check(response.headers.get('cache-control')==='private, no-store','Verified photo response is never publicly cached');
  }else{
   check(payload.photo===undefined,'Unconfirmed image never receives a success photo receipt');
-  if(mode!=='bucket-failure'){
+  if(mode==='bucket-failure'||mode==='bucket-lost-ack'){
+   check(payload.saveUncertain===true,'An interrupted storage ACK requires owner photo reconciliation');
+   check(objects.size===(mode==='bucket-lost-ack'?1:0)&&writes===0,
+    'Uncertain storage PUT cannot write a confirmed D1 row or erase original photo bytes');
+  }else{
    check(payload.saveUncertain===true,'Database uncertainty explicitly requires customer photo review');
    check(objects.size===1&&deletes===0,'Uncertain database outcome preserves R2 bytes for recovery');
-  }else check(objects.size===0&&writes===0,'R2 failure never writes D1');
+  }
   if(['lost-ack','ack-missing-change','ack-false','read-failure','read-missing','read-wrong-key'].includes(mode))
    check(count===1,'Real SQLite committed record preserved even when response is uncertain');
   if(mode==='no-insert')check(count===0&&objects.size===1,'Failed SQL insert preserves orphan object for reconciliation');
