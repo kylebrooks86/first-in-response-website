@@ -532,6 +532,8 @@ jobs:
           node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           # Exact independent DR route, disposable SQLite, owner/private D1 and unrelated-invoice denial.
           node --experimental-sqlite scripts/test-dr-dashboard-summary-private.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/dashboard-summary/route.ts"
+          # Independent DR full customer directory: eight actual SELECTs, wrong-customer invoice and private D1 failure.
+          node --experimental-sqlite scripts/test-dr-customer-directory-private.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/customers/route.ts"
       - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
