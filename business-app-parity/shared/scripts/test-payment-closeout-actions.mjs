@@ -133,13 +133,27 @@ try{
   "Unauthenticated cursor requests are denied before validating private query parameters");
  owner={email:"notowner@example.invalid"};
  check((await api.GET()).status===401&&statements.length===queries,"Other user denied before database read");
- for(const identity of [{},{email:null},{email:42}]){
+ for(const identity of [{},{email:null},{email:42},{get email(){throw Error('Synthetic closeout owner-email getter failure');}}]){
   owner=identity;
   const denial=await api.GET();
   check(denial.status===401&&statements.length===queries,"Malformed identity gets controlled 401 without closeout D1 read");
   check(denial.headers.get("cache-control")==="private, no-store"&&denial.headers.get("vary")==="Cookie"&&denial.headers.get("x-content-type-options")==="nosniff","Malformed owner closeout denial stays private");
  }
+ // A rejected authentication provider must not escape as a 500 or inspect D1.
+ owner=Promise.reject(Error("Synthetic rejected owner authentication service"));
+ const rejectedAuth=await api.GET();
+ check(rejectedAuth.status===401&&statements.length===queries,
+  "Rejected owner session fails closed before invoice/payment/refund D1 reads");
+ check(rejectedAuth.headers.get("cache-control")==="private, no-store"&&rejectedAuth.headers.get("vary")==="Cookie"&&rejectedAuth.headers.get("x-content-type-options")==="nosniff",
+  "Rejected owner session denial remains session-private and MIME-safe");
  owner={email:"kylebrooks8605@gmail.com"};
+ const blockedLedger=load("app/api/payment-closeouts/route.ts",{"cloudflare:workers":{env},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":{...ledgerTestOnly,refundLedgerObjectsPresent:async()=>{throw Error("Synthetic refund-ledger preflight outage")}}});
+ const beforeLedger=statements.length;
+ const ledgerOutage=await blockedLedger.GET();
+ check(ledgerOutage.status===503&&statements.length===beforeLedger,
+  "Thrown refund-ledger preflight refuses review eligibility before any payment D1 read");
+ check(ledgerOutage.headers.get("cache-control")==="private, no-store"&&ledgerOutage.headers.get("vary")==="Cookie"&&ledgerOutage.headers.get("x-content-type-options")==="nosniff",
+  "Refund-ledger preflight exception returns owner-private fail-closed 503");
  const offline=load("app/api/payment-closeouts/route.ts",{"cloudflare:workers":{env:{DB:{prepare(){throw Error("Unavailable")}}}},"../../chatgpt-auth":{getChatGPTUser:async()=>owner},"../../../lib/payment-closeout-actions":helpers,"../../../lib/refund-ledger-readiness":ledgerTestOnly});
  const unavailable=await offline.GET();
  check(unavailable.status===503,"Database outage visible instead of false all-caught-up");
