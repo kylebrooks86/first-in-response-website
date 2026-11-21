@@ -4,7 +4,16 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const privateExpenseGetHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
-async function authorized(){const user=await getChatGPTUser();return Boolean(user&&typeof user.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){
+ try{
+  const user=await getChatGPTUser();
+  return Boolean(user&&typeof user.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL);
+ }catch{
+  // Failed owner-session resolution or unreadable email is private 401, not a 500.
+  // GET export and POST receipt both deny before any financial D1 activity.
+  return false;
+ }
+}
 
 export async function GET(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateExpenseGetHeaders});

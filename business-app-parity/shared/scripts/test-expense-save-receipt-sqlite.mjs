@@ -73,6 +73,21 @@ try{
  check((await call(base(1))).status===401,'Non-string authenticated email fails closed before expense SQL');
  check(reads===beforeMalformedReads&&writes===beforeMalformedWrites,
   'Malformed owner principals issue zero expense D1 reads and writes');
+ // A rejected auth provider promise and an unreadable principal email
+ // must be controlled private 401, before even an expense lookup or INSERT.
+ for(const [label,identity] of [
+  ['unreadable owner email',{get email(){throw Error('Synthetic owner financial identity unavailable');}}],
+  ['rejected owner session',{then(_ok,reject){reject(Error('Synthetic owner session unavailable'));}}],
+ ]){
+  user=identity;
+  const beforeReads=reads,beforeWrites=writes;
+  const denied=await call(base(1));
+  check(denied.status===401,label+' denied expense POST 401');
+  check(denied.headers.get('cache-control')==='private, no-store'&&
+   denied.headers.get('vary')==='Cookie'&&denied.headers.get('x-content-type-options')==='nosniff',
+   label+' financial denial is session-private and nosniff');
+  check(reads===beforeReads&&writes===beforeWrites,label+' cannot read or write financial D1');
+ }
  user={email:'kylebrooks8605@gmail.com'};
  // Changed-function security regression on the actual financial POST:
  // an invalid/oversized stream must never reach SELECT or INSERT, and

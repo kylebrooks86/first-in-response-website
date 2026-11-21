@@ -179,6 +179,20 @@ for(const malformedEmail of [undefined,123]){
  eq(malformed.headers.get('vary'),'Cookie','Malformed principal denial varies by session');
  eq(queryCount,beforeBadPrincipal,'Malformed principal cannot read tax or owner expense data');
 }
+// Broken owner-session resolution must not leak a Wave CSV or even query D1.
+for(const [label,identity] of [
+ ['unreadable owner email',{get email(){throw Error('Synthetic expense CSV identity unavailable');}}],
+ ['rejected owner session',{then(_ok,reject){reject(Error('Synthetic expense CSV session unavailable'));}}],
+]){
+ principal=identity;
+ const beforeAuthRead=queryCount;
+ const unavailable=await context.exports.GET(new Request(url));
+ eq(unavailable.status,401,label+' CSV export denied 401');
+ eq(unavailable.headers.get('cache-control'),'private, no-store',label+' CSV denial not cached');
+ eq(unavailable.headers.get('vary'),'Cookie',label+' CSV denial varies by session');
+ eq(unavailable.headers.get('x-content-type-options'),'nosniff',label+' CSV denial nosniff');
+ eq(queryCount,beforeAuthRead,label+' reads zero expense D1 rows');
+}
 principal={email:owner};
 authorized=false;
 const denied=await context.exports.GET(new Request(url));
