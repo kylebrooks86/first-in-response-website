@@ -623,6 +623,8 @@ jobs:
           node --experimental-sqlite scripts/test-expense-save-receipt-sqlite.mjs
           # Actual owner expense CSV GET, exact accounting cents and private/outage native SQLite checks.
           node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          # Independent DR expense API GET and Wave financial CSV: actual-route private owner/deny/D1/tax-date parity.
+          node --experimental-sqlite scripts/test-dr-expenses-private-csv.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/expenses/route.ts" "$GITHUB_WORKSPACE/fire-app-dr/lib/expense-date.ts"
       - name: Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
