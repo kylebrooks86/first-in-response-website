@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+// The DR and QA request-guard modules have identical Git blobs at this source SHA.
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 
 const path=process.env.FIRE_DR_MESSAGE_TEMPLATE_ROUTE;
 assert.ok(path,'Pin the real independent DR source path from the PR checkout');
@@ -35,6 +37,7 @@ const sandbox={exports:{},Request,Response,Date,Array,Map,String,Boolean,Error,c
   require(id){
     if(id==='cloudflare:workers')return {env:{DB}};
     if(id==='../../owner-auth')return {getOwnerUser:async()=>user};
+    if(id==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};
     if(id==='../../../lib/fire-templates')return {FIRE_TEMPLATES:templates,SERVICE_AGREEMENT:'Current approved FIRE agreement'};
     throw Error('Unexpected import: '+id);
   }
@@ -87,6 +90,43 @@ eq(nonobject.status,400,'Array body rejected');headers(nonobject,'Array body');
 const unknown=await put({key:'not-a-template',body:'x'});
 eq(unknown.status,400,'Unknown template not saved');headers(unknown,'Unknown key');
 eq(writes,0,'All malformed requests refused before D1 writes');
+// QA-master write parity: previously, a truthy reset='false' erased saved
+// owner wording. Cross-origin or oversized browser requests must never reach D1.
+for(const [label,body,status] of [
+  ['string false reset',{key:'estimate',reset:'false'},400],
+  ['numeric reset',{key:'estimate',reset:1},400],
+  ['reset with replacement text',{key:'estimate',reset:true,body:'Erase then edit'},400],
+  ['unknown JSON field',{key:'estimate',body:'Text',admin:true},400],
+  ['object-coerced template body',{key:'estimate',body:{danger:'coerce'}},400],
+  ['object-coerced subject',{key:'estimate',body:'Text',subject:{}},400],
+  ['oversized UTF-8 body',{key:'estimate',body:'é'.repeat(40_000)},413],
+]){
+  const beforeReads=reads,beforeWrites=writes,snapshot=JSON.stringify(rows);
+  const denied=await put(body);
+  eq(denied.status,status,label+' refuses the unsafe owner write');
+  headers(denied,label);
+  eq(reads,beforeReads,label+' zero DR D1 reads');
+  eq(writes,beforeWrites,label+' zero DR D1 writes');
+  eq(JSON.stringify(rows),snapshot,label+' custom wording preserved');
+}
+for(const [label,customHeaders,expected] of [
+  ['foreign Origin',{'origin':'https://evil.synthetic.invalid'},403],
+  ['same-site sibling Origin',{'origin':'https://sibling.dr.synthetic.invalid'},403],
+  ['cross-site browser',{'sec-fetch-site':'cross-site'},403],
+  ['form content type',{'content-type':'text/plain'},415],
+  ['invalid declared length',{'content-length':'999'},400],
+]){
+  const beforeReads=reads,beforeWrites=writes,snapshot=JSON.stringify(rows);
+  const denied=await route.PUT(new Request('https://dr.synthetic.invalid/api/message-templates',{
+    method:'PUT',headers:{'content-type':'application/json',...customHeaders},
+    body:JSON.stringify({key:'estimate',body:'Must not overwrite'})
+  }));
+  eq(denied.status,expected,label+' refused by actual DR route');
+  headers(denied,label);
+  eq(reads,beforeReads,label+' no D1 read');
+  eq(writes,beforeWrites,label+' no D1 write');
+  eq(JSON.stringify(rows),snapshot,label+' owner wording unchanged');
+}
 const saved=await put({key:'estimate',subject:' Revised ',body:' New owner wording '});
 eq(saved.status,200,'Owner template PUT persists with original success status');headers(saved,'Saved PUT');
 eq(rows[0].body,'New owner wording','Successful real D1 mock write uses normalized body');
