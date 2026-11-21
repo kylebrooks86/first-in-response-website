@@ -53,6 +53,20 @@ const context={exports:{},Response,Array,JSON,Number,String,require(name){
 }};
 vm.runInNewContext(compiled,context);
 assert.equal(typeof context.exports.GET,'function');
+const qaPath=process.argv[3];
+assert.ok(qaPath,'Pass the QA-master tasks route for source parity');
+const qaCompiled=ts.transpileModule(readFileSync(qaPath,'utf8'),{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+}).outputText;
+const qaContext={exports:{},Response,Array,JSON,Number,String,require(name){
+  if(name==='cloudflare:workers')return {env:{DB:backing}};
+  if(name==='../../chatgpt-auth')return {getChatGPTUser:getOwnerUser};
+  if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:()=>{throw Error('GET cannot save tasks')}};
+  throw Error('Unexpected QA route import: '+name);
+}};
+vm.runInNewContext(qaCompiled,qaContext);
+assert.equal(typeof qaContext.exports.GET,'function');
+const handlers=[{name:'independent DR',GET:context.exports.GET},{name:'QA master',GET:qaContext.exports.GET}];
 
 let assertions=0;
 const eq=(actual,expected,label)=>{assert.equal(actual,expected,label);assertions++;};
@@ -62,10 +76,12 @@ const privateReceipt=(response,label)=>{
   eq(response.headers.get('x-content-type-options'),'nosniff',label+' nosniff');
 };
 try{
+ for(const target of handlers){
+  const GET=target.GET;
   for(const identity of ['missing','numeric','unreadable','foreign','throw']){
     principal=identity;
     const before=prepares;
-    const response=await context.exports.GET();
+    const response=await GET();
     eq(response.status,401,identity+' fails closed');
     privateReceipt(response,identity);
     eq(prepares,before,identity+' denied before database');
@@ -73,7 +89,7 @@ try{
     eq('tasks' in body,false,identity+' no owner task disclosure');
   }
   principal='owner';
-  let response=await context.exports.GET();
+  let response=await GET();
   eq(response.status,200,'owner reads confirmed tasks');
   privateReceipt(response,'owner tasks');
   let body=await response.json();
@@ -83,7 +99,7 @@ try{
 
   for(const failure of ['soft','missing','invalid','null','undefined','throw']){
     mode=failure;
-    response=await context.exports.GET();
+    response=await GET();
     eq(response.status,503,failure+' database failure never masquerades as empty tasks');
     privateReceipt(response,failure);
     body=await response.json();
@@ -91,12 +107,19 @@ try{
   }
   mode='';
   db.exec('DELETE FROM tasks');
-  response=await context.exports.GET();
+  response=await GET();
   eq(response.status,200,'genuinely empty confirmed ledger is valid');
   privateReceipt(response,'confirmed empty');
   body=await response.json();
   eq(body.tasks.length,0,'confirmed empty list');
   eq(writes,0,'GET made no task writes');
   eq(reads>0,true,'actual task SQL was read');
-  console.log('PASS '+assertions+' DR owner task GET privacy, QA sorting and D1 read confirmation assertions (native SQLite, NO HOSTED OPERATIONS)');
+  if(target.name==='independent DR'){
+    add('undated','open',null,'2026-11-21T00:00:00Z');
+    add('later','open','2026-11-28T11:00:00Z','2026-11-21T01:00:00Z');
+    add('earlier','open','2026-11-22T11:00:00Z','2026-11-21T02:00:00Z');
+    add('completed','completed','2026-11-20T11:00:00Z','2026-11-21T03:00:00Z');
+  }
+ }
+  console.log('PASS '+assertions+' QA-master + DR owner task GET privacy, ordering and D1 read confirmation assertions (native SQLite, NO HOSTED OPERATIONS)');
 }finally{db.close();}
