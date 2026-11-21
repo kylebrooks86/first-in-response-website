@@ -180,8 +180,21 @@ export async function POST(request: Request) {
           SELECT 1 FROM customer_messages
           WHERE customer_id=? AND estimate_id=? AND channel=? AND template='review'
             AND datetime(created_at)>=datetime('now','-30 seconds')
+        )
+        -- Recheck QA-master financial eligibility atomically with this INSERT.
+        -- A refund, checkout or invoice change after the prior SELECT must
+        -- never authorize a new paid-job review handoff.
+        AND EXISTS (
+          SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='completed'
+            AND NOT EXISTS (SELECT 1 FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id IS NOT e.customer_id)
+            AND COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)>0
+            AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+               =COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id AND inv.customer_id=e.customer_id LIMIT 1),e.total_cents)
+            AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
+            AND NOT EXISTS (SELECT 1 FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending')
+            AND NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
         )`)
-        .bind(id,customerId,estimateId,channel,template,body,createdAt,customerId,estimateId,channel).run();
+        .bind(id,customerId,estimateId,channel,template,body,createdAt,customerId,estimateId,channel,estimateId,customerId).run();
       if((inserted as unknown as {success?:boolean}).success===false||!Number.isSafeInteger(Number(inserted.meta?.changes)))
         return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
       if(!inserted.meta.changes){
