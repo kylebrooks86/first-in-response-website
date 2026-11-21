@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-G5-REFUND-LEDGER-READINESS-CI-37F82F0 -->
+## November 21 — [x] pending Gate 5 refund-ledger fail-closed source CI VERIFIED on PR #282 (NO DEPLOY)
+
+- [x] **Source protection and real-route regression committed:** [`f72cffe`](https://github.com/kylebrooks86/first-in-response-website/commit/f72cffe6fba38da38eda0c3c3ac546408e3fe335) rejects explicit unsuccessful D1 metadata query replies even if they contain every expected refund-ledger object; [`ee04628`](https://github.com/kylebrooks86/first-in-response-website/commit/ee04628466d41a7e683a3564ec9bdad34cdb3dc7) and [`5ff6ff9`](https://github.com/kylebrooks86/first-in-response-website/commit/5ff6ff91f33afb9fe9777b436e052d8fb5d77208) exercise actual owner payment/refund 503 refusal with no Stripe or financial D1 reads/writes; [`37f82f0`](https://github.com/kylebrooks86/first-in-response-website/commit/37f82f0f7db88af948195cdee4bc9ceb7e2afed1) wired the regression into the existing QA/STAGING workflow without creating a second workflow.
+- [x] **Previously pending exact-source CI NOW COMPLETED:** read-only GitHub Actions result at executable/test SHA [`37f82f0f7db88af948195cdee4bc9ceb7e2afed1`](https://github.com/kylebrooks86/first-in-response-website/commit/37f82f0f7db88af948195cdee4bc9ceb7e2afed1) records **27/27 associated pull-request workflow groups completed SUCCESS**, zero failed/cancelled/pending. Real [QA/STAGING run #44952837496](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44952837496) completed **all 6/6 jobs SUCCESS**, including shared source/isolated build job #136994374626 and existing Gate 5 financial-list regression. No rerun.
+- [ ] **Physical G5 proof still OPEN:** successful isolated source CI does not prove that independently bound QA/STAGING/DR/NEW LIVE D1 databases all have the required actual schema/DDL, installed versions, hosted privacy behavior or full refund financial settlement. STAGING last proven 22/25; the exact previously approved TEST 0%-traffic inactive-version authority remains pinned to historical `56ba4b5`/sealed artifact and **is not repinned**.
+
+**Original 95 numbered tasks remain 51/95 accepted, 44 open, and full gates remain 4/10 accepted (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN.** NEW LIVE remains DARK/NO-GO and authentic Job #0001 unissued. This checks off one genuinely pending **source-CI subtask** only, not an original numbered Gate 5 acceptance. No provider operation, Cloudflare sign-in/failed POST retry, D1/Stripe/Access/Worker change, paid R2, deployment, Git merge or release.
+
+---
+
 <!-- FIRE-NOV21-DR-PAYMENTS-PRIVATE-WRAPPER-CI-3188534 -->
 ## November 21 — [x] latest DR/QA payments-response privacy and refund guards: exact changed-source CI VERIFIED (NO DEPLOY)
 
