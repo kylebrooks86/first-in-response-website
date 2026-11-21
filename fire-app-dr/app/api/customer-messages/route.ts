@@ -14,6 +14,45 @@ function usableSavedPhone(value: string | null): boolean {
 function usableSavedEmail(value: string | null): boolean {
   return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value?.trim()??"");
 }
+
+// Keep DR prepared appointments tied to the same Tulsa-local saved time as QA.
+// An unsent "tomorrow" reminder must never become a generic future-job notice.
+const tulsaDayFormatter=new Intl.DateTimeFormat("en-US",{
+  timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
+});
+function tulsaDayKey(time:number):string|null{
+  if(!Number.isFinite(time))return null;
+  const parts=tulsaDayFormatter.formatToParts(new Date(time));
+  const value=(name:string)=>parts.find(part=>part.type===name)?.value??"";
+  const year=value("year"),month=value("month"),day=value("day");
+  return /^\d{4}$/.test(year)&&/^\d{2}$/.test(month)&&/^\d{2}$/.test(day)
+    ?year+"-"+month+"-"+day:null;
+}
+function tomorrowTulsaKey(now:number):string|null{
+  const today=tulsaDayKey(now);
+  if(!today)return null;
+  const [year,month,day]=today.split("-").map(Number);
+  return new Date(Date.UTC(year,month-1,day+1)).toISOString().slice(0,10);
+}
+function appointmentIsTomorrowInTulsa(scheduledAt:string,now:number):boolean{
+  const instant=Date.parse(scheduledAt);
+  return Number.isFinite(instant)&&instant>now&&
+    tulsaDayKey(instant)===tomorrowTulsaKey(now);
+}
+// DST-safe UTC instant when Tulsa's "tomorrow" becomes "today".
+function tomorrowTulsaMidnightUtc(now:number):string|null{
+  const key=tomorrowTulsaKey(now);
+  if(!key)return null;
+  const [year,month,day]=key.split("-").map(Number);
+  const candidate=Date.UTC(year,month-1,day);
+  let low=candidate-12*3600_000,high=candidate+18*3600_000;
+  while(low<high){
+    const middle=low+Math.floor((high-low)/2000)*1000;
+    if((tulsaDayKey(middle)??"")<key)low=middle+1000;
+    else high=middle;
+  }
+  return new Date(low).toISOString();
+}
 // Customer message receipts contain owner-private contacts and manually prepared text.
 const privateResponse=(response:Response):Response=>{
   response.headers.set("Cache-Control","private, no-store");
@@ -109,6 +148,7 @@ export async function POST(request: Request) {
     if(value.recipientSnapshot!==undefined&&typeof value.recipientSnapshot!=="string")
       return privateJson({error:"Invalid message recipient snapshot."},{status:400});
     const recipientSnapshot=typeof value.recipientSnapshot==="string"?value.recipientSnapshot:null;
+    const appointmentScheduledAt=typeof value.appointmentScheduledAt==="string"?value.appointmentScheduledAt:"";
     const isPrepared=channel==="text_prepared"||channel==="email_prepared";
     const requestId=value.requestId;
     if(requestId!==undefined&&(typeof requestId!=="string"||
@@ -131,6 +171,24 @@ export async function POST(request: Request) {
     if(estimateId){
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
       if(!linkedEstimate)return privateJson({error:"That estimate does not belong to this customer."},{status:409});
+    }
+    // Recheck the persisted job before an idempotent retry AND on the actual
+    // write. Saved appointment tokens cannot be reused after rescheduling.
+    const appointmentTemplate=template==="appointment"||template==="appointmentReminder";
+    const appointmentClock=Date.now();
+    const appointmentError="This saved appointment is no longer confirmed for a future time. Review the job status and schedule before preparing an appointment message.";
+    const reminderError="A 24-hour reminder can only be prepared the day before this saved appointment in Tulsa. Choose Appointment confirmation for a later date.";
+    if(appointmentTemplate){
+      if(!estimateId)return privateJson({error:appointmentError},{status:409});
+      const currentJob=await env.DB.prepare("SELECT status,scheduled_at AS scheduledAt FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
+        .bind(estimateId,customerId).first<{status:string;scheduledAt:string|null}>();
+      const scheduledTime=currentJob?.scheduledAt?Date.parse(currentJob.scheduledAt):NaN;
+      if(currentJob?.status!=="scheduled"||!Number.isFinite(scheduledTime)||
+        scheduledTime<=appointmentClock||!appointmentScheduledAt||
+        currentJob.scheduledAt!==appointmentScheduledAt)
+        return privateJson({error:appointmentError},{status:409});
+      if(template==="appointmentReminder"&&!appointmentIsTomorrowInTulsa(currentJob.scheduledAt,appointmentClock))
+        return privateJson({error:reminderError},{status:409});
     }
     if(template==="review"){
       if(!estimateId)return privateJson({error:"A completed paid job is required before requesting a review."},{status:409});
@@ -210,12 +268,25 @@ export async function POST(request: Request) {
       // owner edit on another device after our initial SELECT cannot leave
       // behind a misleading ready-to-send prepared draft.
       const column=channel==="text_prepared"?"phone":"email";
+      // A second owner device can cancel or reschedule after the SELECT.
+      // Validate the exact appointment and a future time in the SAME D1 INSERT.
+      const appointmentGuard=appointmentTemplate?` AND EXISTS (
+        SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=?
+          AND e.status='scheduled' AND e.scheduled_at=?
+          AND julianday(e.scheduled_at)>julianday('now')
+      )`:"";
+      const reminderExpiry=template==="appointmentReminder"?tomorrowTulsaMidnightUtc(appointmentClock):null;
+      const reminderGuard=template==="appointmentReminder"?
+        " AND julianday('now') < julianday(?)":"";
       const sql=isPrepared
         ?`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
-           SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM customers WHERE id=? AND ${column}=?)`
+           SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM customers WHERE id=? AND ${column}=?)
+           ${appointmentGuard}${reminderGuard}`
         :"INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)";
       const args=isPrepared
-        ?[id,customerId,estimateId||null,channel,template,body,createdAt,customerId,savedContact]
+        ?[id,customerId,estimateId||null,channel,template,body,createdAt,customerId,savedContact,
+          ...(appointmentTemplate?[estimateId,customerId,appointmentScheduledAt]:[]),
+          ...(template==="appointmentReminder"?[reminderExpiry]:[])]
         :[id,customerId,estimateId||null,channel,template,body,createdAt];
       const inserted=await env.DB.prepare(sql).bind(...args).run();
       writtenChanges=Number(inserted.meta?.changes);
@@ -233,7 +304,9 @@ export async function POST(request: Request) {
       .bind(id).first<{id:string;customerId:string;estimateId:string|null;
         channel:string;template:string;body:string;createdAt:string}>();
     if(!saved)
-      return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
+      return appointmentTemplate&&writtenChanges===0?
+        privateJson({error:template==="appointmentReminder"?reminderError:appointmentError},{status:409}):
+        privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
     if(saved.id!==id||saved.customerId!==customerId||
       (saved.estimateId??"")!==(estimateId||"")||saved.channel!==channel||
       saved.template!==template||saved.body!==body)
