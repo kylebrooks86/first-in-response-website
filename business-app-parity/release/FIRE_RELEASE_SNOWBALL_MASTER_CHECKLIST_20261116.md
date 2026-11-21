@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-DR-DECISION-RECEIPT-EXACT-947BF1 -->
+## November 21 — [x] Actual DR decision-receipt SOURCE FIX and regression committed; [ ] changed-route CI pending
+
+- [x] **Code fixed, not planned:** [DR source commit `fb07bdb9`](https://github.com/kylebrooks86/first-in-response-website/commit/fb07bdb9b5e07ddaf5872beb76c9c187bc837399) repairs `PATCH /api/customer-messages` in **the existing unmerged Draft PR #282**. An owner's saved sent/cancelled result is now returned as success only after physically read back D1 receipt matches the original prepared ID, customer, estimate, channel, template, body and valid timestamp, with **no contradictory opposite decision**. Lost-acknowledgment recovery reuses the same check. Corrupt/ambiguous rows are private 503 with `saveUncertain`; no SMS/email is sent or inferred.
+- [x] **Executable regression written/committed:** [test commit `947bf1a`](https://github.com/kylebrooks86/first-in-response-website/commit/947bf1a1cad3df04be21507b86f16a7ed41bd750) extends the existing actual independent DR TypeScript/native SQLite handler suite with wrong cancellation template, wrong sent message and both opposite historical decisions. Real persisted record, owner privacy, failure receipt and no false delivery are checked. No new workflow or owner-device testing.
+- [ ] **New exact-code CI acceptance:** [automatically triggered QA/STAGING run #44940656461](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44940656461) and 27 associated workflows were **NOT yet fully completed** when this was recorded. At the last verified read, **25/27 groups success**, remaining staging job still running its *preexisting* local D1 step; the changed DR route test step had **not executed**. This is not a green CI claim. Earlier 27/27 from `3eec313c` belongs to the predecessor code and must not be substituted.
+
+**Important scope:** This is an actual separately completed **source implementation/test-authoring subtask**, not a newly accepted original numbered Gate 6 item. **Formal 51/95 accepted, 44 open; G1/G2/G3/G8 = 4/10 whole gates accepted**. G4/G5/G6/G7/G9/G10 OPEN. STAGING physical D1 remains 22/25, DR+NEW LIVE DARK, LIVE NO-GO, true Job #0001 unissued. [Issue #19 immutable receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7067992402). All older Cloudflare owner/Access/Domain/account, Acer/iPhone and QA evidence stays accepted; no screenshots requested. No Cloudflare login/Worker/route/Access/SQL, Stripe/payment/customer/photo, paid Cloudflare/R2, Git merge, deployment, website or production traffic change.
+
+---
+
 <!-- FIRE-NOV21-CURRENT-PR282-VERIFIED-SOURCE-CHECKOFF-3EEC313C -->
 ## November 21 — [x] Real unchecked SOURCE-CI task closed on current PR #282 (no hosted release claim)
 
