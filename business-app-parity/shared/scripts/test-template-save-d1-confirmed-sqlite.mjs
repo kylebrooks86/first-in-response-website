@@ -10,7 +10,7 @@ const key='estimate';let checks=0;
 const check=(test,label)=>{assert.ok(test,label);checks++;};
 const put=async payload=>{
  const response=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({key,...payload})}));
- return{status:response.status,body:await response.json(),cache:response.headers.get('cache-control')};
+ return{status:response.status,body:await response.json(),cache:response.headers.get('cache-control'),vary:response.headers.get('vary'),nosniff:response.headers.get('x-content-type-options')};
 };
 const stored=()=>db.prepare('SELECT key,subject,body,updated_at AS updatedAt FROM message_templates WHERE key=?').get(key);
 const serverTemplate=async()=>{const result=await route.GET();return(await result.json()).templates.find(x=>x.key===key);};
@@ -19,7 +19,7 @@ try{
  let saved=await put({subject:'  Custom subject  ',body:'  Saved custom owner wording  '});
  check(saved.status===200&&saved.body.template.subject==='Custom subject'&&saved.body.template.body==='Saved custom owner wording',
   'Successful saved template response is exact normalized owner wording');
- check(saved.cache==='no-store, private','Template save receipts cannot be cached');
+ check(saved.cache==='private, no-store'&&saved.vary==='Cookie'&&saved.nosniff==='nosniff','Successful template write receipt is private, session-varying and nosniff');
  check(stored()?.subject==='Custom subject'&&stored()?.body==='Saved custom owner wording'&&
   saved.body.template.updatedAt===stored().updatedAt,
   'Success requires actual durable D1 row and timestamp readback');
@@ -45,6 +45,12 @@ try{
    check(result.status===400&&JSON.stringify(stored())===preserved,
      'Malformed '+label+' cannot delete or modify saved SQLite template');
  }
+ // A saved owner GET must fail closed when its D1 metadata read is unavailable.
+ rt.env.DB.prepare=function(sql){if(sql.startsWith('SELECT key,subject,body,updated_at AS updatedAt FROM message_templates'))throw Error('Synthetic D1 template read unavailable');return originalPrepare(sql);};
+ const readOutage=await route.GET();
+ check(readOutage.status===503&&readOutage.headers.get('cache-control')==='private, no-store'&&readOutage.headers.get('vary')==='Cookie'&&readOutage.headers.get('x-content-type-options')==='nosniff'&&
+   JSON.stringify(stored())===preserved,'D1 outage returns controlled private 503 without inventing an empty template list');
+ rt.env.DB.prepare=originalPrepare;
  const ownerGet=await route.GET();
  check(ownerGet.status===200&&ownerGet.headers.get('cache-control')==='private, no-store'&&
    ownerGet.headers.get('vary')==='Cookie'&&
@@ -55,13 +61,16 @@ try{
  check(foreignGet.status===401&&foreignGet.headers.get('cache-control')==='private, no-store'&&
    JSON.stringify(stored())===preserved,
    'Anonymous template read is unauthorized and never changes saved copy');
- for(const identity of [{},{email:null},{email:42}]){
+ for(const identity of [{},{email:null},{email:42},{get email(){throw Error('Synthetic owner email getter failure');}}]){
   rt.setOwner(identity);
   const before=rt.counters();
   const deniedRead=await route.GET();
   const deniedWrite=await put({subject:'Unauthorized',body:'Must not save'});
   check(deniedRead.status===401&&deniedWrite.status===401,'Malformed template owner cannot read or write');
-  check(deniedRead.headers.get('cache-control')==='private, no-store','Malformed owner template read private');
+  check(deniedRead.headers.get('cache-control')==='private, no-store'&&deniedRead.headers.get('vary')==='Cookie'&&deniedRead.headers.get('x-content-type-options')==='nosniff',
+   'Malformed owner template read is private and MIME-safe');
+  check(deniedWrite.cache==='private, no-store'&&deniedWrite.vary==='Cookie'&&deniedWrite.nosniff==='nosniff',
+   'Malformed owner template mutation 401 is private before any D1 activity');
   check(JSON.stringify(rt.counters())===JSON.stringify(before),'Malformed template principal performs no D1 reads/writes');
  }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
@@ -90,7 +99,8 @@ try{
   return originalPrepare(sql);
  };
  const noWrite=await put({subject:'Not stored',body:'Not stored'});
- check(noWrite.status===503&&noWrite.body.saveUncertain===true,'Nonwriting success-looking SQL ACK fails closed');
+ check(noWrite.status===503&&noWrite.body.saveUncertain===true&&noWrite.cache==='private, no-store'&&noWrite.vary==='Cookie'&&noWrite.nosniff==='nosniff',
+   'Nonwriting success-looking SQL ACK fails closed with private uncertain receipt');
  check(JSON.stringify(stored())===before,'Nonwriting ACK cannot change original template');
  rt.env.DB.prepare=originalPrepare;
  // Lost/incorrect SELECT response after a valid transaction is uncertain,
@@ -139,11 +149,13 @@ try{
  const invalid=await put({subject:'Invalid',body:'  '});
  check(invalid.status===400&&!stored(),'Empty message content rejected without saving');
  const malformed=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',body:'{not-json'}));
- check(malformed.status===400,'Malformed owner template request returns actionable 400 instead of throwing');
+ check(malformed.status===400&&malformed.headers.get('cache-control')==='private, no-store'&&malformed.headers.get('vary')==='Cookie'&&malformed.headers.get('x-content-type-options')==='nosniff',
+   'Malformed owner template request returns private actionable 400 instead of throwing');
  const arrayPayload=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',body:'[]'}));
  check(arrayPayload.status===400,'Array payload cannot change message templates');
  const unknown=await route.PUT(new Request('https://synthetic.invalid/api/message-templates',{method:'PUT',body:JSON.stringify({key:'not-a-real-template',subject:'x',body:'x'})}));
- check(unknown.status===400,'Unknown template key cannot create unrelated metadata');
+ check(unknown.status===400&&unknown.headers.get('cache-control')==='private, no-store'&&unknown.headers.get('vary')==='Cookie'&&unknown.headers.get('x-content-type-options')==='nosniff',
+   'Unknown template key returns private 400 and cannot create unrelated metadata');
  rt.setOwner(null);
  const denied=await put({subject:'Not owner',body:'No access'});
  check(denied.status===401&&!stored(),'Nonowner cannot overwrite a template');
