@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       if(!inserted.meta.changes){
         const recent=await env.DB.prepare(`SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt
           FROM customer_messages WHERE customer_id=? AND estimate_id=? AND channel=? AND template='review'
+            AND datetime(created_at)>=datetime('now','-30 seconds')
           ORDER BY created_at DESC LIMIT 1`).bind(customerId,estimateId,channel).first();
         if(recent)return privateJson({message:recent,duplicate:true});
         return privateJson({error:"Review request was not saved. Recheck the job and payment status."},{status:409});
@@ -85,7 +86,19 @@ export async function POST(request: Request) {
       if((inserted as unknown as {success?:boolean}).success===false||Number(inserted.meta?.changes)!==1)
         return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
     }
-    return privateJson({ message: { id, customerId, estimateId: estimateId || null, channel, template, body, createdAt } }, { status: 201 });
+    // D1 may report a successful INSERT while persisting no row, or the
+    // acknowledgement may be inconsistent with committed storage. Never tell
+    // the owner a customer communication was saved without an independent
+    // exact-ID, exact-content readback. This does not send any communication.
+    const saved=await env.DB.prepare(`SELECT id,customer_id AS customerId,estimate_id AS estimateId,
+      channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?`)
+      .bind(id).first<{id:string;customerId:string;estimateId:string|null;
+        channel:string;template:string;body:string;createdAt:string}>();
+    if(!saved||saved.id!==id||saved.customerId!==customerId||
+      (saved.estimateId??"")!==(estimateId||"")||saved.channel!==channel||
+      saved.template!==template||saved.body!==body||saved.createdAt!==createdAt)
+      return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
+    return privateJson({message:saved},{status:201});
   } catch {
     return privateJson({ error: "Communication save could not be verified. Refresh saved messages before retrying.",saveUncertain:true }, { status: 503 });
   }
