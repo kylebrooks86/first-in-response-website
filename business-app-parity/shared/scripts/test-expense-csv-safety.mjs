@@ -18,8 +18,13 @@ database.prepare('INSERT INTO estimates VALUES (?,?)').run('e1','c1');
 database.prepare('INSERT INTO estimate_items VALUES (?,?,?)').run('i1','e1',service);
 database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x1','e1',category,description,1525,'2026-10-20T12:00:00.000Z','2026-10-20T12:00:00.000Z');
 database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x2',null,'Supplies',normal,275,'2026-10-19T12:00:00.000Z','2026-10-19T12:00:00.000Z');
-let queryCount=0,failReads=false;
-const backing={prepare(sql){queryCount++;if(failReads)throw Error('Synthetic D1 unavailable');const stmt=database.prepare(sql);return {bind(...v){return {all:async()=>({results:stmt.all(...v)})};},all:async()=>({results:stmt.all()})};}};
+let queryCount=0,failReads=false,softReadFailure=false,incompleteRead=false;
+const readRows=(stmt,args=[])=>{
+ if(softReadFailure)return {success:false,results:[]};
+ if(incompleteRead)return {success:true};
+ return {results:stmt.all(...args)};
+};
+const backing={prepare(sql){queryCount++;if(failReads)throw Error('Synthetic D1 unavailable');const stmt=database.prepare(sql);return {bind(...v){return {all:async()=>readRows(stmt,v)};},all:async()=>readRows(stmt)};}};
 const source=readFileSync('app/api/expenses/route.ts','utf8');
 const owner=source.match(/OWNER_EMAIL="([^"]+)"/)?.[1];
 assert.ok(owner,'Original owner guard remains');
@@ -168,6 +173,21 @@ try{
   eq((await unavailable.json()).error.includes('were not changed'),true,'D1 failure never claims a successful empty expense history');
  }
 }finally{failReads=false;}
+// A nonthrowing failed or incomplete D1 read is not a genuine empty ledger.
+for(const softFailure of ['success:false','missing results']){
+ softReadFailure=softFailure==='success:false';
+ incompleteRead=softFailure==='missing results';
+ try{
+  for(const path of [url,'https://synthetic.invalid/api/expenses']){
+   const falseEmpty=await context.exports.GET(new Request(path));
+   eq(falseEmpty.status,503,softFailure+' refuses falsely successful financial history/export');
+   eq(falseEmpty.headers.get('cache-control'),'private, no-store',softFailure+' remains private');
+   eq(falseEmpty.headers.get('vary'),'Cookie',softFailure+' varies by owner session');
+   eq(falseEmpty.headers.get('x-content-type-options'),'nosniff',softFailure+' remains nosniff');
+   eq((await falseEmpty.json()).error.includes('were not changed'),true,softFailure+' never claims an empty ledger');
+  }
+ }finally{softReadFailure=false;incompleteRead=false;}
+}
 // Even a nominally authenticated identity with malformed email must never
 // reach owner tax data, produce a 500, or query the saved expense ledger.
 for(const malformedEmail of [undefined,123]){

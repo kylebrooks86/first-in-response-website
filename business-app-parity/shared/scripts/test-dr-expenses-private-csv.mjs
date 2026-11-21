@@ -28,14 +28,14 @@ db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x2',null,'Supplie
 db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x3',null,'Fuel','late-tulsa-dec31',5000,'2027-01-01T04:30:00.000Z','2027-01-01T04:30:00.000Z');
 db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x4',null,'Fuel','local-new-year',6000,'2027-01-01T06:30:00.000Z','2027-01-01T06:30:00.000Z');
 
-let reads=0,writes=0,unavailable=false,mode='owner',loseAckOnce=false;
+let reads=0,writes=0,unavailable=false,softReadFailure=false,incompleteRead=false,mode='owner',loseAckOnce=false;
 const backing={prepare(sql){
  if(unavailable)throw Error('Synthetic D1 failure');
  const stmt=db.prepare(sql);
  return {
   args:[],
   bind(...args){this.args=args;return this;},
-  async all(){reads++;return {results:stmt.all(...this.args)};},
+  async all(){reads++;if(softReadFailure)return {success:false,results:[]};if(incompleteRead)return {success:true};return {results:stmt.all(...this.args)};},
   async first(){reads++;return stmt.get(...this.args)??null;},
   async run(){writes++;const result=stmt.run(...this.args);if(loseAckOnce){loseAckOnce=false;throw Error('Synthetic lost commit ACK');}return {success:true,meta:{changes:Number(result.changes)}};}
  };
@@ -115,6 +115,20 @@ eq(outage.status,503,'DB unavailable controlled JSON 503');verifyPrivate(outage,
 const csvOutage=await get('?format=csv');
 eq(csvOutage.status,503,'DB unavailable controlled CSV 503');verifyPrivate(csvOutage,'CSV D1 outage');
 unavailable=false;
+for(const softFailure of ['success:false','missing results']){
+ softReadFailure=softFailure==='success:false';
+ incompleteRead=softFailure==='missing results';
+ const writesBefore=writes;
+ try{
+  for(const query of ['', '?format=csv&year=2026']){
+   const falseEmpty=await get(query);
+   eq(falseEmpty.status,503,softFailure+' refuses false empty DR expenses JSON/CSV');
+   verifyPrivate(falseEmpty,softFailure+' read rejection');
+   eq((await falseEmpty.json()).error.includes('were not changed'),true,softFailure+' never claims DR ledger is empty');
+  }
+  eq(writes,writesBefore,softFailure+' read-failure handling never writes expense data');
+ }finally{softReadFailure=false;incompleteRead=false;}
+}
 db.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run('not-a-number');
 const badAmount=await get('?format=csv');
 eq(badAmount.status,503,'non-integer financial legacy cents blocked');verifyPrivate(badAmount,'bad cents');

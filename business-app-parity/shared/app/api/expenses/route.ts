@@ -27,6 +27,11 @@ export async function GET(request:Request){
   const rows=await env.DB.prepare(`SELECT x.id,x.estimate_id AS estimateId,x.category,x.description,x.amount_cents AS amountCents,x.incurred_at AS incurredAt,x.created_at AS createdAt,c.name AS customer,
     COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'') AS service
     FROM expenses x LEFT JOIN estimates e ON e.id=x.estimate_id LEFT JOIN customers c ON c.id=e.customer_id ORDER BY x.incurred_at DESC,x.created_at DESC,x.id DESC`).all<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string;customer:string|null;service:string|null}>();
+    // A D1 query can report failure without throwing. A missing results
+    // collection is also not evidence that there are zero saved expenses.
+    // Fail closed for both JSON history and Wave CSV to avoid false books.
+    if(rows?.success===false || !Array.isArray(rows?.results))
+      throw new Error("D1 expense read not confirmed");
     if(isCsv){
     // A late December 31 owner expense can be January 1 in UTC.
     // Never group it under the wrong tax year or silently omit an invalid date.
