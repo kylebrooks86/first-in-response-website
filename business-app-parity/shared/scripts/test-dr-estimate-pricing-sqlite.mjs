@@ -296,5 +296,55 @@ for(const [label,headers,body,status] of [
    'Actual DR estimate PATCH '+label+' denied privately before ALL D1 operations');
 }
 user={email:'kylebrooks8605@gmail.com'};
+// DR estimate creation was previously unbounded request.json(), with
+// cacheable successful quote/share-token and invalid-owner responses.
+// Exercise the ACTUAL exported POST and production stream/origin guard.
+setup();
+const createRequest=(headers,body)=>new Request('https://synthetic.invalid/api/estimates',{
+ method:'POST',headers,body
+});
+const safeCreateBody=JSON.stringify(base(2500));
+for(const [label,identity] of [
+ ['missing owner',null],['foreign owner',{email:'other@synthetic.invalid'}],
+ ['numeric owner',{email:42}],['unreadable owner',{get email(){throw Error('Unreadable owner identity')}}]
+]){
+ user=identity;const before=prepareCount;
+ const response=await api.POST(createRequest(strictHeaders,safeCreateBody));
+ check(response.status===401&&privateEdit(response)&&prepareCount===before,
+   'Actual DR estimate CREATE '+label+' refuses before D1 with private owner receipt');
+}
+user={email:'kylebrooks8605@gmail.com'};
+for(const [label,headers,body,status] of [
+ ['foreign origin',{...strictHeaders,origin:'https://attacker.invalid','sec-fetch-site':'cross-site'},safeCreateBody,403],
+ ['sibling origin',{...strictHeaders,origin:'https://sibling.synthetic.invalid','sec-fetch-site':'same-site'},safeCreateBody,403],
+ ['same-site metadata',{...strictHeaders,'sec-fetch-site':'same-site'},safeCreateBody,403],
+ ['simple browser form',{...strictHeaders,'content-type':'text/plain'},safeCreateBody,415],
+ ['declared oversize',{...strictHeaders,'content-length':'262145'},safeCreateBody,413],
+ ['real UTF-8 oversize',strictHeaders,JSON.stringify({customer:'é'.repeat(132000)}),413],
+ ['invalid declared byte count',{...strictHeaders,'content-length':'garbage'},safeCreateBody,400],
+ ['malformed JSON',strictHeaders,'{',400],
+ ['array JSON',strictHeaders,'[]',400],
+ ['empty JSON',strictHeaders,'',400]
+]){
+ const before=prepareCount;
+ const response=await api.POST(createRequest(headers,body));
+ check(response.status===status&&privateEdit(response)&&prepareCount===before,
+   'Actual DR estimate CREATE '+label+' rejected privately with zero D1 operations');
+}
+setup();
+const validCreation=await api.POST(createRequest(strictHeaders,safeCreateBody));
+const validCreated=await validCreation.json();
+check(validCreation.status===201&&privateEdit(validCreation)&&
+  validCreated.totalCents===2500&&one()?.id===validCreated.id,
+  'Actual DR estimate CREATE valid quote preserves saved amount/share data and privacy');
+const invalidPrice=await api.POST(createRequest(strictHeaders,JSON.stringify({...base(2500),items:[item(2500.5)]})));
+check(invalidPrice.status===400&&privateEdit(invalidPrice),
+  'Actual DR estimate CREATE validation failure remains session-private');
+setup();batchMode='drop-ack';
+const uncertainCreation=await api.POST(createRequest(strictHeaders,safeCreateBody));
+check(uncertainCreation.status===503&&privateEdit(uncertainCreation)&&
+  (await uncertainCreation.json()).saveUncertain===true,
+  'Actual DR estimate CREATE uncertain D1 receipt never reports a saved quote and stays private');
+user={email:'kylebrooks8605@gmail.com'};
 db.close();
 console.log('PASS '+checks+'/'+checks+' DR quote pricing, lifecycle and actual PATCH owner/256KiB/origin/private/zero-D1 negative tests (no hosted calls).');
