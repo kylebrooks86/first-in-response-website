@@ -3,7 +3,16 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {customerPropertiesEnabled,propertyWorkflowTestEnabled,type CustomerProperty} from '../../../lib/customer-properties';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const columns='id,customer_id AS customerId,address,designation,active,revision,created_at AS createdAt';
-async function owner(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';}
+async function owner(){
+ try{
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';
+ }catch{
+  // A rejected session lookup or unreadable email must not escape as a 500.
+  // All GET/POST/PATCH paths deny 401 before property D1 reads or mutations.
+  return false;
+ }
+}
 function id(value:unknown){return typeof value==='string'&&value.trim().length>0&&value.trim().length<=128?value.trim():'';}
 const privateReadHeaders={'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'};
 const privateJson=(data:unknown,status=200)=>Response.json(data,{status,headers:privateReadHeaders});
