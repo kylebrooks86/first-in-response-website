@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){try{const user=await getOwnerUser();return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL;}catch{return false;}}
@@ -33,10 +34,14 @@ export async function GET() {
   } catch { return invoiceResponse({ error: "Invoices are temporarily unavailable." },503); }
 }
 
-export async function POST(request: Request) {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+async function createInvoice(request: Request) {
+  if (!await authorized()) return invoiceResponse({ error: "Unauthorized" },401);
   try {
-    const body = await request.json() as Record<string, unknown>;
+    // DR must use the same 16 KB streamed, exact-browser-origin owner guard
+    // as the QA-master final invoice creator, before ANY financial D1 read.
+    const parsed=await readOwnerWriteObject(request,16_000);
+    if(parsed.response)return parsed.response;
+    const body=parsed.value as Record<string, unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
     const estimate = await env.DB.prepare(`
       SELECT e.id,e.customer_id AS customerId,e.total_cents AS totalCents,e.status,
@@ -54,6 +59,7 @@ export async function POST(request: Request) {
     const estimateTotalCents=Number(estimate.totalCents);
     const paidSnapshotCents=Number(estimate.paidCents);
     if(!Number.isSafeInteger(subtotalCents)||!Number.isSafeInteger(estimateTotalCents)||estimateTotalCents<0||!Number.isSafeInteger(paidSnapshotCents)||paidSnapshotCents<0)return Response.json({error:"This completed job contains billing totals outside FIRE's safe accounting range. Review it before creating the final invoice."},{status:409});
+    if(estimateTotalCents>subtotalCents)return invoiceResponse({error:"Saved estimate exceeds its service subtotal. Review the original quote before creating an invoice."},409);
     const discountCents=Math.max(0,subtotalCents-estimateTotalCents);
     if(!Number.isSafeInteger(discountCents))return Response.json({error:"This completed job's discount cannot be represented safely. Review it before creating the final invoice."},{status:409});
     const id = crypto.randomUUID();
@@ -61,7 +67,8 @@ export async function POST(request: Request) {
     const createdAt = new Date().toISOString();
     const dueAt = null;
     const paidCents = paidSnapshotCents;
-    const invoiceStatus = paidCents >= estimateTotalCents ? "paid" : paidCents > 0 ? "partial" : "draft";
+    // A zero-dollar complimentary invoice is not a paid transaction.
+    const invoiceStatus = estimateTotalCents>0&&paidCents>=estimateTotalCents ? "paid" : paidCents > 0 ? "partial" : "draft";
     const statements=[env.DB.prepare("INSERT INTO invoices (id,estimate_id,customer_id,status,subtotal_cents,discount_cents,discount_type,discount_value,total_cents,due_at,share_token,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, estimateId, estimate.customerId, invoiceStatus, subtotalCents, discountCents, "dollar", discountCents, estimateTotalCents, dueAt, shareToken, createdAt)];
     for(const item of itemResult.results)statements.push(env.DB.prepare("INSERT INTO invoice_items (id,invoice_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),id,item.name,item.description,Number(item.quantity),item.unit,Number(item.totalCents)));
     try{
@@ -73,5 +80,19 @@ export async function POST(request: Request) {
       throw new Error("invoice-create-failed");
     }
     return Response.json({ id, estimateId, customerId: estimate.customerId, status: invoiceStatus, subtotalCents, discountCents, discountType:"dollar", discountValue:discountCents, totalCents: estimateTotalCents, dueAt, shareToken, createdAt }, { status: 201 });
-  } catch { return Response.json({ error: "We couldn't create this invoice." }, { status: 500 }); }
+  } catch { return invoiceResponse({ error: "Invoice save could not be confirmed. Review saved invoices before retrying.",saveUncertain:true },503); }
 }
+
+// Even legacy/save-race responses contain a private billing/share bearer token.
+// Keep every success, denial, D1-failure and body-guard receipt session-private.
+export async function POST(request:Request){
+  let response:Response;
+  try{response=await createInvoice(request);}
+  catch{return invoiceResponse({error:"Invoice save could not be confirmed. Review saved invoices before retrying.",saveUncertain:true},503);}
+  const headers=new Headers(response.headers);
+  headers.set("Cache-Control","private, no-store");
+  headers.set("Vary","Cookie");
+  headers.set("X-Content-Type-Options","nosniff");
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
+
