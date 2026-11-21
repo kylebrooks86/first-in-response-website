@@ -90,7 +90,7 @@ await assert.rejects(()=>weather.loadTulsaHourlyForecast(day,async()=>{
 },now),/Invalid forecast source/);checks++;check(offsite===1,'Offsite hourly URL rejected without fetching');
 await assert.rejects(()=>weather.loadTulsaHourlyForecast('2026-02-30',async()=>{throw Error('No request allowed');},now),/Invalid hourly forecast date/);checks++;
 let currentHourlyOwner=null,loadCalls=0;
-globalThis.__weatherHourlyOwner=()=>currentHourlyOwner;
+globalThis.__weatherHourlyOwner=()=>{if(currentHourlyOwner==='REJECT')throw Error('synthetic session rejection');return currentHourlyOwner;};
 globalThis.__weatherHourlyLoad=async date=>{loadCalls++;return{date,location:'Tulsa',updatedAt:'2026-10-20T17:00:00Z',hours:[hourly.hours[0]]};};
 const route=await importTs('app/api/weather/hourly/route.ts',
  'const getChatGPTUser=async()=>globalThis.__weatherHourlyOwner();\n'+
@@ -100,6 +100,9 @@ const url='https://synthetic.invalid/api/weather/hourly?date=2026-10-20';
 const checkPrivateHourly=response=>{check(response.headers.get('vary')==='Cookie','Weather session caches vary by Cookie');check(response.headers.get('x-content-type-options')==='nosniff','Weather MIME sniffing denied');check((response.headers.get('cache-control')??'').includes('private'),'Weather response is private');};
 let response=await route.GET(new Request(url));check(response.status===401,'Unauthenticated hourly forecast refused');checkPrivateHourly(response);check(response.headers.get('cache-control').includes('no-store'),'Denied hourly forecast is no-store');
 currentHourlyOwner={};response=await route.GET(new Request(url));check(response.status===401,'Identity missing email must be denied');checkPrivateHourly(response);
+currentHourlyOwner={email:42};response=await route.GET(new Request(url));check(response.status===401,'Malformed hourly owner identity denied');checkPrivateHourly(response);check(loadCalls===0,'Malformed identity causes zero NWS work');
+currentHourlyOwner={get email(){throw Error('synthetic identity getter')}};response=await route.GET(new Request(url));check(response.status===401,'Throwing hourly email getter denied');checkPrivateHourly(response);check(loadCalls===0,'Throwing identity causes zero NWS work');
+currentHourlyOwner='REJECT';response=await route.GET(new Request(url));check(response.status===401,'Rejected hourly session provider denied');checkPrivateHourly(response);check(loadCalls===0,'Rejected session causes zero NWS work');
 currentHourlyOwner={email:'kylebrooks8605@gmail.com'};response=await route.GET(new Request('https://synthetic.invalid/api/weather/hourly?date=invalid'));
 check(response.status===400&&loadCalls===0,'Invalid calendar date refused before any remote work');checkPrivateHourly(response);
 response=await route.GET(new Request(url));
