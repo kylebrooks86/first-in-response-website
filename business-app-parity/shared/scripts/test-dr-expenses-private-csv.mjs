@@ -132,10 +132,18 @@ for(const softFailure of ['success:false','missing results']){
 db.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run('not-a-number');
 const badAmount=await get('?format=csv');
 eq(badAmount.status,503,'non-integer financial legacy cents blocked');verifyPrivate(badAmount,'bad cents');
+const badAmountJson=await get();
+eq(badAmountJson.status,503,'DR JSON expense history refuses a noninteger saved amount');
+verifyPrivate(badAmountJson,'bad JSON cents');
+eq((await badAmountJson.json()).error.includes('amounts'),true,'DR corrupt amount provides explicit review error');
 db.prepare("UPDATE expenses SET amount_cents=? WHERE id='x1'").run(1525);
 db.prepare("UPDATE expenses SET incurred_at=? WHERE id='x1'").run('invalid-date');
 const badDate=await get('?format=csv&year=2026');
 eq(badDate.status,503,'invalid saved business date blocked');verifyPrivate(badDate,'bad saved date');
+const badDateJson=await get();
+eq(badDateJson.status,503,'DR JSON expense history refuses an invalid saved date');
+verifyPrivate(badDateJson,'bad JSON date');
+eq((await badDateJson.json()).error.includes('dates'),true,'DR corrupt date provides explicit review error');
 eq(db.prepare("SELECT amount_cents AS cents FROM expenses WHERE id='x1'").get().cents,1525,'read/export never changed financial amount');
 
 // Real DR POST uses the same QA-master bounded owner JSON, CSRF and D1-verified
