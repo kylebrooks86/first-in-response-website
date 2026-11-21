@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-DR-TASK-WRITES-B1B0498-6F05247 -->
+## November 21 — independent DR task mutation API brought into QA-master source parity; actual security tests committed (NO DEPLOY)
+
+**New executable DR source** [`b1b0498237ec03e2bf2f67c07ab385558b9f08e8`](https://github.com/kylebrooks86/first-in-response-website/commit/b1b0498237ec03e2bf2f67c07ab385558b9f08e8), **new real-route regression** [`6f0524798548e180a6f7f56c277036c84f94fa1b`](https://github.com/kylebrooks86/first-in-response-website/commit/6f0524798548e180a6f7f56c277036c84f94fa1b), on SAME existing unmerged DRAFT [PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282). Identified genuine divergence: independent DR task POST/PATCH was a one-line, unbounded `request.json()` parser/unguarded origin, unconditional task status change and unconfirmed INSERT while QA master already supported immutable request-ID, conditional customer/job INSERT, lost-ACK readback, status CAS and deadline rescheduling. Replaced DR handler using full current QA-master implementation, preserving the DR-specific authenticated `getOwnerUser` provider and independent DR D1. The existing DR bounded owner streaming guard is physically present and already used by DR payments. No real task/customer/financial D1 operations performed.
+
+**Test authored and CI-wired through existing suite:** `business-app-parity/shared/scripts/test-dr-tasks-private-read.mjs` now loads the real DR guard and invokes the exported DR task POST/PATCH, asserting private denial and zero D1 prepare on missing/foreign/failed identity, foreign/sibling/cross-site Origin/Fetch Metadata, browser form content, malformed/array/empty or oversized request. Existing QA native SQLite task create/status/deadline tests and DR owner task GET regression preserved. [Master checklist source/test checkoff commit `7c1257a`](https://github.com/kylebrooks86/first-in-response-website/commit/7c1257ae0f125d8a5e36433793c45f7dc65e36e6). Automatic exact-code/test GitHub Actions initiated at `6f05247` but NOT YET declared green; no manual duplicate run. Source [x], targeted regression authored [x], full exact-SHA CI [ ], hosted DR parity G6 [ ].
+
+**Official release unchanged:** 51/95 accepted (44 open), G1/G2/G3/G8 accepted 4/10; G4/G5/G6/G7/G9/G10 OPEN. Hosted STAGING D1 last proven 22/25; independent DR/NEW LIVE DARK; first LIVE Job #0001 unused. Prior precise authorization for one inactive TEST 0%-traffic source `56ba4b5` remains unconsumed and is NOT extended to this new code. No Cloudflare/Access/Worker/routing/SQL/D1/Stripe/payment, paid R2, Git merge, public deploy or provider login/retry/owner screenshot.
+
+---
+
 <!-- FIRE-NOV21-DR-PAYMENT-INPUT-CI-CHECKOFF-21C44C5 -->
 ## November 21 — DR independent payment/refund POST QA-master guard parity: exact source CI 27/27 SUCCESS (NO DEPLOY)
 
