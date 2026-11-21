@@ -29,7 +29,7 @@ export async function GET(request:Request) {
   let cursor:{createdAt:string;id:string}|null=null;
   if(rawCursor!==null){
     if(rawCursor.length>210)return privateJson({error:"Invalid prepared-message cursor."},{status:400});
-    const match=/^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z)\\|([A-Za-z0-9:._-]{1,128})$/.exec(rawCursor);
+    const match=/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)\|([A-Za-z0-9:._-]{1,128})$/.exec(rawCursor);
     if(!match||!Number.isFinite(Date.parse(match[1])))
       return privateJson({error:"Invalid prepared-message cursor."},{status:400});
     cursor={createdAt:match[1],id:match[2]};
@@ -69,7 +69,7 @@ export async function GET(request:Request) {
       return privateJson({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503});
     const rows=result.results,page=rows.slice(0,10),last=page.at(-1);
     const nextCursor=rows.length>10&&last&&
-      /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$/.test(last.createdAt)&&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(last.createdAt)&&
       /^[A-Za-z0-9:._-]{1,128}$/.test(last.id)
         ?last.createdAt+"|"+last.id:null;
     return privateJson({pending:page,mayHaveMore:rows.length>10,nextCursor});
