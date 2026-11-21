@@ -76,7 +76,7 @@ async function stripeGet(path:string,secret:string){
   return fetch(`https://api.stripe.com/v1/${path}`,{headers:{authorization:`Bearer ${secret}`}});
 }
 
-export async function POST(request:Request){
+async function saveRefund(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   // Independent DR is not authorized for LIVE financial operations.
   // Fail closed BEFORE any financial D1 read/write, including manual refunds.
@@ -196,4 +196,25 @@ export async function POST(request:Request){
   }catch{
     return Response.json({error:"The refund could not be completed. No new refund should be attempted until you refresh the payment history."},{status:500});
   }
+}
+
+
+// All DR refund decisions are owner-private, including refusals, pending
+// provider results and uncertain outcomes. Do not infer that a refund was
+// NOT sent merely because its confirmation could not be read back.
+const refundPrivateHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+export async function POST(request:Request){
+  let response:Response;
+  try {
+    response=await saveRefund(request);
+  } catch {
+    response=Response.json({
+      error:"Refund confirmation is uncertain. Review refund history and the payment provider before another attempt.",
+      saveUncertain:true
+    },{status:503});
+  }
+  for(const [name,value] of Object.entries(refundPrivateHeaders)){
+    response.headers.set(name,value);
+  }
+  return response;
 }
