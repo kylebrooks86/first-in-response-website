@@ -4,9 +4,13 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 const routePath=process.argv[2];
 assert.ok(routePath,'Pass fire-app-dr/app/api/tasks/route.ts from this PR checkout');
+// Use the DR production origin/stream guard, never a permissive test substitute.
+const {readOwnerWriteObject}=await import(pathToFileURL(resolve(dirname(routePath),'../../../lib/customer-write-request-guard.mjs')).href);
 const db=new DatabaseSync(':memory:');
 db.exec([
   'CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT)',
@@ -49,6 +53,7 @@ const compiled=ts.transpileModule(readFileSync(routePath,'utf8'),{
 const context={exports:{},Response,Array,JSON,Number,String,require(name){
   if(name==='cloudflare:workers')return {env:{DB:backing}};
   if(name==='../../owner-auth')return {getOwnerUser};
+  if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};
   throw Error('Unexpected DR route import: '+name);
 }};
 vm.runInNewContext(compiled,context);
@@ -121,5 +126,40 @@ try{
     add('completed','completed','2026-11-20T11:00:00Z','2026-11-21T03:00:00Z');
   }
  }
-  console.log('PASS '+assertions+' QA-master + DR owner task GET privacy, ordering and D1 read confirmation assertions (native SQLite, NO HOSTED OPERATIONS)');
+  // Verify actual DR owner writes refuse unauthorized/forged requests before D1.
+  // Use the production stream parser and exported POST/PATCH route functions.
+  const dr=context.exports;
+  eq(typeof dr.POST,'function','DR task create handler exists');
+  eq(typeof dr.PATCH,'function','DR task update handler exists');
+  const url='https://synthetic.invalid/api/tasks';
+  const normalBody=JSON.stringify({requestId:'00000000-0000-4000-8000-000000000007',title:'Synthetic task'});
+  const badRequests=[
+   {name:'foreign Origin',expected:403,headers:{origin:'https://other.synthetic.invalid','content-type':'application/json'},body:normalBody},
+   {name:'sibling same-site metadata',expected:403,headers:{'sec-fetch-site':'same-site','content-type':'application/json'},body:normalBody},
+   {name:'cross-site metadata',expected:403,headers:{'sec-fetch-site':'cross-site','content-type':'application/json'},body:normalBody},
+   {name:'browser form body',expected:415,headers:{origin:'https://synthetic.invalid','content-type':'text/plain'},body:normalBody},
+   {name:'oversized declared body',expected:413,headers:{'content-type':'application/json','content-length':'64001'},body:normalBody},
+   {name:'malformed JSON',expected:400,headers:{'content-type':'application/json'},body:'{'},
+   {name:'array instead of object',expected:400,headers:{'content-type':'application/json'},body:'[]'},
+   {name:'empty body',expected:400,headers:{'content-type':'application/json'},body:''},
+  ];
+  for(const method of ['POST','PATCH']){
+   for(const identity of ['missing','foreign','throw']){
+    principal=identity;
+    const start=prepares;
+    const response=await dr[method](new Request(url,{method,headers:{'content-type':'application/json'},body:normalBody}));
+    eq(response.status,401,method+' denies '+identity+' owner identity');
+    privateReceipt(response,method+' '+identity+' denial');
+    eq(prepares,start,method+' '+identity+' never touches D1');
+   }
+   principal='owner';
+   for(const bad of badRequests){
+    const start=prepares;
+    const response=await dr[method](new Request(url,{method,headers:bad.headers,body:bad.body}));
+    eq(response.status,bad.expected,method+' refuses '+bad.name);
+    privateReceipt(response,method+' '+bad.name);
+    eq(prepares,start,method+' '+bad.name+' never touches D1');
+   }
+  }
+  console.log('PASS '+assertions+' QA-master + DR task GET and real POST/PATCH denied-write assertions (native SQLite, NO HOSTED OPERATIONS)');
 }finally{db.close();}
