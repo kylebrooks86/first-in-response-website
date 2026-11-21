@@ -1,10 +1,16 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // Owner directory includes contact records, financial totals, and private invoice tokens.
 const customerPrivateHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 const customerPrivateJson=(body:unknown,status=200)=>Response.json(body,{status,headers:customerPrivateHeaders});
+function customerPrivateGuardResponse(response:Response){
+  const headers=new Headers(response.headers);
+  for(const [name,value] of Object.entries(customerPrivateHeaders))headers.set(name,value);
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
 async function authorized() {
   try {
     const user = await getOwnerUser();
@@ -85,21 +91,24 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return customerPrivateJson({ error: "Unauthorized" },401);
+  // Reject oversized/malformed JSON and forged browser origins before any D1 work.
+  const parsed=await readOwnerWriteObject(request,64_000);
+  if(parsed.response)return customerPrivateGuardResponse(parsed.response);
   try {
-    const body = await request.json() as Record<string, unknown>;
+    const body=parsed.value as Record<string, unknown>;
     const name = String(body.name ?? "").trim();
     const email = String(body.email ?? "").trim();
     const phone = String(body.phone ?? "").trim();
     const address = String(body.address ?? "").trim();
     const leadSource = String(body.leadSource ?? "Unknown").trim() || "Unknown";
-    if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
+    if (!name) return customerPrivateJson({ error: "Customer name is required." },400);
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     await env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) VALUES (?,?,?,?,?,?,?)")
       .bind(id, name, email || null, phone || null, address || null, leadSource, createdAt).run();
-    return Response.json({ customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201 });
+    return customerPrivateJson({ customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } },201);
   } catch {
-    return Response.json({ error: "We couldn't save this customer. Please try again." }, { status: 500 });
+    return customerPrivateJson({ error: "Customer save could not be confirmed. Refresh saved customers before retrying.",saveUncertain:true },503);
   }
 }
