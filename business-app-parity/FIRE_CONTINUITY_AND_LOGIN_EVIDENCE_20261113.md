@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-DR-ESTIMATE-OWNER-95FF8E7 -->
+## Nov 21 — independent DR estimate PATCH owner streamed edit and private receipts; actual security tests authored (NO DEPLOY)
+
+New executable [`80cc3ff`](https://github.com/kylebrooks86/first-in-response-website/commit/80cc3ffa77dabc03c8d317c1ab6197b932e91904) on the existing unmerged [Draft PR282](https://github.com/kylebrooks86/first-in-response-website/pull/282) replaces DR `app/api/estimates/[id]/route.ts` unbounded `request.json()` with the **existing** DR `readOwnerWriteObject(request,262_144)` strict UTF-8 streaming + exact Origin/Fetch Metadata/JSON before any estimate/payment/customer D1 use. Nonowner/failed owner auth is private 401. The original QA-consistent price, bundle, immutable accepted quote, owner schedule/closeout and D1 lost-ACK guards remain; every PATCH response now uniformly private/no-store, Cookie-varied, nosniff, including malformed, denial and unconfirmed save (safe 503/saveUncertain).
+
+New real-route [`95ff8e7`](https://github.com/kylebrooks86/first-in-response-website/commit/95ff8e72e218e6db5becd16dc15b1d29d8ecaca4) extends the **existing CI-wired disposable native SQLite test**, loading the genuine owner parser and actual DR PATCH handler. Tests private 401 for missing/numeric/foreign/unreadable identity and strict 403/415/413/400 for hostile/sibling Origin/Fetch Metadata, non-JSON browser form, bogus declared size, actual oversized multi-byte UTF-8, malformed/array/empty JSON, with ZERO D1 `prepare` statements. Does not re-run accepted iPhone/Cloudflare/Stripe tests.
+
+**Code/test authored [x]; current exact source CI [ ] at `95ff8e72e218e6db5becd16dc15b1d29d8ecaca4`.** Earlier invoice-only SHA `34ba94f` had 26 successful workflow groups and one **superseded/cancelled**, not a 27/27 pass. Current code includes invoice POST fixes `dfe0c64` and invoice tests `34ba94f` from preceding continuity entry; a current 27/27 workflow readback must verify both. [Master checklist checkoffs](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md). **Original formal 51/95 and 4/10 accepted G1/G2/G3/G8 remain unchanged**; G4/G5/G6/G7/G9/G10 OPEN, STAGING physically 22/25; DR and NEW LIVE DARK, LIVE NO-GO/Job #0001 unused. No merge, deploy, Cloudflare/login/Access/SQL/D1, Stripe/payment, customer data, paid R2 or publication.
+
+---
+
 <!-- FIRE-NOV21-DR-INVOICE-SOURCE-34BA94F -->
 ## Nov 21 — DR final invoice POST owner/JSON security and private receipt source corrected (NO DEPLOY; CI PENDING)
 
