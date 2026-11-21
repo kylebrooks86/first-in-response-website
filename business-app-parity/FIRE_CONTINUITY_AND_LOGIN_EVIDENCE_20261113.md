@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-G9-LATEST-SEALED-DRIVE-READBACK-9B56BD9 -->
+## November 21 — REAL current TEST Gate9 source package independently preserved and verified in owner-only Drive (NO UPLOAD TO CLOUDFLARE)
+
+**Actual immutable source/candidate:** Integrated unmerged DRAFT PR #282's newest independently 27/27 verified executable/test source is `56ba4b5cbc35d5592670f846fb61c637eb786ae8`. GitHub docs-only `9b56bd972eb8bbaa52c4fef91107795df943ccb1` has 27/27 completed-success associated workflows; [offline Gate9 package run #44942330377](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44942330377), job `136962047583`, completed SUCCESS. It passed the real compiled 31/31 no-R2 Worker-only negative controls, same-run rehydrated archive source/digest checks, 240-file/41-asset source seal, and 7/7 local-only Worker entrypoint denials. **TEST Stripe stays disabled; no Cloudflare/Stripe POST or live provider operation.** Original compiled candidate digest from actual job log: `e0a3ef689ded1e1338590e57d50a9f11f56aced4dfc8227d1a082eb2ad724189`.
+
+**Previously missing durable off-GitHub custody now DONE:** GitHub sealed inactive TEST source artifact **#14722665007**, name `FIRE-G9-TEST-INACTIVE-SOURCE-ONLY-9b56bd972eb8bbaa52c4fef91107795df943ccb1`, ZIP **3,166,283 bytes**, SHA-256 **`d65ea4f65282415ec8c4bdbab158a6add9056d08b160188446af19f4ddb62cf9`**, GitHub expiration Dec 5, 2026. Downloaded original ZIP and directly hashed exact bytes; uploaded only to the already-existing private `FIRE Business App Backups` folder (ID `1x9ocIiI9mQMtwf0YP0Q9HqxBWn1qyIjt`), then independently fetched back original Drive ZIP bytes and verified again same **byte size and SHA-256**. [Permanent owner-only Drive custody object](https://drive.google.com/file/d/1HvcZO_rvkTWFtdagfHTc3RSBRieUA_nl/view). Google metadata confirms parent folder, `shared:false`, only owner permission, original bytes preserved. No new folder or sharing privileges.
+
+**Version semantics:** sealed source package, NOT remote deployed/serving bytes, proof of Cloudflare acceptance, Stripe webhook, new invoice/payment, or a successful D1 migration. Existing G9-03 already [x] source package credential-free seal is RECONFIRMED for newer code; **G9-04 through G9-11 remain [ ]** until new owner-specific exact TEST inactive 0%-traffic version approval, independent provider readback, separate synthetic TEST activation/payment approval and hosted receipt evidence. Preserve historical Cloudflare POST 500/code10013 no-retry stop, prior owner Access/Cloudflare/Stripe/device proof, and the owner's already captured broad release intent. Official original 51/95, formal 4/10 G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unused. No merge/deploy/Access/route/SQL/Stripe/payment/customer data or R2 purchase.
+
+---
+
 <!-- FIRE-NOV21-QA-RECEIPT-27OF27-CI-CHECKOFF-9B56BD9 -->
 ## November 21 — 27/27 source CI acceptance checked off, release gates unchanged
 
