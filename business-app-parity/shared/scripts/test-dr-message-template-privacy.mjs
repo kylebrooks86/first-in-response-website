@@ -113,7 +113,7 @@ for(const [label,customHeaders,expected] of [
   ['foreign Origin',{'origin':'https://evil.synthetic.invalid'},403],
   ['same-site sibling Origin',{'origin':'https://sibling.dr.synthetic.invalid'},403],
   ['cross-site browser',{'sec-fetch-site':'cross-site'},403],
-  ['form content type',{'content-type':'text/plain'},415],
+  ['form content type',{'origin':'https://dr.synthetic.invalid','content-type':'text/plain'},415],
   ['invalid declared length',{'content-length':'999'},400],
 ]){
   const beforeReads=reads,beforeWrites=writes,snapshot=JSON.stringify(rows);
