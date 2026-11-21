@@ -3,13 +3,20 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+const paymentPrivateHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+const paymentPrivateJson=(body:unknown,status=200)=>Response.json(body,{status,headers:paymentPrivateHeaders});
 async function authorized() {
-  const user = await getOwnerUser();
-  return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
+  try {
+    const user = await getOwnerUser();
+    return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
+  } catch {
+    return false;
+  }
 }
 
 export async function GET() {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return paymentPrivateJson({error:"Unauthorized"},401);
+  try {
   const result = await env.DB.prepare(`
     SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,
       p.provider_id AS reference,p.created_at AS createdAt,c.id AS customerId,c.name AS customer,
@@ -22,14 +29,19 @@ export async function GET() {
     JOIN customers c ON c.id=e.customer_id
     ORDER BY p.created_at DESC
   `).all();
+  if ((result as {success?:boolean}).success === false || !Array.isArray(result.results))
+    return paymentPrivateJson({error:"Payment history is temporarily unavailable. No payment records were changed."},503);
   const paymentRowsSafe=(result.results as Record<string,unknown>[]).every((row)=>{
     const amount=Number(row.amountCents);
     const refunded=Number(row.refundedCents??0);
     const refundable=Number(row.refundableCents??0);
     return Number.isSafeInteger(amount)&&Number.isSafeInteger(refunded)&&refunded>=0&&Number.isSafeInteger(refundable)&&refundable>=0;
   });
-  if(!paymentRowsSafe)return Response.json({error:"Payment history contains accounting values that require owner review."},{status:409});
-  return Response.json({ payments: result.results });
+  if(!paymentRowsSafe)return paymentPrivateJson({error:"Payment history contains accounting values that require owner review."},409);
+  return paymentPrivateJson({ payments: result.results });
+  } catch {
+    return paymentPrivateJson({error:"Payment history is temporarily unavailable. No payment records were changed."},503);
+  }
 }
 
 export async function POST(request: Request) {
