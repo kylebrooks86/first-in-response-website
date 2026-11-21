@@ -1,3 +1,22 @@
+<!-- FIRE-STAGING-OWNER-WORKER-ACCESS-APPLIED-20261120-2054 -->
+## November 20, 2026, 20:54 CST — [x] STAGING Worker Access applied, authenticated owner dashboard (G4-06 partial only)
+
+**NEW owner-supplied original screenshot** `IMG_4580.png` (PNG 1320×2868, 426241 bytes; SHA-256 `e7349ee581ccc57c51d0fe969b2b82fad723ccb1fc8b3cb25400c46e9b7ad55d`; original image retained in private owner conversation, NOT committed here) shows `Workers & Pages → fire-app-independent-staging → Production → Access → Worker policies` AFTER pressing Apply Access. The prior screenshots `IMG_4575.png` through `IMG_4579.png` document the exact pre-application state and selection, not a duplicate newly-created Worker.
+
+Cloudflare dashboard now displays:
+- **Worker Access → All traffic** with the exact UI statement **"Require login on every URL: production and previews"**;
+- attached, already-existing `FIRE Stripe TEST - Owner Only` **Allow** policy with visible authorized owner email `kyle@firstinresponseexteriors.com`;
+- **Manage access** for the saved Worker policy; the preceding screenshot showed **not protected**. The policy is persisted, not merely selected on a draft form.
+- Existing accepted owner `IMG_4549.png` supports preview wildcard **OFF** as of 14:29 CST, while production workers.dev stays ON. This new screenshot does not need or justify a recheck of the preview toggle.
+
+**Important scope nuance:** this is a **Worker-wide All traffic** policy (production AND any previews), whereas the older 14:10 owner authorization described production-hostname-only protection. No other Worker is pictured as changed, but do not silently claim this as a narrowly scoped hostname-only policy. Existing Stripe TEST security policy is **shared**; do not edit its Allow rule globally, and consider independent STAGING policy isolation only under new exact permission. Screenshot does not independently attest what a distinct nonowner sees at the edge, available account-wide hostnames/route overrides, or future preview aliases.
+
+**[x] Applied Worker-level Access/dashboard-protection subproof complete, do NOT request repeat screenshots or repeated Cloudflare sign-ins. [ ] Original numbered G4-05 and G4-06 STILL OPEN** for complete ingress and effective authorization/denial proof; G4-04 secrets mismatch, G4-07 exact serving QA-master parity and hosted STAGING 22/25 migration remain genuine independent blockers. Avoid treating owner policy name as proof of all identity/provider behavior. GitHub [Issue #19 owner receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7056253095).
+
+**Formal release count unchanged:** **51/95 checked, 44 open; 4/10 gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN**. NEW LIVE remains DARK/NO-GO; first actual Job #0001 unused. This record is documentation of the **owner-performed Cloudflare change**; the assistant performed no Cloudflare/Worker/route/secret/D1/Stripe/R2/payment/merge/deployment operation.
+
+---
+
 <!-- FIRE-NOV20-1429-PREVIEW-OFF-AGAIN -->
 ## November 20, 2026, 14:29 CST — latest owner screenshot reconfirms STAGING preview OFF after transient ON screenshot
 
