@@ -46,7 +46,7 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
          if(mode==='readback-error')throw Error('D1 verification unavailable');
          return {count:[...rows.values()].filter(row=>row.objectKey===args[0]).length};
        }
-       events.push('db-select');return rows.get(args[0])||null;
+       events.push('db-select');if(mode==='db-select-error')throw Error('Synthetic D1 photo lookup outage');return rows.get(args[0])||null;
      },
      async run(){
        events.push('db-delete');
@@ -111,6 +111,22 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
         isOwnerPrivate(refusedRead)&&isOwnerPrivate(refusedDelete)&&
         malformed.events.length===0&&malformed.rows.size===1&&malformed.objects.size===1);
     }
+    // The real route must not throw or touch originals when the initial D1
+    // metadata lookup is unavailable. Both QA shared and DR are checked.
+    const d1Read=harness(file,'db-select-error');
+    const unavailablePhoto=await d1Read.GET();
+    const unavailablePhotoBody=await unavailablePhoto.json();
+    pass('current GET D1 lookup outage is private 503 without stored-photo access',
+      unavailablePhoto.status===503&&unavailablePhotoBody.photoIntegrityUncertain===true&&
+      isOwnerPrivate(unavailablePhoto)&&d1Read.events.join(',')==='db-select'&&
+      d1Read.rows.size===1&&d1Read.objects.size===1);
+    const d1Delete=harness(file,'db-select-error');
+    const unavailableDelete=await d1Delete.DELETE();
+    const unavailableDeleteBody=await unavailableDelete.json();
+    pass('current DELETE D1 lookup outage is private 503 without modifying records or bytes',
+      unavailableDelete.status===503&&unavailableDeleteBody.cleanupUncertain===true&&
+      isOwnerPrivate(unavailableDelete)&&d1Delete.events.join(',')==='db-select'&&
+      d1Delete.rows.size===1&&d1Delete.objects.size===1);
     const missingBucket=harness(file,'success',true,false);
     pass('current shared GET fails closed without storage',(await missingBucket.GET()).status===503&&missingBucket.rows.size===1&&missingBucket.events.length===0);
   }
