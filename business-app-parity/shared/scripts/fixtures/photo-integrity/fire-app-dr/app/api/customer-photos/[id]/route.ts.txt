@@ -107,8 +107,24 @@ function privatePhotoResponse(response:Response):Response{
   return response;
 }
 export async function GET(request:Request,context:{params:Promise<{id:string}>}){
-  return privatePhotoResponse(await getPhoto(request,context));
+  try {
+    return privatePhotoResponse(await getPhoto(request,context));
+  } catch {
+    // Initial D1 photo metadata reads can fail before the storage GET.
+    return privatePhotoResponse(Response.json({
+      error:'Photo records are temporarily unavailable. Stored originals were not changed.',
+      photoIntegrityUncertain:true,
+    },{status:503}));
+  }
 }
 export async function DELETE(request:Request,context:{params:Promise<{id:string}>}){
-  return privatePhotoResponse(await deletePhoto(request,context));
+  try {
+    return privatePhotoResponse(await deletePhoto(request,context));
+  } catch {
+    // Never turn an unexpected D1 response into a claim of completed cleanup.
+    return privatePhotoResponse(Response.json({
+      error:'Photo deletion status is uncertain. Inspect Photos and protected storage before retrying.',
+      cleanupUncertain:true,
+    },{status:503}));
+  }
 }
