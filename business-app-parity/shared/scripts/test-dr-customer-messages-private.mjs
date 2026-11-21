@@ -31,9 +31,12 @@ db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,total_cents) VALUES 
 db.prepare('INSERT INTO payments(id,estimate_id,status,type,amount_cents) VALUES (?,?,?,?,?)').run('p1','e1','paid','Customer payment',20000);
 
 let owner={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,softWriteFailure=false;
-let fakeWriteAcknowledged=false,fakeZeroChanges=false;
+let fakeWriteAcknowledged=false,fakeZeroChanges=false,softHistoryFailure=false,malformedHistory=false;
 const DB={prepare(sql){return {bind(...args){return {
  async first(){reads++;return db.prepare(sql).get(...args)??null;},
+ async all(){reads++;if(softHistoryFailure)return {success:false,results:[]};
+   if(malformedHistory)return {success:true,results:null};
+   return {success:true,results:db.prepare(sql).all(...args)};},
  async run(){writes++;if(softWriteFailure)return {success:false,meta:{changes:0}};
    if(fakeWriteAcknowledged)return {success:true,meta:{changes:1}};
    if(fakeZeroChanges)return {success:true,meta:{changes:0}};
@@ -51,7 +54,7 @@ vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{
    throw Error('Unexpected route dependency: '+id);
  }
 });
-const {POST}=exports;
+const {POST,GET}=exports;
 let checks=0;
 function eq(actual,expected,label){assert.deepEqual(actual,expected,label);checks++;}
 function privacy(response,label){
@@ -141,4 +144,76 @@ eq(receipt.status,503,'Soft failed D1 write never returns false success');privac
 eq((await receipt.json()).saveUncertain,true,'Owner prompted to refresh after uncertain write');
 eq(count(),2,'Soft failed write created no row');
 softWriteFailure=false;
-console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/SQLite assertions');
+
+// Recovery in DR is read-only and matches the QA-master pending-message
+// channel/scope/cursor contract, including real SQLite terminal-history filters.
+for(let i=0;i<14;i++){
+  const id='drpending-'+String(i).padStart(2,'0');
+  db.prepare('INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run(id,'c1',null,'text_prepared','custom','Synthetic unsent draft '+i,
+      new Date(Date.UTC(2026,10,21,12,i,0)).toISOString());
+}
+db.prepare('INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+  .run('drpending-01:owner-confirmed','c1',null,'text_confirmed','custom','owner sent','2026-11-21T13:00:00.000Z');
+db.prepare('INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+  .run('drpending-02:owner-cancelled','c1',null,'send_cancelled','custom','owner not sent','2026-11-21T13:01:00.000Z');
+db.prepare('INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+  .run('drjob-pending','c1','e1','email_prepared','estimate','Synthetic job draft','2026-11-21T16:00:00.000Z');
+db.prepare('INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)')
+  .run('foreign-pending','c2',null,'email_prepared','custom','Unrelated customer draft','2026-11-21T17:00:00.000Z');
+async function history(query){return GET(new Request(endpoint+query));}
+let pageResponse=await history('?customerId=c1');
+eq(pageResponse.status,200,'DR prepared history returns owner private 200');privacy(pageResponse,'DR pending history');
+let page=await pageResponse.json();
+eq(page.pending.length,10,'DR pending history first page bounded to 10');
+eq(page.mayHaveMore,true,'DR pending history indicates next page');
+eq(typeof page.nextCursor,'string','DR pending page provides validated opaque cursor');
+eq(page.pending.some(row=>row.id==='drpending-01'||row.id==='drpending-02'),false,
+  'Confirmed and cancelled messages do not return as pending');
+const firstIds=page.pending.map(row=>row.id);
+pageResponse=await history('?customerId=c1&cursor='+encodeURIComponent(page.nextCursor));
+eq(pageResponse.status,200,'DR prepared history next page 200');privacy(pageResponse,'DR cursor history');
+page=await pageResponse.json();
+eq(page.pending.length,2,'DR prepared history final page contains remaining two');
+eq(page.mayHaveMore,false,'DR prepared history last page has no more');
+eq(page.nextCursor,null,'DR final page no cursor');
+eq(page.pending.some(row=>firstIds.includes(row.id)),false,'DR pagination has no duplicates');
+pageResponse=await history('?customerId=c1&estimateId=e1');
+eq(pageResponse.status,200,'DR job-specific draft read allowed');
+eq((await pageResponse.json()).pending.map(row=>row.id),['drjob-pending'],
+  'DR job pending excludes general and other customer drafts');
+pageResponse=await history('?customerId=c1&estimateId=e2');
+eq(pageResponse.status,409,'DR wrong-customer job refuses history');
+privacy(pageResponse,'DR foreign job history');
+pageResponse=await history('?customerId=c2');
+eq(pageResponse.status,200,'DR other owner-owned customer scoped history read allowed');
+eq((await pageResponse.json()).pending.map(row=>row.id),['foreign-pending'],
+  'DR unrelated customer does not see first customer drafts');
+for(const query of ['','?customerId=c1&cursor=bad','?customerId='+('z'.repeat(129))]){
+  const before=reads+writes;
+  pageResponse=await history(query);
+  eq(pageResponse.status,400,'DR invalid history request rejected');
+  privacy(pageResponse,'DR invalid history');
+  eq(reads+writes,before,'DR invalid history rejected before database');
+}
+owner=null;
+let beforeHistory=reads+writes;
+pageResponse=await history('?customerId=c1');
+eq(pageResponse.status,401,'DR anonymous pending history denied');privacy(pageResponse,'DR denied pending');
+eq(reads+writes,beforeHistory,'DR anonymous GET never reaches database');
+owner={email:42};
+pageResponse=await history('?customerId=c1');
+eq(pageResponse.status,401,'DR malformed principal pending history denied');
+owner={email:'kylebrooks8605@gmail.com'};
+softHistoryFailure=true;
+pageResponse=await history('?customerId=c1');
+eq(pageResponse.status,503,'DR D1 soft-failed pending history is not false empty');
+privacy(pageResponse,'DR failed history');
+eq((await pageResponse.json()).pending,undefined,'DR soft-failed pending history contains no empty list');
+softHistoryFailure=false;
+malformedHistory=true;
+pageResponse=await history('?customerId=c1');
+eq(pageResponse.status,503,'DR D1 malformed history result is not false empty');
+malformedHistory=false;
+
+console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/SQLite assertions');
