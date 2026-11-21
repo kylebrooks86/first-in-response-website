@@ -155,6 +155,25 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
     pass('Owner shared photo DELETE same-origin can remove saved synthetic photo',
       allowed.status===200&&normal.rows.size===0&&normal.objects.size===0);
   }
+  if(patched&&prefix.startsWith('fire-app-dr')){
+    // DR must enforce the same customer/photo R2 namespace as QA. Before
+    // this change DR accepted D1 object_key alone to GET or DELETE bytes.
+    for(const mode of ['wrong-customer-key','unsafe-object-key']){
+      const read=harness(file,mode);
+      const result=await read.GET(),payload=await result.json();
+      pass('DR Gate7 '+mode+' GET denies cross-customer photo key before bucket access',
+        result.status===503&&payload.photoIntegrityUncertain===true&&
+        isOwnerPrivate(result)&&read.rows.size===1&&read.objects.size===1&&
+        read.events.join(',')==='db-select');
+      const deletion=harness(file,mode);
+      const refused=await deletion.DELETE();
+      const info=await refused.json();
+      pass('DR Gate7 '+mode+' DELETE preserves D1 metadata and original storage',
+        refused.status===503&&info.cleanupUncertain===true&&
+        isOwnerPrivate(refused)&&deletion.rows.size===1&&deletion.objects.size===1&&
+        deletion.events.join(',')==='db-select');
+    }
+  }
   let t=harness(file);let res=await t.DELETE();pass(`${file} normal success removes both`,res.status===200&&t.rows.size===0&&t.objects.size===0);
   if(patched)pass(`${file} successful owner photo DELETE response is private`,isOwnerPrivate(res));
   t=harness(file,'db-precommit-error');let threw=false;try{res=await t.DELETE();}catch{threw=true;}

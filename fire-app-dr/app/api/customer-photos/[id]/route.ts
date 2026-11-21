@@ -13,12 +13,25 @@ async function authorized(){
   }
 }
 
+// A D1 metadata row must never authorize access to, or deletion of, another
+// customer's original photo bytes. Keep the DR key namespace check aligned
+// with the existing QA-master identity guard.
+function photoKeyMatchesIdentity(id:string,customerId:string,objectKey:string):boolean{
+  if(typeof id!=='string'||typeof customerId!=='string'||typeof objectKey!=='string'||
+     !/^[a-zA-Z0-9_-]{1,128}$/.test(id)||!/^[a-zA-Z0-9_-]{1,128}$/.test(customerId))return false;
+  const prefix=`customers/${customerId}/${id}.`;
+  return objectKey.startsWith(prefix)&&/^[a-zA-Z0-9]{1,8}$/.test(objectKey.slice(prefix.length));
+}
+
 async function getPhoto(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
-  const row = await env.DB.prepare("SELECT object_key AS objectKey,content_type AS contentType,size_bytes AS sizeBytes FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string;contentType:string;sizeBytes:number}>();
+  const row = await env.DB.prepare("SELECT customer_id AS customerId,object_key AS objectKey,content_type AS contentType,size_bytes AS sizeBytes FROM customer_photos WHERE id=?").bind(id).first<{customerId:string;objectKey:string;contentType:string;sizeBytes:number}>();
   if (!row || !env.BUCKET) return new Response("Photo not found", { status: 404 });
+  if(!photoKeyMatchesIdentity(id,row.customerId,row.objectKey))
+    return Response.json({error:"Photo storage identity does not match its saved customer record. Original bytes were preserved.",photoIntegrityUncertain:true},
+      {status:503,headers:{"cache-control":"private, no-store"}});
   // Never show a different or altered R2 file under a customer's saved
   // photo record. The main photo archive also verifies these identities.
   try {
@@ -39,8 +52,11 @@ async function deletePhoto(_request: Request, context: { params: Promise<{ id: s
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
-  const row = await env.DB.prepare("SELECT object_key AS objectKey FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string}>();
+  const row = await env.DB.prepare("SELECT customer_id AS customerId,object_key AS objectKey FROM customer_photos WHERE id=?").bind(id).first<{customerId:string;objectKey:string}>();
   if (!row) return Response.json({ error: "Photo not found." }, { status: 404 });
+  if(!photoKeyMatchesIdentity(id,row.customerId,row.objectKey))
+    return Response.json({error:"Photo storage identity does not match its saved customer record. No photo or metadata was deleted.",cleanupUncertain:true},
+      {status:503,headers:{"cache-control":"private, no-store"}});
   // Remove the database reference FIRST. Deleting R2 bytes first can strand a
   // committed customer_photos row if the D1 deletion fails or its ACK is lost.
   try {
