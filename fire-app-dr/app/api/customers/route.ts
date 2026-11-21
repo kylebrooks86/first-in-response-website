@@ -92,23 +92,55 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return customerPrivateJson({ error: "Unauthorized" },401);
-  // Reject oversized/malformed JSON and forged browser origins before any D1 work.
+  // The owner may retry after a D1 ACK is lost. A caller-supplied UUID is the
+  // permanent operation identity: never silently turn that retry into a new row.
   const parsed=await readOwnerWriteObject(request,64_000);
   if(parsed.response)return customerPrivateGuardResponse(parsed.response);
+  const body=parsed.value as Record<string, unknown>;
+  const name=String(body.name??"").trim();
+  const email=String(body.email??"").trim();
+  const phone=String(body.phone??"").trim();
+  const address=String(body.address??"").trim();
+  const leadSource=String(body.leadSource??"Unknown").trim()||"Unknown";
+  if(!name)return customerPrivateJson({error:"Customer name is required."},400);
+  if(body.requestId!==undefined&&
+    (typeof body.requestId!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId)))
+    return customerPrivateJson({error:"Invalid customer save identifier."},400);
+  const id=typeof body.requestId==="string"?body.requestId:crypto.randomUUID();
+  type SavedCustomer={id:string;name:string;email:string;phone:string;address:string;leadSource:string;createdAt:string};
+  const readReceipt=()=>env.DB.prepare(
+    "SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,COALESCE(lead_source,'Unknown') AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1"
+  ).bind(id).first<SavedCustomer>();
+  const matches=(saved:SavedCustomer)=>saved.id===id&&saved.name===name&&saved.email===email&&
+    saved.phone===phone&&saved.address===address&&saved.leadSource===leadSource;
+  const customer=(saved:SavedCustomer)=>({...saved,estimateCount:0,estimateTotal:0,paidTotal:0});
   try {
-    const body=parsed.value as Record<string, unknown>;
-    const name = String(body.name ?? "").trim();
-    const email = String(body.email ?? "").trim();
-    const phone = String(body.phone ?? "").trim();
-    const address = String(body.address ?? "").trim();
-    const leadSource = String(body.leadSource ?? "Unknown").trim() || "Unknown";
-    if (!name) return customerPrivateJson({ error: "Customer name is required." },400);
-    const id = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    await env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) VALUES (?,?,?,?,?,?,?)")
-      .bind(id, name, email || null, phone || null, address || null, leadSource, createdAt).run();
-    return customerPrivateJson({ customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } },201);
+    if(body.requestId!==undefined){
+      const previous=await readReceipt();
+      if(previous){
+        if(!matches(previous))return customerPrivateJson({error:"This save identifier belongs to different customer details. No saved record was overwritten."},409);
+        return customerPrivateJson({requestId:id,duplicate:true,customer:customer(previous)},200);
+      }
+    }
+    const createdAt=new Date().toISOString();
+    let acknowledged=false;
+    try {
+      const result=await env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) VALUES (?,?,?,?,?,?,?)")
+        .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt).run();
+      acknowledged=(result as {success?:boolean}|null)?.success!==false;
+    }catch{
+      // A failed network acknowledgement is not proof that INSERT rolled back.
+      // Read the same operation ID, never issue a second INSERT in this call.
+    }
+    const saved=await readReceipt();
+    if(saved){
+      if(!matches(saved))return customerPrivateJson({error:"This save identifier belongs to different customer details. No saved record was overwritten."},409);
+      return customerPrivateJson({requestId:id,duplicate:!acknowledged,
+        recoveredAfterUncertainSave:!acknowledged,customer:customer(saved)},acknowledged?201:200);
+    }
   } catch {
-    return customerPrivateJson({ error: "Customer save could not be confirmed. Refresh saved customers before retrying.",saveUncertain:true },503);
+    // D1 may have committed before a read or transport error.
   }
+  return customerPrivateJson({error:"Customer save confirmation is uncertain. Check this same request ID before creating another customer.",
+    saveUncertain:true,requestId:id},503);
 }
