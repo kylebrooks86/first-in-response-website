@@ -137,6 +137,31 @@ try{
  }
  eq(lookupCalls,rejectedLookupCalls,'Broken sessions sent zero Census requests');
  eq(writes,rejectedLookupWrites,'Broken sessions did not mutate D1');
+
+ // A rejected identity provider or unreadable principal must never expose the
+ // customer map, saved door visits or permit another visit. Shared source GET/
+ // POST routes must return private 401 before any D1 or Census side effect.
+ const brokenSessionBatches=directoryBatches,brokenSessionWrites=writes,
+  brokenSessionGeocodes=lookupCalls;
+ for(const [label,identity] of [
+  ['email getter throws',{get email(){throw Error('Synthetic owner email unavailable');}}],
+  ['auth provider rejects',{then(_resolve,reject){reject(Error('Synthetic session provider offline'));}}],
+ ]){
+  owner=identity;
+  const deniedDir=await directory.GET();
+  const deniedDoor=await api.GET();
+  const deniedVisit=await post({...moved,requestId:uid(2500)});
+  for(const [kind,response] of [['map',deniedDir],['door history',deniedDoor],['visit',deniedVisit]]){
+   eq(response.status,401,label+' '+kind+' fails closed');
+   eq(response.headers.get('cache-control'),'private, no-store',label+' '+kind+' cannot be cached');
+   eq(response.headers.get('vary'),'Cookie',label+' '+kind+' varies by session');
+   eq(response.headers.get('x-content-type-options'),'nosniff',label+' '+kind+' cannot be MIME sniffed');
+  }
+ }
+ eq(directoryBatches,brokenSessionBatches,'Broken sessions cannot batch-read customer location D1');
+ eq(writes,brokenSessionWrites,'Broken sessions cannot write door history');
+ eq(lookupCalls,brokenSessionGeocodes,'Broken sessions do not reach Census');
+ owner={email:'kylebrooks8605@gmail.com'};
  const priorDirectoryBatches=directoryBatches;
  for(const identity of [{},{email:null},{email:42}]){
   owner=identity;

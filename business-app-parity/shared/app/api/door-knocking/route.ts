@@ -3,7 +3,15 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {DOOR_BOOK_KEY,decodeDoorBook,validDoorBook,houseKey,doorId,doorStatus,latestDoorVisit,doorSuppressed,validDoorFollowUpDate,validDoorPoint,validDoorCapturedAt} from '../../../lib/door-knocking';
 import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
-async function authorized(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';}
+async function authorized(){
+ try{
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';
+ }catch{
+  // An unavailable session service must not permit a door history D1 request.
+  return false;
+ }
+}
 export async function GET(){
  if(!await authorized())return json({error:'Unauthorized'},401);
  try{const row=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DOOR_BOOK_KEY).first<{body:string}>();return json({book:decodeDoorBook(row)});}
