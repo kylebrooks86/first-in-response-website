@@ -276,6 +276,32 @@ export async function POST(request: Request) {
   }
 }
 
+// A saved decision is trustworthy only when its immutable D1 receipt matches
+// the original prepared message and no contradictory owner decision exists.
+// This verifies persistence; it NEVER verifies delivery by a phone/email provider.
+async function verifiedOwnerDecisionReceipt(
+  row:unknown,
+  expected:{id:string;customerId:string;estimateId:string|null;channel:string;
+    template:string;body:string;cancelled:boolean}
+):Promise<boolean>{
+  if(!row||typeof row!=="object")return false;
+  const value=row as {id?:unknown;customerId?:unknown;estimateId?:unknown;
+    channel?:unknown;template?:unknown;body?:unknown;createdAt?:unknown};
+  const expectedBody=expected.cancelled
+    ?"Owner confirmed this prepared message was not sent.":expected.body;
+  if(value.id!==expected.id||value.customerId!==expected.customerId||
+    (value.estimateId??"")!==(expected.estimateId??"")||
+    value.channel!==expected.channel||value.template!==expected.template||
+    value.body!==expectedBody||typeof value.createdAt!=="string"||
+    !Number.isFinite(Date.parse(value.createdAt)))return false;
+  const opposingId=expected.id.replace(/:(owner-confirmed|owner-cancelled)$/,
+    expected.cancelled?":owner-confirmed":":owner-cancelled");
+  const opposing=await env.DB.prepare(
+    "SELECT id FROM customer_messages WHERE id=? LIMIT 1"
+  ).bind(opposingId).first();
+  return !opposing;
+}
+
 // Confirmation appends evidence; preparation and legacy history stay immutable.
 export async function PATCH(request: Request) {
   if (!await authorized()) return privatePreparedWriteJson({ error: "Unauthorized" }, { status: 401 });
@@ -307,6 +333,9 @@ export async function PATCH(request: Request) {
         .bind(cancelledId,createdAt,prepared.id,customerId,confirmedId).run();
       const receipt=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
       if(!receipt)return privatePreparedWriteJson({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
+      if(!await verifiedOwnerDecisionReceipt(receipt,confirmationOperation!))
+        return privatePreparedWriteJson({error:"Saved not-sent receipt conflicts with the prepared message or another decision. Review saved message history.",
+          saveUncertain:true,deliveryConfirmed:false},{status:503});
       return privatePreparedWriteJson({message:receipt,cancelled:true,ownerConfirmedSent:false,
         deliveryConfirmed:false,confirmationSource:'owner'},
         {headers:{"Cache-Control":"no-store, private"}});
@@ -319,6 +348,9 @@ export async function PATCH(request: Request) {
     ]);
     const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
     if(!message)return privatePreparedWriteJson({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
+    if(!await verifiedOwnerDecisionReceipt(message,confirmationOperation!))
+      return privatePreparedWriteJson({error:"Saved sent receipt conflicts with the prepared message or another decision. Review saved message history.",
+        saveUncertain:true,deliveryConfirmed:false},{status:503});
     const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
     return privatePreparedWriteJson({message,estimateStatus:estimate?.status,ownerConfirmedSent:true,
       deliveryConfirmed:false,confirmationSource:'owner'},
@@ -333,17 +365,9 @@ export async function PATCH(request: Request) {
           .bind(op.id,op.customerId,op.channel).first();
         if(message){
           const receipt=message as {id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string};
-          const expectedBody=op.cancelled?'Owner confirmed this prepared message was not sent.':op.body;
-          if(receipt.customerId!==op.customerId||(receipt.estimateId??'')!==(op.estimateId??'')||
-             receipt.channel!==op.channel||receipt.template!==op.template||receipt.body!==expectedBody||
-             typeof receipt.createdAt!=='string'||!Number.isFinite(Date.parse(receipt.createdAt)))
-            return privatePreparedWriteJson({error:'Saved send decision does not match this prepared message. Review message history.',
+          if(!await verifiedOwnerDecisionReceipt(receipt,op))
+            return privatePreparedWriteJson({error:"Saved send decision conflicts with the prepared message or an opposing decision. Review saved message history.",
               saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
-          const otherId=op.id.replace(/:(owner-confirmed|owner-cancelled)$/,op.cancelled?':owner-confirmed':':owner-cancelled');
-          const conflicting=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
-            .bind(otherId,op.customerId).first();
-          if(conflicting)return privatePreparedWriteJson({error:'Conflicting send decisions require manual review.',
-            saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
           const estimate=op.estimateId&&!op.cancelled?
             await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
               .bind(op.estimateId,op.customerId).first<{status:string}>():null;
