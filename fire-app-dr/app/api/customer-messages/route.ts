@@ -3,6 +3,17 @@ import { getOwnerUser } from "../../owner-auth";
 import { readOwnerWriteObject } from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Match the QA master's saved-recipient validity rules before creating a
+// prepared external handoff. These checks neither contact nor message anyone.
+function usableSavedPhone(value: string | null): boolean {
+  const raw=value?.trim()??"";
+  if(!raw||!/^[+0-9().\s-]+$/.test(raw))return false;
+  const digits=raw.replace(/\D/g,"");
+  return digits.length===10||(digits.length===11&&digits.startsWith("1"));
+}
+function usableSavedEmail(value: string | null): boolean {
+  return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value?.trim()??"");
+}
 // Customer message receipts contain owner-private contacts and manually prepared text.
 const privateResponse=(response:Response):Response=>{
   response.headers.set("Cache-Control","private, no-store");
@@ -90,9 +101,24 @@ export async function POST(request: Request) {
     const channel = String(value.channel ?? "").trim();
     const template = String(value.template ?? "custom").trim();
     const body = String(value.body ?? "").trim();
-    if (!customerId || !body || !["text","email","copy"].includes(channel)) return privateJson({ error: "Customer, channel, and message are required." }, { status: 400 });
-    const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(customerId).first<{id:string}>();
+    // QA's explicit prepared channels preserve a durable, non-sent draft
+    // which the owner's separate PATCH decision can confirm or discard.
+    if (!customerId || !body || !["text","email","copy","text_prepared","email_prepared"].includes(channel))
+      return privateJson({ error: "Customer, channel, and message are required." }, { status: 400 });
+    if(value.recipientSnapshot!==undefined&&typeof value.recipientSnapshot!=="string")
+      return privateJson({error:"Invalid message recipient snapshot."},{status:400});
+    const recipientSnapshot=typeof value.recipientSnapshot==="string"?value.recipientSnapshot:null;
+    const customer=await env.DB.prepare("SELECT id,phone,email FROM customers WHERE id=? LIMIT 1")
+      .bind(customerId).first<{id:string;phone:string|null;email:string|null}>();
     if(!customer)return privateJson({error:"Customer not found."},{status:404});
+    // Never prepare a Google Voice text/email for a removed, malformed or
+    // changed recipient. Legacy history channels still retain their behavior.
+    const savedContact=channel==="text_prepared"?customer.phone:
+      channel==="email_prepared"?customer.email:null;
+    const contactReady=channel==="text_prepared"?usableSavedPhone(savedContact):
+      channel==="email_prepared"?usableSavedEmail(savedContact):true;
+    if(!contactReady||(savedContact!==null&&recipientSnapshot!==null&&recipientSnapshot!==savedContact))
+      return privateJson({error:"Customer contact details are missing or changed. Reopen this customer and verify the saved phone or email before preparing the message."},{status:409});
     if(estimateId){
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
       if(!linkedEstimate)return privateJson({error:"That estimate does not belong to this customer."},{status:409});
