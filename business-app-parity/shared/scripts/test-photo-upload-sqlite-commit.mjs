@@ -107,7 +107,11 @@ for(const mode of scenarios){
   // A nonowner/anonymous caller must not reach the private R2/D1 write path.
   const previousWrites=writes,previousPuts=puts;
   const previousReads=reads;
-  for(const principal of [null,{email:'other@example.invalid'},{},{email:null},{email:42}]){
+  for(const principal of [
+   null,{email:'other@example.invalid'},{},{email:null},{email:42},
+   {get email(){throw Error('Synthetic photo owner identity unreadable');}},
+   {then(_resolve,reject){reject(Error('Synthetic photo auth unavailable'));}}
+  ]){
    user=principal;
    const denied=await exports.POST(request());
    check(denied.status===401,'Anonymous/nonowner/malformed principal photograph upload denied');

@@ -56,7 +56,16 @@ async function boundedPhotoForm(request:Request):Promise<FormData|Response>{
 }
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getChatGPTUser(); return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL; }
+async function authorized(){
+  try {
+    const user=await getChatGPTUser();
+    return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL;
+  } catch {
+    // Unavailable session provider or unreadable email must deny before
+    // reading D1, parsing photo bytes or placing anything in photo storage.
+    return false;
+  }
+}
 
 // A private photo-save receipt, error, or rejected browser request must not
 // enter shared caches or get reused under another owner's session.

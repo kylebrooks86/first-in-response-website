@@ -13,7 +13,7 @@ const root=new URL('./fixtures/photo-integrity/', import.meta.url);
 assert.equal(readFileSync(new URL('../app/api/customer-photos/route.ts',import.meta.url),'utf8'),readFileSync(new URL('./fixtures/photo-integrity/customer-photos.patched.ts.txt',import.meta.url),'utf8'),'Current shared route must match the tested patched source');
 let passed=0;
 function check(name,result){assert.equal(result,true,name);console.log('PASS:',name);passed++;}
-function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true){
+function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true,authOverride=undefined){
   const objects=new Map();const rows=new Map();let deletes=0,puts=0,dbWrites=0,photoSelects=0;
   const env={
     BUCKET:hasBucket?{
@@ -43,7 +43,7 @@ function loadRoute(filename,mode='success',isAuthorized=true,hasBucket=true){
   };
   const compiled=ts.transpileModule(readFileSync(new URL(filename+'.txt',root),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   const exports={};
-  vm.runInNewContext(compiled,{exports,require(id){if(id==='cloudflare:workers')return {env};if(id==='../../chatgpt-auth'||id==='../../owner-auth')return {getChatGPTUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null,getOwnerUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null};if(id==='../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};throw Error('Unexpected import '+id);},Response,Request,FormData,File,crypto:webcrypto,Date,console},{filename});
+  vm.runInNewContext(compiled,{exports,require(id){if(id==='cloudflare:workers')return {env};if(id==='../../chatgpt-auth'||id==='../../owner-auth')return {getChatGPTUser:async()=>authOverride===undefined?(isAuthorized?{email:'kylebrooks8605@gmail.com'}:null):authOverride,getOwnerUser:async()=>isAuthorized?{email:'kylebrooks8605@gmail.com'}:null};if(id==='../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};throw Error('Unexpected import '+id);},Response,Request,FormData,File,crypto:webcrypto,Date,console},{filename});
   return {POST:exports.POST,objects,rows,counts:()=>({deletes,puts,dbWrites,photoSelects})};
 }
 function request({customerId='customer-1',mime='image/png',name='before.png',bytes=4,category='before',caption='Before house wash'}={}){
@@ -85,6 +85,24 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
         result.headers.get('cache-control')==='private, no-store'
         &&result.headers.get('vary')==='Cookie'
         &&result.headers.get('x-content-type-options')==='nosniff');
+    }
+    // Gateway failures and malformed owner identities must not consume a
+    // photo body or touch database/storage; verify real edited route.
+    for(const [label,identity] of [
+      ['numeric email',{email:42}],
+      ['unreadable email',{get email(){throw Error('Synthetic owner email unavailable');}}],
+      ['rejected auth promise',{then(_resolve,reject){reject(Error('Synthetic auth gateway unavailable'));}}],
+    ]){
+      const deniedRoute=loadRoute(file,'success',true,true,identity);
+      const denied=await deniedRoute.POST(request());
+      check('Customer photo '+label+' is denied as private 401',
+        denied.status===401
+        &&denied.headers.get('cache-control')==='private, no-store'
+        &&denied.headers.get('vary')==='Cookie'
+        &&denied.headers.get('x-content-type-options')==='nosniff');
+      check('Customer photo '+label+' fails before R2 or D1',
+        deniedRoute.counts().puts===0&&deniedRoute.counts().dbWrites===0
+        &&deniedRoute.counts().photoSelects===0);
     }
     for(const [description,options] of [
       ['empty file',{bytes:0}],
