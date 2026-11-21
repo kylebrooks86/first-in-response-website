@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readOwnerWriteObject} from '../lib/customer-write-request-guard.mjs';
 
 const routePath=process.argv[2], datePath=process.argv[3];
 assert.ok(routePath&&datePath,'Supply actual DR expense route and calendar helper paths');
@@ -27,8 +28,18 @@ db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x2',null,'Supplie
 db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x3',null,'Fuel','late-tulsa-dec31',5000,'2027-01-01T04:30:00.000Z','2027-01-01T04:30:00.000Z');
 db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('x4',null,'Fuel','local-new-year',6000,'2027-01-01T06:30:00.000Z','2027-01-01T06:30:00.000Z');
 
-let reads=0,unavailable=false,mode='owner';
-const backing={prepare(sql){reads++; if(unavailable)throw Error('Synthetic D1 failure');const stmt=db.prepare(sql);return {all:async()=>({results:stmt.all()})};}};
+let reads=0,writes=0,unavailable=false,mode='owner',loseAckOnce=false;
+const backing={prepare(sql){
+ if(unavailable)throw Error('Synthetic D1 failure');
+ const stmt=db.prepare(sql);
+ return {
+  args:[],
+  bind(...args){this.args=args;return this;},
+  async all(){reads++;return {results:stmt.all(...this.args)};},
+  async first(){reads++;return stmt.get(...this.args)??null;},
+  async run(){writes++;const result=stmt.run(...this.args);if(loseAckOnce){loseAckOnce=false;throw Error('Synthetic lost commit ACK');}return {success:true,meta:{changes:Number(result.changes)}};}
+ };
+}};
 const getOwnerUser=async()=>{
  if(mode==='reject')throw Error('Owner session failed');
  if(mode==='missing')return null;
@@ -40,11 +51,12 @@ const getOwnerUser=async()=>{
 const transpiled=ts.transpileModule(source,{
  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
-const context={exports:{},Request,Response,Headers,URL,Date,Number,String,JSON,BigInt,Intl,
+const context={exports:{},Request,Response,Headers,URL,Date,Number,String,JSON,BigInt,Intl,crypto:globalThis.crypto,
  require(id){
   if(id==='cloudflare:workers')return {env:{DB:backing}};
   if(id==='../../owner-auth')return {getOwnerUser};
   if(id==='../../../lib/expense-date')return dateContext.exports;
+  if(id==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};
   throw Error('Unexpected DR route import '+id);
  }};
 vm.runInNewContext(transpiled,context);
@@ -111,4 +123,69 @@ db.prepare("UPDATE expenses SET incurred_at=? WHERE id='x1'").run('invalid-date'
 const badDate=await get('?format=csv&year=2026');
 eq(badDate.status,503,'invalid saved business date blocked');verifyPrivate(badDate,'bad saved date');
 eq(db.prepare("SELECT amount_cents AS cents FROM expenses WHERE id='x1'").get().cents,1525,'read/export never changed financial amount');
-console.log('PASS '+checks+' independent DR owner expense GET / private CSV / Tulsa date / D1 safety checks (native SQLite, NO HOSTED OPERATIONS)');
+
+// Real DR POST uses the same QA-master bounded owner JSON, CSRF and D1-verified
+// idempotent expense receipt logic. No remote Stripe or live D1 access.
+const requestId='6e2b4eab-8ccb-4cee-8e6e-000000000012';
+const expense=(overrides={})=>({requestId,estimateId:'e1',category:'Supplies',
+ description:'Synthetic checked purchase',amountCents:1995,incurredAt:'2026-11-21',...overrides});
+const post=(body,extraHeaders={})=>context.exports.POST(new Request('https://synthetic.invalid/api/expenses',{
+ method:'POST',headers:{'content-type':'application/json',...extraHeaders},
+ body:typeof body==='string'?body:JSON.stringify(body)
+}));
+for(const badMode of ['missing','numeric','unreadable','reject','nonowner']){
+ mode=badMode;
+ const beforeReads=reads,beforeWrites=writes;
+ const denied=await post(expense());
+ eq(denied.status,401,badMode+' cannot write expenses');
+ verifyPrivate(denied,badMode+' POST');
+ eq(reads,beforeReads,badMode+' expense POST no D1 reads');
+ eq(writes,beforeWrites,badMode+' expense POST no D1 writes');
+}
+mode='owner';
+const beforeBadOriginReads=reads,beforeBadOriginWrites=writes;
+const rejectedOrigin=await post(expense(),{origin:'https://foreign.synthetic.invalid','sec-fetch-site':'cross-site'});
+eq(rejectedOrigin.status,403,'foreign browser origin refused');
+verifyPrivate(rejectedOrigin,'foreign-origin POST');
+eq(reads,beforeBadOriginReads,'bad origin no owner D1 reads');
+eq(writes,beforeBadOriginWrites,'bad origin no D1 writes');
+const oversize=await post(expense({description:'X'.repeat(33000)}));
+eq(oversize.status,413,'oversize expense streamed body refused');
+verifyPrivate(oversize,'oversize POST');
+eq(writes,beforeBadOriginWrites,'oversize body no D1 writes');
+const badJson=await post('{"requestId":');
+eq(badJson.status,400,'malformed JSON controlled error');
+verifyPrivate(badJson,'bad JSON POST');
+const badMoney=await post(expense({amountCents:1.25}));
+eq(badMoney.status,400,'fractional cents not accepted');
+verifyPrivate(badMoney,'fractional cents POST');
+unavailable=true;
+const missingD1=await post(expense());
+eq(missingD1.status,503,'owner linked job lookup D1 outage controlled');
+verifyPrivate(missingD1,'POST lookup outage');
+unavailable=false;
+const beforeRowCount=db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+const saved=await post(expense());
+eq(saved.status,201,'new DR expense confirmed 201');
+verifyPrivate(saved,'new DR expense');
+const savedBody=await saved.json();
+eq(savedBody.confirmed,true,'new expense readback confirmed');
+eq(savedBody.requestId,requestId,'new financial receipt echoes immutable request ID');
+eq(savedBody.expense.amountCents,1995,'new saved cents exact');
+eq(db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n,beforeRowCount+1,'single synthetic expense actually stored');
+const duplicate=await post(expense());
+eq(duplicate.status,200,'retry returns existing receipt without second charge');
+verifyPrivate(duplicate,'idempotent replay');
+eq(db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n,beforeRowCount+1,'duplicate request ID creates no second expense');
+const conflict=await post(expense({amountCents:2995}));
+eq(conflict.status,409,'same ID with different financial cents is conflict');
+verifyPrivate(conflict,'expense conflict');
+const lostId='6e2b4eab-8ccb-4cee-8e6e-000000000013';
+loseAckOnce=true;
+const afterLostAck=await post(expense({requestId:lostId}));
+eq(afterLostAck.status,200,'lost D1 ACK resolved from immutable saved record');
+verifyPrivate(afterLostAck,'lost-ACK receipt');
+eq((await afterLostAck.json()).confirmed,true,'lost-ACK expense only confirmed after readback');
+eq(db.prepare('SELECT COUNT(*) AS n FROM expenses WHERE id=?').get(lostId).n,1,'lost ACK did not duplicate stored expense');
+
+console.log('PASS '+checks+' independent DR owner expense GET+POST / private CSV / Tulsa date / idempotent D1 receipt safety checks (native SQLite, NO HOSTED OPERATIONS)');
