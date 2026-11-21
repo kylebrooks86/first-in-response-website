@@ -1,3 +1,15 @@
+<!-- FIRE-NOV21-DR-INVOICE-ESTIMATE-TARGETED-CI-95FF8E7 -->
+## Nov 21 — real DR invoice and estimate owner-write regression steps VERIFIED on changed source (NO DEPLOY)
+
+On executable/test SHA [`95ff8e72e218e6db5becd16dc15b1d29d8ecaca4`](https://github.com/kylebrooks86/first-in-response-website/commit/95ff8e72e218e6db5becd16dc15b1d29d8ecaca4), automatic existing [QA/STAGING run #44961107994](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44961107994) reached **COMPLETED SUCCESS** for BOTH affected steps:
+
+1. Job [#137020342437](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44961107994/job/137020342437) step **Gate 6 owner dashboard private-cache and financial job parity (native SQLite only)** directly invokes the new **actual DR invoice POST** owner/origin/16 KB/private/zero-D1 regression, while retaining existing invoice list, ownership and bearer-token checks.
+2. Job [#137020342464](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44961107994/job/137020342464) step **Gate 7 disaster recovery quote pricing parity and atomic save receipts (real DR routes, SQLite)** directly invokes the new **actual DR estimate PATCH** owner/origin/256 KiB/private/zero-D1 regression while retaining genuine DR quote/discount/schedule/closeout native SQLite checks.
+
+These are verified **test STEP results**, not automatically entire jobs. Full exact-source workflow **26/27 completed SUCCESS; one staging workflow STILL IN PROGRESS at this writing**; therefore do not claim 27/27 yet. [Original master checklist source [x] and scoped CI receipts](release/FIRE_RELEASE_SNOWBALL_MASTER_CHECKLIST_20261116.md). All 4 source/test subtasks complete in existing unmerged DRAFT [PR282](https://github.com/kylebrooks86/first-in-response-website/pull/282). **Official 51/95 numbered, 4/10 gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 OPEN; no Cloudflare/SQL/D1/Stripe/paid R2, merge or deployment.
+
+---
+
 <!-- FIRE-NOV21-DR-ESTIMATE-OWNER-95FF8E7 -->
 ## Nov 21 — independent DR estimate PATCH owner streamed edit and private receipts; actual security tests authored (NO DEPLOY)
 
