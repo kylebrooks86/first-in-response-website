@@ -145,5 +145,27 @@ class RehearsalTests(unittest.TestCase):
         with self.assertRaisesRegex(Blocked, '25-file'):
             rehearse(self.root)
 
+
+class OwnerWindowsStagingBackupGuardTests(unittest.TestCase):
+    def test_owner_export_is_consent_locked_and_reviews_complete_22_to_25_tail(self):
+        # STATIC read of reviewed source only: NEVER invoke Wrangler or an owner backup.
+        ps1 = (Path(__file__).resolve().parent /
+               "owner_windows_doomsday_backup.ps1").read_text(encoding="utf-8")
+        self.assertIn("[switch]$Export", ps1)
+        self.assertIn("if (-not $Export)", ps1)
+        self.assertIn("Read-Host ('Remote export can temporarily interrupt D1 queries.", ps1)
+        self.assertIn("$consent -cne ('EXPORT ' + $uuid)", ps1)
+        self.assertIn("afb2c05a-d794-4a9a-b580-924ce01c26ad", ps1)
+        self.assertIn("$foundDb.Count -ne 1", ps1)
+        self.assertIn("rehearse_staging_22_to_25.py", ps1)
+        self.assertIn("$rehearsal --sql-export $path", ps1)
+        self.assertIn("$checksumAfter -cne $checksum", ps1)
+        self.assertIn("PRIVATE", ps1.upper())
+        self.assertIn("photos", ps1.lower())
+        self.assertNotIn("rehearse_doomsday_0022_export.py", ps1)
+        self.assertNotIn("d1 migrations apply", ps1)
+        self.assertNotIn("wrangler deploy", ps1)
+
+
 if __name__ == '__main__':
     unittest.main()

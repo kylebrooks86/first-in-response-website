@@ -1,4 +1,4 @@
-# FIRE Doomsday D1 PRIVATE backup helper for owner-controlled Windows machines.
+# FIRE independent STAGING D1 private backup helper for owner-controlled Windows machines.
 # DRY RUN BY DEFAULT. Explicit -Export plus typed full UUID are required.
 # Does not deploy, execute SQL, apply migrations or restore a remote database.
 # Export may temporarily interrupt hosted queries; choose a safe window.
@@ -13,15 +13,15 @@ $target = 'fire-app-staging-db'
 $uuid = 'afb2c05a-d794-4a9a-b580-924ce01c26ad'
 $repoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $verifier = Join-Path $repoDir 'verify_doomsday_d1_export.py'
-$rehearsal = Join-Path $repoDir 'rehearse_doomsday_0022_export.py'
+$rehearsal = Join-Path $repoDir 'rehearse_staging_22_to_25.py'
 if (-not (Test-Path -LiteralPath $verifier -PathType Leaf) -or -not (Test-Path -LiteralPath $rehearsal -PathType Leaf)) {
   throw 'FIRE private verification scripts were not found. Open the current development repository first.'
 }
-Write-Host 'FIRE Doomsday private D1 backup — no hosted writes or deployment.'
+Write-Host 'FIRE independent STAGING D1 private backup — no hosted writes or deployment.'
 Write-Host ('Expected database: ' + $target)
 Write-Host ('Expected D1 UUID: ' + $uuid)
 Write-Host ('Owner-held backup folder: ' + $PrivateFolder)
-Write-Warning 'The SQL backup will contain private customer/payment records. Keep it on an encrypted, access-controlled drive. Never upload it to GitHub, this chat or a public site.'
+Write-Warning 'The SQL backup contains private customer/payment records and does NOT include original photos. Keep protected D1+photo recovery copies separate from GitHub, this chat and all public sites.'
 if (-not $Export) {
   Write-Host 'DRY RUN ONLY — no Cloudflare login, export or local file was created.'
   Write-Host 'Later, after reviewing the backup window, run this script with -Export to require full-UUID confirmation.'
@@ -33,8 +33,13 @@ if ($consent -cne ('EXPORT ' + $uuid)) {
 }
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 $python = Get-Command 'py.exe' -ErrorAction SilentlyContinue
+$pythonArgs = @('-3')
+if ($null -eq $python) {
+  $python = Get-Command 'python.exe' -ErrorAction SilentlyContinue
+  $pythonArgs = @()
+}
 if ($null -eq $wrangler -or $null -eq $python) {
-  throw 'Installed Wrangler CLI (wrangler.cmd) and Python launcher (py.exe) are required. Nothing was exported. Install only after reviewing your setup.'
+  throw 'Installed Wrangler CLI and Python are required. Nothing was exported; do not change your existing setup without review.'
 }
 # Read-only inventory must confirm NAME AND UUID in the currently authenticated
 # Cloudflare account. If parsing/identity fails, stop without exporting.
@@ -53,7 +58,7 @@ if ($list.Count -lt 1) {
 }
 $foundDb = @($list | Where-Object { $_.name -ceq $target -and $_.uuid -ceq $uuid })
 if ($foundDb.Count -ne 1) {
-  throw 'Cloudflare account did not report exactly one matching Doomsday D1 name AND full UUID. No export attempted.'
+  throw 'Cloudflare account did not report exactly one matching independent STAGING D1 name AND full UUID. No export attempted.'
 }
 $folder = [System.IO.Path]::GetFullPath($PrivateFolder)
 if (-not (Test-Path -LiteralPath $folder -PathType Container)) {
@@ -66,7 +71,7 @@ if ($folder.TrimEnd('\') -eq $repoFull.TrimEnd('\') -or $folder.StartsWith(($rep
   throw 'Refusing to write a private SQL backup inside the Git repository.'
 }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$path = Join-Path $folder ('FIRE-DOOMSDAY-PRE0022-' + $stamp + '.sql')
+$path = Join-Path $folder ('FIRE-STAGING-PRE0022-TO-0024-' + $stamp + '.sql')
 if (Test-Path -LiteralPath $path) { throw 'Backup filename already exists; refusing overwrite.' }
 # An explicit temporary configuration pins the exact owner-confirmed D1 UUID.
 # It has no routes, secrets, bindings to LIVE, or publish capability.
@@ -89,13 +94,17 @@ Write-Host ('Private export created: ' + $file.FullName)
 Write-Host ('Export bytes: ' + $file.Length)
 Write-Host ('SHA-256: ' + $checksum)
 Write-Host 'Running offline integrity/restore check. The SQL contents will never be displayed.'
-& $python.Source -3 $verifier $path --expected-sha256 $checksum
+& $python.Source @pythonArgs $verifier $path --expected-sha256 $checksum
 if ($LASTEXITCODE -ne 0) {
   throw 'Offline backup validation did NOT pass; keep the original SQL for owner review but do not use it to authorize a migration.'
 }
-& $python.Source -3 $rehearsal $path --expected-sha256 $checksum
-if ($LASTEXITCODE -ne 0) {
-  throw 'In-memory 0022 rehearsal did NOT pass; no hosted migration was run. Retain private export for owner review.'
+$checksumAfter = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($checksumAfter -cne $checksum) {
+  throw 'Private SQL export changed after integrity verification. Stop; do not rehearse or migrate.'
 }
-Write-Host 'LOCAL backup/restore/index rehearsal passed. This is NOT hosted migration approval, writer quiescence, Gate 5 acceptance or a tested remote rollback.'
+& $python.Source @pythonArgs $rehearsal --sql-export $path
+if ($LASTEXITCODE -ne 0) {
+  throw 'In-memory 0022–0024 rehearsal did NOT pass; no hosted migration was run. Retain private export for owner review.'
+}
+Write-Host 'LOCAL backup/restore/0022–0024 rehearsal passed. This is NOT hosted migration approval, writer quiescence, Gate 5 acceptance or a tested remote rollback.'
 Write-Host 'Keep the file private, verify independent secure retention, and obtain separate owner authorization before ANY actual migration.'
