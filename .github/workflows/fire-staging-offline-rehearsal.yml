@@ -621,6 +621,9 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
+          # Actual independent DR customer note handler and its real streamed owner guard.
+          # Only disposable native SQLite, no remote customers/notes/provider operations.
+          node --experimental-sqlite scripts/test-dr-customer-note-parity.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/customer-notes/route.ts" "$GITHUB_WORKSPACE/fire-app-dr/lib/customer-write-request-guard.mjs"
           node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
           # Actual independent DR template API, exercised against PR checkout with no hosted calls.
           FIRE_DR_MESSAGE_TEMPLATE_ROUTE="$GITHUB_WORKSPACE/fire-app-dr/app/api/message-templates/route.ts" node scripts/test-dr-message-template-privacy.mjs
