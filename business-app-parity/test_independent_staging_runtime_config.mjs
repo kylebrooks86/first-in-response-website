@@ -5,6 +5,7 @@ import {verify} from './check_independent_staging_runtime_config.mjs';
 const baseline={
   name:'fire-app-independent-staging',
   workers_dev:true,
+  preview_urls:false,
   d1_databases:[{binding:'DB',database_name:'fire-app-staging-db',
     database_id:'afb2c05a-d794-4a9a-b580-924ce01c26ad'}],
   secrets:{required:['FIRE_ADMIN_PASSWORD_HASH','FIRE_SESSION_SECRET']},
@@ -51,6 +52,9 @@ const rejected=(label,mutate)=>{
 };
 for(const [label,mutate] of [
   ['wrong Worker',c=>{c.name='fire-fullapp-qa-20261016'}],
+  ['preview URLs reopened',c=>{c.preview_urls=true}],
+  ['missing preview lock',c=>{delete c.preview_urls}],
+  ['invalid preview lock',c=>{c.preview_urls='false'}],
   ['wrong D1',c=>{c.d1_databases[0].database_id='8ccfb1f8-1657-4074-b1b2-47de78f95003'}],
   ['extra D1',c=>{c.d1_databases.push(c.d1_databases[0])}],
   ['missing signing secret',c=>{c.secrets.required.pop()}],

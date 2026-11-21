@@ -24,6 +24,8 @@ export function verify(cfg) {
   assert.ok(cfg && typeof cfg==='object' && !Array.isArray(cfg), 'Missing Worker manifest');
   assert.equal(cfg.name,NAME,'Wrong Worker target');
   assert.equal(cfg.workers_dev,true,'Worker must retain its own workers.dev domain');
+  assert.equal(cfg.preview_urls,false,
+    'STAGING preview/version URLs must remain explicitly disabled');
   assert.ok(!cfg.env,'No named Cloudflare environment override allowed');
   assert.deepEqual(cfg.d1_databases,[{binding:'DB',database_name:DB,database_id:UUID}],
     'Must bind only exact owner staging D1');

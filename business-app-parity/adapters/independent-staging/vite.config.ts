@@ -86,6 +86,9 @@ export default defineConfig(async () => {
           compatibility_date: "2026-10-16",
           compatibility_flags: ["nodejs_compat"],
           workers_dev: true,
+          // Owner disabled STAGING wildcard version/preview URLs on Nov 20.
+          // Pin the setting so later Wrangler updates cannot reenable it.
+          preview_urls: false,
           secrets: { required: reviewedQuickAuthSecrets },
           vars: {
             FIRE_ENV: "staging",
