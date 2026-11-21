@@ -280,6 +280,9 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-sqlite scripts/test-owner-financial-list-refund-holds-sqlite.mjs
+          # Same built QA source: verify private new-quote receipts, exact 50% deposit,
+          # saved service UUIDs and idempotent lost-ACK recovery before list reads.
+          node --experimental-sqlite scripts/test-new-estimate-confirmed-lines-sqlite.mjs
           node --experimental-sqlite scripts/test-estimate-owner-list-bounded-private-sqlite.mjs
           # Source-integrated PR274 real owner history privacy and 60-estimate SQLite paging.
           node --experimental-sqlite scripts/test-owner-estimate-history-private-sqlite.mjs
