@@ -126,6 +126,41 @@ try{
  const foreignCursor=await read("c2","foreign",data.nextCursor);
  check(foreignCursor.response.status===200&&foreignCursor.data.pending.every(item=>item.customerId==="c2"),"A valid cursor cannot reveal another customer's message history");
  check(queries.some(q=>q.includes("INSERT OR IGNORE"))&&db.prepare("SELECT channel FROM customer_messages WHERE id=?").get("unconfirmed-email:owner-cancelled").channel==="send_cancelled","Only explicit owner cancellation adds one audit event");
+
+ // Simulate D1 returning a successful transport object with a FAILED query,
+ // rather than throwing: neither case may masquerade as an empty draft inbox.
+ const fakeRead=outcome=>loadRoute({prepare(){return {bind(){return {
+   first:async()=>({id:"c1"}),all:async()=>outcome
+ };}};}});
+ for(const [name,outcome] of [
+   ["D1 success:false",{success:false,results:[]}],
+   ["D1 missing results",{success:true}],
+   ["D1 null results",{success:true,results:null}],
+   ["D1 scalar results",{success:true,results:"not rows"}]
+ ]){
+   const result=await fakeRead(outcome).GET(new Request("https://fire.example.invalid/api/customer-messages?customerId=c1"));
+   check(result.status===503&&((await result.json()).error??"").includes("No send is assumed"),
+     name+" never becomes false-empty pending message history");
+   privateGet(result,name+" private 503");
+ }
+ const confirmedEmpty=await fakeRead({success:true,results:[]})
+   .GET(new Request("https://fire.example.invalid/api/customer-messages?customerId=c1"));
+ const confirmedBody=await confirmedEmpty.json();
+ check(confirmedEmpty.status===200&&confirmedBody.pending.length===0&&confirmedBody.mayHaveMore===false,
+   "Confirmed empty D1 read remains a valid empty pending-message inbox");
+ privateGet(confirmedEmpty,"Confirmed empty D1 read");
+ const queryCount=queries.length;
+ owner={email:42};
+ const numericSession=await read("c1","e1");
+ check(numericSession.response.status===401&&queries.length===queryCount,
+   "Numeric owner email is denied before D1");
+ privateGet(numericSession.response,"Numeric owner session");
+ owner={get email(){throw Error("Unreadable owner identity");}};
+ const unreadableSession=await read("c1","e1");
+ check(unreadableSession.response.status===401&&queries.length===queryCount,
+   "Throwing owner email is denied before D1");
+ privateGet(unreadableSession.response,"Unreadable owner session");
+ owner={email:"kylebrooks8605@gmail.com"};
  const outage=loadRoute({prepare(){throw Error("Database unavailable");}});
  const fail=await outage.GET(new Request("https://fire.example.invalid/api/customer-messages?customerId=c1&estimateId=e1"));
  check(fail.status===503&&((await fail.json()).error??"").includes("No send is assumed"),"Database outage never claims delivery or shows stale records");

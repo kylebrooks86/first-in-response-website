@@ -21,7 +21,12 @@ function privatePreparedWriteResponse(response:Response):Response {
 function privatePreparedWriteJson(value:unknown,init?:ResponseInit):Response {
   return privatePreparedWriteResponse(Response.json(value,init));
 }
-async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&typeof user.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){
+  try{
+    const user=await getChatGPTUser();
+    return Boolean(user&&typeof user.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL);
+  }catch{return false;}
+}
 
 
 // An interrupted SMS/Mail handoff can reload FIRE before the owner confirms
@@ -68,7 +73,12 @@ export async function GET(request:Request) {
         AND (? IS NULL OR m.created_at<? OR (m.created_at=? AND m.id<?))
       ORDER BY m.created_at DESC,m.id DESC LIMIT 11
     `).bind(customerId,estimateId,estimateId,estimateId,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null).all<{id:string;createdAt:string}>();
-    const rows=result.results??[],page=rows.slice(0,10),last=page.at(-1);
+    // A D1 soft failure or malformed read is not a confirmed empty inbox.
+    // Do not hide unsent drafts from the owner while storage is unavailable.
+    if((result as unknown as {success?:boolean}).success===false||!Array.isArray(result.results))
+      return Response.json({error:"Unconfirmed message history is unavailable. No send is assumed."},
+        {status:503,headers:privatePreparedHistoryHeaders});
+    const rows=result.results,page=rows.slice(0,10),last=page.at(-1);
     const nextCursor=rows.length>10&&last&&
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(last.createdAt)&&
       /^[A-Za-z0-9:._-]{1,128}$/.test(last.id)
