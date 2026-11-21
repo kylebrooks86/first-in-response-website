@@ -3,7 +3,16 @@ import { getChatGPTUser } from "../../../chatgpt-auth";
 import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getChatGPTUser(); return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL; }
+async function authorized(){
+  try {
+    const user=await getChatGPTUser();
+    const email=user?.email;
+    return typeof email==='string'&&email.toLowerCase()===OWNER_EMAIL;
+  } catch {
+    // A rejected owner session or unreadable email must deny before any D1/R2 action.
+    return false;
+  }
+}
 
 // The D1 photo record is not permission to fetch or delete an arbitrary R2
 // object. Require the original object's immutable customer/photo namespace
