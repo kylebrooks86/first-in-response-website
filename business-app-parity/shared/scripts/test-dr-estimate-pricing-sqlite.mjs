@@ -2,11 +2,13 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {DatabaseSync} from 'node:sqlite';
 import {createRequire} from 'node:module';
 import {webcrypto} from 'node:crypto';
 const require=createRequire(import.meta.url),ts=require('typescript');
 const root=resolve(process.env.GITHUB_WORKSPACE??resolve(process.cwd(),'../..'));
+const {readOwnerWriteObject:drOwnerJsonGuard}=await import(pathToFileURL(resolve(root,'fire-app-dr/lib/customer-write-request-guard.mjs')).href);
 let checks=0;
 const check=(value,message)=>{assert.ok(value,message);checks++;console.log('PASS: '+message);};
 const source=relative=>readFileSync(resolve(root,relative),'utf8');
@@ -18,7 +20,7 @@ const compile=(path,loader)=>{
 const discounts=compile('fire-app-dr/lib/discount-input.ts',()=>{throw Error('Unexpected discount import');});
 const financeKeys=['submittedDiscountCents','quoteDiscounts','discountSnapshot','verifiedSavedDiscounts','DISCOUNT_SNAPSHOT_PREFIX'];
 check(financeKeys.every(k=>Object.hasOwn(discounts,k)),'DR pricing helper matches the established quote contract');
-let user={email:'kylebrooks8605@gmail.com'},batchMode='normal',db;
+let user={email:'kylebrooks8605@gmail.com'},batchMode='normal',db,prepareCount=0;
 const setup=()=>{
  db?.close();db=new DatabaseSync(':memory:');
  db.exec(`
@@ -42,6 +44,7 @@ const setup=()=>{
 const events=[];
 const DB={
  prepare(sql){
+  prepareCount++;
   const bind=(...args)=>({
    async first(){return db.prepare(sql).get(...args)??null;},
    async all(){return {results:db.prepare(sql).all(...args)};},
@@ -74,6 +77,7 @@ const imports=id=>{
  if(id==='cloudflare:workers')return {env};
  if(id.endsWith('owner-auth'))return {getOwnerUser:async()=>user};
  if(id.endsWith('lib/discount-input'))return discounts;
+ if(id.endsWith('lib/customer-write-request-guard.mjs'))return {readOwnerWriteObject:drOwnerJsonGuard};
  throw Error('Unexpected DR import '+id);
 };
 const api=compile('fire-app-dr/app/api/estimates/route.ts',imports);
@@ -253,5 +257,44 @@ setup();
  }
  user={email:'kylebrooks8605@gmail.com'};
 }
+// Changed DR estimate PATCH must refuse forged browser writes, malformed JSON
+// and unbounded UTF-8 BEFORE any estimate, customer or financial D1 statement.
+setup();user={email:'kylebrooks8605@gmail.com'};
+const strictHeaders={'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+const goodEdit=JSON.stringify({status:'sent'});
+const editRequest=(headers,body)=>new Request('https://synthetic.invalid/api/estimates/synthetic-only',{
+ method:'PATCH',headers,body
+});
+const editContext={params:Promise.resolve({id:'synthetic-only'})};
+const privateEdit=(response)=>response.headers.get('cache-control')==='private, no-store'&&
+ response.headers.get('vary')==='Cookie'&&response.headers.get('x-content-type-options')==='nosniff';
+for(const [label,identity] of [
+ ['no owner',null],['foreign owner',{email:'wrong@synthetic.invalid'}],
+ ['numeric owner',{email:8}],['unreadable owner',{get email(){throw Error('unreadable owner')}}]
+]){
+ user=identity;const before=prepareCount;
+ const response=await detail.PATCH(editRequest(strictHeaders,goodEdit),editContext);
+ check(response.status===401&&privateEdit(response)&&prepareCount===before,
+   'Actual DR estimate PATCH '+label+' is private 401 before D1');
+}
+user={email:'kylebrooks8605@gmail.com'};
+for(const [label,headers,body,status] of [
+ ['cross-origin',{...strictHeaders,origin:'https://attacker.invalid','sec-fetch-site':'cross-site'},goodEdit,403],
+ ['sibling-origin',{...strictHeaders,origin:'https://sibling.synthetic.invalid','sec-fetch-site':'same-site'},goodEdit,403],
+ ['same-site metadata',{...strictHeaders,'sec-fetch-site':'same-site'},goodEdit,403],
+ ['browser form',{...strictHeaders,'content-type':'text/plain'},goodEdit,415],
+ ['declared over 256 KiB',{...strictHeaders,'content-length':'262145'},goodEdit,413],
+ ['actual oversized UTF-8',strictHeaders,JSON.stringify({notes:'é'.repeat(132000)}),413],
+ ['invalid declared length',{...strictHeaders,'content-length':'invalid'},goodEdit,400],
+ ['malformed JSON',strictHeaders,'{',400],
+ ['array JSON',strictHeaders,'[]',400],
+ ['empty JSON',strictHeaders,'',400],
+ ]){
+ const before=prepareCount;
+ const response=await detail.PATCH(editRequest(headers,body),editContext);
+ check(response.status===status&&privateEdit(response)&&prepareCount===before,
+   'Actual DR estimate PATCH '+label+' denied privately before ALL D1 operations');
+}
+user={email:'kylebrooks8605@gmail.com'};
 db.close();
-console.log('PASS '+checks+'/'+checks+' actual DR quote pricing, job lifecycle and owner-safe estimate listing (disposable native SQLite, no provider calls).');
+console.log('PASS '+checks+'/'+checks+' DR quote pricing, lifecycle and actual PATCH owner/256KiB/origin/private/zero-D1 negative tests (no hosted calls).');
