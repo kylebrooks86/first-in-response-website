@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 import {submittedDiscountCents,quoteDiscounts,discountSnapshot,DISCOUNT_SNAPSHOT_PREFIX} from "../../../lib/discount-input";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -58,10 +59,14 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+// The independent DR estimate creator must use the same bounded owner browser
+// boundary as estimate edits. Keep the existing quote/discount/D1 logic intact.
+async function createOwnerEstimate(request: Request) {
   if(!await authorized()) return estimateResponse({ error: "Unauthorized" },401);
+  const parsed=await readOwnerWriteObject(request,262_144);
+  if(parsed.response)return parsed.response;
   try {
-    const body = await request.json() as Record<string, unknown>;
+    const body=parsed.value as Record<string,unknown>;
     const existingCustomerId = String(body.customerId ?? "").trim();
     const customer = String(body.customer ?? "").trim();
     const email = String(body.email ?? "").trim();
@@ -104,6 +109,19 @@ export async function POST(request: Request) {
       return Response.json({error:"Estimate save could not be verified. Reopen Estimates before attempting another creation.",saveUncertain:true},{status:503,headers:{"cache-control":"private, no-store"}});
     return Response.json({id:estimateId,customerId,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents},{status:201,headers:{"cache-control":"private, no-store"}});
   } catch {
-    return Response.json({ error: "We couldn't save this estimate. Please try again." }, { status: 500 });
+    // D1 may commit a quote even when the batch acknowledgement is lost.
+    // A generic 500/retry instruction could create a duplicate estimate.
+    return Response.json({error:"Estimate creation could not be confirmed. Review saved estimates before trying again.",saveUncertain:true},{status:503});
   }
+}
+
+// Wrap every DR owner estimate creation receipt, including validation errors,
+// parser denials and successful share tokens, in a session-private boundary.
+export async function POST(request: Request) {
+  const response=await createOwnerEstimate(request);
+  const headers=new Headers(response.headers);
+  headers.set("Cache-Control","private, no-store");
+  headers.set("Vary","Cookie");
+  headers.set("X-Content-Type-Options","nosniff");
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
