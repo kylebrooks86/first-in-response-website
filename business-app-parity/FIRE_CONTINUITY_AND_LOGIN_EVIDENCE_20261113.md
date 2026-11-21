@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-G5-REFUND-METADATA-CI-37F82F0 -->
+## November 21 — existing Gate 5 refund-ledger false-readiness fix now 27/27 CI SUCCESS (NO DEPLOY)
+
+**Current integrated unmerged DRAFT PR #282** executable/test SHA [`37f82f0f7db88af948195cdee4bc9ceb7e2afed1`](https://github.com/kylebrooks86/first-in-response-website/commit/37f82f0f7db88af948195cdee4bc9ceb7e2afed1) has **27/27 actual pull-request GitHub Actions groups completed SUCCESS**, no failed, cancelled or pending. [QA/STAGING run #44952837496](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44952837496) completed **6/6 jobs SUCCESS**, including shared source and synthetic financial protection job #136994374626. This is independent readback of the already-triggered CI, not a repeated run.
+
+Actual changed code [`f72cffe`](https://github.com/kylebrooks86/first-in-response-website/commit/f72cffe6fba38da38eda0c3c3ac546408e3fe335) rejects a returned explicit `success:false` D1 refund schema metadata reply even with plausibly correct object rows. Actual real-handler synthetic regression [`ee04628`](https://github.com/kylebrooks86/first-in-response-website/commit/ee04628466d41a7e683a3564ec9bdad34cdb3dc7), [`5ff6ff9`](https://github.com/kylebrooks86/first-in-response-website/commit/5ff6ff91f33afb9fe9777b436e052d8fb5d77208) is wired into the existing workflow by [`37f82f0`](https://github.com/kylebrooks86/first-in-response-website/commit/37f82f0f7db88af948195cdee4bc9ceb7e2afed1), and checks 503 refusal before financial queries and Stripe. [x] Pending changed-source CI acceptance marked on master checklist in [commit `3174492`](https://github.com/kylebrooks86/first-in-response-website/commit/31744929b63583d80bc8440b06a4cd681fda9801).
+
+**No original gate inflation:** formal 51/95 numbered accepted, 44 open, 4/10 accepted G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN; physical STAGING D1 last proven 22/25, DR/NEW LIVE DARK, first genuine LIVE Job #0001 unissued. The existing exact owner-approved inactive TEST 0%-traffic operation is still unexecuted and pinned to the older `56ba4b5` artifact, NOT this source. No Cloudflare login/POST/Worker, D1 migrations, Access, Stripe/payment, paid R2, customer data changes, merge or deployment.
+
+---
+
 <!-- FIRE-NOV21-DR-PAYMENTS-PRIVATE-WRAPPER-CI-3188534 -->
 ## November 21 — [x] latest DR/QA payments-response privacy and refund guards: exact changed-source CI VERIFIED (NO DEPLOY)
 
