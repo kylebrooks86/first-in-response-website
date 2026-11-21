@@ -89,5 +89,65 @@ for(const [label,file] of [['QA',qaPath],['DR',drPath]]){
   result=await scope.exports.GET();
   eq(result.status,409,label+' corrupt financial cents fail closed');
   privateResponse(result,label+' bad cents');
+  if(label==='DR'){
+    // Exercise the actual DR POST export (not a copied helper). Untrusted and
+    // disabled-TEST requests must not read or mutate any payment D1 rows.
+    for(const [who,expected] of [['foreign',401],['missing',401],['throw',401],['owner',503]]){
+      principal=who;
+      const before=reads;
+      const response=await scope.exports.POST(new Request('https://dr.invalid/api/payments',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({estimateId:'synthetic-e1',amountCents:100})
+      }));
+      eq(response.status,expected,'DR payment POST '+who+' guarded');
+      privateResponse(response,'DR payment POST '+who);
+      eq(reads,before,'DR payment POST '+who+' zero D1 reads/writes');
+      if(who==='owner'){
+        eq((await response.json()).error.includes('disabled'),true,'DR no provider payment without TEST approval');
+      }
+    }
+  }
 }
+
+const refundPath=drPath.replace(/\\/g,'/').replace(/\/payments\/route\.ts$/,'/payments/refund/route.ts');
+assert.notEqual(refundPath,drPath,'DR refund route located next to DR payment route');
+let refundPrincipal='owner',refundReads=0;
+const refundEnv={FIRE_STRIPE_MODE:'disabled',DB:{prepare(){refundReads++;throw Error('DR refund must not reach D1');}}};
+const refundSession=async()=>{
+  if(refundPrincipal==='throw')throw Error('Unresolvable DR refund session');
+  if(refundPrincipal==='foreign')return {email:'foreign@synthetic.invalid'};
+  if(refundPrincipal==='missing')return null;
+  return {email:'kylebrooks8605@gmail.com'};
+};
+const refundCode=ts.transpileModule(readFileSync(refundPath,'utf8'),{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+}).outputText;
+const refundScope={exports:{},Response,Date,Intl,Number,String,Array,JSON,
+  require(name){
+    if(name==='cloudflare:workers')return {env:refundEnv};
+    if(name==='../../../owner-auth')return {getOwnerUser:refundSession};
+    throw Error('Unexpected DR refund dependency '+name);
+  }};
+vm.runInNewContext(refundCode,refundScope);
+eq(typeof refundScope.exports.POST,'function','actual DR refund POST export');
+for(const [who,expected] of [['foreign',401],['missing',401],['owner',503]]){
+  refundPrincipal=who;
+  const before=refundReads;
+  const result=await refundScope.exports.POST(new Request('https://dr.invalid/api/payments/refund',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({paymentId:'synthetic-p1',amountCents:100,requestId:'synthetic-r1'})
+  }));
+  eq(result.status,expected,'DR refund POST '+who+' guarded');
+  privateResponse(result,'DR refund POST '+who);
+  eq(refundReads,before,'DR refund POST '+who+' no D1 touch');
+  if(who==='owner')eq((await result.json()).error.includes('disabled'),true,'DR refund TEST/provider remains disabled');
+}
+refundPrincipal='throw';
+const uncertain=await refundScope.exports.POST(new Request('https://dr.invalid/api/payments/refund',{
+  method:'POST',headers:{'content-type':'application/json'},body:'{}'
+}));
+eq(uncertain.status,503,'unreadable refund session private uncertainty');
+privateResponse(uncertain,'unreadable DR refund session');
+eq((await uncertain.json()).saveUncertain,true,'DR refund uncertainty never encourages duplicate provider write');
+
 console.log('PASS '+checks+' QA-master + independent DR owner payment history verified D1/read/checkout/authorization/private receipts (actual TS routes, NO HOSTED OPERATIONS)');
