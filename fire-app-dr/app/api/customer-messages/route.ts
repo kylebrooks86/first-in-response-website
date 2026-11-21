@@ -91,6 +91,7 @@ export async function GET(request:Request) {
 
 export async function POST(request: Request) {
   if (!await authorized()) return privateJson({ error: "Unauthorized" }, { status: 401 });
+  let uncertainPreparation:{id:string;customerId:string;estimateId:string;channel:string;template:string;body:string}|null=null;
   try {
     // Reuse the QA/DR bounded, same-origin owner guard before any D1 reads/writes.
     const parsed=await readOwnerWriteObject(request,64_000);
@@ -108,6 +109,14 @@ export async function POST(request: Request) {
     if(value.recipientSnapshot!==undefined&&typeof value.recipientSnapshot!=="string")
       return privateJson({error:"Invalid message recipient snapshot."},{status:400});
     const recipientSnapshot=typeof value.recipientSnapshot==="string"?value.recipientSnapshot:null;
+    const isPrepared=channel==="text_prepared"||channel==="email_prepared";
+    const requestId=value.requestId;
+    if(requestId!==undefined&&(typeof requestId!=="string"||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))
+      return privateJson({error:"Invalid message preparation request identifier."},{status:400});
+    // QA retry identifiers are deterministic for prepared handoffs; existing
+    // legacy history writes still keep their original random-ID contract.
+    const stableId=isPrepared&&typeof requestId==="string"?"owner-message-prep:"+requestId:null;
     const customer=await env.DB.prepare("SELECT id,phone,email FROM customers WHERE id=? LIMIT 1")
       .bind(customerId).first<{id:string;phone:string|null;email:string|null}>();
     if(!customer)return privateJson({error:"Customer not found."},{status:404});
@@ -145,8 +154,25 @@ export async function POST(request: Request) {
         return privateJson({error:"Resolve billing and record the final payment before requesting a review."},{status:409});
     }
     if(body.length>10000)return privateJson({error:"Message is too long to save."},{status:400});
-    const id = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
+    if(stableId){
+      // A network retry reuses only the exact same saved operation and cannot
+      // reopen a draft that was confirmed or cancelled by the owner.
+      const existing=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?")
+        .bind(stableId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
+      if(existing){
+        if(existing.customerId!==customerId||(existing.estimateId??"")!==(estimateId||"")||
+          existing.channel!==channel||existing.template!==template||existing.body!==body)
+          return privateJson({error:"That message operation already belongs to different content. Review saved messages before retrying."},{status:409});
+        const closed=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
+          .bind(stableId+":owner-confirmed",stableId+":owner-cancelled").first();
+        if(closed)return privateJson({error:"This prepared message was already marked sent or discarded. Reopen saved history; no new handoff was started."},{status:409});
+        return privateJson({message:existing,duplicate:true},{status:200});
+      }
+      uncertainPreparation={id:stableId,customerId,estimateId,channel,template,body};
+    }
+    const id=stableId??crypto.randomUUID();
+    const createdAt=new Date().toISOString();
+    let writtenChanges=1;
     if(template==="review"){
       const inserted=await env.DB.prepare(`INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
         SELECT ?,?,?,?,?,?,?
@@ -167,9 +193,22 @@ export async function POST(request: Request) {
         return privateJson({error:"Review request was not saved. Recheck the job and payment status."},{status:409});
       }
     }else{
-      const inserted=await env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)")
-        .bind(id, customerId, estimateId || null, channel, template, body, createdAt).run();
-      if((inserted as unknown as {success?:boolean}).success===false||Number(inserted.meta?.changes)!==1)
+      // The saved phone/email is rechecked in the very same D1 INSERT. An
+      // owner edit on another device after our initial SELECT cannot leave
+      // behind a misleading ready-to-send prepared draft.
+      const column=channel==="text_prepared"?"phone":"email";
+      const sql=isPrepared
+        ?`INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at)
+           SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM customers WHERE id=? AND ${column}=?)`
+        :"INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)";
+      const args=isPrepared
+        ?[id,customerId,estimateId||null,channel,template,body,createdAt,customerId,savedContact]
+        :[id,customerId,estimateId||null,channel,template,body,createdAt];
+      const inserted=await env.DB.prepare(sql).bind(...args).run();
+      writtenChanges=Number(inserted.meta?.changes);
+      if((inserted as unknown as {success?:boolean}).success===false||
+        !Number.isSafeInteger(writtenChanges)||
+        (writtenChanges!==1&&!(stableId&&writtenChanges===0)))
         return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
     }
     // D1 may report a successful INSERT while persisting no row, or the
@@ -180,13 +219,44 @@ export async function POST(request: Request) {
       channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?`)
       .bind(id).first<{id:string;customerId:string;estimateId:string|null;
         channel:string;template:string;body:string;createdAt:string}>();
-    if(!saved||saved.id!==id||saved.customerId!==customerId||
-      (saved.estimateId??"")!==(estimateId||"")||saved.channel!==channel||
-      saved.template!==template||saved.body!==body||saved.createdAt!==createdAt)
+    if(!saved)
       return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
-    return privateJson({message:saved},{status:201});
+    if(saved.id!==id||saved.customerId!==customerId||
+      (saved.estimateId??"")!==(estimateId||"")||saved.channel!==channel||
+      saved.template!==template||saved.body!==body)
+      return privateJson({error:stableId?
+        "That message operation already belongs to different content. Review saved messages before retrying.":
+        "Communication save could not be confirmed. Refresh saved messages before retrying.",
+        ...(stableId?{}:{saveUncertain:true})},{status:stableId?409:503});
+    if(writtenChanges===1&&saved.createdAt!==createdAt)
+      return privateJson({error:"Communication timestamp could not be verified. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
+    if(stableId){
+      const closed=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
+        .bind(stableId+":owner-confirmed",stableId+":owner-cancelled").first();
+      if(closed)return privateJson({error:"This prepared message was already confirmed or discarded. No new handoff was started."},{status:409});
+    }
+    return privateJson({message:saved,...(writtenChanges===0?{duplicate:true}:{})},{status:writtenChanges===0?200:201});
   } catch {
-    return privateJson({ error: "Communication save could not be verified. Refresh saved messages before retrying.",saveUncertain:true }, { status: 503 });
+    // D1 may commit a stable prepared record and lose the HTTP acknowledgement.
+    // Only the exact persisted row can recover a retry; delivery is never inferred.
+    if(uncertainPreparation){
+      const op=uncertainPreparation;
+      try{
+        const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
+          .bind(op.id,op.customerId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
+        if(saved){
+          if((saved.estimateId??"")!==op.estimateId||saved.channel!==op.channel||
+            saved.template!==op.template||saved.body!==op.body)
+            return privateJson({error:"That message operation belongs to different saved content. No new handoff was started."},{status:409});
+          const closed=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
+            .bind(op.id+":owner-confirmed",op.id+":owner-cancelled").first();
+          if(closed)return privateJson({error:"This prepared message was already confirmed or discarded. Reopen history; no new handoff was started."},{status:409});
+          return privateJson({message:saved,duplicate:true,recoveredAfterUncertainPreparation:true,deliveryConfirmed:false},{status:200});
+        }
+      }catch{/* No exact stored row: never infer preparation or delivery. */}
+    }
+    return privateJson({ error:"Communication save could not be verified. Refresh saved messages before retrying.",
+      saveUncertain:true,requestId:uncertainPreparation?.id??null,deliveryConfirmed:false }, { status:503 });
   }
 }
 
