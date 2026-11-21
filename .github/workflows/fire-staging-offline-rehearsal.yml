@@ -320,6 +320,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
           node --experimental-strip-types scripts/test-manual-payment-confirmation.mjs
+          # Actual QA+DR GET routes: nonthrowing D1 ledger/checkout failures must not display $0 or leak owner records.
+          node scripts/test-qa-dr-payment-history-d1-confirmed.mjs "$GITHUB_WORKSPACE/business-app-parity/shared/app/api/payments/route.ts" "$GITHUB_WORKSPACE/fire-app-dr/app/api/payments/route.ts"
       - name: Gate 5 actual invoice list, detail, editor, estimate history and customer billing ownership (native SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
