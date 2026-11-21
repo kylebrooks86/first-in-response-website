@@ -1,6 +1,7 @@
 import { processingAmounts } from "../../../lib/processing-fees";
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import { readOwnerWriteObject } from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const paymentPrivateHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
@@ -53,13 +54,27 @@ async function savePayment(request: Request) {
     return Response.json({error:"DR payment recording is disabled until the isolated TEST environment is explicitly authorized."},
       {status:503,headers:{"cache-control":"no-store"}});
   try {
-    const body = await request.json() as Record<string, unknown>;
-    const estimateId = String(body.estimateId ?? "").trim();
-    const amountCents = Math.round(Number(body.amountCents) || 0);
-    const tipCents = Math.round(Number(body.tipCents) || 0);
-    const method = String(body.method ?? "Other").trim() || "Other";
-    const reference = String(body.reference ?? "").trim() || null;
-    let accounting: ReturnType<typeof processingAmounts>;
+    // Match the QA-master owner money-write boundary: reject cross-origin
+    // browser forms, malformed JSON and oversized UTF-8 before touching D1.
+    // This DOES NOT enable DR financial writes when TEST mode is disabled.
+    const parsed=await readOwnerWriteObject(request,16_000);
+    if(parsed.response)return parsed.response;
+    const body=parsed.value as Record<string,unknown>;
+    const estimateId=String(body.estimateId??"").trim();
+    // Never round or coerce malformed amounts into a different financial
+    // entry. Exact whole cents must be preserved even on independent DR.
+    const amountCents=body.amountCents;
+    const tipCents=body.tipCents===undefined?0:body.tipCents;
+    if(typeof amountCents!=="number"||!Number.isSafeInteger(amountCents)||amountCents<0||
+       typeof tipCents!=="number"||!Number.isSafeInteger(tipCents)||tipCents<0||
+       !Number.isSafeInteger(amountCents+tipCents))
+      return Response.json({error:"Payment and tip must be valid, exact whole-cent amounts."},{status:400});
+    const method=String(body.method??"Other").trim()||"Other";
+    // FIRE never accepts checks, including through stale/offline clients.
+    if(/\b(?:checks?|cheques?)\b/i.test(method))
+      return Response.json({error:"FIRE does not accept checks. Choose the payment method actually received."},{status:400});
+    const reference=String(body.reference??"").trim()||null;
+    let accounting:ReturnType<typeof processingAmounts>;
     try { accounting=processingAmounts(amountCents,tipCents,body.processingFeeCents,method); }
     catch(error) { return Response.json({error:error instanceof Error?error.message:"Invalid processing fee."},{status:400}); }
 
