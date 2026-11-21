@@ -160,6 +160,7 @@ const refundScope={exports:{},Response,Date,Intl,Number,String,Array,JSON,
   require(name){
     if(name==='cloudflare:workers')return {env:refundEnv};
     if(name==='../../../owner-auth')return {getOwnerUser:refundSession};
+    if(name==='../../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:drOwnerJsonGuard};
     throw Error('Unexpected DR refund dependency '+name);
   }};
 vm.runInNewContext(refundCode,refundScope);
@@ -176,6 +177,36 @@ for(const [who,expected] of [['foreign',401],['missing',401],['owner',503]]){
   eq(refundReads,before,'DR refund POST '+who+' no D1 touch');
   if(who==='owner')eq((await result.json()).error.includes('disabled'),true,'DR refund TEST/provider remains disabled');
 }
+// The actual DR refund POST must reject malformed/cross-site inputs before
+// ANY D1 row access or Stripe request even under an isolated TEST opt-in.
+// Use the real shared stream parser; do not call a provider or create a refund.
+refundPrincipal='owner';
+refundEnv.FIRE_STRIPE_MODE='test';
+refundEnv.STRIPE_SECRET_KEY='sk_test_synthetic_only';
+const refundValid={paymentId:'synthetic-p1',requestId:'synthetic-r1',amountCents:100};
+const refundHeaders={'origin':'https://dr.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+const badRefunds=[
+  ['cross-site origin',{...refundHeaders,origin:'https://attacker.invalid','sec-fetch-site':'cross-site'},JSON.stringify(refundValid),403],
+  ['sibling site',{...refundHeaders,origin:'https://another.dr.invalid','sec-fetch-site':'same-site'},JSON.stringify(refundValid),403],
+  ['HTML form',{...refundHeaders,'content-type':'text/plain'},JSON.stringify(refundValid),415],
+  ['oversized bytes',{...refundHeaders,'content-length':'16001'},JSON.stringify(refundValid),413],
+  ['fractional refund cents',refundHeaders,JSON.stringify({...refundValid,amountCents:100.5}),400],
+  ['string refund cents',refundHeaders,JSON.stringify({...refundValid,amountCents:'100'}),400],
+  ['null refund cents',refundHeaders,JSON.stringify({...refundValid,amountCents:null}),400],
+  ['nonobject JSON',refundHeaders,'[]',400],
+  ['malformed JSON',refundHeaders,'{',400],
+];
+for(const [label,headers,body,expected] of badRefunds){
+  const before=refundReads;
+  const response=await refundScope.exports.POST(new Request('https://dr.invalid/api/payments/refund',{
+    method:'POST',headers,body
+  }));
+  eq(response.status,expected,'DR refund POST '+label+' denied before D1/Stripe');
+  privateResponse(response,'DR refund POST '+label);
+  eq(refundReads,before,'DR refund POST '+label+' zero D1 or provider operations');
+}
+refundEnv.FIRE_STRIPE_MODE='disabled';
+delete refundEnv.STRIPE_SECRET_KEY;
 refundPrincipal='throw';
 const uncertain=await refundScope.exports.POST(new Request('https://dr.invalid/api/payments/refund',{
   method:'POST',headers:{'content-type':'application/json'},body:'{}'
