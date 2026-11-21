@@ -104,7 +104,7 @@ receipt=await send(review);eq(receipt.status,409,'Foreign invoice ownership bloc
 db.prepare('DELETE FROM invoices WHERE id=?').run('foreign-inv');
 db.prepare('INSERT INTO payment_checkout_sessions(id,estimate_id,status) VALUES (?,?,?)').run('open-checkout','e1','open');
 receipt=await send(review);eq(receipt.status,409,'Open checkout blocks review');
-db.prepare('DELETE FROM payment_checkout_sessions');
+db.prepare('DELETE FROM payment_checkout_sessions').run();
 db.prepare('INSERT INTO payments(id,estimate_id,status,type,amount_cents) VALUES (?,?,?,?,?)').run('overpay','e1','paid','Additional payment',100);
 receipt=await send(review);eq(receipt.status,409,'Overpayment blocks review');
 db.prepare('DELETE FROM payments WHERE id=?').run('overpay');
