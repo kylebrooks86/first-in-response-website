@@ -235,9 +235,13 @@ try{
  }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
 
+ // Run independent DR source fixture only when explicitly pinned by CI.
+ // The ordinary staging candidate is materialized outside the repository,
+ // so a relative ../../fire-app-dr path would NOT refer to the live PR source.
+ if(process.env.FIRE_DR_JOB_REPORT_ROUTE){
  // Exercise the INDEPENDENT DR route, not a synthetic substitute: it must
  // accept the QA-master job-report contract while denying unsafe reads/writes.
- const drRoute=rt.load('../../fire-app-dr/app/api/job-reports/route.ts');
+ const drRoute=rt.load(process.env.FIRE_DR_JOB_REPORT_ROUTE);
  const drJob='dr-report-parity';
  db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)")
   .run(drJob,customer,'scheduled',20000,20000,10000,at);
@@ -308,5 +312,6 @@ try{
  }))).status,409,'DR duplicate report cannot be overwritten');
  eq(db.prepare('SELECT COUNT(*) AS n FROM job_reports WHERE estimate_id=?').get(drJob).n,2,
   'DR duplicate detection never deletes either historical row');
+ }
  console.log('PASS '+checks+'/'+checks+' real JobReport API/native SQLite readback, legacy history, contact-free, no-op writes, lost-ack recovery and owner authorization. NO HOSTED WRITES.');
 }finally{rt.env.DB.prepare=orig;db.close();}
