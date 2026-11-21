@@ -234,5 +234,79 @@ try{
   eq(rt.counters(),before,scenario+' reads and writes no D1 records');
  }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
+
+ // Exercise the INDEPENDENT DR route, not a synthetic substitute: it must
+ // accept the QA-master job-report contract while denying unsafe reads/writes.
+ const drRoute=rt.load('../../fire-app-dr/app/api/job-reports/route.ts');
+ const drJob='dr-report-parity';
+ db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)")
+  .run(drJob,customer,'scheduled',20000,20000,10000,at);
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const drPayload={...input,estimateId:drJob,checklist:absent,
+  notes:'Synthetic DR customer absent; after photos and completion details retained.'};
+ const drSaved=await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+  method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(drPayload)
+ }));
+ eq(drSaved.status,201,'Independent DR report follows QA master first-save semantics');
+ assertPrivatePost(drSaved,'Independent DR saved report');
+ const drData=await drSaved.json();
+ const drDb=db.prepare('SELECT id,notes,status,completed_at AS completedAt FROM job_reports WHERE estimate_id=?').get(drJob);
+ eq(drData.report?.id,drDb.id,'Independent DR report uses real SQLite persisted identifier');
+ eq(drDb.status,'completed','Independent DR accepts documented absent-customer completion');
+ eq(drData.report?.completedAt,drDb.completedAt,'DR completion date comes from SQLite');
+ const drRead=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+ eq(drRead.status,200,'DR GET reads actual saved report');
+ assertPrivatePost(drRead,'Independent DR private GET');
+ eq((await drRead.json()).reports[0].id,drDb.id,'DR GET preserves saved identity');
+ for(const [label,ownerValue] of [
+  ['DR rejected owner provider',Promise.reject(Error('Synthetic independent DR auth outage'))],
+  ['DR throwing owner email',Object.defineProperty({},'email',{get(){throw Error('Unreadable DR principal');}})]
+ ]){
+  rt.setOwner(ownerValue);
+  const before=rt.counters();
+  const badGet=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+  eq(badGet.status,401,label+' denies GET');
+  assertPrivatePost(badGet,label+' private GET');
+  const badPost=await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+   method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(drPayload)
+  }));
+  eq(badPost.status,401,label+' denies POST');
+  assertPrivatePost(badPost,label+' private POST');
+  eq(rt.counters(),before,label+' performs zero D1 operations');
+ }
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const beforeForeign=rt.counters();
+ const foreign=await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+  method:'POST',headers:{'origin':'https://outside.invalid','sec-fetch-site':'cross-site','content-type':'application/json'},body:JSON.stringify(drPayload)
+ }));
+ eq(foreign.status,403,'DR denies foreign-origin owner report write');
+ assertPrivatePost(foreign,'DR origin refusal');
+ eq(rt.counters(),beforeForeign,'DR foreign-origin denial performs no D1 operation');
+ const beforeLarge=rt.counters();
+ const oversized=await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+  method:'POST',headers:{'content-length':'64001','content-type':'application/json'},body:'{}'
+ }));
+ eq(oversized.status,413,'DR refuses oversized declared report bytes');
+ eq(rt.counters(),beforeLarge,'DR oversize refusal performs no D1 operation');
+ const originalDrPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.includes('FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC'))
+   throw Error('Synthetic DR D1 report read outage');
+  return originalDrPrepare(sql);
+ };
+ const drOutage=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+ rt.env.DB.prepare=originalDrPrepare;
+ eq(drOutage.status,503,'DR D1 outage fails closed without inventing saved report state');
+ assertPrivatePost(drOutage,'DR D1 503');
+ db.prepare("INSERT INTO job_reports(id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES(?,?,?,?,?,'draft',?,NULL)")
+  .run('dr-report-historical-duplicate',drJob,customer,'{}','Synthetic DR duplicate',at);
+ const drDuplicate=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+ eq(drDuplicate.status,409,'DR duplicate historical report does not authorize completion');
+ assertPrivatePost(drDuplicate,'DR duplicate report conflict');
+ eq((await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+  method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(drPayload)
+ }))).status,409,'DR duplicate report cannot be overwritten');
+ eq(db.prepare('SELECT COUNT(*) AS n FROM job_reports WHERE estimate_id=?').get(drJob).n,2,
+  'DR duplicate detection never deletes either historical row');
  console.log('PASS '+checks+'/'+checks+' real JobReport API/native SQLite readback, legacy history, contact-free, no-op writes, lost-ack recovery and owner authorization. NO HOSTED WRITES.');
 }finally{rt.env.DB.prepare=orig;db.close();}
