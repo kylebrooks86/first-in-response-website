@@ -624,7 +624,9 @@ jobs:
       - name: Gate 8 report completion guarded against retired/reassigned job at D1 write (SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
-          node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
+          # Pin the independent DR route to THIS PR checkout, not the isolated
+          # staging materialization, while using only disposable SQLite.
+          FIRE_DR_JOB_REPORT_ROUTE="$GITHUB_WORKSPACE/fire-app-dr/app/api/job-reports/route.ts" node --experimental-sqlite scripts/test-job-report-saved-readback-sqlite.mjs
       - name: Gate 7 full owner records download private response contract (synthetic, no provider)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
