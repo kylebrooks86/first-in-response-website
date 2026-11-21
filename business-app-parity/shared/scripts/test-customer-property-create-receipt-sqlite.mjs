@@ -230,6 +230,28 @@ try{
   eq((await patch(archiveBase)).status,401,'Malformed identity cannot archive owner property');
   eq(rt.counters(),noAccess,'Malformed identity cannot reach property D1');
  }
+ // A session gateway rejection or an unreadable owner-email getter must be
+ // a private 401 on ALL three routes, with zero property reads or writes.
+ // Keep this native-route regression separate from ordinary null/bad identities.
+ for(const [label,identity] of [
+  ['unreadable owner email',{get email(){throw Error('Synthetic owner email unavailable');}}],
+  ['rejected owner session',{then(_resolve,reject){reject(Error('Synthetic auth gateway unavailable'));}}],
+ ]){
+  rt.setOwner(identity);
+  const deniedBefore=rt.counters();
+  const deniedGet=await route.GET(new Request('https://synthetic.invalid/api/customer-properties?customerId=owner-property-a'));
+  eq(deniedGet.status,401,label+' GET fails closed');
+  checkResponsePrivacy(deniedGet,label+' GET 401');
+  const deniedPost=await route.POST(raw(JSON.stringify({...base,operationId:id(6)})));
+  eq(deniedPost.status,401,label+' POST fails closed');
+  checkResponsePrivacy(deniedPost,label+' POST 401');
+  const deniedPatch=await route.PATCH(new Request('https://synthetic.invalid/api/customer-properties',{
+   method:'PATCH',body:JSON.stringify(archiveBase)
+  }));
+  eq(deniedPatch.status,401,label+' PATCH fails closed');
+  checkResponsePrivacy(deniedPatch,label+' PATCH 401');
+  eq(rt.counters(),deniedBefore,label+' cannot read or mutate property D1');
+ }
  rt.setOwner({email:'kylebrooks8605@gmail.com'});
  rt.env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE='disabled';
  eq((await post({...base,operationId:id(5)})).status,404,'Candidate disabled feature does not activate itself');
