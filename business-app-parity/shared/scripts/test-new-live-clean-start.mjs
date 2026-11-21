@@ -58,7 +58,17 @@ assert.match(communications,/deliveryConfirmed:false/);
 assert.match(communications,/confirmationSource:'owner'/);
 assert.match(communications,/ownerConfirmedSent:!op.cancelled/);
 assert.match(communications,/deliveryConfirmed:false,confirmationSource:'owner'/);
-assert.match(communications,/receipt\.template!==op.template\|\|receipt\.body!==expectedBody/);
+// QA's decision receipt validation is now shared by ordinary 200 and
+// uncertain-ack recovery, not embedded as one old inline catch expression.
+// Retain source-shape assertions *and* native SQLite behavioral coverage.
+assert.match(communications,/async function verifiedOwnerDecisionReceipt\(/);
+assert.match(communications,/value\.template!==expected\.template/);
+assert.match(communications,/value\.body!==expectedBody/);
+assert.match(communications,/value\.id!==expected\.id/);
+assert.match(communications,/const opposing=await env\.DB\.prepare/);
+assert.match(communications,/if\(!await verifiedOwnerDecisionReceipt\(receipt,confirmationOperation!\)\)/);
+assert.match(communications,/if\(!await verifiedOwnerDecisionReceipt\(message,confirmationOperation!\)\)/);
+assert.match(communications,/if\(!await verifiedOwnerDecisionReceipt\(receipt,op\)\)/);
 assert.match(communications,/\.bind\(op.estimateId,op.customerId\)\.first/);
 assert.doesNotMatch(communications,/deliveryConfirmed:!op.cancelled/);
 assert.match(communications,/estimateStatus:estimate\?\.status,ownerConfirmedSent:true/);
