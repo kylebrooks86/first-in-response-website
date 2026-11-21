@@ -39,9 +39,10 @@ export async function GET(request: Request) {
     // have coherent completion history before it is displayed as evidence.
     const report = rows.results[0] as SavedReport | undefined;
     if (report) {
-      const job = await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?")
-        .bind(estimateId).first<{ customerId: string }>();
+      const job = await env.DB.prepare("SELECT customer_id AS customerId,status FROM estimates WHERE id=?")
+        .bind(estimateId).first<{ customerId: string; status: string }>();
       if (!job || !job.customerId || job.customerId !== report.customerId ||
+          (report.status === "completed" && !["scheduled", "completed"].includes(job.status)) ||
           !["draft", "completed"].includes(report.status) ||
           (report.status === "completed" ? !report.completedAt : report.completedAt != null))
         return Response.json({ error: "Saved job report identity or completion history is inconsistent. Review the job before relying on this report." },
