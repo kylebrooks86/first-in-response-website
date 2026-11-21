@@ -9,7 +9,7 @@ assert.ok(routePath,'Pass original QA-master customers route path from PR checko
 let mode='',principal='owner',readBatches=0,checks=0;
 const eq=(actual,expected,label)=>{assert.equal(actual,expected,label);checks++;};
 const safe=()=>({success:true,results:[]});
-const db={async batch(statements){
+const db={prepare(sql){return {sql};},async batch(statements){
   readBatches++;
   eq(statements.length,8,'customer GET keeps all eight separately checked reads');
   if(mode==='throw')throw Error('Synthetic unavailable D1');
@@ -63,14 +63,18 @@ for(const bad of ['missing','numeric','unreadable','other','throw']){
 principal='owner';
 for(const failure of ['throw','nonarray','short','soft','missing']){
   mode=failure;
+  const beforeBatch=readBatches;
   const r=await scope.exports.GET();
+  eq(readBatches,beforeBatch+1,failure+" actually exercises D1 batch");
   eq(r.status,503,failure+' nonconfirmed customer D1 batch not empty list');
   verifyPrivate(r,failure);
   const body=await r.json();
   eq('customers' in body,false,failure+' never claims complete customer records');
 }
 mode='';
+const beforeSuccess=readBatches;
 const r=await scope.exports.GET();
+eq(readBatches,beforeSuccess+1,"verified empty directory reads all eight D1 statements");
 eq(r.status,200,'genuinely verified empty directory may return 200');
 verifyPrivate(r,'real empty');
 const data=await r.json();
