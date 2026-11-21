@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-CUSTOMER-RECEIPT-C276722 -->
+## November 21 — [x] independent DR customer CREATE D1 readback/retry source; [x] real-handler SQLite tests committed (NO DEPLOY)
+
+- [x] **Actual DR customer source:** [`ae9c4b1`](https://github.com/kylebrooks86/first-in-response-website/commit/ae9c4b1845d84021a70c22b3ebf92289b4a23861) updates `fire-app-dr/app/api/customers/route.ts` so owner customer creation now verifies an exact physically saved D1 row **after** INSERT before claiming 201, accepts an optional UUID `requestId` for replay, reports an existing matching request with 200/duplicate rather than inserting another customer, blocks conflicting UUID/data with private 409, and attempts same-ID readback when INSERT acknowledgment is lost/returns unsuccessful. Unconfirmed writes/readback respond private 503 `saveUncertain:true` preserving `requestId`; no automatic second INSERT. Previously accepted strict owner/64 KB streamed JSON/Origin/Fetch Metadata/private headers remain unchanged.
+- [x] **Actual independent DR route/native SQLite tests:** [`d35f2b7`](https://github.com/kylebrooks86/first-in-response-website/commit/d35f2b70774a347b6e2c8242c2897fcace6bc1fe) and fixture refinement [`c276722`](https://github.com/kylebrooks86/first-in-response-website/commit/c2767223d028d1f61432ae26da79e4037efbd49c) extend the existing CI-wired `test-dr-customer-directory-private.mjs` suite, preserving prior unauthorized/origin/body zero-D1 assertions and adding real normal CREATE, same-ID replay/conflict, invalid UUID zero-prepare, lost/soft ACK readback recovery, failed write, unavailable post-insert readback and safe later retry with only one INSERT.
+- [ ] **Exact changed-executable+test CI** for `c2767223d028d1f61432ae26da79e4037efbd49c` is pending automatic GitHub Actions result. Do not claim PASS until the actual changed-route test step and workflow outcome are read back; do not manually rerun accepted provider/owner or unchanged CI.
+- [ ] **Remaining complete DR customer parity (permanent numbering, all QA-master validation/duplicate-contact rules) and hosted G4/G5/G6/G7/G9/G10** remain OPEN. Source/test authoring [x] is NOT a new original numbered 95-item acceptance. Original formal **51/95 accepted (44 open); 4/10 whole gates G1/G2/G3/G8 accepted**; STAGING physically last 22/25, DR/NEW LIVE DARK/NO-GO, first real LIVE Job #0001 unused. No paid R2, Cloudflare login/provider/Worker/Access/SQL/D1, Stripe, payment, real customers, Git merge or deployment.
+
+---
+
 <!-- FIRE-NOV21-DR-ESTIMATE-CREATE-4DC2D36 -->
 ## November 21 — [x] DR estimate CREATE hardening committed; [x] 17 actual-route checks authored; previous full exact-source CI VERIFIED (NO DEPLOY)
 
