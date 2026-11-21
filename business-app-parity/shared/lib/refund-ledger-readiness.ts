@@ -20,7 +20,9 @@ export async function refundLedgerObjectsPresent(db: Cloudflare.Env["DB"]): Prom
       WHERE name IN ('payment_refunds','idx_payment_refunds_payment_status',
         'idx_payment_refunds_estimate_status','idx_payment_refunds_provider')
         AND type IN ('table','index')`).all<{ name: string; type: string; tableName: string }>();
-    if (!Array.isArray(found.results) || found.results.length !== REQUIRED_OBJECTS.length) return false;
+    // D1 can return an unsuccessful result without throwing. Its rows must never
+    // establish refund-ledger readiness if the metadata SELECT itself failed.
+    if ((found as { success?: boolean }).success === false || !Array.isArray(found.results) || found.results.length !== REQUIRED_OBJECTS.length) return false;
     const names = new Set<string>();
     for (const row of found.results) {
       if (!row || typeof row.name !== "string" || names.has(row.name)) return false;
