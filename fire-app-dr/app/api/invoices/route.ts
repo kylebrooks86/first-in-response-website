@@ -2,25 +2,35 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getOwnerUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
+async function authorized(){try{const user=await getOwnerUser();return typeof user?.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL;}catch{return false;}}
+const invoiceResponse=(data:unknown,status=200)=>Response.json(data,{status,headers:{"cache-control":"private, no-store","vary":"Cookie","x-content-type-options":"nosniff"}});
 
 export async function GET() {
-  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await authorized()) return invoiceResponse({ error: "Unauthorized" },401);
   try {
-    const result = await env.DB.prepare(`SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.discount_type AS discountType,inv.discount_value AS discountValue,inv.total_cents AS totalCents,inv.due_at AS dueAt,inv.share_token AS shareToken,inv.first_viewed_at AS firstViewedAt,inv.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
+    const result = await env.DB.prepare(`SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,e.customer_id AS estimateCustomerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.discount_type AS discountType,inv.discount_value AS discountValue,inv.total_cents AS totalCents,inv.due_at AS dueAt,inv.share_token AS shareToken,inv.first_viewed_at AS firstViewedAt,inv.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM invoice_items ii WHERE ii.invoice_id=inv.id),'Custom service') AS service,
       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
       COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
       FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id ORDER BY inv.created_at DESC`).all();
-    const invoiceFinancialsSafe=(result.results as Record<string,unknown>[]).every((row)=>{
+    // Never treat an unsuccessful, incomplete D1 read as an empty invoice ledger.
+    if((result as {success?:boolean}).success===false||!Array.isArray(result?.results))
+      return invoiceResponse({error:"Invoices are temporarily unavailable."},503);
+    const invoiceRows=result.results as Record<string,unknown>[];
+    // An invoice belonging to a different customer than its estimate must not
+    // expose either customer's billing or bearer share token.
+    if(invoiceRows.some(row=>typeof row.customerId!=="string"||typeof row.estimateCustomerId!=="string"||row.customerId!==row.estimateCustomerId))
+      return invoiceResponse({error:"Invoice customer associations require owner review before billing."},409);
+    const invoiceFinancialsSafe=invoiceRows.every((row)=>{
       const values=[row.subtotalCents,row.discountCents,row.totalCents,row.paidCents,row.paymentOverageOpen,row.pendingRefundCount];
       return values.every((value)=>Number.isSafeInteger(Number(value))&&Number(value)>=0);
     });
-    if(!invoiceFinancialsSafe)return Response.json({error:"Invoice billing totals require owner review before FIRE can safely summarize them."},{status:409});
-    return Response.json({ invoices: result.results });
-  } catch { return Response.json({ error: "Invoices are temporarily unavailable." }, { status: 503 }); }
+    if(!invoiceFinancialsSafe)return invoiceResponse({error:"Invoice billing totals require owner review before FIRE can safely summarize them."},409);
+    const invoices=invoiceRows.map(({estimateCustomerId,...invoice})=>invoice);
+    return invoiceResponse({invoices});
+  } catch { return invoiceResponse({ error: "Invoices are temporarily unavailable." },503); }
 }
 
 export async function POST(request: Request) {
