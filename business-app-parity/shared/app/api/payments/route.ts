@@ -34,6 +34,11 @@ export async function GET() {
     JOIN customers c ON c.id=e.customer_id
     ORDER BY p.created_at DESC
   `).all();
+  // D1 can report a nonthrowing unsuccessful read. Never display a false
+  // empty payment history when a financial SELECT did not confirm success.
+  if ((result as {success?:boolean}).success === false || !Array.isArray(result.results))
+    return Response.json({error:"Payment history is temporarily unavailable. No payment records were changed."},
+      {status:503,headers:ownerPaymentHistoryHeaders});
   const paymentRowsSafe=(result.results as Record<string,unknown>[]).every((row)=>{
     const amount=Number(row.amountCents);
     const refunded=Number(row.refundedCents??0);
@@ -50,6 +55,9 @@ export async function GET() {
     JOIN customers c ON c.id=e.customer_id
     WHERE s.status='open'
     ORDER BY s.created_at DESC LIMIT 50`).all();
+  if ((checkoutIssues as {success?:boolean}).success === false || !Array.isArray(checkoutIssues.results))
+    return Response.json({error:"Payment history is temporarily unavailable. No payment records were changed."},
+      {status:503,headers:ownerPaymentHistoryHeaders});
   return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:ownerPaymentHistoryHeaders});
   } catch {
     // A failed financial D1 read cannot masquerade as an empty payment list or
