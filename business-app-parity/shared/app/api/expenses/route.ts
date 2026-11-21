@@ -30,7 +30,7 @@ export async function GET(request:Request){
     // A D1 query can report failure without throwing. A missing results
     // collection is also not evidence that there are zero saved expenses.
     // Fail closed for both JSON history and Wave CSV to avoid false books.
-    if(rows?.success===false || !Array.isArray(rows?.results))
+    if((rows as {success?:boolean}).success===false || !Array.isArray(rows?.results))
       throw new Error("D1 expense read not confirmed");
     if(isCsv){
     // A late December 31 owner expense can be January 1 in UTC.
