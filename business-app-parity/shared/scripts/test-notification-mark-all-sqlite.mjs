@@ -243,21 +243,44 @@ try{
  const drRead=async()=>{const r=await dr.GET();return {status:r.status,data:await r.json(),headers:r.headers};};
  const drPatch=async body=>{const r=await dr.PATCH(new Request('https://synthetic.invalid/api/notifications',{
    method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
- }));return {status:r.status,data:await r.json()};};
+ }));return {status:r.status,data:await r.json(),headers:r.headers};};
  for(let n=100;n<151;n++)put(n);
  const expectedUnread=rows().filter(row=>row.read_at===null).length;
  const drStart=await drRead();
  check(drStart.status===200&&drStart.data.notifications.length===40&&
        drStart.data.unread===expectedUnread&&expectedUnread>40&&
-       drStart.headers.get('cache-control')==='no-store, private',
+       drStart.headers.get('cache-control')==='private, no-store',
    'Real DR GET counts every unread notification, even when the visible list stops at 40');
+ check(drStart.headers.get('vary')==='Cookie'&&drStart.headers.get('x-content-type-options')==='nosniff',
+   'DR notification GET carries the QA-master cookie-varying nosniff boundary');
+ const drBeforeDenied=rt.counters();
+ rt.setOwner(null);
+ const drNoOwnerRead=await drRead(),drNoOwnerWrite=await drPatch({all:true});
+ check(drNoOwnerRead.status===401&&drNoOwnerWrite.status===401,
+   'DR anonymous identity is denied both notification GET and PATCH');
+ check(JSON.stringify(rt.counters())===JSON.stringify(drBeforeDenied),
+   'DR anonymous requests do not touch notification D1');
+ assertPrivatePatch(drNoOwnerWrite,'DR anonymous PATCH');
+ check(drNoOwnerRead.headers.get('cache-control')==='private, no-store'&&drNoOwnerRead.headers.get('vary')==='Cookie'&&drNoOwnerRead.headers.get('x-content-type-options')==='nosniff',
+   'DR anonymous GET denial is private and noncacheable');
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const drOriginalGetPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=()=>{throw Error('Synthetic DR notification D1 failure')};
+ try{
+   const failedRead=await drRead();
+   check(failedRead.status===503&&failedRead.headers.get('cache-control')==='private, no-store'&&failedRead.headers.get('vary')==='Cookie'&&failedRead.headers.get('x-content-type-options')==='nosniff',
+     'DR failed notification D1 read returns private 503 without leaking activity');
+ }finally{rt.env.DB.prepare=drOriginalGetPrepare;}
+
  const drMixed=await drPatch({all:true,id:id(100)});
+ assertPrivatePatch(drMixed,'DR conflicting owner notification PATCH');
  check(drMixed.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
    'DR refuses conflicting mark-all and single-notification actions without writes');
  const drInvalid=await drPatch({all:1});
  check(drInvalid.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
    'DR rejects nonboolean mark-all requests before changing records');
  const drAll=await drPatch({all:true});
+ assertPrivatePatch(drAll,'DR confirmed mark-all PATCH');
  check(drAll.status===200&&drAll.data.unread===0&&rows().every(row=>row.read_at!==null)&&
        rows().find(row=>row.id===id(7)).resolved_at===null,
    'DR Mark All confirms all read rows without clearing unresolved payment alerts');
@@ -287,6 +310,7 @@ try{
  };
  put(203);
  const drFailed=await drPatch({id:id(203),resolve:true});
+ assertPrivatePatch(drFailed,'DR uncertain notification save PATCH');
  check(drFailed.status===503&&drFailed.data.saveUncertain===true&&
        rows().find(row=>row.id===id(203)).resolved_at===null,
    'DR unconfirmed SQLite response does not claim resolution success');

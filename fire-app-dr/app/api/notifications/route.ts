@@ -2,9 +2,18 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
+// DR owner activity is as private as QA-master activity. Retain status,
+// response body and existing lost-ack financial/notification receipts.
+const privateNotificationHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+function privateNotificationResponse(response:Response):Response{
+  const headers=new Headers(response.headers);
+  for(const [key,value] of Object.entries(privateNotificationHeaders))headers.set(key,value);
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
+
 async function authorized(){try{const user=await getOwnerUser();return typeof user?.email==="string" && user.email.toLowerCase()===OWNER_EMAIL;}catch{return false;}}
 
-export async function GET(){
+async function readNotifications(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
     // Count ALL unread records before limiting the visible activity page.
@@ -17,7 +26,7 @@ export async function GET(){
   }catch{return Response.json({notifications:[],unread:0,error:"Notifications are temporarily unavailable."},{status:503});}
 }
 
-export async function PATCH(request:Request){
+async function patchNotifications(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
     const value=await request.json() as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"keep"|string};
@@ -106,3 +115,7 @@ export async function PATCH(request:Request){
     else return Response.json({error:"Choose a notification."},{status:400});
   }catch{return Response.json({error:"Notifications could not be updated."},{status:500});}
 }
+
+// All owner and denied GET/PATCH receipts share the same session-private boundary.
+export async function GET(){return privateNotificationResponse(await readNotifications());}
+export async function PATCH(request:Request){return privateNotificationResponse(await patchNotifications(request));}
