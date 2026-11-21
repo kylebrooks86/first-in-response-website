@@ -1,3 +1,15 @@
+<!-- FIRE-NOV21-DR-NOTIFICATION-PRIVATE-CF6E12E -->
+## November 21, 2026 — independent DR notification owner response privacy (source only; CI pending)
+
+- **Actual integrated review remains main-target unmerged DRAFT PR #282** `work/fire-private-notes-followup-search-20261119`. Exact new source+test commit [`cf6e12e01e04612fc6a1981d7b5b6ba1b9a8636a`](https://github.com/kylebrooks86/first-in-response-website/commit/cf6e12e01e04612fc6a1981d7b5b6ba1b9a8636a), parent `9ec47f3102bc37fee0b7d75cb430452f9987bfa7`; 2 files in **one atomic commit**. No previous source checkpoint or owner evidence reset.
+- **Actual newly fixed independent DR defect:** `fire-app-dr/app/api/notifications/route.ts` previously emitted GET/PATCH owner/anonymous, unavailable-D1 and some uncertain-write notifications without the QA-master session-private boundary. The existing handlers now have a response wrapper that preserves status, body, prior write/lost-ACK logic and owner authentication while adding `Cache-Control: private, no-store`, `Vary: Cookie`, `X-Content-Type-Options: nosniff` to ALL GET/PATCH receipts. No customer/financial D1 SQL, UI or live Worker was modified.
+- **Existing native SQLite actual-route test extended, not duplicated:** `business-app-parity/shared/scripts/test-notification-mark-all-sqlite.mjs` now checks DR normal GET, anonymous read/write denials with no DB calls, D1 failure read 503, rejected mixed action, confirmed mark-all save and uncertain write receipts for matching private headers. Prior DR notification Mark All/single resolve functionality assertions retained. This is **committed test source, not yet CI proof**.
+- **Verification boundary:** Readback confirmed PR #282 HEAD and exact DR blob `545aab68c3f84989482957dc90e8da007a97b50e`; initial exact-code GitHub CI 8/27 source workflow groups queued, no PASS asserted. Earlier `ba1b5e8` door-source group completed 22 SUCCESS / five CANCELLED due supersession and is not a 27/27 seal. Check latest actual GitHub Action test step and full 27 groups; do not rerun owner iPhone/Acer/Cloudflare.
+- **UNCHANGED FORMAL RELEASE:** 51/95 original checks accepted (44 OPEN), full G1/G2/G3/G8 = **4/10 gates accepted**; G4/G5/G6/G7/G9/G10 OPEN. STAGING Access all traffic / preview off / external anonymous `login_required` are already accepted partial subproof; STAGING physical D1 22/25, DR/NEW LIVE dark 26/26, NEW LIVE NO-GO and true Job #0001 unused. Source fix does **not** prove hosted DR parity, nonowner enforcement or acceptance of G6.
+- **No approval or mutation:** no Cloudflare/Access/route/Worker deployment or sign-in, no D1 migration/data write, no R2/subscription, Stripe, payment, customer/photo, merge, DNS or public publication. Next fresh owner screenshot (only if a session already exists): account-wide zone-level Worker routing inventory for previously open G4-05, NOT repeat Worker Domains/Access screenshots.
+
+---
+
 <!-- FIRE-NOV21-DOOR-WRITE-PRIVATE-BA1B5E8 -->
 ## November 21, 2026 — actual owner door-knocking rejected-write privacy and origin test (SOURCE ONLY)
 
