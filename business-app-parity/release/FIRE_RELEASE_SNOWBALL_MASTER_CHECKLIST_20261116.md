@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-OWNER-RELEASE-INTENT-7068206086 -->
+## November 21 — [x] OWNER release authorization received and permanently evidenced; final exact-target launch remains [ ]
+
+- [x] **Existing G10 owner-authorization evidence subtask DONE:** the owner explicitly stated **“i authorize release”** in the FIRE project chat on November 21, 2026, when asked for release authorization. Exact owner statement and scope documented in [Issue #19 receipt #7068206086](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7068206086). This direct approval must not be lost or requested again as if it never happened.
+- [ ] **G10-06 still requires operation-specific approvals** identifying reviewed immutable SHA, named QA/STAGING/DR/NEW LIVE target, exact merge/deployment/SQL/Access/routes/Stripe action and preservation/rollback guard. A broad release authorization is not automatic permission to mutate unverified provider state or payments.
+- [ ] **G10-10 remains the final version-bound NEW LIVE go/no-go plus rollback acceptance** after gates G4/G5/G6/G7/G9 and complete QA-master hosted parity are evidenced; do not falsely check the original full criterion before it is ready.
+
+**Real checkbox now closed: [x] owner direct release authorization received and recorded.** This advances the existing G10 authorization process, **not** the original full 95-item acceptance count (still **51/95** accepted, 44 open) and not a release-gate closure (still **4/10** accepted G1/G2/G3/G8). Active integrated DRAFT PR #282 remains unmerged; STAGING D1 physical 22/25, DR/NEW LIVE DARK/NO-GO, first real Job #0001 unused. No Cloudflare/login/paid R2, provider/SQL/Stripe/Access change, merge, deploy, payment, publication or live cutover performed.
+
+---
+
 <!-- FIRE-NOV21-QA-MESSAGE-DECISION-SOURCE-CHECKOFF-3863A9A -->
 ## November 21 — [x] QA-master false-success owner communication decision source defect repaired; targeted SQLite cases added
 
