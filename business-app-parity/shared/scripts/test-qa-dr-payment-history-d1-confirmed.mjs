@@ -109,6 +109,7 @@ for(const [label,file] of [['QA',qaPath],['DR',drPath]]){
       if(who==='owner'){
         eq((await response.json()).error.includes('disabled'),true,'DR no provider payment without TEST approval');
       }
+    }
     // The previously unbounded DR POST parser accepted cross-site forms and
     // silently rounded fractional cents if DR TEST mode was enabled.
     // Verify the REAL exported handler + REAL guard now reject these BEFORE
@@ -139,7 +140,6 @@ for(const [label,file] of [['QA',qaPath],['DR',drPath]]){
       eq(reads,before,'DR payment POST '+label+' no D1 or Stripe action');
     }
     env.FIRE_STRIPE_MODE='disabled';
-    }
   }
 }
 
