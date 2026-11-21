@@ -534,6 +534,8 @@ jobs:
           node --experimental-sqlite scripts/test-dr-dashboard-summary-private.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/dashboard-summary/route.ts"
           # Independent DR full customer directory: eight actual SELECTs, wrong-customer invoice and private D1 failure.
           node --experimental-sqlite scripts/test-dr-customer-directory-private.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/customers/route.ts"
+          # QA-master customer full-list read: eight D1 batches and owner session cannot silently fail open/empty.
+          node scripts/test-qa-customer-directory-d1-confirmed.mjs "$GITHUB_WORKSPACE/business-app-parity/shared/app/api/customers/route.ts"
       - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
