@@ -127,14 +127,27 @@ class DRInvoiceOwnership(unittest.TestCase):
         payments = (REPO / "fire-app-dr/app/api/payments/route.ts").read_text(encoding="utf-8")
         for name, source in (("refund",refund),("webhook",webhook)):
             with self.subTest(name=name):
-                post = source[source.index("export async function POST("):]
+                if name == "refund":
+                    # The exported POST now applies private response headers.
+                    # Check its delegated real handler, not just the wrapper.
+                    post = source[source.index("async function saveRefund("):source.index("export async function POST(")]
+                    wrapper = source[source.index("export async function POST("):]
+                    self.assertIn("response=await saveRefund(request)", wrapper)
+                    self.assertIn("refundPrivateHeaders", wrapper)
+                    self.assertIn('saveUncertain:true', wrapper)
+                else:
+                    post = source[source.index("export async function POST("):]
                 self.assertIn('FIRE_STRIPE_MODE',post)
                 self.assertIn('_test_',post)
                 self.assertIn('cache-control',post)
                 self.assertLess(post.index("FIRE_STRIPE_MODE"),
                     post.index("request.json()") if name=="refund" else post.index("request.text()"),
                     "TEST-only guard must precede all request-triggered financial actions")
-        owner_post=payments[payments.index("export async function POST("):]
+        owner_post=payments[payments.index("async function savePayment("):payments.index("export async function POST(")]
+        owner_wrapper=payments[payments.index("export async function POST("):]
+        self.assertIn("response = await savePayment(request)",owner_wrapper)
+        self.assertIn("paymentPrivateHeaders",owner_wrapper)
+        self.assertIn("saveUncertain: true",owner_wrapper)
         self.assertLess(owner_post.index('FIRE_STRIPE_MODE'),owner_post.index("request.json()"))
         self.assertIn('FIRE_STRIPE_MODE!=="test"',owner_post)
         self.assertIn("export async function GET()",payments,"Read-only owner payment history preserved")
