@@ -18,6 +18,66 @@ async function authorized(){
   }catch{return false;}
 }
 
+// QA-master-compatible pending prepared-message recovery, read-only. Never
+// treat a failed D1 read as an empty handoff queue or infer message delivery.
+export async function GET(request:Request) {
+  if(!await authorized())return privateJson({error:"Unauthorized"},{status:401});
+  const params=new URL(request.url).searchParams;
+  const customerId=params.get("customerId")??"";
+  const estimateId=params.get("estimateId")??"";
+  const rawCursor=params.get("cursor");
+  let cursor:{createdAt:string;id:string}|null=null;
+  if(rawCursor!==null){
+    if(rawCursor.length>210)return privateJson({error:"Invalid prepared-message cursor."},{status:400});
+    const match=/^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z)\\|([A-Za-z0-9:._-]{1,128})$/.exec(rawCursor);
+    if(!match||!Number.isFinite(Date.parse(match[1])))
+      return privateJson({error:"Invalid prepared-message cursor."},{status:400});
+    cursor={createdAt:match[1],id:match[2]};
+  }
+  if(!customerId||customerId.length>128||estimateId.length>128)
+    return privateJson({error:"A customer and optional job ID are required."},{status:400});
+  try{
+    const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
+    if(!customer)return privateJson({error:"Customer not found."},{status:404});
+    if(estimateId){
+      const linked=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=?").bind(estimateId,customerId).first();
+      if(!linked)return privateJson({error:"That job does not belong to the selected customer."},{status:409});
+    }
+    const result=await env.DB.prepare(`
+      SELECT m.id,m.customer_id AS customerId,m.estimate_id AS estimateId,
+        m.channel,m.template,m.body,m.created_at AS createdAt
+      FROM customer_messages m
+      WHERE m.customer_id=?
+        AND ((?='' AND m.estimate_id IS NULL) OR (?<>'' AND m.estimate_id=?))
+        AND m.channel IN ('text_prepared','email_prepared')
+        AND NOT EXISTS (
+          SELECT 1 FROM customer_messages confirmed
+          WHERE confirmed.id=m.id||':owner-confirmed' AND confirmed.customer_id=m.customer_id
+            AND confirmed.channel IN ('text_confirmed','email_confirmed')
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM customer_messages cancelled
+          WHERE cancelled.id=m.id||':owner-cancelled' AND cancelled.customer_id=m.customer_id
+            AND cancelled.channel='send_cancelled'
+        )
+        AND (? IS NULL OR m.created_at<? OR (m.created_at=? AND m.id<?))
+      ORDER BY m.created_at DESC,m.id DESC LIMIT 11
+    `).bind(customerId,estimateId,estimateId,estimateId,
+      cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null)
+      .all<{id:string;createdAt:string}>();
+    if((result as unknown as {success?:boolean}).success===false||!Array.isArray(result.results))
+      return privateJson({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503});
+    const rows=result.results,page=rows.slice(0,10),last=page.at(-1);
+    const nextCursor=rows.length>10&&last&&
+      /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$/.test(last.createdAt)&&
+      /^[A-Za-z0-9:._-]{1,128}$/.test(last.id)
+        ?last.createdAt+"|"+last.id:null;
+    return privateJson({pending:page,mayHaveMore:rows.length>10,nextCursor});
+  }catch{
+    return privateJson({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503});
+  }
+}
+
 export async function POST(request: Request) {
   if (!await authorized()) return privateJson({ error: "Unauthorized" }, { status: 401 });
   try {
