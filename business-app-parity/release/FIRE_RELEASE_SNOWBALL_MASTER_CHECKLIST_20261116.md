@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-EXPENSE-HISTORY-EXACT-SHA-CI-936465D -->
+## November 21, 2026 — [x] newest QA/DR saved expense-history guard EXACT-SOURCE CI verified (source-only)
+
+- [x] **Current altered executable/test source was actually exercised**, on unmerged integrated draft PR #282, exact SHA [`936465d240c8d6da07693e1a27cfe9eb6868a3c2`](https://github.com/kylebrooks86/first-in-response-website/commit/936465d240c8d6da07693e1a27cfe9eb6868a3c2). Four preceding actual route/test commits independently corrected QA and separate DR `GET /api/expenses` JSON history to reject saved invalid date/non-whole-cent financial rows with private HTTP 503 instead of silently displaying them as good; new native SQLite regression cases assert the refusal and intact saved rows. Valid expense JSON, CSV, owner authentication and write/idempotency paths were preserved. Prior Issue #19 proof recorded focused **QA PASS 137, DR PASS 178, expense POST PASS 65** on this exact code/test commit, total 380 focused assertions.
+- [x] **Previously pending complete changed-source CI accepted NOW by independent GitHub readback**, NOT by re-running tests: [exact-commit GitHub Actions](https://github.com/kylebrooks86/first-in-response-website/commit/936465d240c8d6da07693e1a27cfe9eb6868a3c2/checks) returned **27/27 workflow groups completed SUCCESS**, zero failures/cancellations/pending. The [QA/STAGING six-job run 44945059523](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44945059523) finished **6/6 jobs SUCCESS**; the actual shared-app/native SQLite [job 136970513962](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44945059523/job/136970513962) and its source build, owner expense/save and DR route exercise all completed successfully. This is one real now-closed **source/test verification subtask**, not a newly accepted original numbered release item or a hosted app test.
+- [ ] **Provider-hosted QA/STAGING/DR/LIVE expense parity, hosted G5/G6, nonowner denial, full future-data recovery and signed TEST payments** remain unverified and unchanged; historical specific TEST inactive 0%-traffic Worker authorization is already APPROVED but **unexecuted** and pinned to earlier source/artifact SHA `56ba4b5`, NOT this newer expense-code SHA. Do not silently substitute a newer source or consume/re-ask that consent.
+
+**Original formal board unchanged: 51/95 original items accepted, 44 open; G1/G2/G3/G8 = 4/10 gates accepted, G4/G5/G6/G7/G9/G10 OPEN.** Actual hosted STAGING D1 last physically verified 22/25; DR and NEW LIVE DARK/NO-GO, first real Job #0001 unissued. No Cloudflare login/POST, old HTTP 500/code10013 retry, paid R2, Worker/Access/routing/D1/Stripe/payment, external send, owner evidence rerun, Git merge or deployment performed.
+
+---
+
 <!-- FIRE-NOV21-G9-04-OWNER-INACTIVE-TEST-AUTHORIZATION-IMG4602 -->
 ## November 21, 2026 — [x] EXACT OWNER APPROVAL RECORDED for ONE G9-04 inactive TEST version (execution still [ ])
 
