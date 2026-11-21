@@ -51,9 +51,15 @@ try{
   ['false short Content-Length',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',headers:{'content-length':'2'},body:'{"x":1}'}),400],
   ['invalid UTF8',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:new Uint8Array([123,34,120,34,58,255,125])}),400],
   ['nonobject JSON',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',body:'[]'}),400],
+  ['foreign browser Origin',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',headers:{origin:'https://unrelated.invalid','content-type':'application/json'},body:JSON.stringify(add)}),403],
+  ['same-site sibling Origin',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',headers:{origin:'https://sibling.synthetic.invalid','content-type':'application/json'},body:JSON.stringify(add)}),403],
+  ['cross-site Fetch Metadata',new Request('https://synthetic.invalid/api/door-knocking',{method:'POST',headers:{'sec-fetch-site':'cross-site','content-type':'application/json'},body:JSON.stringify(add)}),403],
  ]){
   const before={reads,writes},response=await api.POST(request);
   eq(response.status,code,kind+' rejected by actual route');
+  eq(response.headers.get('cache-control'),'private, no-store',kind+' remains owner-private');
+  eq(response.headers.get('vary'),'Cookie',kind+' is session-varied');
+  eq(response.headers.get('x-content-type-options'),'nosniff',kind+' blocks MIME sniffing');
   eq({reads,writes},before,kind+' touches no database records');
  }
  for(const bad of [null,[],{},'bad json',{...visit,status:'unknown-outcome'},{...visit,note:'x'.repeat(1001)},{...visit,latitude:123}])eq((await post(bad)).status,400);
