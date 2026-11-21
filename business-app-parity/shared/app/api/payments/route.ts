@@ -9,8 +9,13 @@ const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // including denial, incomplete refund schema, accounting holds and D1 outage.
 const ownerPaymentHistoryHeaders = {"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized() {
-  const user = await getChatGPTUser();
-  return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
+  try {
+    const user = await getChatGPTUser();
+    return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
+  } catch {
+    // Broken session resolution must deny before touching payment/refund D1.
+    return false;
+  }
 }
 
 export async function GET() {
@@ -54,7 +59,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function savePayment(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!await refundLedgerObjectsPresent(env.DB)) return refundLedgerNotReady();
   try {
@@ -298,4 +303,24 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "Payment confirmation is uncertain. Review Payment History before another attempt; the payment or tip may already have been recorded.", saveUncertain:true }, { status: 503 });
   }
+}
+
+// Never allow owner-only money save receipts, uncertainty errors or denials
+// to enter a shared cache; preserve statuses and exact recorded cents.
+export async function POST(request: Request) {
+  let response: Response;
+  try {
+    response = await savePayment(request);
+  } catch {
+    // A failed schema preflight is not proof that an attempted payment did
+    // not commit. Do not retry money writes or claim a successful save.
+    response = Response.json({
+      error: "Payment confirmation is uncertain. Review Payment History before another attempt; the payment or tip may already have been recorded.",
+      saveUncertain: true
+    }, { status: 503 });
+  }
+  for (const [name, value] of Object.entries(ownerPaymentHistoryHeaders)) {
+    response.headers.set(name, value);
+  }
+  return response;
 }

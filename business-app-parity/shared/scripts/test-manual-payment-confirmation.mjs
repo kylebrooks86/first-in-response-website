@@ -29,6 +29,31 @@ const attempt={requestId:randomUUID(),amountCents:10000,tipCents:0,method:'Cash'
 try{
  seed('a');seed('b');seed('tip','completed');
  owner=null;let deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);owner={email:'customer@example.invalid'};deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);
+ // A broken payment owner identity must be denied for BOTH the financial
+ // history GET and money POST without even querying the D1/schema layer.
+ const actualPrepare=env.DB.prepare,actualBatch=env.DB.batch,deniedWrites=writes;
+ env.DB.prepare=()=>{throw Error('Unexpected D1 access from denied payment session');};
+ env.DB.batch=()=>{throw Error('Unexpected D1 batch from denied payment session');};
+ try{
+  for(const [label,identity] of [
+   ['numeric email',{email:42}],
+   ['unreadable email',{get email(){throw Error('Synthetic owner email getter failed');}}],
+   ['rejected owner session',{then(_ok,reject){reject(Error('Synthetic auth service unavailable'));}}],
+  ]){
+   owner=identity;
+   const deniedHistory=await pay.GET();
+   eq(deniedHistory.status,401,label+' payment history denies');
+   privateReceipt(deniedHistory);
+   const deniedSave=await post('a',{...attempt,requestId:randomUUID()});
+   eq(deniedSave.status,401,label+' payment save denies');
+   privateReceipt(deniedSave);
+   eq(writes,deniedWrites,label+' cannot create financial entries');
+  }
+ }finally{
+  env.DB.prepare=actualPrepare;env.DB.batch=actualBatch;
+  owner={email:'kylebrooks8605@gmail.com'};
+ }
+
  // A broken owner identity or rejected auth session must never query money
  // records. Treat no financial lookup as a hard property, not just a 401 status.
  const originalBatch=env.DB.batch;
