@@ -64,7 +64,7 @@ for (const file of ['customer-photos.original.ts','customer-photos.patched.ts','
     if(patched)check('patched precommit error leaves uploaded bytes for later reconciliation',m.objects.size===1&&m.counts().deletes===0);
   }
   {
-    const m=loadRoute(file,'bucket-error');const response=await m.POST(request());check(`${file} R2 failure refuses DB insert`,response.status===(patched?503:500)&&m.rows.size===0&&m.counts().dbWrites===0);
+    const m=loadRoute(file,'bucket-error');const response=await m.POST(request());check(`${file} R2 failure refuses DB insert`,response.status===(file==='customer-photos.patched.ts'?503:500)&&m.rows.size===0&&m.counts().dbWrites===0);
     if(file==='customer-photos.patched.ts'){
       const payload=await response.json();
       check('Uncertain bucket PUT failure cannot tell owner to blindly retry',payload.saveUncertain===true);
