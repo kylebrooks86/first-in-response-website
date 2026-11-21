@@ -35,7 +35,7 @@ db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,s
   .run('i1','e1','c1','sent',10000,'SYNTHETIC-OWNER-ONLY','2026-11-21T03:00:00Z');
 db.prepare('INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)')
   .run('line1','e1','Synthetic house wash','Local-only sample',1,'job',10000);
-let principal='owner',mode='',readBatches=0,prepares=0,writes=0,customerInserts=0,seenQueries=[];
+let principal='owner',mode='',readBatches=0,prepares=0,writes=0,customerInserts=0,failReadbackAfterInsert=false,seenQueries=[];
 const backing={async batch(statements){
   readBatches++;
   if(mode==='throw')throw Error('Synthetic D1 outage');
@@ -54,7 +54,7 @@ const backing={async batch(statements){
     writes++;
     return {
       async first(){
-        if(mode==='readbackDown')throw Error('Synthetic D1 readback outage');
+        if(mode==='readbackDown'&&failReadbackAfterInsert)throw Error('Synthetic D1 readback outage');
         if(mode==='readbackMissing')return null;
         return db.prepare(sql).get(...values)??null;
       },
@@ -62,6 +62,7 @@ const backing={async batch(statements){
         if(mode==='writeBeforeCommit')throw Error('Synthetic D1 refused write');
         customerInserts++;
         db.prepare(sql).run(...values);
+        if(mode==='readbackDown')failReadbackAfterInsert=true;
         if(mode==='writeAckLost')throw Error('Synthetic D1 ACK lost after commit');
         if(mode==='writeSoft')return {success:false};
         return {success:true};
@@ -248,7 +249,7 @@ try{
   privateHeaders(r,'readback unavailable');
   eq((await r.json()).saveUncertain,true,'readback outage preserves uncertain-save marker');
   eq(customerInserts,insertBefore+1,'readback outage performed only original insert');
-  mode='';
+  mode='';failReadbackAfterInsert=false;
   r=await postCustomer({...details,requestId:unreadId});
   eq(r.status,200,'stable retry recovers prior committed customer');
   privateHeaders(r,'retry after failed readback');
