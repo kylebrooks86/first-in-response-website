@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
+import {expenseBusinessDay,expenseDateInstant} from "../../../lib/expense-date";
 import { getOwnerUser } from "../../owner-auth";
-import {expenseBusinessDay} from "../../../lib/expense-date";
+import {readOwnerWriteObject} from '../../../lib/customer-write-request-guard.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const privateExpenseGetHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized(){
@@ -61,5 +62,87 @@ export async function GET(request:Request){
   }
 }
 
-
-export async function POST(request:Request){if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});const body=await request.json() as Record<string,unknown>;const description=String(body.description??"").trim();const amountCents=Math.round(Number(body.amountCents)||0);if(!description||!Number.isSafeInteger(amountCents)||amountCents<=0)return Response.json({error:"Description and a valid amount are required."},{status:400});const estimateId=String(body.estimateId??"").trim()||null;if(estimateId){const estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404});}const rawIncurredAt=String(body.incurredAt??new Date().toISOString());const parsedIncurredAt=new Date(rawIncurredAt);if(Number.isNaN(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400});const expense={id:crypto.randomUUID(),estimateId,category:String(body.category??"Supplies"),description,amountCents,incurredAt:parsedIncurredAt.toISOString(),createdAt:new Date().toISOString()};await env.DB.prepare("INSERT INTO expenses (id,estimate_id,category,description,amount_cents,incurred_at,created_at) VALUES (?,?,?,?,?,?,?)").bind(expense.id,expense.estimateId,expense.category,expense.description,expense.amountCents,expense.incurredAt,expense.createdAt).run();return Response.json({expense},{status:201});}
+const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export async function POST(request:Request){
+ if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateExpenseGetHeaders});
+ // Expenses affect owner financial records, so never buffer arbitrary JSON
+ // before validating the payload. Reuse the same owner-only bounded reader
+ // already used by Estimate/Invoice CREATE; no extra Worker module or changes
+ // to valid amounts, calendar dates, request IDs or persistence semantics.
+ const parsed=await readOwnerWriteObject(request,32_000);
+ if(parsed.response){
+   // The shared request guard already rejects unsafe bodies; preserve its status
+   // and error while making every financial POST response session-private.
+   for(const [name,value] of Object.entries(privateExpenseGetHeaders))
+     parsed.response.headers.set(name,value);
+   return parsed.response;
+ }
+ const body=parsed.value as Record<string,unknown>;
+ const description=String(body.description??"").trim();
+ const rawAmount=body.amountCents;
+ if((typeof rawAmount!=="number"&&typeof rawAmount!=="string")||(typeof rawAmount==="string"&&!rawAmount.trim())||!Number.isSafeInteger(Number(rawAmount))||Number(rawAmount)<=0||!description)
+  return Response.json({error:"Description and a valid whole-cent amount are required."},{status:400,headers:privateExpenseGetHeaders});
+ const amountCents=Number(rawAmount);
+ if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid expense request ID is required."},{status:400,headers:privateExpenseGetHeaders});
+ const id=typeof body.requestId==="string"?body.requestId:crypto.randomUUID();
+ const estimateId=String(body.estimateId??"").trim()||null;
+ if(estimateId){
+  // Never turn a temporary D1 lookup outage into an unhandled 500 or an
+  // apparent missing job. No expense INSERT is attempted in either case.
+  let estimate:{id:string}|null;
+  try{
+    estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();
+  }catch{
+    return Response.json({error:"The linked job could not be verified. No expense was saved; retry using the same request ID."},
+      {status:503,headers:privateExpenseGetHeaders});
+  }
+  if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404,headers:privateExpenseGetHeaders});
+ }
+ // If no purchase date was supplied, the server chooses the timestamp only
+ // for the FIRST write. Never compare a fresh "now" against a committed retry:
+ // that would falsely report an idempotency conflict after a lost reply.
+ const explicitDate=body.incurredAt!==undefined&&body.incurredAt!==null;
+ const rawIncurredAt=String(explicitDate?body.incurredAt:new Date().toISOString());
+ // Older/API clients can submit YYYY-MM-DD. JavaScript interprets that as
+ // midnight UTC: Tulsa displays the previous day and could shift tax years.
+ // Use the same noon UTC convention as the app's own date picker.
+ const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(rawIncurredAt);
+ const stableDate=dateOnly?expenseDateInstant(rawIncurredAt):null;
+ // Refuse impossible rollover dates and timestamps without a timezone.
+ if((dateOnly&&!stableDate)||(!dateOnly&&!expenseBusinessDay(rawIncurredAt)))
+   return Response.json({error:"Choose a valid expense date with a verified business day."},{status:400,headers:privateExpenseGetHeaders});
+ const parsedIncurredAt=new Date(stableDate??rawIncurredAt);
+ if(!Number.isFinite(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400,headers:privateExpenseGetHeaders});
+ const category=String(body.category??"Supplies");
+ const incurredAt=parsedIncurredAt.toISOString();
+ const createdAt=new Date().toISOString();
+ const privateHeaders=privateExpenseGetHeaders;
+ const uncertain=()=>Response.json({error:"Expense save could not be verified. Reopen saved expenses and keep the original request ID before trying again.",saveUncertain:true},
+   {status:503,headers:privateHeaders});
+ // A successful D1 acknowledgement is NOT proof of persistence. A thrown
+ // acknowledgement also cannot prove the INSERT failed: read the original
+ // immutable ID rather than issuing a second payment/expense write.
+ let inserted:{success?:boolean;meta?:{changes?:number}}|null=null;
+ try{
+   inserted=await env.DB.prepare("INSERT OR IGNORE INTO expenses (id,estimate_id,category,description,amount_cents,incurred_at,created_at) VALUES (?,?,?,?,?,?,?)")
+     .bind(id,estimateId,category,description,amountCents,incurredAt,createdAt).run();
+ }catch{/* The database may already have committed the original operation. */}
+ let saved:{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}|null;
+ try{
+   saved=await env.DB.prepare("SELECT id,estimate_id AS estimateId,category,description,amount_cents AS amountCents,incurred_at AS incurredAt,created_at AS createdAt FROM expenses WHERE id=?")
+     .bind(id).first<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}>();
+ }catch{return uncertain();}
+ if(!saved)return uncertain();
+ if(saved.id!==id||saved.estimateId!==estimateId||saved.category!==category||
+    saved.description!==description||Number(saved.amountCents)!==amountCents||
+    (explicitDate&&saved.incurredAt!==incurredAt)||
+    !Number.isFinite(Date.parse(saved.incurredAt))||
+    !Number.isFinite(Date.parse(saved.createdAt)))
+   return Response.json({error:"That expense request ID is already associated with different details. Review saved expenses before trying again."},
+     {status:409,headers:privateHeaders});
+ // Only call it newly inserted when D1 confirms one row changed AND an
+ // independent SELECT confirms the exact identity and request details.
+ const newlyInserted=inserted?.success!==false&&inserted?.meta?.changes===1;
+ return Response.json({expense:saved,requestId:id,confirmed:true},
+   {status:newlyInserted?201:200,headers:privateHeaders});
+}
