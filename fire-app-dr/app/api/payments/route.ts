@@ -44,7 +44,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function savePayment(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   // Independent disaster recovery is not yet approved to accept real financial
   // writes. Keep GET payment history read-only, but fail closed before all
@@ -178,3 +178,22 @@ export async function POST(request: Request) {
   }
 }
 
+
+
+// Keep DR owner money-save receipts and denials private to the signed-in
+// owner session, including disabled-TEST and uncertain-D1 outcomes.
+export async function POST(request: Request) {
+  let response: Response;
+  try {
+    response = await savePayment(request);
+  } catch {
+    response = Response.json({
+      error: "Payment confirmation is uncertain. Review Payment History before attempting another save.",
+      saveUncertain: true,
+    }, {status:503});
+  }
+  for (const [name, value] of Object.entries(paymentPrivateHeaders)) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
