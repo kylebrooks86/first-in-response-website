@@ -279,6 +279,9 @@ jobs:
       - name: Gate 5 missing refund ledger blocks owner financial lists but preserves customer-save readback (new SQLite)
         run: |
           cd "$RUNNER_TEMP/fire-qa-preview-candidate"
+          # Exercise the real refund schema guard and owner payments/refund routes,
+          # including nonthrowing D1 success:false with plausible object names.
+          node scripts/test-refund-ledger-readiness.mjs
           node --experimental-sqlite scripts/test-owner-financial-list-refund-holds-sqlite.mjs
           # Same built QA source: verify private new-quote receipts, exact 50% deposit,
           # saved service UUIDs and idempotent lost-ACK recovery before list reads.
