@@ -4,7 +4,11 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 const path=process.argv[2]; assert.ok(path,'Supply independent DR invoice route path');
+// Use the production DR owner JSON/body/origin guard, never a test-only substitute.
+const {readOwnerWriteObject:drOwnerJsonGuard}=await import(pathToFileURL(resolve(dirname(path),'../../../lib/customer-write-request-guard.mjs')).href);
 const db=new DatabaseSync(':memory:');
 db.exec([
  'CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT,email TEXT,phone TEXT,address TEXT)',
@@ -44,9 +48,10 @@ const getOwnerUser=async()=>{
  return {email:'kylebrooks8605@gmail.com'};
 };
 const code=ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
-const context={exports:{},Response,Number,String,Array,JSON,require(name){
+const context={exports:{},Response,Request,Headers,Number,String,Array,JSON,require(name){
  if(name==='cloudflare:workers')return {env:{DB:backing}};
  if(name==='../../owner-auth')return {getOwnerUser};
+ if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:drOwnerJsonGuard};
  throw Error('Unexpected import '+name);
 }};
 vm.runInNewContext(code,context);
@@ -82,5 +87,52 @@ try{
  r=await context.exports.GET();eq(r.status,200,'genuine empty list');priv(r,'empty');
  json=await r.json();eq(json.invoices.length,0,'genuine empty count');
  eq(writes,0,'all GET cases read only');
- console.log('PASS '+checks+' DR invoice owner/private customer isolation, soft D1 read and empty-ledger SQLite assertions (NO HOSTED OPERATIONS)');
+ // Real DR final-invoice POST must deny invalid sessions/forged browser writes
+ // before reading ANY private financial row. The previously unbounded parser
+ // allowed cross-origin form bodies and unbounded allocations on this route.
+ const validBody=JSON.stringify({estimateId:'synthetic-e1'});
+ const validHeaders={'origin':'https://dr.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+ for(const p of ['missing','numeric','unreadable','foreign','throw']){
+   principal=p;const beforeReads=reads,beforeBinds=writes;
+   const response=await context.exports.POST(new Request('https://dr.invalid/api/invoices',{
+     method:'POST',headers:validHeaders,body:validBody
+   }));
+   eq(response.status,401,'DR invoice POST '+p+' denied before D1');
+   priv(response,'DR invoice POST '+p);
+   eq(reads,beforeReads,'DR invoice POST '+p+' no D1 reads');
+   eq(writes,beforeBinds,'DR invoice POST '+p+' no D1 binds');
+ }
+ principal='owner';
+ const rejectedWrites=[
+   ['foreign origin',{...validHeaders,origin:'https://attacker.invalid','sec-fetch-site':'cross-site'},validBody,403],
+   ['sibling origin',{...validHeaders,origin:'https://sibling.dr.invalid','sec-fetch-site':'same-site'},validBody,403],
+   ['sibling metadata',{...validHeaders,'sec-fetch-site':'same-site'},validBody,403],
+   ['browser form',{...validHeaders,'content-type':'text/plain'},validBody,415],
+   ['declared oversized',{...validHeaders,'content-length':'16001'},validBody,413],
+   ['actual oversized UTF-8',validHeaders,JSON.stringify({estimateId:'é'.repeat(9000)}),413],
+   ['bad length',{...validHeaders,'content-length':'not-a-number'},validBody,400],
+   ['malformed JSON',validHeaders,'{',400],
+   ['array JSON',validHeaders,'[]',400],
+   ['empty JSON',validHeaders,'',400],
+ ];
+ for(const [label,headers,body,status] of rejectedWrites){
+   const beforeReads=reads,beforeBinds=writes;
+   const response=await context.exports.POST(new Request('https://dr.invalid/api/invoices',{
+     method:'POST',headers,body
+   }));
+   eq(response.status,status,'DR invoice POST '+label+' strict rejection');
+   priv(response,'DR invoice POST '+label);
+   eq(reads,beforeReads,'DR invoice POST '+label+' no financial D1 read');
+   eq(writes,beforeBinds,'DR invoice POST '+label+' no financial D1 bind');
+ }
+ // With a syntactically accepted owner request, the synthetic D1 deliberately
+ // refuses the first lookup. This is NOT an invoice save and must never
+ // return an apparent 201; even uncertainty must remain session-private.
+ const validResponse=await context.exports.POST(new Request('https://dr.invalid/api/invoices',{
+   method:'POST',headers:validHeaders,body:validBody
+ }));
+ eq(validResponse.status,503,'DR invoice POST uncertain D1 receipt cannot claim creation');
+ priv(validResponse,'DR invoice POST uncertainty');
+ eq((await validResponse.json()).saveUncertain,true,'DR invoice receipt warns owner before retry');
+ console.log('PASS '+checks+' DR invoice GET + actual POST owner/origin/16KB/private/zero-D1 rejection assertions (NO HOSTED OPERATIONS)');
 }finally{db.close();}
