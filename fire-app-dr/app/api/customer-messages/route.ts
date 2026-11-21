@@ -70,7 +70,7 @@ export async function POST(request: Request) {
             AND datetime(created_at)>=datetime('now','-30 seconds')
         )`)
         .bind(id,customerId,estimateId,channel,template,body,createdAt,customerId,estimateId,channel).run();
-      if(inserted.success===false||!Number.isSafeInteger(Number(inserted.meta?.changes)))
+      if(Reflect.get(inserted,"success")===false||!Number.isSafeInteger(Number(inserted.meta?.changes)))
         return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
       if(!inserted.meta.changes){
         const recent=await env.DB.prepare(`SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     }else{
       const inserted=await env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)")
         .bind(id, customerId, estimateId || null, channel, template, body, createdAt).run();
-      if(inserted.success===false||Number(inserted.meta?.changes)!==1)
+      if(Reflect.get(inserted,"success")===false||Number(inserted.meta?.changes)!==1)
         return privateJson({error:"Communication save could not be confirmed. Refresh saved messages before retrying.",saveUncertain:true},{status:503});
     }
     return privateJson({ message: { id, customerId, estimateId: estimateId || null, channel, template, body, createdAt } }, { status: 201 });
