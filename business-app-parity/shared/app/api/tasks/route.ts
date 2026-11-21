@@ -2,7 +2,14 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-async function authorized(){const user=await getChatGPTUser();return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL;}
+async function authorized(){
+ try {
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL;
+ }catch{
+  return false;
+ }
+}
 
 const privateTaskReadHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 function privateTaskJson(payload:unknown,init:ResponseInit={}){
@@ -18,6 +25,10 @@ export async function GET(){
  if(!await authorized())return privateTaskJson({error:"Unauthorized"},{status:401,headers:privateTaskReadHeaders});
  try{
   const rows=await env.DB.prepare(`SELECT t.id,t.title,t.customer_id AS customerId,t.estimate_id AS estimateId,t.due_at AS dueAt,t.status,t.notes,t.created_at AS createdAt,t.completed_at AS completedAt,c.name AS customer FROM tasks t LEFT JOIN customers c ON c.id=t.customer_id ORDER BY CASE WHEN t.status='open' THEN 0 ELSE 1 END,CASE WHEN t.status='open' AND t.due_at IS NOT NULL THEN 0 ELSE 1 END,t.due_at ASC,t.created_at DESC`).all();
+  // D1 can return success:false or omit results without throwing. Neither is
+  // proof of a genuinely empty task list; fail private rather than losing work.
+  if((rows as {success?:boolean}|null)?.success===false||!Array.isArray(rows?.results))
+   return privateTaskJson({error:"Saved tasks are temporarily unavailable. No tasks were changed."},{status:503,headers:privateTaskReadHeaders});
   return privateTaskJson({tasks:rows.results},{headers:privateTaskReadHeaders});
  }catch{
   return privateTaskJson({error:"Saved tasks are temporarily unavailable. No tasks were changed."},{status:503,headers:privateTaskReadHeaders});
