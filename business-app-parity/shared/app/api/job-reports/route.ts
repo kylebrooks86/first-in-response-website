@@ -4,8 +4,14 @@ import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mj
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
-  const user = await getChatGPTUser();
-  return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
+  try {
+    const user = await getChatGPTUser();
+    return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
+  } catch {
+    // A rejected owner session or unreadable email must fail closed before
+    // job-report D1 access, with the same private 401 as an absent session.
+    return false;
+  }
 }
 
 type SavedReport = {
