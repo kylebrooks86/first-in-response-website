@@ -15,8 +15,12 @@ const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // Customer directory includes PII, quote tokens, payment and contact histories.
 const ownerCustomerListHeaders = {"Cache-Control":"no-store, private","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 async function authorized() {
-  const user = await getChatGPTUser();
-  return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
+  try {
+    const user = await getChatGPTUser();
+    return typeof user?.email === "string" && user.email.toLowerCase() === OWNER_EMAIL;
+  } catch {
+    return false;
+  }
 }
 
 // Both owner customer CREATE and EDIT must have a bounded request before
@@ -79,7 +83,7 @@ export async function GET(request?:Request) {
     // stop safely before any private row or joined-ledger query if the
     // legacy LIVE refund table/indexes are missing.
     if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
-    const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = await env.DB.batch([
+    const batch = await env.DB.batch([
       env.DB.prepare(`
         SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,${numberColumn},
           -- Customer-directory headline figures describe currently valid
@@ -128,6 +132,14 @@ export async function GET(request?:Request) {
       CASE WHEN p.amount_cents>0 THEN MAX(0,p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)) ELSE 0 END AS refundableCents, CASE WHEN p.type IN ('deposit','balance','Tip') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment FROM payments p JOIN estimates e ON e.id=p.estimate_id WHERE p.status='paid' ORDER BY p.created_at DESC`),
       env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items ORDER BY rowid ASC`),
     ]);
+    // Every D1 list read must confirm a usable result. Otherwise a
+    // nonthrowing failed/partial D1 batch can falsely report zero customers,
+    // zero payments or an empty invoice directory to the business owner.
+    if (!Array.isArray(batch) || batch.length !== 8 ||
+        batch.some(entry => !entry || (entry as {success?:boolean}).success === false || !Array.isArray(entry.results)))
+      return Response.json({error:"Customer records are temporarily unavailable."},
+        {status:503,headers:ownerCustomerListHeaders});
+    const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = batch;
     // Customer profiles must not silently place another homeowner's invoice
     // into a record. Owner review is safer than an apparently payable balance.
     if(invoices.results.some(row=>Number((row as Record<string,unknown>).invoiceOwnershipMismatch)!==0))
