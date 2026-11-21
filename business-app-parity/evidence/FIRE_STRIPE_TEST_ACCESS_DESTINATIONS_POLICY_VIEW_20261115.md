@@ -1,0 +1,22 @@
+# FIRE — Real owner Cloudflare Stripe TEST Access application detail (2026-11-15)
+
+**Evidence type:** Four original owner-provided screenshots from an existing authenticated Cloudflare Zero Trust session, showing the application edit/detail view (no Save click or provider modification). Uploaded image originals remain in the owner conversation, not in GitHub. SHA-256 and lengths measured from the exact uploaded bytes:
+
+| Image | Bytes | SHA-256 | Grounded visible content |
+| --- | ---: | --- | --- |
+| `IMG_4330.png` | 425152 | `58896f09577b42cac32b37a54ae38fc0bd6ec40c0220f01639abaa3f07b09692` | Worker scope `fire-stripe-test-20261101`; Type `A Worker's production and preview URLs`; second `Destinations` selector visually displays `Select...`; browser rendering OFF |
+| `IMG_4331.png` | 552506 | `87a416b224ed06183bc8f28cade4e91108ff31820a2fa062876cbaa8c66a00ef` | One Access policy row, order 1, linked name truncated `FIRE Stripe TEST - Ow...`, action **Allow**; explanatory UI says default-deny, bypass/service-auth precedence; no actual rule selectors displayed |
+| `IMG_4332.png` | 366305 | `ebac9defa7159d909cf1525875ca5e862db54dea5361716fd62cfbc7aeea50ea` | Access preview: SOURCES `All authenticated users`, POLICIES `FIRE Stripe TEST - Owner Only`, DESTINATIONS `No destinations assigned`; Authenticate with Cloudflare One Client OFF |
+| `IMG_4333.png` | 335204 | `79dc7ed6db3f0d917bf8e1ff90a616655754bee57890d198fa8e5ee8bd40e62d` | Same preview policy/destinations; application name `fire-stripe-test-20261101 - Cloudflare Workers`; session duration `1 week`; visible Delete, Cancel, Save buttons |
+
+**Supported findings:**
+1. There is one displayed Allow policy named **`FIRE Stripe TEST - Owner Only`**, but the screenshots do **not** show its rule inclusions, exclusions, requirements, identity provider configuration, special bypasses, service tokens, or nonowner enforcement. The label "Owner Only" is a name, NOT a verified email policy.
+2. The current Access edit form **shows a Worker in the scope selector**, type production plus preview, **while the separate Destinations selector is unselected and the Preview explicitly says `No destinations assigned`**. This is an important ambiguity; the UI alone does not determine whether a previously saved effective destination is bound, whether a pending unsaved edit is in progress, or whether the Access application protects live Worker traffic. Do not assert either protection or lack of protection until read-only effective binding/config is independently established.
+3. The Preview's SOURCES `All authenticated users` describes what its rendered source stage displays. Without opening the reusable policy, it is **not** proof that every authenticated identity actually matches the Allow rule. Cloudflare describes Worker-level Access destinations as attaching a policy to the Worker, but actual assignment must be verified, not inferred from the scope selector.
+4. The existing TEST Stripe webhook is independently observed via Stripe sandbox provider GET as enabled, with six necessary subscriptions. **This screenshot does not prove Stripe signed webhook requests can pass Cloudflare Access.** An owner-only sign-in requirement on a webhook path could deny machine-to-machine Stripe unless an explicitly reviewed compatible route/policy is in place; the reverse (no bound destination) may mean the Worker is not protected by this Access application. No production route changes or unapproved bypass should be attempted.
+
+**Next safe owner evidence:** In the existing session, open the blue policy name **`FIRE Stripe TEST - Owner Only`** (from the Access policies row) to inspect its Include / Exclude / Require selectors and any service-auth/bypass rules. **Do not change anything or click Save/Delete/Create or use Policy tester as a substitute for an actual effective deployed Access policy check.** The detail view may be an editable form; open-only is for evidence. If navigation asks for login, stop rather than repeating prior failed sign-ins.
+
+**Existing established DARK environment evidence:** DR and NEW LIVE Worker-level Production and Preview URLs OFF, no selected-Worker custom routes, and four separate owner anonymous HTTP GET 404 results. None is invalidated or to be repeated. Do not expose DARK URLs to test denial.
+
+**Release status:** G1/G2/G3/G8 formally accepted (4/10); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK and NO-GO. This is source documentation only, not a Cloudflare/Access/payment/Stripe/D1/Worker/SQL/deploy/merge/DNS or paid R2 mutation.

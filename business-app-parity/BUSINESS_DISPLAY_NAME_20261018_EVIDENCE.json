@@ -1,0 +1,66 @@
+{
+  "scope": "Development source and isolated synthetic candidates only",
+  "baseCommit": "a8339d61b81eb3fd9f4ecb83145bcb7154ee2a0e",
+  "officialReleaseReadiness": {
+    "accepted": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "implemented": [
+    "Business display name in all shipped default SMS/email template categories, owner profile/sidebar/avatar, dashboard welcome, owner sign-in guidance and checkout range errors",
+    "Read-time exact legacy default subject/body compatibility; no hosted or persisted-row migration",
+    "Previous customer-facing estimate, approval and invoice branding retained",
+    "Shared source plus authorized LIVE/Doomsday/staging/QA adapters match; historical fire-app-dr rollback source unchanged"
+  ],
+  "preserved": [
+    "Registered First In Response Exteriors LLC service agreement text",
+    "Customer names and historical signatures/messages",
+    "Owner-authored custom templates, including personal names and email/URL identifiers",
+    "Owner auth identities, account IDs, URLs, email addresses, credentials, payment logic and all saved records"
+  ],
+  "evidence": {
+    "nativeBuiltQaBrowser": {
+      "passed": 85,
+      "failed": 0,
+      "runtime": "Compiled QA Worker, native isolated D1, HTTPS, Chromium",
+      "widths": [
+        390,
+        768,
+        1366
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "includes": [
+        "Legacy template API display normalization with raw database backup unchanged",
+        "Custom template/customer-name preservation",
+        "Responsive business heading/profile without horizontal overflow",
+        "Authenticated owner preview boundaries",
+        "Public approval/change lost-response retries and record notification navigation"
+      ]
+    },
+    "candidateTypeScript": "Four candidates passed",
+    "candidateBuilds": "Four final-source builds passed",
+    "customerInvoiceBalanceAssertions": "208/208 per candidate",
+    "financial": "Processing fee suite across four candidates; final tipping suite across three non-QA candidates",
+    "publicRetryRoutes": "47/47 per candidate",
+    "branding": "Whole current app/components/lib presentation scan; authenticated route read compatibility and custom preservation; default template variables unchanged",
+    "parity": {
+      "live": 371,
+      "doomsday": 376,
+      "staging": 372,
+      "qa": 376
+    }
+  },
+  "limitations": [
+    "No hosted deployment, real iOS acceptance or production release acceptance performed",
+    "Custom saved messages/footers remain owner data; no blind name replacement or historical audit rewrite",
+    "Original 10-second Load failed transport root cause is unproven; customer creation and manual payment recovery remain next bounded batch",
+    "Global search, remaining notification deep links, Safari nested scrolling, scheduling conflicts, report photo workflow, deposit exceptions/activity/preferences and hosted release gates remain open"
+  ],
+  "nextBatch": "Customer-create request identity and manual-payment acknowledgement/reopen safety using after-commit response-loss tests; keep original synthetic baseline intact",
+  "deploymentPerformed": false,
+  "hostedDatabaseModified": false,
+  "stripeModified": false
+}

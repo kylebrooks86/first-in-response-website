@@ -1,0 +1,71 @@
+{
+  "parent": "0ccc60103a0e8f804defeea0f44c9ad3c24308b3",
+  "evidenceFile": "DASHBOARD_BALANCE_CONSISTENCY_EVIDENCE.json",
+  "candidateSnapshotCommits": {
+    "live": "d7404b2d57930606e66bc97fececbbfecce17476",
+    "doomsday": "51efb0873766e79bba94cfa023760310ea1fa385",
+    "staging": "3aaf968f7188c893dd894fbb067a4a9dc74a34bb"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/dashboard-balance-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/dashboard-balance-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/dashboard-balance-staging"
+  },
+  "newChecksPerTarget": 69,
+  "newCheckExecutionsPassed": 207,
+  "newCheckExecutionsTotal": 207,
+  "suiteRunsPassed": 9,
+  "suiteRunsTotal": 9,
+  "suiteNames": [
+    "test-dashboard-balance-consistency.mjs",
+    "test-stripe-refunds.mjs",
+    "test-processing-fees.mjs"
+  ],
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "sharedFilesMatched": 119,
+  "sharedFilesChecked": 119,
+  "negativeControlOldPageRejected": true,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "scope": "isolated FIRE Business App candidates only",
+  "asOf": "2026-10-09",
+  "changedFilesSha256": {
+    "shared/lib/dashboard-data.ts": "40d8894bb43ea77b12bff4f92c107b837723c5b6f2dcbae21bac6b90d0c08507",
+    "shared/app/page.tsx": "ab7f0851eaf6e295066ab7b83904f2e695d65447660766df98e55768a5460a46",
+    "shared/app/api/dashboard-summary/route.ts": "c4aecb3d687e220a65d11f8e0ffde2d0c6015a314ee4d130f55386c5983dbf8b",
+    "shared/scripts/test-dashboard-balance-consistency.mjs": "dbab5318cc3ce6ffac4aea17e1899e11d8dca41d2237613c901bf209c5eaba65",
+    "adapters/live/app/page.tsx": "ab7f0851eaf6e295066ab7b83904f2e695d65447660766df98e55768a5460a46",
+    "adapters/doomsday/app/page.tsx": "d7f99cd47582a270214c639d349d497c7fe7b74cb31ad768059de837abf3da38",
+    "adapters/staging/app/page.tsx": "10e3433e6b2c4bc5575f8a14226b3657a8794ecb9a846b41ba4de87e28635871"
+  },
+  "verifiedFinding": "Initial page and refresh API used different outstanding/recent queries. Both now call loadDashboardData; the existing API financial rules are preserved.",
+  "scenarios": [
+    "draft",
+    "sent",
+    "declined",
+    "approved deposit",
+    "scheduled deposit with tip",
+    "approved revised invoice",
+    "completed estimate",
+    "completed revised invoice with principal/tip/refund/tip refund",
+    "overpayment clamp",
+    "pending and failed payments ignored",
+    "full principal refund"
+  ],
+  "testMethod": "Actual page and API transpiled and executed with synthetic owner auth and fully migrated in-memory SQLite D1 adapter. Stripe regression uses mocks.",
+  "buildCompletionVerifiedInLogs": true,
+  "deployedDiscrepancyCauseVerified": false,
+  "realMobileEvidenceCaptured": false,
+  "remoteDatabaseWrites": false,
+  "stripeMutations": false,
+  "priorReleaseManifest": "CANDIDATE_RELEASE_MANIFEST.json retained as historical snapshot; current source/status now differs, so prior verification is intentionally stale"
+}

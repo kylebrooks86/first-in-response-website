@@ -1,0 +1,11 @@
+{
+  "fire_release": "v138",
+  "package_version": "1.0.0-rc.138",
+  "date": "2026-10-01",
+  "live_master": "https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site",
+  "strict_parity_status": "NOT_YET_FULLY_VERIFIED",
+  "production_sync_status": "PENDING",
+  "recovery_package": "FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip",
+  "rule": "Do not claim FULL_IDENTICAL until strict parity evidence is complete and strict-parity gate passes.",
+  "shared_core_fingerprint_sha256": "7a1889d5f9c07483536630ebb8ba3b18d9e6746f874c641c2d5e9a6633f20896"
+}

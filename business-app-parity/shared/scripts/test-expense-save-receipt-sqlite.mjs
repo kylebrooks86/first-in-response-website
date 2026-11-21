@@ -1,0 +1,215 @@
+/** Real FIRE expense POST route with native disposable SQLite. No LIVE D1, Stripe,
+ * customer identities, external requests or uploaded files. */
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {createRouteFixtureLoader} from './route-test-loader.mjs';
+
+const sql=new DatabaseSync(':memory:');
+sql.exec(`
+ CREATE TABLE estimates (id TEXT PRIMARY KEY,customer_id TEXT);
+ CREATE TABLE expenses (
+  id TEXT PRIMARY KEY,estimate_id TEXT,category TEXT NOT NULL,description TEXT NOT NULL,
+  amount_cents INTEGER NOT NULL,incurred_at TEXT NOT NULL,created_at TEXT NOT NULL
+ );
+ INSERT INTO estimates VALUES ('job-synthetic','owner-synthetic');
+`);
+let user={email:'kylebrooks8605@gmail.com'},writes=0,reads=0;
+let throwAfterCommit=false,skipWrite=false,throwReadback=false,throwEstimateLookup=false;
+const prepare=query=>({
+ values:[],
+ bind(...values){this.values=values;return this;},
+ async first(){
+   reads++;
+   if(throwEstimateLookup&&query.includes('SELECT id FROM estimates WHERE id=?')){
+     throwEstimateLookup=false;throw Error('synthetic linked job D1 outage');
+   }
+   if(throwReadback&&query.includes('FROM expenses WHERE id=?')){
+     throwReadback=false;throw Error('synthetic readback outage');
+   }
+   return sql.prepare(query).get(...this.values)??null;
+ },
+ async run(){
+   assert.match(query,/^INSERT OR IGNORE INTO expenses/,'Only expense inserts can mutate this fixture');
+   writes++;
+   if(skipWrite){skipWrite=false;return {success:true,meta:{changes:0}};}
+   const result=sql.prepare(query).run(...this.values);
+   if(throwAfterCommit){throwAfterCommit=false;throw Error('synthetic lost commit ACK');}
+   return {success:true,meta:{changes:Number(result.changes)}};
+ },
+ async all(){return {results:sql.prepare(query).all(...this.values)};}
+});
+const {POST}=createRouteFixtureLoader(process.cwd(),{DB:{prepare}},()=>user)('app/api/expenses/route.ts');
+const id=(suffix)=>`bb3b4eab-8ccb-4cee-8e6e-${suffix.toString(16).padStart(12,'0')}`;
+const base=(i,extra={})=>({
+ requestId:id(i),category:'Supplies',description:'Real synthetic soap, no purchase date',
+ amountCents:1759,estimateId:'job-synthetic',...extra
+});
+const call=body=>POST(new Request('https://synthetic.invalid/api/expenses',{
+ method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+}));
+const stored=id=>sql.prepare('SELECT * FROM expenses WHERE id=?').get(id)??null;
+const count=()=>sql.prepare('SELECT COUNT(*) n FROM expenses').get().n;
+let tests=0;const check=(condition,label)=>{assert.ok(condition,label);tests++;console.log('PASS '+label);};
+try{
+ user=null;
+ const noAuthWrites=writes;
+ const anonymous=await call(base(1));
+ check(anonymous.status===401,'Anonymous expense POST rejected before D1');
+ check(anonymous.headers.get('cache-control')==='private, no-store'&&anonymous.headers.get('vary')==='Cookie'&&
+  anonymous.headers.get('x-content-type-options')==='nosniff','Anonymous owner financial denial stays session-private and nosniff');
+ check(writes===noAuthWrites,'No financial record written by anonymous request');
+ user={email:'stranger@example.invalid'};
+ check((await call(base(1))).status===401,'Nonowner expense POST denied');
+ // An authentication layer may supply a principal without an email. It must
+ // fail closed as 401, never throw 500 or touch the owner financial ledger.
+ const beforeMalformedReads=reads,beforeMalformedWrites=writes;
+ user={};
+ const missingEmail=await call(base(1));
+ check(missingEmail.status===401,'Authenticated expense principal with no email is denied 401');
+ check(missingEmail.headers.get('cache-control')==='private, no-store'&&
+  missingEmail.headers.get('vary')==='Cookie'&&missingEmail.headers.get('x-content-type-options')==='nosniff',
+  'Malformed financial principal denial remains private, session-varied and nosniff');
+ user={email:123};
+ check((await call(base(1))).status===401,'Non-string authenticated email fails closed before expense SQL');
+ check(reads===beforeMalformedReads&&writes===beforeMalformedWrites,
+  'Malformed owner principals issue zero expense D1 reads and writes');
+ // A rejected auth provider promise and an unreadable principal email
+ // must be controlled private 401, before even an expense lookup or INSERT.
+ for(const [label,identity] of [
+  ['unreadable owner email',{get email(){throw Error('Synthetic owner financial identity unavailable');}}],
+  ['rejected owner session',{then(_ok,reject){reject(Error('Synthetic owner session unavailable'));}}],
+ ]){
+  user=identity;
+  const beforeReads=reads,beforeWrites=writes;
+  const denied=await call(base(1));
+  check(denied.status===401,label+' denied expense POST 401');
+  check(denied.headers.get('cache-control')==='private, no-store'&&
+   denied.headers.get('vary')==='Cookie'&&denied.headers.get('x-content-type-options')==='nosniff',
+   label+' financial denial is session-private and nosniff');
+  check(reads===beforeReads&&writes===beforeWrites,label+' cannot read or write financial D1');
+ }
+ user={email:'kylebrooks8605@gmail.com'};
+ // Changed-function security regression on the actual financial POST:
+ // an invalid/oversized stream must never reach SELECT or INSERT, and
+ // should never be mistaken for a lost-ACK business expense save.
+ const beforeBlockedReads=reads,beforeBlockedWrites=writes,beforeBlockedRows=count();
+ const rawExpense=async(bytes,declared)=>POST(new Request('https://synthetic.invalid/api/expenses',{
+  method:'POST',headers:{'content-type':'application/json',
+    ...(declared===undefined?{}:{'content-length':String(declared)})},body:bytes
+ }));
+ let blocked=await rawExpense(JSON.stringify(base(91,{description:'x'.repeat(32_100)})));
+ check(blocked.status===413,'Expense payload over 32000 bytes rejected before parsing');
+ check(blocked.headers.get('cache-control')==='private, no-store'&&blocked.headers.get('vary')==='Cookie'&&
+  blocked.headers.get('x-content-type-options')==='nosniff',
+  'Rejected oversized owner expense is private, session-varied and nosniff');
+ blocked=await rawExpense(JSON.stringify(base(92)),32001);
+ check(blocked.status===413,'Oversize declared length stops before reading expense body');
+ blocked=await rawExpense(JSON.stringify(base(93)),5);
+ check(blocked.status===400,'Mismatched declared length refused before expense SQL');
+ blocked=await rawExpense('{"description":');
+ check(blocked.status===400,'Invalid expense JSON refused before SQL');
+ blocked=await rawExpense('["not an expense object"]');
+ check(blocked.status===400,'Array expense body refused before SQL');
+ blocked=await rawExpense(new Uint8Array([0xc3,0x28]));
+ check(blocked.status===400,'Malformed UTF-8 expense body refused before SQL');
+ check(reads===beforeBlockedReads&&writes===beforeBlockedWrites&&count()===beforeBlockedRows,
+  'All rejected expense bodies cause ZERO D1 reads/writes or financial changes');
+
+ const firstRequest=base(1);
+ let response=await call(firstRequest);
+ check(response.status===201,'Undated expense saved once with server-generated timestamp');
+ let receipt=await response.json();
+ check(receipt.confirmed===true&&receipt.requestId===firstRequest.requestId&&receipt.expense.id===firstRequest.requestId,'First save returns exact immutable record identity');
+ check(response.headers.get('cache-control')==='private, no-store'&&response.headers.get('vary')==='Cookie'&&
+  response.headers.get('x-content-type-options')==='nosniff','Financial save receipt is session-private and nosniff');
+ const firstDate=receipt.expense.incurredAt,firstCreated=receipt.expense.createdAt;
+ check(Number.isFinite(Date.parse(firstDate))&&Number.isFinite(Date.parse(firstCreated)),'Server-created expense timestamps are valid');
+
+ // The caller may retry the same ID after reconnecting on another shift.
+ await new Promise(resolve=>setTimeout(resolve,20));
+ response=await call(firstRequest);
+ receipt=await response.json();
+ check(response.status===200&&receipt.confirmed===true,'Undated same-ID replay is confirmed, not a false 409 conflict');
+ check(receipt.expense.incurredAt===firstDate&&receipt.expense.createdAt===firstCreated&&count()===1,'Replay never changes the original purchase time or adds a second expense');
+ check(stored(firstRequest.requestId).incurred_at===firstDate,'Original database purchase timestamp remains unchanged');
+
+ response=await call({...firstRequest,amountCents:1760});
+ check(response.status===409&&count()===1,'Changed financial amount with reused ID is a conflict, never an overwrite');
+ response=await call({...firstRequest,description:'different description'});
+ check(response.status===409&&count()===1,'Changed expense text with reused ID is rejected');
+
+ const withDate=base(2,{description:'Explicit purchase date',incurredAt:'2026-10-23T12:00:00.000Z'});
+ response=await call(withDate);
+ check(response.status===201,'Explicit purchase date saved');
+ response=await call(withDate);
+ check(response.status===200&&count()===2,'Exact explicit-date request replay verified without duplication');
+ response=await call({...withDate,incurredAt:'2026-10-24T12:00:00.000Z'});
+ check(response.status===409,'An altered explicit purchase date cannot reuse the first request ID');
+ check(stored(withDate.requestId).incurred_at===withDate.incurredAt,'Saved date still matches original explicit date');
+
+ // D1 can commit before its write acknowledgement is lost. Never infer no
+ // insert and retry with a new ID: independently read the original row.
+ throwAfterCommit=true;
+ const lostAck=base(3,{description:'Ack lost after actual INSERT'});
+ response=await call(lostAck);
+ receipt=await response.json();
+ check(response.status===200&&receipt.confirmed===true&&receipt.expense.id===lostAck.requestId,'Lost post-commit ACK recovered from immutable SQLite row');
+ check(count()===3,'Lost-ACK recovery does not create a second cost');
+
+ skipWrite=true;
+ const silentMiss=base(4,{description:'Not actually committed'});
+ response=await call(silentMiss);
+ receipt=await response.json();
+ check(response.status===503&&receipt.saveUncertain===true,'Silent no-write D1 result never reports a confirmed expense');
+ check(stored(silentMiss.requestId)===null,'Silent write failure inserted no phantom expense');
+
+ throwReadback=true;
+ const lostReadback=base(5,{description:'Committed but readback unavailable'});
+ response=await call(lostReadback);
+ check(response.status===503&&(await response.json()).saveUncertain===true,'Readback outage cannot falsely claim success');
+ check(count()===4,'Readback outage retains actual committed expense');
+ response=await call(lostReadback);
+ check(response.status===200&&count()===4,'Replay after readback outage confirms the same expense without another financial row');
+
+ check((await call(base(6,{incurredAt:'not-an-instant'}))).status===400,'Invalid expense date rejected');
+ check((await call(base(7,{estimateId:'not-a-job'}))).status===404,'Unknown job expense link rejected');
+ const beforeOutageWrites=writes,beforeOutageCount=count();
+ throwEstimateLookup=true;
+ response=await call(base(70,{description:'Linked job lookup D1 outage'}));
+ const outageBody=await response.json();
+ check(response.status===503&&outageBody.error.includes('No expense was saved'),
+   'Transient linked job lookup D1 failure returns controlled 503, not misleading 404/500');
+ check(response.headers.get('cache-control')==='private, no-store'&&response.headers.get('vary')==='Cookie'&&
+  response.headers.get('x-content-type-options')==='nosniff','Financial outage response is private, session-varied and nosniff');
+ check(writes===beforeOutageWrites&&count()===beforeOutageCount,
+   'Failed linked job lookup attempts ZERO expense writes');
+ response=await call(base(70,{description:'Linked job lookup D1 outage'}));
+ check(response.status===201&&count()===beforeOutageCount+1,
+   'Retry with same stable expense request ID recovers cleanly when D1 returns');
+ check(count()===5,'Invalid requests and recovered job outage leave only intended expenses');
+ // Date-only input is a real older-client/API path. Midnight UTC becomes
+ // December 30 in Tulsa; this must persist the selected Dec 31 tax day.
+ const calendar=base(8,{description:'Year-end selected calendar purchase',incurredAt:'2026-12-31'});
+ response=await call(calendar);receipt=await response.json();
+ check(response.status===201&&receipt.expense.incurredAt==='2026-12-31T12:00:00.000Z',
+  'Date-only December 31 is normalized to stable Tulsa business day');
+ response=await call(calendar);
+ check(response.status===200&&count()===6,
+  'Canonical date-only expense replays without duplication or false conflict');
+ check(stored(calendar.requestId).incurred_at==='2026-12-31T12:00:00.000Z',
+  'Persisted date-only timestamp remains December 31 in Tulsa');
+ // Native Date parsing can roll over an impossible date; never put it on
+ // someone's financial report or return an apparently successful receipt.
+ const invalidDates=[
+  '2026-02-30','2026-04-31','2026-02-30T12:00:00.000Z',
+  '2026-12-31T23:30:00','2026-12-32','tomorrow'
+ ];
+ for(const [index,incurredAt]of invalidDates.entries()){
+  const invalid=base(index+9,{description:'Invalid calendar date',incurredAt});
+  response=await call(invalid);
+  check(response.status===400,'Invalid/ambiguous expense date '+incurredAt+' is rejected');
+  check(stored(invalid.requestId)===null,'No invalid-date financial record saved for '+incurredAt);
+ }
+ check(count()===6,'Invalid dates cannot add a financial expense');
+ console.log('PASS '+tests+'/'+tests+' actual owner expense POST and native SQLite: idempotent undated/date-only/explicit dates, stable Tulsa year-end tax dates, invalid rollover refusal, lost ACK, immutable receipt and identity; synthetic-only.');
+} finally{sql.close();}

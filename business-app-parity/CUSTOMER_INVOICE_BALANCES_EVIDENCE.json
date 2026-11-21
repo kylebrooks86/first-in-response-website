@@ -1,0 +1,63 @@
+{
+  "parent": "62afb700fdecf117a8dae7c8118468a8ea026f2a",
+  "evidenceFile": "CUSTOMER_INVOICE_BALANCES_EVIDENCE.json",
+  "candidateSnapshotCommits": {
+    "live": "57dc8ead100c18416aa232911ca7dd3478f7d329",
+    "doomsday": "b196178281e2653760a7a45fb0369259f4e49dc7",
+    "staging": "2df35d74f9b5d50c8f21854eafba2e7504d199a5"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/customer-invoice-balance-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/customer-invoice-balance-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/customer-invoice-balance-staging"
+  },
+  "checksPerTarget": 156,
+  "checksPassed": 468,
+  "checksTotal": 468,
+  "suiteRunsPassed": 3,
+  "suiteRunsTotal": 3,
+  "negativeControlsRejected": 2,
+  "sharedFilesMatched": 119,
+  "sharedFilesChecked": 119,
+  "runtimeChanged": false,
+  "typescriptRerun": false,
+  "buildsRerun": false,
+  "reasonChecksNotRerun": "Test-only change; runtime identical to prior 62afb70 with TypeScript and completed builds 3/3.",
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "asOf": "2026-10-09",
+  "scope": "isolated FIRE candidates; synthetic SQLite and auth only",
+  "reviewedFilesSha256": {
+    "shared/scripts/test-customer-invoice-balances.mjs": "40209fb561f1fd10649f9a4873cb62773313df30bf7d6288bbece2f804aa60a8",
+    "shared/app/api/customers/route.ts": "b8774e7144a76b1a24f1abe74c31c6b1714c0d50fc1ad4a888308e207397fb02",
+    "shared/app/api/invoices/route.ts": "2dec099dc4ce9611c904f3a61df57c813d2b7f566be3a8f36023013d6feaf8c9",
+    "shared/app/api/estimates/route.ts": "409b3ce3697f69cbbe1a0cc51fb55792bd708f56e4635c6303f400f1470cd760",
+    "shared/app/dashboard.tsx": "1c659cb55605b5ce13b212377570901b2a6b814e9da16afee26f4ae5002a6797"
+  },
+  "method": "Execute actual GET handlers after migrating each target SQLite schema. Execute actual UI helpers extracted by TypeScript AST.",
+  "verifiedFindings": [
+    "Revised and zero-dollar invoice totals preserved.",
+    "Paid principal agrees across customer, estimate and invoice APIs; tips and tip refunds excluded.",
+    "Refunds reopen principal balances; pending and failed payments excluded.",
+    "Per-job zero floor prevents overpaid job from hiding another open balance. Customer isolation and owner guards verified."
+  ],
+  "negativeControls": [
+    "Removing customer API tip exclusions fails assertions.",
+    "Truthy UI invoice fallback fails zero-dollar revision assertion."
+  ],
+  "remainingDiscrepancy": {
+    "dashboard": "Outstanding is due now; deposit before invoice/completion; excludes draft/sent/declined.",
+    "payments": "Outstanding and Balances to collect use full remaining value, including draft/sent/declined.",
+    "customer": "Open balance uses full remaining value per job.",
+    "acceptance": "Source meanings differ; Payments collection behavior requires follow-up."
+  },
+  "remoteDatabaseWrites": false,
+  "stripeMutations": false,
+  "realMobileEvidenceCaptured": false
+}

@@ -1,0 +1,158 @@
+/** FIRE owner task POST: real route, disposable SQLite; no hosted records/messages. */
+import assert from 'node:assert/strict';
+import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
+
+const rt=stackedRuntime(),db=rt.db,api=rt.load('app/api/tasks/route.ts');
+const at='2026-11-12T12:00:00.000Z',customer='task-owner-a',other='task-owner-b';
+for(const id of [customer,other])
+ db.prepare('INSERT INTO customers(id,name,created_at) VALUES (?,?,?)').run(id,'Synthetic '+id,at);
+db.prepare('INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES (?,?,?,?,?,?,?)')
+ .run('task-job',customer,'scheduled',10000,10000,5000,at);
+const key=i=>'00000000-0000-4000-8000-'+String(i).padStart(12,'0');
+const body=(i,more={})=>({
+ requestId:key(i),title:'Return owner call',customerId:customer,estimateId:'task-job',
+ notes:'Follow up on estimate after shift',dueAt:'2026-11-14T15:00:00.000Z',...more
+});
+async function post(value){
+ const r=await api.POST(new Request('https://synthetic.invalid/api/tasks',{
+  method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(value)
+ }));
+ return {status:r.status,data:await r.json(),headers:r.headers};
+}
+const row=id=>db.prepare('SELECT id,title,customer_id AS customerId,estimate_id AS estimateId,created_at AS createdAt FROM tasks WHERE id=?').get(id);
+const count=()=>db.prepare('SELECT count(*) AS n FROM tasks').get().n;
+const original=rt.env.DB.prepare;
+let intercept=null,checks=0;
+function check(ok,msg){assert.ok(ok,msg);checks++;console.log('PASS '+msg);}
+rt.env.DB.prepare=function(sql){
+ const stmt=original(sql);
+ if(sql.trimStart().startsWith('INSERT OR IGNORE INTO tasks')&&intercept){
+  return {...stmt,bind(...args){
+   const bound=stmt.bind(...args);
+   return {...bound,async run(){
+    const mode=intercept;intercept=null;
+    if(mode==='reassign')db.prepare("UPDATE estimates SET customer_id=? WHERE id='task-job'").run(other);
+    if(mode==='zero')return {success:true,meta:{changes:0}};
+    if(mode==='commit-lost'){await bound.run();throw Error('Synthetic D1 ACK lost after commit');}
+    return bound.run();
+   }};
+  }};
+ }
+ return stmt;
+};
+try{
+ // The actual owner roster GET is sensitive customer/job context, including
+ // private task notes. Test success, missing authentication and D1 outage.
+ const taskRoster=await api.GET();
+ check(taskRoster.status===200,'Owner task roster remains available');
+ check(taskRoster.headers.get('cache-control')==='private, no-store','Task roster is not share-cacheable');
+ check(taskRoster.headers.get('vary')==='Cookie','Task roster varies by authenticated session');
+ check(taskRoster.headers.get('x-content-type-options')==='nosniff','Task roster refuses MIME sniffing');
+ const rosterPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){if(sql.includes('FROM tasks t LEFT JOIN customers'))throw Error('Synthetic roster D1 outage');return rosterPrepare(sql);};
+ const taskOutage=await api.GET();
+ rt.env.DB.prepare=rosterPrepare;
+ check(taskOutage.status===503,'D1 roster failure is explicitly unavailable, not a false empty task list');
+ check(taskOutage.headers.get('cache-control')==='private, no-store','D1 roster failure stays private');
+ check(taskOutage.headers.get('vary')==='Cookie'&&taskOutage.headers.get('x-content-type-options')==='nosniff','D1 failure preserves session and MIME protection');
+ const first=await post(body(1));
+ check(first.status===201&&first.data.confirmed===true,'First linked owner task saved with exact D1 receipt');
+ check(first.data.task?.customerId===customer&&first.data.task?.estimateId==='task-job','Task receipt keeps original customer and job together');
+ check(first.headers.get('cache-control')==='private, no-store','Private customer/task creation receipt is not cached');
+ check(first.headers.get('vary')==='Cookie'&&first.headers.get('x-content-type-options')==='nosniff','Task creation receipt stays bound to owner session and refuses MIME sniffing');
+ const originalCreated=row(key(1)).createdAt;
+ const replay=await post(body(1));
+ check(replay.status===200&&replay.data.confirmed===true&&count()===1,'Lost HTTP response replay cannot duplicate task');
+ check(row(key(1)).createdAt===originalCreated,'Task replay preserves first saved timestamp');
+ check((await post(body(1,{title:'Changed title'}))).status===409,'Reused immutable ID cannot overwrite task title');
+ check((await post(body(2,{customerId:other}))).status===409,'Initial job/customer mismatch rejected');
+ check(count()===1,'Preflight mismatch causes no task creation');
+ // A D1 outage during the initial job/customer lookup is not a 404 and must
+ // never become an unhandled 500, write a task or leak a cacheable response.
+ const beforeLookupOutage=count();
+ const lookupBeforeOutage=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql.startsWith('SELECT customer_id AS customerId FROM estimates WHERE id=?'))throw Error('Synthetic unavailable linked job D1');
+  return lookupBeforeOutage(sql);
+ };
+ const jobOutage=await post(body(91));
+ rt.env.DB.prepare=lookupBeforeOutage;
+ check(jobOutage.status===503&&/temporarily unavailable/.test(jobOutage.data.error),'Task-linked job lookup outage fails closed as 503');
+ check(jobOutage.headers.get('cache-control')==='private, no-store'&&jobOutage.headers.get('vary')==='Cookie'&&jobOutage.headers.get('x-content-type-options')==='nosniff','Task linked-job outage response stays session-private');
+ check(count()===beforeLookupOutage&&!row(key(91)),'Task linked-job lookup outage performs zero D1 writes');
+ rt.env.DB.prepare=function(sql){
+  if(sql.startsWith('SELECT id FROM customers WHERE id=?'))throw Error('Synthetic unavailable customer D1');
+  return lookupBeforeOutage(sql);
+ };
+ const customerOutage=await post(body(92,{estimateId:null}));
+ rt.env.DB.prepare=lookupBeforeOutage;
+ check(customerOutage.status===503&&/temporarily unavailable/.test(customerOutage.data.error),'Customer-only task lookup outage fails closed as 503');
+ check(customerOutage.headers.get('cache-control')==='private, no-store'&&customerOutage.headers.get('vary')==='Cookie','Customer lookup outage cannot be cached/shared');
+ check(count()===beforeLookupOutage&&!row(key(92)),'Task customer lookup outage performs zero D1 writes');
+
+
+ // Another phone reassigns the job AFTER the app checked ownership. The actual
+ // conditional SQL INSERT must refuse the now-wrong customer.
+ intercept='reassign';
+ const moved=await post(body(2));
+ check(moved.status===409,'Concurrent job reassignment blocks task at SQL write boundary');
+ check(intercept===null&&row(key(2))===undefined,'Reassigned job creates no cross-customer task');
+ check(count()===1,'Existing original task unaffected by rejected operation');
+ db.prepare("UPDATE estimates SET customer_id=? WHERE id='task-job'").run(customer);
+ check((await post(body(2))).status===201,'Same request can safely create task after correcting owner relationship');
+ check(row(key(2)).customerId===customer&&count()===2,'Recovered owner task linked to correct customer exactly once');
+
+ // Even a signed success response cannot invent a task if SQLite did not
+ // actually write a row. Confirmed responses need independent readback.
+ intercept='zero';
+ const silentlyMissing=await post(body(3));
+ check(silentlyMissing.status===503&&silentlyMissing.data.saveUncertain===true,
+  'Silent zero-row D1 acknowledgement yields unconfirmed save');
+ check(!row(key(3)),'Silent zero-row response creates no fictitious task');
+
+ intercept='commit-lost';
+ const lostAck=await post(body(4));
+ check(lostAck.status===200&&lostAck.data.confirmed===true,
+  'Post-commit D1 ACK loss recovers original immutable task row');
+ check(row(key(4)).id===key(4)&&count()===3,
+  'Acknowledgement loss results in exactly one task');
+ check((await post(body(4))).status===200&&count()===3,
+  'Later HTTP replay cannot create an additional task after lost D1 ACK');
+
+ // Pre-existing task can no longer be represented as safely linked after
+ // external customer reassignment. Refuse false success, preserve history.
+ db.prepare("UPDATE estimates SET customer_id=? WHERE id='task-job'").run(other);
+ const stale=await post(body(1));
+ check(stale.status===409&&typeof stale.data.error==='string'&&!stale.data.confirmed,
+  'Stale task replay cannot claim correct ownership after external reassignment');
+ check(count()===3,'Stale replay cannot move or erase historical tasks');
+ db.prepare("UPDATE estimates SET customer_id=? WHERE id='task-job'").run(customer);
+ const newCustomer=await post(body(5,{estimateId:null}));
+ check(newCustomer.status===201&&newCustomer.data.task.customerId===customer,'Customer-only task still works without a linked job');
+ const standalone=await post(body(6,{estimateId:null,customerId:null}));
+ check(standalone.status===201&&standalone.data.task.estimateId===null,'General owner task with no linked customer remains supported');
+ const retryAfterOutage=await post(body(91));
+ check(retryAfterOutage.status===201&&row(key(91)).customerId===customer,'Original task request ID safely saves once after D1 recovery');
+
+ rt.setOwner(null);
+ const unauthRoster=await api.GET();
+ check(unauthRoster.status===401,'Unauthenticated task roster denies owner-only customer details');
+ check(unauthRoster.headers.get('cache-control')==='private, no-store'&&unauthRoster.headers.get('vary')==='Cookie'&&unauthRoster.headers.get('x-content-type-options')==='nosniff','Unauthorized task roster response has private session headers');
+ const before=count();
+ const deniedTask=await post(body(7));
+ check(deniedTask.status===401,'Unauthenticated task create rejected');
+ check(deniedTask.headers.get('cache-control')==='private, no-store'&&deniedTask.headers.get('vary')==='Cookie'&&deniedTask.headers.get('x-content-type-options')==='nosniff','Unauthorized task create denial is never cached across sessions');
+ check(count()===before,'No database writes on unauthorized task request');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const readsBefore=JSON.stringify(rt.counters());
+  const roster=await api.GET();
+  check(roster.status===401&&roster.headers.get('cache-control')==='private, no-store','Malformed task identity cannot read roster');
+  const deniedCreate=await post(body(7));
+  check(deniedCreate.status===401,'Malformed task identity cannot create task');
+  const deniedPatch=await api.PATCH(new Request('https://synthetic.invalid/api/tasks',{method:'PATCH',body:'{}'}));
+  check(deniedPatch.status===401&&deniedPatch.headers.get('vary')==='Cookie','Malformed task identity cannot edit task');
+  check(JSON.stringify(rt.counters())===readsBefore,'Malformed task identity cannot touch D1');
+ }
+ console.log('PASS '+checks+'/'+checks+' FIRE task POST: owner binding race, lost ACK, idempotency, genuine receipt, unrelated tasks (local SQLite only)');
+}finally{rt.env.DB.prepare=original;db.close();}

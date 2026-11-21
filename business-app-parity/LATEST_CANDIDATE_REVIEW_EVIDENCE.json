@@ -1,0 +1,132 @@
+{
+  "asOf": "2026-10-09",
+  "parent": "8bf2121929971feec740a62e364e85cdde37f227",
+  "scope": "Local release review tooling only; app and deployment adapters unchanged",
+  "manifestFile": "LATEST_CANDIDATE_REVIEW_MANIFEST_20261009.json",
+  "evidenceFile": "LATEST_CANDIDATE_REVIEW_EVIDENCE.json",
+  "manifestTestsPassed": 22,
+  "manifestTestsTotal": 22,
+  "tableInspectorTestsPassed": 14,
+  "tableInspectorTestsTotal": 14,
+  "candidateSnapshotsMatched": 3,
+  "candidateSnapshotsRequired": 3,
+  "snapshotFilesCheckedByTarget": {
+    "live": 213,
+    "doomsday": 218,
+    "staging": 214
+  },
+  "sharedApplicationFilesMatched": 119,
+  "historicalFilesPreserved": [
+    "CANDIDATE_RELEASE_MANIFEST.json",
+    "RELIABILITY_RELEASE_REVIEW_MANIFEST.json",
+    "RELIABILITY_RECOVERY_EVIDENCE.json",
+    "BUSINESS_MOBILE_ACCESSIBILITY_EVIDENCE.json",
+    "INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json",
+    "CANDIDATE_COMMITS.json"
+  ],
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReady": false,
+  "publicationAuthorized": false,
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "cost": 0,
+  "toolHashes": {
+    "candidate_release_manifest.py": "3666c8f3058e6499f8d50ea256e063b9677c6298b4991cdbf2b177eb769fb578",
+    "test_candidate_release_manifest.py": "970e47b09b99e18646a1ee4e397aecfae4a248144355e3f46c58b9c153bf87a8"
+  },
+  "testLimits": "Local tooling tests, disposable SQLite schemas, saved native metadata and local Git snapshot hashes only. No app source changes, hosted/mobile/sandbox checks or application build reruns. Evidence pointers seal saved results, not independent proof of test execution or deployed identity.",
+  "nextBatch": "Resolve one accessible remaining release gate through read-only target/resource isolation evidence; if access remains blocked, verify one bounded candidate workflow without deploying.",
+  "manifestSha256": "5d37436ff0b97cdd5027bcc5ff72e6476e9fc7ccd75614fc02ae87e887fce88c",
+  "manifestVerified": true,
+  "expectedRejections": {
+    "historicalInitial": {
+      "exitCode": 1,
+      "message": "Candidate source, adapters, migration history or review inputs changed; regenerate and review."
+    },
+    "historicalReliability": {
+      "exitCode": 1,
+      "message": "Candidate source, adapters, migration history or review inputs changed; regenerate and review."
+    },
+    "overwrite": {
+      "exitCode": 1,
+      "message": "Refusing to overwrite an existing manifest."
+    }
+  },
+  "candidateSnapshotReferences": {
+    "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
+    "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
+    "staging": "d11d5100fa0f80708b93fb4bf6a7418b0734cb78"
+  },
+  "nativeTablePreflights": {
+    "live": {
+      "observed": true,
+      "target": "live",
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "binding": "DB",
+      "tableNamesMatch": false,
+      "matchedTableNames": 18,
+      "candidateTableCount": 19,
+      "observedTableCount": 18,
+      "missingTables": [
+        "payment_refunds"
+      ],
+      "unexpectedTables": [],
+      "problems": [
+        "missing table: payment_refunds"
+      ],
+      "completeRemoteSchemaVerified": false,
+      "resourceIsolationVerified": false,
+      "migrationJournalVerified": false,
+      "productionReady": false
+    },
+    "doomsday": {
+      "observed": false,
+      "tableNamesMatch": null,
+      "reason": "Independent metadata unavailable",
+      "completeRemoteSchemaVerified": false,
+      "productionReady": false
+    },
+    "staging": {
+      "observed": true,
+      "target": "staging",
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "binding": "DB",
+      "tableNamesMatch": true,
+      "matchedTableNames": 19,
+      "candidateTableCount": 19,
+      "observedTableCount": 19,
+      "missingTables": [],
+      "unexpectedTables": [],
+      "problems": [],
+      "completeRemoteSchemaVerified": false,
+      "resourceIsolationVerified": false,
+      "migrationJournalVerified": false,
+      "productionReady": false
+    }
+  },
+  "verifiedCandidateEvidence": {
+    "latestEvidenceFile": "INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json",
+    "latestEvidenceSha256": "9e0c8d7bb93b6906749ed08ba83bd05e4df12361afd2a9e8d6f7de80c81f560a",
+    "historicalReliabilitySourcesSuperseded": {
+      "shared/app/dashboard.tsx": {
+        "historicalSha256": "47767b97d3322c4328c2b927f86a29311fd7fe5efdd0b819f1c1f679cf413bd5",
+        "latestSha256": "8112b27da779bebc5cafbb0081d66d5e6b3eecd75369df2ea6a5ccf67e7eef66"
+      }
+    },
+    "meaning": "Saved local batch evidence references; superseded hashes retain historical provenance, not current runtime or deployed proof."
+  },
+  "historicalFilesSha256": {
+    "CANDIDATE_RELEASE_MANIFEST.json": "4442ca9b85a3cf8277a582d3b911f8d92063980e0585f8545e90dc884be91ed2",
+    "RELIABILITY_RELEASE_REVIEW_MANIFEST.json": "f9803d625f4d2fb95c199a8e02b340789423ef685fa7c0b0e74d5a2fb3ebc5b2",
+    "RELIABILITY_RECOVERY_EVIDENCE.json": "b27626a4c72b9f7ebc75649761d1b80883a8cb10cf13b43c0ee2680940b2b5e8",
+    "BUSINESS_MOBILE_ACCESSIBILITY_EVIDENCE.json": "b1a36539581ed1397eb2f0920812107dd981b11ed77c74636411b5c96ba60e80",
+    "INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json": "9e0c8d7bb93b6906749ed08ba83bd05e4df12361afd2a9e8d6f7de80c81f560a",
+    "CANDIDATE_COMMITS.json": "353717a128d0fff7a69ca9230c82f7f007e2645f7bc11e3a514f62ad092dcc7c"
+  }
+}

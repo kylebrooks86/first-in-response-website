@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-10-08",
+  "side": "independent",
+  "state": "owner-app-payment-history",
+  "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev/",
+  "media": "jpeg",
+  "width": 1314,
+  "height": 936,
+  "sha256": "f6d3986f79aae3f07572d8a3c2cb3c88c82904af114197e3ee1c5ab4868c06aa",
+  "sourceCommitVerified": false,
+  "status": "CAPTURED_PENDING_PROVENANCE",
+  "sameStateComparison": "PENDING",
+  "notes": "Desktop read-only capture; not an iPhone comparison; fixture record shows separate tip and refund actions. Binary retained locally, not published with code."
+}

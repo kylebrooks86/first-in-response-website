@@ -1,0 +1,319 @@
+/** Real FIRE GET/PATCH notifications route on disposable local SQLite.
+ * Verifies owner authentication, durable Mark All as Read, re-fetch, replay,
+ * mixed read/unread records, and strict separation from business reminders.
+ * No hosted database, real account, messages, financial writes or provider.
+ */
+import assert from 'node:assert/strict';
+import {resolve} from 'node:path';
+import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
+
+const rt=stackedRuntime();
+let checks=0;
+const check=(value,label)=>{assert.ok(value,label);checks++;console.log('PASS: '+label)};
+const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
+const stamp='2026-10-20T12:00:00Z';
+const route=rt.load('app/api/notifications/route.ts');
+const read=async()=>{const r=await route.GET();return{status:r.status,data:await r.json(),headers:r.headers};};
+const patch=async body=>{const r=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)}));return{status:r.status,data:await r.json(),headers:r.headers};};
+const assertPrivatePatch=(r,label)=>check(r.headers.get('cache-control')==='private, no-store'&&r.headers.get('vary')==='Cookie'&&r.headers.get('x-content-type-options')==='nosniff',label+' is session-private, cookie-varying and nosniff');
+const rows=()=>rt.db.prepare('SELECT id,read_at,resolved_at FROM notifications ORDER BY id').all();
+const put=(n,readAt=null)=>rt.db.prepare('INSERT INTO notifications(id,type,title,body,read_at,created_at) VALUES (?,?,?,?,?,?)')
+  .run(id(n),'estimate_viewed','Synthetic activity '+n,'No customer data',readAt,stamp);
+try{
+ // Keep notification MARK, RESOLVE and financial exception input bounded.
+ // All malformed owner actions are refused before D1 reads OR writes.
+ for(const [label,body,headers,expected] of [
+  ['overdeclared owner action','{}',{'content-length':'8193'},413],
+  ['oversized streamed owner action',' '.repeat(8193),{},413],
+  ['false short declared length','{"x":1}',{'content-length':'2'},400],
+  ['invalid owner UTF8',new Uint8Array([123,34,120,34,58,255,125]),{},400],
+  ['owner JSON array','[]',{},400]
+ ]){
+  const before=rt.counters();
+  const refused=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+   method:'PATCH',headers:{'content-type':'application/json',...headers},body
+  }));
+  check(refused.status===expected,label+' fails closed with exact HTTP status');
+  assertPrivatePatch(refused,label+' malformed owner PATCH rejection');
+  check(JSON.stringify(rt.counters())===JSON.stringify(before),label+' touches no D1 state');
+ }
+ put(1);put(2);put(3,'2026-10-19T12:00:00Z');
+ const start=await read();
+ check(start.headers.get('cache-control')==='private, no-store'&&start.headers.get('vary')==='Cookie'&&start.headers.get('x-content-type-options')==='nosniff',
+   'Private owner notification GET is noncacheable, cookie-varied and nosniff');
+ check(start.status===200&&start.data.unread===2&&start.data.notifications.length===3,
+   'Actual authenticated GET reports exactly two unread and one saved read notification');
+ const originalRead=rows().find(x=>x.id===id(3)).read_at;
+ const bad=await patch({all:true,id:id(1)});
+ assertPrivatePatch(bad,'Conflicting notification actions 400');
+ check(bad.status===400&&rows().filter(x=>x.read_at===null).length===2,
+   'Mixed mark-all and one-record action is rejected with no writes');
+ const nonBoolean=await patch({all:1});
+ check(nonBoolean.status===400&&rows().filter(x=>x.read_at===null).length===2,
+   'Invalid mark-all value cannot change read state');
+ rt.setOwner(null);
+ const denied=await patch({all:true}),unreadDenied=await read();
+ assertPrivatePatch(denied,'Anonymous notification PATCH 401');
+ check(unreadDenied.headers.get('cache-control')==='private, no-store'&&unreadDenied.headers.get('vary')==='Cookie'&&unreadDenied.headers.get('x-content-type-options')==='nosniff',
+   'Anonymous notification GET denial never leaks through a shared cache');
+ check(denied.status===401&&unreadDenied.status===401&&rows().filter(x=>x.read_at===null).length===2,
+   'Unknown owner cannot inspect or mark anyone\'s activity as read');
+ for(const identity of [{},{email:null},{email:42}]){
+  rt.setOwner(identity);
+  const before=rt.counters();
+  const deniedGet=await read(),deniedPatch=await patch({all:true});
+  check(deniedGet.status===401&&deniedPatch.status===401,'Malformed notification principal cannot read or mark notifications');
+  assertPrivatePatch(deniedPatch,'Malformed owner notification PATCH');
+  check(JSON.stringify(rt.counters())===JSON.stringify(before),'Malformed notification principal performs zero D1 calls');
+ }
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const originalGetPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=()=>{throw Error('Synthetic notification D1 failure')};
+ try{
+   const unavailable=await read();
+   check(unavailable.status===503&&unavailable.data.error&&unavailable.headers.get('cache-control')==='private, no-store'&&unavailable.headers.get('vary')==='Cookie'&&unavailable.headers.get('x-content-type-options')==='nosniff',
+     'Database-outage notification GET fails closed with private no-store headers');
+ }finally{rt.env.DB.prepare=originalGetPrepare;}
+ const first=await patch({all:true});
+ assertPrivatePatch(first,'Confirmed notification mark-all PATCH 200');
+ check(first.status===200&&first.data.ok===true&&first.data.unread===0&&typeof first.data.readAt==='string',
+   'Mark All returns success only after actual local database confirmation');
+ const saved=rows();
+ check(saved.every(x=>x.read_at!==null),'Both formerly unread entries are physically marked read');
+ check(saved.every(x=>x.resolved_at===null),'Mark All never resolves separate tasks/financial exceptions');
+ check(saved.find(x=>x.id===id(3)).read_at===originalRead,
+   'Already-read historical timestamp is unchanged');
+ const refreshed=await read();
+ check(refreshed.status===200&&refreshed.data.unread===0&&
+       refreshed.data.notifications.every(x=>x.readAt!==null),
+       'Refreshing the actual GET after Mark All preserves zero unread on storage');
+ const replay=await patch({all:true});
+ check(replay.status===200&&replay.data.unread===0&&JSON.stringify(rows())===JSON.stringify(saved),
+   'Repeated Mark All is idempotent and does not update old timestamps');
+ put(4);
+ const newEvent=await read();
+ check(newEvent.data.unread===1&&newEvent.data.notifications.some(x=>x.id===id(4)&&x.readAt===null),
+   'New unread activity after Mark All is visible instead of globally suppressed');
+ const one=await patch({id:id(4)});
+ check(one.status===200&&rows().find(x=>x.id===id(4)).read_at!==null,
+   'Marking a single newly arrived notification is persisted');
+ check((await read()).data.unread===0,'Second reload retains correct unread count after individual mark');
+ const previous=JSON.stringify(rows());
+ const missing=await patch({id:id(99)});
+ assertPrivatePatch(missing,'Missing notification PATCH 404');
+ check(missing.status===404&&JSON.stringify(rows())===previous,
+   'Missing notification cannot claim successful mark or alter other records');
+ // A regular notification's resolve action must produce a verified saved
+ // resolution (not just an uninspected SQLite write ACK).
+ put(6);
+ const resolved=await patch({id:id(6),resolve:true});
+ assertPrivatePatch(resolved,'Confirmed notification resolve PATCH 200');
+ const savedResolution=rows().find(x=>x.id===id(6));
+ check(resolved.status===200&&resolved.data.ok===true&&
+       resolved.data.resolvedAt===savedResolution.resolved_at&&
+       resolved.data.readAt===savedResolution.read_at&&Boolean(savedResolution.resolved_at),
+   'Normal notification resolution returns persisted SQLite read and resolve timestamps');
+ const resolvedReplay=await patch({id:id(6),resolve:true});
+ check(resolvedReplay.status===200&&resolvedReplay.data.resolvedAt===savedResolution.resolved_at&&
+       rows().find(x=>x.id===id(6)).resolved_at===savedResolution.resolved_at,
+   'Repeated resolution preserves the original resolved timestamp');
+ const missingResolution=await patch({id:id(99),resolve:true});
+ check(missingResolution.status===404,'Missing notification cannot claim a successful resolution');
+ put(7);
+ rt.db.prepare("UPDATE notifications SET type='payment_overage' WHERE id=?").run(id(7));
+ const guardedResolution=await patch({id:id(7),resolve:true});
+ check(guardedResolution.status===409&&rows().find(x=>x.id===id(7)).resolved_at===null,
+   'Ordinary resolve cannot bypass the payment-overage reconciliation requirement');
+ const failedResolutionPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+   if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?)"))
+     return {bind:()=>({first:async()=>null})};
+   return failedResolutionPrepare(sql);
+ };
+ put(8);
+ const unresolved=await patch({id:id(8),resolve:true});
+ check(unresolved.status===503&&unresolved.data.saveUncertain===true&&
+       rows().find(x=>x.id===id(8)).resolved_at===null,
+   'A nonthrowing but unconfirmed resolution refuses false success');
+ rt.env.DB.prepare=failedResolutionPrepare;
+ const originalPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){if(sql.includes('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))throw Error('Synthetic SQLite unavailable');return originalPrepare(sql);};
+ put(5);
+ const failure=await patch({all:true});
+ check(failure.status===503&&failure.data.saveUncertain===true&&
+       rows().find(x=>x.id===id(5)).read_at===null,
+   'Failed storage update returns actionable uncertainty and never clears unread falsely');
+ rt.env.DB.prepare=originalPrepare;
+
+ const recovered=await read();
+ const remainingUnread=rows().filter(row=>row.read_at===null).length;
+ check(recovered.status===200&&remainingUnread===3&&recovered.data.unread===remainingUnread,
+   'After an interrupted update, the real GET still reports every pending notification');
+
+ // Test real SQLite COMMIT followed by a deliberately lost transport ACK.
+ // The route must recover from a SECOND SELECT and must not write again.
+ put(9);
+ let savedReadAllWrites=0;
+ rt.env.DB.prepare=function(sql){
+   const prepared=originalPrepare(sql);
+   if(!sql.startsWith('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))return prepared;
+   return {bind(...args){
+     const q=prepared.bind(...args);
+     return {run:async()=>{
+       savedReadAllWrites++;
+       await q.run();
+       throw Error('Synthetic lost ACK after committed Mark All');
+     }};
+   }};
+ };
+ const allLost=await patch({all:true});
+ rt.env.DB.prepare=originalPrepare;
+ check(allLost.status===200&&allLost.data.ok===true&&allLost.data.unread===0&&
+       savedReadAllWrites===1&&rows().every(x=>x.read_at!==null),
+   'After committed mark-all loses its reply, a physical unread SELECT confirms all read without another write');
+
+ // A successful-looking UPDATE ACK with no actual SQLite write must NOT
+ // clear activity or report Mark All succeeded.
+ put(10);
+ rt.env.DB.prepare=function(sql){
+   if(sql.startsWith('UPDATE notifications SET read_at=? WHERE read_at IS NULL'))
+     return {bind:()=>({run:async()=>({success:true,meta:{changes:1}})})};
+   return originalPrepare(sql);
+ };
+ const fakeAll=await patch({all:true});
+ rt.env.DB.prepare=originalPrepare;
+ check(fakeAll.status===503&&fakeAll.data.saveUncertain===true&&
+       rows().find(x=>x.id===id(10)).read_at===null,
+   'Fabricated successful Mark All receipt cannot hide an unread row');
+
+ // A single notification read/resolve may commit then lose the RETURNING
+ // acknowledgement; recover each via the exact saved SQLite row instead.
+ let readAckLostWrites=0;
+ rt.env.DB.prepare=function(sql){
+   const prepared=originalPrepare(sql);
+   if(!sql.startsWith('UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? RETURNING'))return prepared;
+   return {bind(...args){
+     const q=prepared.bind(...args);
+     return {first:async()=>{
+       readAckLostWrites++;
+       await q.first();
+       throw Error('Synthetic lost ACK after committed individual read');
+     }};
+   }};
+ };
+ const singleLost=await patch({id:id(10)});
+ rt.env.DB.prepare=originalPrepare;
+ check(singleLost.status===200&&Boolean(singleLost.data.readAt)&&readAckLostWrites===1&&
+       rows().find(x=>x.id===id(10)).read_at===singleLost.data.readAt,
+   'Committed individual read recovers from lost ACK with exactly one persisted read state');
+
+ put(11);
+ let resolveAckLostWrites=0;
+ rt.env.DB.prepare=function(sql){
+   const prepared=originalPrepare(sql);
+   if(!sql.startsWith('UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?)'))return prepared;
+   return {bind(...args){
+     const q=prepared.bind(...args);
+     return {first:async()=>{
+       resolveAckLostWrites++;
+       await q.first();
+       throw Error('Synthetic lost ACK after committed notification resolve');
+     }};
+   }};
+ };
+ const resolveLost=await patch({id:id(11),resolve:true});
+ rt.env.DB.prepare=originalPrepare;
+ const savedResolve=rows().find(x=>x.id===id(11));
+ check(resolveLost.status===200&&resolveLost.data.resolvedAt===savedResolve.resolved_at&&
+       resolveLost.data.readAt===savedResolve.read_at&&resolveAckLostWrites===1,
+   'Committed notification resolution recovers only its stored read/resolved times after lost ACK');
+
+ // An entirely malformed payload must be rejected before the owner route
+ // touches D1, not returned as an opaque 500 by JSON parsing.
+ for(const body of ['null','[]','"not a notification action"','{invalid']){
+   const resp=await route.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+     method:'PATCH',headers:{'content-type':'application/json'},body
+   }));
+   check(resp.status===400,'Malformed action '+body+' returns 400, no write');
+ }
+
+ // Exercise the ACTUAL disaster-recovery route against the same disposable
+ // SQLite store, not an approximation of its SQL. No hosted DR touched.
+ const dr=rt.load(resolve(process.env.GITHUB_WORKSPACE??resolve(process.cwd(),'../..'),'fire-app-dr/app/api/notifications/route.ts'));
+ const drRead=async()=>{const r=await dr.GET();return {status:r.status,data:await r.json(),headers:r.headers};};
+ const drPatch=async body=>{const r=await dr.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+   method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+ }));return {status:r.status,data:await r.json(),headers:r.headers};};
+ for(let n=100;n<151;n++)put(n);
+ const expectedUnread=rows().filter(row=>row.read_at===null).length;
+ const drStart=await drRead();
+ check(drStart.status===200&&drStart.data.notifications.length===40&&
+       drStart.data.unread===expectedUnread&&expectedUnread>40&&
+       drStart.headers.get('cache-control')==='private, no-store',
+   'Real DR GET counts every unread notification, even when the visible list stops at 40');
+ check(drStart.headers.get('vary')==='Cookie'&&drStart.headers.get('x-content-type-options')==='nosniff',
+   'DR notification GET carries the QA-master cookie-varying nosniff boundary');
+ const drBeforeDenied=rt.counters();
+ rt.setOwner(null);
+ const drNoOwnerRead=await drRead(),drNoOwnerWrite=await drPatch({all:true});
+ check(drNoOwnerRead.status===401&&drNoOwnerWrite.status===401,
+   'DR anonymous identity is denied both notification GET and PATCH');
+ check(JSON.stringify(rt.counters())===JSON.stringify(drBeforeDenied),
+   'DR anonymous requests do not touch notification D1');
+ assertPrivatePatch(drNoOwnerWrite,'DR anonymous PATCH');
+ check(drNoOwnerRead.headers.get('cache-control')==='private, no-store'&&drNoOwnerRead.headers.get('vary')==='Cookie'&&drNoOwnerRead.headers.get('x-content-type-options')==='nosniff',
+   'DR anonymous GET denial is private and noncacheable');
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
+ const drOriginalGetPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=()=>{throw Error('Synthetic DR notification D1 failure')};
+ try{
+   const failedRead=await drRead();
+   check(failedRead.status===503&&failedRead.headers.get('cache-control')==='private, no-store'&&failedRead.headers.get('vary')==='Cookie'&&failedRead.headers.get('x-content-type-options')==='nosniff',
+     'DR failed notification D1 read returns private 503 without leaking activity');
+ }finally{rt.env.DB.prepare=drOriginalGetPrepare;}
+
+ const drMixed=await drPatch({all:true,id:id(100)});
+ assertPrivatePatch(drMixed,'DR conflicting owner notification PATCH');
+ check(drMixed.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
+   'DR refuses conflicting mark-all and single-notification actions without writes');
+ const drInvalid=await drPatch({all:1});
+ check(drInvalid.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
+   'DR rejects nonboolean mark-all requests before changing records');
+ const drAll=await drPatch({all:true});
+ assertPrivatePatch(drAll,'DR confirmed mark-all PATCH');
+ check(drAll.status===200&&drAll.data.unread===0&&rows().every(row=>row.read_at!==null)&&
+       rows().find(row=>row.id===id(7)).resolved_at===null,
+   'DR Mark All confirms all read rows without clearing unresolved payment alerts');
+ put(201);
+ const drSingle=await drPatch({id:id(201)});
+ check(drSingle.status===200&&drSingle.data.readAt===rows().find(row=>row.id===id(201)).read_at,
+   'DR individual read reports the persisted timestamp');
+ const drMissing=await drPatch({id:id(999)});
+ check(drMissing.status===404,'DR refuses false success for a missing notification');
+ put(202);
+ const drResolve=await drPatch({id:id(202),resolve:true});
+ const drSaved=rows().find(row=>row.id===id(202));
+ check(drResolve.status===200&&drResolve.data.resolvedAt===drSaved.resolved_at&&
+       drResolve.data.readAt===drSaved.read_at&&Boolean(drSaved.resolved_at),
+   'DR resolution returns an independently persisted read and resolve receipt');
+ const drReplay=await drPatch({id:id(202),resolve:true});
+ check(drReplay.status===200&&drReplay.data.resolvedAt===drSaved.resolved_at,
+   'DR repeated resolution preserves the original timestamp');
+ const drGuarded=await drPatch({id:id(7),resolve:true});
+ check(drGuarded.status===409&&rows().find(row=>row.id===id(7)).resolved_at===null,
+   'DR normal notification action cannot dismiss payment-overage exceptions');
+ const drOriginalPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+   if(sql.includes("UPDATE notifications SET read_at=COALESCE(read_at,?), resolved_at=COALESCE(resolved_at,?)"))
+     return {bind:()=>({first:async()=>null})};
+   return drOriginalPrepare(sql);
+ };
+ put(203);
+ const drFailed=await drPatch({id:id(203),resolve:true});
+ assertPrivatePatch(drFailed,'DR uncertain notification save PATCH');
+ check(drFailed.status===503&&drFailed.data.saveUncertain===true&&
+       rows().find(row=>row.id===id(203)).resolved_at===null,
+   'DR unconfirmed SQLite response does not claim resolution success');
+ rt.env.DB.prepare=drOriginalPrepare;
+}finally{rt.db.close();}
+console.log('PASS '+checks+' actual notifications route/SQLite persistence, isolation and recovery assertions. NO HOSTED OPERATIONS.');

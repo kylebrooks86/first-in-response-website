@@ -1,0 +1,63 @@
+{
+  "sourceCheckpoint": "0e42d58cdfb86fda86794ea973d51453e5f384d8",
+  "source": "Owner independent iPhone Safari synthetic QA report, 2026-10-18",
+  "officialReadiness": {
+    "accepted": 3,
+    "gates": 10,
+    "percent": 30
+  },
+  "observedPasses": [
+    "Customer create/edit/referral-source persistence",
+    "Customer notes surviving refresh",
+    "Estimate service/quantity/description/pricing edits and persistence",
+    "Estimate status filters and pipeline transitions",
+    "Customer preview/change requests/agreement approval/photo permission",
+    "Deposit recording and remaining balances",
+    "Job scheduling, upcoming jobs and navigation to details",
+    "Job Report save and persistence after Safari refresh",
+    "Previously tested completion safeguards"
+  ],
+  "findings": [
+    {
+      "issue": "Intermittent roughly 10-second Load failed on create/change/approval/payment",
+      "status": "Root connection/latency cause unverified. This batch protects change-request/approval retry semantics; customer-create and payment diagnostics remain open."
+    },
+    {
+      "issue": "Global search redirects to Customers",
+      "status": "Confirmed source behavior; app-wide customer/job/service/address search remains pending."
+    },
+    {
+      "issue": "Notifications open general sections",
+      "status": "This batch routes estimate-linked alerts to the exact owner estimate/job, consumes the focus once, and rejects mismatched responses. Dedicated customer-only/invoice-specific destinations remain follow-up."
+    },
+    {
+      "issue": "iPhone dropdown/nested scrolling hesitation",
+      "status": "Open; physical Safari acceptance required. Do not conflate with the old shaking issue that the owner previously said was absent."
+    },
+    {
+      "issue": "Estimate/job status synchronization",
+      "status": "Home source improvements already committed; new device acceptance and complete cross-view synchronization remain pending."
+    },
+    {
+      "issue": "Prepared/copied template messages resemble delivery history",
+      "status": "Preserve immutable prepared audit events and existing grouping. Further clear draft/copy/owner-confirmed presentation remains pending; no verified delivery claim."
+    },
+    {
+      "issue": "Owner customer-preview Close",
+      "status": "Already implemented and browser-tested in shared source. Preserve owner-auth boundary and verify next QA release instead of rebuilding."
+    },
+    {
+      "issue": "Two synthetic appointments on October 20, 2026 at 10 AM",
+      "status": "Owner-reported potential conflict. Add deliberate conflict warning/safeguard without silently moving or deleting jobs."
+    },
+    {
+      "issue": "Job report photos/private documentation versus marketing permission",
+      "status": "Capture/attachment workflow and consent separation remain pending."
+    }
+  ],
+  "preservation": [
+    "No hosted app/data/database/secret changes in this batch",
+    "Preserve both original synthetic estimates and all new independent-QA records",
+    "Synthetic Chromium/native-D1 fault tests are not iPhone or hosted release acceptance"
+  ]
+}
