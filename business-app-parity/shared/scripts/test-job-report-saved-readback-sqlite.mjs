@@ -213,5 +213,26 @@ try{
   eq(deniedGet.headers.get('cache-control'),'private, no-store','Malformed report read stays private');
   eq(rt.counters(),before,'Malformed job report principal performs zero D1 calls');
  }
+ // A rejected session provider or a throwing principal email getter must be
+ // treated like an anonymous 401, never a cacheable unhandled 500 or D1 read.
+ for(const scenario of ['rejected session','throwing email getter']){
+  const identity=scenario==='rejected session'
+   ? Promise.reject(Error('Synthetic session service unavailable'))
+   : Object.defineProperty({},'email',{get(){throw Error('Unreadable synthetic session email');}});
+  rt.setOwner(identity);
+  const before=rt.counters();
+  const deniedGet=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+  eq(deniedGet.status,401,scenario+' denies private report GET');
+  eq(deniedGet.headers.get('cache-control'),'private, no-store',scenario+' GET is private');
+  eq(deniedGet.headers.get('vary'),'Cookie',scenario+' GET varies with owner cookie');
+  eq(deniedGet.headers.get('x-content-type-options'),'nosniff',scenario+' GET forbids sniffing');
+  const deniedPost=await route.POST(new Request('https://fixture.invalid/api/job-reports',{
+   method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)
+  }));
+  eq(deniedPost.status,401,scenario+' denies report mutation');
+  assertPrivatePost(deniedPost,scenario+' POST');
+  eq(rt.counters(),before,scenario+' reads and writes no D1 records');
+ }
+ rt.setOwner({email:'kylebrooks8605@gmail.com'});
  console.log('PASS '+checks+'/'+checks+' real JobReport API/native SQLite readback, legacy history, contact-free, no-op writes, lost-ack recovery and owner authorization. NO HOSTED WRITES.');
 }finally{rt.env.DB.prepare=orig;db.close();}
