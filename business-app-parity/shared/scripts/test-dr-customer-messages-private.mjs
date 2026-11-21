@@ -31,9 +31,12 @@ db.prepare('INSERT INTO invoices(id,estimate_id,customer_id,total_cents) VALUES 
 db.prepare('INSERT INTO payments(id,estimate_id,status,type,amount_cents) VALUES (?,?,?,?,?)').run('p1','e1','paid','Customer payment',20000);
 
 let owner={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,softWriteFailure=false;
+let fakeWriteAcknowledged=false,fakeZeroChanges=false;
 const DB={prepare(sql){return {bind(...args){return {
  async first(){reads++;return db.prepare(sql).get(...args)??null;},
  async run(){writes++;if(softWriteFailure)return {success:false,meta:{changes:0}};
+   if(fakeWriteAcknowledged)return {success:true,meta:{changes:1}};
+   if(fakeZeroChanges)return {success:true,meta:{changes:0}};
    const result=db.prepare(sql).run(...args);return {success:true,meta:{changes:Number(result.changes)}};
  }
 };}};}};
@@ -114,6 +117,24 @@ eq(count(),2,'One reviewed communication saved, no incorrect drafts');
 receipt=await send(review);eq(receipt.status,200,'Rapid duplicate review safely reuses existing record');privacy(receipt,'Duplicate review');
 eq((await receipt.json()).duplicate,true,'Duplicate receipt explicit');
 eq(count(),2,'Duplicate did not add a second row');
+// A falsely successful D1 INSERT acknowledgement must not authorize a
+// customer-message saved receipt without exact committed row readback.
+fakeWriteAcknowledged=true;
+receipt=await send({...ordinary,body:'Synthetic false-success D1 customer communication'});
+eq(receipt.status,503,'Fake successful D1 INSERT without committed row returns uncertain');
+privacy(receipt,'False successful INSERT');
+eq((await receipt.json()).saveUncertain,true,'False success explicitly requires owner review');
+eq(count(),2,'False successful D1 acknowledgement did not add a message');
+fakeWriteAcknowledged=false;
+// A zero-change review INSERT may mean a fresh deduplicated message, but an
+// old review from hours ago is not a valid duplicate of a new attempt.
+db.prepare("UPDATE customer_messages SET created_at=datetime('now','-2 hours') WHERE template='review'").run();
+fakeZeroChanges=true;
+receipt=await send(review);
+eq(receipt.status,409,'Old saved review does not masquerade as fresh duplicate');
+privacy(receipt,'Old review cannot be duplicated');
+eq(count(),2,'Unconfirmed zero-change review creates no message');
+fakeZeroChanges=false;
 softWriteFailure=true;
 receipt=await send({...ordinary,body:'Unacknowledged synthetic insert'});
 eq(receipt.status,503,'Soft failed D1 write never returns false success');privacy(receipt,'Uncertain write');
