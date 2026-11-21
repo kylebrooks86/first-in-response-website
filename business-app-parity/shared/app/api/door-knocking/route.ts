@@ -20,7 +20,15 @@ export async function GET(){
 export async function POST(request:Request){
  if(!await authorized())return json({error:'Unauthorized'},401);
  const parsed=await readOwnerWriteObject(request,8192);
- if(parsed.response)return parsed.response;
+ if(parsed.response){
+  // The shared bounded parser rejects unsafe owner writes before D1, but its
+  // generic response does not include the door-history session cache boundary.
+  // Keep every denial as private as the successful owner GET/POST receipts.
+  parsed.response.headers.set('Cache-Control','private, no-store');
+  parsed.response.headers.set('Vary','Cookie');
+  parsed.response.headers.set('X-Content-Type-Options','nosniff');
+  return parsed.response;
+ }
  const b=parsed.value as Record<string,unknown>;
  if(!doorId(b.requestId)||!(b.expectedRevision===null||doorId(b.expectedRevision))||!['add','visit','unsuppress','locate','unpin'].includes(String(b.action)))return json({error:'Refresh and review the house request.'},400);
  const locationAction=b.action==='locate'||b.action==='unpin';
