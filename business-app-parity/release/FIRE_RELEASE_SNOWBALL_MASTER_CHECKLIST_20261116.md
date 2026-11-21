@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-ESTIMATE-INVOICE-TARGETED-CI-95FF8E7 -->
+## November 21 — [x] BOTH newly changed actual DR route regression steps PASSED; remaining total-source CI in progress (NO DEPLOY)
+
+- [x] **Invoice POST 16 KB/origin/private/zero-D1 real-route test VERIFIED:** automatic [QA/STAGING run #44961107994, job #137020342437](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44961107994/job/137020342437), step **Gate 6 owner dashboard private-cache and financial job parity (native SQLite only)**, **COMPLETED SUCCESS** on exact executable/test SHA [`95ff8e7`](https://github.com/kylebrooks86/first-in-response-website/commit/95ff8e72e218e6db5becd16dc15b1d29d8ecaca4). Step directly invokes existing CI-wired `test-dr-invoice-directory-private.mjs` against actual independent DR invoice handler plus existing QA/DR native SQLite tests. No physical provider data.
+- [x] **Estimate PATCH 256 KiB/origin/private/zero-D1 real-route test VERIFIED:** same run [job #137020342464](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44961107994/job/137020342464), step **Gate 7 disaster recovery quote pricing parity and atomic save receipts (real DR routes, SQLite)**, **COMPLETED SUCCESS** on the SAME exact executable/test SHA. Step directly invokes expanded `test-dr-estimate-pricing-sqlite.mjs` with legitimate DR price/discount/lifecycle tests retained.
+- [ ] **Entire 27-workflow exact source seal** pending final result: 26/27 workflow groups completed SUCCESS at this read; QA/STAGING run #44961107994 still IN PROGRESS finishing existing nonchanged browser/staging checks. All four invoice/estimate source/test subtasks are committed [x]; do not assert 27/27 until full completion. Prior invoice-only source CI was superseded, one cancelled (not a failure).
+- [ ] **Original hosted numbered G4/G5/G6/G7/G9/G10 release criteria** still OPEN, unchanged **51/95 original checkboxes, 4/10 whole gates accepted (G1/G2/G3/G8)**, NEW LIVE DARK/NO-GO, Job #0001 unused. No merge, cloud/SQL/provider, payment or deployment operation was performed.
+
+---
+
 <!-- FIRE-NOV21-DR-ESTIMATE-PATCH-95FF8E7 -->
 ## November 21 — [x] DR estimate PATCH owner/origin/stream/privacy source; [x] real-handler negative tests (NO DEPLOY)
 
