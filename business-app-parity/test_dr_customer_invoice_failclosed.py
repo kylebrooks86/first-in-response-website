@@ -140,15 +140,34 @@ class DRInvoiceOwnership(unittest.TestCase):
                 self.assertIn('FIRE_STRIPE_MODE',post)
                 self.assertIn('_test_',post)
                 self.assertIn('cache-control',post)
-                self.assertLess(post.index("FIRE_STRIPE_MODE"),
-                    post.index("request.json()") if name=="refund" else post.index("request.text()"),
-                    "TEST-only guard must precede all request-triggered financial actions")
+                if name=="refund":
+                    self.assertIn("readOwnerWriteObject(request,16_000)",post,
+                                  "Real owner JSON stream/parser guard is mandatory")
+                    self.assertNotIn("request.json()",post,
+                                     "Never revert to unbounded refund JSON parsing")
+                    self.assertLess(post.index("FIRE_STRIPE_MODE"),
+                                    post.index("readOwnerWriteObject(request,16_000)"),
+                                    "TEST-only guard must precede refund JSON reads")
+                    self.assertLess(post.index("readOwnerWriteObject(request,16_000)"),
+                                    post.index("env.DB.prepare("),
+                                    "Refund owner input must be validated before D1")
+                else:
+                    self.assertLess(post.index("FIRE_STRIPE_MODE"),post.index("request.text()"),
+                                    "TEST-only guard must precede webhook reads")
         owner_post=payments[payments.index("async function savePayment("):payments.index("export async function POST(")]
         owner_wrapper=payments[payments.index("export async function POST("):]
         self.assertIn("response = await savePayment(request)",owner_wrapper)
         self.assertIn("paymentPrivateHeaders",owner_wrapper)
         self.assertIn("saveUncertain: true",owner_wrapper)
-        self.assertLess(owner_post.index('FIRE_STRIPE_MODE'),owner_post.index("request.json()"))
+        self.assertIn("readOwnerWriteObject(request,16_000)",owner_post,
+                      "DR payment must use the real bounded owner JSON guard")
+        self.assertNotIn("request.json()",owner_post,
+                         "Unbounded payment JSON parsing is unsafe")
+        self.assertLess(owner_post.index('FIRE_STRIPE_MODE'),
+                        owner_post.index("readOwnerWriteObject(request,16_000)"))
+        self.assertLess(owner_post.index("readOwnerWriteObject(request,16_000)"),
+                        owner_post.index("env.DB.prepare("),
+                        "Payment body guard must run before D1")
         self.assertIn('FIRE_STRIPE_MODE!=="test"',owner_post)
         self.assertIn("export async function GET()",payments,"Read-only owner payment history preserved")
         self.assertIn('! /^(?:sk|rk|rkcs)_test_'.replace('! ','!'),
