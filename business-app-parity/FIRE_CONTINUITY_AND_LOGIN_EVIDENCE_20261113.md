@@ -1,3 +1,12 @@
+<!-- FIRE-NOV21-QA-OWNER-DECISION-PARITY-3863A9A -->
+## November 21 — QA-master saved owner communication decisions now fail closed; source/test checkoff completed
+
+Existing integrated unmerged DRAFT PR #282: real QA route correction [`c2f3cc5`](https://github.com/kylebrooks86/first-in-response-website/commit/c2f3cc514f6edc473b52732139de53cbd7600e70), dedicated native-SQLite QA regression additions [`3863a9a`](https://github.com/kylebrooks86/first-in-response-website/commit/3863a9ae8576143a90bc5b32a3319db30bf690df). QA-master previously returned a clean owner-confirmed sent/not-sent receipt on its normal path based only on existence of an ambiguous/malformed immutable row. It now shares the already-tested DR exact saved-receipt verification on normal and lost-ACK paths, rejecting wrong prepared identity/customer/estimate/channel/template/body/timestamp and opposite historical decisions with private 503 uncertainty, never delivery. Three independent native-SQLite corrupt/contradictory QA scenarios were authored on the existing QA test file.
+
+**Actual [x] source-fix and new test authoring saved in master checklist; [ ] exact new-source CI remains pending at this checkpoint.** Workflow groups had been queued for exact test SHA `3863a9a`, including QA/STAGING run 44941937796. Do not claim the new tests passed until original job logs confirm them. Previous DR 417-test and 27/27 exact-SHA CI remains accepted for its *different* immutable revision and need not rerun. This does not increment the original 95-row formal count or close G6. Original **51/95**, 4/10 whole gates (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN, STAGING physical D1 22/25, DR/NEW LIVE DARK/NO-GO, initial Job #0001 unissued. All earlier owner Cloudflare screenshots/Access/preview/Domains/Acer/iPhone proof retained. No remote provider, D1/Stripe, paid R2, merge, deployment, LIVE or actual message delivery.
+
+---
+
 <!-- FIRE-NOV21-DR-DECISION-RECEIPT-CI-CHECKOFF-417 -->
 ## November 21, 2026 — ACTUAL checked source-CI milestone on active Draft PR #282; hosted gates unchanged
 
