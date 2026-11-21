@@ -25,7 +25,13 @@ const quote=(requestId=randomUUID())=>({requestId,customer:'Synthetic new estima
  ],appreciationDiscount:false,additionalDiscountType:'percent',additionalDiscountValue:0,bundleDiscountCents:0});
 const itemRows=id=>r.db.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid').all(id);
 try{
+ const privateQuote=(response,label)=>{
+  eq(response.headers.get('cache-control'),'private, no-store',label+' quote response must never be cached');
+  eq(response.headers.get('vary'),'Cookie',label+' quote response varies by owner');
+  eq(response.headers.get('x-content-type-options'),'nosniff',label+' quote response refuses MIME sniffing');
+ };
  const input=quote();let response=await r.post(input);
+ privateQuote(response,'created');
  eq(response.status,201,'New estimate success');const created=await response.json();
  eq(created.id,input.requestId,'Operation UUID is actual estimate ID');
  eq(created.totalCents,29500,'Exact starting price plus gutter total');
@@ -37,6 +43,7 @@ try{
    'All IDs are persisted UUIDs, never temporary placeholders');
  eq(created.items.map(x=>x.totalCents),rows.map(x=>x.totalCents),'Each exact cent matches real saved row');
  response=await r.post(input);
+ privateQuote(response,'replayed');
  eq(response.status,200,'Idempotent same-request replay');
  const replay=await response.json();
  eq(replay.replayed,true,'Replay does not create another estimate');
@@ -45,6 +52,7 @@ try{
  eq(r.db.prepare('SELECT COUNT(*) AS n FROM estimate_items WHERE estimate_id=?').get(input.requestId).n,2,'No duplicate service rows');
  skipBatch=true;
  const skipped=quote();response=await r.post(skipped);
+ privateQuote(response,'uncertain');
  eq(response.status,503,'Nonthrowing fake batch acknowledgment must not claim a saved estimate');
  eq((await response.json()).saveUncertain,true,'Failed save exposes uncertain receipt');
  eq(r.db.prepare('SELECT COUNT(*) AS n FROM estimates WHERE id=?').get(skipped.requestId).n,0,'Skipped batch contains no estimate row');

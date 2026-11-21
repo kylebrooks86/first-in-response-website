@@ -26,7 +26,15 @@ async function savedJobReference(estimateId:string):Promise<number|null>{
     return jobNumberLabel(row?.jobNumber)?Number(row!.jobNumber):null;
   }catch{return null;}
 }
-async function authorized(){ const user=await getChatGPTUser(); return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL; }
+async function authorized(){
+ try{
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL;
+ }catch{
+  // Failed owner-session resolution must deny before quote/customer D1 work.
+  return false;
+ }
+}
 
 type ItemRow={id:string;estimateId:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 
@@ -80,7 +88,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function saveEstimate(request: Request) {
   if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     // Harden the owner quote save path before pricing, customer resolution,
@@ -297,4 +305,14 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }
+}
+
+ 
+// New estimate receipts contain private homeowner details and share tokens.
+// Keep success, uncertainty and rejection responses scoped to the owner cookie.
+export async function POST(request: Request) {
+ const response=await saveEstimate(request);
+ const headers=new Headers(response.headers);
+ for(const [name,value] of Object.entries(ownerListHeaders))headers.set(name,value);
+ return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }

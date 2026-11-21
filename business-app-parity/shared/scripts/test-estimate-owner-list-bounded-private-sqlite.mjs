@@ -58,6 +58,26 @@ try{
     eq(r.headers.get('x-content-type-options'),'nosniff','Malformed '+label+' estimate denial is nosniff');
     eq(rt.counters(),before,'Malformed '+label+' owner principal cannot read or write D1');
   }
+  // Malformed owner-session gateway responses must deny BOTH private quote
+  // list and new estimate creation before any customer D1 access.
+  for(const [label,identity] of [
+    ['email getter exception',{get email(){throw Error('Synthetic owner email unavailable');}}],
+    ['rejected session promise',{then(_ok,reject){reject(Error('Synthetic owner session service down'));}}],
+  ]){
+    rt.setOwner(identity);
+    const beforeBroken=rt.counters();
+    const deniedList=await route.GET();
+    eq(deniedList.status,401,label+' estimate list denied');
+    eq(deniedList.headers.get('cache-control'),'private, no-store',label+' GET is private');
+    const deniedCreate=await route.POST(new Request('https://synthetic.invalid/api/estimates',{
+      method:'POST',headers:{'content-type':'application/json'},body:'{}'
+    }));
+    eq(deniedCreate.status,401,label+' estimate create denied');
+    eq(deniedCreate.headers.get('cache-control'),'private, no-store',label+' POST is private');
+    eq(deniedCreate.headers.get('vary'),'Cookie',label+' POST varies by session');
+    eq(deniedCreate.headers.get('x-content-type-options'),'nosniff',label+' POST nosniff');
+    eq(rt.counters(),beforeBroken,label+' never reads or mutates customer/estimate D1');
+  }
   rt.setOwner({email:'kylebrooks8605@gmail.com'});
 
   before=rt.counters();
