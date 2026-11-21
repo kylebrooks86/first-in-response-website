@@ -131,9 +131,18 @@ try{
  assertPrivatePost(badStatusRead,'unknown report status GET');
  db.prepare('UPDATE job_reports SET status=?,completed_at=? WHERE estimate_id=?')
   .run(corruptedBefore.status,corruptedBefore.completedAt,'report-job');
+ // A once-completed report cannot be presented as current completion proof
+ // after the job is retired; the original historical row is not mutated.
+ const retiredBefore=JSON.stringify(row());
+ db.prepare("UPDATE estimates SET status='declined' WHERE id=?").run('report-job');
+ const retiredGet=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+ eq(retiredGet.status,409,'QA report readback blocks completion of a retired job');
+ assertPrivatePost(retiredGet,'QA retired-job report conflict');
+ eq(JSON.stringify(row()),retiredBefore,'QA retired-job denial preserves original completed history');
+ db.prepare("UPDATE estimates SET status='scheduled' WHERE id=?").run('report-job');
  const originalGetPrepare=rt.env.DB.prepare;
  rt.env.DB.prepare=function(sql){
-  if(sql==='SELECT customer_id AS customerId FROM estimates WHERE id=?')throw Error('Synthetic report-job identity D1 outage');
+  if(sql==='SELECT customer_id AS customerId,status FROM estimates WHERE id=?')throw Error('Synthetic report-job identity D1 outage');
   return originalGetPrepare(sql);
  };
  const identityReadOutage=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
@@ -310,6 +319,17 @@ try{
  eq(drBroken.status,409,'DR denies completed report without timestamp');
  assertPrivatePost(drBroken,'DR completion-history integrity conflict');
  db.prepare('UPDATE job_reports SET completed_at=? WHERE estimate_id=?').run(drDb.completedAt,drJob);
+
+ // The independent DR worker must not treat a retired job as a current
+ // completed service solely because its historical report still exists.
+ const drRetiredBefore=JSON.stringify(db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob));
+ db.prepare("UPDATE estimates SET status='declined' WHERE id=?").run(drJob);
+ const drRetiredGet=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+ eq(drRetiredGet.status,409,'Independent DR blocks completed-report proof for retired job');
+ assertPrivatePost(drRetiredGet,'Independent DR retired-job report conflict');
+ eq(JSON.stringify(db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob)),drRetiredBefore,
+  'Independent DR refuses retirement without editing report history');
+ db.prepare("UPDATE estimates SET status='scheduled' WHERE id=?").run(drJob);
 
  // DR cannot silently "repair" an invalid imported report state either.
  db.prepare("UPDATE job_reports SET status='unknown-import',completed_at=NULL WHERE estimate_id=?").run(drJob);
