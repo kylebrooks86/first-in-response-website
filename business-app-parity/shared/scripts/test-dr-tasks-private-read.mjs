@@ -50,7 +50,7 @@ const getOwnerUser=async()=>{
 const compiled=ts.transpileModule(readFileSync(routePath,'utf8'),{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
-const context={exports:{},Response,Array,JSON,Number,String,require(name){
+const context={exports:{},Response,Headers,Array,JSON,Number,String,require(name){
   if(name==='cloudflare:workers')return {env:{DB:backing}};
   if(name==='../../owner-auth')return {getOwnerUser};
   if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject};
@@ -63,7 +63,7 @@ assert.ok(qaPath,'Pass the QA-master tasks route for source parity');
 const qaCompiled=ts.transpileModule(readFileSync(qaPath,'utf8'),{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
-const qaContext={exports:{},Response,Array,JSON,Number,String,require(name){
+const qaContext={exports:{},Response,Headers,Array,JSON,Number,String,require(name){
   if(name==='cloudflare:workers')return {env:{DB:backing}};
   if(name==='../../chatgpt-auth')return {getChatGPTUser:getOwnerUser};
   if(name==='../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:()=>{throw Error('GET cannot save tasks')}};
