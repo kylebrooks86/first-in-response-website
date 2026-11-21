@@ -28,7 +28,27 @@ function seed(id,status='approved'){db.prepare('INSERT INTO customers(id,name,cr
 const attempt={requestId:randomUUID(),amountCents:10000,tipCents:0,method:'Cash',reference:'synthetic',processingFeeCents:null};
 try{
  seed('a');seed('b');seed('tip','completed');
- owner=null;let deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);owner={email:'customer@example.invalid'};deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);owner={email:'kylebrooks8605@gmail.com'};
+ owner=null;let deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);owner={email:'customer@example.invalid'};deniedReceipt=await get('a',attempt.requestId);eq(deniedReceipt.status,401);privateReceipt(deniedReceipt);
+ // A broken owner identity or rejected auth session must never query money
+ // records. Treat no financial lookup as a hard property, not just a 401 status.
+ const originalBatch=env.DB.batch;
+ env.DB.batch=async()=>{throw Error('Financial D1 must not be accessed without owner session');};
+ try{
+  for(const [label,identity] of [
+   ['nonstring email',{email:42}],
+   ['unreadable email',{get email(){throw Error('Synthetic owner identity unreadable');}}],
+   ['rejected owner session',{then(_resolve,reject){reject(Error('Synthetic session service unavailable'));}}],
+  ]){
+   owner=identity;
+   const denied=await get('a',attempt.requestId);
+   eq(denied.status,401,label+' confirmation fails closed');
+   privateReceipt(denied);
+   eq(writes,0,label+' cannot create financial writes');
+  }
+ }finally{
+  env.DB.batch=originalBatch;
+  owner={email:'kylebrooks8605@gmail.com'};
+ }
  // Owner payment-history GET must never be cached across signed-in sessions,
  // and failed D1 reads must return a safe 503, not a fabricated empty balance.
  let history=await pay.GET();

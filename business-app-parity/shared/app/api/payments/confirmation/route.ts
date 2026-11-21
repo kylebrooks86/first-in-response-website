@@ -4,8 +4,15 @@ import {getChatGPTUser} from '../../../chatgpt-auth';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 // Read only: a lost acknowledgement must never trigger another financial write.
 export async function GET(request:Request){
- const owner=await getChatGPTUser();
- if(owner?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ let authorized=false;
+ try{
+  const owner=await getChatGPTUser();
+  authorized=typeof owner?.email==='string'&&owner.email.toLowerCase()==='kylebrooks8605@gmail.com';
+ }catch{
+  // If a session read fails, deny before any D1 payment-history access.
+  authorized=false;
+ }
+ if(!authorized)return json({error:'Unauthorized'},401);
  const params=new URL(request.url).searchParams,estimateId=params.get('estimateId'),requestId=params.get('requestId');
  if(!estimateId||estimateId.length>200||!requestId||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))return json({error:'Invalid payment confirmation identifiers.'},400);
  try{
