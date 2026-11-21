@@ -9,8 +9,12 @@ const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cac
  * Query parameters never change financial records or send messages.
  */
 export async function GET(request?:Request){
- const user=await getChatGPTUser();
- if(typeof user?.email!=="string"||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ // Unavailable owner sessions and hostile email getters must fail before any
+ // payment, invoice, or refund-ledger read rather than escape as a 500.
+ try{
+  const user=await getChatGPTUser();
+  if(typeof user?.email!=="string"||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
+ }catch{return json({error:"Unauthorized"},401);}
  const rawCursor=request?new URL(request.url).searchParams.get("cursor"):null;
  let cursor:{lastPaidAt:string;estimateId:string}|null=null;
  if(rawCursor!==null){
@@ -21,7 +25,9 @@ export async function GET(request?:Request){
  }
  // A legacy LIVE schema can lack the refund table or indexes. Hold this
  // read-only owner queue rather than showing incomplete review eligibility.
- if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
+ try{
+  if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
+ }catch{return json({error:"Review status could not be verified. Refund ledger availability is uncertain."},503);}
  try{
   const paymentDateSql="(SELECT MAX(p.created_at) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund') AND p.amount_cents>0)";
   const result=await env.DB.prepare(`
