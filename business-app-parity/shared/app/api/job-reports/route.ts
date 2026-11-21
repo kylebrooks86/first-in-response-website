@@ -113,8 +113,11 @@ async function saveJobReport(request: Request) {
     // silently erase it, change its original time, or demote the finished report.
     if (existing?.status === "completed" && !complete)
       return Response.json({ error: "This report is already completed. Edit its notes with the completion checklist intact; do not return it to draft." }, { status: 409 });
-    if (existing && ((existing.status === "completed" && !existing.completedAt) ||
-                     (existing.status !== "completed" && existing.completedAt)))
+    // A historical/imported unknown state cannot be silently converted into
+    // draft/completed by a normal edit; owner must review the original row.
+    if (existing && (!["draft", "completed"].includes(existing.status) ||
+                     (existing.status === "completed" && !existing.completedAt) ||
+                     (existing.status === "draft" && existing.completedAt != null)))
       return Response.json({ error: "Existing report completion history is inconsistent. No report was changed." }, { status: 409 });
 
     const now = new Date().toISOString();
