@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-ESTIMATE-PATCH-95FF8E7 -->
+## November 21 — [x] DR estimate PATCH owner/origin/stream/privacy source; [x] real-handler negative tests (NO DEPLOY)
+
+- [x] **Independent DR estimate PATCH source safety fixed** [`80cc3ff`](https://github.com/kylebrooks86/first-in-response-website/commit/80cc3ffa77dabc03c8d317c1ab6197b932e91904): replaces unbounded `request.json()` with the existing shared **262,144-byte streamed owner JSON + exact browser Origin/Fetch Metadata** parser before ANY estimate/financial D1 operation, retains DR's owner identity and all existing item/discount/schedule/closeout D1 guards, normalizes all POST-like PATCH receipts (including errors) to `Cache-Control: private, no-store`, `Vary: Cookie`, `X-Content-Type-Options: nosniff`, and returns safe 503/saveUncertain rather than an ambiguous generic 500 if the save is not confirmed. Owner session resolver failures are private 401. No hosted Worker/code/data/Stripe changes.
+- [x] **Real existing native-SQLite test extended** [`95ff8e7`](https://github.com/kylebrooks86/first-in-response-website/commit/95ff8e72e218e6db5becd16dc15b1d29d8ecaca4): existing CI-wired `test-dr-estimate-pricing-sqlite.mjs` loads the genuine DR guard and calls the **actual DR PATCH export**, rejects missing/foreign/numeric/unreadable owner, forged/sibling browser Origin/Fetch Metadata, form encoding, invalid declared/actual oversized UTF-8, malformed/array/empty JSON. Each must return correct private 401/403/415/413/400 and **zero** D1 `prepare` operations. Existing actual DR quote/edit/lifecycle/native SQLite tests retained.
+- [ ] **Current combined invoice+estimate changed-code CI verification** for exact executable/test SHA `95ff8e72e218e6db5becd16dc15b1d29d8ecaca4` pending automatic PR workflows. The earlier invoice-only SHA `34ba94f` achieved 26/27 SUCCESS and **one workflow CANCELLED as superseded by this newer code**, not a failure or all-green verdict. Do not manually rerun accepted owner/device/provider tests or falsely count the 26 as a final seal.
+- [ ] **Host-proven G4/G5/G6/G7/G9/G10, complete DR/QA transactional behavior and release** remain open. Formal original release board **51/95 accepted, 4/10 gates G1/G2/G3/G8 accepted; other six OPEN**. STAGING D1 last physically 22/25; DR/NEW LIVE DARK/NO-GO, real LIVE Job #0001 unissued. Source/testing checkoffs are not original numbered hosted acceptance.
+
+---
+
 <!-- FIRE-NOV21-DR-INVOICE-OWNER-GUARDS-34BA94F -->
 ## November 21 — [x] actual DR final-invoice POST owner request/privacy source fixed; [x] CI-wired real-handler negative regression authored (NO DEPLOY)
 
