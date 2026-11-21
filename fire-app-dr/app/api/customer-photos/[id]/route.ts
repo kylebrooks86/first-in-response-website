@@ -2,7 +2,16 @@ import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
-async function authorized(){ const user=await getOwnerUser(); return typeof user?.email==='string'&&user.email.toLowerCase()===OWNER_EMAIL; }
+async function authorized(){
+  try {
+    const user=await getOwnerUser();
+    const email=user?.email;
+    return typeof email==='string'&&email.toLowerCase()===OWNER_EMAIL;
+  } catch {
+    // A rejected owner session or unreadable email must deny before any D1/R2 action.
+    return false;
+  }
+}
 
 async function getPhoto(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
