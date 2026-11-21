@@ -176,5 +176,41 @@ try{
  check(ui.includes('current.filter(item=>item.id!==draft.id)')&&ui.includes('receipt.id!==draft.id+":owner-confirmed"'),"Confirmed messages leave the pending recovery UI only after owner save");
  check(ui.includes("Discard unsent draft")&&ui.includes("ownerConfirmedNotSent:true")&&ui.includes("draft.id+\":owner-cancelled\""),"Mobile composer offers explicit owner-only discard with linked server receipt");
  check(dashboard.includes('draft discarded')&&dashboard.includes('Owner-confirmed not sent'),"Customer timeline shows discarded-not-sent status, never delivered");
+ // Corrupted/imported decision rows cannot be mistaken for genuine owner
+ // confirmations, even when INSERT OR IGNORE reports no change. This QA-master
+ // check mirrors the independent DR decision-receipt integrity gate.
+ message("qa-corrupt-cancel","c1","e1","text_prepared");
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)")
+   .run("qa-corrupt-cancel:owner-cancelled","c1","e1","send_cancelled","wrong-template",
+        "Owner confirmed this prepared message was not sent.",stamp(0));
+ const corruptCancel=await cancel("qa-corrupt-cancel","c1");
+ check(corruptCancel.response.status===503&&corruptCancel.data.saveUncertain===true&&
+   corruptCancel.data.deliveryConfirmed===false,"Malformed owner not-sent receipt fails closed");
+ privateGet(corruptCancel.response,"Malformed not-sent QA receipt");
+
+ message("qa-corrupt-confirm","c1","e1","text_prepared");
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)")
+   .run("qa-corrupt-confirm:owner-confirmed","c1","e1","text_confirmed","review",
+        "Wrong historical prepared content",stamp(0));
+ const corruptConfirm=await cancel("qa-corrupt-confirm","c1",
+   {ownerConfirmedSent:true,ownerConfirmedNotSent:false});
+ check(corruptConfirm.response.status===503&&corruptConfirm.data.saveUncertain===true&&
+   corruptConfirm.data.deliveryConfirmed===false,"Malformed owner sent receipt fails closed");
+ privateGet(corruptConfirm.response,"Malformed sent QA receipt");
+
+ message("qa-opposite-decisions","c1","e1","text_prepared");
+ const originalBody=db.prepare("SELECT body FROM customer_messages WHERE id=?")
+   .get("qa-opposite-decisions").body;
+ const saveDecision=db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)");
+ saveDecision.run("qa-opposite-decisions:owner-confirmed","c1","e1","text_confirmed",
+   "review",originalBody,stamp(0));
+ saveDecision.run("qa-opposite-decisions:owner-cancelled","c1","e1","send_cancelled",
+   "review","Owner confirmed this prepared message was not sent.",stamp(0));
+ const contradiction=await cancel("qa-opposite-decisions","c1");
+ check(contradiction.response.status===503&&contradiction.data.saveUncertain===true&&
+   contradiction.data.deliveryConfirmed===false,"Conflicting owner decisions cannot return false success");
+ privateGet(contradiction.response,"Contradictory QA decision");
+ check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE id LIKE 'qa-opposite-decisions:%'").get().n===2,
+   "Conflicting immutable decision evidence remains unaltered");
  console.log("PASS "+n+" synthetic scoped SMS/email prepared-message recovery, authorization, history, no-write and mobile composer contracts.");
 }finally{db.close();}
