@@ -3,11 +3,17 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 /** Minimal read-only directory: no contacts, signatures, messages or financial data. */
+async function ownerAuthorized(){
+ try{
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';
+ }catch{
+  // A rejecting gateway or an unreadable identity must not reach customer D1.
+  return false;
+ }
+}
 export async function GET(){
- let user;
- try{user=await getChatGPTUser();}
- catch{return json({error:'Unauthorized'},401);}
- if(typeof user?.email!=='string'||user.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ if(!await ownerAuthorized())return json({error:'Unauthorized'},401);
  try{
   const enabled=serviceLocationsEnabled(env);
   const [customers,jobs]=await env.DB.batch([
