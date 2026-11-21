@@ -118,6 +118,19 @@ try{
   db.prepare('UPDATE job_reports SET '+column+'=? WHERE estimate_id=?')
    .run(column==='customer_id'?before.customerId:before.completedAt,'report-job');
  }
+ // A corrupt/imported status with no completion timestamp used to be
+ // silently normalized by POST; both QA-master and DR must refuse that edit.
+ const corruptedBefore=row();
+ db.prepare("UPDATE job_reports SET status='unknown-import',completed_at=NULL WHERE estimate_id=?").run('report-job');
+ const badStatusSave=await post({...input,status:'draft',complete:false});
+ eq(badStatusSave.status,409,'Unknown saved report state cannot be rewritten as draft');
+ eq(row().status,'unknown-import','Rejected invalid-state update keeps original row');
+ eq(row().completedAt,null,'Rejected invalid-state update does not invent completion time');
+ const badStatusRead=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+ eq(badStatusRead.status,409,'Unknown report status also fails closed during GET');
+ assertPrivatePost(badStatusRead,'unknown report status GET');
+ db.prepare('UPDATE job_reports SET status=?,completed_at=? WHERE estimate_id=?')
+  .run(corruptedBefore.status,corruptedBefore.completedAt,'report-job');
  const originalGetPrepare=rt.env.DB.prepare;
  rt.env.DB.prepare=function(sql){
   if(sql==='SELECT customer_id AS customerId FROM estimates WHERE id=?')throw Error('Synthetic report-job identity D1 outage');
@@ -297,6 +310,19 @@ try{
  eq(drBroken.status,409,'DR denies completed report without timestamp');
  assertPrivatePost(drBroken,'DR completion-history integrity conflict');
  db.prepare('UPDATE job_reports SET completed_at=? WHERE estimate_id=?').run(drDb.completedAt,drJob);
+
+ // DR cannot silently "repair" an invalid imported report state either.
+ db.prepare("UPDATE job_reports SET status='unknown-import',completed_at=NULL WHERE estimate_id=?").run(drJob);
+ const drBadStatusSave=await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+  method:'POST',headers:{'content-type':'application/json'},
+  body:JSON.stringify({...drPayload,status:'draft',complete:false})
+ }));
+ eq(drBadStatusSave.status,409,'DR rejects invalid historical status on POST');
+ assertPrivatePost(drBadStatusSave,'DR invalid historical status POST');
+ eq(db.prepare('SELECT status FROM job_reports WHERE estimate_id=?').get(drJob).status,'unknown-import',
+  'DR invalid status remains untouched');
+ db.prepare('UPDATE job_reports SET status=?,completed_at=? WHERE estimate_id=?')
+  .run('completed',drDb.completedAt,drJob);
 
  for(const [label,ownerValue] of [
   ['DR rejected owner provider',Promise.reject(Error('Synthetic independent DR auth outage'))],
