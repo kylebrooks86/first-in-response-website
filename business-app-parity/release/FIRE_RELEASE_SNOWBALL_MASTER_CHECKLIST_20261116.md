@@ -1,3 +1,15 @@
+<!-- FIRE-NOV21-QA-MESSAGE-DECISION-SOURCE-CHECKOFF-3863A9A -->
+## November 21 — [x] QA-master false-success owner communication decision source defect repaired; targeted SQLite cases added
+
+- [x] **Actual QA-master source correction committed**, existing integrated [draft PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282): [source commit `c2f3cc5`](https://github.com/kylebrooks86/first-in-response-website/commit/c2f3cc514f6edc473b52732139de53cbd7600e70) makes normal owner message PATCH sent/not-sent responses and lost-ACK recovery verify the exact immutable D1 event (prepared ID, customer, estimate, channel, template, body, valid timestamp) and independently refuse contradictory opposite decisions. It carries forward the already-tested independent DR defense to QA. A row's presence or INSERT acknowledgement alone cannot imply a clean owner decision or provider delivery.
+- [x] **Real native-SQLite QA regression scenarios authored and committed** in [test commit `3863a9a`](https://github.com/kylebrooks86/first-in-response-website/commit/3863a9ae8576143a90bc5b32a3319db30bf690df): invalid not-sent template, mismatched send-confirmed content, and contradictory saved sent/not-sent receipts. Each newly asserts HTTP 503, owner-session private headers and no false delivery. These test source changes are saved but **NOT YET CERTIFIED GREEN**.
+- [ ] **New exact-source CI verification for `3863a9a`**: 26 workflow groups were already enqueued at initial GitHub readback, including QA/STAGING run [44941937796](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44941937796). Confirm actual targeted regression step, compile and completed source CI before ticking this separate checkbox. No repeat of older accepted tests or device screenshots.
+- [ ] **Hosted G6 message-receipt parity and actual nonowner/target controls** remain unaccepted until proper authorized provider-hosted evidence.
+
+**This newly checked item is a source/test-authoring subtask, NOT a 52nd original numbered item. Official original checklist remains 51/95 checked, 44 open; G1/G2/G3/G8 accepted (4/10 full gates), G4/G5/G6/G7/G9/G10 OPEN; hosted STAGING D1 22/25, DR/NEW LIVE DARK, NEW LIVE NO-GO, genuine Job #0001 unissued.** No Cloudflare/R2 paid plan, provider login, Worker/Access/route/SQL, Stripe/payment, customer communication, Git merge or deployment.
+
+---
+
 <!-- FIRE-NOV21-DR-DECISION-RECEIPT-EXACT-947BF1 -->
 ## November 21 — [x] DR owner decision-receipt source, regression AND exact-code CI all verified; hosted remains [ ]
 
