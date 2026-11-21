@@ -73,7 +73,7 @@ eq(deniedResult.calls.other,0,"unsuccessful metadata result never reads financia
 eq(deniedResult.calls.write,0,"unsuccessful metadata result never causes a money write");
 const blocked=refundLedgerNotReady();
 eq(blocked.status,503,"schema blocker uses non-success 503");
-eq(blocked.headers.get("cache-control"),"no-store","financial blocker is never cached");
+eq(blocked.headers.get("cache-control"),"private, no-store","financial blocker is session-private and never cached");
 const payload=await blocked.json();
 eq(payload.code,"REFUND_LEDGER_SCHEMA_INCOMPLETE","financial API provides stable machine-readable error");
 eq(payload.retryable,false,"schema mismatch never advertises automatic retry");
@@ -113,6 +113,22 @@ for(const rows of [[],objects.slice(1),objects.slice(0,3)]){
  eq(calls.other,0,"Missing refund schema never queries individual payment/customer rows");
  eq(calls.write,0,"Missing refund schema performs zero database writes");
 }
+// The actual payment and refund route entrypoints must refuse a nonthrowing
+// failed metadata read even when that read contains plausible object names.
+const failedRead=dbFor(objects,{reportedSuccess:false});
+const unavailablePayments=route("../app/api/payments/route.ts",failedRead.db);
+const unavailableGet=await unavailablePayments.exports.GET();
+eq(unavailableGet.status,503,"Payment history GET rejects unsuccessful metadata result with all object names");
+eq((await unavailableGet.json()).code,"REFUND_LEDGER_SCHEMA_INCOMPLETE","Failed metadata cannot masquerade as a healthy payments list");
+const unavailablePost=await unavailablePayments.exports.POST(new Request("https://synthetic.invalid/api/payments",{method:"POST",body:"{}"}));
+eq(unavailablePost.status,503,"Owner manual payment POST rejects unsuccessful metadata result before billing");
+const unavailableRefund=route("../app/api/payments/refund/route.ts",failedRead.db);
+const unavailableRefundResponse=await unavailableRefund.exports.POST(new Request("https://synthetic.invalid/api/payments/refund",{method:"POST",body:"{}"}));
+eq(unavailableRefundResponse.status,503,"Owner refund POST rejects unsuccessful metadata result before Stripe");
+eq(unavailableRefund.calls.fetch,0,"Failed refund metadata verification makes zero Stripe calls");
+eq(failedRead.calls.other,0,"Failed metadata financial entrypoints perform no payment/customer SELECT");
+eq(failedRead.calls.write,0,"Failed metadata financial entrypoints perform no financial mutation");
+
 const good=dbFor(objects);
 const healthy=route("../app/api/payments/route.ts",good.db);
 const badBody=await healthy.exports.POST(new Request("https://synthetic.invalid/api/payments",{method:"POST",body:"{}"}));
