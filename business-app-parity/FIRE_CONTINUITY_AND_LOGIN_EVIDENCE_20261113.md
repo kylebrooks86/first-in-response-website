@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-DECISION-RECEIPT-CI-CHECKOFF-417 -->
+## November 21, 2026 — ACTUAL checked source-CI milestone on active Draft PR #282; hosted gates unchanged
+
+- **Verified unmerged source/test** [`947bf1a1cad3df04be21507b86f16a7ed41bd750`](https://github.com/kylebrooks86/first-in-response-website/commit/947bf1a1cad3df04be21507b86f16a7ed41bd750) implements and tests strict independent DR customer-message owner sent/not-sent immutable receipt matching and contradiction refusal. Exact-source associated Actions **27/27 completed SUCCESS**; [QA/STAGING run 44940656461](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44940656461) **6/6 successful jobs**; [original job 136956960091](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44940656461/job/136956960091) independently logged **PASS 417 actual DR TypeScript/native SQLite customer-message assertions**. No need to rerun these accepted tests or prior device/provider captures.
+- **Actual master checklist subtask checked** in [documentation-only commit `dfb7ca7c779fcfb3a8e7b3ece99f9da6816b392f`](https://github.com/kylebrooks86/first-in-response-website/commit/dfb7ca7c779fcfb3a8e7b3ece99f9da6816b392f): previously pending exact-source verification **[ ] → [x]**. Source fix and test authoring already [x]. Hosted DR/STAGING privacy and release acceptance remain **[ ]** and require independent provider proof; this is NOT a 52nd original 95-row item.
+- **Formal release remains 51/95 completed, 44 unresolved; only G1/G2/G3/G8 = 4/10 accepted.** G4/G5/G6/G7/G9/G10 OPEN. STAGING physical D1 22/25, DR/NEW LIVE dark, NEW LIVE NO-GO, genuine NEW LIVE Job #0001 reserved/unissued. No Cloudflare sign-in/Worker/Access/route/SQL, paid R2, Stripe/payment, real SMS/email, customer/photo operation, Git merge, deployment or live traffic change. Keep original owner/screenshots and accepted tests; do not restart.
+- **Version continuity:** Current main-target PR282 branch `work/fire-private-notes-followup-search-20261119`, base main, unmerged DRAFT. The record and checklist are documentation-only updates; always check latest remote HEAD before further edits.
+
+---
+
 <!-- FIRE-NOV21-DR-DECISION-RECEIPTS-947BF1 -->
 ## NOVEMBER 21 — SAME DRAFT PR #282, owner send/not-sent decision receipt integrity repaired in DR SOURCE (NO DEPLOY)
 
