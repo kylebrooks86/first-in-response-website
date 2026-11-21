@@ -1,3 +1,14 @@
+<!-- FIRE-NOV21-DOOR-WRITE-PRIVATE-BA1B5E8 -->
+## November 21, 2026 — actual owner door-knocking rejected-write privacy and origin test (SOURCE ONLY)
+
+- **Existing integrated PR [#282](https://github.com/kylebrooks86/first-in-response-website/pull/282) remains DRAFT, unmerged and undeployed**, branch `work/fire-private-notes-followup-search-20261119`. Prior exact source/test head `5180452daf66c280d2f03b9794570f6b25d29910` was independently read back **27/27 GitHub Actions completed SUCCESS**, including the daily/hourly private owner-weather regression. This approval covers that older immutable source only, not subsequent code.
+- **New actual code commit [`a5b93c2`](https://github.com/kylebrooks86/first-in-response-website/commit/a5b93c2e9364756dec86984a5fb5f9eba85e2076):** `shared/app/api/door-knocking/route.ts` now adds `Cache-Control: private, no-store`, `Vary: Cookie` and `X-Content-Type-Options: nosniff` to **all rejected owner POST body/same-origin/size/JSON parser replies**, instead of directly returning the common guard's no-Vary/no-nosniff error response. Owner auth, normal saved house visits, suppression/follow-up, request IDs, D1 CAS/lost-ack controls, customer details, route paths and UI unchanged.
+- **New actual test commit and current test/source HEAD [`ba1b5e8`](https://github.com/kylebrooks86/first-in-response-website/commit/ba1b5e8590ae4f7d32a931d6c285e2612ac7defd):** Existing native SQLite loaded-actual-route `test-door-knocking.mjs` asserts all three privacy headers for oversized declared/actual body, Content-Length mismatch, invalid UTF-8, array JSON, foreign Origin, sibling Origin and cross-site Fetch Metadata denials; checks **no D1 reads/writes** for every rejection. No separate redundant test suite created.
+- **Exact changed-source GitHub CI** automatically queued/running as of initial readback: 25 workflow runs visible, 14 in progress and 11 queued, zero failures reported at that instant; **do not claim new SHA PASS until final 27/27 readback**. The previous `5180452` 27/27 remains correctly scoped to its own commit.
+- **Original hosted release board unchanged:** 51/95 formally checked (44 OPEN); gates G1/G2/G3/G8 = 4/10 accepted; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, first real Job #0001 unused. STAGING Worker Access all traffic / preview OFF / external `login_required` receipts and physical 22/25 D1, DR + NEW LIVE dark physical 26/26, older owner iPhone/Acer checks remain previously accepted. No cloud sign-in, Worker/Access/route/provider/SQL change, paid R2, Stripe, payment, customer/photo write, merge, deployment or launch performed.
+
+---
+
 <!-- FIRE-NOV21-STAGING-ANON-DR-PHOTO-5D574C8 -->
 ## November 21, 2026 — NEW external STAGING login challenge and DR customer-photo isolation FIXED IN SOURCE
 
