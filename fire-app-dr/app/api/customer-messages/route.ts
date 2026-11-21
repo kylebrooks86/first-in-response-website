@@ -163,3 +163,89 @@ export async function POST(request: Request) {
     return privateJson({ error: "Communication save could not be verified. Refresh saved messages before retrying.",saveUncertain:true }, { status: 503 });
   }
 }
+
+// DR owner confirmation follows the QA-master's immutable prepared-message
+// receipt contract. This never sends a Text or Email; it records owner intent.
+// Confirmation appends evidence; preparation and legacy history stay immutable.
+export async function PATCH(request: Request) {
+  if (!await authorized()) return privateJson({ error: "Unauthorized" }, { status: 401 });
+  let confirmationOperation:{id:string;customerId:string;channel:string;cancelled:boolean;preparedId:string;estimateId:string|null;template:string;body:string}|null=null;
+  try {
+    // Confirm only a bounded owner request; never infer delivery or
+    // alter an idempotent prepared-message receipt on malformed input.
+    const parsed=await readOwnerWriteObject(request,64_000);
+    if(parsed.response)return privateResponse(parsed.response);
+    const value=parsed.value as Record<string,unknown>;
+    const id=String(value.preparedMessageId??"").trim();
+    const customerId=String(value.customerId??"").trim();
+    const confirmed=value.ownerConfirmedSent===true, cancelled=value.ownerConfirmedNotSent===true;
+    if(!id||!customerId||confirmed===cancelled)return privateJson({error:"Explicitly confirm either sent or not sent, but never both."},{status:400});
+    const prepared=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(id,customerId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
+    if(!prepared||!["text_prepared","email_prepared"].includes(prepared.channel))return privateJson({error:"A matching prepared message is required."},{status:409});
+    const confirmedId=prepared.id+":owner-confirmed";
+    const cancelledId=prepared.id+":owner-cancelled";
+    const channel=prepared.channel==="text_prepared"?"text_confirmed":"email_confirmed";
+    confirmationOperation={id:cancelled?cancelledId:confirmedId,customerId,channel:cancelled?'send_cancelled':channel,cancelled,preparedId:prepared.id,estimateId:prepared.estimateId,template:prepared.template,body:prepared.body};
+    const createdAt=new Date().toISOString();
+    if(cancelled){
+      // Never delete the prepared message. Its cancellation is a separate,
+      // idempotent owner event that is impossible after a confirmed send.
+      await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at)
+        SELECT ?,m.customer_id,m.estimate_id,'send_cancelled',m.template,'Owner confirmed this prepared message was not sent.',?
+        FROM customer_messages m WHERE m.id=? AND m.customer_id=? AND m.channel IN ('text_prepared','email_prepared')
+        AND NOT EXISTS(SELECT 1 FROM customer_messages c WHERE c.id=? AND c.channel IN ('text_confirmed','email_confirmed'))`)
+        .bind(cancelledId,createdAt,prepared.id,customerId,confirmedId).run();
+      const receipt=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
+      if(!receipt)return privateJson({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
+      return privateJson({message:receipt,cancelled:true,ownerConfirmedSent:false,
+        deliveryConfirmed:false,confirmationSource:'owner'},
+        {headers:{"Cache-Control":"no-store, private"}});
+    }
+    const alreadyCancelled=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
+    if(alreadyCancelled)return privateJson({error:"This draft was marked not sent. A later confirmation cannot change its history."},{status:409});
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,customer_id,estimate_id,?,template,body,? FROM customer_messages WHERE id=? AND customer_id=? AND channel=? AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=?) AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND channel='send_cancelled')").bind(confirmedId,channel,createdAt,prepared.id,customerId,prepared.channel,confirmedId,cancelledId),
+      env.DB.prepare("UPDATE estimates SET status='sent' WHERE id=? AND customer_id=? AND status='draft' AND NOT EXISTS (SELECT 1 FROM invoices WHERE estimate_id=estimates.id) AND EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND customer_id=? AND estimate_id=estimates.id AND template='estimate' AND channel IN ('text_confirmed','email_confirmed'))").bind(prepared.estimateId,customerId,confirmedId,customerId),
+    ]);
+    const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
+    if(!message)return privateJson({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
+    const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
+    return privateJson({message,estimateStatus:estimate?.status,ownerConfirmedSent:true,
+      deliveryConfirmed:false,confirmationSource:'owner'},
+      {headers:{"Cache-Control":"no-store, private"}});
+  }catch{
+    // Owner's explicit send/not-sent decision may have committed before the
+    // D1 response failed. Read back its exact immutable evidence event.
+    const op=confirmationOperation;
+    if(op){
+      try{
+        const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel=? LIMIT 1")
+          .bind(op.id,op.customerId,op.channel).first();
+        if(message){
+          const receipt=message as {id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string};
+          const expectedBody=op.cancelled?'Owner confirmed this prepared message was not sent.':op.body;
+          if(receipt.customerId!==op.customerId||(receipt.estimateId??'')!==(op.estimateId??'')||
+             receipt.channel!==op.channel||receipt.template!==op.template||receipt.body!==expectedBody||
+             typeof receipt.createdAt!=='string'||!Number.isFinite(Date.parse(receipt.createdAt)))
+            return privateJson({error:'Saved send decision does not match this prepared message. Review message history.',
+              saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+          const otherId=op.id.replace(/:(owner-confirmed|owner-cancelled)$/,op.cancelled?':owner-confirmed':':owner-cancelled');
+          const conflicting=await env.DB.prepare("SELECT id FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1")
+            .bind(otherId,op.customerId).first();
+          if(conflicting)return privateJson({error:'Conflicting send decisions require manual review.',
+            saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+          const estimate=op.estimateId&&!op.cancelled?
+            await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1")
+              .bind(op.estimateId,op.customerId).first<{status:string}>():null;
+          return privateJson({message:receipt,cancelled:op.cancelled,
+            ...(estimate?{estimateStatus:estimate.status}:{}),
+            recoveredAfterUncertainConfirmation:true,ownerConfirmedSent:!op.cancelled,
+            deliveryConfirmed:false,confirmationSource:'owner'},
+            {headers:{"Cache-Control":"no-store, private"}});
+        }
+      }catch{/* No authoritative evidence; never infer delivery. */}
+    }
+    return privateJson({error:"Send confirmation could not be verified. Reopen the saved message history; no delivery is inferred.",
+      saveUncertain:true,deliveryConfirmed:false},{status:503,headers:{"Cache-Control":"no-store, private"}});
+  }
+}
