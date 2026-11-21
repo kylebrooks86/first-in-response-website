@@ -612,6 +612,8 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node --experimental-sqlite scripts/test-template-save-d1-confirmed-sqlite.mjs
+          # Actual independent DR template API, exercised against PR checkout with no hosted calls.
+          FIRE_DR_MESSAGE_TEMPLATE_ROUTE="$GITHUB_WORKSPACE/fire-app-dr/app/api/message-templates/route.ts" node scripts/test-dr-message-template-privacy.mjs
           # Guard actual customer-facing terms: no checks/unsupported ACH and
           # retain FIRE Cash App/Venmo, even after legacy template compatibility.
           node --experimental-strip-types scripts/test-business-template-compatibility.mjs
