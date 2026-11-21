@@ -32,6 +32,7 @@ db.prepare('INSERT INTO payments(id,estimate_id,status,type,amount_cents) VALUES
 
 let owner={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,softWriteFailure=false;
 let fakeWriteAcknowledged=false,fakeZeroChanges=false,softHistoryFailure=false,malformedHistory=false;
+let losePreparedInsertAck=false,changeContactDuringInsert=false;
 const DB={prepare(sql){return {bind(...args){return {
  async first(){reads++;return db.prepare(sql).get(...args)??null;},
  async all(){reads++;if(softHistoryFailure)return {success:false,results:[]};
@@ -40,7 +41,15 @@ const DB={prepare(sql){return {bind(...args){return {
  async run(){writes++;if(softWriteFailure)return {success:false,meta:{changes:0}};
    if(fakeWriteAcknowledged)return {success:true,meta:{changes:1}};
    if(fakeZeroChanges)return {success:true,meta:{changes:0}};
-   const result=db.prepare(sql).run(...args);return {success:true,meta:{changes:Number(result.changes)}};
+   // Real native SQLite write/race simulation: the other owner device can
+   // change a phone after initial read but before the conditional INSERT.
+   if(changeContactDuringInsert&&sql.includes('INSERT OR IGNORE INTO customer_messages')&&sql.includes('SELECT 1 FROM customers')){
+     db.prepare('UPDATE customers SET phone=? WHERE id=?').run('918-555-7777','c1');
+     changeContactDuringInsert=false;
+   }
+   const result=db.prepare(sql).run(...args);
+   if(losePreparedInsertAck){losePreparedInsertAck=false;throw Error('synthetic lost D1 prepared INSERT acknowledgement');}
+   return {success:true,meta:{changes:Number(result.changes)}};
  }
 };}};}};
 // Simulate D1 batched confirmation commits, including a lost response after
@@ -375,4 +384,60 @@ privacy(prepared,'Malformed phone');
 prepared=await send(prepEmail);
 eq(prepared.status,409,'Malformed saved email cannot create prepared email');
 privacy(prepared,'Malformed email');
+// Stable QA preparation request IDs prevent duplicate external handoffs on
+// impatient taps, while exact D1 readback recovers an interrupted response.
+db.prepare('UPDATE customers SET phone=?,email=? WHERE id=?')
+  .run('918-555-0102','synthetic@example.invalid','c1');
+const stableId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const stablePayload={...prepText,requestId:stableId,recipientSnapshot:'918-555-0102'};
+let stable=await send({...stablePayload,requestId:'invalid-id'});
+eq(stable.status,400,'Malformed preparation UUID rejected');
+privacy(stable,'Malformed retry identifier');
+const initialCount=count();
+stable=await send(stablePayload);
+eq(stable.status,201,'DR stable first prepared text saved');
+privacy(stable,'Stable text prepared');
+const stableReceipt=(await stable.json()).message;
+eq(stableReceipt.id,'owner-message-prep:'+stableId,'DR prepared ID matches QA stable operation');
+eq(count(),initialCount+1,'One new stable prepared row persisted');
+stable=await send(stablePayload);
+eq(stable.status,200,'Same prepared request safely reuses exact saved row');
+privacy(stable,'Stable retry');
+eq((await stable.json()).duplicate,true,'Repeated prepared handoff explicitly identified');
+eq(count(),initialCount+1,'Stable retry does not duplicate prepared text');
+stable=await send({...stablePayload,body:'Different synthetic handoff body'});
+eq(stable.status,409,'Stable operation ID cannot be reused for different content');
+privacy(stable,'Conflicting operation');
+eq(count(),initialCount+1,'Conflicting stable ID does not save second handoff');
+stable=await decision(stableReceipt.id,'c1',{ownerConfirmedSent:true});
+eq(stable.status,200,'Stable prepared message can be owner-confirmed');
+stable=await send(stablePayload);
+eq(stable.status,409,'Confirmed prepared message cannot be reopened via retry');
+privacy(stable,'Closed stable operation');
+eq(count(),initialCount+2,'Only exact owner confirmation event added');
+
+const lostId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+losePreparedInsertAck=true;
+stable=await send({...stablePayload,requestId:lostId,body:'Synthetic lost response after saved preparation'});
+eq(stable.status,200,'Interrupted exact prepared INSERT recovers committed row');
+privacy(stable,'Lost prepared acknowledgement');
+let recovered=await stable.json();
+eq(recovered.recoveredAfterUncertainPreparation,true,'Recovered preparation carries uncertain-ack provenance');
+eq(recovered.deliveryConfirmed,false,'Recovered prepared message never claims delivery');
+eq(receiptCount('owner-message-prep:'+lostId),1,'Lost response did not create duplicate D1 row');
+
+const raceId='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+changeContactDuringInsert=true;
+const beforeRace=count();
+stable=await send({...stablePayload,requestId:raceId,body:'No stale contact may be prepared'});
+eq(stable.status,503,'Changed saved phone during INSERT cannot claim saved handoff');
+privacy(stable,'Concurrent contact mutation');
+eq(receiptCount('owner-message-prep:'+raceId),0,'Contact race persisted no stale prepared row');
+eq(count(),beforeRace,'Contact race did not create any extra messages');
+db.prepare('UPDATE customers SET phone=? WHERE id=?').run('918-555-0102','c1');
+stable=await send({...stablePayload,requestId:raceId,body:'No stale contact may be prepared'});
+eq(stable.status,201,'Owner retry after restoring saved phone can prepare safely');
+privacy(stable,'Contact corrected');
+eq(receiptCount('owner-message-prep:'+raceId),1,'Corrected contact created exact one prepared row');
+
 console.log('PASS '+checks+' independent DR owner customer-message actual-route privacy/payment/pending-history/confirmation/SQLite assertions');
