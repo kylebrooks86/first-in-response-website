@@ -17,9 +17,12 @@ function privateTaskJson(payload:unknown,init:ResponseInit={}){
  return Response.json(payload,{...init,headers:{...init.headers,...privateTaskReadHeaders}});
 }
 function privateTaskGuardResponse(response:Response){
- // Keep the body/status from the shared bounded stream reader unchanged.
- return new Response(response.body,{status:response.status,statusText:response.statusText,
-  headers:{...Object.fromEntries(response.headers.entries()),...privateTaskReadHeaders}});
+ // Preserve the guard's body/status and other headers. Headers.entries()
+ // yields lowercase names: spreading them beside "Cache-Control" makes
+ // Headers concatenate the two case-insensitive keys into a duplicate value.
+ const headers=new Headers(response.headers);
+ for(const [name,value] of Object.entries(privateTaskReadHeaders))headers.set(name,value);
+ return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
 export async function GET(){
  if(!await authorized())return privateTaskJson({error:"Unauthorized"},{status:401,headers:privateTaskReadHeaders});
