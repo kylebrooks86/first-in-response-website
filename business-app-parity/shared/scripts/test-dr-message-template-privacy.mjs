@@ -13,21 +13,37 @@ assert.ok(path,'Pin the real independent DR source path from the PR checkout');
 const source=readFileSync(path,'utf8');
 let user={email:'kylebrooks8605@gmail.com'},reads=0,writes=0,failRead=false,failWrite=false;
 let rows=[{key:'estimate',subject:'Owner subject',body:'Owner saved message',updatedAt:'2026-11-20T00:00:00Z'}];
-let readOutcome=null;
+let readOutcome=null,loseAck=false,softSuccessfulNoop=false;
 const DB={prepare(sql){
   if(sql.startsWith('SELECT key,subject,body,updated_at')){
     reads++;
-    return {all:async()=>{if(failRead)throw Error('Synthetic DR D1 read unavailable');return readOutcome??{results:structuredClone(rows)};}};
+    return {
+      all:async()=>{if(failRead)throw Error('Synthetic DR D1 read unavailable');return readOutcome??{results:structuredClone(rows)};},
+      bind(key){return {first:async()=>{
+        if(failRead)throw Error('Synthetic DR D1 readback unavailable');
+        return structuredClone(rows.find(row=>row.key===key)??null);
+      }};}
+    };
+  }
+  if(sql.startsWith('SELECT key FROM message_templates WHERE key=?')){
+    reads++;
+    return {bind(key){return {first:async()=>{
+      if(failRead)throw Error('Synthetic DR D1 reset readback unavailable');
+      const row=rows.find(item=>item.key===key);
+      return row?{key:row.key}:null;
+    }};}};
   }
   if(sql.startsWith('INSERT INTO message_templates')||sql.startsWith('DELETE FROM message_templates')){
     return {bind(...args){return {run:async()=>{
       writes++;
       if(failWrite)throw Error('Synthetic DR D1 acknowledgement unavailable');
+      if(softSuccessfulNoop){softSuccessfulNoop=false;return {success:true,meta:{changes:1}};}
       if(sql.startsWith('DELETE'))rows=rows.filter(row=>row.key!==args[0]);
       else{
         rows=rows.filter(row=>row.key!==args[0]);
         rows.push({key:args[0],subject:args[1],body:args[2],updatedAt:args[3]});
       }
+      if(loseAck){loseAck=false;throw Error('Synthetic D1 write committed but ACK lost');}
       return {success:true,meta:{changes:1}};
     }};}};
   }
@@ -159,6 +175,29 @@ eq(lost.status,503,'Uncertain D1 write does not claim saved');headers(lost,'Unce
 eq((await lost.json()).saveUncertain,true,'Uncertain write advises owner to refresh');
 eq(rows[0].body,'New owner wording','Synthetic failed write did not overwrite saved data');
 failWrite=false;
+
+const exactBefore=JSON.stringify(rows);
+softSuccessfulNoop=true;
+const fakeSave=await put({key:'estimate',subject:'Not actually saved',body:'Fake SQL success'});
+eq(fakeSave.status,503,'Nonwriting success-looking D1 ACK cannot claim saved template');
+headers(fakeSave,'Nonwriting D1 save');
+eq((await fakeSave.json()).saveUncertain,true,'Failed readback returns uncertain save receipt');
+eq(JSON.stringify(rows),exactBefore,'Nonwriting D1 ACK preserves previous saved owner message');
+loseAck=true;
+const recoveredSave=await put({key:'estimate',subject:'Recovered',body:'Actual saved despite lost ACK'});
+eq(recoveredSave.status,200,'Committed template save recovered by exact readback after lost ACK');
+headers(recoveredSave,'Recovered saved template');
+eq(rows[0].body,'Actual saved despite lost ACK','Recovered template was truly persisted');
+softSuccessfulNoop=true;
+const falseReset=await put({key:'estimate',reset:true});
+eq(falseReset.status,503,'Nonwriting D1 DELETE may not claim custom template reset');
+headers(falseReset,'Unconfirmed template reset');
+eq(rows[0].body,'Actual saved despite lost ACK','False reset preserves exact saved customization');
+loseAck=true;
+const recoveredReset=await put({key:'estimate',reset:true});
+eq(recoveredReset.status,200,'Lost DELETE acknowledgement recovered only after confirmed absent override');
+headers(recoveredReset,'Recovered template reset');
+eq(rows.length,0,'Actual committed reset is confirmed empty before returning success');
 const reset=await put({key:'estimate',reset:true});
 eq(reset.status,200,'Owner reset preserves existing response status');headers(reset,'Reset PUT');
 eq(rows.length,0,'Owner reset deletes customization');

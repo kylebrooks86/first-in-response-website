@@ -58,19 +58,36 @@ export async function PUT(request:Request){
     return privateJson({error:"Choose either an exact template update or an explicit reset."},400);
   const template=FIRE_TEMPLATES.find((item)=>item.key===body.key);
   if(!template)return privateJson({error:"Unknown template."},400);
+  const uncertain=()=>privateJson({
+    error:"Template save could not be verified. Refresh saved templates before retrying.",
+    saveUncertain:true
+  },503);
   try {
     if(body.reset===true){
-      await env.DB.prepare("DELETE FROM message_templates WHERE key=?").bind(template.key).run();
-      return privateJson({template});
+      // D1 may commit the DELETE but lose its response. Only a readback
+      // confirming the override is absent can report restored defaults.
+      try{await env.DB.prepare("DELETE FROM message_templates WHERE key=?").bind(template.key).run();}
+      catch{/* The write may already be committed. */ }
+      const retained=await env.DB.prepare("SELECT key FROM message_templates WHERE key=?")
+        .bind(template.key).first<{key:string}>();
+      return retained?uncertain():privateJson({template});
     }
     const subject=String(body.subject??"").trim();
     const content=String(body.body??"").trim();
     if(!content)return privateJson({error:"Template message cannot be empty."},400);
     const updatedAt=new Date().toISOString();
-    await env.DB.prepare("INSERT INTO message_templates (key,subject,body,updated_at) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET subject=excluded.subject,body=excluded.body,updated_at=excluded.updated_at").bind(template.key,subject,content,updatedAt).run();
-    return privateJson({template:{...template,subject,body:content,updatedAt}});
-  } catch {
-    // An unsuccessful ACK does not prove a D1 write was rolled back.
-    return privateJson({error:"Template save could not be verified. Refresh saved templates before retrying.",saveUncertain:true},503);
-  }
+    // A lost/soft-success D1 acknowledgement cannot stand in for a stored
+    // template. Recover only when an independent SELECT matches exact text
+    // and the new timestamp, mirroring the QA-master save behavior.
+    try{
+      await env.DB.prepare("INSERT INTO message_templates (key,subject,body,updated_at) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET subject=excluded.subject,body=excluded.body,updated_at=excluded.updated_at")
+        .bind(template.key,subject,content,updatedAt).run();
+    }catch{/* Confirm actual storage instead of blindly retrying. */ }
+    const saved=await env.DB.prepare("SELECT key,subject,body,updated_at AS updatedAt FROM message_templates WHERE key=?")
+      .bind(template.key).first<{key:string;subject:string;body:string;updatedAt:string}>();
+    if(!saved||saved.key!==template.key||saved.subject!==subject||saved.body!==content||saved.updatedAt!==updatedAt)
+      return uncertain();
+    return privateJson({template:{...template,subject:saved.subject,body:saved.body,updatedAt:saved.updatedAt}});
+  }catch{return uncertain();}
+  
 }
