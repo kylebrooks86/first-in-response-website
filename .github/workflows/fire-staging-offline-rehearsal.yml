@@ -528,6 +528,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
+          # Exact independent DR route, disposable SQLite, owner/private D1 and unrelated-invoice denial.
+          node --experimental-sqlite scripts/test-dr-dashboard-summary-private.mjs "$GITHUB_WORKSPACE/fire-app-dr/app/api/dashboard-summary/route.ts"
       - name: FIRE owner standard prices, stackable promotions, packages and repeat preferences exact saved revisions (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
