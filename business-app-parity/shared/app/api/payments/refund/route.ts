@@ -14,7 +14,7 @@ async function stripeGet(path:string,secret:string){
   return fetch(`https://api.stripe.com/v1/${path}`,{headers:{authorization:`Bearer ${secret}`,"Stripe-Version":"2026-08-26.dahlia"}});
 }
 
-export async function POST(request:Request){
+async function saveRefund(request:Request){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   // LIVE without migration 0019 must stop before any Stripe call or money movement.
@@ -187,3 +187,24 @@ export async function POST(request:Request){
   }
 }
 
+
+
+// The QA-master route is also assembled into STAGING/LIVE candidates. Never
+// put owner money/refund results, decisions or failures into a shared cache.
+const privateRefundHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+export async function POST(request:Request){
+  let response:Response;
+  try {
+    response=await saveRefund(request);
+  } catch {
+    // A lost provider/D1 acknowledgement is not proof no refund occurred.
+    response=Response.json({
+      error:"Refund confirmation is uncertain. Review refund history and the payment provider before another attempt.",
+      saveUncertain:true
+    },{status:503});
+  }
+  for(const [name,value] of Object.entries(privateRefundHeaders)){
+    response.headers.set(name,value);
+  }
+  return response;
+}
