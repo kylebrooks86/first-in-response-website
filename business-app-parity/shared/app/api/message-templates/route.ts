@@ -4,17 +4,27 @@ import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mj
 import { FIRE_TEMPLATES, SERVICE_AGREEMENT, businessTemplateOverride } from "../../../lib/fire-templates";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
-async function authorized(){const user=await getChatGPTUser();return typeof user?.email==="string" && user.email.toLowerCase()===OWNER_EMAIL;}
+async function authorized(){try{const user=await getChatGPTUser();return typeof user?.email==="string" && user.email.toLowerCase()===OWNER_EMAIL;}catch{return false;}}
 const privateReadHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+// All owner template write/denial/uncertain receipts contain private text.
+// Preserve original statuses/bodies (including bounded-body errors) while
+// refusing a shared-cache or MIME-sniffable response.
+function privateWriteResponse(response:Response){
+  const headers=new Headers(response.headers);
+  for(const [name,value] of Object.entries(privateReadHeaders))headers.set(name,value);
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
 
 export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401,headers:privateReadHeaders});
+  try{
   const saved=await env.DB.prepare("SELECT key,subject,body,updated_at AS updatedAt FROM message_templates").all<{key:string;subject:string;body:string;updatedAt:string}>();
   const overrides=new Map((saved.results??[]).map((item)=>[item.key,businessTemplateOverride(item)]));
   return Response.json({templates:FIRE_TEMPLATES.map((item)=>{const override=overrides.get(item.key);if(item.key==="contractTerms"&&override?.body.startsWith("I authorize First In Response Exteriors to perform the services listed"))return {...item,body:SERVICE_AGREEMENT};return {...item,...override};})},{headers:privateReadHeaders});
+  }catch{return Response.json({error:"Message templates are temporarily unavailable. Your saved wording has not been changed."},{status:503,headers:privateReadHeaders});}
 }
 
-export async function PUT(request:Request){
+async function putTemplate(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   // Prevent oversized or malformed template writes before D1 readback.
   const parsed=await readOwnerWriteObject(request,64_000);
@@ -64,4 +74,12 @@ export async function PUT(request:Request){
       return uncertain();
     return Response.json({template:{...template,subject:saved.subject,body:saved.body,updatedAt:saved.updatedAt}},{headers:{"Cache-Control":"no-store, private"}});
   }catch{return uncertain();}
+}
+
+// Keep existing durable D1 readback and lost-ack recovery unchanged; wrap the
+// entire mutation path so owner auth, stream, validation, conflict and storage
+// errors always have the same owner-private response boundary.
+export async function PUT(request:Request){
+  try{return privateWriteResponse(await putTemplate(request));}
+  catch{return Response.json({error:"Template save could not be confirmed. Reopen Settings to check the saved version before trying again.",saveUncertain:true},{status:503,headers:privateReadHeaders});}
 }
