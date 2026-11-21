@@ -119,6 +119,24 @@ try{
  eq((await lookup({address:'100 Synthetic St, Tulsa OK',note:'Never send this'})).status,400);
  eq((await lookup(null)).status,400);
  count=lookupCalls;const beforeWrites=writes;for(const u of [null,{email:'other@example.invalid'}]){owner=u;eq((await directory.GET()).status,401);eq((await lookup({address:'100 Synthetic St, Tulsa OK'})).status,401);eq((await post({...moved,requestId:uid(15)})).status,401);}eq(lookupCalls,count,'Unauthorized lookup never contacts provider');eq(writes,beforeWrites,'Unauthorized map cannot write');
+ // A broken owner identity may never call the Census geocoder or reach D1.
+ // Exercise the actual route, including the rejected async session promise.
+ const rejectedLookupCalls=lookupCalls,rejectedLookupWrites=writes;
+ for(const [label,identity] of [
+  ['missing email',{}],
+  ['nonstring email',{email:42}],
+  ['unreadable email',{get email(){throw Error('Synthetic session email unreadable');}}],
+  ['rejected auth provider',{then(_resolve,reject){reject(Error('Synthetic owner session unavailable'));}}],
+ ]){
+  owner=identity;
+  const denied=await protectedLookup(validOrigin);
+  eq(denied.status,401,label+' geocoder session fails closed');
+  eq(denied.headers.get('cache-control'),'private, no-store',label+' denial must not be cached');
+  eq(denied.headers.get('vary'),'Cookie',label+' denial varies by owner session');
+  eq(denied.headers.get('x-content-type-options'),'nosniff',label+' denial refuses sniffing');
+ }
+ eq(lookupCalls,rejectedLookupCalls,'Broken sessions sent zero Census requests');
+ eq(writes,rejectedLookupWrites,'Broken sessions did not mutate D1');
  const priorDirectoryBatches=directoryBatches;
  for(const identity of [{},{email:null},{email:42}]){
   owner=identity;

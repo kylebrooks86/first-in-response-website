@@ -1,14 +1,27 @@
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {validDoorPoint} from '../../../../lib/door-knocking';
 import {readOwnerWriteObject} from '../../../../lib/customer-write-request-guard.mjs';
-const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
+const PRIVATE_HEADERS={'cache-control':'private, no-store','vary':'Cookie','x-content-type-options':'nosniff'};
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:PRIVATE_HEADERS});
+async function ownerAuthorized(){
+ try{
+  const user=await getChatGPTUser();
+  return typeof user?.email==='string'&&user.email.toLowerCase()==='kylebrooks8605@gmail.com';
+ }catch{
+  // Reject session provider outages and malformed identities BEFORE Census fetch.
+  return false;
+ }
+}
 /** Explicit owner address lookup only. Never send names, notes or bulk records. */
 export async function POST(request:Request){
- if((await getChatGPTUser())?.email.toLowerCase()!=='kylebrooks8605@gmail.com')return json({error:'Unauthorized'},401);
+ if(!await ownerAuthorized())return json({error:'Unauthorized'},401);
  // Bound actual UTF-8 bytes and reject cross-origin owner browser requests
  // before any Census network call. Existing server-side callers still require owner auth.
  const parsed=await readOwnerWriteObject(request,2048);
- if(parsed.response)return parsed.response;
+ if(parsed.response){
+  for(const [name,value] of Object.entries(PRIVATE_HEADERS))parsed.response.headers.set(name,value);
+  return parsed.response;
+ }
  const body=parsed.value as Record<string,unknown>;
  if(Object.keys(body).length!==1||!Object.prototype.hasOwnProperty.call(body,'address'))return json({error:'Enter a street address.'},400);
  const address=body.address;
