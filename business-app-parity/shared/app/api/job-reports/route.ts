@@ -35,6 +35,18 @@ export async function GET(request: Request) {
     if (rows.results.length > 1)
       return Response.json({ error: "More than one report is linked to this job. Review its saved history before changing completion status." },
         { status: 409, headers: privateReportReadHeaders });
+    // A saved report must still refer to the job's current customer and
+    // have coherent completion history before it is displayed as evidence.
+    const report = rows.results[0] as SavedReport | undefined;
+    if (report) {
+      const job = await env.DB.prepare("SELECT customer_id AS customerId FROM estimates WHERE id=?")
+        .bind(estimateId).first<{ customerId: string }>();
+      if (!job || !job.customerId || job.customerId !== report.customerId ||
+          !["draft", "completed"].includes(report.status) ||
+          (report.status === "completed" ? !report.completedAt : report.completedAt != null))
+        return Response.json({ error: "Saved job report identity or completion history is inconsistent. Review the job before relying on this report." },
+          { status: 409, headers: privateReportReadHeaders });
+    }
     return Response.json({ reports: rows.results }, { headers: privateReportReadHeaders });
   } catch {
     return Response.json({ error: "Saved job reports are temporarily unavailable. No reports were changed." },

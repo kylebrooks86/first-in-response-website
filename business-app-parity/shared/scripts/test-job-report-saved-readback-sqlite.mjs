@@ -103,6 +103,30 @@ try{
   eq(response.headers.get('vary'),'Cookie',name+' varies with private owner session');
   eq(response.headers.get('x-content-type-options'),'nosniff',name+' cannot be content-sniffed');
  }
+ // Prevent imported wrong-customer or incomplete history from being
+ // represented as a completed job; GET never repairs the underlying row.
+ for(const [column,badValue,label] of [
+  ['customer_id','other-report-owner','wrong-customer saved report'],
+  ['completed_at',null,'completed report without completion date']
+ ]){
+  const before=row();
+  db.prepare('UPDATE job_reports SET '+column+'=? WHERE estimate_id=?').run(badValue,'report-job');
+  const inconsistent=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+  eq(inconsistent.status,409,label+' cannot be displayed as complete');
+  assertPrivatePost(inconsistent,label+' private integrity conflict');
+  eq(row().id,before.id,label+' does not replace the saved row');
+  db.prepare('UPDATE job_reports SET '+column+'=? WHERE estimate_id=?')
+   .run(column==='customer_id'?before.customerId:before.completedAt,'report-job');
+ }
+ const originalGetPrepare=rt.env.DB.prepare;
+ rt.env.DB.prepare=function(sql){
+  if(sql==='SELECT customer_id AS customerId FROM estimates WHERE id=?')throw Error('Synthetic report-job identity D1 outage');
+  return originalGetPrepare(sql);
+ };
+ const identityReadOutage=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
+ rt.env.DB.prepare=originalGetPrepare;
+ eq(identityReadOutage.status,503,'Report identity D1 outage never returns false completion evidence');
+ assertPrivatePost(identityReadOutage,'report identity D1 outage');
  rt.setOwner(null);
  const deniedReport=await route.GET(new Request('https://fixture.invalid/api/job-reports?estimateId=report-job'));
  eq(deniedReport.status,401,'Anonymous owner report history denied');
@@ -262,6 +286,18 @@ try{
  eq(drRead.status,200,'DR GET reads actual saved report');
  assertPrivatePost(drRead,'Independent DR private GET');
  eq((await drRead.json()).reports[0].id,drDb.id,'DR GET preserves saved identity');
+ // The real independent DR route must enforce the same readback integrity.
+ db.prepare('UPDATE job_reports SET customer_id=? WHERE estimate_id=?').run('other-report-owner',drJob);
+ const drWrong=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+ eq(drWrong.status,409,'DR denies a stale wrong-customer report on read');
+ assertPrivatePost(drWrong,'DR wrong-customer integrity conflict');
+ db.prepare('UPDATE job_reports SET customer_id=? WHERE estimate_id=?').run(customer,drJob);
+ db.prepare('UPDATE job_reports SET completed_at=NULL WHERE estimate_id=?').run(drJob);
+ const drBroken=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+ eq(drBroken.status,409,'DR denies completed report without timestamp');
+ assertPrivatePost(drBroken,'DR completion-history integrity conflict');
+ db.prepare('UPDATE job_reports SET completed_at=? WHERE estimate_id=?').run(drDb.completedAt,drJob);
+
  for(const [label,ownerValue] of [
   ['DR rejected owner provider',Promise.reject(Error('Synthetic independent DR auth outage'))],
   ['DR throwing owner email',Object.defineProperty({},'email',{get(){throw Error('Unreadable DR principal');}})]
