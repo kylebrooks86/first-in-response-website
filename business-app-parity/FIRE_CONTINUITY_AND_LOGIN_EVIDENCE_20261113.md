@@ -1,3 +1,16 @@
+<!-- FIRE-NOV21-DR-ESTIMATE-CREATE-4DC2D36 -->
+## Nov 21 — DR estimate CREATE actual source/security repair and CI-wired regression authored; previous PATCH/invoice CI 27/27 VERIFIED (NO DEPLOY)
+
+On the SAME main-target unmerged DRAFT [PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282), source [`0f1e7d3`](https://github.com/kylebrooks86/first-in-response-website/commit/0f1e7d3c007b8e997cc35accd7669aa87f69f777) hardens **independent DR `POST /api/estimates`**: it was still parsing arbitrary-size `request.json()`, lacking exact browser origin/Fetch Metadata and exposing owner pricing/share-token/validation/error receipt branches without guaranteed private headers. It now uses DR's existing 262,144-byte UTF-8 streamed owner JSON/Origin guard after authentication before any D1, and uniformly sets private/no-store, Cookie Vary, nosniff on every POST response. Uncertain DB confirmation returns private 503 `saveUncertain:true` to discourage duplicate quote creation. Existing QA-master quote prices, custom service lines, preserved bundle terms, 50% deposit and DR isolation not intentionally changed.
+
+Existing disposable native SQLite, real-route suite [`4dc2d36`](https://github.com/kylebrooks86/first-in-response-website/commit/4dc2d36a266d913940cb07b6a3bcae8340b6cf81) has **17 additional actual CREATE assertions** covering owner identity, hostile/sibling browser origins, form, bad declared size, real multibyte oversize, malformed/array/empty body, zero D1 prepares, private valid quote receipt, invalid price and uncertain save. **Actual changed-route regression STEP SUCCESS** already shown in [QA/STAGING run 44962404278](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44962404278) on exact executable/test SHA `4dc2d36`; full latest multi-workflow suite still in progress (26/27 success at last read) and NOT claimed complete.
+
+Separately, prior exact invoice POST + estimate PATCH source/test `95ff8e72e218e6db5becd16dc15b1d29d8ecaca4` now has **27/27 PR workflow groups SUCCESS** and [QA/STAGING #44961107994](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44961107994) **all 6/6 jobs SUCCESS**. These are archived already-triggered runs, no rerun.
+
+**Source implementation [x], real-route tests authored [x], current targeted stage STEP [x]; latest 27/27 complete seal [ ], hosted Gate 4/5/6/7/9/10 acceptance [ ].** Formal numbered 51/95 and 4/10 whole gates accepted G1/G2/G3/G8 unchanged; physical STAGING 22/25, independent DR and NEW LIVE DARK, NEW LIVE NO-GO and Job #0001 unused. Existing one-time owner TEST authorization stays pinned to older `56ba4b5` and is not carried forward to this new source. Issue #19 source receipt [#7070978966](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7070978966). No provider writes, Cloudflare login, Worker/Access/routing, D1/SQL, Stripe/payment/refund, paid R2, merge, deployment or customer records/photos modified.
+
+---
+
 <!-- FIRE-NOV21-DR-INVOICE-ESTIMATE-TARGETED-CI-95FF8E7 -->
 ## Nov 21 — real DR invoice and estimate owner-write regression steps VERIFIED on changed source (NO DEPLOY)
 
