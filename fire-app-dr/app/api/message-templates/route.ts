@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import { readOwnerWriteObject } from "../../../lib/customer-write-request-guard.mjs";
 import { FIRE_TEMPLATES, SERVICE_AGREEMENT } from "../../../lib/fire-templates";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
@@ -34,19 +35,27 @@ export async function GET(){
 
 export async function PUT(request:Request){
   if(!await authorized())return privateJson({error:"Unauthorized"},401);
-  let body:{key?:string;subject?:string;body?:string;reset?:boolean};
-  try {
-    const parsed:unknown=await request.json();
-    if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))
-      return privateJson({error:"Choose a valid template."},400);
-    body=parsed as typeof body;
-  } catch {
-    return privateJson({error:"Choose a valid template."},400);
+  // Mirror the QA-master owner-only streaming/same-origin guard. Never buffer
+  // unbounded or foreign-origin settings writes before validating the request.
+  const parsed=await readOwnerWriteObject(request,64_000);
+  if(parsed.response){
+    for(const [name,value] of Object.entries(privateHeaders))
+      parsed.response.headers.set(name,value);
+    return parsed.response;
   }
+  const body=parsed.value as {key?:string;subject?:string;body?:string;reset?:boolean};
+  // A string "false", number 1 or mixed reset+edit must never delete an
+  // owner-customized template. Refuse coercible and unknown fields pre-D1.
+  if(Object.keys(body).some(key=>!["key","subject","body","reset"].includes(key))||
+     (body.reset!==undefined&&typeof body.reset!=="boolean")||
+     (body.reset===true&&(body.subject!==undefined||body.body!==undefined))||
+     (body.reset!==true&&(typeof body.body!=="string"||
+       (body.subject!==undefined&&typeof body.subject!=="string"))))
+    return privateJson({error:"Choose either an exact template update or an explicit reset."},400);
   const template=FIRE_TEMPLATES.find((item)=>item.key===body.key);
   if(!template)return privateJson({error:"Unknown template."},400);
   try {
-    if(body.reset){
+    if(body.reset===true){
       await env.DB.prepare("DELETE FROM message_templates WHERE key=?").bind(template.key).run();
       return privateJson({template});
     }
