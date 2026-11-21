@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
+import { readOwnerWriteObject } from "../../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 type RuntimeEnv=Cloudflare.Env & { STRIPE_SECRET_KEY?:string; FIRE_STRIPE_MODE?:string };
@@ -88,14 +89,22 @@ async function saveRefund(request:Request){
     return Response.json({error:"DR refunds are disabled until the isolated Stripe TEST environment is explicitly authorized."},
       {status:503,headers:{"cache-control":"no-store"}});
   try{
-    const value=await request.json() as Record<string,unknown>;
+    // DR refund requests must satisfy the same bounded/same-origin owner
+    // JSON boundary as QA before reading the ledger or contacting Stripe.
+    // The existing isolated TEST opt-in and key guards remain mandatory.
+    const parsed=await readOwnerWriteObject(request,16_000);
+    if(parsed.response)return parsed.response;
+    const value=parsed.value as Record<string,unknown>;
     const paymentId=String(value.paymentId??"").trim();
     const requestId=String(value.requestId??"").trim();
-    const amountCents=Math.round(Number(value.amountCents)||0);
+    // A fractional cent or numeric string must NEVER be rounded into an
+    // accidental refund. Require exact whole-cent numeric JSON input.
+    const amountCents=value.amountCents;
     const externalRefundConfirmed=value.externalRefundConfirmed===true;
     const note=String(value.note??"").trim().slice(0,1000)||null;
-    if(!paymentId||!requestId||requestId.length>120||!Number.isSafeInteger(amountCents)||amountCents<=0)
-      return Response.json({error:"Choose a payment and enter a valid refund amount."},{status:400});
+    if(!paymentId||!requestId||requestId.length>120||
+       typeof amountCents!=="number"||!Number.isSafeInteger(amountCents)||amountCents<=0)
+      return Response.json({error:"Choose a payment and enter a valid refund amount in exact whole cents."},{status:400});
 
     const payment=await env.DB.prepare(`SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,p.provider_id AS providerId,
       e.customer_id AS customerId,c.name AS customer
