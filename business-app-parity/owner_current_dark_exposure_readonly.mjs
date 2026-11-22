@@ -25,19 +25,29 @@ const apiResult=(x,label)=>{
 };
 const pageInfo=(x,label,page)=>{
   const info=x.result_info;
-  if(!isObj(info)||!Number.isSafeInteger(info.total_pages)||
-      !Number.isSafeInteger(info.total_count)||!Number.isSafeInteger(info.count)||
-      !Number.isSafeInteger(info.per_page)||info.per_page<1||info.per_page>50||
-      info.count<0||info.count>info.per_page||info.total_count<0||
-      info.total_pages<0||info.total_pages>20||info.page!==page)
+  if(!isObj(info)||!Number.isSafeInteger(info.total_count)||
+      !Number.isSafeInteger(info.count)||!Number.isSafeInteger(info.per_page)||
+      info.per_page<1||info.per_page>50||info.count<0||
+      info.count>info.per_page||info.total_count<0||info.page!==page)
     fail(label+' pagination incomplete/ambiguous');
-  // Cloudflare may return total_pages:0 for an empty collection. Zero is
-  // still exactly one successfully checked (empty) first response.
-  if(info.total_pages===0){
-    if(page!==1||info.count!==0)fail(label+' inconsistent zero-page inventory');
+  // Real owner Cloudflare Worker Domains GET (HTTP 200, page 1, count 0,
+  // total_count 0, per_page 50) omits total_pages entirely. Its API schema
+  // calls total_pages optional. Derive only from validated count and per_page;
+  // every page still must be fetched and total_count reconciled before proof.
+  const reported=info.total_pages;
+  const totalPages=reported==null?
+    Math.max(1,Math.ceil(info.total_count/info.per_page)):reported;
+  if(!Number.isSafeInteger(totalPages)||totalPages<0||totalPages>20)
+    fail(label+' pagination incomplete/ambiguous');
+  // Cloudflare may also report 0 total_pages for a truly empty collection.
+  // Empty data must have no phantom pages or entries.
+  if(info.total_count===0){
+    if(page!==1||info.count!==0||totalPages>1)
+      fail(label+' inconsistent zero-page inventory');
     return {...info,total_pages:1};
   }
-  return info;
+  if(totalPages===0)fail(label+' pagination incomplete/ambiguous');
+  return {...info,total_pages:totalPages};
 };
 export function evaluateDarkExposureEvidence(target,evidence){
   const worker=FIRE_DARK_WORKERS[target];
