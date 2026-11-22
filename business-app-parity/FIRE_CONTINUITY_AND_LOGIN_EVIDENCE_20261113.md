@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-DARK-EXPOSURE-CLEAR-EXIT-GUARD -->
+## November 22 — G4 DARK public-ingress verification now fails closed on discovered exposure (source-only)
+
+The already accepted owner Acer G5 journal screenshot is NOT being re-requested: STAGING remains independently evidenced at **22/25**, with its read-only pinned journal digest. The G4 account-wide inventory remains incomplete after the previously recorded safe STOP. Original release acceptance stays **51/95 and 4/10 (G1/G2/G3/G8)**; G4-05/G5-01 and the other hosted gates remain OPEN, NEW LIVE DARK/NO-GO, first genuine Job #0001 unissued.
+
+On the same integrated unmerged/unpublished [draft PR282](https://github.com/kylebrooks86/first-in-response-website/pull/282), source commit [`c938430`](https://github.com/kylebrooks86/first-in-response-website/commit/c9384300a31b1b6bbc280a8fc83fe2bc2adb9297) corrected an unsafe completion signal: both owner-only G4 collector entry modes now return a nonzero command exit and explicit public-exposure review status if a **complete** Cloudflare inventory discovers a potentially reachable DARK endpoint. A complete inventory with exposure must NOT be confused with a verified dark/clear result. [Regression `cab9a46`](https://github.com/kylebrooks86/first-in-response-website/commit/cab9a461e7f07256acf9a9aa47b16a04cfdd6565) adds focused test cases for both modes, proving that completed-but-exposed inventory is review-required, the old confirmed G5 STAGING snapshot is not invalidated, and tokens are not included in receipts. GitHub's **automatic exact-head CI was still running on initial record**; do not claim it passed until verified.
+
+No owner credentials, Cloudflare login, provider GET, deployment, SQL write/migration, Stripe/payment, R2 plan, public routing, production merge, actual customer/photo operation or launch was performed by these source/test changes.
+
+---
+
 <!-- FIRE-NOV22-G4-INTERNAL-ZONE-INVENTORY-20261122 -->
 ## November 22 — internal-zone G4 account-wide route omission corrected on active PR #282
 
