@@ -1,3 +1,20 @@
+<!-- FIRE-NOV22-G404-PHYSICAL-SERVING-VERSION-BС71B8F -->
+## November 22, 2026 ~16:10 CST — [x] REAL Cloudflare STAGING active-version metadata GET captured (physical owner Acer); G4-04 configuration FAIL / NO DEPLOY
+
+The owner supplied a new private original 1080×1440 Acer photograph `CFA05C25-8BCC-447F-B5FF-E706210D7FFE.jpeg` (381,499 bytes; SHA-256 `bc71b8f59b7525c6d810fa4594a5c212e079b544c82388de878ad0114f51d76f`). The screenshot shows successful `node .\business-app-parity\owner_staging_serving_version_readonly.mjs --capture-existing-session` after the earlier offline/no-env-token attempt. **Do not request or rerun this capture.** The verified result was `FIRE_STAGING_SERVING_VERSION_METADATA_READ_ONLY` for only `fire-app-independent-staging`; `directCloudflareReadOnlyApi:true`, `getRequestCount:2`, `noLoginAttempt:true`, `cloudflareWrites:false`, `providerDataMutated:false`, `secretValuesExposed:false`.
+
+**Exact provider-confirmed active deployment/version (not source-code attestation):**
+- Active deployment `10215e59-2ff0-485c-92f6-11d7f0405060`; serving version `7838d0ea-be89-49c6-9984-d3b021082d72`; traffic **100%**; `providerDeploymentVersionMetadataExamined:true`.
+- `versionScopedD1IdentityMatches:true`; `FIRE_SESSION_SECRET` secret *name* present; `FIRE_ADMIN_PASSWORD_HASH` secret *name* **ABSENT** (`versionScopedMissingAuthCount:1`). This confirms the previously found STAGING missing hosted verifier affects the exact live-serving Worker version, despite separately accepted successful *local-only* Windows DPAPI verifier preparation.
+- `versionScopedUnexpectedPaymentBindingCount:1` on this active version, **after** the source-level filter correction excluding benign `FIRE_STRIPE_MODE` from payment credential counts; `paymentModeExplicitlyDisabled:false`, `paymentModeNotEnabled:true`. This is **not** an explicitly-disabled-mode proof, does not expose the binding's secret value, and cannot justify deleting a credential or claiming Stripe-safe readiness. `stripeDependencyCleared:false`.
+- `versionScopedR2Count:0`; `versionScopedWrongTargetAuthCount:0`; `requiresConfigRemediation:true`. `servingCodeBytesVerified:false`, `accessEnforcementVerified:false`, `gate4Accepted:false`, `releaseAuthorized:false` in this collector's read-only receipt; do not conflate that technical flag with the separately documented owner's general future release approval.
+
+**Checked supplemental evidence milestone [x]**: physical STAGING active version/deployment binding identity and safety classifier captured successfully, replacing the prior pending *collection* subtask; no new source CI or owner action is needed to recapture this state. **Original numbered G4-04 remains [ ]** because actual hosting has a missing required admin hash, an unexpected payment credential binding and non-explicit payment disablement; G4-01/05/06/07, G5 and all other hosted release gates are not established by version metadata. Investigate STAGING-only *inactive-version* remediation with precise owner authorization before any provider secret, Stripe, Worker or deployment write; `wrangler secret put` immediately deploys and is NOT authorized. Already accepted all-traffic STAGING Access, account-wide DARK DR/NEW LIVE, 22/25 STAGING D1 journal, local DPAPI prep, existing QA/iPhone and original owner screenshots MUST NOT be repeated. No app launch, no paid subscription/R2, no migration, no Git merge or Stripe change.
+
+**Official release count unchanged: 51/95 original numbered items accepted; whole gates G1/G2/G3/G8 = 4/10 accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO and first real Job #0001 unissued.**
+
+---
+
 <!-- FIRE-NOV22-G404-EXISTING-SESSION-FALLBACK-B24F56C -->
 ## Nov 22, 2026 — [x] no-login STAGING serving-version fallback source committed; [ ] actual hosted G4-04
 
