@@ -33,6 +33,8 @@ export function verify(cfg) {
     'Staging vars must be a concrete object');
   const vars=cfg.vars;
   assert.equal(vars.FIRE_ENV,'staging','Wrong environment or tenant');
+  assert.equal(vars.FIRE_STRIPE_MODE,'disabled',
+    'STAGING must explicitly disable Stripe execution before version upload');
   assert.equal(vars.SITE_ORIGIN,ORIGIN,'Unexpected staging origin');
   const numbering=own(vars,'FIRE_JOB_NUMBERS_CANDIDATE');
   const quick=own(vars,'FIRE_QUICK_AUTH_MODE');
@@ -55,7 +57,7 @@ export function verify(cfg) {
   }
   // Only reviewed feature flags may expand these compiled vars. Reject
   // stray payment, credential, storage, customer, origin and tenancy vars.
-  const allowed=['FIRE_ENV','SITE_ORIGIN',
+  const allowed=['FIRE_ENV','SITE_ORIGIN','FIRE_STRIPE_MODE',
     ...(numbering?['FIRE_JOB_NUMBERS_CANDIDATE']:[]),
     ...(quick?['FIRE_QUICK_AUTH_MODE','FIRE_ACCESS_TEAM_DOMAIN',
        'FIRE_ACCESS_AUDIENCE','FIRE_ACCESS_OWNER_EMAIL']:[])];
