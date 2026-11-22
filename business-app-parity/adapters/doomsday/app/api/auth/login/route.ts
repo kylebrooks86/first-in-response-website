@@ -84,9 +84,16 @@ export async function POST(request: Request) {
       return Response.json({ error: "Too many sign-in attempts. Try again later." }, { status: 429, headers: { "cache-control": "no-store", "retry-after": String(status.retryAfter) } });
     }
     const body = await request.json() as { password?: string };
-    if (typeof body?.password !== "string" || !/^\d{4}$/.test(body.password) || !await verifyIndependentPassword(body.password)) {
+    // Keep the existing 4-digit PIN valid, and allow strong private
+    // 24-128-character STAGING passphrases using the SAME configured hash,
+    // D1 rate-limit bucket and session-cookie validation. Quick PIN/passkey
+    // mode still requires Cloudflare Access identity and is unchanged.
+    const password = typeof body?.password === "string" ? body.password : "";
+    const allowedCredential = /^\\d{4}$/.test(password) ||
+      (password.length >= 24 && password.length <= 128);
+    if (!allowedCredential || !await verifyIndependentPassword(password)) {
       const retryAfter = await recordFailure(key);
-      return Response.json({ error: retryAfter ? "Too many sign-in attempts. Try again later." : "Incorrect PIN." }, { status: retryAfter ? 429 : 401, headers: { "cache-control": "no-store", ...(retryAfter ? { "retry-after": String(retryAfter) } : {}) } });
+      return Response.json({ error: retryAfter ? "Too many sign-in attempts. Try again later." : "Incorrect PIN or passphrase." }, { status: retryAfter ? 429 : 401, headers: { "cache-control": "no-store", ...(retryAfter ? { "retry-after": String(retryAfter) } : {}) } });
     }
     await clearFailures(key);
     return Response.json({ ok: true }, { headers: { "cache-control": "no-store", "set-cookie": await independentSessionCookie() } });
