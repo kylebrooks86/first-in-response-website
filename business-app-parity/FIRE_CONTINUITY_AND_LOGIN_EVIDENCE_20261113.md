@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-INVOICE-CREATE-READBACK-86E8CD2 -->
+## November 21 — actual DR final-invoice confirmation defect fixed; added CI-wired DR SQLite checks (DRAFT, NO DEPLOY)
+
+- [x] On the SAME active main-target integrated [draft PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282), independent DR `POST /api/invoices` formerly returned **201 after batch ACK alone** and did not independently verify exact saved header/service-line bytes. Source [`c2537f1`](https://github.com/kylebrooks86/first-in-response-website/commit/c2537f11e9765087a6ef40c30629ed3115b5146a) ports the already tested QA-master final-invoice transactional ownership/status guard, confirmed saved D1 invoice/service-line readback, legitimate same-job replay and lost-ack existing receipt. [`c4cbc76`](https://github.com/kylebrooks86/first-in-response-website/commit/c4cbc7667187eb1f59ecc1f680827903b778d16a) additionally rejects nonthrowing unsuccessful D1 service-line reads. Customer, estimate, payment, refund, public site, existing pricing and prior historical source untouched.
+- [x] EXISTING full-invoice native SQLite route suite expanded with ACTUAL independent DR TypeScript handler at [`86e8cd2`](https://github.com/kylebrooks86/first-in-response-website/commit/86e8cd278bdc088364d76253ce4087ac68f13fd3). New assertions reject false batch ACK, `success:false`, incomplete/soft-failed service lines, changing invoice owner/completed-job status before/after transaction; they confirm 201 only after saved receipt, 200 on legitimate replay/lost ACK, and private session-vary/no-sniff responses. No owner device, Cloudflare login, provider or Stripe action repeated.
+- [ ] Newly authored executable/test CI verdict is **pending actual GitHub readback** for exact code SHA `86e8cd2` or docs-only identical-code successor; do not claim automatic workflow success before observing it. Original QA-master route tests are not enough to infer the new DR assertions passed.
+- [ ] Original formal checklist **51/95 accepted, 44 OPEN; 4/10 gates accepted G1/G2/G3/G8**, remaining G4/G5/G6/G7/G9/G10 OPEN; STAGING physically last 22/25 migration, DR/NEW LIVE DARK/NO-GO, first actual NEW LIVE Job #0001 unused. Supplemental source [x] is not hosted gate acceptance. Existing NEW LIVE/DR evidence and accepted screenshots/tests stay accepted. No Git merge, Cloudflare/Access/Worker/D1/SQL, Stripe/payment, R2/paid service, customer/photo/production change or deployment.
+
+---
+
 <!-- FIRE-NOV21-TRIPLECHECK-HISTORIC-CI-20261121 -->
 ## November 21 — checklist reconciliation: four historical CI pending entries actually checked OFF (source proof only)
 
