@@ -1,9 +1,24 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
+import {readOwnerWriteObject} from "../../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 type RuntimeEnv=Cloudflare.Env&{STRIPE_SECRET_KEY?:string};
-async function authorized(){const user=await getOwnerUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
+async function authorized(){
+ try{const user=await getOwnerUser();return Boolean(user&&typeof user.email==="string"&&user.email.toLowerCase()===OWNER_EMAIL);}
+ catch{return false;}
+}
+const privateInvoiceHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+function privateInvoiceJson(payload:unknown,init:ResponseInit={}){
+ const headers=new Headers(init.headers);
+ for(const [name,value] of Object.entries(privateInvoiceHeaders))headers.set(name,value);
+ return Response.json(payload,{...init,headers});
+}
+function privateGuardInvoiceResponse(response:Response){
+ const headers=new Headers(response.headers);
+ for(const [name,value] of Object.entries(privateInvoiceHeaders))headers.set(name,value);
+ return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
 type InvoiceItem={id?:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
 
 async function expireOpenCheckoutSessions(estimateId:string){
@@ -29,70 +44,82 @@ async function expireOpenCheckoutSessions(estimateId:string){
 }
 
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return privateInvoiceJson({error:"Unauthorized"},{status:401});
+  try{
   const {id}=await params;
   const invoice=await env.DB.prepare("SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,created_at AS createdAt FROM invoices WHERE id=?").bind(id).first();
-  if(!invoice)return Response.json({error:"Invoice not found."},{status:404});
+  if(!invoice)return privateInvoiceJson({error:"Invoice not found."},{status:404});
   const [items,revisions]=await Promise.all([
     env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all(),
     env.DB.prepare("SELECT id,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status,items_json AS itemsJson,created_at AS createdAt FROM invoice_revisions WHERE invoice_id=? ORDER BY created_at DESC LIMIT 20").bind(id).all(),
   ]);
-  const normalizedRevisions=(revisions.results??[]).map((revision)=>{
+  // Partial/soft D1 responses cannot masquerade as an empty invoice detail or history.
+  if((items as {success?:boolean}).success===false||!Array.isArray(items?.results)||
+     (revisions as {success?:boolean}).success===false||!Array.isArray(revisions?.results))
+    throw new Error("Incomplete invoice detail from D1");
+  const normalizedRevisions=revisions.results.map((revision)=>{
     const record=revision as Record<string,unknown>;
     let revisionItems:unknown[]=[];
     try{const parsed=JSON.parse(String(record.itemsJson??"[]"));revisionItems=Array.isArray(parsed)?parsed:[];}catch{revisionItems=[];}
     const {itemsJson:_itemsJson,...rest}=record;void _itemsJson;
     return {...rest,items:revisionItems};
   });
-  return Response.json({invoice:{...invoice,items:items.results,revisions:normalizedRevisions}});
+  return privateInvoiceJson({invoice:{...invoice,items:items.results,revisions:normalizedRevisions}});
+  }catch{
+    return privateInvoiceJson({error:"Saved invoice details are temporarily unavailable. No invoice was changed."},{status:503});
+  }
 }
 
 export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){
-  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  if(!await authorized())return privateInvoiceJson({error:"Unauthorized"},{status:401});
+  // Prevent cross-origin edits and unbounded financial JSON BEFORE any D1 read or Stripe call.
+  // Reuse the established exact-origin 256 KiB streamed owner-body guard.
+  const parsed=await readOwnerWriteObject(request,262_144);
+  if(parsed.response)return privateGuardInvoiceResponse(parsed.response);
   try{
     const {id}=await params;
-    const body=await request.json() as Record<string,unknown>;
+    const body=parsed.value as Record<string,unknown>;
     const existing=await env.DB.prepare("SELECT id,estimate_id AS estimateId,status,first_viewed_at AS firstViewedAt,created_at AS createdAt FROM invoices WHERE id=?").bind(id).first<{id:string;estimateId:string;status:string;firstViewedAt:string|null;createdAt:string}>();
-    if(!existing)return Response.json({error:"Invoice not found."},{status:404});
+    if(!existing)return privateInvoiceJson({error:"Invoice not found."},{status:404});
     const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(existing.estimateId).first<{id:string}>();
-    if(pendingRefund)return Response.json({error:"A refund is currently processing for this job. Wait for it to finish before editing the final invoice."},{status:409});
+    if(pendingRefund)return privateInvoiceJson({error:"A refund is currently processing for this job. Wait for it to finish before editing the final invoice."},{status:409});
     const items=(Array.isArray(body.items)?body.items:[]) as Record<string,unknown>[];
     const normalized:InvoiceItem[]=items.map((item)=>({id:String(item.id??"").trim()||undefined,name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:Math.round(Number(item.totalCents))}));
-    if(!normalized.length||normalized.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return Response.json({error:"Every invoice service needs a name, quantity, and valid price."},{status:400});
+    if(!normalized.length||normalized.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))return privateInvoiceJson({error:"Every invoice service needs a name, quantity, and valid price."},{status:400});
     const subtotalCents=normalized.reduce((sum,item)=>sum+item.totalCents,0);
-    if(!Number.isSafeInteger(subtotalCents))return Response.json({error:"The invoice total is too large to store safely."},{status:400});
+    if(!Number.isSafeInteger(subtotalCents))return privateInvoiceJson({error:"The invoice total is too large to store safely."},{status:400});
     const discountType=String(body.discountType??"dollar")==="percent"?"percent":"dollar";
     const discountValue=Math.max(0,Math.round(Number(body.discountValue??0)));
-    if(!Number.isSafeInteger(discountValue))return Response.json({error:"Enter a valid discount amount."},{status:400});
+    if(!Number.isSafeInteger(discountValue))return privateInvoiceJson({error:"Enter a valid discount amount."},{status:400});
     let discountCents=0;
     if(discountType==="percent"){
-      if(discountValue>5000)return Response.json({error:"Percentage discount cannot exceed 50%."},{status:400});
+      if(discountValue>5000)return privateInvoiceJson({error:"Percentage discount cannot exceed 50%."},{status:400});
       discountCents=Math.round(subtotalCents*(discountValue/10000));
     }else{
-      if(discountValue>subtotalCents)return Response.json({error:"Dollar discount cannot exceed the invoice subtotal."},{status:400});
+      if(discountValue>subtotalCents)return privateInvoiceJson({error:"Dollar discount cannot exceed the invoice subtotal."},{status:400});
       discountCents=discountValue;
     }
     const totalCents=subtotalCents>0?Math.max(15000,subtotalCents-discountCents):0;
     const appliedDiscountCents=Math.max(0,subtotalCents-totalCents);
     const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
     const paidCents=Number(paidRow?.paidCents||0);
-    if(!Number.isSafeInteger(paidCents)||paidCents<0)return Response.json({error:"Recorded payments are outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
-    if(totalCents<paidCents)return Response.json({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
+    if(!Number.isSafeInteger(paidCents)||paidCents<0)return privateInvoiceJson({error:"Recorded payments are outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
+    if(totalCents<paidCents)return privateInvoiceJson({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
     const checkoutGuard=await expireOpenCheckoutSessions(existing.estimateId);
-    if(!checkoutGuard.ok)return Response.json({error:checkoutGuard.error},{status:409});
+    if(!checkoutGuard.ok)return privateInvoiceJson({error:checkoutGuard.error},{status:409});
     const status=paidCents>=totalCents?"paid":paidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
     const updateDueAt=Object.prototype.hasOwnProperty.call(body,"dueAt");
     const rawDueAt=String(body.dueAt??"").trim();
     let dueAt:string|null|undefined;
     if(updateDueAt){
       if(rawDueAt==="receipt")dueAt=null;
-      else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);if(Number.isNaN(parsed.getTime()))return Response.json({error:"Choose a valid invoice due date."},{status:400});dueAt=parsed.toISOString();}
-      else return Response.json({error:"Choose a valid invoice due date."},{status:400});
+      else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);if(Number.isNaN(parsed.getTime()))return privateInvoiceJson({error:"Choose a valid invoice due date."},{status:400});dueAt=parsed.toISOString();}
+      else return privateInvoiceJson({error:"Choose a valid invoice due date."},{status:400});
     }
     const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
     const latestPaidCents=Number(latestPaidRow?.paidCents??0);
-    if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
-    if(totalCents<latestPaidCents)return Response.json({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
+    if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return privateInvoiceJson({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
+    if(totalCents<latestPaidCents)return privateInvoiceJson({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
     const currentItems=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all();
     const currentInvoice=await env.DB.prepare("SELECT subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,status FROM invoices WHERE id=?").bind(id).first<Record<string,unknown>>();
     const revisionId=crypto.randomUUID();
@@ -109,7 +136,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     // invoice status stale or an overpayment hidden from the owner.
     const postPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
     const postPaidCents=Number(postPaidRow?.paidCents??0);
-    if(!Number.isSafeInteger(postPaidCents)||postPaidCents<0)return Response.json({error:"Invoice changes were saved, but the refreshed payment total requires owner review before billing continues."},{status:409});
+    if(!Number.isSafeInteger(postPaidCents)||postPaidCents<0)return privateInvoiceJson({error:"Invoice changes were saved, but the refreshed payment total requires owner review before billing continues."},{status:409});
     const reconciledStatus=postPaidCents>=totalCents?"paid":postPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
     const postOverpaymentCents=Math.max(0,postPaidCents-totalCents);
     const reconcileStatements=[env.DB.prepare("UPDATE invoices SET status=? WHERE id=?").bind(reconciledStatus,id)];
@@ -130,6 +157,6 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
       );
     }
     await env.DB.batch(reconcileStatements);
-    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},paidCents:postPaidCents,billingExceptionOpen:postOverpaymentCents>0});
-  }catch{return Response.json({error:"We couldn't update this invoice."},{status:500});}
+    return privateInvoiceJson({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},paidCents:postPaidCents,billingExceptionOpen:postOverpaymentCents>0});
+  }catch{return privateInvoiceJson({error:"We couldn't update this invoice."},{status:500});}
 }
