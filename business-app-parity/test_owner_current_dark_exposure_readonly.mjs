@@ -66,6 +66,37 @@ const mock=async(_token,path)=>{
  if(path.endsWith('/workers/routes'))return success([]);
  throw Error('unexpected mock request '+path);
 };
+// Real owner readback: HTTP 200 / success:true / result[] / pagination may have
+// errors:null or omit errors entirely. Accept these success-only shapes without
+// relaxing failure, non-empty errors, or malformed error collection denials.
+for(const errorsShape of ['null','omitted']){
+ const proofShape=await captureDarkExposure('dr',{
+  token:'synthetic-only',request:async (token,path)=>{
+   const response=await mock(token,path);
+   if(path.includes('/workers/domains?')){
+    const altered={...response};
+    if(errorsShape==='null')altered.errors=null;
+    else delete altered.errors;
+    return altered;
+   }
+   return response;
+  }
+ });
+ assert.equal(proofShape.publicEndpointsAbsentInSuppliedEvidence,true);
+ assert.equal(proofShape.providerReadbackVerified,false);
+ assert.equal(proofShape.gate4Accepted,false);
+}
+for(const rejectedErrors of [[{code:1000,message:'provider error'}],{},'bad error container']){
+ await assert.rejects(captureDarkExposure('dr',{
+  token:'synthetic-only',request:async (token,path)=>{
+   const response=await mock(token,path);
+   return path.includes('/workers/domains?')?
+    {...response,errors:rejectedErrors}:response;
+  }
+ }),/domains missing successful complete API response/);
+}
+console.log('PASS Cloudflare successful null/omitted errors accepted; nonempty/malformed errors refused');
+
 const proof=await captureDarkExposure('new-live',{token:'synthetic-only',request:mock});
 assert.equal(proof.providerReadbackVerified,false);
 assert.equal(proof.publicEndpointsAbsentInSuppliedEvidence,true);
