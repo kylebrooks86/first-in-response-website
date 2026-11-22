@@ -15,7 +15,11 @@ export const FIRE_DARK_WORKERS=Object.freeze({
 const fail=reason=>{throw new Error('FIRE DARK EXPOSURE READ-ONLY STOP: '+reason)};
 const isObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const apiResult=(x,label)=>{
-  if(!isObj(x)||x.success!==true||!Array.isArray(x.errors)||x.errors.length||!Object.hasOwn(x,'result'))
+  // Cloudflare may omit 'errors' or return null on a successful 200 response.
+  // Still refuse success:false, malformed/nonempty error collections and missing results.
+  const errors=x?.errors;
+  const noReportedErrors=errors==null||(Array.isArray(errors)&&errors.length===0);
+  if(!isObj(x)||x.success!==true||!noReportedErrors||!Object.hasOwn(x,'result'))
     fail(label+' missing successful complete API response');
   return x.result;
 };
