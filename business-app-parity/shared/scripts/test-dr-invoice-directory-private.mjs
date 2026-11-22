@@ -134,5 +134,110 @@ try{
  eq(validResponse.status,503,'DR invoice POST uncertain D1 receipt cannot claim creation');
  priv(validResponse,'DR invoice POST uncertainty');
  eq((await validResponse.json()).saveUncertain,true,'DR invoice receipt warns owner before retry');
- console.log('PASS '+checks+' DR invoice GET + actual POST owner/origin/16KB/private/zero-D1 rejection assertions (NO HOSTED OPERATIONS)');
+
+ // G6: exercise the REAL independent DR invoice detail GET/PATCH handler.
+ // These are new route-specific checks, not repeat owner-device or provider tests.
+ const detailPath=resolve(dirname(path),'[id]/route.ts');
+ const detailSource=ts.transpileModule(readFileSync(detailPath,'utf8'),{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ let detailMode='ok',detailReads=0;
+ const detailDB={prepare(sql){
+   detailReads++;
+   if(detailMode==='throw')throw Error('Synthetic D1 outage');
+   return {bind(){return {
+     async first(){
+       if(detailMode==='missingInvoice')return null;
+       if(sql.includes('FROM invoices WHERE id=?'))return {
+         id:'i1',estimateId:'e1',customerId:'c1',status:'draft',
+         subtotalCents:10000,discountCents:0,discountType:'dollar',
+         discountValue:0,totalCents:10000,shareToken:'DETAIL-SYNTHETIC-TOKEN'
+       };
+       throw Error('Refuse unrelated D1 lookup');
+     },
+     async all(){
+       if(sql.includes('FROM invoice_items'))return detailMode==='softItems'?
+         {success:false,results:[]} : detailMode==='missingItems'?
+         {success:true} : {success:true,results:[{id:'line1',name:'Synthetic service',totalCents:10000}]};
+       if(sql.includes('FROM invoice_revisions'))return detailMode==='softRevisions'?
+         {success:false,results:[]} : {success:true,results:[]};
+       throw Error('Unexpected invoice query');
+     }
+   };}};
+ }};
+ const detailContext={exports:{},Response,Request,Headers,Number,String,Array,JSON,require(name){
+   if(name==='cloudflare:workers')return {env:{DB:detailDB}};
+   if(name==='../../../owner-auth')return {getOwnerUser};
+   if(name==='../../../../lib/customer-write-request-guard.mjs')
+     return {readOwnerWriteObject:drOwnerJsonGuard};
+   throw Error('Unexpected DR detail import '+name);
+ }};
+ vm.runInNewContext(detailSource,detailContext);
+ eq(typeof detailContext.exports.GET,'function','real DR invoice detail GET loaded');
+ eq(typeof detailContext.exports.PATCH,'function','real DR invoice detail PATCH loaded');
+ const detailParams={params:Promise.resolve({id:'i1'})};
+ for(const p of ['missing','numeric','unreadable','foreign','throw']){
+   principal=p;
+   const before=detailReads;
+   let response=await detailContext.exports.GET(new Request('https://dr.invalid/api/invoices/i1'),detailParams);
+   eq(response.status,401,'DR detail GET '+p+' denied');
+   priv(response,'DR detail GET '+p);
+   eq(detailReads,before,'DR detail GET '+p+' no D1');
+   response=await detailContext.exports.PATCH(new Request('https://dr.invalid/api/invoices/i1',{
+     method:'PATCH',headers:{origin:'https://dr.invalid','sec-fetch-site':'same-origin','content-type':'application/json'},
+     body:'{"items":[]}'
+   }),detailParams);
+   eq(response.status,401,'DR detail PATCH '+p+' denied');
+   priv(response,'DR detail PATCH '+p);
+   eq(detailReads,before,'DR detail PATCH '+p+' no D1');
+ }
+ principal='owner';
+ let detailResult=await detailContext.exports.GET(new Request('https://dr.invalid/api/invoices/i1'),detailParams);
+ eq(detailResult.status,200,'DR detail owner GET');
+ priv(detailResult,'DR detail valid');
+ let detailJson=await detailResult.json();
+ eq(detailJson.invoice.shareToken,'DETAIL-SYNTHETIC-TOKEN','real private detail owner token kept');
+ eq(detailJson.invoice.items.length,1,'real invoice detail line preserved');
+ for(const [mode,expected] of [['missingInvoice',404],['softItems',503],['missingItems',503],['softRevisions',503],['throw',503]]){
+   detailMode=mode;
+   const response=await detailContext.exports.GET(new Request('https://dr.invalid/api/invoices/i1'),detailParams);
+   eq(response.status,expected,'DR detail '+mode+' fails closed');
+   priv(response,'DR detail '+mode);
+   const json=await response.json();
+   eq('invoice' in json,false,'DR detail '+mode+' never emits unverified invoice');
+ }
+ detailMode='ok';
+ const detailHeaders={origin:'https://dr.invalid','sec-fetch-site':'same-origin','content-type':'application/json'};
+ const detailBody='{"items":[{"name":"Synthetic service","quantity":1,"totalCents":10000}]}';
+ const detailReject=[
+   ['foreign origin',{...detailHeaders,origin:'https://attacker.invalid','sec-fetch-site':'cross-site'},detailBody,403],
+   ['same-site sibling',{...detailHeaders,origin:'https://sibling.dr.invalid','sec-fetch-site':'same-site'},detailBody,403],
+   ['forged metadata',{...detailHeaders,'sec-fetch-site':'same-site'},detailBody,403],
+   ['non-JSON form',{...detailHeaders,'content-type':'text/plain'},detailBody,415],
+   ['declared oversize',{...detailHeaders,'content-length':'262145'},detailBody,413],
+   ['actual UTF-8 oversize',detailHeaders,JSON.stringify({items:'é'.repeat(140000)}),413],
+   ['bad content length',{...detailHeaders,'content-length':'oops'},detailBody,400],
+   ['malformed JSON',detailHeaders,'{',400],
+   ['array JSON',detailHeaders,'[]',400],
+   ['empty JSON',detailHeaders,'',400]
+ ];
+ for(const [label,headers,body,status] of detailReject){
+   const before=detailReads;
+   const response=await detailContext.exports.PATCH(new Request('https://dr.invalid/api/invoices/i1',{
+     method:'PATCH',headers,body
+   }),detailParams);
+   eq(response.status,status,'DR detail PATCH '+label+' denied');
+   priv(response,'DR detail PATCH '+label);
+   eq(detailReads,before,'DR detail PATCH '+label+' no D1 or Stripe');
+ }
+ detailMode='throw';
+ const unavailable=await detailContext.exports.PATCH(new Request('https://dr.invalid/api/invoices/i1',{
+   method:'PATCH',headers:detailHeaders,body:detailBody
+ }),detailParams);
+ eq(unavailable.status,503,'DR detail PATCH D1 unavailable not false success');
+ priv(unavailable,'DR detail PATCH D1 unavailable');
+ eq((await unavailable.json()).saveUncertain,true,'DR detail PATCH uncertain save retained');
+ detailMode='ok';
+
+ console.log('PASS '+checks+' DR invoice GET/POST and detail GET/PATCH owner/origin/private/zero-D1 assertions (NO HOSTED OPERATIONS)');
 }finally{db.close();}
