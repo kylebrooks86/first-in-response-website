@@ -9,12 +9,22 @@ import {webcrypto} from 'node:crypto';
 import {ownerBrowserWriteScope} from '../lib/customer-write-request-guard.mjs';
 import {DatabaseSync} from 'node:sqlite';
 
-const code=ts.transpileModule(readFileSync('app/api/customer-photos/route.ts','utf8'),{
+const compile=(source)=>ts.transpileModule(source,{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
+// Exercise the actual DR route, not a test-only reimplementation, with the
+// SAME native SQLite + in-memory storage failure matrix as QA-master.
+const drFile=process.env.GITHUB_WORKSPACE
+  ? process.env.GITHUB_WORKSPACE+'/fire-app-dr/app/api/customer-photos/route.ts'
+  : new URL('../../../fire-app-dr/app/api/customer-photos/route.ts',import.meta.url);
+const candidates=[
+ ['QA-master',compile(readFileSync('app/api/customer-photos/route.ts','utf8'))],
+ ['independent DR',compile(readFileSync(drFile,'utf8'))],
+];
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;};
 const scenarios=['success','ack-missing-change','ack-false','lost-ack','no-insert','read-failure','read-missing','read-wrong-key','bucket-failure','bucket-lost-ack'];
+for(const [target,code] of candidates){
 for(const mode of scenarios){
  const db=new DatabaseSync(':memory:');
  db.exec("CREATE TABLE customers(id TEXT PRIMARY KEY); INSERT INTO customers VALUES ('synthetic-customer'); "+
@@ -64,6 +74,7 @@ for(const mode of scenarios){
   exports,require(id){
    if(id==='cloudflare:workers')return {env};
    if(id==='../../chatgpt-auth')return {getChatGPTUser:async()=>user};
+   if(id==='../../owner-auth')return {getOwnerUser:async()=>user};
    if(id==='../../../lib/customer-write-request-guard.mjs')return {ownerBrowserWriteScope};
    throw Error('Unexpected module '+id);
   },
@@ -127,7 +138,20 @@ for(const mode of scenarios){
   }
   check(writes===previousWrites&&puts===previousPuts&&reads===previousReads,
     'Denied or malformed photo principals cause zero storage or D1 work');
+  const hostile=request();
+  hostile.headers.set('origin','https://forged-owner.example.invalid');
+  hostile.headers.set('sec-fetch-site','cross-site');
+  const hostileResult=await exports.POST(hostile);
+  check(hostileResult.status===403,
+    target+' foreign-origin photo upload refused before photo or D1 activity');
+  check(hostileResult.headers.get('cache-control')==='private, no-store'
+    &&hostileResult.headers.get('vary')==='Cookie'
+    &&hostileResult.headers.get('x-content-type-options')==='nosniff',
+    target+' rejected photo mutation remains owner-private');
+  check(writes===previousWrites&&puts===previousPuts&&reads===previousReads,
+    target+' cross-site photo upload makes zero D1 or storage changes');
  }
  db.close();
 }
-console.log('PASS '+checks+'/'+checks+' customer photo POST/SQLite/R2 receipt assertions across success, six D1 uncertainties, R2 failure and nonowner denial. No provider calls.');
+}
+console.log('PASS '+checks+'/'+checks+' QA-master AND independent DR customer photo POST/SQLite/in-memory storage receipt assertions across success, D1 uncertainties, bucket failure, nonowner and cross-origin denial. No provider calls.');
