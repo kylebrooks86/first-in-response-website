@@ -15,6 +15,49 @@
 
 ---
 
+<!-- FIRE-G404-20261122-ALL-FOUR-OWNER-RESULTS-CONCLUSIVE -->
+## November 22 — original owner Acer scrollback resolves the whole four-target G4-04 configuration warning (PHYSICAL [x], FULL G4-04 still [ ])
+
+**Source/custody:** the owner scrolled within the **same successful previously executed PowerShell output**, with no repeat Cloudflare GET, token prompt or login. Four additional private photos were provided; **original images remain in the user conversation, not the public repository**:
+
+| Target/portion | Original owner image identifier | Byte size | SHA-256 |
+|---|---|---:|---|
+| QA full object | `IMG_17964BF3-416C-4536-90FB-7F51785C4D59.jpeg` | 299144 | `fefefaf790d0d7f8aa14dfa8644659f54092497f4dc5843019a2ebcdeb68abad` |
+| STAGING full object | `IMG_10E6E516-603A-4610-BB9C-BA049A6D10FB.jpeg` | 272120 | `7c6de4f1da015a966824823e9f0426dedf087b80944f6012f125432f309e4aba` |
+| DR full object | `IMG_1B60654C-DF5C-48B9-910B-3C96132861A1.jpeg` | 273300 | `2210dfa8a09d98ac538ad0793b62447f1921fee7918293f08c69a11b6c6e2b6b` |
+| NEW LIVE / final summary again | `IMG_75A5A785-411E-4870-B2C5-94B46A3C1237.jpeg` | 288530 | `1932d507bf7882e9719aa06f7d77efb7fd3ebd4f2df7e640d411e8c6d46691dd` |
+
+**Physical provider-backed sanitized report results, transcribed only from screenshots:**
+
+| Observed | QA `fire-fullapp-qa-20261016` | STAGING `fire-app-independent-staging` | DR `fire-fullapp-dr` | NEW LIVE `fire-fullapp-new-live` |
+|---|---|---|---|---|
+| Total bindings | 7 | 3 | 5 | 5 |
+| Expected DB binding present + exact UUID match | true / true | true / true | true / true | true / true |
+| Required password hash name present | `FIRE_QA_PASSWORD_HASH:true` | `FIRE_ADMIN_PASSWORD_HASH:false` | `FIRE_DR_PASSWORD_HASH:false` | `FIRE_NEW_LIVE_PASSWORD_HASH:false` |
+| Required session secret name present | `FIRE_QA_SESSION_SECRET:true` | `FIRE_SESSION_SECRET:true` | `FIRE_DR_SESSION_SECRET:false` | `FIRE_NEW_LIVE_SESSION_SECRET:false` |
+| Missing expected auth names | 0 | **1** | 2 | 2 |
+| Expected auth secret types valid | true | true | true | true |
+| Wrong-target auth count | 0 | 0 | 0 | 0 |
+| Unexpected payment credential binding count | 0 | **1** | 0 | 0 |
+| R2 binding count | 0 | 0 | 0 | 0 |
+| Unreviewed binding type count | 0 | 0 | 0 | 0 |
+
+All four show `scriptLevelSettingsReadback:true`, `readOnlyProviderMetadata:true`, `servingVersionSettingsVerified:false`, `effectiveCloudflareAccessVerified:false`, `secretValuesReadOrDisplayed:false`, `storageSubscriptionActivated:false`, `providerDataMutated:false`, `gate4Accepted:false`, `productionReady:false`. The previously captured final envelope reports `targetCount:4`, `providerReadbackVerified:true`, `noSecretValuesOutput:true`, `cloudflareWrites:false`, `releaseAuthorized:false`, followed by `CONFIG REVIEW REQUIRED - DO NOT DEPLOY`.
+
+**Exact new conclusion:** the collector's red-flag predicates are present **only on STAGING**. STAGING is bound to the correct independently isolated D1; it has exactly the expected `FIRE_SESSION_SECRET` name but **lacks `FIRE_ADMIN_PASSWORD_HASH`** and carries **one unapproved payment-related binding**. Prior accepted authenticated STAGING settings screenshots showed the name `STRIPE_SECRET_KEY`; this latest *sanitized* script reports the count but does not independently identify the payment binding's current name/value, so do **not** assert current TEST-vs-LIVE mode or remove any secret by inference. QA current script-level metadata has both required secret names and exact D1, no stray payment or R2 binding. DR and NEW LIVE remain deliberately DARK with no login secrets; missing their names is **not a release failure until an owner-approved activation**. Their D1s are each distinct and match expected IDs. **The warning is accounted for by STAGING; no additional owner screenshot or provider GET is required to identify the flag.**
+
+**Source-policy reconciliation:** [`check_independent_staging_runtime_config.mjs`](../check_independent_staging_runtime_config.mjs) and [`adapters/independent-staging/vite.config.ts`](../adapters/independent-staging/vite.config.ts) explicitly require `FIRE_ADMIN_PASSWORD_HASH` and `FIRE_SESSION_SECRET` and configure **no STAGING payment/R2 binding**. However the hosted GET is `/scripts/{name}/settings`, **not active immutable deployed-byte proof**; the old STAGING production workers.dev hostname was ON and no Worker-specific Access enforcement verified. **Do not blindly add a login hash or delete a Stripe credential until the serving STAGING version, Access/ingress risk, and any active Stripe TEST dependencies are reconciled**; no provider change authorization has been granted by these photos.
+
+**Acceptance split:**
+- **[x] Physically captured, fully reviewed and accepted:** the **originally outstanding four-target script-level secrets/physical DB binding-name inventory** subproof, including the exact red flags. This is not a repeat of the same successful GET.
+- **[ ] G4-04 numbered requirement remains OPEN:** STAGING secret-name and payment binding configuration not yet reconciled, actual TEST-vs-LIVE payment mode and photo mode/serving-version scope not proven.
+- **[ ] G4-05/G4-06 and the whole G4 gate remain OPEN:** no effective Cloudflare Access/nonowner denial proof. No deployment, merge, SQL/Stripe/payment operation or Cloudflare Access/Worker/R2/secret write took place.
+- **[ ] Formal project launch remains NO-GO:** 51/95 original accepted and 4/10 accepted full gates (G1/G2/G3/G8), NEW LIVE dark and reserved authentic Job #0001.
+
+**No-repeat rule:** never re-ask for this four-target settings GET, its original owner screenshots, earlier DR+NEW LIVE account-wide DARK ingress GET, accepted STAGING 22/25 D1 journal, previously accepted QA/iPhone/browser/Cloudflare screens, or failed cloud login. The next action is **narrowly scoped reconciliation/owner-authorized remediation**, not another generic check.
+
+---
+
 ## Why this new work was needed
 
 The original release tracker [Issue #19](https://github.com/kylebrooks86/first-in-response-website/issues/19) and master 95-row checklist have a genuinely outstanding **G4-04 hosted secret-name, per-target auth and payment/storage-binding** verification. Previously accepted STAGING owner screenshot exposed an unexpected `STRIPE_SECRET_KEY` named binding and no visibly matched `FIRE_ADMIN_PASSWORD_HASH` secret; an owner screenshot of a single settings panel is not a full current source-vs-provider binding comparison. Do **not** repeat that screenshot or prior accepted DR/NEW LIVE dark ingress API inventory, STAGING migration journal 22/25, QA/iPhone tests, or failed Cloudflare browser sign-ins.
