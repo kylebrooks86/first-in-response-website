@@ -50,7 +50,7 @@ try {
   reset();equal((await login.POST(request(phrase+'-incorrect'))).status,401);
   reset();equal((await login.POST(request('1234'))).status,401);
  }
- const shortPhrase='short-but-not-four-digits';
+ const shortPhrase='too-short-phrase';
  env.FIRE_ADMIN_PASSWORD_HASH=createHash('sha256').update(shortPhrase).digest('hex');
  reset();equal((await login.POST(request(shortPhrase))).status,401);
  const overlong='x'.repeat(129);
