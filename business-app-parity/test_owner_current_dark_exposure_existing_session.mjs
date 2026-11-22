@@ -89,7 +89,9 @@ assert.equal(both.accessPolicyProviderVerified,false);
 assert.equal(both.gate4Accepted,false);
 assert.equal(both.productionReady,false);
 assert.ok(!JSON.stringify(both).includes(secret),'no bearer token may appear in receipt');
-assert.equal(batchPaths.length,6,'two Workers, three GET inventory operations each');
+assert.equal(batchPaths.length,8,'two Workers, four GET inventory operations each');
+assert.equal(batchPaths.filter(p=>p.includes('/zones?')&&p.includes('&type=internal')).length,2,
+ 'both DARK Workers must separately enumerate internal zones');
 assert.ok(batchPaths.every(p=>p.startsWith('/client/v4/')));
 passed++;
 console.log('PASS one owner batch covers both DARK Worker targets with provider-free mock');
