@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-G404-ONE-UPLOAD-ACCOUNT-ENV-CWD-HARDENED -->
+## November 22, 2026 — STAGING ONE inactive upload guard hardened, still NO hosted write
+
+[x] Actual unmerged Draft PR #282 PowerShell safety patch [`71e06b1`](https://github.com/kylebrooks86/first-in-response-website/commit/71e06b1e5adc5e8c07f0446b23cc86f60b3335bb) pins `CLOUDFLARE_ACCOUNT_ID` to previously verified STAGING account for the single owner-approved `versions upload`, removes inherited `CLOUDFLARE_ENV` so no named environment is selected, refuses old API-key/email environment override, and resolves local Wrangler dependencies from the independently built candidate directory; it restores owner process environment and location after preflight/attempt. [Targeted no-provider safety test added `2e0cd35`](https://github.com/kylebrooks86/first-in-response-website/commit/2e0cd351eb31e0de8c5bb2013e131b783dee23ca). No changes to approved password source, current serving version, payment credentials or activation scope. Cloudflare documents the account selector and version upload mechanism; commands are still guarded and offline by default.
+
+**Verification at documentation time:** 27 GitHub workflow groups automatically started on executable/test head `2e0cd351eb31e0de8c5bb2013e131b783dee23ca`; 19 completed success, 8 still in progress; STAGING changed-function workflow not yet finished. Never claim 27/27 PASS until verified. Original owner 17:12 authorization remains ONE inactive 0%-traffic STAGING upload, only when executed privately on Acer with prepared DPAPI hash and existing cached Wrangler auth. **No Cloudflare provider write has been made in this chat; NO new version or hash installed/verified.** Before attempt, build exact current integrated PR282 independent-staging candidate, offline safety preflight, and owner review. An upload error/unknown outcome consumes one attempt: no retry. Existing 51/95 numbered items and 4/10 accepted full gates remain unchanged; G4-04 and G4/G5/G6/G7/G9/G10 open; DR/NEW LIVE DARK, real Job #0001 unissued.
+
+---
+
 <!-- FIRE-NOV22-G404-OWNER-AUTHORIZED-ONE-INACTIVE-STAGING-VERSION -->
 ## Nov 22, 2026 ~17:12 CST — exact owner authorization for ONE STAGING inactive version; SAFE SOURCE PREPARATION ONLY
 
