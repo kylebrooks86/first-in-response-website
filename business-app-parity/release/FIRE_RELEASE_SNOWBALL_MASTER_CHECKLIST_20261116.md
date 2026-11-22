@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-PHOTO-QA-PORT-F058702 -->
+## November 21 — [x] DR photo-upload QA-master parity guard; [x] actual DR route SQLite regression authored (NO DEPLOY)
+
+- [x] **NEW genuine DR source defect corrected** in [commit `06c1527`](https://github.com/kylebrooks86/first-in-response-website/commit/06c1527b99c46e7c0a371636063c7c2ccbc17282): `fire-app-dr/app/api/customer-photos/route.ts` now ports QA-master's bounded 15 MiB original-photo plus 256 KiB multipart request parser, exact same-origin/Fetch Metadata owner write denial, image MIME allowlist/extension, strict fail-closed owner-session, private no-store/Cookie-vary/nosniff responses and independent confirmed D1 insert + exact photo metadata readback. A committed/lost ACK or R2-storage uncertainty returns explicit private 503 `saveUncertain` and preserves original bytes for deliberate recovery, never a false 201.
+- [x] **Actual independent DR code path added to existing CI-wired Gate 7 photo suite** in [test commit `f0587025`](https://github.com/kylebrooks86/first-in-response-website/commit/f0587025a29b15a97c4645537255fbe50a8b31c4): the same original QA-master and real DR TypeScript routes both execute the established native disposable SQLite/in-memory storage 10-scenario matrix, plus foreign-origin zero-D1/zero-storage assertions; no new workflow/provider calls or owner-device tests.
+- [ ] **Changed source/test automatic CI acceptance PENDING:** existing [QA/STAGING workflow #44984996855](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44984996855) was still running at readback. Do not call the authored tests PASS yet, and do not transfer earlier 27/27 CI to these new commits. This does not activate R2: the existing no-BUCKET runtime still refuses uploads with private 503; no paid service/subscription or hosted photo pipeline was created. The owner-device no-R2 backup/recovery workflow is unchanged.
+- [ ] **Original formal 95 numbered criteria still 51/95 accepted (44 open)**. Whole release gates G1/G2/G3/G8 = 4/10, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO and first real Job #0001 unused. These new [x] entries are supplemental code and test-authorship tasks only, not hosted Gate6/G7 acceptance. Existing owner photos, cloud evidence and earlier CI untouched; no Cloudflare login, Worker/Access/routes, D1/SQL, Stripe/payment, real photo/data writes, paid R2, Git merge, deployment or publication.
+
+---
+
 <!-- FIRE-NOV21-DR-INVOICE-CREATE-D1-READBACK-86E8CD2 -->
 ## November 21 — [x] NEW independent DR invoice-create saved-D1 source guard + [x] existing-route SQLite regression authored (NO DEPLOY)
 
