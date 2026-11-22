@@ -41,7 +41,13 @@ export function evaluateStagingServing(deploymentResponse,versionResponse){
  const paymentModeExplicitlyDisabled=stripeMode.length===1&&
    stripeMode[0].type==='plain_text'&&stripeMode[0].text==='disabled';
  const paymentModeNotEnabled=stripeMode.length===0||paymentModeExplicitlyDisabled;
- const unexpectedPaymentCredentialBindings=bindingCheck.unexpectedPaymentCredentialBindings;
+ // FIRE_STRIPE_MODE=disabled is a configuration flag, never a payment
+ // credential. Report it separately via paymentModeNotEnabled; do not
+ // mistake its mere presence for an unexpected Stripe secret to remove.
+ const unexpectedPaymentCredentialBindings=v.resources.bindings.filter(b=>
+   b.name!=='FIRE_STRIPE_MODE'&&
+   /^(?:STRIPE_|PAYMENT_|FIRE_STRIPE_)/.test(b.name)
+ ).length;
  return Object.freeze({
    result:'FIRE_STAGING_SERVING_VERSION_METADATA_READ_ONLY',
    worker:target.worker,activeDeploymentId:active.id,activeVersionId:versionId,
