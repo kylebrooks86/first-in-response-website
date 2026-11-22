@@ -514,6 +514,8 @@ jobs:
         run: python -m unittest discover -s business-app-parity -p 'test_independent_staging_parity.py' -v
       - name: Reject unsafe Worker, D1, secrets, and route bindings
         run: node business-app-parity/test_independent_staging_runtime_config.mjs
+      - name: Gate 5 STAGING existing-session read-only journal proof safety (synthetic, NO Cloudflare)
+        run: node business-app-parity/test_owner_staging_journal_existing_session_readonly.mjs
       - name: Materialize isolated staging from same app source as QA
         run: python business-app-parity/materialize.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate"
       - name: Verify exact staging shared+adapter fingerprint
