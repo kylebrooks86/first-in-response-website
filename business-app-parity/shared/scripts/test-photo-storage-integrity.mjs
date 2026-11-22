@@ -61,7 +61,19 @@ try{
  let user={email:'kylebrooks8605@gmail.com'};const env={DB:db,BUCKET:bucket};
  const zipModule=compile(join(source,'lib/photo-storage-zip.ts'),()=>{throw Error('Unexpected ZIP dependency');});
  const storageModule=compile(join(source,'lib/photo-storage-archive.ts'),id=>id.endsWith('photo-storage-integrity')?{inspectPhotoStorage}:id.endsWith('photo-storage-zip')?zipModule:(()=>{throw Error('Unexpected archive dependency');})());
- const load=path=>compile(path,id=>id==='cloudflare:workers'?{env}:id.endsWith('chatgpt-auth')?{getChatGPTUser:async()=>user}:id.endsWith('photo-storage-archive')?storageModule:id.endsWith('photo-storage-integrity')?{inspectPhotoStorage}:(()=>{throw Error('Unexpected import '+id)})());
+ const load=path=>compile(path,id=>{
+  if(id==='cloudflare:workers')return {env};
+  if(id.endsWith('chatgpt-auth'))return {getChatGPTUser:async()=>user};
+  if(id.endsWith('owner-auth'))return {getOwnerUser:async()=>{if(user==='session-reject')throw Error('Synthetic session unavailable');return user;}};
+  if(id.endsWith('photo-storage-archive'))return storageModule;
+  if(id.endsWith('photo-storage-integrity'))return {inspectPhotoStorage};
+  throw Error('Unexpected route import '+id);
+ });
+ const drRoot=process.env.GITHUB_WORKSPACE
+  ?resolve(process.env.GITHUB_WORKSPACE,'fire-app-dr')
+  :resolve(source,'../../fire-app-dr');
+ const drStorageRoute=load(join(drRoot,'app/api/backup/photos/storage/route.ts'));
+ const drIntegrityRoute=load(join(drRoot,'app/api/backup/photos/integrity/route.ts'));
  const route=load(join(source,'app/api/backup/photos/integrity/route.ts'));
  const storageRoute=load(join(source,'app/api/backup/photos/storage/route.ts'));
  const isOwnerPrivate=response=>{
@@ -73,6 +85,48 @@ try{
  await check('actual owner route returns private read-only report',async()=>{
   const r=await route.GET();assert.equal(r.status,200);assert.ok(isOwnerPrivate(r));
   assert.equal((await r.json()).writesAttempted,0);
+ });
+ // Independent DR photo backup and integrity GETs must carry the SAME
+ // owner-private response contract as the QA master, even on ZIP bytes.
+ await check('independent DR complete ZIP and integrity report are owner-private',async()=>{
+  const report=await drIntegrityRoute.GET();
+  assert.equal(report.status,200);assert.ok(isOwnerPrivate(report));
+  assert.equal((await report.json()).writesAttempted,0);
+  const archive=await drStorageRoute.GET();
+  assert.equal(archive.status,200);assert.ok(isOwnerPrivate(archive));
+  assert.equal(archive.headers.get('content-type'),'application/zip');
+  assert.ok((await archive.arrayBuffer()).byteLength>0);
+ });
+ await check('DR photo evidence denies malformed and rejected owner identities privately',async()=>{
+  for(const principal of [null,{}, {email:null}, {email:42}, {email:{}},
+                          {email:'other@example.invalid'},'session-reject']){
+   user=principal;
+   for(const target of [drStorageRoute,drIntegrityRoute]){
+    const response=await target.GET();
+    assert.equal(response.status,401);assert.ok(isOwnerPrivate(response));
+   }
+  }
+  user={email:'kylebrooks8605@gmail.com'};
+ });
+ await check('DR complete ZIP and integrity report fail privately without a BUCKET',async()=>{
+  const original=env.BUCKET;env.BUCKET=null;
+  try{for(const target of [drStorageRoute,drIntegrityRoute]){
+    const response=await target.GET();
+    assert.equal(response.status,503);assert.ok(isOwnerPrivate(response));
+  }}finally{env.BUCKET=original;}
+ });
+ await check('DR complete ZIP and integrity report reject nonthrowing soft-failed D1 history',async()=>{
+  const original=env.DB,originalBucket=env.BUCKET,events=[];
+  env.DB={prepare(){return {all:async()=>({success:false,results:[]})};}};
+  env.BUCKET={list(){events.push('list');throw Error('Storage must not be consulted');},
+              head(){events.push('head');throw Error('Storage must not be consulted');},
+              get(){events.push('get');throw Error('Storage must not be consulted');}};
+  try{for(const target of [drStorageRoute,drIntegrityRoute]){
+    const response=await target.GET();
+    assert.equal(response.status,503);assert.ok(isOwnerPrivate(response));
+  }
+  assert.deepEqual(events,[],'soft D1 failure must stop before photo-storage inspection');
+  }finally{env.DB=original;env.BUCKET=originalBucket;}
  });
  user=null;await check('both photo evidence routes reject unauthenticated access privately',async()=>{
   for(const routeUnderTest of [route,storageRoute]){
