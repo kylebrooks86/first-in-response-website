@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-JOB-REPORT-POST-SOFT-D1-2123CF3 -->
+## November 21 — [x] independent DR job-report POST refuses uncertain D1 history; [x] actual-handler native SQLite regression added (SOURCE ONLY)
+
+- [x] **G6/G8 DR source defect corrected** in [commit `6e5e33e`](https://github.com/kylebrooks86/first-in-response-website/commit/6e5e33ed25c461d5de861c6fdcc4f35949f5263b): `POST /api/job-reports` now refuses D1 pre-edit history `.all()` with `success:false` or missing/non-array `results` BEFORE any report INSERT/UPDATE. Owner gets a private 503 `saveUncertain:true` instead of a false ordinary 409 or an attempted new report; saved completion state, original checklist and atomic SQL unchanged.
+- [x] **Existing CI-wired real DR route/native SQLite test extended** in [commit `2123cf3`](https://github.com/kylebrooks86/first-in-response-website/commit/2123cf3e5e09230edfc726840b1a2f8bea1f9df0): both soft-failure and missing-results scenarios assert 503, private Cookie-vary/nosniff receipts, explicit uncertainty, zero job-report INSERT/UPDATE/DELETE attempts and preservation of the persisted completed report. No duplicate test workflow or owner-device test.
+- [ ] **New changed-code CI pending** for executable/test SHA `2123cf3e5e09230edfc726840b1a2f8bea1f9df0`; automatic [QA/STAGING run #44970098987](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44970098987) queued. Earlier 27/27 proof on `c355803c` applies to the preceding code, NOT this changed handler/test. Do not manually rerun accepted suites; review the already triggered workflow.
+- [ ] **Original formal release criteria unchanged: 51/95 checked, G1/G2/G3/G8 accepted (4/10).** G4/G5/G6/G7/G9/G10 remain OPEN pending real hosted evidence. DR/NEW LIVE dark; new LIVE first authentic Job #0001 unused. No paid R2, Cloudflare sign-in/retry, Worker/Access/D1/SQL/Stripe/payment, Git merge/deployment/public release or owner customer-data change.
+
+---
+
 <!-- FIRE-NOV21-DR-NOTIFICATION-SOFT-D1-BC964D9 -->
 ## November 21 — [x] DR notification silent D1 failure/zero-unread false success corrected, [x] true-route regressions added (SOURCE ONLY)
 
