@@ -92,5 +92,5 @@ assert.equal(partial.stagingJournalCaptured,false);
 assert.equal(partial.accountWideInventoryCaptured,false);
 assert.equal(partial.result,'G4_G5_INCOMPLETE_REVIEW_REQUIRED');
 assert.equal(JSON.stringify(partial).includes(scopedToken),false);
-assert.throws(()=>captureG4G5MissingEvidence({token:'bad'}));
+await assert.rejects(()=>captureG4G5MissingEvidence({token:'bad'}));
 console.log('PASS: combined owner-only G4/G5 evidence command uses one credential, preserves partial proof and no secrets.');
