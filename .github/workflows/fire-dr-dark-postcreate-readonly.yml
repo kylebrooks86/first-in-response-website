@@ -11,6 +11,8 @@ on:
       - 'business-app-parity/test_owner_current_dark_exposure_existing_session.mjs'
       - 'business-app-parity/owner_g4_hosted_binding_names_readonly.mjs'
       - 'business-app-parity/test_owner_g4_hosted_binding_names_readonly.mjs'
+      - 'business-app-parity/owner_staging_serving_version_readonly.mjs'
+      - 'business-app-parity/test_owner_staging_serving_version_readonly.mjs'
       - 'business-app-parity/test_owner_dr_dark_postcreate_readonly.ps1'
       - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
 permissions:
@@ -45,6 +47,8 @@ jobs:
         run: node business-app-parity/test_owner_current_dark_exposure_existing_session.mjs
       - name: Test G4 Worker bindings and expected auth secret names, GET-only (OFFLINE MOCK)
         run: node business-app-parity/test_owner_g4_hosted_binding_names_readonly.mjs
+      - name: Test STAGING serving deployment and version-scoped bindings (OFFLINE MOCK, GET ONLY)
+        run: node business-app-parity/test_owner_staging_serving_version_readonly.mjs
   windows-npx-command-mock:
     runs-on: windows-latest
     timeout-minutes: 5
