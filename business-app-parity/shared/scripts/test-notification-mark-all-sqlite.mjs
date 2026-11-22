@@ -271,6 +271,29 @@ try{
    check(failedRead.status===503&&failedRead.headers.get('cache-control')==='private, no-store'&&failedRead.headers.get('vary')==='Cookie'&&failedRead.headers.get('x-content-type-options')==='nosniff',
      'DR failed notification D1 read returns private 503 without leaking activity');
  }finally{rt.env.DB.prepare=drOriginalGetPrepare;}
+ // A completed D1 request can still return an explicit failure or a missing
+ // result collection. Neither is proof that all owner alerts are gone.
+ const unreadRowsBefore=rows().length;
+ for(const [label,failedResult] of [
+  ['soft D1 failure',{success:false,results:[]}],
+  ['missing D1 result rows',{success:true}]
+ ]){
+  rt.env.DB.prepare=sql=>sql.startsWith('SELECT COUNT(CASE WHEN n.read_at IS NULL')
+   ? {all:async()=>failedResult}
+   : drOriginalGetPrepare(sql);
+  try{
+   const uncertainRead=await drRead();
+   check(uncertainRead.status===503&&
+     uncertainRead.headers.get('cache-control')==='private, no-store'&&
+     uncertainRead.headers.get('vary')==='Cookie'&&
+     uncertainRead.headers.get('x-content-type-options')==='nosniff',
+     'DR notification '+label+' fails privately rather than inventing an empty owner inbox');
+   check(uncertainRead.data.error==='Notifications are temporarily unavailable.',
+     'DR notification '+label+' reports unavailability, not a confirmed zero');
+  }finally{rt.env.DB.prepare=drOriginalGetPrepare;}
+ }
+ check(rows().length===unreadRowsBefore,
+  'DR failed notification reads preserve all saved notification rows');
 
 
  // DR PATCH uses the ACTUAL production owner request parser. Refuse hostile
