@@ -113,7 +113,7 @@ console.log('PASS either-target public route exposure blocks combined clean verd
 await assert.rejects(captureBothDarkExposures({token:secret,request:async(_token,path)=>{
  if(path.includes('/zones?'))return {...success([]),result_info:{...emptyInfo,total_count:1}};
  return cleanMock(_token,path);
-}}),/zones total_count does not match exhausted pages/);
+}}),/zones pagination incomplete\/ambiguous|zones total_count does not match exhausted pages/);
 passed++;
 console.log('PASS incomplete account-zone data refuses combined proof');
 
