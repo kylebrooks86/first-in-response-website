@@ -24,7 +24,9 @@ export default function LoginPage(){
    .catch(()=>{if(active)setMode("legacy");});
   return()=>{active=false;};
  },[]);
- const quick=mode==="pin-or-passkey",legacyNumeric=true;
+ const quick=mode==="pin-or-passkey";
+ const credentialValid=/^\d{4}$/.test(password) ||
+  (!quick && password.length>=24 && password.length<=128);
  async function signIn(payload:{password?:string;method?:string;pin?:string}){
   setBusy(true);setError("");
   try{
@@ -44,17 +46,17 @@ export default function LoginPage(){
   <img className="access-logo" src="/fire-app-logo.png" alt="First In Response Exteriors" />
   <h1>Private FIRE app</h1>
   {mode==="loading"?<p>Checking secure sign-in…</p>:<>
-   <p>{quick?"Choose your 4-digit PIN or use an enrolled Cloudflare Access passkey. Face ID / fingerprint prompts are controlled by your device.":"Enter your existing private FIRE PIN."}</p>
+   <p>{quick?"Choose your 4-digit PIN or use an enrolled Cloudflare Access passkey. Face ID / fingerprint prompts are controlled by your device.":"Enter your existing private FIRE PIN or a separate 24–128-character private passphrase."}</p>
    {quick&&<button type="button" className="brand-button" disabled={busy}
     onClick={()=>void signIn({method:"passkey"})}>Continue after Face ID / fingerprint sign-in</button>}
    <form onSubmit={submit}>
-    <label className="field-label" htmlFor="owner-password">{quick?"4-digit PIN":"4-digit PIN"}</label>
+    <label className="field-label" htmlFor="owner-password">{quick?"4-digit PIN":"Private PIN or passphrase"}</label>
     <input id="owner-password" type="password" autoComplete="off"
-     inputMode={quick||legacyNumeric?"numeric":undefined}
-     pattern={quick||legacyNumeric?"[0-9]{4}":undefined}
-     minLength={quick||legacyNumeric?4:24} maxLength={quick||legacyNumeric?4:128}
+     inputMode={quick?"numeric":"text"}
+     pattern={quick?"[0-9]{4}":undefined}
+     minLength={4} maxLength={quick?4:128}
      value={password} onChange={event=>setPassword(event.target.value)} required/>
-    <button type="submit" className="brand-button" disabled={busy||(quick||legacyNumeric?!/^\d{4}$/.test(password):password.length<24)}>
+    <button type="submit" className="brand-button" disabled={busy||!credentialValid}>
      {busy?"Signing in…":quick?"Unlock with PIN":"Sign in"}
     </button>
    </form>
