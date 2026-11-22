@@ -1,0 +1,48 @@
+"""Static fail-closed scope checks for owner-only STAGING version uploader. No provider calls."""
+from pathlib import Path
+import re
+import unittest
+
+SOURCE = (Path(__file__).parent / 'owner_staging_one_inactive_version_once_approved.ps1').read_text()
+
+class InactiveStagingVersionGuard(unittest.TestCase):
+    def test_only_one_inactive_upload_invocation(self):
+        self.assertEqual(SOURCE.count("versions','upload'"), 1)
+        self.assertEqual(SOURCE.count('& npx @uploadArgs'), 1)
+        self.assertIn("if(-not $Execute)", SOURCE)
+        self.assertIn("FileMode]::CreateNew", SOURCE)
+        self.assertLess(SOURCE.index("FileMode]::CreateNew"), SOURCE.index('& npx @uploadArgs'))
+        self.assertIn("if($attempted)", SOURCE)
+
+    def test_exact_only_staging_target_and_pinned_current_traffic(self):
+        for marker in (
+            "fire-app-independent-staging",
+            "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+            "10215e59-2ff0-485c-92f6-11d7f0405060",
+            "7838d0ea-be89-49c6-9984-d3b021082d72",
+            "VerifyServing", "percentage -eq 100", "inactiveTrafficPercent=0"
+        ):
+            self.assertIn(marker, SOURCE)
+
+    def test_private_hash_preserved_payment_and_no_activation(self):
+        for marker in (
+            "Import-Clixml", "SecureStringToBSTR", "FIRE_ADMIN_PASSWORD_HASH",
+            "FIRE_SESSION_SECRET", "FIRE_STRIPE_MODE", "disabled",
+            "--secrets-file", "--keep-vars", "--strict", "Remove-Item -LiteralPath $tmp",
+            "paymentCredentialNamesPreserved"
+        ):
+            self.assertIn(marker, SOURCE)
+        args = re.search(r"\$uploadArgs=@\((.*?)\)", SOURCE, flags=re.S)
+        self.assertIsNotNone(args)
+        self.assertNotRegex(args.group(1), r"(?i)deploy|delete|secret put|r2|migrat")
+        self.assertNotIn("wrangler secret put", SOURCE.lower().split("function ApiGet")[1].split("try {")[1])
+        self.assertNotIn("wrangler versions deploy", SOURCE.lower().split("function ApiGet")[1].split("try {")[1])
+
+    def test_no_provider_write_in_default_preflight(self):
+        before = SOURCE.split("if(-not $Execute)", 1)[1].split("return", 1)[0]
+        self.assertNotIn("ApiGet", before)
+        self.assertNotIn("npx @uploadArgs", before)
+        self.assertIn("Cloudflare not contacted", before)
+
+if __name__ == '__main__':
+    unittest.main()
