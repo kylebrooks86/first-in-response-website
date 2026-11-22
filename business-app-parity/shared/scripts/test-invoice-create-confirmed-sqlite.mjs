@@ -24,6 +24,7 @@ const query=(sql,args=[])=>({sql,args,bind(...a){return query(sql,a)},
   if(readbackMode==='missing-line'&&sql.startsWith('SELECT id,name,description,quantity,unit,total_cents')){
    readbackMode='normal';return{results:rows.slice(0,-1)};
   }
+  if(readbackMode==='soft-line'&&sql.startsWith('SELECT id,name,description,quantity,unit,total_cents')){readbackMode='normal';return {success:false,results:rows};}
   if(readbackMode==='wrong-line'&&sql.startsWith('SELECT id,name,description,quantity,unit,total_cents')){
    readbackMode='normal';return{results:[{...rows[0],name:'Not saved scope'},...rows.slice(1)]};
   }
@@ -33,7 +34,8 @@ const query=(sql,args=[])=>({sql,args,bind(...a){return query(sql,a)},
 });
 const env={DB:{prepare:query,async batch(statements){
  if(behavior==='uncommitted'){behavior='normal';return statements.map(()=>({success:true,meta:{changes:0}}));}
- const lost=behavior==='commit-throw',fail=behavior==='missing-line',mismatch=behavior==='wrong-line';
+ if(behavior==='soft-uncommitted'){behavior='normal';return statements.map(()=>({success:false,meta:{changes:0}}));}
+ const lost=behavior==='commit-throw',fail=behavior==='missing-line',mismatch=behavior==='wrong-line',softLine=behavior==='soft-line';
  const reassignBefore=behavior==='foreign-before-batch';
  const reopenBefore=behavior==='reopened-before-batch';
  const reassignAfter=behavior==='foreign-after-commit';
@@ -42,7 +44,7 @@ const env={DB:{prepare:query,async batch(statements){
  if(reopenBefore)db.prepare("UPDATE estimates SET status='scheduled' WHERE id=?").run(estimateToWrite);
  behavior='normal';db.exec('BEGIN');
  try{const results=statements.map(statement=>{mutations++;return{success:true,meta:{changes:Number(db.prepare(statement.sql).run(...statement.args).changes)}}});db.exec('COMMIT');
-  if(fail)readbackMode='missing-line';if(mismatch)readbackMode='wrong-line';
+  if(fail)readbackMode='missing-line';if(mismatch)readbackMode='wrong-line';if(softLine)readbackMode='soft-line';
   if(reassignAfter)db.prepare("UPDATE estimates SET customer_id='c-normal' WHERE id=?").run(estimateToWrite);
   if(lost)throw Error('Synthetic lost D1 acknowledgement after COMMIT');
   return results;
@@ -50,6 +52,8 @@ const env={DB:{prepare:query,async batch(statements){
 }}};
 const fetchBefore=globalThis.fetch;globalThis.fetch=async()=>{remote++;throw Error('External network forbidden')};
 const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),route=load('app/api/invoices/route.ts'),detail=load('app/api/invoices/[id]/route.ts');
+const drInvoiceRoute=load('../../fire-app-dr/app/api/invoices/route.ts');
+const postDr=id=>drInvoiceRoute.POST(new Request('https://synthetic.invalid/api/invoices',{method:'POST',headers:{'content-type':'application/json',origin:'https://synthetic.invalid','sec-fetch-site':'same-origin'},body:JSON.stringify({estimateId:'e-'+id})}));
 const add=(id,customer='synthetic-customer',total=22575)=>{db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run('c-'+id,customer,'now');db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES(?,?,'completed',29500,6925,?,11288,'now')").run('e-'+id,'c-'+id,total);for(const [n,name,description,qty,unit,cents] of [[0,'House Wash','Original house wash',1000,'sq ft',22000],[1,'Gutter Cleaning','Original gutter scope',50,'linear ft',7500]])db.prepare('INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES(?,?,?,?,?,?,?)').run('ei-'+id+'-'+n,'e-'+id,name,description,qty,unit,cents)};
 const post=id=>route.POST(new Request('https://synthetic.invalid/api/invoices',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({estimateId:'e-'+id})}));
 const rows=id=>db.prepare('SELECT * FROM invoices WHERE estimate_id=?').all('e-'+id);
@@ -154,6 +158,46 @@ try{
  response=await post('late-owner-race');
  eq(response.status,200,'After owner restores association, saved existing invoice can be read');
  eq(rows('late-owner-race').length,1,'Reopened invoice remains one original record');
+
+
+ // DR source parity is independently exercised through its REAL handler,
+ // not assumed from the QA-master invoice create checks above.
+ add('dr-confirmed');response=await postDr('dr-confirmed');const drConfirmed=await response.json();
+ eq(response.status,201,'Independent DR invoice 201 requires saved D1 header and lines');
+ eq(drConfirmed.items.length,2,'DR receipt includes two independently saved invoice lines');
+ eq(rows('dr-confirmed').length,1,'DR saved exactly one final invoice');
+ eq(response.headers.get('cache-control'),'private, no-store','DR finance receipt is private');
+ eq(response.headers.get('vary'),'Cookie','DR receipt varies by owner session');
+ eq(response.headers.get('x-content-type-options'),'nosniff','DR receipt is not MIME-sniffable');
+ response=await postDr('dr-confirmed');
+ eq(response.status,200,'DR owner retry returns persisted invoice, never creates duplicate');
+ eq(rows('dr-confirmed').length,1,'DR replay preserves one invoice');
+ add('dr-zero');behavior='uncommitted';response=await postDr('dr-zero');
+ eq(response.status,503,'DR refuses false-positive success when all batch writes are uncommitted');
+ eq((await response.json()).saveUncertain,true,'DR uncommitted receipt requires owner review');
+ eq(rows('dr-zero').length,0,'DR uncommitted batch persists no invoice');
+ add('dr-soft');behavior='soft-uncommitted';response=await postDr('dr-soft');
+ eq(response.status,503,'DR refuses D1 batch success:false with zero persisted writes');
+ eq(rows('dr-soft').length,0,'DR soft-failed batch remains uncommitted');
+ add('dr-lost');behavior='commit-throw';response=await postDr('dr-lost');
+ eq(response.status,200,'DR lost D1 acknowledgement recovers exact committed invoice');
+ eq((await response.json()).existing,true,'DR committed recovery marked existing');
+ eq(rows('dr-lost').length,1,'DR does not create duplicate after lost acknowledgement');
+ add('dr-partial');behavior='missing-line';response=await postDr('dr-partial');
+ eq(response.status,503,'DR refuses incomplete invoice-line readback');
+ eq((await response.json()).saveUncertain,true,'DR incomplete invoice requires owner review');
+ add('dr-soft-line');behavior='soft-line';response=await postDr('dr-soft-line');
+ eq(response.status,503,'DR refuses nonthrowing D1 line-read soft failure');
+ eq((await response.json()).saveUncertain,true,'DR soft line failure remains uncertain');
+ add('dr-foreign');behavior='foreign-before-batch';response=await postDr('dr-foreign');
+ eq(response.status,503,'DR rechecks customer ownership at actual D1 write');
+ eq(rows('dr-foreign').length,0,'DR cross-customer race cannot insert an invoice');
+ add('dr-reopened');behavior='reopened-before-batch';response=await postDr('dr-reopened');
+ eq(response.status,503,'DR rechecks completed-job status at actual D1 write');
+ eq(rows('dr-reopened').length,0,'DR reopened job cannot receive a final invoice');
+ add('dr-late-owner');behavior='foreign-after-commit';response=await postDr('dr-late-owner');
+ eq(response.status,503,'DR changed customer after COMMIT cannot claim saved billing');
+ eq((await response.json()).saveUncertain,true,'DR postcommit ownership change remains uncertain');
 
  add('invalid-total','synthetic',30000);
  const before=mutations;response=await post('invalid-total');
