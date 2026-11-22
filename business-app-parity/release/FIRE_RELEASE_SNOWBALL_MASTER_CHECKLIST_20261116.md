@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-G404-UPLOADER-PINNED-ACCOUNT-ENV-CWD -->
+## Nov 22 — [x] Additional STAGING inactive-version upload safety fix; [ ] original G4-04 still pending
+
+- [x] Actual PR #282 source safeguard `71e06b1`: one-shot owner Acer tool now forces previously accepted Cloudflare account ID, clears a stale named Wrangler environment, denies inherited API key/email auth override, and runs from the materialized compiled STAGING candidate so the local CLI/dependencies can resolve. All in-process environment/location values are restored. No deploy, payment credential removal, R2, SQL, Access, route, or other environment mutation.
+- [x] New CI-wired targeted offline regression `2e0cd35`; exact-source 27 workflow groups started, 19 success / 8 unfinished at initial readback (STAGING workflow still in progress). Do not claim whole CI pass early.
+- [ ] Actual private Acer `wrangler versions upload` to create ONE inactive/0%-traffic STAGING version with locally prepared hash and explicit Stripe-disabled mode has NOT happened. **G4-04 remains open** and any attempt is single-use, stop on ambiguous result. Source commit, local verifier preparation and prior 100%-serving version GET are not hosted-version creation.
+
+**Formal original board: 51/95 accepted, 44 open; 4/10 gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 open. NEW LIVE dark NO-GO, genuine Job #0001 untouched.**
+
+---
+
 <!-- FIRE-NOV22-G404-OWNER-AUTHORIZED-ONE-INACTIVE-STAGING-VERSION -->
 ## Nov 22, 2026 ~17:12 CST — exact owner authorization for ONE STAGING inactive version; SAFE SOURCE PREPARATION ONLY
 
