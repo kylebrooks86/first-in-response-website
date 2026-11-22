@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-JOB-REPORT-SOFT-D1-0BD387A -->
+## November 21 — [x] DR job-report empty-history false-success defect corrected, [x] two actual-route D1 cases added (SOURCE ONLY)
+
+- [x] **Actual independent DR app source repaired** in [commit `5050e34`](https://github.com/kylebrooks86/first-in-response-website/commit/5050e3488d61bfb1e0556c5a8b5344cee301a9a5): `fire-app-dr/app/api/job-reports/route.ts` now rejects D1 `.all()` results with `success:false` or missing/non-array `results` instead of showing an apparently successful empty history for an existing completed service report. The established private 503 error path is reused; existing legitimate reports, customer checks, completion rules, no-delete history and D1 writes are unchanged.
+- [x] **Regression added to the EXISTING actual-route/native-SQLite test** in [commit `0bd387a`](https://github.com/kylebrooks86/first-in-response-website/commit/0bd387ada2a935a9056bcb7d5078e7bf5507073f): the two new DR read-failure cases assert HTTP 503, private/session-vary/nosniff headers and exact preservation of the saved job report. Existing fixture has independent DR true-route tests for persisted completion, forged browser write denial, read exceptions, historical duplicates and integrity conflicts.
+- [ ] **New source/test CI** for exact SHA `0bd387ada2a935a9056bcb7d5078e7bf5507073f` is automatically queued at [staging/QA run #44968498450](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44968498450). Authoring is complete; do not count a pass before the changed test and automated checks finish. No manual rerun of accepted device/hosted tests.
+- [ ] **Formal original 95 numbered release items and hosted gate acceptance unchanged:** 51/95, G1/G2/G3/G8 accepted (4/10); G4/G5/G6/G7/G9/G10 OPEN, STAGING last physical 22/25, DR/NEW LIVE DARK and true Job #0001 unused. This source fix is NOT deployed/hosted proof; no Cloudflare login/Worker/Access/SQL/D1/routing/Stripe/payment, paid R2, customer records, Git merge or publication.
+
+---
+
 <!-- FIRE-NOV21-DR-NOTIFICATION-OWNER-GUARD-748C86E -->
 ## November 21 — [x] DR notification PATCH now shares QA-master owner browser/body guard; [x] actual-route native SQLite regression extended (NO DEPLOY)
 
