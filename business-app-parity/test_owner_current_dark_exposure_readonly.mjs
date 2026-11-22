@@ -97,6 +97,9 @@ for(const rejectedErrors of [[{code:1000,message:'provider error'}],{},'bad erro
 }
 console.log('PASS Cloudflare successful null/omitted errors accepted; nonempty/malformed errors refused');
 
+// The preceding injected API-shape cases share the mock call recorder; clear
+// only their call history before the existing exact five-GET sequence assertion.
+calls.length=0;
 const proof=await captureDarkExposure('new-live',{token:'synthetic-only',request:mock});
 assert.equal(proof.providerReadbackVerified,false);
 assert.equal(proof.publicEndpointsAbsentInSuppliedEvidence,true);
