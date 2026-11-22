@@ -52,7 +52,12 @@ const env={DB:{prepare:query,async batch(statements){
 }}};
 const fetchBefore=globalThis.fetch;globalThis.fetch=async()=>{remote++;throw Error('External network forbidden')};
 const load=createRouteFixtureLoader(process.cwd(),env,()=>owner),route=load('app/api/invoices/route.ts'),detail=load('app/api/invoices/[id]/route.ts');
-const drInvoiceRoute=load('../../fire-app-dr/app/api/invoices/route.ts');
+// CI stages QA into a disposable RUNNER_TEMP directory; the independent DR
+// source remains at GITHUB_WORKSPACE, never inferred from that temp directory.
+const drInvoicePath=process.env.GITHUB_WORKSPACE
+  ? process.env.GITHUB_WORKSPACE+'/fire-app-dr/app/api/invoices/route.ts'
+  : '../../fire-app-dr/app/api/invoices/route.ts';
+const drInvoiceRoute=load(drInvoicePath);
 const postDr=id=>drInvoiceRoute.POST(new Request('https://synthetic.invalid/api/invoices',{method:'POST',headers:{'content-type':'application/json',origin:'https://synthetic.invalid','sec-fetch-site':'same-origin'},body:JSON.stringify({estimateId:'e-'+id})}));
 const add=(id,customer='synthetic-customer',total=22575)=>{db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run('c-'+id,customer,'now');db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES(?,?,'completed',29500,6925,?,11288,'now')").run('e-'+id,'c-'+id,total);for(const [n,name,description,qty,unit,cents] of [[0,'House Wash','Original house wash',1000,'sq ft',22000],[1,'Gutter Cleaning','Original gutter scope',50,'linear ft',7500]])db.prepare('INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES(?,?,?,?,?,?,?)').run('ei-'+id+'-'+n,'e-'+id,name,description,qty,unit,cents)};
 const post=id=>route.POST(new Request('https://synthetic.invalid/api/invoices',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({estimateId:'e-'+id})}));
