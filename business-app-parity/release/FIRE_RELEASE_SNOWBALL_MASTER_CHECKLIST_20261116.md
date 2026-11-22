@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-G404-27CI-2E0CD35-SETTLED -->
+## November 22 — [x] STAGING one-shot uploader safety CI finalized; hosted G4-04 remains [ ]
+
+- [x] **Actual verified CI:** exact executable/test commit [`2e0cd351eb31e0de8c5bb2013e131b783dee23ca`](https://github.com/kylebrooks86/first-in-response-website/commit/2e0cd351eb31e0de8c5bb2013e131b783dee23ca) completed **27/27 GitHub Actions PR workflow groups SUCCESS**, with no failed or unfinished groups. This resolves the earlier 19/27 partial CI checkpoint for that change. The two intervening commits up through [`8c0c740d`](https://github.com/kylebrooks86/first-in-response-website/commit/8c0c740d7dfb7b17e9b117de810baf98024c4ca6) modify **only this master checklist and the continuity register**; no later executable/test code changed in that comparison.
+- [x] **Cloudflare documentation verified**: `wrangler versions upload` is the upload-only path; `--secrets-file` accepts JSON, omitted existing secrets are preserved, `--keep-vars` retains existing variables, and `--strict` refuses conflicting remote changes. See https://developers.cloudflare.com/workers/wrangler/commands/workers/ and https://developers.cloudflare.com/workers/configuration/secrets/ . These are documented command semantics, NOT evidence that owner-hosted STAGING has changed.
+- [ ] **Actual physical STAGING version creation / G4-04:** NOT performed/verified by this CI read. Existing owner authorization is for ONE inactive 0%-traffic version only, using the prepared Acer-local DPAPI verifier; current serving version, one payment credential, and all other environments remain protected. User's Acer execution needs a current independent-STAGING compiled candidate, offline preflight, one controlled attempt with no retry on ambiguous outcome, and immutable provider readback. No Cloudflare login, upload, activation, Stripe, D1, R2, Git merge or LIVE action was made here.
+
+**Formal original release count remains 51/95, 4/10 whole gates accepted (G1/G2/G3/G8). G4/G5/G6/G7/G9/G10 remain OPEN; NEW LIVE DARK / NO-GO; real Job #0001 unused.** This checked item is a supplemental source/CI verification only.
+
+---
+
 <!-- FIRE-NOV22-G404-UPLOADER-PINNED-ACCOUNT-ENV-CWD -->
 ## Nov 22 — [x] Additional STAGING inactive-version upload safety fix; [ ] original G4-04 still pending
 
