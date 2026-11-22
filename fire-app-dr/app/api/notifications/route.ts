@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
+import { readOwnerWriteObject } from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 // DR owner activity is as private as QA-master activity. Retain status,
@@ -29,7 +30,12 @@ async function readNotifications(){
 async function patchNotifications(request:Request){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
-    const value=await request.json() as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"keep"|string};
+    // The QA-master owner browser boundary must apply to DR activity writes,
+    // including mark-all and overpayment resolution, before ANY D1 access.
+    // Bound even non-browser callers to 8 KiB of strict UTF-8 object JSON.
+    const parsed=await readOwnerWriteObject(request,8_192);
+    if(parsed.response)return parsed.response;
+    const value=parsed.value as {id?:string;all?:boolean;resolve?:boolean;estimateId?:string;resolveOverpayment?:boolean;reconciliationHandled?:boolean;resolutionMode?:"keep"|string};
     const now=new Date().toISOString();
     if(value.all!==undefined&&value.all!==true)return Response.json({error:"Invalid mark-all request."},{status:400});
     if(value.all){
@@ -113,7 +119,7 @@ async function patchNotifications(request:Request){
       return Response.json({ok:true,readAt:saved.readAt,resolvedAt:null},{headers:{"Cache-Control":"no-store, private"}});
     }
     else return Response.json({error:"Choose a notification."},{status:400});
-  }catch{return Response.json({error:"Notifications could not be updated."},{status:500});}
+  }catch{return Response.json({error:"Notification save could not be confirmed. Refresh activity before retrying.",saveUncertain:true},{status:503});}
 }
 
 // All owner and denied GET/PATCH receipts share the same session-private boundary.
