@@ -94,3 +94,13 @@ assert.equal(partial.result,'G4_G5_INCOMPLETE_REVIEW_REQUIRED');
 assert.equal(JSON.stringify(partial).includes(scopedToken),false);
 await assert.rejects(()=>captureG4G5MissingEvidence({token:'bad'}));
 console.log('PASS: combined owner-only G4/G5 evidence command uses one credential, preserves partial proof and no secrets.');
+
+/* Optional owner-controlled scoped API token avoids Wrangler login/cache. */
+const {readOwnerApiTokenFromEnvironment}=await import('./owner_g4_g5_existing_session_readonly.mjs');
+assert.equal(readOwnerApiTokenFromEnvironment({CLOUDFLARE_API_TOKEN:scopedToken}),scopedToken);
+for(const bad of [{},{CLOUDFLARE_API_TOKEN:'short'},
+ {CLOUDFLARE_API_TOKEN:'x '.repeat(20)}]){
+ assert.throws(()=>readOwnerApiTokenFromEnvironment(bad));
+}
+assert.equal(JSON.stringify(combined).includes(scopedToken),false);
+console.log('PASS: optional direct owner API-token environment path rejects missing/malformed tokens without exposing credentials.');

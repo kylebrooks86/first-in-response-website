@@ -47,6 +47,16 @@ export async function captureG4G5MissingEvidence({
   newLivePublic:false
  });
 }
+/**
+ * Optional no-Wrangler fallback: an owner-managed API token in a temporary
+ * PowerShell environment variable. The code does not create, print or store
+ * it. Actual read permissions are limited by Cloudflare's token scopes.
+ */
+export function readOwnerApiTokenFromEnvironment(env=process.env){
+ const v=env?.CLOUDFLARE_API_TOKEN;
+ if(typeof v!=='string'||v.length<20||v.length>4096||/\\s/.test(v))fail();
+ return v;
+}
 function npmCli(){
  const options=[
   join(dirname(process.execPath),'node_modules','npm','bin','npx-cli.js'),
@@ -59,12 +69,16 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   const args=process.argv.slice(2);
   if(args.length===0){
    console.log(JSON.stringify({result:'OFFLINE_NO_PROVIDER',
-    target:STAGING_DB,captureOption:'--capture',providerContacted:false,
+    target:STAGING_DB,captureOption:'--capture',fallbackOption:'--capture-env-token',
+    providerContacted:false,
     providerWrites:false,loginAttempted:false,gate4Accepted:false,gate5Accepted:false}));
-  }else if(args.length===1&&args[0]==='--capture'){
+  }else if(args.length===1&&
+            (args[0]==='--capture'||args[0]==='--capture-env-token')){
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
       process.env.CI||process.env.GITHUB_ACTIONS)fail();
-   const token=readExistingWranglerToken({npmCli:npmCli()});
+   const token=args[0]==='--capture-env-token'?
+    readOwnerApiTokenFromEnvironment():
+    readExistingWranglerToken({npmCli:npmCli()});
    const receipt=await captureG4G5MissingEvidence({token});
    console.log(JSON.stringify(receipt,null,2));
    if(!receipt.stagingJournalCaptured||!receipt.accountWideInventoryCaptured)
