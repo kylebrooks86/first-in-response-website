@@ -71,6 +71,8 @@ staging.result.bindings.push({name:'BUCKET',type:'r2_bucket',bucket_name:'NO_COS
 staging.result.bindings.push({name:'FIRE_QA_PASSWORD_HASH',type:'secret_text',text:secretValue});
 const discrep=evaluateHostedBindings('staging',staging);
 assert.equal(discrep.expectedAuthSecretNamePresence.FIRE_ADMIN_PASSWORD_HASH,false);
+assert.equal(discrep.missingExpectedAuthSecretNameCount,1);
+assert.equal(evaluateHostedBindings('qa',response('qa')).missingExpectedAuthSecretNameCount,0);
 assert.equal(discrep.unexpectedPaymentCredentialBindings,1);
 assert.equal(discrep.r2BindingCount,1);
 assert.equal(discrep.wrongTargetAuthSecretCount,1);
