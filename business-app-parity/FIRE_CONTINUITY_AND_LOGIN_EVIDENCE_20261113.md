@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-STAGING-G5-EXISTING-SESSION-PROBE -->
+## November 22 — new executable STAGING G5-01 owner-read-only journal collector, no Cloudflare login or writes
+
+**Active integrated DRAFT PR #282**, branch `work/fire-private-notes-followup-search-20261119`; latest implementation [`ae2660d`](https://github.com/kylebrooks86/first-in-response-website/commit/ae2660d25cc9aa6a9025333bef413da11ad32ddc), synthetic regression [`d5c0319`](https://github.com/kylebrooks86/first-in-response-website/commit/d5c03192f9d27b62380baba81764dcd5606c6988), and CI insertion [`d4cbd2f`](https://github.com/kylebrooks86/first-in-response-website/commit/d4cbd2fbe41503fa450a2da03e69d8c003093ef5). Actual new `owner_staging_journal_existing_session_readonly.mjs` uses *only* the previous saved Wrangler credential (no login); Cloudflare D1 GET identity before and after one **read-only SELECT** of the migration `id,name` journal against physical UUID `afb2c05a-d794-4a9a-b580-924ce01c26ad`. Only reviewed source 22/25 or 25/25 lineage accepted; redacted summary contains no customer rows, tokens or secret values. Existing QA/STAGING CI [run #45029585122](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45029585122) already completed the **specific new safety test step SUCCESS**, offline mock only. Overall exact-head 27-group CI was still in progress at initial note; no complete-CI claim yet for this change.
+
+Formerly pending prior runtime fix `e5fcfd3` auto CI **27/27 COMPLETED SUCCESS** independently checked on Nov 22. No code deployment or hosted parity implied. The original formal **51/95** and **4/10 gate acceptance** remain unchanged; G4/G5/G6/G7/G9/G10 still OPEN. STAGING 22/25 is a prior physically observed snapshot, not a fresh journal confirmation. User Acer single new targeted capture is the next real G5 action; not a repeat of previous accepted photo, dark Worker, Access or iPhone checks. If saved credential fails, stop; a separately owner-approved scoped read-only API token is the fallback, not another previously failed Cloudflare Work sign-in. No R2 subscription, provider write, Stripe/payment, D1 migration, branch merge or deployment.
+
+---
+
 <!-- FIRE-NOV21-DR-PHOTO-QA-PORT-F058702 -->
 ## November 21 — DR customer photo POST QA safety port and real-route regression saved (NO DEPLOY)
 
