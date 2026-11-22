@@ -219,7 +219,8 @@ const falseEmptyDomainCount=async(_token,path)=>{
 };
 await assert.rejects(
  captureDarkExposure('new-live',{token:'synthetic-only',request:falseEmptyDomainCount}),
- /domains total_count does not match exhausted pages/
+ // Reported zero pages with a nonzero count now fails earlier and safer.
+ /domains pagination incomplete\/ambiguous|domains total_count does not match exhausted pages/
 );
 console.log('PASS incomplete empty custom-domain page cannot certify absence');
 
