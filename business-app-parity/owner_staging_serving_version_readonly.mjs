@@ -5,7 +5,9 @@
  * Previous four-target bindings evidence is accepted and never repeated here.
  */
 import {pathToFileURL} from 'node:url';
-import {resolve} from 'node:path';
+import {dirname,join,resolve} from 'node:path';
+import {existsSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {ACCOUNT_ID,TARGETS,evaluateHostedBindings} from './owner_g4_hosted_binding_names_readonly.mjs';
 
 const target=TARGETS.staging;
@@ -99,16 +101,57 @@ export async function captureStagingServing({token,request=onlyGet}={}){
    getRequestCount:2,noLoginAttempt:true,cloudflareWrites:false
  });
 }
+/**
+ * Optional already-authenticated Wrangler session fallback. Reuses only the
+ * pinned, locally cached CLI and never invokes a login, install or browser.
+ * No credentials, stdout, stderr or provider errors are ever logged.
+ * Kept self-contained so the owner still needs ONLY the original two files.
+ */
+export function parseExistingSessionTokenResponse(raw){
+ let parsed;try{parsed=JSON.parse(raw)}catch{fail()}
+ if(!object(parsed)||!['oauth','api_token'].includes(parsed.type)||
+    typeof parsed.token!=='string'||parsed.token.length<20||
+    parsed.token.length>4096||/\s/.test(parsed.token))fail();
+ return parsed.token;
+}
+function readExistingSessionToken(){
+ const candidates=[
+  join(dirname(process.execPath),'node_modules','npm','bin','npx-cli.js'),
+  join(dirname(process.execPath),'..','lib','node_modules','npm','bin','npx-cli.js')
+ ];
+ const npx=candidates.find(existsSync);
+ if(!npx)fail();
+ const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',
+  WRANGLER_SEND_METRICS:'false',npm_config_offline:'true',
+  npm_config_yes:'false',npm_config_audit:'false',npm_config_fund:'false'};
+ // The session fallback must not accidentally inherit an unreviewed token.
+ delete env.CLOUDFLARE_API_TOKEN;
+ let r;try{
+  r=spawnSync(process.execPath,
+   [npx,'--no-install','wrangler@4.162.0','auth','token','--json'],{
+    encoding:'utf8',timeout:20000,maxBuffer:65536,windowsHide:true,
+    shell:false,stdio:['ignore','pipe','pipe'],env
+   });
+ }catch{fail()}
+ if(!r||r.error||r.signal||r.status!==0||
+    typeof r.stdout!=='string')fail();
+ return parseExistingSessionTokenResponse(r.stdout);
+}
+
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  const args=process.argv.slice(2);
  if(args.length===0){
    console.log(JSON.stringify({result:'OFFLINE_NO_PROVIDER',target:'staging',
-     providerContacted:false,gate4Accepted:false,readOnlyCaptureOption:'--capture'}));
- }else if(args.length===1&&args[0]==='--capture'){
+     providerContacted:false,gate4Accepted:false,readOnlyCaptureOption:'--capture',
+     existingSessionCaptureOption:'--capture-existing-session'}));
+ }else if(args.length===1&&
+           (args[0]==='--capture'||args[0]==='--capture-existing-session')){
    try{
      if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
        process.env.CI||process.env.GITHUB_ACTIONS)fail();
-     const receipt=await captureStagingServing({token:process.env.CLOUDFLARE_API_TOKEN});
+     const token=args[0]==='--capture-existing-session'?
+       readExistingSessionToken():process.env.CLOUDFLARE_API_TOKEN;
+     const receipt=await captureStagingServing({token});
      console.log(JSON.stringify(receipt,null,2));
      if(receipt.requiresConfigRemediation)process.exitCode=2;
    }catch{

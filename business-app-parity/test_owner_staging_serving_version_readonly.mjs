@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {ACCOUNT_ID,TARGETS} from './owner_g4_hosted_binding_names_readonly.mjs';
-import {evaluateStagingServing,captureStagingServing} from './owner_staging_serving_version_readonly.mjs';
+import {evaluateStagingServing,captureStagingServing,parseExistingSessionTokenResponse} from './owner_staging_serving_version_readonly.mjs';
 
 const id='15afb4d1-fa9b-4c76-9c5b-36a6ef94971f';
 const deployId='b1b5cfef-091e-409d-a97c-cba26d53c105';
@@ -21,6 +21,16 @@ const script=fileURLToPath(new URL('./owner_staging_serving_version_readonly.mjs
 const dry=JSON.parse(execFileSync(process.execPath,[script],{
  encoding:'utf8',env:{...process.env,CI:'true',CLOUDFLARE_API_TOKEN:token}
 }));
+assert.equal(dry.existingSessionCaptureOption,'--capture-existing-session');
+assert.equal(parseExistingSessionTokenResponse(JSON.stringify({type:'oauth',token})),token);
+assert.equal(parseExistingSessionTokenResponse(JSON.stringify({type:'api_token',token})),token);
+for(const broken of [
+ '{not valid JSON}',JSON.stringify({type:'bad',token}),
+ JSON.stringify({type:'oauth',token:'short'}),
+ JSON.stringify({type:'oauth',token:token+' with spaces'}),
+ JSON.stringify({type:'oauth',token:{value:token}})
+])assert.throws(()=>parseExistingSessionTokenResponse(broken),/READ-ONLY STOP/);
+console.log('PASS alternate existing-session token parsing and invalid-output STOP (no login)');
 assert.equal(dry.providerContacted,false);
 assert.equal(dry.gate4Accepted,false);
 console.log('PASS default dry-run never contacts provider even with token in environment');
