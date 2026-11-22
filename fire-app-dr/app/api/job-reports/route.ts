@@ -110,6 +110,14 @@ async function saveJobReport(request: Request) {
 
     const previous = await env.DB.prepare(`SELECT ${reportColumns} FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 2`)
       .bind(body.estimateId).all<SavedReport>();
+    // A soft-failed D1 history read is not evidence that no report exists.
+    // Deny the edit before INSERT/UPDATE instead of misclassifying the save
+    // as an ordinary concurrent conflict or creating a misleading new draft.
+    if ((previous as {success?: boolean}).success === false || !Array.isArray(previous?.results))
+      return Response.json({
+        error: "Saved report history could not be confirmed. Reopen the job report before editing.",
+        saveUncertain: true
+      }, {status: 503, headers: privateHeaders});
     if (previous.results.length > 1)
       return Response.json({ error: "Multiple saved reports exist for this job. No report was changed; review the duplicate history first." }, { status: 409 });
     const existing = previous.results[0] ?? null;
