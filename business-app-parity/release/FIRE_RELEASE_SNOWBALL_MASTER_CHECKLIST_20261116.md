@@ -1,3 +1,18 @@
+<!-- FIRE-NOV22-G404-OWNER-AUTHORIZED-ONE-INACTIVE-STAGING-VERSION -->
+## Nov 22, 2026 ~17:12 CST — exact owner authorization for ONE STAGING inactive version; SAFE SOURCE PREPARATION ONLY
+
+**Owner's exact authorized scope:** create exactly one new **inactive / 0%-traffic** version of existing Worker `fire-app-independent-staging`, install the **already prepared private** `FIRE_ADMIN_PASSWORD_HASH` into **that version only**, and set `FIRE_STRIPE_MODE=disabled`. DO NOT activate it, remove any existing payment credential, alter the currently 100%-serving deployment/version, modify QA/DR/NEW LIVE/TEST/LIVE, change routing/Access/D1/SQL/Stripe money, merge, activate R2 or any paid service. This is not general release authorization.
+
+**Real new code, unmerged DRAFT PR #282, no provider execution:**
+- Source-only isolated STAGING Vite Worker configuration now explicitly sets plaintext `FIRE_STRIPE_MODE: "disabled"` (commit `abed74b`); existing source review guard demands the explicit literal disabled mode and excludes test/live/missing/boolean values (commit `a6eb2b9`).
+- Existing CI-wired independent STAGING config regression extends mode positives and strict negatives (commit `1c15e5b`).
+- Owner-local *one-shot* Windows helper `business-app-parity/owner_staging_one_inactive_version_once_approved.ps1` consumes **existing DPAPI** verifier only, requires locally built source matching staging Worker/D1/routes/disabled payment mode, uses cached Wrangler auth **without browser login**, pins the previous serving deployment/version and one existing payment credential name, creates a one-attempt lock before ONE `wrangler versions upload --secrets-file ... --keep-vars --strict`, never invokes deploy/secret delete/payment, and requires post-upload read-only proof of a distinct inactive version with expected secret/mode and unchanged 100% serving traffic. Temporary owner-local hash JSON is deleted in `finally`; hash, token and raw provider response are not committed or printed. Latest intact helper correction `c010ae3`; fail-closed offline regression `12f08e4`; CI wiring `a6978c8`.
+- **Owner action still required to actually create a hosted version**, because the prepared verifier is Windows DPAPI-bound to the Acer and no authenticated Cloudflare write capability is connected to this chat. Use full/current PR282 checkout, locally materialize independent-staging, build, then run the new helper in local preflight and separately `-Execute` with the compiled candidate directory. Any upload ambiguity consumes the one attempt: DO NOT automatically retry. Do NOT copy/paste passphrase/hash/API token or unredacted output into chat or GitHub.
+
+**Status:** All new work is **source-only**, and no new hosted Worker version, secret installation, traffic or Stripe mode change has yet been physically executed or verified. Do NOT check original G4-04 until **physical new version readback**; other prerequisites may keep G4 open even after upload. Existing accepted owner 16:10 STAGING serving GET, local credential PASS, Access, DARK DR/NEW LIVE and QA tests are not repeated. **51/95 original numbered accepted; 4/10 whole gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, genuine Job #0001 unused.** Latest auto-CI must be inspected before PASS claims.
+
+---
+
 <!-- FIRE-NOV22-G404-EXPLICIT-STRIPE-DISABLE-2497B1D -->
 ## November 22, 2026 — [x] G4-04 STAGING checker fail-closed mode hardening (SOURCE ONLY, no hosted acceptance)
 
