@@ -20,6 +20,11 @@ async function readNotifications(){
     // Count ALL unread records before limiting the visible activity page.
     // A busy owner must not see a false 40-item maximum on the badge.
     const result=await env.DB.prepare("SELECT COUNT(CASE WHEN n.read_at IS NULL THEN 1 END) OVER() AS unreadTotal,n.id,n.type,n.title,n.body,n.customer_id AS customerId,n.estimate_id AS estimateId,n.read_at AS readAt,n.resolved_at AS resolvedAt,n.resolution_note AS resolutionNote,n.created_at AS createdAt FROM notifications n ORDER BY n.created_at DESC,n.id DESC LIMIT 40").all();
+    // A D1 soft failure or missing result collection is not an empty inbox.
+    // Keep saved owner alerts visible as unavailable rather than silently
+    // replacing a real unread count and financial exception with zero.
+    if ((result as { success?: boolean }).success === false || !Array.isArray(result?.results))
+      throw new Error("Notification D1 list read not confirmed");
     const unread=result.results.length?Number(result.results[0].unreadTotal):0;
     if(!Number.isSafeInteger(unread)||unread<0)throw Error("Invalid unread count");
     const notifications=result.results.map(({unreadTotal,...item})=>item);
