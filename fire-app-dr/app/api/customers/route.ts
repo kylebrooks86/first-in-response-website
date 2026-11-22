@@ -3,6 +3,27 @@ import { getOwnerUser } from "../../owner-auth";
 import {readOwnerWriteObject} from "../../../lib/customer-write-request-guard.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Keep DR customer CREATE aligned with QA-master contact/duplicate identity rules.
+// This predicate is used within INSERT to block concurrent duplicate saves.
+function validOwnerEmail(raw:string){return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(raw);}
+function validOwnerPhone(raw:string){
+  if(!/^[+0-9().\s-]+$/.test(raw))return false;
+  const digits=raw.replace(/\D/g,'');
+  return digits.length===10||(digits.length===11&&digits.startsWith("1"));
+}
+const contactDigits="replace(replace(replace(replace(replace(replace(COALESCE(phone,''),' ',''),'-',''),'(',''),')',''),'+',''),'.','')";
+function customerDuplicatePredicate(input:{name:string;email:string;phone:string;address:string}){
+  const email=input.email.toLowerCase(),raw=input.phone.replace(/\D/g,'');
+  const phone=raw.length===11&&raw.startsWith("1")?raw.slice(1):raw;
+  const name=input.name.toLowerCase(),address=input.address.toLowerCase();
+  return {
+    sql:"((?<>'' AND lower(trim(COALESCE(email,'')))=?) OR (?<>'' AND "+
+      "(CASE WHEN length("+contactDigits+")=11 AND substr("+contactDigits+",1,1)='1' THEN substr("+contactDigits+",2) ELSE "+contactDigits+" END)=?) OR "+
+      "(?<>'' AND ?<>'' AND lower(trim(name))=? AND lower(trim(COALESCE(address,'')))=?))",
+    values:[email,email,phone,phone,name,address,name,address]
+  };
+}
+
 // Owner directory includes contact records, financial totals, and private invoice tokens.
 const customerPrivateHeaders={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 const customerPrivateJson=(body:unknown,status=200)=>Response.json(body,{status,headers:customerPrivateHeaders});
@@ -106,6 +127,9 @@ export async function POST(request: Request) {
   if(body.requestId!==undefined&&
     (typeof body.requestId!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId)))
     return customerPrivateJson({error:"Invalid customer save identifier."},400);
+  if(email&&!validOwnerEmail(email))return customerPrivateJson({error:"Enter a valid email address or leave it blank."},400);
+  if(phone&&!validOwnerPhone(phone))return customerPrivateJson({error:"Enter a valid 10-digit U.S. phone number or leave it blank."},400);
+  const identity=customerDuplicatePredicate({name,email,phone,address});
   const id=typeof body.requestId==="string"?body.requestId:crypto.randomUUID();
   type SavedCustomer={id:string;name:string;email:string;phone:string;address:string;leadSource:string;createdAt:string};
   const readReceipt=()=>env.DB.prepare(
@@ -125,14 +149,20 @@ export async function POST(request: Request) {
     const createdAt=new Date().toISOString();
     let acknowledged=false;
     try {
-      const result=await env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) VALUES (?,?,?,?,?,?,?)")
-        .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt).run();
+      const result=await env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE id=? OR ${identity.sql})`)
+        .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt,id,...identity.values).run();
       acknowledged=(result as {success?:boolean}|null)?.success!==false;
     }catch{
       // A failed network acknowledgement is not proof that INSERT rolled back.
       // Read the same operation ID, never issue a second INSERT in this call.
     }
     const saved=await readReceipt();
+    if(!saved){
+      // A duplicate prevented by the atomic INSERT must not appear as a
+      // successful creation. Verify the existing identity, or fail uncertain.
+      const duplicate=await env.DB.prepare(`SELECT id FROM customers WHERE ${identity.sql} LIMIT 1`).bind(...identity.values).first<{id:string}>();
+      if(duplicate)return customerPrivateJson({error:"A matching customer already exists. Search and select the saved record instead of creating a duplicate."},409);
+    }
     if(saved){
       if(!matches(saved))return customerPrivateJson({error:"This save identifier belongs to different customer details. No saved record was overwritten."},409);
       return customerPrivateJson({requestId:id,duplicate:!acknowledged,

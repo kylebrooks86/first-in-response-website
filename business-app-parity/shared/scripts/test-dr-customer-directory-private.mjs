@@ -60,8 +60,8 @@ const backing={async batch(statements){
       },
       async run(){
         if(mode==='writeBeforeCommit')throw Error('Synthetic D1 refused write');
-        customerInserts++;
-        db.prepare(sql).run(...values);
+        const result=db.prepare(sql).run(...values);
+        if(Number(result.changes)>0)customerInserts++;
         if(mode==='readbackDown')failReadbackAfterInsert=true;
         if(mode==='writeAckLost')throw Error('Synthetic D1 ACK lost after commit');
         if(mode==='writeSoft')return {success:false};
@@ -211,9 +211,40 @@ try{
   eq(r.status,400,'invalid caller operation ID refused');privateHeaders(r,'invalid request ID');
   eq(prepares,invalidBefore,'invalid operation ID has zero D1 prepares');
 
+  // Same contact validation and duplicate identity rules as QA-master CREATE.
+  for(const [label,changes] of [
+    ['invalid email',{email:'owner-at-example.invalid'}],
+    ['invalid phone',{phone:'918-abc'}]
+  ]){
+    const prior=prepares;
+    r=await postCustomer({...details,requestId:crypto.randomUUID(),...changes});
+    eq(r.status,400,label+' refused before customer DB');
+    privateHeaders(r,label);
+    eq(prepares,prior,label+' has zero D1 statements');
+  }
+  const existingCount=Number(db.prepare('SELECT count(*) AS n FROM customers').get().n);
+  insertBefore=customerInserts;
+  for(const [label,changes] of [
+    ['duplicate email',{name:'Other email homeowner',email:'OWNER@EXAMPLE.INVALID',phone:'9185550201',address:'80 Other St'}],
+    ['duplicate US phone',{name:'Other phone homeowner',email:'otherphone@example.invalid',phone:'+1 (918) 555-0101',address:'90 Other St'}],
+    ['duplicate name and address',{name:' SYNTHETIC HOMEOWNER SAVED ',email:'otheraddress@example.invalid',phone:'9185550202',address:' 1 synthetic lane '}]
+  ]){
+    r=await postCustomer({...details,requestId:crypto.randomUUID(),...changes});
+    eq(r.status,409,label+' refused atomically');
+    privateHeaders(r,label);
+    eq(customerInserts,insertBefore,label+' never added customer');
+    eq(Number(db.prepare('SELECT count(*) AS n FROM customers').get().n),existingCount,label+' preserved owner directory');
+  }
+  // Lost-ACK and recovery fixtures represent separate legitimate customers.
+  const uniqueDetails=(requestId,suffix)=>({...details,requestId,
+    name:'Independent synthetic homeowner '+suffix,
+    email:'person'+suffix+'@example.invalid',
+    phone:'91855501'+suffix,
+    address:suffix+' Synthetic Parkway'});
+
   const lostId='22222222-3333-4333-8444-555555555555';
   mode='writeAckLost';insertBefore=customerInserts;
-  r=await postCustomer({...details,requestId:lostId});
+  r=await postCustomer(uniqueDetails(lostId,11));
   eq(r.status,200,'lost INSERT acknowledgement recovered by D1 readback');
   privateHeaders(r,'recovered after lost ACK');
   data=await r.json();
@@ -221,20 +252,20 @@ try{
   eq(data.customer.id,lostId,'same lost ACK operation recovered');
   eq(customerInserts,insertBefore+1,'lost ACK never inserts again');
   mode='';
-  r=await postCustomer({...details,requestId:lostId});
+  r=await postCustomer(uniqueDetails(lostId,11));
   eq(r.status,200,'repeat after lost ACK remains idempotent');
   eq(customerInserts,insertBefore+1,'no second write after lost ACK replay');
 
   const softId='33333333-4444-4333-8444-555555555555';
   mode='writeSoft';insertBefore=customerInserts;
-  r=await postCustomer({...details,requestId:softId});
+  r=await postCustomer(uniqueDetails(softId,12));
   eq(r.status,200,'nonthrowing unsuccessful ACK readback can recover a committed row');
   privateHeaders(r,'soft unsuccessful write ACK');
   eq(customerInserts,insertBefore+1,'soft failed ACK inserted exactly once');
   mode='';
   const refusedId='44444444-5555-4333-8444-555555555555';
   mode='writeBeforeCommit';insertBefore=customerInserts;
-  r=await postCustomer({...details,requestId:refusedId});
+  r=await postCustomer(uniqueDetails(refusedId,13));
   eq(r.status,503,'failed precommit write cannot claim success');
   privateHeaders(r,'precommit failure');
   data=await r.json();
@@ -244,13 +275,13 @@ try{
   mode='';
   const unreadId='55555555-6666-4333-8444-555555555555';
   mode='readbackDown';insertBefore=customerInserts;
-  r=await postCustomer({...details,requestId:unreadId});
+  r=await postCustomer(uniqueDetails(unreadId,14));
   eq(r.status,503,'unavailable D1 verification never reports fake create');
   privateHeaders(r,'readback unavailable');
   eq((await r.json()).saveUncertain,true,'readback outage preserves uncertain-save marker');
   eq(customerInserts,insertBefore+1,'readback outage performed only original insert');
   mode='';failReadbackAfterInsert=false;
-  r=await postCustomer({...details,requestId:unreadId});
+  r=await postCustomer(uniqueDetails(unreadId,14));
   eq(r.status,200,'stable retry recovers prior committed customer');
   privateHeaders(r,'retry after failed readback');
   eq(customerInserts,insertBefore+1,'stable retry after readback outage never reinserts');
