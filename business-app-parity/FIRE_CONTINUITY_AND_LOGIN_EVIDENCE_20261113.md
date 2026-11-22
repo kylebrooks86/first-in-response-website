@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-ONE-OWNER-CAPTURE-G4-G5 -->
+## November 22 — combined Gate 4/5 physical proof collector now in same draft PR282
+
+**Actual development saved, source only:** New `business-app-parity/owner_g4_g5_existing_session_readonly.mjs` at [`db36b89`](https://github.com/kylebrooks86/first-in-response-website/commit/db36b897380a5e2b51bc1dda5cad1cceae67df0a) consolidates the two reviewed, independently verified read-only collectors into ONE owner Acer existing-Wrangler-session command. [Test fix `3c0ecd8`](https://github.com/kylebrooks86/first-in-response-website/commit/3c0ecd8c41859f168beedbdf332bff3de39ee5cf) corrects async rejected-promise assertion. Existing CI-wired STAGING journal regression includes no-token-print, one credential, partial STOP safety. Automatic exact changed-code CI still pending at initial record; no full green claim.
+
+**Actual owner instruction** (after safely obtaining latest PR282 checkout; do not clobber existing local work): `node .\\business-app-parity\\owner_g4_g5_existing_session_readonly.mjs --capture` from repository root in interactive Windows PowerShell. Request sanitized JSON status only; never a credential, browser re-login, customer rows, R2 or paid services. The new command sends only already-reviewed Cloudflare GET inventory requests and a single pinned STAGING D1 journal SELECT; does not change provider state. If existing Wrangler auth is missing, STOP. Cloudflare official D1 Read scoped token is a different fallback requiring separate owner choice; no secret should be put into GitHub/ChatGPT.
+
+**Unresolved original criteria unchanged** G4-05 (account-wide routes/preview/Access inventory) and G5-01 (actual target-bound ordered STAGING journal; QA/DR/LIVE accepted subsets retained). These are not checked until physical output reviewed. Original 51/95, 4/10 whole gates (G1,G2,G3,G8), G4/G5/G6/G7/G9/G10 OPEN, no LIVE cutover, Job #0001 unused. PR282 unmerged/undeployed; no SQL migration, Stripe/payment, login retry, Access/routing/Worker update, R2 subscription or other provider write.
+
+---
+
 <!-- FIRE-NOV22-STAGING-G5-EXISTING-SESSION-PROBE -->
 ## November 22 — new executable STAGING G5-01 owner-read-only journal collector, no Cloudflare login or writes
 

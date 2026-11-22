@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-ONE-OWNER-CAPTURE-G4-G5 -->
+## November 22 — [x] one owner Acer command for TWO outstanding hosted evidence gaps implemented on PR282 (NO DEPLOY)
+
+- [x] **Real read-only source implementation** [`db36b89`](https://github.com/kylebrooks86/first-in-response-website/commit/db36b897380a5e2b51bc1dda5cad1cceae67df0a): [`owner_g4_g5_existing_session_readonly.mjs`](../owner_g4_g5_existing_session_readonly.mjs) reuses one previously authenticated Wrangler credential to call the **already existing** independently guarded STAGING physical D1 migration-journal collector and DR+NEW LIVE account-wide exposure inventory. Single safe `--capture` Windows TTY action. No browser sign-in, R2, payment, database mutation, migration, deployment or Worker/Access/routing changes; token remains in memory and never prints. Each collector's partial success is retained if the other returns a private STOP. Uses the already-pinned STAGING UUID and previous accepted DARK worker identities; not another QA/device retest.
+- [x] **Actual injected pure-mock regression added to existing CI-wired STAGING journal test** on source commit `db36b89`, with asynchronous invalid-token test correction `3c0ecd8`. It checks one credential used for both collectors, no token in receipt, rejects improper token, preserves partial evidence, never falsely marks Gate 4/5 accepted.
+- [ ] **Automatic exact changed-source CI still pending** for executable/test SHA `3c0ecd8c41859f168beedbdf332bff3de39ee5cf` at this documentation checkpoint; 27 PR workflow groups were auto-triggered, do not claim their final outcome before provider readback; no manual CI rerun.
+- [ ] **G4-05 account-wide ingress and G5-01 physical ordered journal REMAIN OPEN** until owner actually runs once from an updated PR282 checkout: `node .\\business-app-parity\\owner_g4_g5_existing_session_readonly.mjs --capture`, shares sanitized receipt and source scope is reviewed. New tool is evidence COLLECTION, not hosted proof or Gate 4/5 acceptance. A missing existing credential must STOP; narrowly scoped D1 Read token is an owner-controlled fallback, not fresh Cloudflare Work browser login.
+- **Original 95 release items remain 51 [x], 44 [ ]; four full gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN.** NEW LIVE DARK/NO-GO, Job #0001 unissued. No paid Cloudflare or R2 subscription, provider mutation, Stripe/payment change, Git merge, deploy or publication.
+
+---
+
 <!-- FIRE-NOV22-EXISTING-WRANGLER-STAGING-JOURNAL-READONLY -->
 ## November 22 — [x] NEW read-only STAGING G5-01 physical-journal capture path implemented (NO LOGIN / NO DEPLOY)
 
