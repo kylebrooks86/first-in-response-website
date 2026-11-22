@@ -97,7 +97,65 @@ for(const rejectedErrors of [[{code:1000,message:'provider error'}],{},'bad erro
 }
 console.log('PASS Cloudflare successful null/omitted errors accepted; nonempty/malformed errors refused');
 
-// The preceding injected API-shape cases share the mock call recorder; clear
+// Physical owner Cloudflare response: success:true, zero Worker Domains,
+// result_info:{page:1,per_page:50,count:0,total_count:0} with NO total_pages.
+// This must remain valid without skipping ordinary/internal zones or routes.
+const missingDomainTotalPages=async (token,path)=>{
+ const response=await mock(token,path);
+ if(!path.includes('/workers/domains?'))return response;
+ const info={...response.result_info};
+ delete info.total_pages;
+ return {...response,result_info:info};
+};
+const emptyDomainReadback=await captureDarkExposure('dr',{
+ token:'synthetic-only',request:missingDomainTotalPages
+});
+assert.equal(emptyDomainReadback.accountCustomDomainsInspected,0);
+assert.equal(emptyDomainReadback.zonesInspected,1);
+assert.equal(emptyDomainReadback.publicEndpointsAbsentInSuppliedEvidence,true);
+assert.equal(emptyDomainReadback.providerReadbackVerified,false);
+assert.equal(emptyDomainReadback.gate4Accepted,false);
+console.log('PASS real owner empty Worker Domains page without optional total_pages, full zone/route enumeration');
+
+// An omitted total_pages with non-empty, multi-page data must still enumerate
+// ALL pages based on validated total_count/per_page and never discard entries.
+let derivedDomainPages=0;
+const twoDomainPages=await captureDarkExposure('new-live',{
+ token:'synthetic-only',request:async (token,path)=>{
+  if(!path.includes('/workers/domains?'))return mock(token,path);
+  derivedDomainPages++;
+  const page=path.includes('page=2')?2:1;
+  const items=Array.from({length:page===1?50:1},(_,i)=>({service:'unrelated-worker-'+page+'-'+i}));
+  return {...success(items),result_info:{page,per_page:50,count:items.length,total_count:51}};
+ }
+});
+assert.equal(derivedDomainPages,2);
+assert.equal(twoDomainPages.accountCustomDomainsInspected,51);
+assert.equal(twoDomainPages.publicEndpointsAbsentInSuppliedEvidence,true);
+assert.equal(twoDomainPages.providerReadbackVerified,false);
+assert.equal(twoDomainPages.gate4Accepted,false);
+console.log('PASS missing total_pages derives and verifies both pages of 51 domains, not an empty false-clear');
+
+for(const editedInfo of [
+ info=>{delete info.total_count},
+ info=>{info.total_count=1},
+ info=>{info.count=1},
+ info=>{info.per_page=0}
+]){
+ await assert.rejects(captureDarkExposure('dr',{
+  token:'synthetic-only',request:async (token,path)=>{
+   const response=await mock(token,path);
+   if(!path.includes('/workers/domains?'))return response;
+   const info={...response.result_info};
+   delete info.total_pages;
+   editedInfo(info);
+   return {...response,result_info:info};
+  }
+ }),/pagination incomplete\/ambiguous|domains total_count does not match exhausted pages|inconsistent zero-page inventory/);
+}
+console.log('PASS omitted total_pages never bypasses missing totals, truncated inventory, count or page bounds');
+
+// The preceding injected response/pagination cases share the mock call recorder; clear
 // only their call history before the existing exact five-GET sequence assertion.
 calls.length=0;
 const proof=await captureDarkExposure('new-live',{token:'synthetic-only',request:mock});
