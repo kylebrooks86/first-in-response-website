@@ -9,6 +9,8 @@ on:
       - 'business-app-parity/test_owner_current_dark_exposure_readonly.mjs'
       - 'business-app-parity/owner_current_dark_exposure_existing_session.mjs'
       - 'business-app-parity/test_owner_current_dark_exposure_existing_session.mjs'
+      - 'business-app-parity/owner_g4_hosted_binding_names_readonly.mjs'
+      - 'business-app-parity/test_owner_g4_hosted_binding_names_readonly.mjs'
       - 'business-app-parity/test_owner_dr_dark_postcreate_readonly.ps1'
       - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
 permissions:
@@ -41,6 +43,8 @@ jobs:
         run: node business-app-parity/test_owner_current_dark_exposure_readonly.mjs
       - name: Reuse existing Wrangler owner-session token safely (MOCK ONLY, NO PROVIDER)
         run: node business-app-parity/test_owner_current_dark_exposure_existing_session.mjs
+      - name: Test G4 Worker bindings and expected auth secret names, GET-only (OFFLINE MOCK)
+        run: node business-app-parity/test_owner_g4_hosted_binding_names_readonly.mjs
   windows-npx-command-mock:
     runs-on: windows-latest
     timeout-minutes: 5
