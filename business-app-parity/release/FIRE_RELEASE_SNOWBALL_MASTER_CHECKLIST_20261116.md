@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-G404-EXISTING-SESSION-FALLBACK-B24F56C -->
+## Nov 22, 2026 — [x] no-login STAGING serving-version fallback source committed; [ ] actual hosted G4-04
+
+- **Real owner Acer photo:** original two STAGING source files downloaded to the intended local folder; offline Node output `OFFLINE_NO_PROVIDER`. PowerShell `CLOUDFLARE_API_TOKEN` was not loaded, so **NO Cloudflare GET was attempted**; this is not a real hosted version receipt, and does not invalidate prior accepted owner Access, four-target binding settings, or private offline credential prep.
+- [x] **Executable STAGING fallback source and parser regression written**: PR282 [b24f56c](https://github.com/kylebrooks86/first-in-response-website/commit/b24f56c4699b36b61b8cd3b60ff40c9213de5f5d). New `--capture-existing-session` reuses a previously authenticated, local cached Wrangler 4.162.0 `auth token --json` WITHOUT login, browser, npm install or provider write; stays confined to two version/deployment GETs in STAGING, redacts errors/token. Existing env-token path and original file-pair imports preserved.
+- [ ] **Automatic exact-source CI pending** at first 27-group readback: 1 success, 0 failed, remaining in progress/queued; no all-green claim.
+- [ ] **G4-04 physical serving-version and security/dependency reconciliation remain unproven.** If no existing session is available, STOP; do not repeat prior four-target GETs or Cloudflare sign-in. Nothing deployed or remotely modified. **Original numbered checklist remains 51/95 accepted (44 open); 4/10 complete gates G1/G2/G3/G8.** NEW LIVE DARK/NO-GO and Job #0001 unused.
+
+---
 <!-- FIRE-NOV22-G404-STRIPE-MODE-DISTINCTION-65FA9C2 -->
 ## November 22 — [x] targeted STAGING serving-version Stripe mode/credential classification fixed; [ ] hosted G4-04 unchanged
 
