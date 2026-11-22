@@ -1,3 +1,10 @@
+<!-- FIRE-NOV22-DARK-EXPOSURE-CLEAR-EXIT-GUARD -->
+## November 22 — [x] G4 collector exposure-exit safeguard and [x] changed-function regression authored (NO DEPLOY)
+
+The latest physical owner G5 screenshot is accepted and **must NOT be repeated**: STAGING physical pinned journal **22/25**, no writes/login. Actual account-wide DARK G4 inventory still STOPPED, so **original G4-05 and G5-01 remain [ ]; 51/95 numbered criteria [x], 44 open, whole gates G1/G2/G3/G8 = 4/10**. On the SAME unmerged draft PR282, actual source commit [`c938430`](https://github.com/kylebrooks86/first-in-response-website/commit/c9384300a31b1b6bbc280a8fc83fe2bc2adb9297) prevents complete inventory with discovered public ingress from exiting owner G4 command 0; it returns a distinct explicit review-required status and nonzero exit. Focused regression [`cab9a46`](https://github.com/kylebrooks86/first-in-response-website/commit/cab9a461e7f07256acf9a9aa47b16a04cfdd6565) covers exposed inventory in both G4-only and original combined tools. **Automatic exact-code CI was pending on first observation; no PASS claim.** Source-only checkoffs, **not** a new formal gate/checklist closure. NEW LIVE DARK NO-GO / real Job #0001 unused; no provider/account/SQL/Stripe/R2/customer/photo/deployment/release writes.
+
+---
+
 <!-- FIRE-NOV22-G4-INTERNAL-ZONE-INVENTORY-20261122 -->
 ## November 22 — [x] REAL Gate 4 read-only checker source defect fixed: internal-zone routes cannot be skipped (NO DEPLOY)
 
