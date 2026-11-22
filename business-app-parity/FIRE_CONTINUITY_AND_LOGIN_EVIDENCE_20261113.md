@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-OWNER-ACER-G5-JOURNAL-22-OF-25-PROVEN -->
+## November 22 — ACTUAL owner Acer read-only G5 STAGING journal physical receipt, 22/25 verified
+
+The user supplied an original Acer PowerShell screenshot of the **already committed PR282 combined G4/G5 collector** (private original JPEG SHA-256 `6962f786fdc3c04cbc50dfe89fc3b6570c8e775843299b9bdcab29a345c37aa9`). The visible receipt confirms `stagingJournalCaptured:true`, physical pinned D1 identity verified before/after, one read-only `SELECT id,name`, no provider writes, no browser login, no customer rows. Its `journalSha256=b36bf9d7e623f31079f31de0adc73c70b6895ad37122fbc9b6d3efff2737adfb` is independently reproduced from the reviewed **22** ordered migration rows, IDs 1–22; NOT the 25-row hash. The screenshot's `0022`–`0024` names are **pending**. Preserve STAGING 22/25 as latest verified condition, and DO NOT repeat this physical SELECT unless target changes. [Permanent scoped evidence](./evidence/FIRE_G5_STAGING_OWNER_READONLY_JOURNAL_20261122.md).
+
+The same output's **G4** subcapture stopped safely: `DARK_ACCOUNT_READONLY_STOP`, `accountWideInventoryCaptured:false`; exact denial cause unknown. Previously accepted DR/NEW LIVE per-Worker dark evidence remains intact, but exhaustive account ingress not verified. G5-01 all-target/hosted binding and G4-05 complete account inventory remain **[ ]**, so original 51/95 and whole-gate 4/10 acceptance unchanged. NEW LIVE NO-GO, authentic first Job #0001 unissued. No SQL writes/migrations, Cloudflare login/deploy/Access/route, paid R2, Stripe/payment, Git merge or publish.
+
+---
+
 <!-- FIRE-NOV22-DIRECT-READONLY-API-TOKEN-FALLBACK -->
 ## November 22 — OPTIONAL DIRECT Cloudflare API token mode added; no Wrangler/browser login required
 
