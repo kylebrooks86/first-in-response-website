@@ -55,7 +55,7 @@ async function savedFinalInvoice(estimateId:string,expectedCustomerId:string):Pr
     invoice.subtotalCents-invoice.discountCents!==invoice.totalCents)return null;
   const items=await env.DB.prepare('SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC')
     .bind(invoice.id).all<FinalInvoiceLine>();
-  if(!Array.isArray(items.results)||items.results.length===0||
+  if((items as {success?:boolean}).success===false||!Array.isArray(items.results)||items.results.length===0||
     items.results.some(item=>!item||typeof item.id!=='string'||!item.id||
       typeof item.name!=='string'||!item.name.trim()||
       typeof item.description!=='string'||typeof item.unit!=='string'||!item.unit||
@@ -96,6 +96,7 @@ async function createInvoice(request: Request) {
       return Response.json({id:saved.id,estimateId:saved.estimateId,customerId:saved.customerId,shareToken:saved.shareToken,existing:true},{headers:{'Cache-Control':'no-store, private'}});
     }
     const itemResult=await env.DB.prepare("SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC").bind(estimateId).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
+    if((itemResult as {success?:boolean}).success===false||!Array.isArray(itemResult.results))return uncertainInvoiceCreate();
     if(!itemResult.results.length||itemResult.results.some((item)=>!item.name||!Number.isFinite(Number(item.quantity))||Number(item.quantity)<=0||!Number.isSafeInteger(Number(item.totalCents))||Number(item.totalCents)<0))return Response.json({error:"This completed job contains invalid service-line data. Review the estimate before creating its final invoice."},{status:409});
     const subtotalCents=itemResult.results.reduce((sum,item)=>sum+Number(item.totalCents),0);
     const estimateTotalCents=Number(estimate.totalCents);
