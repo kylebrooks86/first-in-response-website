@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-OWNER-ACER-G5-JOURNAL-22-OF-25-PROVEN -->
+## November 22 — [x] ACTUAL owner Acer STAGING journal receipt reviewed; 22/25 physical D1 proof (NO DEPLOY)
+
+- [x] **New real owner read-only physical capture received and reviewed.** The existing PR282 `owner_g4_g5_existing_session_readonly.mjs` emitted `stagingJournalCaptured:true`, `physicalDatabaseIdentityBeforeAfterVerified:true`, `sqlReadOnly:true`, `providerWrites:false` and `loginAttempted:false`. Original owner photo SHA-256 `6962f786fdc3c04cbc50dfe89fc3b6570c8e775843299b9bdcab29a345c37aa9` retained in owner's November 22 conversation, **not uploaded to public GitHub**. [Scoped evidence and independent digest computation](../evidence/FIRE_G5_STAGING_OWNER_READONLY_JOURNAL_20261122.md).
+- [x] **Critical count cross-check:** screenshot journal digest `b36bf9d7e623f31079f31de0adc73c70b6895ad37122fbc9b6d3efff2737adfb` exactly matches reviewed 22 migration `id|name` rows (IDs 1–22), **not** the 25-row digest. Visible `0022`, `0023`, `0024` filenames are the **pending** names. STAGING remains physically **22/25**, so no previously missing D1 migrations were secretly applied by this read-only command.
+- [ ] **Original numbered G5-01 remains OPEN:** target-bound schema/hosted Worker binding and all-environment parity still need proof; the receipt explicitly says `hostedWorkerBindingVerified:false` and `gate5Accepted:false`. This additional successful one-time STAGING capture is now accepted as a **supplemental evidence subproof**, not an original 52nd formal item. **Do not ask owner to run the same STAGING journal again** without a real changed target.
+- [ ] **Original numbered G4-05 remains OPEN:** the combined receipt's DARK account-wide branch gave `DARK_ACCOUNT_READONLY_STOP`, `accountWideInventoryCaptured:false`; lack of verified absence does not show a discovered public endpoint. Do not repeat per-Worker accepted screenshots, sign-ins or D1 query.
+- **Original formal release remains 51/95, 44 open; whole gates 4/10 G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN.** NEW LIVE DARK/NO-GO, Job #0001 still untouched. No migrations, Cloudflare/Access/Stripe/R2/provider writes, Git merge, deployment or publication.
+
+---
+
 <!-- FIRE-NOV22-DIRECT-READONLY-API-TOKEN-FALLBACK -->
 ## November 22 — [x] additional NO-WRANGLER Cloudflare read-only API token fallback (NO DEPLOY)
 
