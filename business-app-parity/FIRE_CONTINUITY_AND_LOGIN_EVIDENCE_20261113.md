@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-PHOTO-QA-PORT-F058702 -->
+## November 21 — DR customer photo POST QA safety port and real-route regression saved (NO DEPLOY)
+
+- [x] Independent DR photo POST had older unbounded multipart, no exact-origin write check, unconfirmed D1 write accepted and nonprivate owner responses. [Source `06c1527`](https://github.com/kylebrooks86/first-in-response-website/commit/06c1527b99c46e7c0a371636063c7c2ccbc17282) ports the already-reviewed QA owner/photo guard including 15 MiB image+256 KiB framing byte boundary, MIME and photo metadata validation, private receipt/denials and lost-ACK 503 with original bytes preserved. No change to QA-master source or any deployed environment.
+- [x] [Actual DR handler/source test `f0587025`](https://github.com/kylebrooks86/first-in-response-website/commit/f0587025a29b15a97c4645537255fbe50a8b31c4) is in the existing Gate7 QA/STAGING CI native SQLite/in-memory photo suite, covering QA+DR 10 D1/byte outcome cases and host-origin write denial with zero mutations. [Issue #19 owner release record](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7074175200).
+- [ ] New exact-source CI not yet verified; [automatic QA/STAGING #44984996855](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44984996855) was in progress. No assertion of green full 27/27 or hosted proof. No R2 activation: missing BUCKET still refuses uploads and existing no-paid offline photo backup flow is preserved.
+- **Formal release unchanged:** 51/95 original numbered [x], 44 [ ], accepted G1/G2/G3/G8 (4/10); G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO, first real Job #0001 unissued. Existing draft PR #282 unmerged, undeployed; no hosted/provider, Stripe/payment, owner record/photo or public site operation.
+
+---
+
 <!-- FIRE-NOV21-DR-INVOICE-REAL-ROUTE-EXECUTION-98E217D -->
 ## November 21 — NEW DR invoice real-handler regression SUCCESS checked [x] (NO DEPLOY)
 
