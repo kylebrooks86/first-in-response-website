@@ -38,6 +38,19 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         self.assertNotIn("wrangler secret put", SOURCE.split("function ApiGet", 1)[1].lower())
         self.assertNotIn("wrangler versions deploy", SOURCE.split("function ApiGet", 1)[1].lower())
 
+    def test_exact_account_and_environment_isolation_without_relogging(self):
+        self.assertIn("$env:CLOUDFLARE_ACCOUNT_ID=$account", SOURCE)
+        self.assertIn("Remove-Item Env:CLOUDFLARE_ENV", SOURCE)
+        self.assertIn("Require (-not $env:CLOUDFLARE_API_KEY -and -not $env:CLOUDFLARE_EMAIL)", SOURCE)
+        self.assertIn("Push-Location -LiteralPath $candidate", SOURCE)
+        self.assertIn("Pop-Location", SOURCE)
+        self.assertIn("$previousAccount", SOURCE)
+        self.assertIn("$previousWranglerEnv", SOURCE)
+        self.assertLess(SOURCE.index("Push-Location -LiteralPath $candidate"), SOURCE.index("& npx @uploadArgs"))
+        self.assertLess(SOURCE.index("Remove-Item Env:CLOUDFLARE_ENV"), SOURCE.index("& npx @uploadArgs"))
+        self.assertNotIn("wrangler login", SOURCE.lower())
+        self.assertNotIn("wrangler versions deploy", SOURCE.lower())
+
     def test_no_provider_write_in_default_preflight(self):
         before = SOURCE.split("if(-not $Execute)", 1)[1].split("return", 1)[0]
         self.assertNotIn("ApiGet", before)
