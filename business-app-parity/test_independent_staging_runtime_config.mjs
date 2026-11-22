@@ -9,7 +9,7 @@ const baseline={
   d1_databases:[{binding:'DB',database_name:'fire-app-staging-db',
     database_id:'afb2c05a-d794-4a9a-b580-924ce01c26ad'}],
   secrets:{required:['FIRE_ADMIN_PASSWORD_HASH','FIRE_SESSION_SECRET']},
-  vars:{FIRE_ENV:'staging',
+  vars:{FIRE_ENV:'staging', FIRE_STRIPE_MODE:'disabled',
     SITE_ORIGIN:'https://fire-app-independent-staging.kyle-bfc.workers.dev'}
 };
 const copy=()=>structuredClone(baseline);
@@ -67,6 +67,10 @@ for(const [label,mutate] of [
   ['unknown analytics binding',c=>{c.analytics_engine_datasets=[{binding:'LOGS'}]}],
   ['unexpected browser binding',c=>{c.browser={binding:'BROWSER'}}],
   ['wrong environment',c=>{c.vars.FIRE_ENV='production'}],
+  ['missing explicit payment disablement',c=>{delete c.vars.FIRE_STRIPE_MODE}],
+  ['Stripe test mode prohibited',c=>{c.vars.FIRE_STRIPE_MODE='test'}],
+  ['Stripe live mode prohibited',c=>{c.vars.FIRE_STRIPE_MODE='live'}],
+  ['Stripe disabled as boolean prohibited',c=>{c.vars.FIRE_STRIPE_MODE=false}],
   ['numbering value injection',c=>{c.vars.FIRE_JOB_NUMBERS_CANDIDATE='true'}],
   ['numbering blank injection',c=>{c.vars.FIRE_JOB_NUMBERS_CANDIDATE=''}],
   ['numbering nonstring injection',c=>{c.vars.FIRE_JOB_NUMBERS_CANDIDATE=true}],
