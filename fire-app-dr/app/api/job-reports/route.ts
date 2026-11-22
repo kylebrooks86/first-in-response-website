@@ -31,6 +31,11 @@ export async function GET(request: Request) {
   try {
     const rows = await env.DB.prepare(`SELECT ${reportColumns} FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC`)
       .bind(estimateId).all<SavedReport>();
+    // D1 may resolve without throwing yet explicitly report success:false, or
+    // return an incomplete response with no results. Neither means "no report".
+    // Never allow an uncertain read to erase completed-job proof in the UI.
+    if ((rows as { success?: boolean }).success === false || !Array.isArray(rows?.results))
+      throw new Error("Job report D1 list read was not confirmed");
     // Duplicate historical reports are not safe evidence for marking a job complete.
     if (rows.results.length > 1)
       return Response.json({ error: "More than one report is linked to this job. Review its saved history before changing completion status." },
