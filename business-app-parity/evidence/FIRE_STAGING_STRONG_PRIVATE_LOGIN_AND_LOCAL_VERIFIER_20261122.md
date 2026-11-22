@@ -1,3 +1,16 @@
+<!-- FIRE-NOV22-OWNER-ACER-DPAPI-PREPARED-PHYSICAL-CDA8A71 -->
+## Nov 22, 2026 ~15:26 CST — [x] REAL owner Windows STAGING private credential preparation completed (OFFLINE only)
+
+**Owner-supplied physical Acer PowerShell JPEG:** `13D55E89-CCB3-47C2-A736-5E004A1D9EB7.jpeg`, **1080×1440; 479,195 bytes; SHA-256 `cda8a71a00b5197d973e9a287e29b4ca716529eec7b234af521edec78bd2ac71`**. Original photograph stays private in the owner conversation; **do not** upload it to the repository, ask for plaintext passphrase/hash, or request a repeat of this evidence. Asterisks mask both credential entries.
+
+The screenshot shows the initial PowerShell `PSSecurityException` from the default execution policy; the **session-scoped** `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` then allowed the *same pinned* offline `owner_windows_prepare_staging_admin_credential.ps1` to run. Its `& $file` invocation displayed `DRY RUN ONLY`. Its separate `& $file -Prepare` invocation prompted twice for a NEW 24–128-character STAGING-only passphrase and printed the exact definitive **`PASS: STAGING-only admin verifier prepared in owner-bound encrypted local record.`** message; terminal returned to a normal prompt. Per script source this means the file `%LOCALAPPDATA%\\FIRE-STAGING-Private\\staging-admin-hash-dpapi.xml` was written and existence-checked, holding only a Windows-user-bound encrypted SHA-256 verifier. The screenshot does **not** independently inspect/decrypt the file; local PASS is program-output evidence.
+
+**[x] NEW physical owner local credential-preparation substep accepted.** The Nov22 ~15:17 execution-policy blocker and previously unconfirmed preparation are **resolved; do NOT ask to rerun preparation, create another passphrase, show/print the verifier, or send more screenshot proof**. This is **not** an original numbered release criterion. **[ ] G4-04** remains open: actual Cloudflare independent STAGING `FIRE_ADMIN_PASSWORD_HASH` secret is still previously observed absent, and one unexpected payment binding remains unreviewed. Script is strictly offline; **no provider upload, Access/route/Worker version/serving change, Stripe mutation, SQL, migration or R2 subscription** is evidenced/authorized. `wrangler secret put` would immediately deploy, so do not use it. Any later inactive-version secret installation still needs separately reviewed exact worker/version/rollback plan and explicit owner authorization. All previously accepted STAGING owner-only Access/anonymous challenges and four-target bindings stand unchanged.
+
+**Formal original board unchanged:** **51/95** numbered checks accepted; **4/10** full gates (G1,G2,G3,G8) accepted. G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO and real Job #0001 unused. Source PR #282 remains DRAFT / NOT DEPLOYED.
+
+---
+
 # FIRE STAGING: fix prepared-passphrase login mismatch and isolate private admin credential (Nov 22, 2026)
 
 ## Why this is a genuine release-enabling source correction
