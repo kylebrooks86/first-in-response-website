@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-G404-STRIPE-MODE-DISTINCTION-65FA9C2 -->
+## November 22 — [x] targeted STAGING serving-version Stripe mode/credential classification fixed; [ ] hosted G4-04 unchanged
+
+- [x] Actual candidate source fix [b711de3](https://github.com/kylebrooks86/first-in-response-website/commit/b711de31922e1b44badc912e4c77347be6f79073): the new version-scoped GET checker no longer labels an explicit `FIRE_STRIPE_MODE=disabled` **configuration flag** as an unexpected **payment credential**. True `STRIPE_SECRET_KEY`/other payment credential names remain unexpected; live/invalid mode, wrong D1, missing admin hash, R2 and other mismatches still require review. No change to the already accepted four-Worker script-level inventory.
+- [x] Existing automatic changed-source test expanded in [65fa9c2](https://github.com/kylebrooks86/first-in-response-website/commit/65fa9c21067d2117a8fc272a781f5adb4a0aaeb5) for disabled-only, disabled+actual secret, and enabled-live combinations. CI auto-started; result **PENDING**, not declared PASS.
+- [ ] **Original numbered G4-04 still OPEN**: independent physical active STAGING version/binding and payment-dependency readback remains missing, and the previously observed missing hosted admin hash is unresolved. Existing owner Acer offline STAGING DPAPI preparation is accepted and NOT to be repeated. Do not erase provider findings because a parser changed. No Cloudflare login, TEST/PAYMENT change, deployment, SQL, R2, paid service or Git merge.
+- Official original tally stays **51/95 accepted**, **4/10 gates G1/G2/G3/G8**, other six OPEN; DARK NEW LIVE and first real Job #0001 untouched. Source-only [x] above does **not** equal original item #52.
+
+---
+
 <!-- FIRE-NOV22-STAGING-ACTIVE-VERSION-SOURCE-CI-961C519 -->
 ## November 22 — [x] STAGING serving-version G4-04 read-only source/tests actually developed and focused CI PASS; [ ] physical served version still missing
 
