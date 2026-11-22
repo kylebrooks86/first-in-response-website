@@ -35,8 +35,10 @@ export async function captureG4G5MissingEvidence({
  const darkEndpointsAbsent=ingressInventoryVerified&&
   exposure?.publicEndpointsAbsentInSuppliedEvidence===true;
  return Object.freeze({
-  result:stagingVerified&&ingressInventoryVerified?
-   'G4_G5_READONLY_EVIDENCE_CAPTURED_FOR_REVIEW':'G4_G5_INCOMPLETE_REVIEW_REQUIRED',
+  result:!stagingVerified||!ingressInventoryVerified?
+   'G4_G5_INCOMPLETE_REVIEW_REQUIRED':
+   darkEndpointsAbsent?'G4_G5_READONLY_EVIDENCE_CAPTURED_FOR_REVIEW':
+   'G4_G5_PUBLIC_ENDPOINTS_REQUIRE_REVIEW',
   stagingJournal:staging,accountWideDarkExposure:exposure,
   stagingJournalCaptured:stagingVerified,
   accountWideInventoryCaptured:ingressInventoryVerified,
@@ -62,7 +64,10 @@ export async function captureG4DarkOnlyEvidence({token,readDark=captureBothDarkE
  const complete=exposure?.providerReadbackVerified===true&&
   exposure?.completeInventoryFromSuppliedEvidence===true;
  return Object.freeze({
-  result:complete?'G4_DARK_ACCOUNT_EVIDENCE_CAPTURED_FOR_REVIEW':'G4_DARK_ACCOUNT_READONLY_STOP',
+  result:!complete?'G4_DARK_ACCOUNT_READONLY_STOP':
+   exposure?.publicEndpointsAbsentInSuppliedEvidence===true?
+   'G4_DARK_ACCOUNT_EVIDENCE_CAPTURED_FOR_REVIEW':
+   'G4_DARK_PUBLIC_ENDPOINTS_REQUIRE_REVIEW',
   accountWideDarkExposure:exposure,
   accountWideInventoryCaptured:complete,
   darkPublicEndpointsAbsent:complete&&
@@ -106,7 +111,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
     token:readOwnerApiTokenFromEnvironment()
    });
    console.log(JSON.stringify(receipt,null,2));
-   if(!receipt.accountWideInventoryCaptured)process.exitCode=2;
+   if(!receipt.darkPublicEndpointsAbsent)process.exitCode=2;
   }else if(args.length===1&&
             (args[0]==='--capture'||args[0]==='--capture-env-token')){
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
@@ -116,7 +121,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
     readExistingWranglerToken({npmCli:npmCli()});
    const receipt=await captureG4G5MissingEvidence({token});
    console.log(JSON.stringify(receipt,null,2));
-   if(!receipt.stagingJournalCaptured||!receipt.accountWideInventoryCaptured)
+   if(!receipt.stagingJournalCaptured||!receipt.darkPublicEndpointsAbsent)
     process.exitCode=2;
   }else fail();
  }catch{
