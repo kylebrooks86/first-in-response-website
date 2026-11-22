@@ -1,3 +1,15 @@
+<!-- FIRE-G404-NOV22-FULL-QA-STAGING-DR-NEWLIVE-B16BF28 -->
+## November 22 — [x] FINAL physical four-target G4-04 hosted settings evidence reconciled; two precise STAGING configuration blockers remain
+
+- [x] Owner scrolled the previously completed **same** four-target Cloudflare GET output rather than re-querying providers. All QA/STAGING/DR/NEW LIVE **exact expected D1 bindings match**; all 4 have **zero R2**, **zero wrong-target auth** and **zero unreviewed binding types**. QA has both required login secret names and 0 unexpected payment names. DR and NEW LIVE are still DARK/prelaunch; their two missing login names each are expected at this stage, not evidence of Access enforcement.
+- **[ ] STAGING blocker #1 (physically provider-confirmed):** independent `fire-app-independent-staging` has correct DB and `FIRE_SESSION_SECRET:true` but **`FIRE_ADMIN_PASSWORD_HASH:false`**. That name is required by reviewed `adapters/independent-staging/vite.config.ts` and `check_independent_staging_runtime_config.mjs`. Do not paste password/hash/secret into GitHub, ChatGPT or screenshots.
+- **[ ] STAGING blocker #2 (physically provider-confirmed):** one **unexpected payment credential binding** remains (`unexpectedPaymentCredentialBindings:1`). Earlier owner settings showed `STRIPE_SECRET_KEY`; current redacted readback proves count, **not current secret name/value or TEST/LIVE mode**. It is NOT authorized to delete/replace without determining if the currently serving Worker or Stripe TEST path relies on it; reviewed candidate config has no staging payment binding. Existing dedicated Stripe TEST receiver and G9 payment requirements must not be modified by inference.
+- **[x] Completed and credited physical provider metadata / config-mismatch detection subproof**, not the entire original numbered G4-04. Existing owner images are retained privately, with 4 new SHA-256/size provenance records in [sanitized exact evidence](evidence/FIRE_G4_OWNER_FOUR_WORKER_SETTINGS_READONLY_20261122.md) [commit `b16bf28`](https://github.com/kylebrooks86/first-in-response-website/commit/b16bf28e4a18927de143d3ddceb390aaab9f57b6). Do not repeat this GET or accepted prior DR/NEW LIVE DARK, STAGING D1 22/25, or QA/iPhone/browser proof.
+- **G4-04 [ ] / G4-05 [ ] / G4-06 [ ] / formal G4 OPEN**: current GET is script settings, **not serving-version source identity or effective Cloudflare Access**. Before adding any STAGING auth or removing payment binding, reconcile public production workers.dev ingress and precise serving version with previously accepted records, then require exact-scoped owner approval for any provider write. NO worker/Access/D1/Stripe/payment/secret changes performed. No paid R2/Cloudflare subscriptions.
+- Formal original release **51/95 accepted and 4/10 whole gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 still open; NEW LIVE DARK/NO-GO and first authentic Job #0001 unused.
+
+---
+
 <!-- FIRE-NOV22-G404-PHYSICAL-4WORKER-177F0931 -->
 ## November 22, ~14:46 CST — [x] physical provider four-Worker settings GET completed; [ ] original G4-04 still OPEN for unseen QA/STAGING/DR decision
 
