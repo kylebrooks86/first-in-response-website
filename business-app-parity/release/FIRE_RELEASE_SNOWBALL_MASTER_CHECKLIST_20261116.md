@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-TOTAL-PAGES-FOCUSED-CI-28427D -->
+## November 22 — [x] Cloudflare optional total_pages G4 targeted regression CI verified (no hosted gate closure)
+
+**REAL exact-source GitHub Actions evidence:** [corrected test SHA `28427d9`](https://github.com/kylebrooks86/first-in-response-website/commit/28427d9338da320a02783778adf33f791103eec4) ran automatic [FIRE DR hosted dark version binding evidence parser #45062273865](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45062273865) and **completed SUCCESS**. Its Gate4 offline test suite covers the physical owner 0-of-0 domains page with omitted optional `total_pages`, inferred 51-item two-page enumeration, missing/mismatched totals fail-closed, ordinary+internal zone route coverage, scoped existing-session credential sanitization. Source fix [`daf14ba4`](https://github.com/kylebrooks86/first-in-response-website/commit/daf14ba4b553f0453383f1e4cb04093ab2888c6e) is unchanged. Two older fail-closed assertion-message expectations were aligned in tests only: [`cb1fd8c`](https://github.com/kylebrooks86/first-in-response-website/commit/cb1fd8c1d9779635bd01423f0e5415965b475ed6) and [`28427d9`](https://github.com/kylebrooks86/first-in-response-website/commit/28427d9338da320a02783778adf33f791103eec4). Earlier interim failed CI runs were observed and **not** labeled passing; exact corrected focused workflow is green. The other 26 automatic PR workflow groups were not all complete at first focused readback, so full 27/27 verdict requires separate confirmation.
+
+**What is actually [x]:** narrowly scoped code/test and exact-source focused CI acceptance, not original numbered G4-05. **Still [ ]:** owner Acer must download corrected source and physically capture DR+NEW LIVE account-wide read-only inventory (including all worker domains and ordinary+internal zone routes). Previous observed zero-account-domain GET is valid for its narrow scope only. Preserve STAGING G5 22/25 and all owner screenshots without repeating them. **Formal release 51/95 accepted, 4/10 gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, first Job #0001 unused.** No merge, deployment, SQL, Stripe/payment, Access or R2/paid subscription action.
+
+---
+
 <!-- FIRE-NOV22-PHYSICAL-EMPTY-DOMAINS-OPTIONAL-TOTAL-PAGES-A2B9C5 -->
 ## November 22 — physical Cloudflare Worker Domains zero-count response; optional pagination fixed safely in draft PR282 (NO DEPLOY)
 
