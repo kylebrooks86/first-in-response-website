@@ -59,6 +59,7 @@ export function evaluateHostedBindings(target,response){
   const providerStorageBindings=bindings.filter(b=>/^(?:r2_bucket|r2_bucket_jurisdictional)$/.test(b.type)).length;
   const unexpectedPaymentCredentialBindings=bindings.filter(b=>
     /^(?:STRIPE_|PAYMENT_|FIRE_STRIPE_)/.test(b.name)).length;
+  const missingExpectedAuthSecretNames=Object.values(expectedSecretPresence).filter(v=>!v).length;
   const misTypedExpected=expected.secrets.some(name=>
     bindings.some(b=>b.name===name&&b.type!=='secret_text'));
   const unexpectedBindingTypes=bindings.filter(b=>
@@ -70,6 +71,7 @@ export function evaluateHostedBindings(target,response){
     expectedDBBindingPresent:!!dbBinding,
     expectedDBIdentityMatches:physicalDBIdentityMatches,
     expectedAuthSecretNamePresence:expectedSecretPresence,
+    missingExpectedAuthSecretNameCount:missingExpectedAuthSecretNames,
     expectedAuthSecretTypesValid:!misTypedExpected,
     wrongTargetAuthSecretCount,
     unexpectedPaymentCredentialBindings,
@@ -129,7 +131,8 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
       console.log(JSON.stringify(proof,null,2));
       if(proof.targets.some(x=>!x.expectedDBIdentityMatches||
          x.r2BindingCount!==0||x.wrongTargetAuthSecretCount>0||
-         x.unexpectedPaymentCredentialBindings>0||!x.expectedAuthSecretTypesValid))
+         x.unexpectedPaymentCredentialBindings>0||!x.expectedAuthSecretTypesValid||
+         (['qa','staging'].includes(x.target)&&x.missingExpectedAuthSecretNameCount>0)))
         process.exitCode=2;
     }catch{console.error('FIRE G4 HOSTED BINDINGS READ-ONLY STOP: no verified complete four-target receipt');process.exitCode=1;}
   }else{console.error('FIRE G4 HOSTED BINDINGS READ-ONLY STOP: unapproved arguments');process.exitCode=1;}
