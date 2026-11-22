@@ -17,6 +17,9 @@ $recordFile=Join-Path $private 'staging-admin-hash-dpapi.xml'
 $lockFile=Join-Path $private 'g404-one-inactive-version-attempt-20261122.lock'
 $tmp=$null; $hash=$null; $token=$null; $attempted=$false
 $previousToken=$env:CLOUDFLARE_API_TOKEN
+$previousAccount=$env:CLOUDFLARE_ACCOUNT_ID
+$previousWranglerEnv=$env:CLOUDFLARE_ENV
+$workingDirectoryChanged=$false
 function Require([bool]$condition) { if(-not $condition) {throw 'STOP: safety prerequisite failed'} }
 function ApiGet([string]$suffix) {
   Require ($suffix -match '^/(deployments\?page=1&per_page=1|versions/[a-f0-9-]{36})$')
@@ -59,7 +62,16 @@ try {
     return
   }
   # No login, browser, token printing or subscription action. Cached session ONLY.
+  # Do not let a different account/environment or inherited legacy API key
+  # override the owner-verified existing STAGING Worker and cached identity.
+  Require (-not $env:CLOUDFLARE_API_KEY -and -not $env:CLOUDFLARE_EMAIL)
+  $env:CLOUDFLARE_ACCOUNT_ID=$account
+  Remove-Item Env:CLOUDFLARE_ENV -ErrorAction SilentlyContinue
   Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue
+  # Make the built candidate's local executable/dependencies the cwd; passing
+  # --config alone does not guarantee npx resolves packages from that folder.
+  Push-Location -LiteralPath $candidate
+  $workingDirectoryChanged=$true
   $env:npm_config_offline='true'
   $env:npm_config_yes='false'
   $env:WRANGLER_SEND_METRICS='false'
@@ -152,6 +164,11 @@ try {
   if($tmp -and (Test-Path -LiteralPath $tmp)) {
     Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
   }
+  if($workingDirectoryChanged) { Pop-Location }
   if($previousToken) { $env:CLOUDFLARE_API_TOKEN=$previousToken }
   else { Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue }
+  if($previousAccount) { $env:CLOUDFLARE_ACCOUNT_ID=$previousAccount }
+  else { Remove-Item Env:CLOUDFLARE_ACCOUNT_ID -ErrorAction SilentlyContinue }
+  if($previousWranglerEnv) { $env:CLOUDFLARE_ENV=$previousWranglerEnv }
+  else { Remove-Item Env:CLOUDFLARE_ENV -ErrorAction SilentlyContinue }
 }
