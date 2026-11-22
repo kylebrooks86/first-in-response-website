@@ -54,7 +54,7 @@ export async function captureG4G5MissingEvidence({
  */
 export function readOwnerApiTokenFromEnvironment(env=process.env){
  const v=env?.CLOUDFLARE_API_TOKEN;
- if(typeof v!=='string'||v.length<20||v.length>4096||/\\s/.test(v))fail();
+ if(typeof v!=='string'||v.length<20||v.length>4096||/\s/.test(v))fail();
  return v;
 }
 function npmCli(){
