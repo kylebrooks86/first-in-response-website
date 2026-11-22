@@ -272,6 +272,44 @@ try{
      'DR failed notification D1 read returns private 503 without leaking activity');
  }finally{rt.env.DB.prepare=drOriginalGetPrepare;}
 
+
+ // DR PATCH uses the ACTUAL production owner request parser. Refuse hostile
+ // browsers, forged lengths and oversized UTF-8 before even preparing D1.
+ const guardedDrWrites=[
+   ['foreign Origin',{'origin':'https://evil.invalid','sec-fetch-site':'cross-site','content-type':'application/json'},'{"all":true}',403],
+   ['sibling site',{'origin':'https://other.synthetic.invalid','sec-fetch-site':'same-site','content-type':'application/json'},'{"all":true}',403],
+   ['cross-site Fetch Metadata',{'sec-fetch-site':'cross-site','content-type':'application/json'},'{"all":true}',403],
+   ['non-JSON browser form',{'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin','content-type':'text/plain'},'{"all":true}',415],
+   ['oversized Content-Length',{'content-type':'application/json','content-length':'8193'},'{"all":true}',413],
+   ['invalid declared length',{'content-type':'application/json','content-length':'2'},'{"all":true}',400],
+   ['oversized real UTF-8 bytes',{'content-type':'application/json'},JSON.stringify({id:'🌋'.repeat(2600)}),413],
+   ['invalid JSON',{'content-type':'application/json'},'{',400],
+   ['array JSON',{'content-type':'application/json'},'[]',400],
+ ];
+ for(const [label,headers,body,status] of guardedDrWrites){
+   const before=rt.counters();
+   const denied=await dr.PATCH(new Request('https://synthetic.invalid/api/notifications',{
+     method:'PATCH',headers,body
+   }));
+   check(denied.status===status,'Real DR notification PATCH '+label+' exact denial status');
+   assertPrivatePatch(denied,'Real DR notification PATCH '+label);
+   check(JSON.stringify(rt.counters())===JSON.stringify(before),
+     'Real DR notification PATCH '+label+' performs no D1 reads or writes');
+ }
+ // A storage failure after an authenticated valid notification action must
+ // never be represented as a retry-safe 500 or a successful mark-all.
+ const drBeforeOutage=JSON.stringify(rows());
+ const drPrepareBeforeOutage=rt.env.DB.prepare;
+ rt.env.DB.prepare=()=>{throw Error('Synthetic DR notification write outage')};
+ try{
+   const uncertain=await drPatch({all:true});
+   assertPrivatePatch(uncertain,'DR notification save-uncertain 503');
+   check(uncertain.status===503&&uncertain.data.saveUncertain===true,
+     'DR D1 write outage returns explicit private save uncertainty');
+ }finally{rt.env.DB.prepare=drPrepareBeforeOutage;}
+ check(JSON.stringify(rows())===drBeforeOutage,
+   'DR refused action and failed save leave original notification read state intact');
+
  const drMixed=await drPatch({all:true,id:id(100)});
  assertPrivatePatch(drMixed,'DR conflicting owner notification PATCH');
  check(drMixed.status===400&&rows().filter(row=>row.read_at===null).length===expectedUnread,
