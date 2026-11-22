@@ -66,7 +66,10 @@ export function evaluateStagingServing(deploymentResponse,versionResponse){
       unexpectedPaymentCredentialBindings>0||
       bindingCheck.r2BindingCount>0||bindingCheck.wrongTargetAuthSecretCount>0||
       !bindingCheck.expectedAuthSecretTypesValid||bindingCheck.unreviewedBindingTypeCount>0||
-      !paymentModeNotEnabled,
+      // A missing mode may be default-inert, but it is NOT an explicit
+      // reviewed Stripe TEST/LIVE isolation setting. STAGING must attest
+      // plain_text FIRE_STRIPE_MODE=disabled before config signoff.
+      !paymentModeExplicitlyDisabled,
    // Metadata is not served executable-byte attestation or nonowner Access proof.
    servingCodeBytesVerified:false,accessEnforcementVerified:false,
    secretValuesExposed:false,providerDataMutated:false,
