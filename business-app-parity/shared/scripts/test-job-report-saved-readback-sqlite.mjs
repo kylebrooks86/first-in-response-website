@@ -344,6 +344,36 @@ try{
  db.prepare('UPDATE job_reports SET status=?,completed_at=? WHERE estimate_id=?')
   .run('completed',drDb.completedAt,drJob);
 
+ // A soft-failed pre-edit history read must fail before any new report write.
+ // A zero-row or absent result collection is not evidence the report vanished.
+ const beforeSoftPost=JSON.stringify(db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob));
+ for(const [label,history] of [
+  ['soft-failed pre-edit list',{success:false,results:[]}],
+  ['missing pre-edit result rows',{success:true}]
+ ]){
+  let reportWrites=0;
+  rt.env.DB.prepare=function(sql){
+   if(sql.includes('FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 2'))
+    return {bind(){return {all:async()=>history}}};
+   const statement=sql.trimStart().toUpperCase();
+   if((statement.startsWith('INSERT')||statement.startsWith('UPDATE')||statement.startsWith('DELETE'))&&sql.includes('job_reports'))
+    reportWrites++;
+   return originalDrPrepare(sql);
+  };
+  let refused;
+  try{
+   refused=await drRoute.POST(new Request('https://fixture.invalid/api/job-reports',{
+    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(drPayload)
+   }));
+  }finally{rt.env.DB.prepare=originalDrPrepare;}
+  eq(refused.status,503,'DR '+label+' refuses unverified report edit');
+  assertPrivatePost(refused,'DR '+label+' private uncertain receipt');
+  eq((await refused.json()).saveUncertain,true,'DR '+label+' reports uncertain history rather than concurrent save');
+  eq(reportWrites,0,'DR '+label+' makes zero report writes');
+  eq(JSON.stringify(db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob)),
+   beforeSoftPost,'DR '+label+' preserves actual completed report');
+ }
+
  for(const [label,ownerValue] of [
   ['DR rejected owner provider',Promise.reject(Error('Synthetic independent DR auth outage'))],
   ['DR throwing owner email',Object.defineProperty({},'email',{get(){throw Error('Unreadable DR principal');}})]
