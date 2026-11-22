@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-G404-STRIPE-MODE-DISTINCTION-65FA9C2 -->
+## Nov 22, 2026 — real G4 STAGING serving-version classification bug fixed in PR282 (SOURCE ONLY)
+
+- [x] Source commit [b711de3](https://github.com/kylebrooks86/first-in-response-website/commit/b711de31922e1b44badc912e4c77347be6f79073) corrects `owner_staging_serving_version_readonly.mjs` to **exclude only `FIRE_STRIPE_MODE` from the unexpected PAYMENT CREDENTIAL binding count**. Previously an explicit benign `FIRE_STRIPE_MODE=disabled` was incorrectly counted as an unreviewed Stripe *credential*, potentially prompting unsafe cleanup. Its value remains redacted, separately reported as disabled/not enabled, while `live`, missing/invalid mode, actual `STRIPE_SECRET_KEY`, unexpected R2, missing admin auth and wrong D1 all retain their fail-closed review guards.
+- [x] Focused real-regression source change commit [65fa9c2](https://github.com/kylebrooks86/first-in-response-website/commit/65fa9c21067d2117a8fc272a781f5adb4a0aaeb5) extends existing CI-wired `test_owner_staging_serving_version_readonly.mjs` with disabled-only (safe), disabled-plus-actual-secret (review), and live-mode (review) scenarios. Automatic GitHub PR CI launched; **no PASS claimed until exact SHA steps finish**.
+- This correction does **not** amend the already accepted earlier four-Worker **script-level** physical binding inventory, erase or explain the historically observed STAGING unexpected binding, alter hosted values, or claim active-version evidence. It affects the *new version-scoped* checker only. The first physical owner Acer read-only serving deployment/version GET remains [ ] pending if a previously available read-only token is still private; don't repeat accepted four-target settings, local DPAPI prep, STAGING 22/25 journal, Access or iPhone/QA evidence.
+- Original checklist **51/95 accepted; 4/10 whole gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, future Job #0001 unissued. No Cloudflare/Stripe/SQL/R2/Access/Worker writes, no paid activation, no merge, deploy or public-site changes.
+
+---
+
 <!-- FIRE-NOV22-STAGING-ACTIVE-SERVING-VERSION-GET-CI-961C519 -->
 ## Nov 22, 2026 — NEW STAGING serving-version evidence collector committed; focused changed-source CI PASS; physical capture pending
 
