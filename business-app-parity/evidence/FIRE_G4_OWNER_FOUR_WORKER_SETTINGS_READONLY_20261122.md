@@ -23,3 +23,7 @@ The prior successful DARK account-wide zero-exposure provider evidence is comple
 ## Formal release state
 
 **51/95 original checks accepted, 44 open; 4/10 formal gates G1/G2/G3/G8 accepted. G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO, initial Job #0001 unused.** This new development [x] is supplemental, not a 52nd original checklist item.
+
+## Additional fail-closed login-secret guard (later Nov 22)
+
+[Source hardening `aa6180a`](https://github.com/kylebrooks86/first-in-response-website/commit/aa6180a9812a6f0cadd812ee2059a6cb81960f67) adds `missingExpectedAuthSecretNameCount` to the sanitized per-target result and sets the CLI review-needed exit code when QA or STAGING lacks a required expected authentication name (DR and NEW LIVE are explicitly AUTH BLOCKED and do not prematurely fail merely for absent DARK login secrets). No values are ever printed and no Cloudflare changes result. [Regression `6f11a98`](https://github.com/kylebrooks86/first-in-response-website/commit/6f11a988afa34317e36ba3ee38960bc1d9c1800d) asserts the missing STAGING expected name is flagged and a valid QA configuration counts zero missing. The automatic CI for this successor SHA was **25/27 success, 2 running** at initial check; do not claim new exact-SHA success until complete. The immediately preceding focused [#45063330169](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45063330169) passed on its earlier source, not proof of this pending final guard.
