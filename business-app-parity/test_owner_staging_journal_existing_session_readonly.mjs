@@ -104,3 +104,36 @@ for(const bad of [{},{CLOUDFLARE_API_TOKEN:'short'},
 }
 assert.equal(JSON.stringify(combined).includes(scopedToken),false);
 console.log('PASS: optional direct owner API-token environment path rejects missing/malformed tokens without exposing credentials.');
+
+/** Gate 4-only owner retry: NEVER query the already reviewed G5 STAGING D1. */
+const {captureG4DarkOnlyEvidence}=await import('./owner_g4_g5_existing_session_readonly.mjs');
+let darkOnlyCalls=0;
+const darkOnlySuccess=await captureG4DarkOnlyEvidence({
+ token:scopedToken,
+ readDark:async ({token})=>{
+  assert.equal(token,scopedToken);
+  darkOnlyCalls++;
+  return {providerReadbackVerified:true,completeInventoryFromSuppliedEvidence:true,
+   publicEndpointsAbsentInSuppliedEvidence:true,gate4Accepted:false};
+ }
+});
+assert.equal(darkOnlyCalls,1);
+assert.equal(darkOnlySuccess.stagingJournalNotQueried,true);
+assert.equal(darkOnlySuccess.accountWideInventoryCaptured,true);
+assert.equal(darkOnlySuccess.darkPublicEndpointsAbsent,true);
+assert.equal(darkOnlySuccess.gate4Accepted,false);
+assert.equal(darkOnlySuccess.gate5Accepted,false);
+assert.equal(darkOnlySuccess.providerWrites,false);
+assert.equal(darkOnlySuccess.loginAttempted,false);
+assert.equal(JSON.stringify(darkOnlySuccess).includes(scopedToken),false);
+const darkOnlyStop=await captureG4DarkOnlyEvidence({
+ token:scopedToken,
+ readDark:async ()=>{throw Error('private provider error: '+scopedToken)}
+});
+assert.equal(darkOnlyStop.stagingJournalNotQueried,true);
+assert.equal(darkOnlyStop.accountWideInventoryCaptured,false);
+assert.equal(darkOnlyStop.result,'G4_DARK_ACCOUNT_READONLY_STOP');
+assert.equal(darkOnlyStop.darkPublicEndpointsAbsent,false);
+assert.equal(JSON.stringify(darkOnlyStop).includes(scopedToken),false);
+await assert.rejects(()=>captureG4DarkOnlyEvidence({token:'short'}));
+console.log('PASS: G4-only owner token collector skips accepted STAGING journal, denies incomplete inventory without exposing credentials.');

@@ -48,6 +48,33 @@ export async function captureG4G5MissingEvidence({
  });
 }
 /**
+ * G4-only owner follow-up AFTER an accepted STAGING journal capture.
+ * Deliberately never calls STAGING or Wrangler: one explicit Cloudflare
+ * read-only token, only both DARK Workers' account-wide GET inventory.
+ * Failures remain private. Prior G5 evidence is neither invalidated nor rerun.
+ */
+export async function captureG4DarkOnlyEvidence({token,readDark=captureBothDarkExposures}={}){
+ if(typeof token!=='string'||token.length<20||token.length>4096||/\s/.test(token)||
+    typeof readDark!=='function')fail();
+ let exposure;
+ try{exposure=await readDark({token})}
+ catch{exposure={result:'DARK_ACCOUNT_READONLY_STOP',gate4Accepted:false}}
+ const complete=exposure?.providerReadbackVerified===true&&
+  exposure?.completeInventoryFromSuppliedEvidence===true;
+ return Object.freeze({
+  result:complete?'G4_DARK_ACCOUNT_EVIDENCE_CAPTURED_FOR_REVIEW':'G4_DARK_ACCOUNT_READONLY_STOP',
+  accountWideDarkExposure:exposure,
+  accountWideInventoryCaptured:complete,
+  darkPublicEndpointsAbsent:complete&&
+   exposure?.publicEndpointsAbsentInSuppliedEvidence===true,
+  stagingJournalNotQueried:true,
+  providerContacted:true,providerWrites:false,loginAttempted:false,
+  tokenStored:false,tokenDisplayed:false,
+  gate4Accepted:false,gate5Accepted:false,releaseAuthorized:false,
+  newLivePublic:false
+ });
+}
+/**
  * Optional no-Wrangler fallback: an owner-managed API token in a temporary
  * PowerShell environment variable. The code does not create, print or store
  * it. Actual read permissions are limited by Cloudflare's token scopes.
@@ -69,9 +96,17 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   const args=process.argv.slice(2);
   if(args.length===0){
    console.log(JSON.stringify({result:'OFFLINE_NO_PROVIDER',
-    target:STAGING_DB,captureOption:'--capture',fallbackOption:'--capture-env-token',
+    target:STAGING_DB,captureOption:'--capture',fallbackOption:'--capture-env-token',darkOnlyOption:'--capture-dark-env-token',
     providerContacted:false,
     providerWrites:false,loginAttempted:false,gate4Accepted:false,gate5Accepted:false}));
+  }else if(args.length===1&&args[0]==='--capture-dark-env-token'){
+   if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
+      process.env.CI||process.env.GITHUB_ACTIONS)fail();
+   const receipt=await captureG4DarkOnlyEvidence({
+    token:readOwnerApiTokenFromEnvironment()
+   });
+   console.log(JSON.stringify(receipt,null,2));
+   if(!receipt.accountWideInventoryCaptured)process.exitCode=2;
   }else if(args.length===1&&
             (args[0]==='--capture'||args[0]==='--capture-env-token')){
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
