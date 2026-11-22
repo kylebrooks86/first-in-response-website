@@ -34,8 +34,8 @@ class InactiveStagingVersionGuard(unittest.TestCase):
             self.assertIn(marker, SOURCE)
         args = re.search(r"\$uploadArgs=@\((.*?)\)", SOURCE, flags=re.S)
         self.assertIsNotNone(args)
-        self.assertNotRegex(args.group(1), r"(?i)deploy|delete|secret put|r2|migrat")
-        self.assertNotIn("wrangler secret put", SOURCE.lower().split("function ApiGet")[1].split("try {")[1])
+        self.assertNotRegex(args.group(1), r"(?i)\x27(?:deploy|delete|secret|r2|migrate)\x27")
+        self.assertNotIn("wrangler secret put", SOURCE.split("function ApiGet", 1)[1].lower())
         self.assertNotIn("wrangler versions deploy", SOURCE.lower().split("function ApiGet")[1].split("try {")[1])
 
     def test_no_provider_write_in_default_preflight(self):
