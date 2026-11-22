@@ -158,5 +158,5 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     }
     await env.DB.batch(reconcileStatements);
     return privateInvoiceJson({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},paidCents:postPaidCents,billingExceptionOpen:postOverpaymentCents>0});
-  }catch{return privateInvoiceJson({error:"We couldn't update this invoice."},{status:500});}
+  }catch{return privateInvoiceJson({error:"Invoice save could not be confirmed. Reopen the invoice and verify saved financial totals and service lines before retrying.",saveUncertain:true},{status:503});}
 }
