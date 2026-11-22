@@ -133,10 +133,15 @@ export async function captureDarkExposure(target,{token,request=getApi}={}){
     fail(label+' exceeds page bound');
   };
   const domains=await pages('/client/v4/accounts/'+FIRE_DARK_ACCOUNT+'/workers/domains','domains');
-  // Do NOT filter zone types. The zones API accepts a single type, and a
-  // comma-joined filter can silently omit unrecognized/other zone types.
-  // Inspect every account-scoped zone returned before claiming no routes.
-  const zones=await pages('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT,'zones');
+  // Cloudflare excludes "internal" zone types when type is omitted.
+  // Audit ordinary and explicitly internal zones in two independent,
+  // fully paginated GET inventories; otherwise a DARK Worker route
+  // on an internal zone could be missed and falsely certified absent.
+  const ordinaryZones=await pages('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT,'zones');
+  const internalZones=await pages('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT+'&type=internal','zones');
+  const zones=[...ordinaryZones,...internalZones];
+  if(new Set(zones.map(z=>z.id)).size!==zones.length)
+    fail('ordinary/internal zone inventories overlap; full route coverage cannot be certified');
   const routes=[];
   for(const zone of zones){
     if(!isObj(zone)||!(/^[a-f0-9]{32}$/).test(zone.id)||zone.account?.id!==FIRE_DARK_ACCOUNT)

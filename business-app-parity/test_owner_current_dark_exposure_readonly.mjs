@@ -60,6 +60,8 @@ const mock=async(_token,path)=>{
  calls.push(path);
  if(path.endsWith('/subdomain'))return success({enabled:false,previews_enabled:false});
  if(path.includes('/workers/domains?'))return {...success([]),result_info:{page:1,per_page:50,count:0,total_pages:0,total_count:0}};
+ if(path.includes('/zones?')&&path.includes('&type=internal'))
+  return {...success([]),result_info:{page:1,per_page:50,count:0,total_pages:0,total_count:0}};
  if(path.includes('/zones?'))return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:1}};
  if(path.endsWith('/workers/routes'))return success([]);
  throw Error('unexpected mock request '+path);
@@ -68,14 +70,17 @@ const proof=await captureDarkExposure('new-live',{token:'synthetic-only',request
 assert.equal(proof.providerReadbackVerified,false);
 assert.equal(proof.publicEndpointsAbsentInSuppliedEvidence,true);
 assert.equal(proof.gate4Accepted,false);
-assert.equal(calls.length,4);
+assert.equal(calls.length,5);
 assert.ok(calls.every(p=>p.startsWith('/client/v4/')&&!/\b(post|put|delete)\b/i.test(p)));
 assert.ok(calls.some(p=>p.startsWith('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT+'&page=1&per_page=50')),
   'All-zone account inventory must be queried without a type filter');
-assert.ok(calls.filter(p=>p.startsWith('/client/v4/zones?')).every(p=>!/[?&]type=/.test(p)),
-  'A comma-joined or partial type filter must not exclude undiscovered Cloudflare zones');
-console.log('PASS all account zone types enumerated, with no restrictive provider type filter');
-console.log('PASS four exact read-only GET mock calls; no paid API, auth or remote state');
+assert.equal(calls.filter(p=>p.startsWith('/client/v4/zones?')).length,2);
+assert.ok(calls.some(p=>p.startsWith('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT+'&type=internal&page=1&per_page=50')),
+  'Internal zones must be separately enumerated because an unfiltered zones GET excludes them');
+assert.ok(calls.some(p=>p.startsWith('/client/v4/zones?account.id='+FIRE_DARK_ACCOUNT+'&page=1&per_page=50')),
+  'Ordinary account zones must remain covered independently');
+console.log('PASS ordinary and internal account zones enumerated separately; no missed internal route');
+console.log('PASS five exact read-only GET mock calls; no paid API, auth or remote state');
 const malformedCounts=async(_token,path)=>{
  const result=await mock(_token,path);
  if(path.includes('/zones?'))return {...result,result_info:{...result.result_info,count:0}};
@@ -183,3 +188,39 @@ await assert.rejects(
 );
 console.log('PASS changing account-zone total between pages cannot certify DARK ingress');
 console.log('TOTAL',passed+11,'targeted Gate4 checks PASS');
+
+/* Cloudflare zone listings exclude internal zones unless type=internal. A
+ * hidden internal-zone route must deny DARK absence, never pass silently. */
+const internalRoute=async (token,path)=>{
+ if(path.includes('/zones?')&&path.includes('&type=internal'))
+  return {...success([{id:foreign,account:{id:FIRE_DARK_ACCOUNT}}]),
+   result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:1}};
+ if(path.includes('/zones/'+foreign+'/workers/routes'))
+  return success([{pattern:'internal.example/*',script:'fire-fullapp-new-live'}]);
+ return mock(token,path);
+};
+const exposedInternal=await captureDarkExposure('new-live',{
+ token:'synthetic-only',request:internalRoute
+});
+assert.equal(exposedInternal.zonesInspected,2);
+assert.equal(exposedInternal.targetZoneRoutes,1);
+assert.equal(exposedInternal.publicEndpointsAbsentInSuppliedEvidence,false);
+assert.equal(exposedInternal.gate4Accepted,false);
+console.log('PASS real internal-zone Worker route cannot falsely certify DARK absence');
+await assert.rejects(captureDarkExposure('new-live',{
+ token:'synthetic-only',request:async (token,path)=>{
+  if(path.includes('/zones?')&&path.includes('&type=internal'))
+   throw Error('offline injected internal-zone inventory denial');
+  return mock(token,path);
+ }
+}),/internal-zone inventory denial/);
+console.log('PASS denied internal-zone inventory fails closed; no provider writes');
+await assert.rejects(captureDarkExposure('new-live',{
+ token:'synthetic-only',request:async (token,path)=>{
+  if(path.includes('/zones?')&&path.includes('&type=internal'))
+   return {...success([{id:zone,account:{id:FIRE_DARK_ACCOUNT}}]),
+    result_info:{page:1,per_page:50,count:1,total_pages:1,total_count:1}};
+  return mock(token,path);
+ }
+}),/overlap/);
+console.log('PASS overlapping ordinary/internal zone inventories fail closed');
