@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-DIRECT-READONLY-API-TOKEN-FALLBACK -->
+## November 22 — [x] additional NO-WRANGLER Cloudflare read-only API token fallback (NO DEPLOY)
+
+- [x] In SAME integrated draft PR282 command `owner_g4_g5_existing_session_readonly.mjs`, a second explicit owner Windows mode `--capture-env-token` now bypasses Wrangler/OAuth/browser entirely by reading ONLY the owner-supplied `CLOUDFLARE_API_TOKEN` process environment variable into memory, performing the same previously defined STAGING journal SELECT + DARK account-wide GET inventory. [Source `270c190`](https://github.com/kylebrooks86/first-in-response-website/commit/270c190340cc7c265db5c688005cd7cc49fb8a1e), [strict whitespace-guard correction `2a15347`](https://github.com/kylebrooks86/first-in-response-website/commit/2a153470633e02e6fdcaf179aef743b9ec400f04). Original `--capture` existing Wrangler mode unaffected.
+- [x] Existing CI-wired mock regression extended to require nonblank/safe-format environment token and reject malformed input without logging the value. **Exact new code/test source `2a15347` auto CI PENDING**; no PASS claim, no manual rerun or live provider calls.
+- [ ] **Formal G4-05 / G5-01 STILL OPEN**: tool source and owner API token *option* are NOT actual authenticated provider evidence; capture must happen on owner device after owner chooses token scopes. D1 Read is supported by Cloudflare's official D1 query API; G4 account-wide Worker/zone inventory may require separate read-only permissions. No request for token to be shared or put in GitHub. If existing Wrangler login is missing, an owner-created scoped token is the alternative, without reattempting ChatGPT Work Cloudflare login.
+- **Original 95 release count unchanged: 51 [x]/44 [ ], 4/10 accepted whole gates G1/G2/G3/G8.** G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, first real Job #0001 unused; no Worker/D1/Stripe changes, merge, deployment, R2 subscription or payment activation.
+
+---
+
 <!-- FIRE-NOV22-ONE-OWNER-CAPTURE-G4-G5 -->
 ## November 22 — [x] one owner Acer command for TWO outstanding hosted evidence gaps implemented on PR282 (NO DEPLOY)
 

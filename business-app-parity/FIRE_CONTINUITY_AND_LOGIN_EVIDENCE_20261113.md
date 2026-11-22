@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-DIRECT-READONLY-API-TOKEN-FALLBACK -->
+## November 22 — OPTIONAL DIRECT Cloudflare API token mode added; no Wrangler/browser login required
+
+**Actual additional source:** [`270c190`](https://github.com/kylebrooks86/first-in-response-website/commit/270c190340cc7c265db5c688005cd7cc49fb8a1e) adds `--capture-env-token` to the combined existing-session G4/G5 owner command; [`2a15347`](https://github.com/kylebrooks86/first-in-response-website/commit/2a153470633e02e6fdcaf179aef743b9ec400f04) corrects token-whitespace guard. This alternate path reads an owner-held ephemeral `CLOUDFLARE_API_TOKEN` environment value directly (without npm/npx/Wrangler sign-in/browser), validates format, and reuses only the two targeted read-only collectors. Token values, raw provider errors and customer records are NEVER printed/uploaded. Existing Wrangler mode remains available and is first preference; owner need only use fallback if old local credential missing. Scope limitations may produce partial D1 journal proof with G4 inventory STOP; partial evidence is preserved, not falsely marked accepted. Existing focused test extended, code-head CI ongoing at record; no auto test reruns requested.
+
+Formal physical G4-05/G5-01 and hosted release gates remain OPEN, 51/95 original completed, 4/10 accepted whole gates G1/G2/G3/G8. No real Cloudflare credential obtained by this assistant and no provider call, account change, R2 plan, Stripe/payments, migration, Worker route or deploy. Owner may choose a narrowly scoped token on their own account as a separate permission step after existing session fails.
+
+---
+
 <!-- FIRE-NOV22-ONE-OWNER-CAPTURE-G4-G5 -->
 ## November 22 — combined Gate 4/5 physical proof collector now in same draft PR282
 
