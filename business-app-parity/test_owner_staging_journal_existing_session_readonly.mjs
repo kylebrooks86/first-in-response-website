@@ -137,3 +137,35 @@ assert.equal(darkOnlyStop.darkPublicEndpointsAbsent,false);
 assert.equal(JSON.stringify(darkOnlyStop).includes(scopedToken),false);
 await assert.rejects(()=>captureG4DarkOnlyEvidence({token:'short'}));
 console.log('PASS: G4-only owner token collector skips accepted STAGING journal, denies incomplete inventory without exposing credentials.');
+
+
+/** Complete inventory with an exposed route is NOT a successful dark proof. */
+const darkExposed=await captureG4DarkOnlyEvidence({
+ token:scopedToken,
+ readDark:async ()=>({providerReadbackVerified:true,
+  completeInventoryFromSuppliedEvidence:true,
+  publicEndpointsAbsentInSuppliedEvidence:false,
+  gate4Accepted:false})
+});
+assert.equal(darkExposed.accountWideInventoryCaptured,true);
+assert.equal(darkExposed.darkPublicEndpointsAbsent,false);
+assert.equal(darkExposed.result,'G4_DARK_PUBLIC_ENDPOINTS_REQUIRE_REVIEW');
+assert.equal(darkExposed.stagingJournalNotQueried,true);
+assert.equal(darkExposed.gate4Accepted,false);
+assert.equal(JSON.stringify(darkExposed).includes(scopedToken),false);
+const combinedExposed=await captureG4G5MissingEvidence({
+ token:scopedToken,
+ readStaging:async()=>({target:STAGING_DB,
+  physicalDatabaseIdentityBeforeAfterVerified:true,sqlReadOnly:true,
+  providerWrites:false,journalCount:22,gate5Accepted:false}),
+ readDark:async()=>({providerReadbackVerified:true,
+  completeInventoryFromSuppliedEvidence:true,
+  publicEndpointsAbsentInSuppliedEvidence:false,gate4Accepted:false})
+});
+assert.equal(combinedExposed.stagingJournalCaptured,true);
+assert.equal(combinedExposed.accountWideInventoryCaptured,true);
+assert.equal(combinedExposed.darkPublicEndpointsAbsent,false);
+assert.equal(combinedExposed.result,'G4_G5_PUBLIC_ENDPOINTS_REQUIRE_REVIEW');
+assert.equal(combinedExposed.gate4Accepted,false);
+assert.equal(JSON.stringify(combinedExposed).includes(scopedToken),false);
+console.log('PASS: complete DARK inventory with public exposure returns review-required, never safe-clear.');
