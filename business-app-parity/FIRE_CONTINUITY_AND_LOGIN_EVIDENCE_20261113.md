@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-PHYSICAL-BOTH-DARK-API-CLEAR-AA3470B -->
+## November 22 — [x] ACTUAL owner Cloudflare G4 both-DARK account ingress readback (no repeat; G4-05 still compound/open)
+
+**Verified new owner Acer screenshot:** the corrected G4 read-only collector ran for both **DR** and **NEW LIVE** using the privately owned 7-day `FIRE G4 Read Only` Cloudflare token, returned **two consecutive** genuine provider-verified complete inventory receipts and the normal PowerShell prompt. In each visible receipt: `completeInventoryFromSuppliedEvidence:true`, `publicEndpointsAbsentInSuppliedEvidence:true`, `providerReadbackVerified:true`, `directReadOnlyCloudflareApi:true`, `providerDataMutated:false`. NEW LIVE's fully visible object additionally shows `result:FIRE_DARK_EXPOSURE_INVENTORY_CLEAR`, production/preview workers.dev both `false`, `targetCustomDomains:0`, `targetZoneRoutes:0`, `zonesInspected:0`, `accountCustomDomainsInspected:0`. DR's initial object is cropped, so no invented DR counts or identifiers. Account has zero returned ordinary+internal zones, consistent with previously accepted owner Domains `No data available` proof. The raw original image is not public: original `IMG_B1DFF754-93CA-4008-9165-0C631EAE9233.jpeg` SHA256 `072b197fc8118bf17dbd499b51a419a9c69a745a85ba02e2349c5549e13d506c`, size 305549 bytes.
+
+**[x] Precisely the missing DR+NEW LIVE account-wide DARK GET substep is now completed and permanently credited; NEVER request it or the previously accepted STAGING G5 22/25 migration journal again without changed provider state.** [Full scoped evidence, source/test commitments and limitations](evidence/FIRE_G4_OWNER_BOTH_DARK_ACCOUNT_INGRESS_API_CLEAR_20261122.md) (source evidence commit `aa3470b`). The original 95-row master G4-05 line remains **[ ]** because it includes wider QA/STAGING/Pages/version ingress/Access scope; other Access, hosted bytes and nonowner-denial checks are not certified by these receipts (all three false in screenshot). The original 95-row checklist now credits the specific successful provider [x] subproof in [commit `4559ab6`](https://github.com/kylebrooks86/first-in-response-website/commit/4559ab69e858c1b69ca9578a72da71a3af560e22).
+
+**No extra permissions/payment/deployment:** token private and removable/revocable by owner, no Cloudflare login attempts, paid R2 or other subscription, Access/Worker/D1/Stripe/provider writes, migrations, merge, publication, customer or photo mutations. **Unchanged formal original count 51/95 accepted, 44 remaining, full G1/G2/G3/G8 = 4/10 gates accepted; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, real Job #0001 unused.**
+
+---
+
 <!-- FIRE-NOV22-TOTAL-PAGES-FOCUSED-CI-28427D -->
 ## November 22 — [x] Cloudflare optional total_pages G4 targeted regression CI verified (no hosted gate closure)
 
