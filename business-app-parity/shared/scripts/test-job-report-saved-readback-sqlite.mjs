@@ -384,6 +384,26 @@ try{
  rt.env.DB.prepare=originalDrPrepare;
  eq(drOutage.status,503,'DR D1 outage fails closed without inventing saved report state');
  assertPrivatePost(drOutage,'DR D1 503');
+ // Soft-failed or incomplete D1 .all() responses must not pretend that a
+ // previously completed job has no report. Neither response may mutate D1.
+ const savedBeforeSoftFailure=JSON.stringify(
+  db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob));
+ for(const [label,result] of [
+  ['soft-failed D1 report list',{success:false,results:[]}],
+  ['missing D1 report results',{success:true}]
+ ]){
+  rt.env.DB.prepare=function(sql){
+   if(sql.includes('FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC'))
+    return {bind(){return {all:async()=>result}}};
+   return originalDrPrepare(sql);
+  };
+  const softRead=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
+  rt.env.DB.prepare=originalDrPrepare;
+  eq(softRead.status,503,'DR '+label+' must fail closed instead of reporting an empty history');
+  assertPrivatePost(softRead,'DR '+label+' response privacy');
+  eq(JSON.stringify(db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob)),
+   savedBeforeSoftFailure,'DR '+label+' leaves the saved job report intact');
+ }
  db.prepare("INSERT INTO job_reports(id,estimate_id,customer_id,checklist,notes,status,created_at,completed_at) VALUES(?,?,?,?,?,'draft',?,NULL)")
   .run('dr-report-historical-duplicate',drJob,customer,'{}','Synthetic DR duplicate',at);
  const drDuplicate=await drRoute.GET(new Request('https://fixture.invalid/api/job-reports?estimateId='+drJob));
