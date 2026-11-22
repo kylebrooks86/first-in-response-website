@@ -344,6 +344,8 @@ try{
  db.prepare('UPDATE job_reports SET status=?,completed_at=? WHERE estimate_id=?')
   .run('completed',drDb.completedAt,drJob);
 
+ const originalDrPrepare=rt.env.DB.prepare;
+
  // A soft-failed pre-edit history read must fail before any new report write.
  // A zero-row or absent result collection is not evidence the report vanished.
  const beforeSoftPost=JSON.stringify(db.prepare('SELECT * FROM job_reports WHERE estimate_id=?').get(drJob));
@@ -404,7 +406,6 @@ try{
  }));
  eq(oversized.status,413,'DR refuses oversized declared report bytes');
  eq(rt.counters(),beforeLarge,'DR oversize refusal performs no D1 operation');
- const originalDrPrepare=rt.env.DB.prepare;
  rt.env.DB.prepare=function(sql){
   if(sql.includes('FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC'))
    throw Error('Synthetic DR D1 report read outage');
