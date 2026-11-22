@@ -93,6 +93,9 @@ export default defineConfig(async () => {
           vars: {
             FIRE_ENV: "staging",
             SITE_ORIGIN: ORIGIN,
+            // Explicitly inert payment runtime in this STAGING-only candidate.
+            // Do not delete or change any existing hosted payment credentials.
+            FIRE_STRIPE_MODE: "disabled",
             ...reviewedJobNumberVars,
             ...reviewedQuickAuthVars
           },
