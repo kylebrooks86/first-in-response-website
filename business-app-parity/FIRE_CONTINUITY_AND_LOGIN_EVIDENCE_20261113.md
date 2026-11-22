@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-G4-DOMAIN-API-200-NULL-ERRORS-FIX-92AABFB -->
+## November 22 — G4 Cloudflare token API GET succeeds; strict source response-shape STOP corrected (NO DEPLOY)
+
+**Real owner Acer sanitized API readback (13:29 CST):** After a scoped 7-day read-only token was entered privately, direct Cloudflare Worker Domains GET returned **HTTP 200**, **success:true**, **ResultIsArray:true**, **HasPagination:true**, and **no reported numeric provider error codes**. This verifies a usable credential/GET path, **NOT** a complete DR or NEW LIVE account-wide ingress inventory and not a proof of zero public routes. The earlier DR-only collector stopped at `domains missing successful complete API response`, before all required account-domain/ordinary+internal-zone/zone-route scans. The owner also confirmed successful temporary environment cleanup; never copy/store/log the token. Do not request these same owner screenshots or repeat STAGING's accepted 22/25 physical journal.
+
+**Actual integrated draft PR #282 correction:** `owner_current_dark_exposure_readonly.mjs` commit [`2dcbdce`](https://github.com/kylebrooks86/first-in-response-website/commit/2dcbdce92356a46e877adf2ec8bea173187d9a81) accepts a successful provider wrapper when `errors` is `null` or omitted as well as empty `[]`, while still rejecting success:false, nonempty/malformed error data, missing results, incomplete pagination, uninspected internal zones, or a publicly routable target. [Focused synthetic fixture `75faf5d`](https://github.com/kylebrooks86/first-in-response-website/commit/75faf5d364b034524b1b0755c5f6269af428957c) covers both legitimate variations and negative denials; automatic [DR workflow #45061155579](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45061155579) showed new variations PASS, then caught unrelated shared mock-request-count fixture failure (21 vs 5). [Targeted fixture correction `92aabfb`](https://github.com/kylebrooks86/first-in-response-website/commit/92aabfb70abecde028bf6efdb9b4139529bf8305) resets only the test recorder before the pre-existing exact-GET assertion. **Corrected exact-source CI automatically triggered/pending at first readback; do NOT claim 27/27 yet.** These are real source/test changes, still unmerged and UNDEPLOYED, not actual provider gate acceptance.
+
+**Next owner action ONLY after code/test CI verdict:** update just the DR/NEW LIVE read-only checker on the existing Acer from exact reviewed PR282 commit, then privately run the two DARK GET inventories (no STAGING/D1). Revoke the token after verification; do not attempt Cloudflare browser logins, paid R2, migrations, merges, deployment or Stripe changes. Original numbered release stays **51/95 accepted, 44 open; G1/G2/G3/G8 accepted (4/10); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; first authentic Job #0001 unused.**
+
+---
+
 <!-- FIRE-NOV22-PR282-CI-6C8A8-27OF27 -->
 ## Nov 22 — PR282 current source CI 27/27 completed (not hosted proof)
 
