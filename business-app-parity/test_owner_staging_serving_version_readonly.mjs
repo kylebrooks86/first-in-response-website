@@ -73,11 +73,34 @@ assert.equal(evaluateStagingServing(deployment(),wrongDb).requiresConfigRemediat
 const r2=version();
 r2.result.resources.bindings.push({name:'BUCKET',type:'r2_bucket',bucket_name:'private'});
 assert.equal(evaluateStagingServing(deployment(),r2).versionScopedR2Count,1);
+// A disabled Stripe mode is not itself a payment credential. Keep its
+// value redacted, but do not incorrectly demand removal of a safe flag.
+const disabledMode=version();
+disabledMode.result.resources.bindings.push({name:'FIRE_STRIPE_MODE',type:'plain_text',text:'disabled'});
+const disabledVerdict=evaluateStagingServing(deployment(),disabledMode);
+assert.equal(disabledVerdict.paymentModeExplicitlyDisabled,true);
+assert.equal(disabledVerdict.paymentModeNotEnabled,true);
+assert.equal(disabledVerdict.versionScopedUnexpectedPaymentBindingCount,0);
+assert.equal(disabledVerdict.requiresConfigRemediation,false);
+assert.ok(!JSON.stringify(disabledVerdict).includes('"disabled"'));
+const disabledWithSecret=version();
+disabledWithSecret.result.resources.bindings.push(
+ {name:'FIRE_STRIPE_MODE',type:'plain_text',text:'disabled'},
+ {name:'STRIPE_SECRET_KEY',type:'secret_text',text:secret}
+);
+const credentialVerdict=evaluateStagingServing(deployment(),disabledWithSecret);
+assert.equal(credentialVerdict.versionScopedUnexpectedPaymentBindingCount,1);
+assert.equal(credentialVerdict.paymentModeExplicitlyDisabled,true);
+assert.equal(credentialVerdict.requiresConfigRemediation,true);
 const wrongMode=version();
 wrongMode.result.resources.bindings.push({name:'FIRE_STRIPE_MODE',type:'plain_text',text:'live'});
-assert.equal(evaluateStagingServing(deployment(),wrongMode).paymentModeExplicitlyDisabled,false);
-assert.ok(!JSON.stringify(evaluateStagingServing(deployment(),wrongMode)).includes('"live"'));
-console.log('PASS wrong D1, unexpected R2, unsafe payment mode are fail-closed review flags');
+const unsafeVerdict=evaluateStagingServing(deployment(),wrongMode);
+assert.equal(unsafeVerdict.paymentModeExplicitlyDisabled,false);
+assert.equal(unsafeVerdict.paymentModeNotEnabled,false);
+assert.equal(unsafeVerdict.versionScopedUnexpectedPaymentBindingCount,0);
+assert.equal(unsafeVerdict.requiresConfigRemediation,true);
+assert.ok(!JSON.stringify(unsafeVerdict).includes('"live"'));
+console.log('PASS wrong D1, R2, disabled-mode versus payment credential, unsafe mode fail closed');
 
 for(const [d,v] of [
  [success({deployments:[]}),version()],
