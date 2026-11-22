@@ -138,6 +138,9 @@ for(const mode of scenarios){
   }
   check(writes===previousWrites&&puts===previousPuts&&reads===previousReads,
     'Denied or malformed photo principals cause zero storage or D1 work');
+  // Restore an authenticated owner after malformed-principal negatives;
+  // otherwise this case only tests a 401 and never reaches the browser-origin guard.
+  user={email:'kylebrooks8605@gmail.com'};
   const hostile=request();
   hostile.headers.set('origin','https://forged-owner.example.invalid');
   hostile.headers.set('sec-fetch-site','cross-site');
