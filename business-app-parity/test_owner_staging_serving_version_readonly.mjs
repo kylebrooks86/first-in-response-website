@@ -15,8 +15,7 @@ const version=()=>success({id,resources:{bindings:[
  {name:'DB',type:'d1',database_id:TARGETS.staging.database},
  {name:'FIRE_ADMIN_PASSWORD_HASH',type:'secret_text',text:secret},
  {name:'FIRE_SESSION_SECRET',type:'secret_text',text:secret},
- {name:'FIRE_STRIPE_MODE',type:'plain_text',text:'disabled'},
- {name:'FIRE_ENV',type:'plain_text',text:'STAGING_SECRET_FREE_TEXT'}
+{name:'FIRE_ENV',type:'plain_text',text:'STAGING_SECRET_FREE_TEXT'}
 ]}});
 const script=fileURLToPath(new URL('./owner_staging_serving_version_readonly.mjs',import.meta.url));
 const dry=JSON.parse(execFileSync(process.execPath,[script],{
@@ -44,7 +43,8 @@ assert.equal(receipt.directCloudflareReadOnlyApi,false);
 assert.equal(receipt.activeVersionId,id);
 assert.equal(receipt.versionScopedD1IdentityMatches,true);
 assert.equal(receipt.versionScopedMissingAuthCount,0);
-assert.equal(receipt.paymentModeExplicitlyDisabled,true);
+assert.equal(receipt.paymentModeExplicitlyDisabled,false);
+assert.equal(receipt.paymentModeNotEnabled,true);
 assert.equal(receipt.requiresConfigRemediation,false);
 assert.equal(receipt.providerDataMutated,false);
 assert.equal(receipt.gate4Accepted,false);
@@ -74,7 +74,7 @@ const r2=version();
 r2.result.resources.bindings.push({name:'BUCKET',type:'r2_bucket',bucket_name:'private'});
 assert.equal(evaluateStagingServing(deployment(),r2).versionScopedR2Count,1);
 const wrongMode=version();
-wrongMode.result.resources.bindings.find(x=>x.name==='FIRE_STRIPE_MODE').text='live';
+wrongMode.result.resources.bindings.push({name:'FIRE_STRIPE_MODE',type:'plain_text',text:'live'});
 assert.equal(evaluateStagingServing(deployment(),wrongMode).paymentModeExplicitlyDisabled,false);
 assert.ok(!JSON.stringify(evaluateStagingServing(deployment(),wrongMode)).includes('"live"'));
 console.log('PASS wrong D1, unexpected R2, unsafe payment mode are fail-closed review flags');
@@ -88,7 +88,7 @@ for(const [d,v] of [
  [deployment(),success({id:'00000000-0000-4000-8000-000000000000',resources:{bindings:version().result.resources.bindings}})],
  [deployment(),success({id,resources:{bindings:{}}})],
  [deployment(),{success:false,errors:[{message:secret}],result:version().result}],
- [deployment(),success({id,resources:{bindings:[]}})]
+ [deployment(),{success:true,errors:[{message:'provider error'}],result:version().result}]
 ])assert.throws(()=>evaluateStagingServing(d,v),/READ-ONLY STOP|incomplete provider/);
 await assert.rejects(captureStagingServing({token:'short',request:requester}),/READ-ONLY STOP/);
 await assert.rejects(captureStagingServing({token,request:async()=>{throw Error(secret)}}),/SYNTHETIC_NEVER_SHOW/);
