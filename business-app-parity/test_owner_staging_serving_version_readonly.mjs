@@ -55,7 +55,9 @@ assert.equal(receipt.versionScopedD1IdentityMatches,true);
 assert.equal(receipt.versionScopedMissingAuthCount,0);
 assert.equal(receipt.paymentModeExplicitlyDisabled,false);
 assert.equal(receipt.paymentModeNotEnabled,true);
-assert.equal(receipt.requiresConfigRemediation,false);
+// Even with correct D1 and both auth secrets, an absent mode is NOT
+// affirmative Stripe-disabled STAGING isolation evidence.
+assert.equal(receipt.requiresConfigRemediation,true);
 assert.equal(receipt.providerDataMutated,false);
 assert.equal(receipt.gate4Accepted,false);
 assert.equal(receipt.servingCodeBytesVerified,false);
@@ -64,7 +66,7 @@ assert.equal(receipt.stripeDependencyCleared,false);
 const redacted=JSON.stringify(receipt);
 for(const sensitive of [secret,token,TARGETS.staging.database,'STAGING_SECRET_FREE_TEXT'])
  assert.ok(!redacted.includes(sensitive));
-console.log('PASS two exact read-only GETs, active 100% version, D1, auth, mode and zero sensitive output');
+console.log('PASS read-only GETs, D1, auth and absent Stripe mode fail-closed without secrets');
 
 const bad=version();
 bad.result.resources.bindings=bad.result.resources.bindings.filter(x=>x.name!=='FIRE_ADMIN_PASSWORD_HASH');
