@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-G404-EXPLICIT-STRIPE-DISABLE-2497B1D -->
+## November 22, 2026 — [x] G4-04 STAGING checker fail-closed mode hardening (SOURCE ONLY, no hosted acceptance)
+
+- [x] Actual current integrated DRAFT PR #282 production evidence-checker code [`17d8f34`](https://github.com/kylebrooks86/first-in-response-website/commit/17d8f344106f08feef187bd3eb7e8587168a81df) now requires an **explicit** `FIRE_STRIPE_MODE=disabled` plain-text binding for STAGING configuration signoff. Previously, a missing mode was classified as "not enabled" and did not itself trigger remediation when other bindings were clean. The separate factual `paymentModeNotEnabled` and `paymentModeExplicitlyDisabled` receipt fields are retained, but absence cannot result in false config-ready verdict.
+- [x] The already CI-wired exact STAGING two-GET mock regression is updated at [`2497b1d`](https://github.com/kylebrooks86/first-in-response-website/commit/2497b1d99676322ceed3e8483022795c2519551b): correct D1/auth but missing mode must require remediation, while explicitly disabled mode with no payment credentials remains allowed; other observed missing hash/extra Stripe credential/split-traffic/privacy negative cases remain. **Automatic changed-source CI verdict pending independent readback; do not claim PASS yet.**
+- This is real source/test development, not any new remote Cloudflare version, TEST/LIVE payment change or original numbered G4-04 checkbox. The already physically confirmed STAGING version `7838d0ea-be89-49c6-9984-d3b021082d72` remains 100%-serving with missing `FIRE_ADMIN_PASSWORD_HASH`, one unexpected payment credential, and no explicit disabled-mode evidence. The approved local DPAPI STAGING credential preparation, current serving-version GET, owner-only Access and other accepted evidence are NOT to be repeated.
+- **Formal board unchanged: 51/95 original numbered accepted; 4/10 whole gates G1/G2/G3/G8, G4/G5/G6/G7/G9/G10 OPEN.** DRAFT/unmerged/undeployed, DARK NEW LIVE NO-GO, real Job #0001 unused. No provider write, Worker/Access/secret change, Stripe payment, SQL/D1 migration, R2/subscription, merge or publication.
+
+---
+
 <!-- FIRE-NOV22-G404-PHYSICAL-SERVING-VERSION-BС71B8F -->
 ## November 22, 2026 ~16:10 CST — [x] REAL Cloudflare STAGING active-version metadata GET captured (physical owner Acer); G4-04 configuration FAIL / NO DEPLOY
 
