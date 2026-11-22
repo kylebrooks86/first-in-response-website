@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-STAGING-ACTIVE-VERSION-SOURCE-CI-961C519 -->
+## November 22 — [x] STAGING serving-version G4-04 read-only source/tests actually developed and focused CI PASS; [ ] physical served version still missing
+
+- [x] Strict single-target two-GET active deployment/version API checker, wrong D1 / missing auth / stray Stripe / R2 guards and secret-redaction negative tests committed to [integrated Draft PR282 `961c519`](https://github.com/kylebrooks86/first-in-response-website/commit/961c5198152efc7cb6c5c226661a91ef169252d7). Focused actual new test and whole [DR/G4 GitHub Actions run #45072899046](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45072899046) **COMPLETED SUCCESS**. [Scoped evidence](../evidence/FIRE_STAGING_SERVING_VERSION_DEPENDENCY_GET_20261122.md). No owner Acer test reruns or provider contact.
+- [ ] **Original G4-04 unchanged:** owner has NOT run this new serving-version GET on physical STAGING; the already accepted four-target script-level settings readback finds missing `FIRE_ADMIN_PASSWORD_HASH` and one unexpected payment credential. STAGING DPAPI preparation DONE locally, never repeat. The exact version/Stripe dependency and safe inactive-only correction remain unresolved; no code source CI is hosted evidence. Previously applied STAGING owner-only All traffic Access preserved, do not redo.
+- Formal original tally **51/95 accepted**, **4/10 full gates G1/G2/G3/G8**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE dark and real Job #0001 unused. Do NOT call this supplemental source preparation original item #52. No Cloudflare/Stripe/SQL/provider mutation, R2 subscription, merge or deploy.
+
+---
+
 <!-- FIRE-NOV22-OWNER-ACER-DPAPI-PREPARED-PHYSICAL-CDA8A71 -->
 ## November 22, 2026 ~15:26 CST — [x] Owner executed STAGING offline DPAPI credential preparation: physical PASS (NO DEPLOY)
 
