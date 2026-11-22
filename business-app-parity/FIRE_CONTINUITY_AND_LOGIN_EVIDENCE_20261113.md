@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-STAGING-ACTIVE-SERVING-VERSION-GET-CI-961C519 -->
+## Nov 22, 2026 — NEW STAGING serving-version evidence collector committed; focused changed-source CI PASS; physical capture pending
+
+**Exact executable/test/workflow SHA `961c5198152efc7cb6c5c226661a91ef169252d7`** (integrated unmerged Draft PR282) implements `business-app-parity/owner_staging_serving_version_readonly.mjs` and synthetic regression, automatically wired to existing DR/G4 workflow. [Run #45072899046](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45072899046) **COMPLETED SUCCESS** for the actual new STAGING serving deployment/version binding GET-only test step and entire DR/G4 workflow. At initial head-wide observation 22/27 workflow groups success, 3 in progress, 2 pending; no all-green claim. [Permanent sanitized evidence](evidence/FIRE_STAGING_SERVING_VERSION_DEPENDENCY_GET_20261122.md).
+
+This new collector deliberately does NOT repeat accepted four-target script settings, DR/NEW LIVE ingress, STAGING 22/25 migration journal, or local DPAPI credential preparation. It performs only two STAGING Cloudflare read-only GETs (latest active deployment and the exact serving version's binding metadata), prints sanitized version IDs and D1/auth/payment/R2 flags, and stops on split/ambiguous states without outputting secret values. It is OFFLINE by default and requires an existing owner Windows TTY plus already-held read-only token for `--capture`. **No physical execution of this new script yet**, no login attempt and no provider write. The owner’s STAGING private passphrase hash remains locally DPAPI encrypted, not hosted installed. Unexpected STAGING payment credential still needs safe dependency reconciliation before any deletion. `wrangler secret put` is prohibited because it deploys immediately.
+
+**No original release gate inflation:** 51/95 numbered accepted; G1/G2/G3/G8=4/10 whole gates; G4-04/G4-05/G4-06 and G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, first real Job #0001 unused. No paid Cloudflare/R2, no Stripe/payment, D1/SQL, Access, Worker deployment/secret, merge or public cutover.
+
+---
+
 <!-- FIRE-NOV22-OWNER-ACER-DPAPI-PREPARED-PHYSICAL-CDA8A71 -->
 ## November 22, 2026 ~15:26 CST — [x] Owner executed STAGING offline DPAPI credential preparation: physical PASS (NO DEPLOY)
 
