@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-NOTIFICATION-SOFT-D1-BC964D9 -->
+## November 21 — [x] DR notification silent D1 failure/zero-unread false success corrected, [x] true-route regressions added (SOURCE ONLY)
+
+- [x] **Independent DR owner notification GET source fixed** at [`b67f523`](https://github.com/kylebrooks86/first-in-response-website/commit/b67f52331afb53a2babcb3eb0fdf05012172aefb): when D1 `.all()` returns `success:false` or a missing/non-array `results` payload, the owner inbox now reports the existing private 503 unavailable response instead of a misleading successful zero-unread activity history. The existing overpayment exception, mark-all, notification resolution, no-store/cookie/nosniff guards, and all D1 writes remain unchanged.
+- [x] **Two real independent DR route test cases added** in [`bc964d9`](https://github.com/kylebrooks86/first-in-response-website/commit/bc964d9e5a088b4237486d0e55c95e13418d0206) to the already CI-wired `shared/scripts/test-notification-mark-all-sqlite.mjs`: D1 `success:false` with empty rows and missing rows both must return 503 with private session-vary headers and an unavailable error, never a confirmed zero. Test also verifies saved notification rows are intact; no new workflow/provider/user testing created.
+- [ ] **Changed-code CI acceptance remains pending** for source/test SHA `bc964d9e5a088b4237486d0e55c95e13418d0206` or an identical-code successor; do not count previous 27/27 passes as proof of this new fix.
+- [ ] **Formal original numbered release remains 51/95; accepted G1/G2/G3/G8 (4/10).** G4/G5/G6/G7/G9/G10 hosted requirements OPEN. DR/NEW LIVE DARK; first LIVE Job #0001 unused. No Cloudflare login, Access/Worker/provider/D1/SQL/Stripe/payment, paid R2, production merge, publish or real customer data action.
+
+---
+
 <!-- FIRE-NOV21-DR-JOB-REPORT-SOFT-D1-0BD387A -->
 ## November 21 — [x] DR job-report empty-history false-success defect corrected, [x] two actual-route D1 cases added (SOURCE ONLY)
 
