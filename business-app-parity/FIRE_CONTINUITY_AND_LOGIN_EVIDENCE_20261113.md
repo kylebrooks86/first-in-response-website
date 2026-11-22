@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-PR282-CI-6C8A8-27OF27 -->
+## Nov 22 — PR282 current source CI 27/27 completed (not hosted proof)
+
+**Verified GitHub readback, no rerun:** Exact draft PR282 HEAD `6c8a8e8c7bebe52364863f1144253e64c48dd017` shows 27 PR-triggered GitHub Action workflow groups **completed/success 27 of 27**, zero failed/cancelled/pending, including the DR dark-binding offline check. It includes the latest internal-zone ingress completeness source guard and G4 public endpoint REVIEW_REQUIRED exit guard with their changed-code targeted tests. Earlier interim failed/pending workflow notes remain correct for those *older* source versions, but current pending source CI is resolved. GitHub refs: https://github.com/kylebrooks86/first-in-response-website/pull/282 and https://github.com/kylebrooks86/first-in-response-website/actions/runs/45035314542.
+
+**Owner Acer G4 action context:** Screenshot shows a PowerShell `Read-Host -AsSecureString` prompt for owner-managed Cloudflare read-only token, proceeding to `node .\\business-app-parity\\owner_g4_g5_existing_session_readonly.mjs --capture-dark-env-token`. It does **not** show a token entry or successful authenticated G4 inventory. A private scoped read-only token must never be sent to the assistant/GitHub; avoid new Cloudflare browser login. Previously accepted owner G5 STAGING physical 22-of-25 journal and other archived screens remain final for their respective scope; no repeat. G4 inventory currently STOP, not certified absence and not actual demonstrated exposure.
+
+**Formal original 95 release status unchanged:** 51/95, 4/10 gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 open. NEW LIVE DARK/NO-GO; authentic Job #0001 unused. No Cloudflare, D1, Access, Stripe, customer/photo, provider writes, subscription activation, Git merge/deploy or release.
+
+---
+
 <!-- FIRE-NOV22-DARK-EXPOSURE-CLEAR-EXIT-GUARD -->
 ## November 22 — G4 DARK public-ingress verification now fails closed on discovered exposure (source-only)
 
