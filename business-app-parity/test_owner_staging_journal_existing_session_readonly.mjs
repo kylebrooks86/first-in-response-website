@@ -52,3 +52,45 @@ assert.equal(seen.every(x=>x[1].redirect==='error'),true);
 assert.equal(result.providerWrites,false);
 assert.equal(result.gate5Accepted,false);
 console.log('PASS: FIRE STAGING pinned 22/25 or 25/25 journal; guards, dual identity and GET/SELECT-only sequence.');
+
+/** New one-credential owner command: BOTH still-open physical gap captures. */
+const {captureG4G5MissingEvidence}=await import('./owner_g4_g5_existing_session_readonly.mjs');
+const scopedToken='t'.repeat(40);
+const called=[];
+const combined=await captureG4G5MissingEvidence({
+ token:scopedToken,
+ readStaging:async ({token})=>{
+  assert.equal(token,scopedToken);called.push('staging');
+  return {result:'STAGING_22_OF_25_PINNED_JOURNAL_VERIFIED',target:STAGING_DB,
+   physicalDatabaseIdentityBeforeAfterVerified:true,sqlReadOnly:true,
+   providerWrites:false,journalCount:22,gate5Accepted:false};
+ },
+ readDark:async ({token})=>{
+  assert.equal(token,scopedToken);called.push('dark');
+  return {providerReadbackVerified:true,completeInventoryFromSuppliedEvidence:true,
+   publicEndpointsAbsentInSuppliedEvidence:true,gate4Accepted:false};
+ }
+});
+assert.deepEqual(called,['staging','dark']);
+assert.equal(combined.stagingJournalCaptured,true);
+assert.equal(combined.accountWideInventoryCaptured,true);
+assert.equal(combined.darkPublicEndpointsAbsent,true);
+assert.equal(combined.result,'G4_G5_READONLY_EVIDENCE_CAPTURED_FOR_REVIEW');
+assert.equal(combined.providerWrites,false);
+assert.equal(combined.loginAttempted,false);
+assert.equal(combined.tokenStored,false);
+assert.equal(combined.gate4Accepted,false);
+assert.equal(combined.gate5Accepted,false);
+assert.equal(JSON.stringify(combined).includes(scopedToken),false);
+const partial=await captureG4G5MissingEvidence({
+ token:scopedToken,
+ readStaging:async()=>{throw Error('private provider diagnostic: secret '+scopedToken)},
+ readDark:async()=>({providerReadbackVerified:true,
+  completeInventoryFromSuppliedEvidence:false,publicEndpointsAbsentInSuppliedEvidence:false})
+});
+assert.equal(partial.stagingJournalCaptured,false);
+assert.equal(partial.accountWideInventoryCaptured,false);
+assert.equal(partial.result,'G4_G5_INCOMPLETE_REVIEW_REQUIRED');
+assert.equal(JSON.stringify(partial).includes(scopedToken),false);
+assert.throws(()=>captureG4G5MissingEvidence({token:'bad'}));
+console.log('PASS: combined owner-only G4/G5 evidence command uses one credential, preserves partial proof and no secrets.');
