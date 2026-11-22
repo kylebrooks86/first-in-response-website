@@ -40,6 +40,7 @@ export function evaluateStagingServing(deploymentResponse,versionResponse){
  const stripeMode=v.resources.bindings.filter(x=>x.name==='FIRE_STRIPE_MODE');
  const paymentModeExplicitlyDisabled=stripeMode.length===1&&
    stripeMode[0].type==='plain_text'&&stripeMode[0].text==='disabled';
+ const paymentModeNotEnabled=stripeMode.length===0||paymentModeExplicitlyDisabled;
  const unexpectedPaymentCredentialBindings=bindingCheck.unexpectedPaymentCredentialBindings;
  return Object.freeze({
    result:'FIRE_STAGING_SERVING_VERSION_METADATA_READ_ONLY',
@@ -51,13 +52,13 @@ export function evaluateStagingServing(deploymentResponse,versionResponse){
    versionScopedUnexpectedPaymentBindingCount:unexpectedPaymentCredentialBindings,
    versionScopedR2Count:bindingCheck.r2BindingCount,
    versionScopedWrongTargetAuthCount:bindingCheck.wrongTargetAuthSecretCount,
-   paymentModeExplicitlyDisabled,
+   paymentModeExplicitlyDisabled,paymentModeNotEnabled,
    requiresConfigRemediation:!bindingCheck.expectedDBIdentityMatches||
       bindingCheck.missingExpectedAuthSecretNameCount>0||
       unexpectedPaymentCredentialBindings>0||
       bindingCheck.r2BindingCount>0||bindingCheck.wrongTargetAuthSecretCount>0||
       !bindingCheck.expectedAuthSecretTypesValid||bindingCheck.unreviewedBindingTypeCount>0||
-      !paymentModeExplicitlyDisabled,
+      !paymentModeNotEnabled,
    // Metadata is not served executable-byte attestation or nonowner Access proof.
    servingCodeBytesVerified:false,accessEnforcementVerified:false,
    secretValuesExposed:false,providerDataMutated:false,
