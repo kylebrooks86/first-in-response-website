@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../../owner-auth";
+import {ownerBrowserWriteScope} from '../../../../lib/customer-write-request-guard.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){
@@ -48,8 +49,12 @@ async function getPhoto(_request: Request, context: { params: Promise<{ id: stri
   }
 }
 
-async function deletePhoto(_request: Request, context: { params: Promise<{ id: string }> }) {
+async function deletePhoto(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Mirror QA-master: a foreign page or sibling host must not delete an
+  // owner's photo through the authenticated browser session.
+  const deniedBrowserWrite=ownerBrowserWriteScope(request,false);
+  if(deniedBrowserWrite)return deniedBrowserWrite;
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
   const row = await env.DB.prepare("SELECT customer_id AS customerId,object_key AS objectKey FROM customer_photos WHERE id=?").bind(id).first<{customerId:string;objectKey:string}>();

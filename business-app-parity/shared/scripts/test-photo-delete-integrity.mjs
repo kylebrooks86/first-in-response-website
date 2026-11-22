@@ -173,6 +173,23 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
         isOwnerPrivate(refused)&&deletion.rows.size===1&&deletion.objects.size===1&&
         deletion.events.join(',')==='db-select');
     }
+    // A forged Origin or Fetch Metadata header must be rejected BEFORE
+    // resolving a customer photo or touching either independent store.
+    for(const [label,headers] of [
+      ['cross-site',{'origin':'https://foreign.example.invalid','sec-fetch-site':'cross-site'}],
+      ['same-site sibling',{'origin':'https://sibling.synthetic.invalid','sec-fetch-site':'same-origin'}],
+      ['forged fetch metadata',{'origin':'https://synthetic.invalid','sec-fetch-site':'cross-site'}],
+    ]){
+      const denied=harness(file);
+      const response=await denied.DELETE(headers);
+      pass('DR photo DELETE '+label+' denied before D1/R2 or byte loss',
+        response.status===403&&isOwnerPrivate(response)&&denied.events.length===0&&
+        denied.rows.size===1&&denied.objects.size===1);
+    }
+    const sameOrigin=harness(file);
+    const deletion=await sameOrigin.DELETE({'origin':'https://synthetic.invalid','sec-fetch-site':'same-origin'});
+    pass('DR photo DELETE same-origin owner removes its own saved record and bytes',
+      deletion.status===200&&isOwnerPrivate(deletion)&&sameOrigin.rows.size===0&&sameOrigin.objects.size===0);
   }
   let t=harness(file);let res=await t.DELETE();pass(`${file} normal success removes both`,res.status===200&&t.rows.size===0&&t.objects.size===0);
   if(patched)pass(`${file} successful owner photo DELETE response is private`,isOwnerPrivate(res));
