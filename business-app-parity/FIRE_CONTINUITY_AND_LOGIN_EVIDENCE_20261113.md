@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-G4-INTERNAL-ZONE-INVENTORY-20261122 -->
+## November 22 — internal-zone G4 account-wide route omission corrected on active PR #282
+
+Read-only source review against Cloudflare's documented **List Zones** endpoint found a real incomplete-inventory risk: with no `type` query, Cloudflare **excludes `internal` zones**. The existing G4 collector treated the default zone list as exhaustive and could falsely certify no DR/NEW LIVE routes on an omitted internal zone. Corrected atomically with targeted source-only regression in [commit `1f733167d523301a39817286ce47d2b8a6b0e441`](https://github.com/kylebrooks86/first-in-response-website/commit/1f733167d523301a39817286ce47d2b8a6b0e441): separately paginate regular account zones and explicitly filtered `type=internal`, reject overlaps, GET routes in every returned account zone, and refuse incomplete/denied reads. Targeted offline test now covers an internal-zone route that defeats dark absence, denied internal-zone inventory and duplicate scope. **Code/test CI automatically triggered, final exact-SHA verdict pending** at documentation time. Official API behavior: https://developers.cloudflare.com/api/resources/zones/methods/list/.
+
+This fixes local diagnostic coverage but does **NOT** establish actual physical account-wide route/Access status. Prior real owner Acer STAGING G5 physical read receipt (22/25) and per-Worker DARK dashboard screenshots are already accepted; do not repeat. The existing G4-only owner fallback `node .\\business-app-parity\\owner_g4_g5_existing_session_readonly.mjs --capture-dark-env-token` uses owner-supplied temporary read-only Cloudflare API token; it does not query D1, invoke browser login, or write provider state. Do not ask for or store credentials. If the owner GET is still denied, STOP; diagnose read-only scope rather than trying a login or changing account settings. Original checklist remains **51/95**, whole gates **4/10**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO, Job #0001 unused. This Git commit does not merge/deploy/migrate/publish or activate paid storage or payment services.
+
+---
+
 <!-- FIRE-NOV22-OWNER-ACER-G5-JOURNAL-22-OF-25-PROVEN -->
 ## November 22 — ACTUAL owner Acer read-only G5 STAGING journal physical receipt, 22/25 verified
 

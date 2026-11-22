@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-G4-INTERNAL-ZONE-INVENTORY-20261122 -->
+## November 22 — [x] REAL Gate 4 read-only checker source defect fixed: internal-zone routes cannot be skipped (NO DEPLOY)
+
+- [x] **Real source change in existing integrated draft PR #282:** [atomic code/test commit `1f73316`](https://github.com/kylebrooks86/first-in-response-website/commit/1f733167d523301a39817286ce47d2b8a6b0e441). Cloudflare's current **List Zones** API documents that omitting the `type` query **excludes internal zones**, so the previous unfiltered account zone collector did not cover all possible Worker route locations despite its completeness claim. The read-only G4 collector now separately and fully paginates ordinary account zones and `type=internal` zones, rejects duplicate IDs across inventories, and checks route GETs in their combined set. An inaccessible, incomplete, or ambiguous internal-zone response **fails closed** instead of certifying DARK absence. This is a genuine source logic fix, not a repeated preflight.
+- [x] **Targeted actual offline regression authored** in the existing CI-wired `test_owner_current_dark_exposure_readonly.mjs`: hidden internal-zone Worker route must defeat false absence; denial of internal-zone GET must refuse proof; duplicate zone enumeration must refuse proof; ordinary+internal read-only request sequence asserted. New exact-source GitHub automatic CI **PENDING**, no synthetic or provider-hosted PASS claimed prematurely. Cloudflare reference: https://developers.cloudflare.com/api/resources/zones/methods/list/
+- [ ] **Original numbered G4-05 STILL OPEN:** need actual comprehensive account GET inventory from owner's authorized session/token plus separate Access/hosted evidence. The Acer readback previously returned `DARK_ACCOUNT_READONLY_STOP`, which does not establish actual exposure or absence. Previously accepted STAGING journal proof 22/25 and per-Worker dashboard captures are not to be repeated. If using a permission-scoped owner token, use the existing **G4-only** `--capture-dark-env-token` mode: it deliberately skips the settled G5 D1 query. Never share the token.
+- Original checklist **51/95 accepted**, 44 open; whole gates **4/10** G1/G2/G3/G8 accepted. G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO; real Job #0001 not issued. **No provider login, token access, Worker/route/Access/D1/SQL/Stripe/R2, payment, merge, deploy or publication.**
+
+---
+
 <!-- FIRE-NOV22-OWNER-ACER-G5-JOURNAL-22-OF-25-PROVEN -->
 ## November 22 — [x] ACTUAL owner Acer STAGING journal receipt reviewed; 22/25 physical D1 proof (NO DEPLOY)
 
