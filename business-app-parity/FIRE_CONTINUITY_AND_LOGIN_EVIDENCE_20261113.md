@@ -1,3 +1,13 @@
+<!-- FIRE-NOV21-DR-REPORT-TEST-FIX-0B08B1E -->
+## November 21 — [x] genuine DR job-report test blocker corrected; [ ] changed-code CI pending (SOURCE ONLY)
+
+- [x] **Real existing regression failure investigated and corrected:** automatic [QA/STAGING job #137047972087](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44970136294/job/137047972087) failed at new DR report POST soft-D1 test because originalDrPrepare was declared after use, causing a JavaScript ReferenceError at line 368. Other 26/27 workflow groups at documentation-only SHA 3b93d349 succeeded; DO NOT count failing group as PASS.
+- [x] **Test fixture corrected on SAME draft PR282** in [commit 0b08b1e](https://github.com/kylebrooks86/first-in-response-website/commit/0b08b1e27f90c1b65a0abb46f285db27a506bb83): initialize original D1 prepare before both pre-edit list failure injections, remove later duplicate declaration, preserve exact saved-report/no-write/503 private assertions. No real Worker handler, financial code, Cloudflare, SQL, Stripe or deployment changed.
+- [ ] **Changed-code CI NOT YET ACCEPTED:** automatically triggered [QA/STAGING run #44970771301](https://github.com/kylebrooks86/first-in-response-website/actions/runs/44970771301) on exact changed SHA 0b08b1e in progress at first verification. Mark only after physical GitHub CI success; never borrow older source proof or rerun accepted tests.
+- [ ] **Formal ORIGINAL release tasks still 51/95 accepted (44 open), 4/10 whole gates G1/G2/G3/G8 accepted.** G4/G5/G6/G7/G9/G10 require hosted proof and remain OPEN. NEW LIVE DARK/NO-GO and first real Job #0001 unused. This ADDITIONAL source-fix checkbox is not a formal original-95 acceptance.
+
+---
+
 <!-- FIRE-NOV21-DR-JOB-REPORT-POST-SOFT-D1-2123CF3 -->
 ## November 21 — [x] independent DR job-report POST refuses uncertain D1 history; [x] actual-handler native SQLite regression added (SOURCE ONLY)
 
