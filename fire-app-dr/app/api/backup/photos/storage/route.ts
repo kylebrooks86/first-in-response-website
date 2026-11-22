@@ -12,7 +12,7 @@ async function verifiedPhotoRows<T>(sql:string):Promise<T[]>{
  const result=await env.DB.prepare(sql).all<T>();
  // D1 may report success:false without throwing, or return no result array.
  // Neither can prove a complete and recoverable photo-storage archive.
- if(result?.success===false||!Array.isArray(result?.results))
+ if((result as {success?:boolean}).success===false||!Array.isArray(result?.results))
   throw new Error('Photo archive D1 read was not confirmed');
  return result.results;
 }

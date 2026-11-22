@@ -10,7 +10,7 @@ async function authorized(){
 }
 async function verifiedPhotoRows<T>(sql:string):Promise<T[]>{
  const result=await env.DB.prepare(sql).all<T>();
- if(result?.success===false||!Array.isArray(result?.results))
+ if((result as {success?:boolean}).success===false||!Array.isArray(result?.results))
   throw new Error('Photo integrity D1 read was not confirmed');
  return result.results;
 }
