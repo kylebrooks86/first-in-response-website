@@ -1033,8 +1033,14 @@ jobs:
               $secretCode = $LASTEXITCODE
               $directOutput = (& node $cli @arguments 2>&1 | Out-String)
               $directCode = $LASTEXITCODE
-              $npxOutput = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
-              $npxCode = $LASTEXITCODE
+              # npm exec resolves --no-install packages from the working directory;
+              # the exact 4.162.0 dependency is installed under $vendor, not $candidate.
+              # Keep --config and synthetic secret paths absolute, with npm offline.
+              Push-Location -LiteralPath $vendor
+              try {
+                $npxOutput = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
+                $npxCode = $LASTEXITCODE
+              } finally { Pop-Location }
               $ErrorActionPreference = 'Stop'
             } finally { Pop-Location }
             # Strictly fixed labels, no fragments, paths, numbers, stack traces,
