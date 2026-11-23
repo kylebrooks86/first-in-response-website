@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-G404-WIN-REPAIR-6ABB3D4 -->
+## Nov 23 — G4-04 Windows source diagnostic syntax repaired on draft PR282 (NO CLOUD WRITE)
+
+- [x] Read-only GitHub investigation identified accidental PowerShell regex truncation and duplicated workflow block in intervening commit `b7712c1`. A transient first repair `8e9c4ce` was also malformed; **do not reuse either file version**. Corrected source [`6abb3d4`](https://github.com/kylebrooks86/first-in-response-website/commit/6abb3d4630f09ea51f1b13cfb4bf86c76e2e5b6b) restored the stable `585521a` workflow body and safely added ordinal-20 schema-key-label and full-minus-one-field local Windows `--dry-run` probes; exact GitHub readback confirmed the source structure (1101 lines), no duplicated suffix. Original real STAGING secrets/provider state were not touched.
+- [ ] GitHub exact-code CI [STAGING run 45263445093](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45263445093) automatically triggered; Windows diagnostic and 27 grouped workflows **not yet proven successful** at time of this note. A Windows STOP is not a hosted deploy defect or formal gate acceptance. [Issue #19 receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7113643091).
+- [ ] Formal state unchanged: **51/95** original numbered checks, **4/10** accepted G1/G2/G3/G8; G4-04/G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO and Job #0001 unissued. Nov 22 STAGING one-shot upload authorization CONSUMED/NO RETRY/NEVER RESET LOCK. No Cloudflare login/provider write, D1/Access/routes, Stripe/payment, paid R2, Git merge, deploy, publish, or owner device rerun.
+
+---
+
 <!-- FIRE-NOV23-G404-WIN-38-EXTRA-SINGLE-STOP-B7712C1 -->
 ## Nov 23 — narrowed STAGING Windows generated-manifest fault to one extra schema field (NO provider write)
 
