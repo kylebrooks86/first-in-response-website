@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-G4-CACHED-SESSION-DARK-ONLY-791B1DB -->
+## Nov 22 ~20:11 CST — [x] new cached-Wrangler G4-only command, skips accepted G5 (source only)
+
+[x] New safe owner Windows CLI mode [`1e6266c`](https://github.com/kylebrooks86/first-in-response-website/commit/1e6266cdbd447223195a5e1bb067873d71cb84a7): `node .\\business-app-parity\\owner_g4_g5_existing_session_readonly.mjs --capture-dark-existing-session`. It reuses **existing** cached Wrangler credential, never browser login or new token, calls **only** G4 DARK read-only account/zone inventory, and never queries the already-proven STAGING G5 D1 journal. Retains strict interactive Windows/CI denial, sanitization and all fail-closed flags. [Targeted offline CLI safety test `791b1db`](https://github.com/kylebrooks86/first-in-response-website/commit/791b1db3e4cb561622f9665a92337318d00b9c33) added; new exact-source automatic CI **pending**, not called passed. The source change justifies one focused failed-G4 read diagnostic if owner chooses; it does NOT reopen the 22/25 G5 proof, authorize any upload retry or certify network ingress.
+
+[ ] Original G4-05 remains OPEN until genuine complete hosted proof; formal **51/95**, gates **4/10** G1/G2/G3/G8 accepted, NEW LIVE DARK/NO-GO. STAGING one-shot upload consumed, DO NOT RETRY. No Cloudflare login or provider write, paid R2, merge, deploy, D1 migration or Stripe/payment action.
+
+---
+
 <!-- FIRE-NOV22-G4-DENIED-GET-SANITIZED-1DB43B3 -->
 ## Nov 22 ~20:07 CST — [x] actual G4-only Cloudflare account-inventory diagnostic source + negative tests; G4-05 [ ] still open
 
