@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-OWNER-ACER-LOCAL-BUILD-PREFLIGHT-BC6BB076 -->
+## Nov 22 — [x] owner Acer isolated STAGING build + offline preflight PASS; hosted version still [ ]
+
+**New owner-provided Acer PowerShell screenshot (Nov 22, 2026 ~18:53 CST)**: original image 1918×979, 210,011 bytes, SHA-256 `bc6bb07687fff79b89685982cbf4bdf5b707a13218ca64528f8eca14a7e614de` (image retained in owner chat; this note is a sanitized transcription, not an uploaded secret). From exact reviewed integrated PR #282 commit `f2de14be1ed4e1b624cee88848417e15f0943f6b`, the local `owner_windows_build_staging_inactive_candidate.ps1 -Build` completed its independent STAGING source/build verification and `owner_staging_one_inactive_version_once_approved.ps1 -CandidateDirectory $dest` returned `PASS STAGING OFFLINE PREFLIGHT`. Screenshot shows `Build complete`, `FIRE_STAGING_LOCAL_BUILD_REVIEW_PASS`, source materialization 809 exact source files / 47 adapter files / 25 migration files, `identicalToSharedPlusAuthorizedAdapter: true`, `deployed: false`, `remoteSchemaVerified: false`, `publicationAuthorized: false`; the preflight confirmed compiled target/isolated D1/disabled Stripe mode and preprepared DPAPI private verifier. **Cloudflare was NOT contacted; NO Worker version was created, activated, or deployed.**
+
+**Completed supplemental owner-local preparation [x]; original numbered G4-04 remains [ ]**, awaiting the already owner-authorized **ONE** `-Execute` inactive STAGING upload attempt and provider readback. Do not retry an ambiguous attempt. Do not repeat accepted owner DPAPI prep, serving GET, migration journal, DARK evidence, QA/iPhone, Cloudflare login or previous CI. Current-serving version must remain `7838d0ea-be89-49c6-9984-d3b021082d72` at 100% under deployment `10215e59-2ff0-485c-92f6-11d7f0405060`. No deletion of the existing payment credential, new payment activation, SQL, Access, route, R2, Git merge, LIVE change or traffic activation is authorized.
+
+**Formal board unchanged: 51/95 original checklist items [x], 44 open; 4/10 formal gates accepted (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, first Job #0001 unused.**
+
+---
+
 <!-- FIRE-NOV22-STAGING-SOURCE-FINGERPRINT-OFFLINE-BUILD -->
 ## Nov 22 — G4-04 source-fingerprint safeguard and offline Acer STAGING builder (NO HOSTED WRITE)
 
