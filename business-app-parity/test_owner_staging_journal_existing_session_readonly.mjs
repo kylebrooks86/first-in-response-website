@@ -178,7 +178,16 @@ const blockedCached=spawnSync(process.execPath,
 });
 assert.notEqual(blockedCached.status,0);
 assert.match(blockedCached.stderr,/FIRE G4\/G5 READ-ONLY STOP/);
+assert.match(blockedCached.stderr,/\[OWNER_INTERACTIVE_CONSOLE\]/);
 assert.equal(blockedCached.stdout,'');
+const badArguments=spawnSync(process.execPath,[darkOnlyCli,'--unsupported-provider-write'],{
+ encoding:'utf8',env:{...process.env,CI:'true'}
+});
+assert.notEqual(badArguments.status,0);
+assert.match(badArguments.stderr,/\[COMMAND_ARGUMENTS\]/);
+assert.equal(badArguments.stdout,'');
+assert.equal(blockedCached.stderr.includes(scopedToken),false);
+assert.equal(badArguments.stderr.includes(scopedToken),false);
 console.log('PASS: cached-Wrangler G4-only mode refuses CI and noninteractive execution without credential reads or D1.');
 
 
