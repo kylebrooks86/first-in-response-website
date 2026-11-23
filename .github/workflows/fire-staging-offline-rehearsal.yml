@@ -828,6 +828,18 @@ jobs:
               # Narrow the Windows packaging failure with three LOCAL ONLY
               # variants: base config, base+synthetic secret, exact full flags.
               # No invocation has credentials; every variant retains --dry-run.
+              # Synthetic minimal control: if this works but STAGING fails,
+              # the problem is with STAGING's Windows packaging, not Wrangler
+              # versions-upload generically. No resources or remote identity.
+              $controlDir = Join-Path $env:RUNNER_TEMP 'fire-g404-synthetic-control'
+              [IO.Directory]::CreateDirectory($controlDir) | Out-Null
+              $controlWorker = Join-Path $controlDir 'worker.mjs'
+              $controlConfig = Join-Path $controlDir 'wrangler.json'
+              [IO.File]::WriteAllText($controlWorker, "export default { fetch() { return new Response('FIRE CI synthetic only'); } };", (New-Object System.Text.UTF8Encoding($false)))
+              [IO.File]::WriteAllText($controlConfig, '{"name":"fire-g404-ci-only-synthetic","main":"./worker.mjs","compatibility_date":"2026-11-01"}', (New-Object System.Text.UTF8Encoding($false)))
+              $controlArguments = @('versions','upload','--config',$controlConfig,'--name','fire-g404-ci-only-synthetic','--dry-run')
+              $controlOutput = (& node $cli @controlArguments 2>&1 | Out-String)
+              $controlCode = $LASTEXITCODE
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -860,6 +872,8 @@ jobs:
             }
             $direct = if ($directCode -eq 0) { 'PASS' } else { 'STOP' }
             $npx = if ($npxCode -eq 0) { 'PASS' } else { 'STOP' }
+            Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CONTROL_' + $(if ($controlCode -eq 0) {'PASS'} else {'STOP'}))
+            Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CATEGORY_' + (SafeFailureCategory $controlOutput $controlCode))
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
             Write-Host ('FIRE_G404_WINDOWS_SYNTHETIC_SECRET_' + $(if ($secretCode -eq 0) {'PASS'} else {'STOP'}))
