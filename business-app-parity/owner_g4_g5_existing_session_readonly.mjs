@@ -118,15 +118,20 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   const args=process.argv.slice(2);
   if(args.length===0){
    console.log(JSON.stringify({result:'OFFLINE_NO_PROVIDER',
-    target:STAGING_DB,captureOption:'--capture',fallbackOption:'--capture-env-token',darkOnlyOption:'--capture-dark-env-token',
+    target:STAGING_DB,captureOption:'--capture',fallbackOption:'--capture-env-token',darkOnlyOption:'--capture-dark-env-token',existingSessionDarkOnlyOption:'--capture-dark-existing-session',
     providerContacted:false,
     providerWrites:false,loginAttempted:false,gate4Accepted:false,gate5Accepted:false}));
-  }else if(args.length===1&&args[0]==='--capture-dark-env-token'){
+  }else if(args.length===1&&
+            (args[0]==='--capture-dark-env-token'||
+             args[0]==='--capture-dark-existing-session')){
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
       process.env.CI||process.env.GITHUB_ACTIONS)fail();
-   const receipt=await captureG4DarkOnlyEvidence({
-    token:readOwnerApiTokenFromEnvironment()
-   });
+   // Both paths skip accepted G5 STAGING D1 entirely. This variant reuses
+   // only existing cached Wrangler auth; no browser or new token requested.
+   const token=args[0]==='--capture-dark-env-token'?
+    readOwnerApiTokenFromEnvironment():
+    readExistingWranglerToken({npmCli:npmCli()});
+   const receipt=await captureG4DarkOnlyEvidence({token});
    console.log(JSON.stringify(receipt,null,2));
    if(!receipt.darkPublicEndpointsAbsent)process.exitCode=2;
   }else if(args.length===1&&
