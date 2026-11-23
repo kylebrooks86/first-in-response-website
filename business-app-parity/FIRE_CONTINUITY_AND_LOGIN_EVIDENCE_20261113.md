@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-READONLY-G4-DIAGNOSTIC-1DB43B3 -->
+## November 22 ~20:07 CST — targeted G4 read-only STOP diagnostics added to PR282, no provider execution
+
+Latest executed-source/test commit `1db43b308c413daf00834cfa23f389fc50fca0ac` on integrated unmerged, undeployed draft PR282. Source `owner_current_dark_exposure_readonly.mjs` now tags GET HTTP failures with validated stages for Worker subdomain, Worker domains, ordinary/internal zones and zone routes. `owner_g4_g5_existing_session_readonly.mjs` passes through **only approved stage names and integer HTTP status**, never arbitrary provider error/token strings; incomplete inventory now sets `newLivePublic:null`, not a misleading false. Original actual account-wide STOP's root cause remains **unknown**, not retrospectively diagnosed as 403.
+
+Offline regression commits `2be8463` and `1db43b3` test sanitized bad-token strings, a synthetic internal-zone HTTP 403 GET and strict non-acceptance. This is **source/test implementation**, not new physical owner evidence. New CI automatically started at exact head; no outcome claimed yet. Previously accepted STAGING D1 journal `b36bf9d7e623f31079f31de0adc73c70b6895ad37122fbc9b6d3efff2737adfb` proves **22/25**, not 25/25. Future operator action, only if a sufficiently scoped existing owner-managed token is available: run existing G4-only `--capture-dark-env-token` from a current PR282 checkout; do NOT rerun G5 D1, repeat browser login or post any token or secret. This diagnostics change does NOT retry the consumed STAGING upload or accept G4-05.
+
+Original 51/95 checklist and 4/10 G1/G2/G3/G8 whole gates accepted, G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO, real Job #0001 unused. No merge, hosted deployment, Cloudflare write, Access/route change, migration, payment/Stripe, R2 or paid service, test transaction, customer data or website change.
+
+---
+
 <!-- FIRE-NOV22-G404-READONLY-NO-MATCH-DD84421E -->
 ## Nov 22 ~19:47 CST — [x] owner Acer current STAGING serving preserved; 0 recent inactive matches, G4-04 still [ ]
 
