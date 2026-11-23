@@ -858,7 +858,7 @@ jobs:
                 compatibility_date = [string]$builtManifest.compatibility_date
               }
               if ($builtManifest.compatibility_flags) {
-                $reducedManifest.compatibility_flags = @($builtManifest.compatibility_flags)
+                $reducedManifest['compatibility_flags'] = @($builtManifest.compatibility_flags)
               }
               [IO.File]::WriteAllText($reducedConfig, ($reducedManifest | ConvertTo-Json -Depth 8 -Compress), (New-Object System.Text.UTF8Encoding($false)))
               $reducedArguments = @('versions','upload','--config',$reducedConfig,'--name','fire-g404-ci-only-reduced','--dry-run')
