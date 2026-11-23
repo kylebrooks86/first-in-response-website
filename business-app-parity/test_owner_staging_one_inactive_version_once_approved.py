@@ -67,5 +67,30 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         self.assertNotIn("npx @uploadArgs", before)
         self.assertIn("Cloudflare not contacted", before)
 
+
+    def test_one_shot_reconciler_is_get_only_and_cannot_consume_another_attempt(self):
+        read_only = (Path(__file__).parent / 'owner_staging_one_attempt_readonly_reconcile.ps1').read_text()
+        self.assertEqual(re.findall(r'-Method\\s+(\\w+)', read_only), ['Get'])
+        self.assertNotRegex(read_only, r'(?i)\\b(?:post|put|patch|delete)\\b.{0,24}\\bworkers\\b')
+        for forbidden in ('versions\',\'upload', '--secrets-file', 'FileMode]::CreateNew',
+                          'wrangler login', 'Invoke-WebRequest', 'Import-Clixml'):
+            self.assertNotIn(forbidden, read_only)
+        for required in (
+            'fire-app-independent-staging', 'FIRE-STAGING-Private',
+            'g404-one-inactive-version-attempt-20261122.lock',
+            'CLOUDFLARE_ACCOUNT_ID=$account', 'Remove-Item Env:CLOUDFLARE_ENV',
+            'auth token --json', 'GetOnly \'/deployments?page=1&per_page=1\'',
+            'GetOnly \'/versions?page=1&per_page=100\'',
+            'GetOnly (\'/versions/\'+$entry.id)',
+            "FIRE_ADMIN_PASSWORD_HASH", "FIRE_STRIPE_MODE",
+            "FIRE_SESSION_SECRET", "disabled", "r2_bucket", "database_id -ceq $db",
+            "payment -join '|'", "oldPayment -join '|'", "NO RETRY",
+            "gate4Accepted=$false", "uploadRetryAuthorized=$false",
+            "remoteCodeBytesVerified=$false", "oldVersionStillAt100Percent"
+        ):
+            self.assertIn(required, read_only)
+        self.assertLess(read_only.index('GetOnly \'/deployments?page=1&per_page=1\''),
+                        read_only.index('GetOnly \'/versions?page=1&per_page=100\''))
+
 if __name__ == '__main__':
     unittest.main()
