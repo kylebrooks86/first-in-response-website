@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-G404-REDUCED-MAIN-WIN-CI-DAED2C54 -->
+## Nov 23 ~14:27 CST — Windows STAGING reduced-main diagnostic source committed (CI pending)
+
+- [x] Prior exact [Windows CI #45258630375](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45258630375), job 137987212397: **fictional minimal Worker local dry-run PASS**; guarded built STAGING **base-only STOP (unclassified)** and full synthetic STOP; offline npx separately STOP/NPX_OR_NPM. No provider calls.
+- [x] Same integrated draft PR282 now has actual source [`ec68c838`](https://github.com/kylebrooks86/first-in-response-website/commit/ec68c8385749554611a910371cf5526d9b51ffdc) and PS5.1 compatibility correction [`daed2c54`](https://github.com/kylebrooks86/first-in-response-website/commit/daed2c5498bad326b963ce00577dddf23296a171): temporary reduced manifest uses STAGING's compiled main and compatibility without cloud bindings/assets, then strictly local Wrangler 4.162.0 `--dry-run` with synthetic name and fixed verdict labels. **New changed-code CI not accepted until real workflow result**; no Acer repeat.
+- [ ] STAGING hosted G4-04 remains OPEN. No reattempt of the Nov 22 **consumed** one-shot upload/lock, no Cloudflare login, Stripe/D1/Access/route/paid R2, merge or deployment. Keep existing 22/25 STAGING physical journal and DR/NEW LIVE dark proof. Original release count **51/95; 4/10 whole gates (G1/G2/G3/G8)**; remaining G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE NO-GO, Job #0001 unissued. [Issue #19 evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7113084633).
+
+---
+
 <!-- FIRE-NOV23-WINDOWS-MINIMAL-CONTROL-PASS-COMPILED-STAGING-STOP -->
 ## Nov 23 ~14:24 CST — MINIMAL WINDOWS WRANGLER CONTROL PASS; FIRE STAGING CONFIG/BUILD-SPECIFIC STOP
 
