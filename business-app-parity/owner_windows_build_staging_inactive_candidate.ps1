@@ -22,6 +22,7 @@ $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $builder = Join-Path $PSScriptRoot 'materialize.py'
 $verifier = Join-Path $PSScriptRoot 'verify_materialized_candidate.py'
 $runtimeGuard = Join-Path $PSScriptRoot 'check_independent_staging_runtime_config.mjs'
+$manifestCompat = Join-Path $PSScriptRoot 'sanitize_staging_generated_wrangler.mjs'
 function Assert-True([bool]$OK, [string]$Message) {
     if (-not $OK) { throw ('FIRE STAGING STOP: ' + $Message) }
 }
@@ -35,7 +36,7 @@ Write-Host 'FIRE isolated full-app STAGING builder: LOCAL ONLY'
 Write-Host 'No database migrations, remote commands, Worker publication, credential upload or device vault changes.'
 Assert-True ($env:OS -eq 'Windows_NT' -and -not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) 'Windows local account required.'
 Assert-True (-not $env:FIRE_STAGING_JOB_NUMBERS_CANDIDATE -and -not $env:FIRE_STAGING_QUICK_AUTH_MODE) 'Optional build flags are outside the approved inactive-version scope.'
-foreach ($p in @($builder, $verifier, $runtimeGuard)) {
+foreach ($p in @($builder, $verifier, $runtimeGuard, $manifestCompat)) {
     Assert-True (Test-Path -LiteralPath $p -PathType Leaf) 'Required reviewed STAGING build script missing.'
 }
 $git = Get-Command 'git.exe' -ErrorAction SilentlyContinue
@@ -144,6 +145,10 @@ try {
 Check-Exit 'Source-byte fingerprint of built STAGING candidate'
 $manifest = Join-Path $destination 'dist\server\wrangler.json'
 Assert-True (Test-Path -LiteralPath $manifest -PathType Leaf) 'Built STAGING Worker configuration missing.'
+# Wrangler 4.162.0 no longer accepts the obsolete generated legacy_env field.
+# Remove ONLY that field in the verified LOCAL artifact; never touch hosting.
+& $node.Source $manifestCompat $manifest
+Check-Exit 'STAGING local Wrangler legacy_env compatibility'
 $guardJson = (& $node.Source $runtimeGuard $manifest | Out-String)
 Check-Exit 'Pinned Worker, isolated D1, disabled Stripe and no-preview/no-R2 manifest'
 $actualGuard = $guardJson | ConvertFrom-Json
