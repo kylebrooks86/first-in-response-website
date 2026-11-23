@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-G404-NPX-INSTALLED-PREFIX-BA35485 -->
+## Nov 23 — STAGING Windows offline npx dependency resolution corrected in source (CI not yet sealed)
+
+- [x] Real one-file workflow source fix [`ba35485`](https://github.com/kylebrooks86/first-in-response-website/commit/ba35485c5e150a8b81f082c54f78e4349036872e) on the EXISTING unmerged DRAFT [PR282](https://github.com/kylebrooks86/first-in-response-website/pull/282): the non-gating Windows PowerShell test now runs offline `npx --no-install wrangler@4.162.0` from the temporary prefix containing that already-installed exact version, rather than the separate candidate folder without that local npm dependency. Retains exact source/build checks, direct-CLI comparison, safe synthetic secret, `--dry-run`, no Cloudflare credentials, fixed safe result labels and offline npm; no real owner upload script/attempt-lock modified.
+- [ ] Actual changed-head Windows diagnostic result for [STAGING run 45272904163 / job 138037066630](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45272904163) was **IN PROGRESS** at this checkpoint. Do not check off new CI PASS or assume 27/27/7-of-7, and do not repeat accepted owner Acer evidence. Previously verified 27/27 workflow-level source result at `c5fd42e` remains exactly scoped to that prior head with a non-gating Windows `NPX_OFFLINE_STOP`.
+- [ ] Formal original numbered **G4-04 remains OPEN** and original **51/95** unchanged. Full **4/10 gates accepted (G1/G2/G3/G8)**; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO and real Job #0001 unused. Nov22 STAGING real `-Execute` one-shot is CONSUMED: **NO RETRY/NO LOCK RESET**. Preserve prior STAGING physical 22/25 journal, old serving/no inactive match, BOTH-DARK ingress. No Cloudflare login/API upload/activation/Access/route/D1/Stripe/payment, paid R2, Git merge/deploy or customer data operations.
+
+---
+
 <!-- FIRE-NOV23-G404-LEGACY-ENV-WRANGLER-COMPAT-91E6AEF -->
 ## November 23 — [x] STAGING Windows legacy_env local-build fix + exact-head offline CI VERIFIED (NOT HOSTED)
 
