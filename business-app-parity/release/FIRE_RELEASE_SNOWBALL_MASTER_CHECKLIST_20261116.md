@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-G404-SOURCE-FINGERPRINT-BUILD-NEW -->
+## Nov 22 — source-built STAGING one-version release safety (source-only [x]; original G4-04 [ ])
+
+- [x] Strict STAGING one-attempt inactive upload guard now validates COMPLETE built source bytes against current reviewed QA-master shared+STAGING overlay via verify_materialized_candidate.py --built, refuses unrelated numbering and quick-login modes; [final helper fix 5248abcb](https://github.com/kylebrooks86/first-in-response-website/commit/5248abcb39cd569e2d9762031a61738dd1bcbcc3). Source only, not an upload.
+- [x] New Acer one-command, explicitly -Build-only locally reviewed source builder, [final e31f9c30](https://github.com/kylebrooks86/first-in-response-website/commit/e31f9c300965ffe97242e47083d35eb9e7190c8b); no cloud writes. Relevant tests and existing STAGING CI wiring committed on PR282. Full changed-source CI must finish before marking tests PASS.
+- [ ] Original numbered G4-04 still OPEN until physical ONE owner-authorized new 0%-traffic STAGING Worker version is created and independently read back. Never remove existing payment credential, affect 100% serving version, turn on Stripe, perform new login, retry ambiguous upload, enable paid R2, SQL/Access/route/provider writes outside exact authorization, activate or merge.
+- Original release count UNCHANGED: 51/95 accepted, 4/10 G1/G2/G3/G8. G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO and Job #0001 unused. Already accepted owner Cloudflare/D1/DPAPI/DR/QA screenshots/tests remain accepted, not rerun.
+
+---
 <!-- FIRE-NOV22-G404-27CI-2E0CD35-SETTLED -->
 ## November 22 — [x] STAGING one-shot uploader safety CI finalized; hosted G4-04 remains [ ]
 
