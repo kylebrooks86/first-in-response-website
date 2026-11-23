@@ -19,6 +19,21 @@ $oldEnv = $env:CLOUDFLARE_ENV
 function Require([bool]$pass) {
   if (-not $pass) { throw 'offline preflight did not pass' }
 }
+# Windows PowerShell 5.1 promotes redirected native stderr to a catchable
+# NativeCommandError when ErrorActionPreference is Stop. Capture the CLI exit
+# code instead, without displaying raw stderr or weakening other fail-closed
+# checks. This helper is LOCAL ONLY and cannot alter Cloudflare resources.
+function InvokeLocalNpx([string[]]$Arguments) {
+  $savedPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $captured = (& npx @Arguments 2>&1 | Out-String)
+    $exitCode = $LASTEXITCODE
+    return [pscustomobject]@{ output = [string]$captured; exitCode = $exitCode }
+  } finally {
+    $ErrorActionPreference = $savedPreference
+  }
+}
 try {
   Require (($env:OS -ceq 'Windows_NT') -and (-not $env:CI) -and (-not $env:GITHUB_ACTIONS))
   $lock = Join-Path $env:LOCALAPPDATA 'FIRE-STAGING-Private\g404-one-inactive-version-attempt-20261122.lock'
@@ -30,6 +45,7 @@ try {
   $node = Get-Command node.exe -ErrorAction SilentlyContinue
   $python = Get-Command python.exe -ErrorAction SilentlyContinue
   Require ($null -ne $node -and $null -ne $python)
+  Require ($null -ne (Get-Command npx -ErrorAction SilentlyContinue))
   $guardFile = Join-Path $root 'check_independent_staging_runtime_config.mjs'
   $sourceFile = Join-Path $root 'verify_materialized_candidate.py'
   Require (Test-Path -LiteralPath $guardFile -PathType Leaf)
@@ -59,8 +75,8 @@ try {
   $env:CLOUDFLARE_CF_FETCH_ENABLED = 'false'
   Remove-Item Env:CLOUDFLARE_ENV -ErrorAction SilentlyContinue
   Remove-Item Env:CLOUDFLARE_ACCOUNT_ID -ErrorAction SilentlyContinue
-  $version = (& npx --no-install wrangler@4.162.0 --version 2>&1 | Out-String).Trim()
-  Require (($LASTEXITCODE -eq 0) -and ($version -ceq '4.162.0'))
+  $versionRun = InvokeLocalNpx @('--no-install','wrangler@4.162.0','--version')
+  Require (($versionRun.exitCode -eq 0) -and ($versionRun.output.Trim() -ceq '4.162.0'))
   # A NONSECRET placeholder proves the command's file/parser path without
   # reading the Windows-bound FIRE_ADMIN_PASSWORD_HASH DPAPI record.
   $tmp = Join-Path $env:TEMP ('fire-staging-dry-run-placeholder-' + [guid]::NewGuid().ToString('n') + '.json')
@@ -70,8 +86,9 @@ try {
     '--config',$cfg,'--name','fire-app-independent-staging',
     '--secrets-file',$tmp,'--keep-vars','--strict',
     '--message','FIRE local-only synthetic STAGING DRY RUN','--dry-run')
-  $result = (& npx @arguments 2>&1 | Out-String)
-  $status = $LASTEXITCODE
+  $dryRun = InvokeLocalNpx $arguments
+  $result = $dryRun.output
+  $status = $dryRun.exitCode
   if ($status -ne 0) {
     # Never print raw logs, absolute paths, tokens or exception text.
     $category = 'LOCAL_BUILD_OR_WRANGLER_OTHER'

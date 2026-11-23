@@ -131,5 +131,71 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         for forbidden in ('Invoke-RestMethod -Method Post', 'wrangler login', 'versions\',\'upload'):
             self.assertNotIn(forbidden, get_only)
 
+
+class SyntheticLocalStagingDryRunGuard(unittest.TestCase):
+    """Code-only safety checks: never executes Wrangler, PowerShell or Cloudflare."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (Path(__file__).parent / 'owner_staging_synthetic_local_upload_dryrun.ps1').read_text()
+
+    def test_consumed_attempt_is_required_but_never_reset_or_reused(self):
+        s = self.source
+        for marker in ('g404-one-inactive-version-attempt-20261122.lock',
+                       'Test-Path -LiteralPath $lock -PathType Leaf',
+                       'FIRE_STAGING_SYNTHETIC_LOCAL_UPLOAD_DRY_RUN_PASS',
+                       'No upload attempted by this diagnostic',
+                       'Do not retry the spent attempt'):
+            self.assertIn(marker, s)
+        self.assertNotIn('FileMode]::CreateNew', s)
+        self.assertNotIn('Remove-Item -LiteralPath $lock', s)
+        self.assertNotIn('Import-Clixml', s)
+        self.assertNotIn('SecureStringToBSTR', s)
+
+    def test_local_synthetic_only_never_real_upload(self):
+        s = self.source
+        for marker in ('--no-install', 'wrangler@4.162.0',
+                       "'versions','upload'", "'--dry-run'", "'--secrets-file'",
+                       "'--keep-vars'", "'--strict'", "('0' * 64)",
+                       'CLOUDFLARE_CF_FETCH_ENABLED', "'false'",
+                       'Remove-Item Env:CLOUDFLARE_ACCOUNT_ID',
+                       'Remove-Item Env:CLOUDFLARE_ENV'):
+            self.assertIn(marker, s)
+        self.assertEqual(s.count("'versions','upload'"), 1)
+        self.assertEqual(s.count("'--dry-run'"), 1)
+        for forbidden in ('wrangler login', 'wrangler versions deploy',
+                          'wrangler secret put', 'Invoke-RestMethod',
+                          'Invoke-WebRequest', 'CLOUDFLARE_API_TOKEN=
+,
+                          'FileMode]::OpenOrCreate'):
+            self.assertNotIn(forbidden, s)
+        self.assertLess(s.index('verify_materialized_candidate.py'),
+                        s.index("('0' * 64)"))
+
+    def test_native_stderr_does_not_preempt_exit_code_classification(self):
+        s = self.source
+        for marker in ('function InvokeLocalNpx([string[]]$Arguments)',
+                       "$ErrorActionPreference = 'Continue'",
+                       '$ErrorActionPreference = $savedPreference',
+                       '$captured = (& npx @Arguments 2>&1 | Out-String)',
+                       '$exitCode = $LASTEXITCODE',
+                       '$versionRun = InvokeLocalNpx',
+                       '$dryRun = InvokeLocalNpx $arguments',
+                       '$status = $dryRun.exitCode',
+                       'LOCAL_CLI_OPTION_REJECTED',
+                       'LOCAL_INPUT_OR_MODULE_MISSING',
+                       'REMOTE_PREFLIGHT_OR_PROVIDER_CHECK'):
+            self.assertIn(marker, s)
+        self.assertEqual(s.count('& npx @Arguments 2>&1 | Out-String'), 1)
+        self.assertNotIn('& npx @arguments 2>&1 | Out-String)', s)
+        self.assertLess(s.index('$status = $dryRun.exitCode'),
+                        s.index('if ($status -ne 0)'))
+        # The original one-shot uploader remains untouched. Nothing prints
+        # the potentially sensitive native CLI capture to the owner console.
+        self.assertNotIn('Write-Host $result', s)
+        self.assertNotIn('Write-Output $result', s)
+        self.assertIn('Remove-Item -LiteralPath $tmp -Force', s)
+        self.assertIn('if ($entered) { Pop-Location }', s)
+
 if __name__ == '__main__':
     unittest.main()
