@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-G404-VERSION-LIST-STOP-D70F2996 -->
+## Nov 22 ~19:29 CST — [x] owner read-only STAGING reconciliation attempted; version-list evidence STOP, NOT release PASS
+
+Real Acer screenshot 1918×1005, SHA-256 `d70f29968947958c2d3819b5a0a1acc1be36cdacefc9c8293129af8dd2f9be31`, retained privately in owner conversation. After the **ONE previously approved, now consumed** STAGING inactive-version upload attempt had returned uncertain outcome, owner used the existing cached Wrangler session and pinned GET-only reconciliation helper `794e9c7`. Actual output: **`STAGING READ-ONLY STOP at READ_STAGING_VERSION_LIST: evidence incomplete. NO RETRY; NO CLOUD WRITE.`** Old deployment and binding GET stages were reached, but the helper did not complete version history; it does NOT prove whether a new inactive version exists or that serving traffic stayed unchanged. **DO NOT RUN UPLOAD `-Execute` AGAIN, RESET LOCK OR ATTEMPT CLOUDFLARE LOGIN.**
+
+[x] Actual source-only fix on integrated unmerged DRAFT PR #282: corrected read-only helper `29b17188e622ae962a3d8b677f735c29d4886efa` now handles up to three bounded paginated GETs and prints only sanitized STOP reason codes; offline static test source `8845809`, corrected test `8b45efa5bdf26db6df71b7fcddf0dd2f2b046954`. Exact-head CI: 27 PR workflows initially pending/in progress; no final PASS asserted. Detailed immutable owner evidence and safety decisions: [evidence file](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-private-notes-followup-search-20261119/business-app-parity/evidence/FIRE_STAGING_ONE_ATTEMPT_VERSION_LIST_STOP_20261122.md).
+
+[ ] Original G4-04 still OPEN, upload remote outcome UNKNOWN; no new original 95-row checks. **51/95 accepted; 4/10 formal gates accepted (G1/G2/G3/G8)**, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO; Job #0001 unused. No Cloudflare writes, app deployment, merge, Stripe changes, paid R2, D1 migration or public website changes from this reconciliation source work.
+
+---
+
 <!-- FIRE-NOV22-ONE-ATTEMPT-STOP-AAF8DC7B -->
 ## Nov 22 ~19:04 CST — STAGING ONE authorized inactive upload ATTEMPT CONSUMED; remote outcome UNKNOWN; read-only reconciliation prepared
 
