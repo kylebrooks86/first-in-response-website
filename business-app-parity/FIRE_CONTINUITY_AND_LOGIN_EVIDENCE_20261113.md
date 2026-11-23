@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-G404-READONLY-NO-MATCH-DD84421E -->
+## Nov 22 ~19:47 CST — [x] owner Acer current STAGING serving preserved; 0 recent inactive matches, G4-04 still [ ]
+
+New owner PowerShell screenshot 1918×978 PNG, SHA-256 `dd84421e7f3f73cae996365860b52a604389fd45476030cdad190e42687efb7b` (retained privately, not in GitHub) shows the corrected pinned `fe7924ad` **GET-only** STAGING reconciler returned `REVIEW_NO_EXACT_INACTIVE_MATCH_NO_RETRY`. Physical read-only receipt: `consumingAttemptLockPresent:true`, `currentServingDeploymentUnchanged:true`, `oldVersionStillAt100Percent:true`, `versionsSinceAuthorizationWindow:0`, `exactConfiguredVersionMatches:0`, `inactiveVersionId:null`, `uploadRetryAuthorized:false`, `remoteCodeBytesVerified:false`, `hostedAppLoginVerified:false`, `gate4Accepted:false`. `configuredVersionActivated:false` refers only to the **configured matching new version** with current serving unchanged, not proof that Cloudflare never accepted a past upload attempt.
+
+[x] **Supplemental original-serving-preservation and bounded version inventory evidence** recorded. [Full sanitized evidence](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-private-notes-followup-search-20261119/business-app-parity/evidence/FIRE_STAGING_G404_READONLY_NO_MATCH_20261122_1947.md). No new exact inactive version was found in the observed window; that does not authorize the consumed one-shot `-Execute` upload to be rerun or prove transaction history. Keep the lock and cached sign-in undisturbed. **[ ] Original G4-04 still OPEN**; hosted code-byte/auth/Stripe proof absent, no activation, merge, migration or provider write. The independent new G4/G5 owner collector is for **different open D1 journal/account-wide DARK proof** and does not replace G4-04.
+
+Official baseline **51/95** original tasks accepted, 4/10 gates accepted (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN. NEW LIVE DARK/NO-GO; Job #0001 unissued. No paid Cloudflare/R2, payment changes, Cloudflare login retry, repeated QA/iPhone or other accepted tests.
+
+---
+
 <!-- FIRE-NOV22-G404-NULL-ERRORS-OWNER-STOP-237DFCE4 -->
 ## November 22 ~19:41 CST — [x] STAGING GET-only version-list null-errors source defect repaired; hosted G4-04 still [ ]
 
