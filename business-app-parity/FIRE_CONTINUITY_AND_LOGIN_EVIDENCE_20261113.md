@@ -1,3 +1,14 @@
+<!-- FIRE-NOV23-OWNER-G4-DARK-LOCAL-STOP-7CDE32C -->
+## November 23 12:41 CST — owner G4-only cached-session generic STOP; bounded source diagnosis saved
+
+Physical owner Acer JPEG (1080×1440, SHA-256 `b179b8c8dd94fb4219e3be856e8bf3a98b41adcb668f68fd14f1d3d584c50a4b`) confirms prior combined STAGING read-only 22/25 receipt `b36bf9d7e623f31079f31de0adc73c70b6895ad37122fbc9b6d3efff2737adfb` **already captured**, and separate `--capture-dark-existing-session` invoked in the older `FIRE-PR282-f2de14be` folder ended in a generic STOP **without new DARK provider proof**. No new G5 query needed; incomplete account-wide read is UNKNOWN, not a confirmed public exposure or absence. Do not diagnose 403 or credential loss without a stage/status.
+
+Actual unmerged, undeployed integrated DRAFT PR282 source [`3ad6f9c`](https://github.com/kylebrooks86/first-in-response-website/commit/3ad6f9cf5cafe422fd374c9e31c657015a59fe66) now distinguishes fixed safe local STOP stages (owner console, local npm, cached token, G4 readonly GET); test [`7cde32c`](https://github.com/kylebrooks86/first-in-response-website/commit/7cde32c7d291aca143e18f3848edc74f9b686d5e) verifies bounded no-credential output. Initial CI 21/27 success and 6 in-progress; later readback 26/27 success, 1 in-progress. Do not claim full pass before all complete. Full [sanitized owner evidence](evidence/FIRE_G4_DARK_EXISTING_SESSION_GENERIC_STOP_20261123.md); tracker [Issue 19 comment](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7110647576).
+
+**Original release acceptance unchanged: 51/95, 4/10 formal G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; Job #0001 unused.** STAGING one-shot upload is consumed, NO RETRY. No repeated Cloudflare browser login, G5 STAGING SQL, payment/Stripe, R2, app Cloudflare/D1/route/Access write, merge or deployment.
+
+---
+
 <!-- FIRE-NOV22-G4-EXISTING-WRANGLER-NO-G5-791B1DB -->
 ## November 22 ~20:11 CST — NEW no-browser-login existing-session G4-only path (source only)
 
