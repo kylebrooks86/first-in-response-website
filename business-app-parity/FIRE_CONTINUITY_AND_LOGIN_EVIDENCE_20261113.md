@@ -1,3 +1,12 @@
+<!-- FIRE-NOV22-G4-EXISTING-WRANGLER-NO-G5-791B1DB -->
+## November 22 ~20:11 CST — NEW no-browser-login existing-session G4-only path (source only)
+
+On integrated unmerged DRAFT PR282, executable change [`1e6266c`](https://github.com/kylebrooks86/first-in-response-website/commit/1e6266cdbd447223195a5e1bb067873d71cb84a7) adds `--capture-dark-existing-session` to the G4/G5 owner script, reusing the previously effective cached Wrangler session without asking for another Cloudflare login or a new API token; calls ONLY DR and NEW LIVE account-wide read-only GET inventory, never STAGING D1. Fixed-stage/status-only STOP diagnostics from `eaa1c70` and `f2caac6` remain in place; no secrets, raw responses or URL bytes leave the process. Targeted offline CLI protection test [`791b1db`](https://github.com/kylebrooks86/first-in-response-website/commit/791b1db3e4cb561622f9665a92337318d00b9c33) committed and new code CI launched automatically, outcome pending. Existing owner-local snapshot `f2de14be` does NOT contain this new CLI option: use an updated PR282 source checkout before execution. Do not overwrite owner's prior local materialized STAGING build, lock or original receipts.
+
+This is a source improvement to investigate one genuinely unresolved G4 endpoint STOP, **not** an actual physical run or provider proof. Preserve already accepted STAGING migration receipt and 100%-serving older version. G4-05/G5-01 remain OPEN; original 51/95, formal 4/10 gates G1/G2/G3/G8, LIVE NO-GO, Job #0001 unissued. No sign-in, provider/API write, payment/Stripe, R2, Git merge or deployment.
+
+---
+
 <!-- FIRE-NOV22-READONLY-G4-DIAGNOSTIC-1DB43B3 -->
 ## November 22 ~20:07 CST — targeted G4 read-only STOP diagnostics added to PR282, no provider execution
 
