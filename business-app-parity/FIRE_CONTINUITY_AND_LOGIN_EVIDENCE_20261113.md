@@ -1,3 +1,14 @@
+<!-- FIRE-NOV23-OWNER-STAGING-DRYRUN-STOP-LOCAL-CLASSIFIER -->
+## Nov 23 ~13:40 CST — Owner STAGING synthetic offline dry-run physically STOPPED; diagnostic failure categories expanded
+
+**New owner Acer evidence, not a hosted change:** screenshot SHA-256 `fcfb6f88440b59daf965bf27440e4383f7bf5f600bd8261ecf0e3a4508b0e9ae`; original image remains private. Local detached script checkout `d92fd056` returned `FIRE_STAGING_DRY_RUN_NOT_PASSED [LOCAL_BUILD_OR_WRANGLER_OTHER]` followed by `No upload attempted by this diagnostic. Old one-shot attempt remains consumed.` This specifically means pinned local preflight reached the Wrangler synthetic `versions upload --dry-run` command and returned a nonzero exit. **Do not invent the root cause** or claim real hosted admin/password/Stripe settings repaired. Full sanitized evidence: [Nov23 owner G4-04 STOP](business-app-parity/evidence/FIRE_G4_STAGING_SYNTHETIC_LOCAL_DRYRUN_OWNER_STOP_20261123.md).
+
+**Actual source follow-up in the SAME open unmerged draft PR #282:** classifier improvement [`1726bc5`](https://github.com/kylebrooks86/first-in-response-website/commit/1726bc5e61b941dcdc4091050657bf9228c61ff4) plus targeted safety regression [`94df434`](https://github.com/kylebrooks86/first-in-response-website/commit/94df434e344bb56cb99184b47c140f3fe57c38bf). Fixed allowlisted causes are emitted; raw logs, paths, account details, secrets and hash values never printed. **New code not yet run on owner Acer and no exact new-head CI success asserted here.** Prior `e204c50b` 27/27 remains valid only for THAT prior code/test head. No repeat formerly accepted STAGING 22/25 journal, BOTH-DARK ingress inventory, original serving version or Nov22 consumed `-Execute` action.
+
+**UNCHANGED:** 51/95 original release rows; 4/10 accepted formal gates G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN; STAGING G4-04 OPEN; NEW LIVE DARK/NO-GO, Job #0001 untouched. No real Cloudflare upload, deployment, Access/route/DB migration, payment or R2 action authorized.
+
+---
+
 <!-- FIRE-NOV23-STAGING-E204C50-27-OF-27-FINAL-CI -->
 ## Nov 23 — [x] Corrected STAGING offline diagnostic code/test exact-SHA CI FINAL: 27/27 SUCCESS (NO PROVIDER WRITE)
 
