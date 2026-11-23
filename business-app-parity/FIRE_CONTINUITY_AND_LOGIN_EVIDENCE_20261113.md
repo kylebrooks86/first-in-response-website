@@ -1,3 +1,13 @@
+<!-- FIRE-NOV23-G404-WIN-38-EXTRA-SINGLE-STOP-B7712C1 -->
+## Nov 23 — narrowed STAGING Windows generated-manifest fault to one extra schema field (NO provider write)
+
+- [x] [Windows CI #45261103224, job 137995929455](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45261103224) proved union of ASSETS/D1/VARS/secret-name families and extra `workers_dev`, `preview_urls`, both settings locally PASS with the compiled real STAGING Worker main. Full generated config and full-minus-these-two still STOP; **no production setting was changed**.
+- [x] [Windows CI #45261758272, job 137998241763](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45261758272) then tested each of the **38 other generated top-level settings individually** against the previously passing reduced combined build (synthetic names, no credentials). Only ordinal **OTHER_20 STOP/UNCLASSIFIED**; the other 37 individual settings PASS. This is strong pinpointing of a Windows generated-manifest field; it does **not yet prove** the original Acer problem nor a deployed Worker fix. Windows non-gating diagnostic job ended FAILURE by design, not PASS. No raw Wrangler errors, private paths or values were logged.
+- [x] Real source-only follow-up [b7712c1](https://github.com/kylebrooks86/first-in-response-website/commit/b7712c19f8d2d519896b4fb240cd0c43073ec73e) adds a **bounded schema-key name** label for that one field and tests **FULL manifest excluding only the identified field** using an ephemeral fictional-name `--dry-run`; no Cloudflare token, remote call, upload or owner Acer retry. **New changed-head CI pending; no conclusion claimed.** Previously committed Windows diagnostic stages `cb8d8ec`, `3da7edd` and `585521a` remain in same unmerged, unpublished PR282.
+- [ ] Formal **G4-04 and G4/G5/G6/G7/G9/G10 remain OPEN**, 51/95 original checklist accepted, 4/10 whole gates G1/G2/G3/G8 accepted; NEW LIVE DARK/NO-GO, first real Job #0001 untouched. Nov 22 one-time STAGING real `-Execute` upload approval **CONSUMED / NO RETRY / NEVER RESET LOCK**. Preserve previously accepted STAGING physical 22/25 journal, original serving/no inactive match and BOTH-DARK ingress proof. No Cloudflare browser login, provider Worker/Access/routing/D1/Stripe/payment/R2 change, paid subscription, main merge, public site or deployment.
+
+---
+
 <!-- FIRE-NOV23-G404-WIN-COMBO-NAME-LOCAL-DIAGNOSTIC-CB8D8EC -->
 ## Nov 23 — STAGING Windows CLI isolated config families; combination/name diagnostic committed (NO provider write)
 
