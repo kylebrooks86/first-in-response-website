@@ -1,3 +1,14 @@
+<!-- FIRE-NOV23-G404-WINDOWS-CI-SYNTHETIC-BOTH-STOP-0779166 -->
+## November 23 ~14:15 CST — Windows-local Wrangler differential PROVED (synthetic only); bounded classifier committed
+
+**Real new GitHub Actions evidence** on integrated, unmerged/unpublished Draft [PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282): [STAGING workflow #45256747424](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45256747424), **Windows synthetic diagnostic job #137980456174**, built the same isolated STAGING source on Windows, verified materialization/manifest/runtime guard, then emitted exactly `FIRE_G404_WINDOWS_DIRECT_CLI_STOP` and `FIRE_G404_WINDOWS_NPX_OFFLINE_STOP`. That non-gating diagnostic job FAILED, not PASS. This was a zero-credential, 64-zero-placeholder-only `versions upload --dry-run`, with no provider upload or owner-secret read. Earlier [Linux STAGING CI #45254346557](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45254346557) passed the equivalent synthetic local dry-run. **This isolates a genuine Windows-side synthetic packaging discrepancy but does not establish its precise cause, nor prove it is the same failure as the owner Acer's two OTHER results.**
+
+**New actual source change:** [commit `0779166ed313fba8c7aca4f4cd2d52f5303e3d46`](https://github.com/kylebrooks86/first-in-response-website/commit/0779166ed313fba8c7aca4f4cd2d52f5303e3d46) updates the existing PR282-only, non-gating Windows diagnostic to emit only fixed allowlisted cause categories for direct Node and offline npx separately, while retaining non-success exit when either CLI stops. Raw Wrangler stderr, local paths, absolute files, secret values, hashes and owner data are **not** printed. CI on this new exact code is **NOT YET VERIFIED**; do not assign earlier Linux or previous Windows workflow verdict to it. No new owner action or repeat Acer test requested.
+
+**Release interpretation:** The prior STAGING serving-version/no-match (Nov22), STAGING D1 ordered 22/25 journal (Nov22), and complete BOTH-DARK provider ingress proof (Nov23) stay accepted without repeat. The Nov22 STAGING real inactive `-Execute` permission remains **CONSUMED, NO RETRY, NEVER RESET LOCK**. The present source diagnostic is **not** a hosted inactive Worker version, configured private password, disabled Stripe binding, actual QA/STAGING login, source serving parity, or original G4-04 release acceptance. **Original checklist 51/95**, formal **4/10 gates G1/G2/G3/G8 accepted**, G4/G5/G6/G7/G9/G10 and G4-04 OPEN; NEW LIVE DARK/NO-GO, Job #0001 still unused. No Git merge/deployment, Cloudflare login/write/Access/route/D1, Stripe/payment or R2 subscription.
+
+---
+
 <!-- FIRE-NOV23-OWNER-STAGING-LOCAL-DRYRUN-STOP -->
 ## Nov 23 — owner Acer local synthetic STAGING dry-run STOP (NO ORIGINAL CHECKBOX CLOSED)
 
