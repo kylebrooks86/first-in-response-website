@@ -739,3 +739,105 @@ jobs:
         run: node business-app-parity/check_independent_staging_runtime_config.mjs "$RUNNER_TEMP/fire-independent-staging-candidate/dist/server/wrangler.json"
       - name: Verify compiled source exactly matches reviewed app and overlays
         run: python business-app-parity/verify_materialized_candidate.py independent-staging "$RUNNER_TEMP/fire-independent-staging-candidate" --built
+
+  g404-windows-pinned-wrangler-synthetic:
+    name: G4-04 Windows local Wrangler comparison (SYNTHETIC; no provider)
+    # A scoped, non-gating investigation of the existing Acer offline STOP.
+    # The Linux direct-node CLI succeeded; the owner used Windows PS5.1 npx.
+    # GitHub has NO Cloudflare secrets, and only a zero placeholder is used.
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 282
+    runs-on: windows-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_API_KEY: ''
+      CLOUDFLARE_EMAIL: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      CLOUDFLARE_ENV: ''
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Materialize same independent STAGING source and build offline candidate (no deployment)
+        shell: pwsh
+        run: |
+          $candidate = Join-Path $env:RUNNER_TEMP 'fire-independent-staging-candidate'
+          python business-app-parity/materialize.py independent-staging $candidate
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING source materialization failed' }
+          python business-app-parity/verify_materialized_candidate.py independent-staging $candidate
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING source fingerprint check failed' }
+          corepack enable
+          if ($LASTEXITCODE -ne 0) { throw 'Corepack enable failed' }
+          corepack prepare pnpm@11.25.0 --activate
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned pnpm not available' }
+          Push-Location -LiteralPath $candidate
+          try {
+            pnpm install --frozen-lockfile
+            if ($LASTEXITCODE -ne 0) { throw 'STAGING dependency install failed' }
+            pnpm run build
+            if ($LASTEXITCODE -ne 0) { throw 'STAGING local build failed' }
+          } finally { Pop-Location }
+          python business-app-parity/verify_materialized_candidate.py independent-staging $candidate --built
+          if ($LASTEXITCODE -ne 0) { throw 'Compiled source fingerprint failed' }
+          node business-app-parity/check_independent_staging_runtime_config.mjs (Join-Path $candidate 'dist/server/wrangler.json')
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING runtime safety guard failed' }
+      - name: Compare PS5.1 npx offline with direct Wrangler CLI (placeholder only, --dry-run)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidate = Join-Path $env:RUNNER_TEMP 'fire-independent-staging-candidate'
+          $cfg = Join-Path $candidate 'dist\server\wrangler.json'
+          $vendor = Join-Path $env:RUNNER_TEMP 'fire-wrangler-pinned-4162'
+          $placeholder = Join-Path $env:RUNNER_TEMP 'fire-synthetic-zero-only.json'
+          npm install --prefix $vendor --no-save --no-audit --no-fund wrangler@4.162.0
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned Wrangler install failed' }
+          $cli = Join-Path $vendor 'node_modules\wrangler\bin\wrangler.js'
+          if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Pinned CLI missing' }
+          $version = (& node $cli --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -ne '4.162.0') { throw 'Wrong Wrangler version' }
+          [IO.File]::WriteAllText($placeholder, ('{"FIRE_ADMIN_PASSWORD_HASH":"' + ('0' * 64) + '"}'), (New-Object System.Text.UTF8Encoding($false)))
+          $oldPath = $env:PATH
+          $oldOffline = $env:npm_config_offline
+          $oldYes = $env:npm_config_yes
+          try {
+            $env:PATH = (Join-Path $vendor 'node_modules\.bin') + ';' + $env:PATH
+            $env:npm_config_offline = 'true'
+            $env:npm_config_yes = 'false'
+            $arguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--secrets-file',$placeholder,'--keep-vars','--strict','--message','FIRE CI synthetic Windows dry-run','--dry-run')
+            Push-Location -LiteralPath $candidate
+            try {
+              # Suppress all raw CLI output: no path/account/log leakage into CI.
+              $ErrorActionPreference = 'Continue'
+              $null = (& node $cli @arguments 2>&1 | Out-String)
+              $directCode = $LASTEXITCODE
+              $null = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
+              $npxCode = $LASTEXITCODE
+              $ErrorActionPreference = 'Stop'
+            } finally { Pop-Location }
+            $direct = if ($directCode -eq 0) { 'PASS' } else { 'STOP' }
+            $npx = if ($npxCode -eq 0) { 'PASS' } else { 'STOP' }
+            Write-Host ('FIRE_G404_WINDOWS_DIRECT_CLI_' + $direct)
+            Write-Host ('FIRE_G404_WINDOWS_NPX_OFFLINE_' + $npx)
+            Write-Host 'No Cloudflare credentials, hosted changes, real password, upload, activation or paid services.'
+            # Non-gating by design; keep actual statuses visible without exposing error text.
+          } finally {
+            $env:PATH = $oldPath
+            if ($null -ne $oldOffline) { $env:npm_config_offline = $oldOffline } else { Remove-Item Env:npm_config_offline -ErrorAction SilentlyContinue }
+            if ($null -ne $oldYes) { $env:npm_config_yes = $oldYes } else { Remove-Item Env:npm_config_yes -ErrorAction SilentlyContinue }
+            Remove-Item -LiteralPath $placeholder -Force -ErrorAction SilentlyContinue
+          }
