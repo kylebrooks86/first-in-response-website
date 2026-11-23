@@ -121,6 +121,7 @@ assert.equal(darkOnlyCalls,1);
 assert.equal(darkOnlySuccess.stagingJournalNotQueried,true);
 assert.equal(darkOnlySuccess.accountWideInventoryCaptured,true);
 assert.equal(darkOnlySuccess.darkPublicEndpointsAbsent,true);
+assert.equal(darkOnlySuccess.newLivePublic,false);
 assert.equal(darkOnlySuccess.gate4Accepted,false);
 assert.equal(darkOnlySuccess.gate5Accepted,false);
 assert.equal(darkOnlySuccess.providerWrites,false);
@@ -134,6 +135,29 @@ assert.equal(darkOnlyStop.stagingJournalNotQueried,true);
 assert.equal(darkOnlyStop.accountWideInventoryCaptured,false);
 assert.equal(darkOnlyStop.result,'G4_DARK_ACCOUNT_READONLY_STOP');
 assert.equal(darkOnlyStop.darkPublicEndpointsAbsent,false);
+assert.equal(darkOnlyStop.newLivePublic,null,
+ 'unverified account inventory cannot claim NEW LIVE is nonpublic');
+const deniedError=new Error('private provider body '+scopedToken);
+deniedError.readOnlyStage='ZONES_INTERNAL';
+deniedError.readOnlyHttpStatus=403;
+const scopedDenial=await captureG4DarkOnlyEvidence({
+ token:scopedToken,readDark:async()=>{throw deniedError}
+});
+assert.equal(scopedDenial.result,'G4_DARK_ACCOUNT_READONLY_STOP');
+assert.equal(scopedDenial.accountWideInventoryCaptured,false);
+assert.equal(scopedDenial.accountWideDarkExposure.failedReadOnlyStage,'ZONES_INTERNAL');
+assert.equal(scopedDenial.accountWideDarkExposure.failedReadOnlyHttpStatus,403);
+assert.equal(scopedDenial.newLivePublic,null);
+assert.equal(JSON.stringify(scopedDenial).includes(scopedToken),false);
+const untrustedDenial=new Error('private failure '+scopedToken);
+untrustedDenial.readOnlyStage='secret '+scopedToken;
+untrustedDenial.readOnlyHttpStatus='403';
+const sanitizedUnknown=await captureG4DarkOnlyEvidence({
+ token:scopedToken,readDark:async()=>{throw untrustedDenial}
+});
+assert.equal(sanitizedUnknown.accountWideDarkExposure.failedReadOnlyStage,undefined);
+assert.equal(sanitizedUnknown.accountWideDarkExposure.failedReadOnlyHttpStatus,undefined);
+assert.equal(JSON.stringify(sanitizedUnknown).includes(scopedToken),false);
 assert.equal(JSON.stringify(darkOnlyStop).includes(scopedToken),false);
 await assert.rejects(()=>captureG4DarkOnlyEvidence({token:'short'}));
 console.log('PASS: G4-only owner token collector skips accepted STAGING journal, denies incomplete inventory without exposing credentials.');
@@ -165,6 +189,7 @@ const combinedExposed=await captureG4G5MissingEvidence({
 assert.equal(combinedExposed.stagingJournalCaptured,true);
 assert.equal(combinedExposed.accountWideInventoryCaptured,true);
 assert.equal(combinedExposed.darkPublicEndpointsAbsent,false);
+assert.equal(combinedExposed.newLivePublic,null);
 assert.equal(combinedExposed.result,'G4_G5_PUBLIC_ENDPOINTS_REQUIRE_REVIEW');
 assert.equal(combinedExposed.gate4Accepted,false);
 assert.equal(JSON.stringify(combinedExposed).includes(scopedToken),false);
