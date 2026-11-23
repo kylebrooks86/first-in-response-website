@@ -1002,9 +1002,7 @@ jobs:
                 $extraOutput = (& node $cli @extraArgs 2>&1 | Out-String)
                 $extraResults += @{ tag = $safeTag; code = $LASTEXITCODE; output = $extraOutput }
               }
-              # The 38 individually tested extra keys showed one failure,
-              # at bounded ordinal 20. Confirm its schema-key name (never a
-              # value or CLI error), then test FULL minus only that field.
+              # Isolate ordinal-20 schema field without printing any value or raw CLI log.
               if ($extraKeys.Count -lt 20) { throw 'Expected schema-key ordinal was absent' }
               $field20 = [string]$extraKeys[19].Name
               $field20SafeLabel = if ($field20 -match '^[a-z][a-z0-9_]{0,63}
