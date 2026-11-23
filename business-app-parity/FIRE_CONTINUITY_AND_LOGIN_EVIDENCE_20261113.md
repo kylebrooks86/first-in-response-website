@@ -1,3 +1,17 @@
+<!-- FIRE-NOV23-WINDOWS-MINIMAL-CONTROL-PASS-COMPILED-STAGING-STOP -->
+## Nov 23 ~14:24 CST — MINIMAL WINDOWS WRANGLER CONTROL PASS; FIRE STAGING CONFIG/BUILD-SPECIFIC STOP
+
+**New actual GitHub Windows CI result**, on exact executable diagnostic source [`93c2128f69494c0c165fddc2c5fdc0468e36f399`](https://github.com/kylebrooks86/first-in-response-website/commit/93c2128f69494c0c165fddc2c5fdc0468e36f399), [STAGING workflow #45258630375](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45258630375), dedicated Windows job **#137987212397**:
+- **`FIRE_G404_WINDOWS_MINIMAL_CONTROL_PASS`** — the same pinned Wrangler 4.162.0 **direct Node** command **can** successfully run `versions upload --dry-run` locally on Windows against a tiny independent no-resource/no-secret Worker config.
+- **`FIRE_G404_WINDOWS_BASE_ONLY_STOP`** — the freshly built, fingerprint-verified FIRE independent-STAGING config **cannot** complete the identical local Windows dry-run even *without* the secret-file/strict/keep-vars options.
+- Adding the synthetic-only secret or full flags also STOPPED with `UNCLASSIFIED` direct errors; offline npx STOPPED with safe category `NPX_OR_NPM`. The diagnostic Windows job intentionally **FAILED** on the real STOP rather than claiming PASS. The comparable **Linux FIRE STAGING full synthetic dry-run PASSED** earlier at [#45254346557](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45254346557).
+
+**What this establishes:** The problem is **specific to the compiled FIRE STAGING candidate/configuration on Windows**, NOT a universal failure of pinned Wrangler's Windows `versions upload --dry-run` command, and NOT just the added synthetic-secret/strict options. Root-cause field/asset/path detail and whether this matches the owner's actual earlier Acer STOP remain unknown. The next useful engineering direction is Windows-specific compiled asset/path/config isolation OR using the already-CI-proven Linux packaging route for a future **separately approved** inactive upload; do **not** ask the owner to repeat the failing Acer local dry-run, consumed `-Execute`, Cloudflare login, or prior GET/D1 evidence.
+
+**No hosted result:** A local mock Worker success is not permission or proof to upload the real STAGING version. Hosted admin hash, disabled Stripe binding, STAGING active source parity and owner/nonowner protection are not fixed. **Original release 51/95**, formal **4/10 (G1/G2/G3/G8)** accepted; G4-04 and G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unissued. Single Nov22 real STAGING uploader authorization **CONSUMED, NO RETRY/NO LOCK RESET**; no Cloudflare account change, paid R2, Stripe/payment, D1/Access/routing, Git merge/deployment or public site change.
+
+---
+
 <!-- FIRE-NOV23-G404-WINDOWS-BASE-SECRET-STRICT-AND-CONTROL-93C2128 -->
 ## Nov 23 ~14:21 CST — new Windows G4-04 root-cause isolation, synthetic/no provider
 
