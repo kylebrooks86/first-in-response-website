@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-OWNER-STAGING-LOCAL-DRYRUN-STOP -->
+## Nov 23 — owner Acer local synthetic STAGING dry-run STOP (NO ORIGINAL CHECKBOX CLOSED)
+
+Actual owner screenshot from local `d92fd056` checkout returned `FIRE_STAGING_DRY_RUN_NOT_PASSED [LOCAL_BUILD_OR_WRANGLER_OTHER]`, followed by `No upload attempted by this diagnostic. Old one-shot attempt remains consumed.` This only proves the **locally pinned manifest/source checks reached a nonzero Wrangler offline --dry-run**; no root cause yet, no real password, hosted payment preservation or provider build/deployment proof. Private image SHA-256 `fcfb6f88440b59daf965bf27440e4383f7bf5f600bd8261ecf0e3a4508b0e9ae`; sanitized evidence [HERE](../evidence/FIRE_G4_STAGING_SYNTHETIC_LOCAL_DRYRUN_OWNER_STOP_20261123.md).
+
+[**Source progress only**] PR282 [diagnostic classifier `1726bc5`](https://github.com/kylebrooks86/first-in-response-website/commit/1726bc5e61b941dcdc4091050657bf9228c61ff4) and [targeted no-secret regression `94df434`](https://github.com/kylebrooks86/first-in-response-website/commit/94df434e344bb56cb99184b47c140f3fe57c38bf) committed; new exact-head CI not yet sealed at this checkpoint. No raw Wrangler output printed. Never rerun consumed Nov22 STAGING real upload or accepted old owner device/provider checks. **Formal 51/95; 4/10 accepted (G1/G2/G3/G8), G4-04 and other hosted gates remain open. NEW LIVE NO-GO, Job #0001 unused.**
+
+---
+
 <!-- FIRE-NOV23-STAGING-E204C50-27-OF-27-FINAL-CI -->
 ## Nov 23 — [x] Corrected STAGING offline diagnostic code/test exact-SHA CI FINAL: 27/27 SUCCESS (NO PROVIDER WRITE)
 
