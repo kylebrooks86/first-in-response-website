@@ -551,6 +551,35 @@ jobs:
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
           pnpm install --frozen-lockfile
           pnpm run build
+      - name: FIRE CI DIAGNOSTIC pinned Wrangler 4.162.0 synthetic dry-run (no Cloudflare credentials or upload)
+        # Non-gating research: this reproduces the OWNER'S new failed local
+        # command with a zero placeholder, never real hash, Access or payments.
+        # A diagnostic failure does NOT invalidate previously accepted source CI.
+        continue-on-error: true
+        env:
+          CI: 'true'
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          CLOUDFLARE_API_KEY: ''
+          CLOUDFLARE_EMAIL: ''
+          CLOUDFLARE_ENV: ''
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/fire-independent-staging-candidate"
+          mkdir -p "$RUNNER_TEMP/fire-pinned-wrangler"
+          npm install --prefix "$RUNNER_TEMP/fire-pinned-wrangler" --no-save --no-audit --no-fund wrangler@4.162.0
+          cli="$RUNNER_TEMP/fire-pinned-wrangler/node_modules/wrangler/bin/wrangler.js"
+          test "$(node "$cli" --version | tail -n 1)" = '4.162.0'
+          placeholder="$RUNNER_TEMP/fire-zero-hash-only.json"
+          trap 'rm -f "$placeholder"' EXIT
+          python3 -c "import json,sys; open(sys.argv[1],'w',encoding='utf-8').write(json.dumps({'FIRE_ADMIN_PASSWORD_HASH':'0'*64}))" "$placeholder"
+          # Cloudflare documents --dry-run as no deployment. There are no
+          # credentials, account/route, real owner hash or provider writes.
+          node "$cli" versions upload --config "$PWD/dist/server/wrangler.json" --name fire-app-independent-staging --secrets-file "$placeholder" --keep-vars --strict --message "FIRE CI synthetic no-upload dry-run" --dry-run
+          echo "FIRE_CI_SYNTHETIC_4162_DRY_RUN_PASS (NOT CLOUD HOSTED PROOF)"
+
       - name: Gate 6 owner dashboard private-cache and financial job parity (native SQLite only)
         run: |
           cd "$RUNNER_TEMP/fire-independent-staging-candidate"
