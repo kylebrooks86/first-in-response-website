@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-G4-CACHED-SESSION-BOTH-DARK-CLEAR -->
+## November 23 ~12:51 CST — [x] physical existing-Wrangler-session G4-only DARK inventory SUCCESS (prior NOV23 local STOP superseded)
+
+The owner's three new private Acer JPEGs show the `--capture-dark-existing-session` mode successfully returning provider-backed complete scoped Cloudflare GET inventories for BOTH DR and NEW LIVE: `FIRE_BOTH_DARK_EXPOSURE_INVENTORY_CLEAR`, production/preview Workers.dev OFF, 0 target domains/routes, empty complete account zone/domain listings and `providerReadbackVerified:true`. The wrapper returns `accountWideInventoryCaptured:true`, `darkPublicEndpointsAbsent:true`, `stagingJournalNotQueried:true`, `providerWrites:false`, `loginAttempted:false`, `gate4Accepted:false`, `gate5Accepted:false`, `releaseAuthorized:false`. This is a valid later success after the **12:41 CST generic STOP**; do not leave that STOP as latest outcome. [Original screenshot SHA-256 hashes and strict scope](evidence/FIRE_G4_OWNER_CACHED_SESSION_BOTH_DARK_CLEAR_20261123.md).
+
+**NO DUPLICATE CHECKOFF:** November 22 already accepted the provider-backed both-DARK ingress absence subproof; this adds successful **cached-session no-login fallback execution**, not a second original checkbox or full G4-05. No G5 repeat. STAGING inactive upload remains one-shot consumed/no retry. Original **51/95** and **4/10** (G1/G2/G3/G8) unchanged, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK NO-GO, first actual Job #0001 unused. No provider writes, payments or deployment.
+
+---
+
 <!-- FIRE-NOV23-OWNER-G4-DARK-LOCAL-STOP-7CDE32C -->
 ## November 23 12:41 CST — owner G4-only cached-session generic STOP; bounded source diagnosis saved
 
