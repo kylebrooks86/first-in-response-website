@@ -1,3 +1,14 @@
+<!-- FIRE-NOV22-G404-NULL-ERRORS-OWNER-STOP-237DFCE4 -->
+## November 22 ~19:41 CST — [x] STAGING GET-only version-list null-errors source defect repaired; hosted G4-04 still [ ]
+
+Owner's second Acer screenshot 1906×942 SHA-256 `237dfce46c370a254496326d8332794f890cbadd1f32e10659775d6d1cc4c76d` confirms **`STAGING READ-ONLY STOP at READ_STAGING_VERSION_LIST [GET_RESPONSE_NOT_SUCCESS]`** after earlier one authorized upload attempt was consumed (outcome still UNKNOWN). **No additional upload**, activation, Cloudflare sign-in, payment/Stripe, D1, R2, Access, route or provider write approved. Do NOT re-run upload `-Execute`, reset attempt lock, or ask owner to repeat this screenshot.
+
+[x] Targeted existing unmerged DRAFT PR282 **source-only** repair `fe7924ad4f1a4d552335384730fdbc27223d36e3` fixes a PowerShell false negative: `@($null).Count` is one, so Cloudflare `success:true/errors:null` Workers-version responses could falsely produce `GET_RESPONSE_NOT_SUCCESS`. Only null errors are normalized to empty; actual errors, failed success flag, missing result still fail closed. Regression added `5e08f0e46f48000adc0e18f71fe0167dfd3e53f7`. This is **a plausible unconfirmed cause**, not a confirmed physical API response. No rerun of owner Cloudflare GET, new version receipt or observed inactive/active version from this source work. [Exact evidence](https://github.com/kylebrooks86/first-in-response-website/blob/work/fire-private-notes-followup-search-20261119/business-app-parity/evidence/FIRE_STAGING_ONE_ATTEMPT_VERSION_LIST_STOP_20261122.md).
+
+[ ] **Original numbered G4-04 remains OPEN**, original 51/95 accepted, 44 open, 4/10 formal gates G1/G2/G3/G8 accepted, G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unused. No deployment/merge/release/paid R2 or second upload authorized; changed-source CI awaiting authoritative exact-head confirmation.
+
+---
+
 <!-- FIRE-NOV22-G404-VERSION-LIST-STOP-D70F2996 -->
 ## Nov 22 ~19:29 CST — [x] owner read-only STAGING reconciliation attempted; version-list evidence STOP, NOT release PASS
 
