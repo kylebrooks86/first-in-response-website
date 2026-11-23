@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-G4-DENIED-GET-SANITIZED-1DB43B3 -->
+## Nov 22 ~20:07 CST — [x] actual G4-only Cloudflare account-inventory diagnostic source + negative tests; G4-05 [ ] still open
+
+- [x] Integrated DRAFT PR #282 now contains **real executable source changes** for the previously opaque `DARK_ACCOUNT_READONLY_STOP`: [Cloudflare GET stage and HTTP-only coding `eaa1c70`](https://github.com/kylebrooks86/first-in-response-website/commit/eaa1c70d2999de3dfef6cc1da3a93cbb3c3c9874) distinguishes denied Worker subdomain/domain, ordinary/internal-zone, and route GET stages. [Combined/G4-only receipt correction `f2caac6`](https://github.com/kylebrooks86/first-in-response-website/commit/f2caac6877d255a4d8ecb602e1c996fd85e0fff0) surfaces **only fixed stage + numeric HTTP code** after a failure, sanitizes arbitrary errors/secrets, and represents unknown NEW LIVE exposure as null rather than a fabricated false.
+- [x] Actual focused tests updated: [G4-only fail-closed and secret-redaction `2be8463`](https://github.com/kylebrooks86/first-in-response-website/commit/2be84636f27f27f5ce36734236be2b4153e5c0be) and [production GET 403 path/zero-provider mock `1db43b3`](https://github.com/kylebrooks86/first-in-response-website/commit/1db43b308c413daf00834cfa23f389fc50fca0ac). **27 new exact-head GitHub workflows were triggered automatically; no pass declared until final readback.**
+- [ ] Original G4-05 remains open: no new Cloudflare account-wide signed inventory was physically acquired by this code change. The owner already has the accepted STAGING **22/25** migration-journal proof; **do not repeat G5 D1 SELECT**. The existing G4-only `--capture-dark-env-token` path bypasses Wrangler/browser login and queries no STAGING D1, but only works with an owner-controlled, appropriately permissioned token. A resulting HTTP stage/status is diagnostic, not proof of absence. Never share token values.
+- **No original 95-row checkbox added:** 51/95 accepted, 4/10 whole gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN. STAGING one-shot upload permission consumed; NO RETRY. NEW LIVE DARK/NO-GO, Job #0001 unissued. Source branch only, no Cloudflare login, API/provider writes, deploy, merge, Stripe, D1 migration, Access/routes, paid R2 or public site change.
+
+---
+
 <!-- FIRE-NOV22-G404-READONLY-NO-MATCH-DD84421E -->
 ## Nov 22 ~19:47 CST — [x] owner Acer current STAGING serving preserved; 0 recent inactive matches, G4-04 still [ ]
 
