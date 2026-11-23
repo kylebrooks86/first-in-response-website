@@ -1,3 +1,10 @@
+<!-- FIRE-NOV23-CACHED-SESSION-G4-SUCCESS-NO-DOUBLE-CREDIT -->
+## Nov 23 ~12:51 CST — [x] NEW successful G4 cached-session no-login proof, NOT a new original 95-row checkbox
+
+Owner Acer `--capture-dark-existing-session` now actually succeeded after earlier Nov 23 generic STOP: complete read-only DR/NEW LIVE scoped account inventory `FIRE_BOTH_DARK_EXPOSURE_INVENTORY_CLEAR`, `providerReadbackVerified:true`, `accountWideInventoryCaptured:true`, `darkPublicEndpointsAbsent:true`, `stagingJournalNotQueried:true`, `providerWrites:false`, `loginAttempted:false`. [Original screenshot hashes and complete bounded facts](../evidence/FIRE_G4_OWNER_CACHED_SESSION_BOTH_DARK_CLEAR_20261123.md). The independent BOTH-DARK provider subproof was **already [x] Nov 22**, and may not be credited again. Original **G4-05 [ ]**, **G4-04 [ ]**, G4/G5/G6/G7/G9/G10 OPEN; formal **51/95 original checks accepted** and 4/10 gates (G1/G2/G3/G8). STAGING G5 22/25 journal not queried again; STAGING single authorized inactive upload already consumed/no retry. DARK NEW LIVE NO-GO, Job #0001 unused. No deployment or provider write.
+
+---
+
 <!-- FIRE-NOV22-G4-CACHED-SESSION-DARK-ONLY-791B1DB -->
 ## Nov 22 ~20:11 CST — [x] new cached-Wrangler G4-only command, skips accepted G5 (source only)
 
