@@ -115,5 +115,21 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         self.assertNotIn("FileMode]::CreateNew", read_only)
         self.assertNotIn("wrangler login", read_only)
 
+
+    def test_readonly_get_accepts_null_errors_only_when_success_and_result_valid(self):
+        # Cloudflare Workers version APIs can return success:true/errors:null.
+        # PowerShell @($null).Count is 1; the old generic guard rejected that.
+        read_only = (Path(__file__).parent / 'owner_staging_one_attempt_readonly_reconcile.ps1').read_text()
+        get_only = read_only.split('function GetOnly', 1)[1].split('function Binding', 1)[0]
+        self.assertIn("$providerErrors=@()", get_only)
+        self.assertIn("if($null -ne $response.errors){$providerErrors=@($response.errors)}", get_only)
+        self.assertIn("Need ($response.success -eq $true) 'GET_RESPONSE_SUCCESS_FALSE'", get_only)
+        self.assertIn("Need ($providerErrors.Count -eq 0) 'GET_RESPONSE_ERRORS_PRESENT'", get_only)
+        self.assertIn("Need ($null -ne $response.result) 'GET_RESPONSE_RESULT_MISSING'", get_only)
+        self.assertNotIn("@($response.errors).Count -eq 0", get_only)
+        self.assertEqual(get_only.count('Invoke-RestMethod -Method Get'), 1)
+        for forbidden in ('Invoke-RestMethod -Method Post', 'wrangler login', 'versions\',\'upload'):
+            self.assertNotIn(forbidden, get_only)
+
 if __name__ == '__main__':
     unittest.main()
