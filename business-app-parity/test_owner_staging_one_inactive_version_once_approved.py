@@ -108,7 +108,7 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         ):
             self.assertIn(marker, read_only)
         self.assertEqual(read_only.count('Invoke-RestMethod -Method Get'), 1)
-        self.assertRegex(read_only, r"Need \\(\\$covered\\) 'VERSION_LIST_WINDOW_NOT_FULLY_COVERED'")
+        self.assertIn("Need ($covered) 'VERSION_LIST_WINDOW_NOT_FULLY_COVERED'", read_only)
         self.assertIn("if($items.Count -lt 100", read_only)
         self.assertNotIn("Write-Host $_", read_only)
         self.assertNotIn("Write-Host $response", read_only)
