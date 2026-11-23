@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-G404-WIN-COMBO-NAME-LOCAL-DIAGNOSTIC-CB8D8EC -->
+## Nov 23 — STAGING Windows CLI isolated config families; combination/name diagnostic committed (NO provider write)
+
+- [x] **New independent GitHub Windows evidence** on earlier code [acf74d4](https://github.com/kylebrooks86/first-in-response-website/commit/acf74d4c27b72f039d05056c253e6915bb5f231a): [STAGING run 45259907872, synthetic Windows job 137991766009](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45259907872) built and source-verified the existing STAGING Worker with no provider credentials. Fixed safe verdicts **MINIMAL_CONTROL PASS, REDUCED_MAIN PASS, REDUCED_PLUS_ASSETS PASS, REDUCED_PLUS_D1 PASS, REDUCED_PLUS_VARS_SECRETS PASS**, while **BASE_ONLY STOP / UNCLASSIFIED**, full secret/direct STOP, and offline npx STOP / NPX_OR_NPM. The non-gating diagnostic Windows job reported FAILURE as designed; neither hosted proof nor whole-workflow green.
+- [x] **Actual new source diagnosis** [cb8d8ec](https://github.com/kylebrooks86/first-in-response-website/commit/cb8d8ec582cd7fd9d583c165155daafe29e63686) on existing main-based, draft, unmerged PR282 adds only three ephemeral, **credential-free local --dry-run** Windows variants: compiled main + combined ASSETS/D1/VARS/secret-name families; compiled main with original STAGING Worker name; and the complete STAGING manifest with fictional renamed Worker. It prints bounded PASS/STOP and allowlisted failure category only; never CLI stderr, account details, paths, tokens or admin hash. **Changed-head automatic CI pending; no new PASS inferred.** This is a difference-isolation experiment, NOT a STAGING upload or confirmed root-cause fix.
+- [ ] Formal STAGING G4-04 remains OPEN; original 95-item checklist remains **51/95**; formal accepted gates **G1/G2/G3/G8 = 4/10**. G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, first real Job #0001 unissued. Preserve STAGING physical D1 22/25 and older version/no-match evidence, BOTH-DARK account ingress absent proof; **Nov 22 one-time STAGING real upload authorization CONSUMED: NO RETRY, NEVER RESET LOCK**. No owner Acer rerun, Cloudflare login/API write, provider Worker/Access/route/D1/Stripe/payment/R2 action, Git merge, app/site deploy or publish.
+
+---
+
 <!-- FIRE-NOV23-G404-REDUCED-MAIN-PASS-CONFIG-ISOLATION-ACF74D4 -->
 ## Nov 23 ~14:30 CST — actual Windows reduced STAGING main PASS, config families next (source only)
 
