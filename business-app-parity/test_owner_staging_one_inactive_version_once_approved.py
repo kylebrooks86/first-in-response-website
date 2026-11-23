@@ -182,7 +182,16 @@ class SyntheticLocalStagingDryRunGuard(unittest.TestCase):
                        '$status = $dryRun.exitCode',
                        'LOCAL_CLI_OPTION_REJECTED',
                        'LOCAL_INPUT_OR_MODULE_MISSING',
-                       'REMOTE_PREFLIGHT_OR_PROVIDER_CHECK'):
+                       'REMOTE_PREFLIGHT_OR_PROVIDER_CHECK',
+                       'LOCAL_WRANGLER_CONFIG_INVALID',
+                       'LOCAL_WORKER_BUNDLE_FAILURE',
+                       'LOCAL_STATIC_ASSETS_FAILURE',
+                       'LOCAL_WRANGLER_RUNTIME_EXCEPTION',
+                       'LOCAL_AUTH_OR_NETWORK_DEPENDENCY',
+                       'LOCAL_WRANGLER_EXIT_WITHOUT_OUTPUT',
+                       'LOCAL_BUILD_OR_WRANGLER_OTHER',
+                       '[string]::IsNullOrWhiteSpace($result)',
+                       "Write-Host ('FIRE_STAGING_DRY_RUN_NOT_PASSED [' + $category + ']')"):
             self.assertIn(marker, s)
         self.assertEqual(s.count('& npx @Arguments 2>&1 | Out-String'), 1)
         self.assertNotIn('& npx @arguments 2>&1 | Out-String)', s)
