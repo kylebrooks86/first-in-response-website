@@ -94,11 +94,13 @@ export function evaluateDarkExposureEvidence(target,evidence){
 }
 /** Safe labels identify a failed READ-ONLY inventory permission/endpoint without
  * echoing a token, account resource URL, provider body, or private binding. */
-function safeReadOnlyGetStage(path){
+function safeReadOnlyGetStage(url){
+ const path=url.pathname;
  if(path.endsWith('/subdomain'))return 'WORKER_SUBDOMAIN';
  if(path.endsWith('/workers/domains'))return 'WORKER_DOMAINS';
  if(path.endsWith('/workers/routes'))return 'ZONE_ROUTES';
- if(path==='/client/v4/zones')return 'ZONES';
+ if(path==='/client/v4/zones')
+  return url.searchParams.get('type')==='internal'?'ZONES_INTERNAL':'ZONES_ORDINARY';
  return 'UNCLASSIFIED_GET';
 }
 async function getApi(token,path){
@@ -109,7 +111,7 @@ async function getApi(token,path){
     signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+token}});
   if(!response.ok){
     const error=new Error('FIRE DARK EXPOSURE READ-ONLY STOP: sanitized Cloudflare GET failure');
-    error.readOnlyStage=safeReadOnlyGetStage(url.pathname);
+    error.readOnlyStage=safeReadOnlyGetStage(url);
     error.readOnlyHttpStatus=Number.isSafeInteger(response.status)?response.status:null;
     throw error;
   }
