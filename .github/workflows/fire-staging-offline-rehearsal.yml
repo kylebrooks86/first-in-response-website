@@ -911,6 +911,36 @@ jobs:
                 $minusExit = $LASTEXITCODE
                 $g404Subtractions[$spec.tag] = @{ code = $minusExit; output = $minusOutput }
               }
+              # Second-stage local isolation after every individual config family
+              # passed on Windows: compare the combination, the target name,
+              # and a fictional renamed copy of the FULL original config.
+              # Each variant uses a temporary config, credential-free dry-run.
+              $g404SecondStage = @{}
+              $unionManifest = [ordered]@{}
+              foreach ($key in $reducedManifest.Keys) { $unionManifest[$key] = $reducedManifest[$key] }
+              foreach ($key in @('assets','d1_databases','vars','secrets')) {
+                $field = $builtManifest.PSObject.Properties[$key]
+                if ($null -ne $field) { $unionManifest[$key] = $field.Value }
+              }
+              $originalNameManifest = [ordered]@{}
+              foreach ($key in $reducedManifest.Keys) { $originalNameManifest[$key] = $reducedManifest[$key] }
+              $originalNameManifest['name'] = 'fire-app-independent-staging'
+              $fictionalFullManifest = [ordered]@{}
+              foreach ($prop in $builtManifest.PSObject.Properties) {
+                $fictionalFullManifest[$prop.Name] = $prop.Value
+              }
+              $fictionalFullManifest['name'] = 'fire-g404-ci-only-renamed'
+              foreach ($variant in @(
+                @{ tag = 'UNION_FAMILIES'; manifest = $unionManifest; target = 'fire-g404-ci-only-reduced' },
+                @{ tag = 'ORIGINAL_NAME'; manifest = $originalNameManifest; target = 'fire-app-independent-staging' },
+                @{ tag = 'FULL_RENAMED'; manifest = $fictionalFullManifest; target = 'fire-g404-ci-only-renamed' }
+              )) {
+                $localConfig = Join-Path (Split-Path -Parent $cfg) ('wrangler.g404-ci-' + $variant.tag.ToLowerInvariant() + '.json')
+                [IO.File]::WriteAllText($localConfig, ($variant.manifest | ConvertTo-Json -Depth 20 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+                $localArgs = @('versions','upload','--config',$localConfig,'--name',$variant.target,'--dry-run')
+                $localOutput = (& node $cli @localArgs 2>&1 | Out-String)
+                $g404SecondStage[$variant.tag] = @{ code = $LASTEXITCODE; output = $localOutput }
+              }
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -956,6 +986,11 @@ jobs:
               $outcome = $g404Subtractions[$tag]
               Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
               Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
+            }
+            foreach ($tag in @('UNION_FAMILIES','ORIGINAL_NAME','FULL_RENAMED')) {
+              $outcome = $g404SecondStage[$tag]
+              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
+              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
             }
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
