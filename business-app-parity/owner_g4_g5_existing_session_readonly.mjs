@@ -114,6 +114,9 @@ function npmCli(){
  return options.find(existsSync)||fail();
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
+ // Fixed, non-sensitive STOP stages help distinguish a local owner-console /
+ // cached-credential problem from a hosted GET problem. Never echo raw errors.
+ let stopStage='COMMAND_ARGUMENTS';
  try{
   const args=process.argv.slice(2);
   if(args.length===0){
@@ -124,30 +127,48 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   }else if(args.length===1&&
             (args[0]==='--capture-dark-env-token'||
              args[0]==='--capture-dark-existing-session')){
+   stopStage='OWNER_INTERACTIVE_CONSOLE';
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
       process.env.CI||process.env.GITHUB_ACTIONS)fail();
    // Both paths skip accepted G5 STAGING D1 entirely. This variant reuses
    // only existing cached Wrangler auth; no browser or new token requested.
-   const token=args[0]==='--capture-dark-env-token'?
-    readOwnerApiTokenFromEnvironment():
-    readExistingWranglerToken({npmCli:npmCli()});
+   let token;
+   if(args[0]==='--capture-dark-env-token'){
+    stopStage='OWNER_ENV_TOKEN';
+    token=readOwnerApiTokenFromEnvironment();
+   }else{
+    stopStage='LOCAL_NPM_CLI';
+    const localCli=npmCli();
+    stopStage='CACHED_WRANGLER_TOKEN';
+    token=readExistingWranglerToken({npmCli:localCli});
+   }
+   stopStage='G4_DARK_READONLY_INVENTORY';
    const receipt=await captureG4DarkOnlyEvidence({token});
    console.log(JSON.stringify(receipt,null,2));
    if(!receipt.darkPublicEndpointsAbsent)process.exitCode=2;
   }else if(args.length===1&&
             (args[0]==='--capture'||args[0]==='--capture-env-token')){
+   stopStage='OWNER_INTERACTIVE_CONSOLE';
    if(process.platform!=='win32'||!process.stdin.isTTY||!process.stdout.isTTY||
       process.env.CI||process.env.GITHUB_ACTIONS)fail();
-   const token=args[0]==='--capture-env-token'?
-    readOwnerApiTokenFromEnvironment():
-    readExistingWranglerToken({npmCli:npmCli()});
+   let token;
+   if(args[0]==='--capture-env-token'){
+    stopStage='OWNER_ENV_TOKEN';
+    token=readOwnerApiTokenFromEnvironment();
+   }else{
+    stopStage='LOCAL_NPM_CLI';
+    const localCli=npmCli();
+    stopStage='CACHED_WRANGLER_TOKEN';
+    token=readExistingWranglerToken({npmCli:localCli});
+   }
+   stopStage='G4_G5_READONLY_CAPTURE';
    const receipt=await captureG4G5MissingEvidence({token});
    console.log(JSON.stringify(receipt,null,2));
    if(!receipt.stagingJournalCaptured||!receipt.darkPublicEndpointsAbsent)
     process.exitCode=2;
   }else fail();
  }catch{
-  console.error('FIRE G4/G5 READ-ONLY STOP: no verified combined proof. No login, retry, migration, route, Worker, Stripe or storage write.');
+  console.error('FIRE G4/G5 READ-ONLY STOP ['+stopStage+']: no verified combined proof. No login, retry, migration, route, Worker, Stripe or storage write.');
   process.exitCode=1;
  }
 }
