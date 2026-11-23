@@ -107,9 +107,9 @@ try {
   }
   $stage='READONLY_CLASSIFICATION'
   $status='REVIEW_NO_EXACT_INACTIVE_MATCH_NO_RETRY'
-  if($matching.Count -gt 1){$status='STOP_MULTIPLE_MATCHES_NO_RETRY'}
-  elseif($matching.Count -eq 1 -and $servingUnchanged){$status='READONLY_ONE_INACTIVE_VERSION_METADATA_MATCH'}
-  elseif($matching.Count -eq 1){$status='STOP_SERVING_CHANGED_NO_RETRY'}
+  if(-not $servingUnchanged){$status='STOP_SERVING_CHANGED_NO_RETRY'}
+  elseif($matching.Count -gt 1){$status='STOP_MULTIPLE_MATCHES_NO_RETRY'}
+  elseif($matching.Count -eq 1){$status='READONLY_ONE_INACTIVE_VERSION_METADATA_MATCH'}
   [pscustomobject]@{
     result=$status
     worker=$worker
@@ -120,7 +120,7 @@ try {
     exactConfiguredVersionMatches=$matching.Count
     inactiveVersionId=$(if($matching.Count -eq 1){$matching[0].id}else{$null})
     uploadRetryAuthorized=$false
-    configuredVersionActivated=$false
+    configuredVersionActivated=$(if($servingUnchanged){$false}else{$null})
     remoteCodeBytesVerified=$false
     hostedAppLoginVerified=$false
     gate4Accepted=$false
