@@ -825,6 +825,15 @@ jobs:
               $ErrorActionPreference = 'Continue'
               # Buffer only in process memory. NEVER emit raw CLI output, which
               # can contain absolute Windows paths and machine/account details.
+              # Narrow the Windows packaging failure with three LOCAL ONLY
+              # variants: base config, base+synthetic secret, exact full flags.
+              # No invocation has credentials; every variant retains --dry-run.
+              $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
+              $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
+              $baseCode = $LASTEXITCODE
+              $secretArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--secrets-file',$placeholder,'--dry-run')
+              $secretOutput = (& node $cli @secretArguments 2>&1 | Out-String)
+              $secretCode = $LASTEXITCODE
               $directOutput = (& node $cli @arguments 2>&1 | Out-String)
               $directCode = $LASTEXITCODE
               $npxOutput = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
@@ -851,6 +860,10 @@ jobs:
             }
             $direct = if ($directCode -eq 0) { 'PASS' } else { 'STOP' }
             $npx = if ($npxCode -eq 0) { 'PASS' } else { 'STOP' }
+            Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
+            Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
+            Write-Host ('FIRE_G404_WINDOWS_SYNTHETIC_SECRET_' + $(if ($secretCode -eq 0) {'PASS'} else {'STOP'}))
+            Write-Host ('FIRE_G404_WINDOWS_SECRET_CATEGORY_' + (SafeFailureCategory $secretOutput $secretCode))
             Write-Host ('FIRE_G404_WINDOWS_DIRECT_CLI_' + $direct)
             Write-Host ('FIRE_G404_WINDOWS_DIRECT_CATEGORY_' + (SafeFailureCategory $directOutput $directCode))
             Write-Host ('FIRE_G404_WINDOWS_NPX_OFFLINE_' + $npx)
