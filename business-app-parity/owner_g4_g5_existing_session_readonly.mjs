@@ -16,6 +16,23 @@ import {captureStagingJournal,STAGING_DB}
  from './owner_staging_journal_existing_session_readonly.mjs';
 
 const fail=()=>{throw Error('FIRE G4/G5 read-only STOP: existing session unavailable or invalid')};
+const SAFE_DARK_GET_STAGES=new Set([
+ 'WORKER_SUBDOMAIN','WORKER_DOMAINS','ZONE_ROUTES',
+ 'ZONES_ORDINARY','ZONES_INTERNAL','UNCLASSIFIED_GET'
+]);
+function sanitizedDarkReadOnlyStop(error){
+ const stage=SAFE_DARK_GET_STAGES.has(error?.readOnlyStage)?
+  error.readOnlyStage:null;
+ const status=Number.isSafeInteger(error?.readOnlyHttpStatus)&&
+  error.readOnlyHttpStatus>=300&&error.readOnlyHttpStatus<=599?
+  error.readOnlyHttpStatus:null;
+ return {
+  result:'DARK_ACCOUNT_READONLY_STOP',gate4Accepted:false,
+  // Only a fixed stage and numeric HTTP status. No provider body, URL or token.
+  ...(stage?{failedReadOnlyStage:stage}:{}),
+  ...(stage&&status?{failedReadOnlyHttpStatus:status}:{})
+ };
+}
 export async function captureG4G5MissingEvidence({
  token,readStaging=captureStagingJournal,readDark=captureBothDarkExposures
 }={}){
@@ -25,7 +42,7 @@ export async function captureG4G5MissingEvidence({
  try{staging=await readStaging({token})}
  catch{staging={result:'STAGING_READONLY_STOP',gate5Accepted:false}}
  try{exposure=await readDark({token})}
- catch{exposure={result:'DARK_ACCOUNT_READONLY_STOP',gate4Accepted:false}}
+ catch(error){exposure=sanitizedDarkReadOnlyStop(error)}
  const stagingVerified=staging?.physicalDatabaseIdentityBeforeAfterVerified===true&&
   staging?.target===STAGING_DB&&staging?.sqlReadOnly===true&&
   staging?.providerWrites===false&&
@@ -46,7 +63,7 @@ export async function captureG4G5MissingEvidence({
   providerContacted:true,providerWrites:false,loginAttempted:false,
   tokenStored:false,tokenDisplayed:false,
   gate4Accepted:false,gate5Accepted:false,releaseAuthorized:false,
-  newLivePublic:false
+  newLivePublic:darkEndpointsAbsent?false:null
  });
 }
 /**
@@ -60,7 +77,7 @@ export async function captureG4DarkOnlyEvidence({token,readDark=captureBothDarkE
     typeof readDark!=='function')fail();
  let exposure;
  try{exposure=await readDark({token})}
- catch{exposure={result:'DARK_ACCOUNT_READONLY_STOP',gate4Accepted:false}}
+ catch(error){exposure=sanitizedDarkReadOnlyStop(error)}
  const complete=exposure?.providerReadbackVerified===true&&
   exposure?.completeInventoryFromSuppliedEvidence===true;
  return Object.freeze({
@@ -76,7 +93,7 @@ export async function captureG4DarkOnlyEvidence({token,readDark=captureBothDarkE
   providerContacted:true,providerWrites:false,loginAttempted:false,
   tokenStored:false,tokenDisplayed:false,
   gate4Accepted:false,gate5Accepted:false,releaseAuthorized:false,
-  newLivePublic:false
+  newLivePublic:complete&&exposure?.publicEndpointsAbsentInSuppliedEvidence===true?false:null
  });
 }
 /**
