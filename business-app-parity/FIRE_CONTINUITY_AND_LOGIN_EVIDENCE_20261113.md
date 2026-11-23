@@ -1,3 +1,13 @@
+<!-- FIRE-NOV22-STAGING-SOURCE-FINGERPRINT-OFFLINE-BUILD -->
+## Nov 22 — G4-04 source-fingerprint safeguard and offline Acer STAGING builder (NO HOSTED WRITE)
+
+- [x] Integrated draft PR282 source adds a full built-source/overlay fingerprint and explicitly disallows unrelated numbering and quick-login modes before consuming the one-authorized inactive STAGING upload: [final corrected uploader 5248abcb](https://github.com/kylebrooks86/first-in-response-website/commit/5248abcb39cd569e2d9762031a61738dd1bcbcc3). Older malformed draft commits are superseded.
+- [x] Owner Windows local candidate preparation and exact PR282 Git SHA pinning: [final builder e31f9c30](https://github.com/kylebrooks86/first-in-response-website/commit/e31f9c300965ffe97242e47083d35eb9e7190c8b), business-app-parity/owner_windows_build_staging_inactive_candidate.ps1. Dry-run unless -Build; built source fingerprint, same QA-master shared source plus STAGING overlay, isolated D1, disabled Stripe, zero R2/preview, no upload/deploy, no DPAPI exposure or payment changes.
+- [x] Source-only negative tests [3c6dd78](https://github.com/kylebrooks86/first-in-response-website/commit/3c6dd781b855cb26d9ce7a1f2983945b299cd00d), [0430011](https://github.com/kylebrooks86/first-in-response-website/commit/043001106da617defa7f5c7b3e3ae9bacd6ebfb2); existing STAGING CI workflow wiring [4dae6d6](https://github.com/kylebrooks86/first-in-response-website/commit/4dae6d6657dc5d080a33ffd27a5596330d57f964). Latest changed-code CI is pending independent final verdict.
+- [ ] Original G4-04 NOT CLOSED: the existing owner-authored permission is only for one STAGING 0%-traffic inactive version, using the already-prepared Acer-bound DPAPI hash, literal FIRE_STRIPE_MODE=disabled, preservation of the preexisting serving version and payment credential. No owner Acer candidate build, Cloudflare version upload, physical readback, traffic switch, Stripe/provider/D1/Access/route/paid-service/merge action was made here. No repeated failed Cloudflare login or repeated existing evidence. Unknown upload outcome consumes attempt, STOP and reconcile READ ONLY.
+- Official original list: 51/95 accepted, 4/10 formal gates (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, authentic Job #0001 unused. Do not rerun accepted STAGING 100%-serving GET, Access, 22/25 journal, both DARK account-wide inventories, owner DPAPI prep, QA/iPhone/backup proof.
+
+---
 <!-- FIRE-NOV22-G404-27CI-2E0CD35-SETTLED -->
 ## Nov 22, 2026 — One-shot STAGING uploader safety CI COMPLETE (no hosted write)
 
