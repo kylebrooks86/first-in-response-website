@@ -1,3 +1,10 @@
+<!-- FIRE-NOV23-G404-LOCAL-DRYRUN-NO-NEW-95-ROW -->
+## Nov 23 ~13:00 CST — [x] new STAGING synthetic/local Wrangler dry-run diagnostic CODE ADDED, NOT EXECUTED
+
+New optional offline, no-upload source command [`owner_staging_synthetic_local_upload_dryrun.ps1`](../owner_staging_synthetic_local_upload_dryrun.ps1), source commit [`5369677`](https://github.com/kylebrooks86/first-in-response-website/commit/53696774737a6b953f42181ebbda6e1cbe02b25d) on existing integrated unmerged draft PR282. Checks previously built source, STAGING D1/disabled Stripe/no preview/no R2; uses placeholder secret and documented `wrangler versions upload --dry-run`, never reads real DPAPI hash or grants upload/activation. **Not run on Acer; no actual Cloudflare version, receipt, password or payment binding repair, login proof or new 95-row checkbox.** Existing Nov22 read-only no-match and 100%-serving original remain authoritative; one upload permission SPENT/NO RETRY, lock preserved. **[ ] Original G4-04 stays OPEN.** Original 51/95 accepted, formal 4/10 G1/G2/G3/G8; six gates OPEN, NEW LIVE DARK/NO-GO, Job #0001 not issued. No deployment, merge, Stripe operation or paid Cloudflare/R2.
+
+---
+
 <!-- FIRE-NOV23-CACHED-SESSION-G4-SUCCESS-NO-DOUBLE-CREDIT -->
 ## Nov 23 ~12:51 CST — [x] NEW successful G4 cached-session no-login proof, NOT a new original 95-row checkbox
 
