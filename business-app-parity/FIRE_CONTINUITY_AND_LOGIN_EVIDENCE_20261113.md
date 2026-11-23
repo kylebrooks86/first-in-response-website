@@ -1,3 +1,20 @@
+<!-- FIRE-NOV23-G404-WINDOWS-BASE-SECRET-STRICT-AND-CONTROL-93C2128 -->
+## Nov 23 ~14:21 CST — new Windows G4-04 root-cause isolation, synthetic/no provider
+
+Real completed [GitHub Windows CI #45258080939](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45258080939) job on exact diagnostic code [`39af7644`](https://github.com/kylebrooks86/first-in-response-website/commit/39af7644eb27edd325c041eb9982963972904c03) returned:
+- `FIRE_G404_WINDOWS_BASE_ONLY_STOP` / `...BASE_CATEGORY_UNCLASSIFIED` for built STAGING Worker with **no** secret file, keep-vars, strict or message flags;
+- `FIRE_G404_WINDOWS_SYNTHETIC_SECRET_STOP` / `...SECRET_CATEGORY_UNCLASSIFIED`;
+- `FIRE_G404_WINDOWS_DIRECT_CLI_STOP` / `...DIRECT_CATEGORY_UNCLASSIFIED` for exact full synthetic-only flags;
+- `FIRE_G404_WINDOWS_NPX_OFFLINE_STOP` / `...NPX_CATEGORY_NPX_OR_NPM` for pinned npx invocation.
+
+All were local `--dry-run` with no Cloudflare credentials or provider write. **Key new conclusion:** the additional STAGING synthetic secret/keep-vars/strict flags are **not necessary for the Windows failure**, since the bare STAGING CLI dry-run already stops. Distinct npx package-resolution behavior is also observed. The direct Node root error remains unclassified; **do not claim cause identified** or ask the owner to repeat Acer tests.
+
+**New targeted source-only follow-up** [`93c2128f69494c0c165fddc2c5fdc0468e36f399`](https://github.com/kylebrooks86/first-in-response-website/commit/93c2128f69494c0c165fddc2c5fdc0468e36f399) adds a tiny isolated, no-binding/no-secret, fictitious-name minimal Worker `versions upload --dry-run` **control** on the existing PR282-only Windows job. Its verdict will distinguish broad Windows Wrangler failure from FIRE compiled STAGING package-specific failure. **Exact new-head CI pending; do not claim PASS**. This does not alter the deployed Worker, password, Stripe, source app behavior, databases, Access, routes or owner Acer.
+
+Release gates remain **51/95 accepted original numbered tasks; 4/10 accepted whole gates (G1/G2/G3/G8)**. STAGING G4-04 and G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO; actual Job #0001 unused. November 22 single STAGING `-Execute` approval is **CONSUMED, NO RETRY, NEVER RESET LOCK**; accepted STAGING 22/25 D1, no new inactive version/old serving, and BOTH-DARK ingress evidence must not be repeated. No merge/deploy/paid R2/Stripe or any cloud changes.
+
+---
+
 <!-- FIRE-NOV23-G404-WINDOWS-CI-SYNTHETIC-BOTH-STOP-0779166 -->
 ## November 23 ~14:15 CST — Windows-local Wrangler differential PROVED (synthetic only); bounded classifier committed
 
