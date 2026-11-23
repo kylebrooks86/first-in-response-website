@@ -840,6 +840,30 @@ jobs:
               $controlArguments = @('versions','upload','--config',$controlConfig,'--name','fire-g404-ci-only-synthetic','--dry-run')
               $controlOutput = (& node $cli @controlArguments 2>&1 | Out-String)
               $controlCode = $LASTEXITCODE
+              # Targeted local Windows diagnosis: copy only the already-built
+              # STAGING Worker main/compatibility properties to a temporary
+              # config in the SAME folder, preserving relative entry paths.
+              # If this stripped config passes but the full guarded one stops,
+              # bindings/assets/config become the next justified target; if
+              # both stop, investigate the built Worker entry/bundle instead.
+              # Never read owner credentials, change real manifest, or upload.
+              $builtManifest = Get-Content -LiteralPath $cfg -Raw | ConvertFrom-Json
+              if (-not $builtManifest.main -or -not $builtManifest.compatibility_date) {
+                throw 'Guarded compiled STAGING manifest omitted main/date'
+              }
+              $reducedConfig = Join-Path (Split-Path -Parent $cfg) 'wrangler.g404-ci-reduced.json'
+              $reducedManifest = [ordered]@{
+                name = 'fire-g404-ci-only-reduced'
+                main = [string]$builtManifest.main
+                compatibility_date = [string]$builtManifest.compatibility_date
+              }
+              if ($builtManifest.compatibility_flags) {
+                $reducedManifest.compatibility_flags = @($builtManifest.compatibility_flags)
+              }
+              [IO.File]::WriteAllText($reducedConfig, ($reducedManifest | ConvertTo-Json -Depth 8 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+              $reducedArguments = @('versions','upload','--config',$reducedConfig,'--name','fire-g404-ci-only-reduced','--dry-run')
+              $reducedOutput = (& node $cli @reducedArguments 2>&1 | Out-String)
+              $reducedCode = $LASTEXITCODE
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -874,6 +898,8 @@ jobs:
             $npx = if ($npxCode -eq 0) { 'PASS' } else { 'STOP' }
             Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CONTROL_' + $(if ($controlCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CATEGORY_' + (SafeFailureCategory $controlOutput $controlCode))
+            Write-Host ('FIRE_G404_WINDOWS_REDUCED_MAIN_' + $(if ($reducedCode -eq 0) {'PASS'} else {'STOP'}))
+            Write-Host ('FIRE_G404_WINDOWS_REDUCED_CATEGORY_' + (SafeFailureCategory $reducedOutput $reducedCode))
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
             Write-Host ('FIRE_G404_WINDOWS_SYNTHETIC_SECRET_' + $(if ($secretCode -eq 0) {'PASS'} else {'STOP'}))
