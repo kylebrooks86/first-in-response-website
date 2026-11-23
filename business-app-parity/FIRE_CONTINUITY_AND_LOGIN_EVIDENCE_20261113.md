@@ -1,3 +1,14 @@
+<!-- FIRE-NOV23-LEGACY-ENV-CI-FINAL-8BBEACA -->
+## November 23, 2026 — exact offline STAGING legacy_env repair verified; hosted G4-04 still blocked
+
+- Integrated unmerged, undeployed DRAFT [PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282) exact executable/CI source `91e6aef75a3fe7d0307a4c6dfc0685645dd338f2` incorporates a target-guarded sanitizer for generated local STAGING `wrangler.json` obsolete `legacy_env`, plus local builder and Windows/Linux offline CI. Only documentation changed after this source SHA through `c5fd42e50c510b28a0ec0263e954ed7410059b1d` (GitHub compare reports solely this continuity file and release checklist).
+- [x] Actual [STAGING offline run #45265080682](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45265080682) **COMPLETED SUCCESS**; built STAGING source/TypeScript and the actual `Wrangler generated legacy_env removal safety` step and pinned local synthetic Wrangler dry-run step succeeded. Exact GitHub readback at `c5fd42e` shows **27/27 top-level workflow conclusions SUCCESS**. **Not 27/27 hosted gates.**
+- [ ] Distinct non-gating Windows comparison job **138009919167 FAILED** at `NPX_OFFLINE_STOP` despite synthetic direct CLI and full-minus-legacy_env local PASS. This is an unresolved local npx execution path, not evidence of a Cloudflare host/upload failure. No repeat of owner's accepted Acer attempt necessary, and the local fix must not be called real hosted STAGING remediation.
+- [x] Supplemental **source/changed-code offline CI verification** marked complete in release checklist [commit `8bbeaca`](https://github.com/kylebrooks86/first-in-response-website/commit/8bbeaca2a487afae4f62fe49ce02cbbbfbba3592), with diagnostic exception explicitly preserved. [ ] **Original numbered G4-04 remains OPEN**; real STAGING private admin hash + disabled payment binding / inactive 0%-traffic version NOT installed, previous 2026-11-22 one-shot `-Execute` consumed: **NO RETRY / NO LOCK RESET**. Neither dark ingress inventory nor original STAGING 22/25 physical D1 journal may be counted twice.
+- **Official counts remain 51/95 original checklist criteria, 4/10 release gates accepted (G1/G2/G3/G8); G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK/NO-GO, first authentic Job #0001 unused.** No Cloudflare login or provider change, D1/migration/Access/routes, Stripe/payment, R2 subscription, Git merge, app/public-site deployment or customer data mutation.
+
+---
+
 <!-- FIRE-NOV23-G404-LEGACY-ENV-WRANGLER-COMPAT-91E6AEF -->
 ## November 23 — [x] STAGING Windows Wrangler obsolete legacy_env build fix AUTHORED (source only, CI PENDING)
 
