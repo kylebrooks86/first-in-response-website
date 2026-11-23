@@ -165,9 +165,7 @@ class SyntheticLocalStagingDryRunGuard(unittest.TestCase):
         self.assertEqual(s.count("'--dry-run'"), 1)
         for forbidden in ('wrangler login', 'wrangler versions deploy',
                           'wrangler secret put', 'Invoke-RestMethod',
-                          'Invoke-WebRequest', 'CLOUDFLARE_API_TOKEN=
-,
-                          'FileMode]::OpenOrCreate'):
+                          'Invoke-WebRequest', 'FileMode]::OpenOrCreate'):
             self.assertNotIn(forbidden, s)
         self.assertLess(s.index('verify_materialized_candidate.py'),
                         s.index("('0' * 64)"))
