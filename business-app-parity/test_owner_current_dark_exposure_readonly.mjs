@@ -317,3 +317,33 @@ await assert.rejects(captureDarkExposure('new-live',{
  }
 }),/overlap/);
 console.log('PASS overlapping ordinary/internal zone inventories fail closed');
+
+/* Exercise the production GET wrapper with synthetic fetch responses. A
+ * permission-denied internal-zone inventory must report only its fixed
+ * location + HTTP code, never the bearer token or provider response body. */
+const savedFetch=globalThis.fetch;
+let fetchCalls=0;
+try{
+ globalThis.fetch=async (url,options)=>{
+  fetchCalls++;
+  assert.equal(options.method,'GET');
+  if(String(url).includes('type=internal'))
+   return {ok:false,status:403};
+  const path=new URL(String(url)).pathname+new URL(String(url)).search;
+  const value=await mock('unused-offline',path);
+  return {ok:true,text:async()=>JSON.stringify(value)};
+ };
+ const hiddenBearer='private-owner-token-not-for-logs';
+ await assert.rejects(captureDarkExposure('dr',{token:hiddenBearer}),error=>{
+  assert.equal(error.readOnlyStage,'ZONES_INTERNAL');
+  assert.equal(error.readOnlyHttpStatus,403);
+  assert.equal(String(error.message).includes(hiddenBearer),false);
+  assert.equal(String(error.message).includes('accounts/'),false);
+  return true;
+ });
+ assert.ok(fetchCalls>=4);
+}finally{
+ globalThis.fetch=savedFetch;
+}
+console.log('PASS sanitized internal-zone 403 GET diagnostics with zero provider writes');
+
