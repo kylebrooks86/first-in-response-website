@@ -941,6 +941,37 @@ jobs:
                 $localOutput = (& node $cli @localArgs 2>&1 | Out-String)
                 $g404SecondStage[$variant.tag] = @{ code = $LASTEXITCODE; output = $localOutput }
               }
+              # The union of all known binding families and original name passed,
+              # while the full manifest still STOPPED on Windows. Test only the
+              # remaining explicit ingress settings next, with no credentials.
+              $g404IngressResults = @{}
+              foreach ($variant in @(
+                @{ tag = 'WORKERS_DEV'; fields = @('workers_dev') },
+                @{ tag = 'PREVIEW_URLS'; fields = @('preview_urls') },
+                @{ tag = 'BOTH_INGRESS'; fields = @('workers_dev','preview_urls') }
+              )) {
+                $ingressManifest = [ordered]@{}
+                foreach ($key in $unionManifest.Keys) { $ingressManifest[$key] = $unionManifest[$key] }
+                foreach ($key in $variant.fields) {
+                  $field = $builtManifest.PSObject.Properties[$key]
+                  if ($null -ne $field) { $ingressManifest[$key] = $field.Value }
+                }
+                $ingressCfg = Join-Path (Split-Path -Parent $cfg) ('wrangler.g404-ci-ingress-' + $variant.tag.ToLowerInvariant() + '.json')
+                [IO.File]::WriteAllText($ingressCfg, ($ingressManifest | ConvertTo-Json -Depth 20 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+                $ingressArgs = @('versions','upload','--config',$ingressCfg,'--name','fire-g404-ci-only-reduced','--dry-run')
+                $ingressOutput = (& node $cli @ingressArgs 2>&1 | Out-String)
+                $g404IngressResults[$variant.tag] = @{ code = $LASTEXITCODE; output = $ingressOutput }
+              }
+              $fullNoIngress = [ordered]@{}
+              foreach ($prop in $builtManifest.PSObject.Properties) {
+                if ($prop.Name -notin @('workers_dev','preview_urls')) { $fullNoIngress[$prop.Name] = $prop.Value }
+              }
+              $fullNoIngress['name'] = 'fire-g404-ci-only-renamed'
+              $fullNoIngressCfg = Join-Path (Split-Path -Parent $cfg) 'wrangler.g404-ci-full-without-ingress.json'
+              [IO.File]::WriteAllText($fullNoIngressCfg, ($fullNoIngress | ConvertTo-Json -Depth 20 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+              $noIngressArgs = @('versions','upload','--config',$fullNoIngressCfg,'--name','fire-g404-ci-only-renamed','--dry-run')
+              $noIngressOutput = (& node $cli @noIngressArgs 2>&1 | Out-String)
+              $g404IngressResults['FULL_NO_INGRESS'] = @{ code = $LASTEXITCODE; output = $noIngressOutput }
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -989,6 +1020,11 @@ jobs:
             }
             foreach ($tag in @('UNION_FAMILIES','ORIGINAL_NAME','FULL_RENAMED')) {
               $outcome = $g404SecondStage[$tag]
+              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
+              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
+            }
+            foreach ($tag in @('WORKERS_DEV','PREVIEW_URLS','BOTH_INGRESS','FULL_NO_INGRESS')) {
+              $outcome = $g404IngressResults[$tag]
               Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
               Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
             }
