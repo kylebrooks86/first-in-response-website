@@ -1002,92 +1002,10 @@ jobs:
                 $extraOutput = (& node $cli @extraArgs 2>&1 | Out-String)
                 $extraResults += @{ tag = $safeTag; code = $LASTEXITCODE; output = $extraOutput }
               }
-              # Isolate ordinal-20 schema field without printing any value or raw CLI log.
+              # Differential dry-run: identify bounded ordinal-20 schema key, never its value.
               if ($extraKeys.Count -lt 20) { throw 'Expected schema-key ordinal was absent' }
               $field20 = [string]$extraKeys[19].Name
-              $field20SafeLabel = if ($field20 -match '^[a-z][a-z0-9_]{0,63}
-              $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
-              $baseCode = $LASTEXITCODE
-              $secretArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--secrets-file',$placeholder,'--dry-run')
-              $secretOutput = (& node $cli @secretArguments 2>&1 | Out-String)
-              $secretCode = $LASTEXITCODE
-              $directOutput = (& node $cli @arguments 2>&1 | Out-String)
-              $directCode = $LASTEXITCODE
-              $npxOutput = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
-              $npxCode = $LASTEXITCODE
-              $ErrorActionPreference = 'Stop'
-            } finally { Pop-Location }
-            # Strictly fixed labels, no fragments, paths, numbers, stack traces,
-            # command lines, tokens or hashes taken from raw diagnostic output.
-            function SafeFailureCategory([string]$Details, [int]$ExitCode) {
-              if ($ExitCode -eq 0) { return 'PASS' }
-              if ([string]::IsNullOrWhiteSpace($Details)) { return 'EMPTY_OUTPUT' }
-              if ($Details -match '(?i)unknown (argument|option|flag)|unrecognized (argument|option)|invalid (option|flag)') { return 'CLI_ARGUMENT' }
-              if ($Details -match '(?i)cannot find module|module not found|could not resolve|ENOENT|missing (file|entry|module)') { return 'LOCAL_MODULE_OR_ENTRY' }
-              if ($Details -match '(?i)invalid (configuration|wrangler)|configuration (error|validation)|failed to parse (config|wrangler)|missing required (binding|field)') { return 'CONFIG' }
-              if ($Details -match '(?i)esbuild|failed to (bundle|build|compile)|build failed|bundle failed|syntax error|unexpected token') { return 'WORKER_BUNDLE' }
-              if ($Details -match '(?i)asset manifest|static assets|assets directory|failed to read assets|asset.*size limit') { return 'ASSETS' }
-              if ($Details -match '(?i)EPERM|EACCES|permission denied|access is denied') { return 'LOCAL_FILE_PERMISSION' }
-              if ($Details -match '(?i)invalid path|path.*too long|not a valid win32|unsupported.*windows') { return 'WINDOWS_PATH' }
-              if ($Details -match '(?i)SyntaxError|TypeError|ReferenceError|uncaught exception|ERR_[A-Z_]+') { return 'CLI_RUNTIME' }
-              if ($Details -match '(?i)not logged in|authentication required|need to login|API error|HTTP (400|401|403|404|409|429|500|502|503|504)') { return 'AUTH_OR_PROVIDER_PREFLIGHT' }
-              if ($Details -match '(?i)network (error|unreachable)|fetch failed|ENOTFOUND|ETIMEDOUT|ECONNREFUSED') { return 'NETWORK_DEPENDENCY' }
-              if ($Details -match '(?i)npm error|npm ERR|unable to find.*executable|could not determine executable') { return 'NPX_OR_NPM' }
-              return 'UNCLASSIFIED'
-            }
-            $direct = if ($directCode -eq 0) { 'PASS' } else { 'STOP' }
-            $npx = if ($npxCode -eq 0) { 'PASS' } else { 'STOP' }
-            Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CONTROL_' + $(if ($controlCode -eq 0) {'PASS'} else {'STOP'}))
-            Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CATEGORY_' + (SafeFailureCategory $controlOutput $controlCode))
-            Write-Host ('FIRE_G404_WINDOWS_REDUCED_MAIN_' + $(if ($reducedCode -eq 0) {'PASS'} else {'STOP'}))
-            Write-Host ('FIRE_G404_WINDOWS_REDUCED_CATEGORY_' + (SafeFailureCategory $reducedOutput $reducedCode))
-            foreach ($tag in @('ASSETS','D1','VARS_SECRETS')) {
-              $outcome = $g404VariantResults[$tag]
-              Write-Host ('FIRE_G404_WINDOWS_REDUCED_PLUS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
-              Write-Host ('FIRE_G404_WINDOWS_REDUCED_PLUS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
-            }
-            foreach ($tag in @('NO_ASSETS','NO_D1','NO_VARS_SECRETS','NO_PREVIEW_TOGGLES')) {
-              $outcome = $g404Subtractions[$tag]
-              Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
-              Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
-            }
-            foreach ($tag in @('UNION_FAMILIES','ORIGINAL_NAME','FULL_RENAMED')) {
-              $outcome = $g404SecondStage[$tag]
-              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
-              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
-            }
-            foreach ($tag in @('WORKERS_DEV','PREVIEW_URLS','BOTH_INGRESS','FULL_NO_INGRESS')) {
-              $outcome = $g404IngressResults[$tag]
-              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
-              Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
-            }
-            Write-Host ('FIRE_G404_WINDOWS_EXTRA_FIELD_COUNT_' + $extraResults.Count)
-            foreach ($outcome in $extraResults) {
-              Write-Host ('FIRE_G404_WINDOWS_EXTRA_' + $outcome.tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
-              Write-Host ('FIRE_G404_WINDOWS_EXTRA_' + $outcome.tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
-            }
-            Write-Host ('FIRE_G404_WINDOWS_EXTRA_20_SCHEMA_KEY_' + $field20SafeLabel)
-            Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_EXTRA20_' + $(if ($minus20Code -eq 0) {'PASS'} else {'STOP'}))
-            Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_EXTRA20_CATEGORY_' + (SafeFailureCategory $minus20Output $minus20Code))
-            Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
-            Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
-            Write-Host ('FIRE_G404_WINDOWS_SYNTHETIC_SECRET_' + $(if ($secretCode -eq 0) {'PASS'} else {'STOP'}))
-            Write-Host ('FIRE_G404_WINDOWS_SECRET_CATEGORY_' + (SafeFailureCategory $secretOutput $secretCode))
-            Write-Host ('FIRE_G404_WINDOWS_DIRECT_CLI_' + $direct)
-            Write-Host ('FIRE_G404_WINDOWS_DIRECT_CATEGORY_' + (SafeFailureCategory $directOutput $directCode))
-            Write-Host ('FIRE_G404_WINDOWS_NPX_OFFLINE_' + $npx)
-            Write-Host ('FIRE_G404_WINDOWS_NPX_CATEGORY_' + (SafeFailureCategory $npxOutput $npxCode))
-            Write-Host 'No Cloudflare credentials, hosted changes, real password, upload, activation or paid services.'
-            # This diagnostic is deliberately non-gating, but do not turn a
-            # local STOP into a false successful diagnostic job.
-            if ($directCode -ne 0 -or $npxCode -ne 0) { exit 1 }
-          } finally {
-            $env:PATH = $oldPath
-            if ($null -ne $oldOffline) { $env:npm_config_offline = $oldOffline } else { Remove-Item Env:npm_config_offline -ErrorAction SilentlyContinue }
-            if ($null -ne $oldYes) { $env:npm_config_yes = $oldYes } else { Remove-Item Env:npm_config_yes -ErrorAction SilentlyContinue }
-            Remove-Item -LiteralPath $placeholder -Force -ErrorAction SilentlyContinue
-          }
-) { $field20.ToUpperInvariant() } else { 'UNSAFE_KEY_NAME' }
+              $field20SafeLabel = if ($field20 -match '^[a-z][a-z0-9_]{0,63}$') { $field20.ToUpperInvariant() } else { 'UNSAFE_KEY_NAME' }
               $fullMinusField20 = [ordered]@{}
               foreach ($prop in $builtManifest.PSObject.Properties) {
                 if ($prop.Name -ne $field20) { $fullMinusField20[$prop.Name] = $prop.Value }
@@ -1159,6 +1077,9 @@ jobs:
               Write-Host ('FIRE_G404_WINDOWS_EXTRA_' + $outcome.tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
               Write-Host ('FIRE_G404_WINDOWS_EXTRA_' + $outcome.tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
             }
+            Write-Host ('FIRE_G404_WINDOWS_EXTRA_20_SCHEMA_KEY_' + $field20SafeLabel)
+            Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_EXTRA20_' + $(if ($minus20Code -eq 0) {'PASS'} else {'STOP'}))
+            Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_EXTRA20_CATEGORY_' + (SafeFailureCategory $minus20Output $minus20Code))
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
             Write-Host ('FIRE_G404_WINDOWS_SYNTHETIC_SECRET_' + $(if ($secretCode -eq 0) {'PASS'} else {'STOP'}))
