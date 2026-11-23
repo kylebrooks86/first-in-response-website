@@ -92,5 +92,28 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         self.assertLess(read_only.index('GetOnly \'/deployments?page=1&per_page=1\''),
                         read_only.index('GetOnly \'/versions?page=1&per_page=100\''))
 
+    def test_readonly_inventory_paginates_and_reports_only_redacted_fail_reason(self):
+        read_only = (Path(__file__).parent / 'owner_staging_one_attempt_readonly_reconcile.ps1').read_text()
+        for marker in (
+            'for($page=1;$page -le 3;$page++)',
+            "GetOnly '/versions?page=1&per_page=100'",
+            'GetOnly (\'/versions?page=\'+$page+\'&per_page=100\')',
+            "VERSION_LIST_ITEMS_MISSING",
+            "VERSION_LIST_WINDOW_NOT_FULLY_COVERED",
+            "VERSION_LIST_NOT_NEWEST_FIRST",
+            "TOO_MANY_RECENT_VERSIONS_FOR_SAFE_CLASSIFICATION",
+            "GET_TRANSPORT_OR_OTHER_HTTP_ERROR",
+            "GET_HTTP_",
+            "NO RETRY; NO CLOUD WRITE."
+        ):
+            self.assertIn(marker, read_only)
+        self.assertEqual(read_only.count('Invoke-RestMethod -Method Get'), 1)
+        self.assertRegex(read_only, r"Need \\(\\$covered\\) 'VERSION_LIST_WINDOW_NOT_FULLY_COVERED'")
+        self.assertIn("if($items.Count -lt 100", read_only)
+        self.assertNotIn("Write-Host $_", read_only)
+        self.assertNotIn("Write-Host $response", read_only)
+        self.assertNotIn("FileMode]::CreateNew", read_only)
+        self.assertNotIn("wrangler login", read_only)
+
 if __name__ == '__main__':
     unittest.main()
