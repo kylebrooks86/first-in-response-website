@@ -887,6 +887,30 @@ jobs:
                 $variantExit = $LASTEXITCODE
                 $g404VariantResults[$spec.tag] = @{ code = $variantExit; output = $variantOutput }
               }
+              # Full-manifest leave-one-family-out dry-run matrix. All changes
+              # exist in TEMPORARY CI files; the guarded build and its manifest
+              # remain byte-for-byte unchanged, and there are NO credentials.
+              # Distinguish field interactions from unrelated generated fields.
+              $g404Subtractions = @{}
+              $fullManifestText = Get-Content -LiteralPath $cfg -Raw
+              $g404MinusSpecs = @(
+                @{ tag = 'NO_ASSETS'; fields = @('assets') }
+                @{ tag = 'NO_D1'; fields = @('d1_databases') }
+                @{ tag = 'NO_VARS_SECRETS'; fields = @('vars','secrets') }
+                @{ tag = 'NO_PREVIEW_TOGGLES'; fields = @('workers_dev','preview_urls') }
+              )
+              foreach ($spec in $g404MinusSpecs) {
+                $minusManifest = $fullManifestText | ConvertFrom-Json
+                foreach ($key in $spec.fields) {
+                  [void]$minusManifest.PSObject.Properties.Remove($key)
+                }
+                $minusPath = Join-Path (Split-Path -Parent $cfg) ('wrangler.g404-ci-minus-' + $spec.tag.ToLowerInvariant() + '.json')
+                [IO.File]::WriteAllText($minusPath, ($minusManifest | ConvertTo-Json -Depth 30 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+                $minusArgs = @('versions','upload','--config',$minusPath,'--name','fire-app-independent-staging','--dry-run')
+                $minusOutput = (& node $cli @minusArgs 2>&1 | Out-String)
+                $minusExit = $LASTEXITCODE
+                $g404Subtractions[$spec.tag] = @{ code = $minusExit; output = $minusOutput }
+              }
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -927,6 +951,11 @@ jobs:
               $outcome = $g404VariantResults[$tag]
               Write-Host ('FIRE_G404_WINDOWS_REDUCED_PLUS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
               Write-Host ('FIRE_G404_WINDOWS_REDUCED_PLUS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
+            }
+            foreach ($tag in @('NO_ASSETS','NO_D1','NO_VARS_SECRETS','NO_PREVIEW_TOGGLES')) {
+              $outcome = $g404Subtractions[$tag]
+              Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
+              Write-Host ('FIRE_G404_WINDOWS_FULL_MINUS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
             }
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
