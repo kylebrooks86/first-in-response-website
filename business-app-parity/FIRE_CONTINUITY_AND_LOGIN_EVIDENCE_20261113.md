@@ -1,3 +1,14 @@
+<!-- FIRE-NOV23-G404-SYNTHETIC-LOCAL-WRANGLER-DRYRUN-5369677 -->
+## November 23 ~13:00 CST — NEW STAGING offline upload-packaging diagnostic implemented; physical G4-04 OPEN
+
+**Actual source-only development** on integrated unmerged [Draft PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282): [commit `53696774737a6b953f42181ebbda6e1cbe02b25d`](https://github.com/kylebrooks86/first-in-response-website/commit/53696774737a6b953f42181ebbda6e1cbe02b25d) adds `business-app-parity/owner_staging_synthetic_local_upload_dryrun.ps1`. This narrow owner Windows optional tool confirms the pre-existing consumed-attempt lock, checks the already-built exact source fingerprint and independent-STAGING manifest (pinned DB, explicit Stripe disabled, no preview/R2/extra auth/numbering mode), and exercises locally cached pinned Wrangler `versions upload --dry-run` syntax/package checks with a synthetic all-zero password-hash placeholder. It does NOT read the real DPAPI hash, call browser login, reset the lock, run `-Execute`, upload a version, deploy, activate or change payments/D1/Access. It masks Wrangler output and restores environment, deleting its placeholder secret file. Cloudflare documents that the dry-run option compiles/checks without uploading.
+
+**Execution truth:** The new diagnostic was committed to GitHub only, not run on the owner's Acer in this conversation. Its source addition is not physical Cloudflare evidence or a declaration that a specific original upload failure cause is known. It may help distinguish a local Wrangler/config packaging problem from unresolved remote upload/permission problems before considering new explicit permission. The November 22 owner GET-only result remains authoritative: original STAGING serving deployment/version 100% unchanged, 0 versions since authorization window, 0 matching inactive new versions. The November 22 one-shot `-Execute` permission is CONSUMED; **never retry or reset its lock**. A separate fresh, scope-specific owner approval and guard would be necessary for any further provider upload; none granted by this instruction.
+
+**No new formal release checkbox:** original **51/95** accepted; 4/10 gates G1/G2/G3/G8 accepted; G4/G5/G6/G7/G9/G10 OPEN; G4-04 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unused. Nov 23 DR/NEW LIVE both-DARK real inventory and Nov 22 STAGING 22/25 journal remain accepted and are NOT to be repeated. No Git merge/publish, worker/route/Access/SQL/Stripe/R2/billing change.
+
+---
+
 <!-- FIRE-NOV23-G4-CACHED-SESSION-BOTH-DARK-CLEAR -->
 ## November 23 ~12:51 CST — [x] physical existing-Wrangler-session G4-only DARK inventory SUCCESS (prior NOV23 local STOP superseded)
 
