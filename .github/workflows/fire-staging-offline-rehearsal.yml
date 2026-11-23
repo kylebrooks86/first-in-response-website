@@ -972,6 +972,36 @@ jobs:
               $noIngressArgs = @('versions','upload','--config',$fullNoIngressCfg,'--name','fire-g404-ci-only-renamed','--dry-run')
               $noIngressOutput = (& node $cli @noIngressArgs 2>&1 | Out-String)
               $g404IngressResults['FULL_NO_INGRESS'] = @{ code = $LASTEXITCODE; output = $noIngressOutput }
+              # All reviewed baseline/binding/ingress settings individually
+              # and jointly PASS, while the full generated config STOPs.
+              # Isolate additional top-level config settings one by one
+              # WITHOUT printing their raw names or any values unless on the
+              # fixed public Wrangler schema-key allowlist below.
+              $g404BaseKeys = @('name','main','compatibility_date','compatibility_flags','assets','d1_databases','vars','secrets','workers_dev','preview_urls')
+              $g404SafeExtraNames = @('observability','upload_source_maps','rules','placement','triggers','logpush','build','limits','no_bundle','minify','site','routes','route','usage_model','tail_consumers','migrations','find_additional_modules','keep_vars')
+              $extraResults = @()
+              $extraKeys = @($builtManifest.PSObject.Properties | Where-Object { $_.Name -notin $g404BaseKeys })
+              $baseWithIngress = [ordered]@{}
+              foreach ($key in $unionManifest.Keys) { $baseWithIngress[$key] = $unionManifest[$key] }
+              foreach ($key in @('workers_dev','preview_urls')) {
+                $property = $builtManifest.PSObject.Properties[$key]
+                if ($null -ne $property) { $baseWithIngress[$key] = $property.Value }
+              }
+              $g404Counter = 0
+              foreach ($property in $extraKeys) {
+                $g404Counter++
+                $safeTag = if ($property.Name -in $g404SafeExtraNames) {
+                  $property.Name.ToUpperInvariant()
+                } else { 'OTHER_' + $g404Counter }
+                $extraManifest = [ordered]@{}
+                foreach ($key in $baseWithIngress.Keys) { $extraManifest[$key] = $baseWithIngress[$key] }
+                $extraManifest[$property.Name] = $property.Value
+                $extraPath = Join-Path (Split-Path -Parent $cfg) ('wrangler.g404-ci-extra-' + $g404Counter + '.json')
+                [IO.File]::WriteAllText($extraPath, ($extraManifest | ConvertTo-Json -Depth 20 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+                $extraArgs = @('versions','upload','--config',$extraPath,'--name','fire-g404-ci-only-reduced','--dry-run')
+                $extraOutput = (& node $cli @extraArgs 2>&1 | Out-String)
+                $extraResults += @{ tag = $safeTag; code = $LASTEXITCODE; output = $extraOutput }
+              }
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -1027,6 +1057,11 @@ jobs:
               $outcome = $g404IngressResults[$tag]
               Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
               Write-Host ('FIRE_G404_WINDOWS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
+            }
+            Write-Host ('FIRE_G404_WINDOWS_EXTRA_FIELD_COUNT_' + $extraResults.Count)
+            foreach ($outcome in $extraResults) {
+              Write-Host ('FIRE_G404_WINDOWS_EXTRA_' + $outcome.tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
+              Write-Host ('FIRE_G404_WINDOWS_EXTRA_' + $outcome.tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
             }
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
