@@ -1,3 +1,13 @@
+<!-- FIRE-NOV23-G404-NPX-CONTINUITY-BA35485 -->
+## November 23 — Windows synthetic npx installed-prefix correction (SOURCE ONLY; CI PENDING)
+
+- Real source-only one-file workflow change: [`ba35485c5e150a8b81f082c54f78e4349036872e`](https://github.com/kylebrooks86/first-in-response-website/commit/ba35485c5e150a8b81f082c54f78e4349036872e), existing DRAFT PR282, changes ONLY `.github/workflows/fire-staging-offline-rehearsal.yml`. The Windows PowerShell offline `npx --no-install wrangler@4.162.0` diagnostic now resolves from the temporary prefix where exact pinned Wrangler was already installed, not the separately materialized candidate project. Direct Node Wrangler comparison, exact compiled-source guards, no-credential/real-hash restrictions, offline npm, `--dry-run`, synthetic placeholder, fixed sanitized labels and non-gating failure semantics remain.
+- New [automatic STAGING GitHub workflow 45272904163 / Windows job 138037066630](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45272904163) **IN PROGRESS at this checkpoint**; no outcome presumed. Earlier successful source-workflow seal `c5fd42e` with distinct Windows `NPX_OFFLINE_STOP` remains historical, not superseded by a claimed PASS. No manual CI reruns or repeated owner Acer/Cloudflare sign-in/tests.
+- Evidence saved in [Issue #19 follow-up](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7114948280) and release checklist documentation commit [`2b5d840`](https://github.com/kylebrooks86/first-in-response-website/commit/2b5d8401d0ab422cdef5415414efd8e70b710667).
+- Formal production status remains **51/95 original numbered requirements accepted, 4/10 gates G1/G2/G3/G8 accepted**, G4-04 and G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, first authentic Job #0001 unused. **Nov22 STAGING one-time real upload authorization consumed/never retry/reset lock.** Existing physical STAGING 22/25 D1 and old serving/no inactive-match, both-dark ingress, QA/iPhone/owner evidence preserved. No Cloudflare login/Worker upload/Access/routes/DNS/D1, Stripe/payment, paid R2, Git merge/deploy/website publication or customer-photo operations.
+
+---
+
 <!-- FIRE-NOV23-LEGACY-ENV-CI-FINAL-8BBEACA -->
 ## November 23, 2026 — exact offline STAGING legacy_env repair verified; hosted G4-04 still blocked
 
