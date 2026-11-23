@@ -91,13 +91,27 @@ try {
   $status = $dryRun.exitCode
   if ($status -ne 0) {
     # Never print raw logs, absolute paths, tokens or exception text.
+    # Return ONLY a reviewed fixed diagnostic label. NEVER print raw CLI output:
+    # it may contain absolute paths, account identifiers, or provider responses.
     $category = 'LOCAL_BUILD_OR_WRANGLER_OTHER'
-    if ($result -match '(?i)unknown (argument|option)|unrecognized option') {
+    if ($result -match '(?i)unknown (argument|option|flag)|unrecognized (argument|option)|invalid (option|flag)') {
       $category = 'LOCAL_CLI_OPTION_REJECTED'
-    } elseif ($result -match '(?i)could not resolve|not found|missing (file|entry|module)') {
+    } elseif ($result -match '(?i)could not resolve|cannot find module|module not found|missing (file|entry|module)|ENOENT') {
       $category = 'LOCAL_INPUT_OR_MODULE_MISSING'
-    } elseif ($result -match '(?i)API error|HTTP (400|401|403|404|409|429|500|502|503|504)|remote settings') {
+    } elseif ($result -match '(?i)API error|HTTP (400|401|403|404|409|429|500|502|503|504)|remote settings|cloudflare API') {
       $category = 'REMOTE_PREFLIGHT_OR_PROVIDER_CHECK'
+    } elseif ($result -match '(?i)invalid (configuration|wrangler)|configuration (error|validation)|invalid config|failed to parse (config|wrangler)|missing required (binding|field)') {
+      $category = 'LOCAL_WRANGLER_CONFIG_INVALID'
+    } elseif ($result -match '(?i)esbuild|failed to (bundle|build|compile)|build failed|bundle failed|syntax error|unexpected token') {
+      $category = 'LOCAL_WORKER_BUNDLE_FAILURE'
+    } elseif ($result -match '(?i)asset manifest|static assets|assets directory|failed to read assets|asset.*size limit') {
+      $category = 'LOCAL_STATIC_ASSETS_FAILURE'
+    } elseif ($result -match '(?i)SyntaxError|TypeError|ReferenceError|uncaught exception|ERR_[A-Z_]+') {
+      $category = 'LOCAL_WRANGLER_RUNTIME_EXCEPTION'
+    } elseif ($result -match '(?i)not logged in|authentication required|need to login|network (error|unreachable)|fetch failed|ENOTFOUND|ETIMEDOUT') {
+      $category = 'LOCAL_AUTH_OR_NETWORK_DEPENDENCY'
+    } elseif ([string]::IsNullOrWhiteSpace($result)) {
+      $category = 'LOCAL_WRANGLER_EXIT_WITHOUT_OUTPUT'
     }
     Write-Host ('FIRE_STAGING_DRY_RUN_NOT_PASSED [' + $category + ']')
     Write-Host 'No upload attempted by this diagnostic. Old one-shot attempt remains consumed.'
