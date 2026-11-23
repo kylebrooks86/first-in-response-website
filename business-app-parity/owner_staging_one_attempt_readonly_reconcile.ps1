@@ -44,7 +44,8 @@ function GetOnly([string]$suffix) {
   # version APIs. PowerShell @($null) has Count=1, so normalize only null
   # to an empty error array. Any actual provider error still stops closed.
   Need ($response.success -eq $true) 'GET_RESPONSE_SUCCESS_FALSE'
-  $providerErrors=$(if($null -eq $response.errors){@()}else{@($response.errors)})
+  $providerErrors=@()
+  if($null -ne $response.errors){$providerErrors=@($response.errors)}
   Need ($providerErrors.Count -eq 0) 'GET_RESPONSE_ERRORS_PRESENT'
   Need ($null -ne $response.result) 'GET_RESPONSE_RESULT_MISSING'
   return $response.result
