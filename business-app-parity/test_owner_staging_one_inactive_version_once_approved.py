@@ -51,6 +51,16 @@ class InactiveStagingVersionGuard(unittest.TestCase):
         self.assertNotIn("wrangler login", SOURCE.lower())
         self.assertNotIn("wrangler versions deploy", SOURCE.lower())
 
+    def test_built_code_must_match_exact_qa_master_plus_staging_overlay(self):
+        self.assertIn("verify_materialized_candidate.py",SOURCE)
+        self.assertIn("independent-staging $candidate --built",SOURCE)
+        self.assertIn("identicalToSharedPlusAuthorizedAdapter -eq $true",SOURCE)
+        self.assertIn("sourceProof.exactSourceFiles -gt 100",SOURCE)
+        self.assertIn("sourceJobNumberModeRequested -eq $false",SOURCE)
+        self.assertIn("sourceQuickAuthModeRequested -eq $false",SOURCE)
+        self.assertLess(SOURCE.index("independent-staging $candidate --built"),
+                        SOURCE.index("FileMode]::CreateNew"))
+
     def test_no_provider_write_in_default_preflight(self):
         before = SOURCE.split("if(-not $Execute)", 1)[1].split("return", 1)[0]
         self.assertNotIn("ApiGet", before)
