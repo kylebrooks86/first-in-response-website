@@ -864,6 +864,29 @@ jobs:
               $reducedArguments = @('versions','upload','--config',$reducedConfig,'--name','fire-g404-ci-only-reduced','--dry-run')
               $reducedOutput = (& node $cli @reducedArguments 2>&1 | Out-String)
               $reducedCode = $LASTEXITCODE
+              # Independently restore exactly one configuration family to the
+              # reduced built-main Worker. No provider access or real secrets.
+              # Compare PASS/STOP for ASSETS, D1 and VARS+required secret names.
+              $g404VariantResults = @{}
+              $g404Probes = @(
+                @{ tag = 'ASSETS'; fields = @('assets') }
+                @{ tag = 'D1'; fields = @('d1_databases') }
+                @{ tag = 'VARS_SECRETS'; fields = @('vars','secrets') }
+              )
+              foreach ($spec in $g404Probes) {
+                $variantManifest = [ordered]@{}
+                foreach ($key in $reducedManifest.Keys) { $variantManifest[$key] = $reducedManifest[$key] }
+                foreach ($key in $spec.fields) {
+                  $field = $builtManifest.PSObject.Properties[$key]
+                  if ($null -ne $field) { $variantManifest[$key] = $field.Value }
+                }
+                $variantPath = Join-Path (Split-Path -Parent $cfg) ('wrangler.g404-ci-' + $spec.tag.ToLowerInvariant() + '.json')
+                [IO.File]::WriteAllText($variantPath, ($variantManifest | ConvertTo-Json -Depth 20 -Compress), (New-Object System.Text.UTF8Encoding($false)))
+                $variantArgs = @('versions','upload','--config',$variantPath,'--name','fire-g404-ci-only-reduced','--dry-run')
+                $variantOutput = (& node $cli @variantArgs 2>&1 | Out-String)
+                $variantExit = $LASTEXITCODE
+                $g404VariantResults[$spec.tag] = @{ code = $variantExit; output = $variantOutput }
+              }
               $baseArguments = @('versions','upload','--config',$cfg,'--name','fire-app-independent-staging','--dry-run')
               $baseOutput = (& node $cli @baseArguments 2>&1 | Out-String)
               $baseCode = $LASTEXITCODE
@@ -900,6 +923,11 @@ jobs:
             Write-Host ('FIRE_G404_WINDOWS_MINIMAL_CATEGORY_' + (SafeFailureCategory $controlOutput $controlCode))
             Write-Host ('FIRE_G404_WINDOWS_REDUCED_MAIN_' + $(if ($reducedCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_REDUCED_CATEGORY_' + (SafeFailureCategory $reducedOutput $reducedCode))
+            foreach ($tag in @('ASSETS','D1','VARS_SECRETS')) {
+              $outcome = $g404VariantResults[$tag]
+              Write-Host ('FIRE_G404_WINDOWS_REDUCED_PLUS_' + $tag + '_' + $(if ($outcome.code -eq 0) {'PASS'} else {'STOP'}))
+              Write-Host ('FIRE_G404_WINDOWS_REDUCED_PLUS_' + $tag + '_CATEGORY_' + (SafeFailureCategory $outcome.output $outcome.code))
+            }
             Write-Host ('FIRE_G404_WINDOWS_BASE_ONLY_' + $(if ($baseCode -eq 0) {'PASS'} else {'STOP'}))
             Write-Host ('FIRE_G404_WINDOWS_BASE_CATEGORY_' + (SafeFailureCategory $baseOutput $baseCode))
             Write-Host ('FIRE_G404_WINDOWS_SYNTHETIC_SECRET_' + $(if ($secretCode -eq 0) {'PASS'} else {'STOP'}))
