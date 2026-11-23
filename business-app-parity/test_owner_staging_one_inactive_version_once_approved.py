@@ -70,8 +70,8 @@ class InactiveStagingVersionGuard(unittest.TestCase):
 
     def test_one_shot_reconciler_is_get_only_and_cannot_consume_another_attempt(self):
         read_only = (Path(__file__).parent / 'owner_staging_one_attempt_readonly_reconcile.ps1').read_text()
-        self.assertEqual(re.findall(r'-Method\\s+(\\w+)', read_only), ['Get'])
-        self.assertNotRegex(read_only, r'(?i)\\b(?:post|put|patch|delete)\\b.{0,24}\\bworkers\\b')
+        self.assertEqual(re.findall(r'-Method\s+(\w+)', read_only), ['Get'])
+        self.assertNotRegex(read_only, r'(?i)\b(?:post|put|patch|delete)\b.{0,24}\bworkers\b')
         for forbidden in ('versions\',\'upload', '--secrets-file', 'FileMode]::CreateNew',
                           'wrangler login', 'Invoke-WebRequest', 'Import-Clixml'):
             self.assertNotIn(forbidden, read_only)
