@@ -92,13 +92,27 @@ export function evaluateDarkExposureEvidence(target,evidence){
     gate4Accepted:false,productionReady:false
   });
 }
+/** Safe labels identify a failed READ-ONLY inventory permission/endpoint without
+ * echoing a token, account resource URL, provider body, or private binding. */
+function safeReadOnlyGetStage(path){
+ if(path.endsWith('/subdomain'))return 'WORKER_SUBDOMAIN';
+ if(path.endsWith('/workers/domains'))return 'WORKER_DOMAINS';
+ if(path.endsWith('/workers/routes'))return 'ZONE_ROUTES';
+ if(path==='/client/v4/zones')return 'ZONES';
+ return 'UNCLASSIFIED_GET';
+}
 async function getApi(token,path){
   const url=new URL(path,'https://api.cloudflare.com');
   if(url.origin!=='https://api.cloudflare.com'||!url.pathname.startsWith('/client/v4/'))
     fail('unapproved provider GET path');
   const response=await fetch(url,{method:'GET',redirect:'error',
     signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+token}});
-  if(!response.ok)fail('Cloudflare GET failed with HTTP '+response.status+'; no retries');
+  if(!response.ok){
+    const error=new Error('FIRE DARK EXPOSURE READ-ONLY STOP: sanitized Cloudflare GET failure');
+    error.readOnlyStage=safeReadOnlyGetStage(url.pathname);
+    error.readOnlyHttpStatus=Number.isSafeInteger(response.status)?response.status:null;
+    throw error;
+  }
   const raw=await response.text();
   if(raw.length>750000)fail('provider response exceeded sanitized read limit');
   try{return JSON.parse(raw)}catch{fail('Cloudflare GET was not valid JSON')}
