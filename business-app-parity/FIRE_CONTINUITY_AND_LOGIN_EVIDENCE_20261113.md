@@ -1,3 +1,12 @@
+<!-- FIRE-NOV23-G404-REDUCED-MAIN-PASS-CONFIG-ISOLATION-ACF74D4 -->
+## Nov 23 ~14:30 CST — actual Windows reduced STAGING main PASS, config families next (source only)
+
+- [x] Real [Windows CI #45259453326](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45259453326), job 137989966863: minimal control **PASS**; **compiled STAGING Worker main plus compatibility in temporary reduced manifest PASS**; full generated STAGING manifest with no extra secret flags **STOP / UNCLASSIFIED**; full synthetic direct STOP and npx offline STOP. Windows job FAILURE is expected, not a passing diagnostic/release. Root cause and owner Acer equivalence **not proven**.
+- [x] New [PR282 `acf74d4`](https://github.com/kylebrooks86/first-in-response-website/commit/acf74d4c27b72f039d05056c253e6915bb5f231a) adds local-only additive config-isolation variants for generated ASSETS, D1, and VARS+required auth secret **names** against the compiled Worker main. No owner session, real secret, Cloudflare upload or provider write. [Issue #19 receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7113151270). **Changed-head CI pending**.
+- [ ] Original STAGING G4-04 and G4/G5/G6/G7/G9/G10 remain OPEN; no new original 95-point closure. **51/95** complete, whole gates **4/10 accepted (G1/G2/G3/G8)**, NEW LIVE DARK/NO-GO, authentic Job #0001 unissued. Nov22 STAGING real upload consent is **consumed / NO RETRY / NEVER RESET LOCK**; reuse 22/25 D1, no-inactive-version, and BOTH-DARK ingress. Never perform Cloudflare login, R2 subscription, D1/Stripe/route/Access changes, Git merge or deployment under this offline CI authorization.
+
+---
+
 <!-- FIRE-NOV23-G404-REDUCED-MAIN-WIN-CI-DAED2C54 -->
 ## Nov 23 ~14:27 CST — Windows STAGING reduced-main diagnostic source committed (CI pending)
 
