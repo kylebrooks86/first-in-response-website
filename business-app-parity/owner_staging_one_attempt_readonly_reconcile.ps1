@@ -40,7 +40,13 @@ function GetOnly([string]$suffix) {
     $script:reason=$(if($httpCode -in @(400,401,403,404,409,429,500,502,503,504)){'GET_HTTP_'+$httpCode}else{'GET_TRANSPORT_OR_OTHER_HTTP_ERROR'})
     throw 'Read-only GET unavailable'
   }
-  Need (($response.success -eq $true) -and (@($response.errors).Count -eq 0) -and ($null -ne $response.result)) 'GET_RESPONSE_NOT_SUCCESS'
+  # Cloudflare can return HTTP 200/success=true/errors=null on Workers
+  # version APIs. PowerShell @($null) has Count=1, so normalize only null
+  # to an empty error array. Any actual provider error still stops closed.
+  Need ($response.success -eq $true) 'GET_RESPONSE_SUCCESS_FALSE'
+  $providerErrors=$(if($null -eq $response.errors){@()}else{@($response.errors)})
+  Need ($providerErrors.Count -eq 0) 'GET_RESPONSE_ERRORS_PRESENT'
+  Need ($null -ne $response.result) 'GET_RESPONSE_RESULT_MISSING'
   return $response.result
 }
 function Binding($list,[string]$name) { return @($list | Where-Object { $_.name -ceq $name }) }
