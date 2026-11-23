@@ -1,3 +1,10 @@
+<!-- FIRE-NOV23-STAGING-STDERR-DIAGNOSTIC-CI-0EB8EAC -->
+## Nov 23 — [x] G4-04 synthetic diagnostic stderr safety source + regression AUTHORED (NO DEPLOY)
+
+Draft PR282 commit [`0eb8eac3`](https://github.com/kylebrooks86/first-in-response-website/commit/0eb8eac3f52cc1f50c015ac727a3bfb2bd2d6055) hardens the existing optional owner-Acer **local-only** STAGING synthetic `wrangler versions upload --dry-run` against Windows PowerShell 5.1 `NativeCommandError` stderr masking. It now captures native exit status safely while suppressing raw CLI logs and restores `ErrorActionPreference`. The already CI-wired STAGING static tests gain synthetic no-upload/no-real-hash/no-lock-reset/privacy/cleanup/exit-code guards; workflow watches that diagnostic file. **Only source and tests authored, no physical local dry-run or Cloudflare write; exact CI on changed source pending, not assumed PASS.** The observed original Nov22 one-shot ambiguous STOP remains unexplained, its prior authorization spent/NO RETRY. [ ] Original G4-04 stays OPEN; no new original numbered checkbox or entire gate accepted. Original **51/95 accepted**, 4/10 whole gates G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unused. Previously accepted Nov22 STAGING version reconciliation, STAGING 22/25 D1 and Nov23 BOTH-DARK ingress not repeated; no deploy/merge/Stripe/payment/R2/provider operation.
+
+---
+
 <!-- FIRE-NOV23-G404-LOCAL-DRYRUN-NO-NEW-95-ROW -->
 ## Nov 23 ~13:00 CST — [x] new STAGING synthetic/local Wrangler dry-run diagnostic CODE ADDED, NOT EXECUTED
 

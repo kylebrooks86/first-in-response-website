@@ -1,3 +1,16 @@
+<!-- FIRE-NOV23-STAGING-SYNTHETIC-STDERR-GUARD-0EB8EAC -->
+## Nov 23 — STAGING G4-04 synthetic offline diagnostic stderr guard + CI regression (NO PROVIDER WRITE)
+
+**Actual draft source/test/workflow commit:** [0eb8eac3](https://github.com/kylebrooks86/first-in-response-website/commit/0eb8eac3f52cc1f50c015ac727a3bfb2bd2d6055) on integrated unmerged [PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282). The `owner_staging_synthetic_local_upload_dryrun.ps1` tool from prior `5369677` is now hardened for Windows PowerShell 5.1: redirected native Wrangler stderr with script-wide `ErrorActionPreference=Stop` can be promoted into `NativeCommandError` and skip the CLI exit-code classifier. A local-only `InvokeLocalNpx` wrapper temporarily captures stderr with `Continue`, retains the native exit code, and restores the original error preference; no raw error output, hash or token is printed. The actual consumed Nov 22 upload failure **has not been diagnosed**: this is a plausible diagnostic blind spot, NOT evidence of that original failure's cause.
+
+[x] Source code and focused static regression authored, plus the existing STAGING GitHub workflow now watches the synthetic diagnostic path and runs the pre-existing STAGING uploader test suite extended with negative controls: spent lock required and never reset, offline compiled QA-master/STAGING fingerprint, pinned Wrangler `versions upload --dry-run` and synthetic 64-zero placeholder only, no DPAPI import, no real secret or Cloudflare write, native stderr/exit code behavior, output redaction and cleanup. Cloudflare [Workers CLI documentation](https://developers.cloudflare.com/workers/wrangler/commands/workers/#versions-upload) explicitly describes `--dry-run` as compilation/checks without uploading. [Microsoft PowerShell 5.1 issue](https://github.com/PowerShell/PowerShell/issues/3996) documents the redirected stderr trap.
+
+[ ] **Physical owner Acer offline dry-run NOT executed**; [ ] **exact changed-head CI final verdict pending at this record** (27 groups auto-triggered on `0eb8eac3`; no manually rerun checks). This change does not create or verify a hosted version or repair hosted admin hash, payment binding, code-byte parity or hosted login.
+
+The owner already consumed the ONE prior `-Execute` upload authorization; **never rerun it or reset the attempt lock**. Nov 22 complete read-only reconcile still establishes original STAGING serving version at 100%, zero matching recent inactive versions in bounded inventory; Nov 23 BOTH-DARK ingress and Nov 22 STAGING 22/25 ordered D1 journal evidence are already accepted and must not be repeated. Formal original **51/95**, 4/10 whole gates G1/G2/G3/G8; G4/G5/G6/G7/G9/G10 OPEN, G4-04 OPEN, NEW LIVE DARK/NO-GO, Job #0001 unused. No Cloudflare sign-in, provider/API/secret/route/Access/DB/Stripe/payment/R2 writes, Git merge, deploy or public site publication.
+
+---
+
 <!-- FIRE-NOV23-G404-SYNTHETIC-LOCAL-WRANGLER-DRYRUN-5369677 -->
 ## November 23 ~13:00 CST — NEW STAGING offline upload-packaging diagnostic implemented; physical G4-04 OPEN
 
