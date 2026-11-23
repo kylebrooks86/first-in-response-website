@@ -823,18 +823,42 @@ jobs:
             try {
               # Suppress all raw CLI output: no path/account/log leakage into CI.
               $ErrorActionPreference = 'Continue'
-              $null = (& node $cli @arguments 2>&1 | Out-String)
+              # Buffer only in process memory. NEVER emit raw CLI output, which
+              # can contain absolute Windows paths and machine/account details.
+              $directOutput = (& node $cli @arguments 2>&1 | Out-String)
               $directCode = $LASTEXITCODE
-              $null = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
+              $npxOutput = (& npx --no-install wrangler@4.162.0 @arguments 2>&1 | Out-String)
               $npxCode = $LASTEXITCODE
               $ErrorActionPreference = 'Stop'
             } finally { Pop-Location }
+            # Strictly fixed labels, no fragments, paths, numbers, stack traces,
+            # command lines, tokens or hashes taken from raw diagnostic output.
+            function SafeFailureCategory([string]$Details, [int]$ExitCode) {
+              if ($ExitCode -eq 0) { return 'PASS' }
+              if ([string]::IsNullOrWhiteSpace($Details)) { return 'EMPTY_OUTPUT' }
+              if ($Details -match '(?i)unknown (argument|option|flag)|unrecognized (argument|option)|invalid (option|flag)') { return 'CLI_ARGUMENT' }
+              if ($Details -match '(?i)cannot find module|module not found|could not resolve|ENOENT|missing (file|entry|module)') { return 'LOCAL_MODULE_OR_ENTRY' }
+              if ($Details -match '(?i)invalid (configuration|wrangler)|configuration (error|validation)|failed to parse (config|wrangler)|missing required (binding|field)') { return 'CONFIG' }
+              if ($Details -match '(?i)esbuild|failed to (bundle|build|compile)|build failed|bundle failed|syntax error|unexpected token') { return 'WORKER_BUNDLE' }
+              if ($Details -match '(?i)asset manifest|static assets|assets directory|failed to read assets|asset.*size limit') { return 'ASSETS' }
+              if ($Details -match '(?i)EPERM|EACCES|permission denied|access is denied') { return 'LOCAL_FILE_PERMISSION' }
+              if ($Details -match '(?i)invalid path|path.*too long|not a valid win32|unsupported.*windows') { return 'WINDOWS_PATH' }
+              if ($Details -match '(?i)SyntaxError|TypeError|ReferenceError|uncaught exception|ERR_[A-Z_]+') { return 'CLI_RUNTIME' }
+              if ($Details -match '(?i)not logged in|authentication required|need to login|API error|HTTP (400|401|403|404|409|429|500|502|503|504)') { return 'AUTH_OR_PROVIDER_PREFLIGHT' }
+              if ($Details -match '(?i)network (error|unreachable)|fetch failed|ENOTFOUND|ETIMEDOUT|ECONNREFUSED') { return 'NETWORK_DEPENDENCY' }
+              if ($Details -match '(?i)npm error|npm ERR|unable to find.*executable|could not determine executable') { return 'NPX_OR_NPM' }
+              return 'UNCLASSIFIED'
+            }
             $direct = if ($directCode -eq 0) { 'PASS' } else { 'STOP' }
             $npx = if ($npxCode -eq 0) { 'PASS' } else { 'STOP' }
             Write-Host ('FIRE_G404_WINDOWS_DIRECT_CLI_' + $direct)
+            Write-Host ('FIRE_G404_WINDOWS_DIRECT_CATEGORY_' + (SafeFailureCategory $directOutput $directCode))
             Write-Host ('FIRE_G404_WINDOWS_NPX_OFFLINE_' + $npx)
+            Write-Host ('FIRE_G404_WINDOWS_NPX_CATEGORY_' + (SafeFailureCategory $npxOutput $npxCode))
             Write-Host 'No Cloudflare credentials, hosted changes, real password, upload, activation or paid services.'
-            # Non-gating by design; keep actual statuses visible without exposing error text.
+            # This diagnostic is deliberately non-gating, but do not turn a
+            # local STOP into a false successful diagnostic job.
+            if ($directCode -ne 0 -or $npxCode -ne 0) { exit 1 }
           } finally {
             $env:PATH = $oldPath
             if ($null -ne $oldOffline) { $env:npm_config_offline = $oldOffline } else { Remove-Item Env:npm_config_offline -ErrorAction SilentlyContinue }
