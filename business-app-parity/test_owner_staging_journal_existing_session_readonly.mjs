@@ -162,6 +162,26 @@ assert.equal(JSON.stringify(darkOnlyStop).includes(scopedToken),false);
 await assert.rejects(()=>captureG4DarkOnlyEvidence({token:'short'}));
 console.log('PASS: G4-only owner token collector skips accepted STAGING journal, denies incomplete inventory without exposing credentials.');
 
+/* Cached-Wrangler G4-only CLI must remain OFFLINE by default and refuse every
+ * CI/noninteractive invocation BEFORE accessing a credential or any provider. */
+const {spawnSync}=await import('node:child_process');
+const {fileURLToPath}=await import('node:url');
+const darkOnlyCli=fileURLToPath(new URL('./owner_g4_g5_existing_session_readonly.mjs',import.meta.url));
+const offline=spawnSync(process.execPath,[darkOnlyCli],{encoding:'utf8'});
+assert.equal(offline.status,0);
+const offlineReceipt=JSON.parse(offline.stdout);
+assert.equal(offlineReceipt.providerContacted,false);
+assert.equal(offlineReceipt.existingSessionDarkOnlyOption,'--capture-dark-existing-session');
+const blockedCached=spawnSync(process.execPath,
+ [darkOnlyCli,'--capture-dark-existing-session'],{
+ encoding:'utf8',env:{...process.env,CI:'true'}
+});
+assert.notEqual(blockedCached.status,0);
+assert.match(blockedCached.stderr,/FIRE G4\/G5 READ-ONLY STOP/);
+assert.equal(blockedCached.stdout,'');
+console.log('PASS: cached-Wrangler G4-only mode refuses CI and noninteractive execution without credential reads or D1.');
+
+
 
 /** Complete inventory with an exposed route is NOT a successful dark proof. */
 const darkExposed=await captureG4DarkOnlyEvidence({
