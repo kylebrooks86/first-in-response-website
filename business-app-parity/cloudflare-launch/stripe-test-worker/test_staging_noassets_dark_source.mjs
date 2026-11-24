@@ -96,6 +96,11 @@ try{
   const p=join(d,'server/fire-staging-noassets-entry.mjs');
   writeFileSync(p,readFileSync(p,'utf8').replace('"blocked"','"owner-approved"').replace('FIRE_STAGING_PRIVATE_ACTIVATION','NOT_THE_REVIEWED_LOCK'));
  });
+ attack('unexpected-tool-cache-in-sealed-package',d=>{
+  const cache=join(d,'server','.wrangler');
+  mkdirSync(cache);
+  writeFileSync(join(cache,'unexpected.txt'),'synthetic unwanted cache');
+ });
  attack('extra-module',d=>writeFileSync(join(d,'server/unreviewed-extra.mjs'),'export default 1;\n'));
  attack('receipt-deployment-claim',d=>j(d,'staging-noassets-dark-source-receipt.json',x=>{x.deployed=true}));
  attack('other-target-receipt',d=>j(d,'staging-noassets-dark-source-receipt.json',x=>{x.worker='fire-fullapp-dr'}));
