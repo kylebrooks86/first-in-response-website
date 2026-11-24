@@ -38,7 +38,7 @@ const requiredSecrets=[
 ];
 const file=(p)=>readFileSync(p);
 const utf=(p)=>readFileSync(p,'utf8');
-function tree(root){
+function tree(root,{ignoreCompiledToolCache=false}={}){
  if(!existsSync(root)||lstatSync(root).isSymbolicLink()||!lstatSync(root).isDirectory())
   stop('source/review folder missing or symlink');
  const paths=[];
@@ -46,7 +46,12 @@ function tree(root){
   for(const n of readdirSync(folder).sort()){
    const p=join(folder,n),m=lstatSync(p);
    if(m.isSymbolicLink())stop('symlink refused');
-   if(m.isDirectory()){walk(p);continue;}
+   if(m.isDirectory()){
+    // Local Wrangler CLI state is neither compiled app code nor upload input.
+    // Exclude only this exact root-level source cache, never review package files.
+    if(ignoreCompiledToolCache && relative(root,p).split(sep).join('/')==='server/.wrangler')continue;
+    walk(p);continue;
+   }
    if(!m.isFile()||m.nlink!==1)stop('hardlink or non-file refused');
    paths.push(relative(root,p).split(sep).join('/'));
   }
@@ -182,7 +187,7 @@ function validateReview(folder,pinnedReceiptSha256){
 }
 export function prepareStagingNoAssetsDarkSource(distFolder,headSHA,outFolder){
  if(!sourceSha(headSHA))stop('exact previously verified STAGING commit SHA required');
- const dist=resolve(distFolder),out=resolve(outFolder),source=tree(dist);
+ const dist=resolve(distFolder),out=resolve(outFolder),source=tree(dist,{ignoreCompiledToolCache:true});
  if(existsSync(out)||out===dist||out.startsWith(dist+sep)||dist.startsWith(out+sep))
   stop('new disjoint output folder required');
  if(!source.includes('server/index.js')||
