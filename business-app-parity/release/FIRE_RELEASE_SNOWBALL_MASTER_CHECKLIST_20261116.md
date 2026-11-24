@@ -1,3 +1,10 @@
+## November 24 14:32 CST — DR hosted 234-module exact comparison PASS (G4-02 partial)
+
+- [x] Actual owner Acer read-only DR immutable version `f7b7e27c-986b-44b5-b0f9-5e8e4b623426`: original lock/receipt and sealed archive PASS, HTTP 200, 193/193 runtime modules + 41/41 embedded assets match, zero byte mismatches, zero version-pinned URLs. [Original screenshot fingerprint and full receipt / continuity addendum](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7143759187). **Do not repeat** this completed DR comparison. Eight nonmodule archive files outside hosted proof; no provider writes.
+- [ ] Original G4-02 remains OPEN: analogous NEW LIVE version-specific proof and remaining target/auxiliary coverage not yet established. Original 52/95 accepted, 43 open, 4/10 whole gates (G1/G2/G3/G8); NEW LIVE DARK/NO-GO, Job #0001 unused. No upload, activation, payment, D1, R2, merge, deployment or fresh login. Next distinct read-only target is NEW LIVE, not DR.
+
+---
+
 ## November 24 12:43 CST — original G9-04 ACCEPTED (actual hosted inactive TEST evidence)
 
 **Current original release tally: 52/95 accepted, 43 outstanding; 4/10 whole gates G1/G2/G3/G8 accepted.** G4/G5/G6/G7/G9/G10 remain OPEN. [Cumulative owner evidence and continuity addendum](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7141103939): exact hosted inactive TEST candidate `85ac79f2-dd9a-48e1-831b-de2211e48cfa`, 232/232 module byte matches, 41/41 embedded client asset matches, zero missing; approved isolated D1, secret names and five plain-text values verified; predecessor at 100%, candidate 0%, wildcard preview OFF. Six local-only CSS/JSON/config files excluded by reviewed Worker-only .js/.mjs/.bin contract. No repeat; no provider writes by this chat. G9-05 next requires separate exact protected TEST activation/synthetic-payment approval and reviewed candidate plan; current candidate remains Stripe disabled/private activation blocked. NEW LIVE DARK/NO-GO, Job #0001 unused. Prior historical tallies below remain historical.
