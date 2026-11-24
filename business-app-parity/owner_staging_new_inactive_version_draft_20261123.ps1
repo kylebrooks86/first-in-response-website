@@ -82,6 +82,8 @@ try {
   Require ($candidate -ieq $expectedDirectory)
   $cfg=Join-Path $candidate 'dist\server\wrangler.json'
   Require (Test-Path -LiteralPath $cfg -PathType Leaf)
+  $manifest=Get-Content -LiteralPath $cfg -Raw | ConvertFrom-Json
+  Require (-not ($manifest.PSObject.Properties.Name -ccontains 'legacy_env'))
   $checker=Join-Path $PSScriptRoot 'check_independent_staging_runtime_config.mjs'
   Require (Test-Path -LiteralPath $checker -PathType Leaf)
   $guardOut=(& node $checker $cfg 2>&1 | Out-String)
@@ -116,6 +118,9 @@ try {
     Write-Host 'Cloudflare not contacted; no new version or serving change.'
     return
   }
+  # DRAFT LOCK: an independently reviewed subsequent source commit is required
+  # before this draft can perform any provider operation, even with -Execute.
+  throw 'DRAFT: execution is disabled until new exact owner approval and source review'
   $consent=Read-Host 'Type I AUTHORIZE ONE NEW INACTIVE STAGING UPLOAD ONLY to reserve a NEW one-time attempt; no activation'
   Require ($consent -ceq 'I AUTHORIZE ONE NEW INACTIVE STAGING UPLOAD ONLY')
   $stage='CACHED_AUTH_NO_LOGIN'
@@ -126,8 +131,8 @@ try {
   $env:CLOUDFLARE_ACCOUNT_ID=$account
   Remove-Item Env:CLOUDFLARE_ENV -ErrorAction SilentlyContinue
   Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue
-  # Make the built candidate's local executable/dependencies the cwd; passing
-  # --config alone does not guarantee npx resolves packages from that folder.
+  # Keep candidate as cwd for asset/module resolution; invoke the separate
+  # exact CLI by absolute Node entrypoint, never via candidate-local npx.
   Push-Location -LiteralPath $candidate
   $workingDirectoryChanged=$true
   $env:npm_config_offline='true'
@@ -255,7 +260,7 @@ try {
   } | ConvertTo-Json -Depth 5
 } catch {
   if($attempted) { Write-Host 'STOP: ONE upload may have occurred. DO NOT RETRY. Read-only reconcile only.' }
-  else { Write-Host 'STOP before upload: prerequisites not fulfilled at '+$stage+'. No remote version write attempted.' }
+  else { Write-Host ('STOP before upload: prerequisites not fulfilled at '+$stage+'. No remote version write attempted.') }
   exit 1
 } finally {
   $hash=$null; $token=$null; $record=$null
