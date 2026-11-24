@@ -2,7 +2,7 @@
  * FIRE STAGING existing-Worker FULL APP alternative: no assets upload API.
  *
  * SAFE SOURCE-ONLY. This constructs an explicitly AUTH-BLOCKED review folder
- * from a real freshly compiled isolated STAGING full-app dist. It does not
+ * from the existing previously verified isolated STAGING full-app dist. It does not
  * call Cloudflare, Stripe, D1, create a Worker, or modify any predecessor.
  * NEVER run 'wrangler deploy' with this review folder: an existing Worker
  * deploy may replace the currently serving version despite disabled URLs.
@@ -24,7 +24,7 @@ const D1='afb2c05a-d794-4a9a-b580-924ce01c26ad';
 const ORIGIN='https://fire-app-independent-staging.kyle-bfc.workers.dev';
 const TYPE='FIRE_STAGING_FULLAPP_WORKER_ONLY_PRIVATE_SOURCE_REVIEW_V1';
 const sha=x=>createHash('sha256').update(x).digest('hex');
-const stop=s=>{throw Error('FIRE GATE9 WORKER-ONLY SOURCE BLOCKED: '+s)};
+const stop=s=>{throw Error('FIRE STAGING WORKER-ONLY SOURCE BLOCKED: '+s)};
 const hex=s=>typeof s==='string'&&/^[a-f0-9]{64}$/.test(s);
 const sourceSha=s=>s==='4d1c4a74587c8145d6cbae14daf193865b976c47';
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
@@ -36,7 +36,6 @@ const configVars={
 const requiredSecrets=[
  'FIRE_ADMIN_PASSWORD_HASH','FIRE_SESSION_SECRET','STRIPE_SECRET_KEY'
 ];
-const exempt=new Set(['.assetsignore','_headers','_redirects']);
 const file=(p)=>readFileSync(p);
 const utf=(p)=>readFileSync(p,'utf8');
 function tree(root){
@@ -127,7 +126,7 @@ function validateReview(folder,pinnedReceiptSha256){
     sha(JSON.stringify(r.savedInventory))!==r.savedInventoryDigest)
   stop('review package file inventory modified');
  const generated=readJSON(join(root,'original-compiled-wrangler.json'));
- // Full independent generated-source review: includes FAKE D1 + local bucket.
+ // Revalidate the original exact-target STAGING manifest, never a TEST or LIVE mapping.
  const original=checkStaging(generated);
  if(original.name!==WORKER||original.vars.FIRE_STRIPE_MODE!=='disabled'||
     original.d1_databases[0]?.database_id!==D1)stop('STAGING source not exactly isolated');
