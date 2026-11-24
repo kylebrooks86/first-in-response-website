@@ -1,3 +1,12 @@
+## November 24 14:54 CST — NEW LIVE hosted 234-module exact comparison PASS (G4-02 partial)
+
+- [x] Owner Acer screenshot `image(20261124-205409).png` reports `FIRE_NEW_LIVE_AUTHENTICATED_IMMUTABLE_RUNTIME_MODULE_BYTES_PASS`, Worker `fire-fullapp-new-live`, immutable version `cfacbb3d-43de-4d2c-8008-c6732d78f756`, frozen QA master `15bd714c435a585f695ed7166cf06d2c31ea1a8e`. Approved ZIP and verifier syntax PASS; 193 runtime modules + 41 embedded assets matched, zero unexpected/mismatched modules, hashes compared, authenticated provider readback and original attempt lock validated, zero version-pinned routable URLs. No source upload, deployment or provider write. Do not repeat DR or NEW LIVE captures.
+- [ ] G4-02 remains OPEN: seven auxiliary nonruntime files plus one Wrangler config outside hosted proof, whole archive hosted bytes and account-wide alias/route/Access isolation not verified. Other target coverage remains to reconcile. Original 52/95 accepted, 43 open; 4/10 formal gates. NEW LIVE DARK/NO-GO, Job #0001 unused. No activation or payment change.
+
+---
+
+[Issue #19 evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7144228745)
+
 ## November 24 14:32 CST — DR hosted 234-module exact comparison PASS (G4-02 partial)
 
 - [x] Actual owner Acer read-only DR immutable version `f7b7e27c-986b-44b5-b0f9-5e8e4b623426`: original lock/receipt and sealed archive PASS, HTTP 200, 193/193 runtime modules + 41/41 embedded assets match, zero byte mismatches, zero version-pinned URLs. [Original screenshot fingerprint and full receipt / continuity addendum](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7143759187). **Do not repeat** this completed DR comparison. Eight nonmodule archive files outside hosted proof; no provider writes.
