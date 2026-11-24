@@ -185,6 +185,20 @@ function validateReview(folder,pinnedReceiptSha256){
   filesVerified:paths.length,providerContacted:false,deployed:false,
   stripeMode:'disabled',currentHostedPredecessorReplaced:false,gate4Accepted:false};
 }
+// Only the exact owner-reviewed Vinext cache rule is already implemented by
+// serveBundledAsset. Never interpret or publish arbitrary routing controls.
+export function validateStagingAssetControls(client){
+ const names=readdirSync(client);
+ if(names.some(n=>n.toLowerCase()==='_redirects'))stop('redirects require separate review');
+ for(const n of names.filter(n=>n.toLowerCase()==='_headers')){
+  if(n!=='_headers')stop('unreviewed header filename');
+  const p=join(client,n),st=lstatSync(p);
+  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||st.size>1024)
+   stop('unreviewed header file shape');
+  if(sha(file(p))!=='2148fb62669525f5091532d36d4a48a8da95b08a5a797bacde75d2fe981351bb')
+   stop('unreviewed header bytes');
+ }
+}
 export function prepareStagingNoAssetsDarkSource(distFolder,headSHA,outFolder){
  if(!sourceSha(headSHA))stop('exact previously verified STAGING commit SHA required');
  const dist=resolve(distFolder),out=resolve(outFolder),source=tree(dist,{ignoreCompiledToolCache:true});
@@ -198,7 +212,7 @@ export function prepareStagingNoAssetsDarkSource(distFolder,headSHA,outFolder){
  const review=checkStaging(local);
  const proof=inventoryCompiledModules(join(dist,'server'),local.main);
  if(local.main!=='index.js'&&local.main!=='./index.js')stop('unexpected compiled main');
- for(const p of ['_headers','_redirects'])if(existsSync(join(dist,'client',p)))stop('special asset routing control requires separate review');
+ validateStagingAssetControls(join(dist,'client'));
  const localAssets=createLocalAssetManifest(join(dist,'client'));
  const allAssets=Object.keys(localAssets).sort();
  if(proof.moduleCount<80||proof.totalBytes>=60*1024*1024||
