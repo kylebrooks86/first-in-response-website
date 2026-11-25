@@ -125,6 +125,9 @@ jobs:
       - name: Fail closed on callback and subscription mismatches
         run: |
           node --test business-app-parity/cloudflare-launch/stripe-test-worker/gate9-provider-webhook-contract.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+      - name: Check owner G9 inactive-only one-shot runner fail-closed paths (offline)
+        run: |
+          node business-app-parity/cloudflare-launch/stripe-test-worker/test_owner_gate9_activation_inactive_once_20261125.mjs
 
   qa-http-owner-preview-local:
     name: Gate 8 built QA Worker HTTPS Customer view and return (disposable, no deploy)
