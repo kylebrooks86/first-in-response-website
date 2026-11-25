@@ -32,9 +32,20 @@ export function prepareModules(root,pin){
  requireTrue(c.d1_databases?.length===1&&c.d1_databases[0].binding==='DB'&&c.d1_databases[0].database_id===DB&&c.r2_buckets?.length===0&&c.kv_namespaces?.length===0&&c.services?.length===0&&c.routes?.length===0&&c.preview_urls===false&&c.workers_dev===false&&c.observability?.enabled===false,'ISOLATION');
  const seen=new Set(),modules=[];
  for(const row of r.inventory){
-  requireTrue(typeof row.path==='string'&&/^server\/[A-Za-z0-9_./@-]+$/.test(row.path)&&!row.path.includes('..')&&!seen.has(row.path),'PATH');
+  // Accept the sealed builder's ordinary nested module filenames (including
+  // bracketed/parenthesized chunk names), without permitting Windows-invalid
+  // characters, traversal, ambiguous segments, or unexpected inventory paths.
+  const validPath=typeof row.path==='string'&&row.path.startsWith('server/')&&row.path.length<=512&&
+    !row.path.includes('..')&&!/[\\\x00-\x1f\x7f:*?"<>|]/.test(row.path)&&
+    row.path.split('/').every(segment=>segment.length>0&&segment!=='.');
+  requireTrue(validPath&&!seen.has(row.path),'PATH');
   seen.add(row.path);const path=join(root,row.path);
-  requireTrue(lstatSync(path).isFile()&&!lstatSync(path).isSymbolicLink(),'FILE');
+  // Reject symlinked parent directories as well as symlinked final files.
+  const parts=row.path.split('/');let cursor=root;
+  for(let i=0;i<parts.length;i++){
+   cursor=join(cursor,parts[i]);const stat=lstatSync(cursor);
+   requireTrue(!stat.isSymbolicLink()&&(i===parts.length-1?stat.isFile():stat.isDirectory()),'FILE');
+  }
   const data=readFileSync(path);
   requireTrue(data.length===row.bytes&&hash(data)===row.sha256,'MODULE_HASH');
   const name=row.path.slice(7);
