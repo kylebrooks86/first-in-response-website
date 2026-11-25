@@ -44,7 +44,7 @@ export function inventoryCompiledModules(root,main) {
       const stat=lstatSync(full);
       need(!stat.isSymbolicLink(),'SYMLINK');
       if(stat.isDirectory()){
-        if(depth===0 && file.name==='.vite')continue; // private build metadata only
+        if(depth===0 && (file.name==='.vite'||file.name==='.wrangler'))continue; // root-only private build/tool metadata; never a Worker module
         need(!file.name.startsWith('.') && file.name!=='node_modules','DIR_SHAPE');
         visit(full,depth+1);
         continue;

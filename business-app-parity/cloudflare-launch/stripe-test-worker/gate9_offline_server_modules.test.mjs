@@ -74,3 +74,26 @@ test('refuses missing or suspicious BUILD_ID metadata rather than uploading it',
   assert.throws(()=>inventoryCompiledModules(x.root,'index.js'));
  }finally{rmSync(x.temp,{recursive:true,force:true})}
 });
+
+
+test('ignores only root .wrangler local tooling state without weakening nested hidden-dir or symlink rejection',()=>{
+  const x=fresh();
+  try{
+    const cache=join(x.root,'.wrangler');
+    mkdirSync(cache);
+    writeFileSync(join(cache,'tool-local-state.env'),'synthetic local state never uploaded');
+    const proof=inventoryCompiledModules(x.root,'index.js');
+    assert.equal(proof.moduleCount,2);
+    mkdirSync(join(x.root,'chunks','.wrangler'));
+    writeFileSync(join(x.root,'chunks','.wrangler','unapproved.mjs'),'export default 1;');
+    assert.throws(()=>inventoryCompiledModules(x.root,'index.js'),/DIR_SHAPE/);
+  }finally{rmSync(x.temp,{recursive:true,force:true})}
+});
+
+test('rejects a symlinked root .wrangler instead of silently trusting it',()=>{
+  const x=fresh();
+  try{
+    symlinkSync(join(x.root,'chunks'),join(x.root,'.wrangler'),'dir');
+    assert.throws(()=>inventoryCompiledModules(x.root,'index.js'),/SYMLINK/);
+  }finally{rmSync(x.temp,{recursive:true,force:true})}
+});
