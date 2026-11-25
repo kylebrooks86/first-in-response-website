@@ -81,7 +81,16 @@ export async function uploadOneInactiveTestVersion({packageRoot,receiptPin,restr
  requireTrue(await reserveOnce({worker:WORKER,receiptPin})===true,'ATTEMPT_ALREADY_CONSUMED');
  let response;
  try{response=await fetchImpl(API+'?deploy=false',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});}catch{throw Error('G9_UPLOAD_STOP_NETWORK_UNCERTAIN_NO_RETRY')}
- requireTrue(response?.status>=200&&response.status<300,'HTTP_REFUSAL_NO_RETRY');
+ if(!(response?.status>=200&&response.status<300)){
+  // Never emit provider messages, response bodies, headers, request data or keys.
+  const status=Number.isInteger(response?.status)&&response.status>=100&&response.status<=599?String(response.status):'UNKNOWN';
+  let codes=[];
+  try{
+   const rejected=await response.json();
+   if(Array.isArray(rejected?.errors))codes=[...new Set(rejected.errors.map(e=>e?.code).filter(c=>Number.isSafeInteger(c)&&c>=0&&c<=999999999))].slice(0,5);
+  }catch{}
+  throw Error('G9_UPLOAD_STOP_HTTP_REFUSAL_NO_RETRY_STATUS_'+status+'_CODES_'+(codes.length?codes.join('_'):'UNKNOWN'));
+ }
  const result=await response.json();
  requireTrue(result.success===true&&typeof result.result?.id==='string'&&/^[a-f0-9-]{36}$/.test(result.result.id)&&result.result.id!==PREDECESSOR,'RESPONSE_UNCERTAIN_NO_RETRY');
  return {newVersion:result.result.id,previousVersion:PREDECESSOR,activationPerformed:false,requiresIndependentReadback:true};
