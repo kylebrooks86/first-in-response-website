@@ -26,7 +26,9 @@ const TYPE='FIRE_STAGING_FULLAPP_WORKER_ONLY_PRIVATE_SOURCE_REVIEW_V1';
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const stop=s=>{throw Error('FIRE STAGING WORKER-ONLY SOURCE BLOCKED: '+s)};
 const hex=s=>typeof s==='string'&&/^[a-f0-9]{64}$/.test(s);
-const sourceSha=s=>s==='4d1c4a74587c8145d6cbae14daf193865b976c47';
+// Preserve the historical receipt and separately admit the Nov25 Acer-built
+// QA-master STAGING candidate (Issue #19 receipt 7175537190). No upload authority.
+const sourceSha=s=>['4d1c4a74587c8145d6cbae14daf193865b976c47','4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3'].includes(s);
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const configVars={
  FIRE_ENV:'staging',SITE_ORIGIN:ORIGIN,
