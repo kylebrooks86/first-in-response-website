@@ -31,7 +31,7 @@ export function reviewPinnedStagingVersion(folder){
  const seen=new Set();
  for(const row of rows){
    const name=row.path.slice(7);
-   need(/^[A-Za-z0-9_./@+-]+$/.test(name)&&!name.split('/').some(p=>!p||p==='.'||p==='..')&&!seen.has(name),'MODULE_NAME');
+   need(/^[A-Za-z0-9_./@+~-]+$/.test(name)&&!name.split('/').some(p=>!p||p==='.'||p==='..')&&!seen.has(name),'MODULE_NAME');
    seen.add(name);
    const bytes=readFileSync(join(root,row.path));
    need(bytes.length===row.bytes&&sha(bytes)===row.sha256,'MODULE_CHANGED');
