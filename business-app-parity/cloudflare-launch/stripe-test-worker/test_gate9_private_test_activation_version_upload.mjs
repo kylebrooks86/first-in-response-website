@@ -44,6 +44,19 @@ try{
  assert.equal(posts,0);assert.equal(reserved,false);
  const result=await uploadOneInactiveTestVersion(fake);assert.equal(result.activationPerformed,false);assert.equal(posts,1);
  await assert.rejects(uploadOneInactiveTestVersion(fake),/ATTEMPT_ALREADY_CONSUMED/);assert.equal(posts,1);
+ // Refusal diagnostics must be useful, numeric only, and never permit a second POST.
+ for(const scenario of [
+  {status:403,json:async()=>({errors:[{code:10000,message:'SECRET_MUST_NOT_LEAK'},{code:10000},{code:'SECRET_MUST_NOT_LEAK'}]}),expected:'STATUS_403_CODES_10000'},
+  {status:500,json:async()=>{throw Error('SECRET_MUST_NOT_LEAK')},expected:'STATUS_500_CODES_UNKNOWN'},
+  {status:400,json:async()=>({errors:[{code:10013},{code:10014}]}),expected:'STATUS_400_CODES_10013_10014'}
+ ]){
+  let consumed=false,calls=0;
+  const refused={...fake,reserveOnce:async()=>{if(consumed)return false;consumed=true;return true},fetchImpl:async()=>{calls++;return scenario}};
+  await assert.rejects(uploadOneInactiveTestVersion(refused),e=>e.message==='G9_UPLOAD_STOP_HTTP_REFUSAL_NO_RETRY_'+scenario.expected&&!e.message.includes('SECRET_MUST_NOT_LEAK'));
+  assert.equal(consumed,true);
+  await assert.rejects(uploadOneInactiveTestVersion(refused),/ATTEMPT_ALREADY_CONSUMED/);
+  assert.equal(calls,1);
+ }
  writeFileSync(join(root,'server',entry),'tampered');assert.throws(()=>prepareModules(root,pin),/MODULE_HASH/);
  console.log('G9_UPLOAD_ADAPTER_SYNTHETIC_PASS; no provider calls');
 }finally{rmSync(root,{recursive:true,force:true})}
