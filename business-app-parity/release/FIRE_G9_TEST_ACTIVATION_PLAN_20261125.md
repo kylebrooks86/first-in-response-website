@@ -1,3 +1,8 @@
+## November 25 VERIFIED provider follow-up — reuse, do not recreate
+Connected **Stripe TEST sandbox** read-only API returned the dedicated webhook endpoint already **enabled**, `livemode:false`, exact isolated TEST URL and all six required subscribed events; the separate legacy Sites TEST endpoint remains **disabled**. Owner Acer's existing Access GET result `EXACT_EIGHT` likewise shows the precise webhook public exception alongside the seven preserved prior paths. **Do not create or edit another webhook endpoint, and do not rerun the accepted eight-path inventory on unchanged config.** Full evidence: [FIRE_G9_ACCESS_AND_STRIPE_TEST_WEBHOOK_READONLY_20261125.md](../evidence/FIRE_G9_ACCESS_AND_STRIPE_TEST_WEBHOOK_READONLY_20261125.md), [Issue #19 owner Access readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7167548786).
+
+These are **two narrower provider prerequisites actually met**; G9-05 remains open for current restricted TEST key/secret mode, the isolated actual D1 migration/ledger readback, target-bound signed POST/charge/refund proof, and distinct specific approval for any inactive version upload, activation or payment operation. Earlier references below to *creating* a TEST webhook or *adding* the Access exception are historical contingency steps now superseded by the successful existing-provider GETs. Original release tally stays **52/95, 4/10 accepted whole gates**. No provider mutation in this review.
+
 # G9-05 — isolated Stripe TEST activation preparation — Nov 25
 Owner explicitly authorized preparation only: no provider writes, uploads, activation or payments until separately authorized. Existing draft PR282 only.
 ## Pins and boundaries
