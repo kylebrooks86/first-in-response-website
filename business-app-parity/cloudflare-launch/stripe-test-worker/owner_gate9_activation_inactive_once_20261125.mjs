@@ -40,6 +40,15 @@ function predecessorDetails(){
   must(v?.id===PREV&&Array.isArray(v?.resources?.bindings),'PREDECESSOR_READ');
   return v;
 }
+async function cloudflareTokenTarget(token){
+  const url='https://api.cloudflare.com/client/v4/accounts/bfc00939cfb2f8dfd8581a7a7f5f1307/workers/workers/'+WORKER+'/versions/'+PREV;
+  let r;
+  try{r=await fetch(url,{method:'GET',redirect:'error',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)})}
+  catch{fail('CF_TOKEN_READ')}
+  must(r.ok,'CF_TOKEN_SCOPE_OR_ACCOUNT');
+  let v;try{v=await r.json()}catch{fail('CF_TOKEN_JSON')}
+  must(v?.success===true&&v?.result?.id===PREV,'CF_TOKEN_WRONG_TARGET');
+}
 async function stripeAccount(key){
   let r;
   try{r=await fetch('https://api.stripe.com/v1/account',{method:'GET',redirect:'error',headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(20000)})}
@@ -80,6 +89,7 @@ export async function main(args=process.argv.slice(2)){
   const token=process.env.CLOUDFLARE_API_TOKEN, key=process.env.FIRE_G9_RESTRICTED_TEST_KEY;
   must(typeof token==='string'&&token.length>10&&!/\s/.test(token),'CLOUDFLARE_TOKEN');
   must(typeof key==='string'&&/^rk_test_[A-Za-z0-9]+$/.test(key),'RESTRICTED_TEST_KEY');
+  await cloudflareTokenTarget(token); // read-only scoped token check BEFORE any one-shot reservation
   const predecessor=predecessorDetails();
   const prior=servingState();
   must(prior.activeVersion===PREV&&prior.activePercentage===100,'PREVIOUS_SERVING_DRIFT');
