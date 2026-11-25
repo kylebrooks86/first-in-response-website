@@ -111,7 +111,7 @@ export async function POST(request:Request) {
   // Unknown/nonproduction FIRE_ENV must never accept signed LIVE Stripe
   // events or skip the disabled TEST gate if ingress accidentally opens.
   const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
-    !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
+    !["live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
   // Access can exempt the precise Stripe webhook path, but must never bypass
   // owner login for the rest of this Worker. An HMAC-valid TEST event delivered
   // through another hostname (including a version URL) is not an approved

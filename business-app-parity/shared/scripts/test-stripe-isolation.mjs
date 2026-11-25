@@ -74,7 +74,43 @@ for (const fireEnv of ['isolated-dr','new-live-prelaunch','cloudflare-qa','unexp
  eq(w.calls.db,0,fireEnv+' disabled signed TEST event makes no D1 calls');
 }
 // Deliberate production paths must still preserve the prior LIVE behavior.
-for(const liveEnv of ['production','cloudflare-live','']) {
+// The shared \"live\" adapter is not enough to authorize LIVE Stripe.
+// An absent, blank or whitespace FIRE_ENV must obey the isolated TEST gate,
+// even when a live-looking credential was accidentally bound. No real network.
+for(const fireEnv of [undefined,'','  ']) {
+ const label=fireEnv===undefined?'missing':fireEnv===''?'blank':'whitespace';
+ const c=load('checkout','live',fireEnv,'sk_live_synthetic-not-a-key');
+ c.env.FIRE_STRIPE_MODE='disabled';
+ eq((await c.POST(new Request('https://synthetic.invalid/api/payments/checkout',
+  {method:'POST',body:checkoutBody}))).status,503,label+' FIRE_ENV denies live checkout');
+ eq(c.calls.db,0,label+' FIRE_ENV checkout before D1');
+ eq(c.calls.network,0,label+' FIRE_ENV checkout before Stripe');
+ const re=load('checkout/reconcile','live',fireEnv,'sk_live_synthetic-not-a-key');
+ re.env.FIRE_STRIPE_MODE='disabled';
+ eq((await re.POST(new Request('https://synthetic.invalid/api/payments/checkout/reconcile',
+  {method:'POST',body:JSON.stringify({reservationId:'fire-creating:00000000-0000-0000-0000-000000000000',sessionId:'cs_live_synthetic123'})}))).status,503,
+  label+' FIRE_ENV denies owner checkout reconciliation');
+ eq(re.calls.db,0,label+' FIRE_ENV reconciliation before D1');
+ eq(re.calls.network,0,label+' FIRE_ENV reconciliation before Stripe');
+ const r=load('refund','live',fireEnv,'sk_live_synthetic-not-a-key');
+ r.env.FIRE_STRIPE_MODE='disabled';
+ eq((await r.POST(new Request('https://synthetic.invalid/api/payments/refund',
+  {method:'POST',body:refundBody}))).status,503,label+' FIRE_ENV denies live refund');
+ eq(r.calls.db,1,label+' FIRE_ENV refund only checks original payment');
+ eq(r.calls.network,0,label+' FIRE_ENV refund before Stripe');
+ const w=load('webhook','live',fireEnv,'sk_live_synthetic-not-a-key');
+ w.env.FIRE_STRIPE_MODE='test';
+ eq((await webhook(w,{type:'checkout.session.completed',livemode:true,
+  data:{object:{id:'cs_live_synthetic123',livemode:true,payment_status:'paid'}}})).status,400,
+  label+' FIRE_ENV rejects signed live webhook even in TEST mode');
+ eq(w.calls.reconciled,0,label+' FIRE_ENV no live ledger reconciliation');
+ w.env.FIRE_STRIPE_MODE='disabled';
+ eq((await webhook(w,{type:'checkout.session.completed',livemode:false,
+  data:{object:{id:'cs_test_synthetic123',livemode:false,payment_status:'paid'}}})).status,503,
+  label+' FIRE_ENV rejects signed TEST webhook when disabled');
+ eq(w.calls.db,0,label+' FIRE_ENV webhook before D1');
+}
+for(const liveEnv of ['live','production','cloudflare-live']) {
  const c=load('checkout','live',liveEnv,'sk_live_synthetic-not-a-key');
  eq((await c.POST(new Request('https://synthetic.invalid/api/payments/checkout',
    {method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,

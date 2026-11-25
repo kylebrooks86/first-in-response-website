@@ -49,7 +49,7 @@ async function saveRefund(request:Request){
     // Isolated DR / new-live-prelaunch are NOT LIVE payment environments,
     // even though the shared compiled deployment adapter says "live".
     const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" ||
-      !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
+      !["live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV ?? "").trim().toLowerCase());
     // A staging manual refund is a separately confirmed external return, not
     // a Stripe refund. Keep it usable while preventing disabled TEST Stripe
     // refunds before creating any D1 refund reservation or provider request.

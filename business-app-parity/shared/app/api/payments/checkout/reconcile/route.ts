@@ -18,7 +18,7 @@ export async function POST(request:Request){
   // Match the explicit production allowlist used by the checkout, refund,
   // webhook and connection routes. This runs before any D1/Stripe read/write.
   const sandbox=String(LOCAL_CUSTOMER_DEPLOYMENT)!=="live"||
-    !["", "live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV??"").trim().toLowerCase());
+    !["live", "production", "cloudflare-live"].includes(String(runtime.FIRE_ENV??"").trim().toLowerCase());
   // An authenticated owner must not bypass the isolated TEST payment kill-switch
   // by reconciling a paid or expired checkout directly. Check BEFORE any D1
   // read or Stripe GET; no ledger, invoice, or checkout-lock mutations.
