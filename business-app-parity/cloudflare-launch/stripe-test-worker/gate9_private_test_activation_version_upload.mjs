@@ -38,7 +38,7 @@ export function prepareModules(root,pin){
   const data=readFileSync(path);
   requireTrue(data.length===row.bytes&&hash(data)===row.sha256,'MODULE_HASH');
   const name=row.path.slice(7);
-  const content_type=/\.m?js$/.test(name)?'application/javascript+module':/\.bin$/.test(name)?'application/octet-stream':null;
+  const content_type=/\.m?js$/.test(name)?'application/javascript+module':/\.(json|css)$/.test(name)?'text/plain':/\.bin$/.test(name)?'application/octet-stream':null;
   requireTrue(content_type!==null,'UNSUPPORTED_MODULE');
   modules.push({name,content_type,content_base64:data.toString('base64')});
  }
