@@ -1,3 +1,11 @@
+## November 25 11:09 CST — physical TEST D1 prerequisite PASSED; current exact-head CI SEALED
+
+**Latest accepted owner read-only provider evidence:** [Issue #19 #7169107168](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7169107168) confirms the dedicated Stripe TEST D1 identity, **25/25 exact ordered migrations**, eight required tables, Stripe provider uniqueness index and a counts-only snapshot (customers 1, estimates 1, invoices 0, payments 0, refunds 0, checkout sessions 0). Source `dda17f4576d5c8629ed73df002e4e81012a1c770`, PR282, has independently verified **28/28 PR-triggered GitHub workflow successes**. This **supersedes the earlier pending-D1 language** below; never rerun the accepted D1, webhook or eight-path Access inventory unchanged. [Sanitized permanent evidence](../evidence/FIRE_G9_TEST_D1_READONLY_AND_EXACT_CI_20261125.md).
+
+**Next true prerequisites:** restricted Stripe **TEST** key permissions/secret names and account/mode isolation (without revealing key material), complete guarded activation-specific candidate review, new explicit owner approval for each provider write, and separately approved genuinely signed TEST charge/refund/reconciliation. Existing owner consent is preparation only. **G9-05 remains [ ]; original 52/95, whole 4/10**, NEW LIVE DARK/NO-GO, Job #0001 unused. No provider write/merge/activation/payment occurred.
+
+---
+
 ## November 25 VERIFIED provider follow-up — reuse, do not recreate
 Connected **Stripe TEST sandbox** read-only API returned the dedicated webhook endpoint already **enabled**, `livemode:false`, exact isolated TEST URL and all six required subscribed events; the separate legacy Sites TEST endpoint remains **disabled**. Owner Acer's existing Access GET result `EXACT_EIGHT` likewise shows the precise webhook public exception alongside the seven preserved prior paths. **Do not create or edit another webhook endpoint, and do not rerun the accepted eight-path inventory on unchanged config.** Full evidence: [FIRE_G9_ACCESS_AND_STRIPE_TEST_WEBHOOK_READONLY_20261125.md](../evidence/FIRE_G9_ACCESS_AND_STRIPE_TEST_WEBHOOK_READONLY_20261125.md), [Issue #19 owner Access readback](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7167548786).
 
