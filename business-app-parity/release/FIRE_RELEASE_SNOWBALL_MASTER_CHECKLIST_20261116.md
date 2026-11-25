@@ -1,3 +1,18 @@
+## November 24 22:51 CST — STAGING offline packaging milestone CLOSED; original 95-row count independently audited
+
+**Actual row recount:** 95 distinct original IDs, 52 checked, 43 open. A 18/18; B 15/15; G4 3/11; G5 2/8; G6 2/10; G7 7/10; G9 4/11; G10 1/12. Whole gates G1/G2/G3/G8 accepted (4/10). G9-04 is already credited Nov 24; historical pending text in this file is superseded by the later acceptance. Current integrated draft PR #282, not historical PR270. No original criterion redefined or double-counted.
+
+**Newly completed supplemental development milestones (track separately from the 95 original criteria):**
+- [x] STAGING offline Worker-only packaging blocker resolved: exact Vinext static cache rule reviewed; existing runtime preserves the rule; original distribution preserved.
+- [x] Actual owner Acer diagnostic package verification, external receipt pin and existing 36/36 package safety checks PASS. [Evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7147070754).
+- [x] Permanent validator committed on existing STAGING fallback branch at [f6eabc0](https://github.com/kylebrooks86/first-in-response-website/commit/f6eabc03626adc329f6d41338c62316afffa7ded), targeted test authored at [b6f3a04](https://github.com/kylebrooks86/first-in-response-website/commit/b6f3a044f3e24f117f2d7610b7549faab025e573).
+- [x] Actual owner Acer exact-checkout 15/15 routing-control/cache-policy checks PASS. [Evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7153214119).
+- [x] Permanent builder reproduced exact 245-file package with verified same receipt pin 61c456accc7d1a447382df1d7173081f221f139bcdb8ed9eb44e3b01214bd3cf; 197 server modules and 42 client assets; reported compiled source 4d1c4a74587c8145d6cbae14daf193865b976c47. [Evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7153225691). Preserve 36/36 and 15/15 results on unchanged inputs; no retest.
+
+**Remaining distinct acceptance conditions:** G4-02 exact hosted multi-target bytes (DR/NEW LIVE runtime comparisons already accepted as subproof); G4-04 actual STAGING auth/payment binding correction and immutable provider readback; G4-07 hosted candidate and rollback/Access signoff. G4-05/06 existing STAGING Access and anonymous challenge and both-DARK ingress evidence stand; only remaining scope/denial verification, no repeat. G9-03/04 apply to separate Stripe TEST Worker and are already checked. The local STAGING package is not a hosted candidate, nor evidence of release activation or final integrated source freeze. Prior accepted STAGING build evidence #7146082039 remains valid for its recorded scope; exact package-to-build lineage/branch integration must be reconciled, not assumed missing in entirety. Original upload reservations remain spent; no retry absent fresh exact approval. NEW LIVE DARK/NO-GO; Job #0001 unused. No provider writes, merge, deployment, payment or paid R2 changes.
+
+---
+
 ## November 24 14:54 CST — NEW LIVE hosted 234-module exact comparison PASS (G4-02 partial)
 
 - [x] Owner Acer screenshot `image(20261124-205409).png` reports `FIRE_NEW_LIVE_AUTHENTICATED_IMMUTABLE_RUNTIME_MODULE_BYTES_PASS`, Worker `fire-fullapp-new-live`, immutable version `cfacbb3d-43de-4d2c-8008-c6732d78f756`, frozen QA master `15bd714c435a585f695ed7166cf06d2c31ea1a8e`. Approved ZIP and verifier syntax PASS; 193 runtime modules + 41 embedded assets matched, zero unexpected/mismatched modules, hashes compared, authenticated provider readback and original attempt lock validated, zero version-pinned routable URLs. No source upload, deployment or provider write. Do not repeat DR or NEW LIVE captures.
