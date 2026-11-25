@@ -1,3 +1,11 @@
+## November 25 13:04 CST — restricted TEST credential connectivity PASS; payment guard CI 28/28 SUCCESS
+
+- [x] Owner Acer exact-account MATCH True and all three restricted-key GET checks PASS (checkout sessions, refunds, webhook endpoints). Correct dedicated sandbox `acct_1ULRIG7ND12rd1wI`, `rk_test_` prefix and private key suffix check; dashboard Limited 2 read/2 write, owner confirms intended four scopes. Earlier wrong-account credential excluded, not authorized for deletion or use. Prior four-scope screenshot alone did not uniquely prove the verified key's scope. No secret material in GitHub. [Issue #19 physical receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7171794965). Do not rerun accepted credential identity/GET, D1, Access or webhook inventory.
+- [x] Independent GitHub readback: all 28/28 PR-triggered workflows completed success on executable/test SHA `33f24500d9b6af665c4fa1e2e1e588e92227c70e` (fail-closed FIRE_ENV guard correction). Earlier pending CI wording superseded for that SHA only. Not deployed.
+- [ ] G9-05 remains OPEN: actual candidate configuration/build provenance, signing-secret binding validation, rollback plan and separately approved upload/activation/synthetic payment/refund evidence. Read-only success is not proof of write capability or signed event reconciliation. 52/95 original criteria, 4/10 formal gates G1/G2/G3/G8; NEW LIVE dark, Job #0001 unused. No provider writes by this assistant, no credential rotation or merge/deploy.
+
+---
+
 ## November 25 ~11:50 CST — source-only fail-closed FIRE_ENV correction committed to DRAFT PR282 (NO DEPLOY)
 
 The owner Acer screenshot independently located `FIRE_STRIPE_MODE` guards in checkout, owner reconciliation, connection, refund and webhook routes. Connected GitHub source review found a concrete mismatch: the connection diagnostic already treated absent/blank `FIRE_ENV` as an isolated TEST target, but checkout, reconcile, refund and webhook were still permitting an empty string in their **LIVE environment allowlists** under the shared `live` adapter. A missing binding could therefore wrongly classify an unfinished Worker as production despite the disabled TEST control.
