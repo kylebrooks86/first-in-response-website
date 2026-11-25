@@ -1,3 +1,10 @@
+## November 25 — [x] Stripe TEST webhook provider configuration & exact Access exception subproof
+
+- [x] **G9-05 supplemental prerequisite ONLY:** Connected Stripe TEST sandbox provider GET physically verified exact isolated FIRE TEST webhook **enabled**, all six configured checkout/refund events, and separate legacy Sites TEST webhook still **disabled**. Existing owner Acer Access `EXACT_EIGHT` read-only result was reconciled against PR282's narrowly constrained application/Worker/policy/path read-only checker. No duplicate endpoint/Access change is necessary. [Sanitized evidence](../evidence/FIRE_G9_ACCESS_AND_STRIPE_TEST_WEBHOOK_READONLY_20261125.md) · [Issue #19 provider receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7167632068).
+- [ ] **Original G9-05 remains OPEN:** approval was preparation-only; active TEST candidate Stripe disabled/activation blocked, no bound signing-secret validation, new signed delivery, real TEST charge/refund or durable D1 reconciliation. G9-04 already checked, never recredit. Original tally **52/95, 43 open; whole gates 4/10 (G1/G2/G3/G8)**. No provider write, activation, payment, R2, merge or deploy.
+
+---
+
 ## November 24 late — exact-version STAGING API contract and Git build-source ancestry (G4-04 preparation)
 - [x] GitHub compared source build `4d1c4a74587c8145d6cbae14daf193865b976c47` to integrated checkpoint `779217e7f99eef53455a972185242341b7a81b2d`: 8 ahead/0 behind; 5 packaging/test files and 2 documentation records only; no app-runtime/build-source differences. Existing owner build and package receipts preserved; this does not independently attest compiled distribution provenance.
 - [x] Implemented and read back [exact STAGING pinned-version JSON contract reviewer](https://github.com/kylebrooks86/first-in-response-website/commit/643c4b20e0e8a797313d50c1442574a2e7de1281); no sendable request, credentials or transport. Uses beta version API exact predecessor inheritance (not latest), blocked activation, disabled Stripe, exact D1, package pin and module classification.
