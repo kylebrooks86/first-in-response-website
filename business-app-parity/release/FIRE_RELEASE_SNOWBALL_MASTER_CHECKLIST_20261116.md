@@ -1,3 +1,10 @@
+## November 25 15:21 CST — G7-01 ACCEPTED; 53/95, 42 open, 4/10 formal gates
+
+Hosted backup availability accepted (original numbered row updated below).
+
+Actual owner-approved hosted QA availability, no new archive/restore claim. New configuration-version readback pending. [Issue #19 evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7174975481). Historical counts below are preserved.
+
+---
 ## November 25 ~14:10 CST — [x] Actual sealed G9 offline module-path blocker RESOLVED (supplemental only)
 
 - [x] Fresh actual owner Acer PowerShell receipt on active draft PR282 after fast-forward to `502c767`: `G9_UPLOAD_ADAPTER_SYNTHETIC_PASS; no provider calls`, then actual preserved sealed review package `G9_ACTUAL_OFFLINE_MODULES=237`, `ENTRY=fire-gate9-test-activation-entry.mjs`, `PROVIDER_WRITES=NONE`. The prior `G9_UPLOAD_STOP_PATH` is **resolved on the real owner-local package**, not assumed from only synthetic CI. [Permanent Issue #19 screenshot receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7173388119). No repeated packaging or path test required.
@@ -1809,7 +1816,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 ### F. Gate 7 — complete *future* records + real photos backup, isolated restore and rollback
 
-- [ ] **G7-01** — Make the owner-accessible complete records + saved-photo archive flow available on an *approved hosted candidate*; source-only endpoint/flag checks are insufficient.
+- [x] **G7-01** — Make the owner-accessible complete records + saved-photo archive flow available on an *approved hosted candidate*; source-only endpoint/flag checks are insufficient. **Accepted Nov25:** authorized NEW QA owner-only runtime enablement and actual hosted Business screen shows both protected full-record and saved-photo pairing controls. [Owner screenshot receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7174975481). Availability only; G7-09/10 remain open.
 - [x] **G7-02** — Create one owner-authorized protected backup of all test/new-app D1 records, journals, invoices, payments, customer/job numbers, notes, messages, schedule and supplemental tables.
 - [x] **G7-03** — Create and privately retain one full original-photo owner-device ZIP (no R2), metadata manifest, every actual file's bytes and hashes, including representative before/after pairing.
 - [x] **G7-04** — Verify *one matching point-in-time* D1+photo pair: record IDs, file associations, exact hashes, sizes, counts and manifest with no missing/extra bytes.
