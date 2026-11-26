@@ -1,3 +1,9 @@
+## Nov 25 22:18 CST — independent hosted STAGING post-migration PASS, 25/25
+
+Owner Acer direct D1 API independently verified exact ordered 25-row journal, all nine expected new named objects (three indexes, two tables, four immutability triggers) and zero foreign-key violations on physical STAGING UUID afb2c05a-d794-4a9a-b580-924ce01c26ad. All 0022–0024 are now physically applied and verified; do not repeat migration or journal check. Previously accepted QA 25 and DR/NEW LIVE 26 journals remain intact. This resolves STAGING migration gap for G5-01/G5-02; complete schema definitions and hosted pre/post data comparison remain distinct, so no premature numbered acceptance. No Worker upload, payment, activation or other environment changes. 57/95 and 5/10 gates pending remaining compound conditions.
+
+---
+
 ## Nov 25 22:17 CST — owner-authorized remote STAGING migrations 0022–0024 APPLIED SUCCESSFULLY
 
 Owner confirmed all app environments unused except occasional coordinated testing, no STAGING scheduled triggers/events, sandbox destination inventory only dedicated TEST Worker active and old Sites sandbox disabled, LIVE destination inventory only old Sites live webhook active. No Stripe/Worker/Access changes. Owner Acer Wrangler 4.162.0 executed exact three Git blob-pinned additive migrations after backup SHA256 and ordered 22-row journal guard; screenshot confirms all three green checks and STAGING MIGRATION COMMAND SUCCESS on remote fire-app-staging-db afb2c05a-d794-4a9a-b580-924ce01c26ad. One-shot lock FIRE-STAGING-0022-0024-MIGRATION-ATTEMPT.lock consumed: NEVER reapply or reset. Expected 25/25 now; independent physical journal/schema/record-count/FK postread pending. Original 57/95, 5/10 gates until exact criterion verification. No activation, payments or other database mutation authorized or observed. Preserve verified prechange backup privately; temporary D1 token revoke after verification.
