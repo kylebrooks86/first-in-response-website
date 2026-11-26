@@ -1,3 +1,12 @@
+<!-- FIRE-G4-STAGING-BETA-ID-20261125 -->
+## Nov 25 — [x] G4 STAGING provider Worker-ID mapping helper + regression authored (NO CLOUD WRITE)
+
+- [x] Unique missing-source subtask: [safe beta Worker GET name/ID cross-check](../evidence/FIRE_G4_STAGING_BETA_WORKER_ID_GET_ONLY_20261125.md) committed to draft PR282 with injected offline negative tests and existing CI workflow wiring. Cloudflare's beta endpoint accepts Worker name or ID; no unreviewed name-to-ID substitution will be accepted. Default is offline, explicit owner Windows existing-token GET-only use; bounded response, no secrets, no upload/activation/retry, no changed serving version, no browser login or paid Cloudflare/R2.
+- [ ] **Original G4-04/G4-07 unchanged:** actual physical beta Worker mapping is still pending, as are MIME/source-build provenance, a newly authorized 0%-traffic immutable STAGING version, and separately approved three missing STAGING D1 migrations (22/25 currently evidenced). Existing consumed attempts must never be rerun. Initial new targeted CI pending at first read; this source addition is not hosted provider acceptance.
+- **Authoritative original tally remains 57/95 checked, 38 open; 5/10 gates G1/G2/G3/G7/G8 accepted.** G4/G5/G6/G9/G10 open, LIVE NO-GO; NEW LIVE DARK, Job #0001 unused. No Worker/Access/SQL/Stripe/provider write, payments, Git merge/deploy or public site change.
+
+---
+
 <!-- FIRE-G9-BOUNDED-REFUSAL-20261125 -->
 ## November 25 — [x] G9 future provider-refusal evidence bounded/redacted; code+tests committed (NO PROVIDER WRITE)
 
