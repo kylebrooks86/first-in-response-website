@@ -1,6 +1,6 @@
 // Offline body construction for the Nov26 G4-07 candidate. No transport.
 import {readFileSync} from 'node:fs';
-import {join,resolve} from 'node:path';
+import {join,resolve,extname} from 'node:path';
 import {createHash} from 'node:crypto';
 import {reviewPinnedStagingVersion} from './cloudflare-launch/stripe-test-worker/review_staging_g407_nov26.mjs';
 import {reviewStagingFreeWorkerBundleBudget} from './staging_beta_free_bundle_budget.mjs';
@@ -36,7 +36,9 @@ export function prepareBody(folder,predecessor){
   need(/^[A-Za-z0-9_./@+~-]+$/.test(name)&&name.split('/').every(p=>p&&p!=='.'&&p!=='..'),'PATH');
   const data=readFileSync(join(root,row.path));
   need(data.length===row.bytes&&hash(data)===row.sha256,'BYTES');
-  const type=/\\.m?js$/.test(name)?'application/javascript+module':/\\.wasm$/.test(name)?'application/wasm':/\\.(css|json)$/.test(name)?'text/plain':/^fire-inline-assets\\/asset-[0-9]{3}-[a-f0-9]{16}\\.bin$/.test(name)?'application/octet-stream':null;
+  const ext=extname(name).toLowerCase();
+  const assetName=name.startsWith('fire-inline-assets/') && /^asset-[0-9]{3}-[a-f0-9]{16}[.]bin$/.test(name.slice('fire-inline-assets/'.length));
+  const type=ext==='.js'||ext==='.mjs'?'application/javascript+module':ext==='.wasm'?'application/wasm':['.css','.json'].includes(ext)?'text/plain':assetName?'application/octet-stream':null;
   need(type,'TYPE');
   const content_base64=data.toString('base64');
   inventory.push({name,content_type:type,bytes:row.bytes,sha256:row.sha256,base64Chars:content_base64.length});
