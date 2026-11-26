@@ -1,3 +1,10 @@
+## Nov 25 22:18 CST — [x] STAGING physical migration gap CLOSED
+
+- [x] Exact separately authorized 0022–0024 applied to isolated STAGING D1 after verified protected backup and rehearsal; independent postread exact 25/25 journal, 9/9 expected new named schema objects, zero FK violations. Do not reapply or rerun accepted checks. Supersedes earlier 22/25 STAGING status.
+- [ ] G5-01/G5-02 compound remaining evidence: full actual schema definitions and required cross-target contracts, not just object names; hosted pre/post record preservation comparison still outstanding. G4-04/G4-07 no longer blocked by missing STAGING migrations, but Worker upload/activation evidence remains open. 57/95, 5/10 unchanged until original criteria satisfied.
+
+---
+
 <!-- FIRE-G4-STAGING-ID-PHYSICAL-20261125 -->
 ## Nov 25 21:17 CST — [x] physical STAGING Worker name/ID mapping proven (provider GET only)
 
