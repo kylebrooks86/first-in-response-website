@@ -26,7 +26,11 @@ On any byte-identical result, independently review the entire returned sanitized
 ## Acceptance ledger
 
 - **Engineering task** — source implementation, negative regression and one targeted CI step: **[x] COMPLETE**.
-- **Provider version readback** — the new unique targeted GET: **[ ] NOT PERFORMED**.
+- **Provider version readback** — the new unique targeted GET: **[x] PERFORMED — negative attribution result, not candidate acceptance**.
 - **Original numbered G9-05 through G9-11**: **[ ] REMAIN OPEN**.
 - **Official**: **57/95 original numbered tasks accepted, 38 open; 5/10 formal gates G1/G2/G3/G7/G8 accepted**. G4/G5/G6/G9/G10 OPEN; NEW LIVE dark/NO-GO; first authentic Job #0001 untouched.
 - **No provider writes**; no login, Stripe mode changes, Cloudflare version deployment/activation, D1 mutation, paid Cloudflare/R2, public site changes or PR merge.
+
+## Owner Acer result — Nov 25 20:56 CST
+
+[Issue #19 receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7181262679) confirms the sealed package/lock accepted; all six pinned IDs outside attempt window, bindings guard false, module comparison not reached. No attributable candidate found among six. Do not repeat. The original HTTP refusal did not capture its numeric status/code; the current adapter already captures those fields, but cannot recover the historical response. Cloudflare's beta create-version API supports exact version-ID inheritance and JSON base64 modules: https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/subresources/versions/methods/create/ . This is contract evidence, not proof of the failure cause. No lock reset, provider write or new numbered acceptance. Next candidate must have a separately reviewed payload and fresh explicit authorization; no blind resend.
