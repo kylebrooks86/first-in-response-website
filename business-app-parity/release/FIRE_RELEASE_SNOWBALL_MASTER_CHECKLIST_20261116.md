@@ -1,3 +1,9 @@
+## November 25 — G5-05 and G5-06 owner accepted; 57/95, 38 open, 5/10 gates
+
+https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180055098 — Prior functional tests credited by explicit owner acceptance; no duplicate tests. Gate 5 remains open (4/8). G6 security and all other open criteria unaffected. Historical counts below preserved.
+
+---
+
 ## November 25 15:41 CST — G7-09/G7-10 and Gate 7 ACCEPTED; 55/95, 40 open, 5/10 gates
 
 Actual isolated code and paired database/photo recovery completed; previously adopted no-paid owner schedule retained. Formal gates G1/G2/G3/G7/G8 accepted. [Evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7175419824). Future target-specific release backups and final cutover remain open. Historical counts below preserved.
@@ -1801,8 +1807,8 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 - [ ] **G5-02** — Confirm required table/column/index/trigger contracts, especially payment_refunds journal, provider uniqueness, refund statuses, settlement locks and owner/customer relations.
 - [ ] **G5-03** — Verify actual permanent Customer # / Job # uniqueness, immutability, monotonic reservation and records/estimate/invoice/notification cross-links on migrated independent targets.
 - [x] **G5-04** — Verified the bound NEW LIVE D1 had zero operational data and no numbering history at physical prelaunch inspection. The reviewed atomic allocation and unique root-estimate constraint reserve #0001 for the first real job after activation. [Evidence](#g5-04-new-live-clean-start-evidence).
-- [ ] **G5-05** — Check invoice/deposit/50%/principal/tip/refund/discount rounding, rate overrides, legitimate stacked promotions and manual payments against saved hosted test records with exact cents. **Nov25 credit:** hosted principal/tip/refund/manual ledger reconciled to $267 (principal $240, tips $27), signed $200/$100 estimate verified; [owner explicitly confirms discount functionality passed; no saved discounted estimate available](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180002999). Credit prior discount test, do not repeat it. Remaining distinction: exact saved hosted stacked-discount/rate-override evidence not independently available; archived native browser/source coverage credited.
-- [ ] **G5-06** — Verify saved customer, estimates, schedule, invoice status, follow-up, property and contact relationships survive real hosted readbacks without cross-customer leakage.
+- [x] **G5-05** — Invoice/deposit/50%/principal/tip/refund/discount rounding, rate overrides, legitimate stacked promotions and manual payments: **owner accepted** on historical tests plus actual hosted ledger $240 principal/$27 net tips/$267 total and signed $200/$100 estimate. Saved discounted estimate not available for independent inspection; archived saved rate/promotion tests and owner attestation credited. [Acceptance](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180055098).
+- [x] **G5-06** — Saved customer, estimates, schedule, invoice status, follow-up, property and contact relationships without cross-customer leakage: **owner accepted previously completed functional tests**, supported by archived hosted readbacks and current two-customer financial/schedule evidence. Not a fresh independent inspection of every relationship; separate G6 security tests remain open. [Acceptance](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180055098).
 - [x] **G5-07** — Reconciled the NEW LIVE missing application schema and zero migration journal through an independently backed-up, exact-target 26-migration install. It added the FIRE schema to an empty target after separate owner authorization and verified the result. [Evidence](#g5-07-reviewed-new-live-schema-recovery).
 - [ ] **G5-08** — Record accepted physical schema/number/ledger evidence and formally close Gate 5 only for the intended NEW app targets, never by silently repairing legacy Sites LIVE.
 
