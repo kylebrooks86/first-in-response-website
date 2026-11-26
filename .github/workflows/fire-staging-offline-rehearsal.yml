@@ -128,6 +128,11 @@ jobs:
       - name: Check owner G9 inactive-only one-shot runner fail-closed paths (offline)
         run: |
           node business-app-parity/cloudflare-launch/stripe-test-worker/test_owner_gate9_activation_inactive_once_20261125.mjs
+      - name: Check G9 refused-upload module provenance reconciler (offline only)
+        run: |
+          node --check business-app-parity/cloudflare-launch/stripe-test-worker/owner_gate9_failed_upload_source_provenance_read_only.mjs
+          node --check business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_private_test_activation_version_upload.mjs
+          node business-app-parity/cloudflare-launch/stripe-test-worker/test_gate9_private_test_activation_version_upload.mjs
 
   qa-http-owner-preview-local:
     name: Gate 8 built QA Worker HTTPS Customer view and return (disposable, no deploy)
