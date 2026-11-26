@@ -1,3 +1,8 @@
+<!-- FIRE-G4-WINDOWS-OPERATOR-PARSER-PASS-20261126 -->
+### [x] Nov 26 — NEW G4 owner PowerShell parser / static consent guards verified on actual Windows runner
+GitHub exact-code workflow [STAGING beta Free/offline #45766406147](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45766406147) finished SUCCESS after explicit new Node CLI and inactive transport syntax checks. Separately Windows PowerShell workflow [STAGING draft CLI safety #45766405935](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45766405935) job 139728242236 completed SUCCESS, including **actual Windows PowerShell AST parser** for the new owner operator and static mandatory local consent, private STDIN and no-lock-deletion guards. Exact workflow/test source commit 0a7fab26e46e37d82fc4e45f28e01834fae0ee7a. Both tests were OFFLINE; they did not execute the owner script or contact Cloudflare. G4-04 and G4-07 remain [ ] awaiting fresh exact consent and physical inactive upload/readback. 61/95, 6/10 whole gates unchanged.
+
+
 <!-- FIRE-G4-OWNER-OPERATOR-20261126 -->
 ## Nov 26 — [x] STAGING G4 one-shot operator implemented, focused safety CI PASS (NO PROVIDER WRITE)
 
