@@ -15,13 +15,13 @@ async function stripeGet(path:string,secret:string){
 }
 
 async function saveRefund(request:Request){
-  if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
+  const syntheticQA = String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa";
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   // LIVE without migration 0019 must stop before any Stripe call or money movement.
   if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   // Refund POSTs may initiate a real Stripe money movement. Reject malformed,
   // excessive and contradictory body bytes before any payment lookup, D1
-  // reservation or provider POST. Keep schema/QA denial order unchanged.
+  // reservation or provider POST. QA manual bookkeeping still requires owner auth.
   const parsed=await readOwnerWriteObject(request,16_000);
   if(parsed.response)return parsed.response;
   try{
@@ -44,6 +44,11 @@ async function saveRefund(request:Request){
       return Response.json({error:"Only a positive recorded payment can be refunded."},{status:409});
 
     const stripePayment=["deposit","balance","Tip"].includes(payment.type)&&Boolean(payment.providerId?.startsWith("cs_"));
+    // Synthetic QA may record owner-confirmed manual refunds in its isolated ledger.
+    // Stripe-backed payments must stop before reservation, replay or provider I/O,
+    // regardless of any accidentally configured TEST credentials or mode.
+    if(syntheticQA && stripePayment)
+      return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
     const mode=stripePayment?"stripe":"manual";
     const runtime=env as RuntimeEnv;
     // Isolated DR / new-live-prelaunch are NOT LIVE payment environments,
