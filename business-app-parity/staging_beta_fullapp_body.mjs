@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {resolve,join,extname} from 'node:path';
 import {reviewPinnedStagingVersion} from './cloudflare-launch/stripe-test-worker/review_staging_pinned_version_contract.mjs';
 import {buildStagingBindings} from './staging_beta_version_binding_contract.mjs';
+import {reviewStagingFreeWorkerBundleBudget} from './staging_beta_free_bundle_budget.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const need=(x,stage)=>{if(!x)throw Error('STAGING_FULLAPP_BODY_STOP_'+stage)};
 export function prepareStagingFullAppBody({folder,receiptPin,workerId,serving,predecessor,adminHash}){
@@ -16,6 +17,9 @@ export function prepareStagingFullAppBody({folder,receiptPin,workerId,serving,pr
  need(hash(bytes)===receiptPin,'RECEIPT_CHANGED');
  const receipt=JSON.parse(bytes);
  const rows=receipt.savedInventory.filter(x=>x.path.startsWith('server/')&&x.path!=='server/wrangler.json');
+ // Stop BEFORE any version transport if the exact checked module bytes exceed
+ // Cloudflare's current 64 MiB uncompressed Free-plan Worker bundle limit.
+ reviewStagingFreeWorkerBundleBudget(rows);
  const modules=rows.map(row=>{
   const name=row.path.slice(7),ext=extname(name).toLowerCase();
   need(/^[A-Za-z0-9_./@+~-]+$/.test(name)&&name.split('/').every(x=>x&&x!=='.'&&x!=='..'),'NAME');
