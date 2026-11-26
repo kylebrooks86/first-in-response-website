@@ -1,3 +1,13 @@
+## Nov 25 — OWNER ACCEPTED G5-03 and G5-08; GATE 5 CLOSED (scoped acceptance)
+
+**Current authoritative tally: 61/95 accepted, 34 open; 6/10 formal gates accepted: G1/G2/G3/G5/G7/G8. G4/G6/G9/G10 remain OPEN. NEW LIVE remains NO-GO pending release gates.**
+
+Owner explicit authorization: “I accept the verified physical database protections and successful local numbering workflow evidence for G5-03 and authorize formal Gate 5 acceptance under G5-08. Retain outstanding hosted application parity verification under Gates 4 and 10. Preserve NEW LIVE Job #0001.”
+
+G5-03 accepted on actual DR/NEW LIVE numbering DDL (three tables, AUTOINCREMENT, uniqueness, restrictive FKs, six immutable triggers), Acer 91 customer checks, permanent job-number tests, customer-facing views, 58 owner invoice rendering checks, 28 atomic route/SQLite checks and notification cross-link test PASS at 843decffc378eb48f202895929b46684da40ad62 using materialized app 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3. These are local workflow tests, not hosted numbered workflow execution. Owner expressly retains hosted application parity under G4/G10. G5-08 formally accepted on G5-01..07 evidence including all four physical journals, financial schema parity, archived ledger evidence and NEW LIVE clean start. No repeating accepted evidence. No synthetic NEW LIVE jobs, provider changes, payment, activation or release authorized by this acceptance. Prior historical counts retained below.
+
+---
+
 ## Nov 25 22:36 CST — G5-03 all targeted local functional numbering suites PASS
 
 Owner Acer screenshot confirms 28/28 actual estimate route/atomic SQLite cases on materialized 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3 and new notification cross-link regression from 843decffc378eb48f202895929b46684da40ad62 using that materialized app. Notification GET -> saved estimate/invoice -> permanent Job #, two distinct customers, mismatched invoice suppression, anonymous denial and no extra serials all passed. Combine with 91 customer assertions, job numbering, customer-facing views, 58 owner invoice checks and accepted physical DR/NEW LIVE numbering DDL. No repeats. Original G5-03 wording requires actual cross-links on migrated independent targets; local application execution plus physical schema does not establish hosted runtime cross-links. No synthetic NEW LIVE records; first real Job #0001 reserved. Remaining evidence is controlled hosted numbered DR workflow (requires exact authorization and safe serving candidate) or explicit owner acceptance of the scoped evidence with documented limitation. G5-08 remains dependent. 59/95, 5/10. No provider writes.
