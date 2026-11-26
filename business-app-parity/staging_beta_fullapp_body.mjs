@@ -21,7 +21,7 @@ export function prepareStagingFullAppBody({folder,receiptPin,workerId,serving,pr
   need(/^[A-Za-z0-9_./@+~-]+$/.test(name)&&name.split('/').every(x=>x&&x!=='.'&&x!=='..'),'NAME');
   const data=readFileSync(join(root,row.path));
   need(data.length===row.bytes&&hash(data)===row.sha256,'BYTES');
-  const content_type=ext==='.js'||ext==='.mjs'?'application/javascript+module':ext==='.wasm'?'application/wasm':/^fire-inline-assets\\/asset-[0-9]{3}-[a-f0-9]{16}\\.bin$/.test(name)?'application/octet-stream':null;
+  const content_type=ext==='.js'||ext==='.mjs'?'application/javascript+module':ext==='.wasm'?'application/wasm':/^fire-inline-assets\/asset-[0-9]{3}-[a-f0-9]{16}\.bin$/.test(name)?'application/octet-stream':null;
   need(content_type!==null,'MIME');
   return {name,content_type,content_base64:data.toString('base64')};
  });
