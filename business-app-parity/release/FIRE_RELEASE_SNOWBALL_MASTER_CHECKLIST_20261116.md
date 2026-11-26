@@ -1,3 +1,8 @@
+<!-- FIRE-G4-WINDOWS-CLI-CI-20261126 -->
+### [x] Nov 26 — Windows PowerShell G4 owner operator syntax and consent guards CI PASS
+Exact new operator/CI commit 0a7fab26e46e37d82fc4e45f28e01834fae0ee7a: Windows PowerShell parser and static consent/DPAPI-to-STDIN/one-shot lock guards completed SUCCESS, workflow #45766405935 job 139728242236. Narrow Node Free bundle/private-bridge/upload syntax workflow #45766406147 also completed SUCCESS. Neither workflow executes owner script or contacts Cloudflare. Supplemental source safety is done; original G4-04/G4-07 still pending actual fresh authorized inactive 0%-traffic provider operation/readback, STAGING Access/parity. No new numbered acceptance; 61/95 and 6/10 gates maintained.
+
+
 <!-- FIRE-G4-STAGING-OWNER-OPERATOR-20261126 -->
 ## Nov 26 — [x] G4 STAGING operator actually implemented, focused GitHub CI PASS (source-only)
 
