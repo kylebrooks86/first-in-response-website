@@ -1,3 +1,10 @@
+## Nov 25 22:20 CST — [x] STAGING post-migration schema and record-count preservation complete
+
+- [x] Owner Acer independent D1 readback against SHA256-pinned prechange backup: all 19 existing application table counts preserved, zero missing/extra/different normalized application schema definitions after exact reviewed 0022–0024 local replay. This completes STAGING migration verification with earlier physical 25/25 ordered journal, 9/9 new objects, zero FK violations and clean financial preflight. No repeat, no reapply. Record counts do not prove byte-for-byte row equality.
+- [x] G5-01 accepted by combining the archived QA 25 and DR/NEW LIVE 26 physical journal/schema and G4-03 binding evidence with the now-completed STAGING 25 physical schema/journal comparison. No new reads of unchanged environments. G5-02 still requires reconciliation of specific cross-target financial/relationship contracts; G5-03 numbering and G5-08 formal acceptance remain open. Original tally 58/95; 5/10 gates.
+
+---
+
 ## Nov 25 22:18 CST — [x] STAGING physical migration gap CLOSED
 
 - [x] Exact separately authorized 0022–0024 applied to isolated STAGING D1 after verified protected backup and rehearsal; independent postread exact 25/25 journal, 9/9 expected new named schema objects, zero FK violations. Do not reapply or rerun accepted checks. Supersedes earlier 22/25 STAGING status.
@@ -1862,7 +1869,7 @@ Status at creation: 2026-11-16/17 CST. **FORMAL ACCEPTANCE 4/10**: Gates G1/G2/G
 
 ### D. Gate 5 — independently bound D1 schema, numbering and finances
 
-- [ ] **G5-01** — Read the actually bound schema and *ordered applied migration journal* on each candidate's own QA/STAGING/DR/NEW LIVE D1, not a Git SQL inventory. Never reapply accepted 26/26 DR or NEW LIVE migrations.
+- [x] **G5-01** — Accepted archived physical QA (25), DR/NEW LIVE (26 each) schema and journal evidence, four distinct hosted bindings (G4-03), and Nov25 actual STAGING 25/25 ordered journal plus normalized schema comparison with zero missing/extra/different objects. All 19 preexisting STAGING application table record counts preserved. Never reapply or repeat accepted evidence. See Nov25 22:20 entry above.
 - [ ] **G5-02** — Confirm required table/column/index/trigger contracts, especially payment_refunds journal, provider uniqueness, refund statuses, settlement locks and owner/customer relations.
 - [ ] **G5-03** — Verify actual permanent Customer # / Job # uniqueness, immutability, monotonic reservation and records/estimate/invoice/notification cross-links on migrated independent targets.
 - [x] **G5-04** — Verified the bound NEW LIVE D1 had zero operational data and no numbering history at physical prelaunch inspection. The reviewed atomic allocation and unique root-estimate constraint reserve #0001 for the first real job after activation. [Evidence](#g5-04-new-live-clean-start-evidence).
