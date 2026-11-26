@@ -118,16 +118,21 @@ for(const liveEnv of ['live','production','cloudflare-live']) {
  eq(c.calls.network,0,liveEnv+' invalid LIVE input makes no Stripe calls');
 }
 
-// A fully separate QA target never reaches Stripe, D1 or signed webhooks,
+// A fully separate QA target never reaches Stripe or accepts signed webhooks.
+// Refund classification may read one original payment to allow manual bookkeeping,
 // even when someone accidentally supplies a live-looking credential.
 const qaCheckout=load('checkout','qa','synthetic-qa','sk_live_fake-no-secrets');
 eq((await qaCheckout.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:checkoutBody}))).status,503,'QA denies checkout regardless of key');
 eq(qaCheckout.calls.network,0,'QA checkout no provider call');
 eq(qaCheckout.calls.db,0,'QA checkout no database call');
 const qaRefund=load('refund','qa','synthetic-qa','sk_live_fake-no-secrets');
-eq((await qaRefund.POST(new Request('https://synthetic.invalid/api/payments/refund',{method:'POST',body:refundBody}))).status,503,'QA denies refund regardless of key');
+eq((await qaRefund.POST(new Request('https://synthetic.invalid/api/payments/refund',{method:'POST',body:refundBody}))).status,503,'QA denies Stripe-backed refund regardless of key');
 eq(qaRefund.calls.network,0,'QA refund no provider call');
-eq(qaRefund.calls.db,0,'QA refund no database call');
+eq(qaRefund.calls.db,1,'QA Stripe refund only reads original payment, never reserves or writes');
+const qaTestRefund=load('refund','qa','synthetic-qa','sk_test_fixture');
+eq((await qaTestRefund.POST(new Request('https://synthetic.invalid/api/payments/refund',{method:'POST',body:refundBody}))).status,503,'QA Stripe-backed refund denied even with TEST key and mode');
+eq(qaTestRefund.calls.db,1,'QA TEST Stripe refund only reads original payment');
+eq(qaTestRefund.calls.network,0,'QA TEST Stripe refund no provider call');
 const qaWebhook=load('webhook','qa','synthetic-qa','sk_test_fake-no-secrets');
 eq((await webhook(qaWebhook,{type:'checkout.session.completed',livemode:false,data:{object:{id:'cs_test_synthetic'}}})).status,503,'QA rejects signed event before decoding or reconciling');
 eq(qaWebhook.calls.reconciled,0,'QA webhook never reconciles');
