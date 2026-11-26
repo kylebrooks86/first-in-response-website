@@ -3,6 +3,7 @@
 import {reviewPinnedStagingVersion} from './cloudflare-launch/stripe-test-worker/review_staging_pinned_version_contract.mjs';
 import {prepareStagingFullAppBody} from './staging_beta_fullapp_body.mjs';
 import {PIN} from './staging_beta_version_binding_contract.mjs';
+import {reviewStagingFreeWorkerBundleBudget} from './staging_beta_free_bundle_budget.mjs';
 import {pathToFileURL} from 'node:url';
 import {resolve,join} from 'node:path';
 import {existsSync,readFileSync} from 'node:fs';
@@ -12,7 +13,9 @@ export function reviewOwnerLaunch(folder,receiptPin){
  const review=reviewPinnedStagingVersion(folder,receiptPin);
  if(review.unresolvedAuxiliary.length)return {result:'STAGING_MODULE_CLASSIFICATION_REQUIRED',unresolvedAuxiliary:review.unresolvedAuxiliary,providerContacted:false,uploadAuthorized:false};
  const body=prepareStagingFullAppBody({folder,receiptPin,workerId:PIN.workerId,serving:{deployment:PIN.deployment,version:PIN.version,percentage:100},predecessor:{id:PIN.version,resources:{bindings:[{name:'DB',type:'d1',id:PIN.db},{name:'FIRE_SESSION_SECRET',type:'secret_text'},{name:'STRIPE_SECRET_KEY',type:'secret_text'}]}},adminHash:'0'.repeat(64)});
- return {result:'STAGING_FULLAPP_OFFLINE_BODY_READY',moduleCount:body.modules.length,requestBytes:Buffer.byteLength(JSON.stringify(body)),receiptPin,providerContacted:false,uploadAuthorized:false,privateHashRead:false};
+ const receipt=JSON.parse(readFileSync(join(folder,'staging-noassets-dark-source-receipt.json'),'utf8'));
+ const budget=reviewStagingFreeWorkerBundleBudget(receipt.savedInventory.filter(x=>x.path.startsWith('server/')&&x.path!=='server/wrangler.json'));
+ return {result:'STAGING_FULLAPP_OFFLINE_BODY_READY',moduleCount:body.modules.length,requestBytes:Buffer.byteLength(JSON.stringify(body)),uncompressedModuleBytes:budget.uncompressedModuleBytes,freeWorkerLimitBytes:budget.freeWorkerLimitBytes,freeWorkerSizePrerequisiteSatisfied:budget.sizePrerequisiteSatisfied,providerAcceptanceProven:false,receiptPin,providerContacted:false,uploadAuthorized:false,privateHashRead:false};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  try{
