@@ -1,3 +1,12 @@
+<!-- FIRE-G6-QA-THREE-DOC-SCOPE-20261125-2356 -->
+## Nov 25 23:56 CST — [x] accepted G6 hosted document/anonymous denial subproof preserved (original numbered criteria still open)
+
+- [x] **No repeat owner Acer test needed:** the Nov 25 23:44 owner-run, sanitized, read-only hosted QA result confirmed **QA manifest**, **3 observed / 3 passed existing synthetic document views** (**A estimate, A invoice, B estimate**), estimate-kind A/B cross-customer exclusion, **zero failed checks**, and denial of a **forged** owner header/cookie. The earlier same-evening four owner financial/customer API anonymous denial checks returned **HTTP 401**, exact small unauthorized JSON and private/no-store, Cookie-vary, nosniff protections. Existing [Issue #19 evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7183783607) is authoritative; no bearer links, identities, tokens or cookies are reproduced here.
+- [ ] **Do NOT close G6-03, G6-04, G6-05 or G6-06 yet:** this does NOT verify a genuinely signed *expired* owner session, a separate authenticated nonowner, all customer/property/task/payment/photo read-write isolation, invalid/revoked/expired real document share tokens, or hosted source identity. Missing B invoice/payment link were **intentionally skipped**, not failed; existing 3/3 document pass stands. Do not request a missing B invoice, payment link or repeated A/B screenshots as a prerequisite to retain this scoped acceptance.
+- **Original count unchanged: 61/95 accepted, 34 open; 6/10 formal gates G1/G2/G3/G5/G7/G8 accepted.** G4/G6/G9/G10 OPEN; NEW LIVE NO-GO and first genuine Job #0001 reserved. No provider request, Git source change, Stripe, D1/Cloudflare write, Access, upload, merge or activation occurred in this documentation entry.
+
+---
+
 ## Nov 25 23:50 CST — [x] STAGING FREE bundle-size prerequisite resolved using Cloudflare's current published limit (NO UPLOAD)
 
 Cloudflare changed the Worker source-size limit on **September 4, 2026**: Free and Paid both allow **64 MiB uncompressed** (67,108,864 bytes); the former 3 MiB compressed Free ceiling is REMOVED. Official sources: https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/ and https://developers.cloudflare.com/workers/platform/limits/#worker-size . This is a size prerequisite only, not a provider version or startup proof.
