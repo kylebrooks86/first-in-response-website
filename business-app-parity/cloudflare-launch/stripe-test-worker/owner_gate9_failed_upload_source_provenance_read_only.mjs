@@ -15,7 +15,7 @@ import {readFileSync,lstatSync,realpathSync} from 'node:fs';
 import {join,resolve,isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {prepareModules} from './gate9_private_test_activation_version_upload.mjs';
-import {deployedVersionFromApi} from './gate9_cloudflare_readonly_adapter.mjs';
+import {deployedVersionFromApi,normalizeWorkerCompatibilityDate} from './gate9_cloudflare_readonly_adapter.mjs';
 
 const ACCOUNT='bfc00939cfb2f8dfd8581a7a7f5f1307';
 const WORKER='fire-stripe-test-20261101';
@@ -106,7 +106,7 @@ export function assessExistingVersion(version,expect){
  const created=Date.parse(version.created_on);
  const inAttemptWindow=created>=attempted-120_000&&created<=attempted+45*60_000;
  const meta=version.main_module===expect.main_module&&
-  version.compatibility_date===expect.compatibility_date&&
+  normalizeWorkerCompatibilityDate(version.compatibility_date)===expect.compatibility_date&&
   Array.isArray(version.compatibility_flags)&&
   JSON.stringify([...version.compatibility_flags].sort())===
     JSON.stringify([...expect.compatibility_flags].sort())&&
