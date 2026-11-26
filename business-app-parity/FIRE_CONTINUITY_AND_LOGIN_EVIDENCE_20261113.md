@@ -1,3 +1,9 @@
+## Nov 25 22:32 CST — G5-03 local application evidence
+
+Owner Acer at 23ad8ccef5f777a8599606cc5da9848c7df6fc98 passed 91 customer-numbering assertions after stale backup test correction and permanent job-number source/lookup tests. Materialized 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3 candidate passed customer-facing job-number views (inferred from fail-fast sequence advancing), 58 owner invoice rendering checks; inline numbering passed first three missing-schema assertions then ENOENT for sibling customer-numbering fixture. Only incomplete inline test needs corrected fixture paths, not repeat of passed suites. Hosted numbering DDL previously accepted; no hosted writes. G5-03 and G5-08 open; 59/95, 5/10.
+
+---
+
 ## Nov 25 22:26 CST — [x] G5-02 physical database protection contracts accepted
 
 Owner Acer read-only D1 screenshot shows QA matches all 26 financial objects and QA/DR/NEW LIVE relationship schemas match STAGING. Together with previous DR/NEW LIVE financial comparison, verified migrated STAGING baseline, prior QA refund metadata and financial preflight, this satisfies the original schema-contract criterion G5-02. No repeat needed. Does not establish runtime payment settlement behavior or signed Stripe deliveries. G5-03 application numbering cross-links and G5-08 remain open. Original tally 59/95; 5/10 formal gates; no provider writes or job allocation.
