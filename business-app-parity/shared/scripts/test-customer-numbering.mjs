@@ -13,9 +13,8 @@ const base='business-app-parity/';
 const backupSource=readFileSync(base+'shared/app/api/backup/route.ts','utf8');
 // Backup v1 does not carry immutable identity serial/link tables. Never
 // permit a valid-looking v1 JSON archive or restore under either enabled flag.
-const backupGate='if(await numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE}';
-const backupGet=backupSource.slice(backupSource.indexOf('export async function GET()'),backupSource.indexOf('export async function POST('));
-const backupPost=backupSource.slice(backupSource.indexOf('export async function POST('));
+const backupGet=backupSource.slice(backupSource.indexOf('export async function GET()'),backupSource.indexOf('async function restoreRecords('));
+const backupPost=backupSource.slice(backupSource.indexOf('async function restoreRecords('),backupSource.indexOf('export async function POST('));
 
 const source=path=>readFileSync(base+path,'utf8');
 let checks=0;
@@ -24,12 +23,17 @@ const truth=(value,label)=>{assert.ok(value,label);checks++;};
 
 eq((backupSource.match(/if\(await numberedIdentityBackupLocked\(\)\)/g)||[]).length,2,
   'Backup and restore both protect permanent Customer # and Job # mappings');
-for(const [name,handler] of [['export',backupGet],['restore',backupPost]]){
-  truth(handler.indexOf('if (!await authorized())')>=0&&
-    handler.indexOf(backupGate)>handler.indexOf('if (!await authorized())')&&
-    handler.indexOf(backupGate)<handler.indexOf('try {'),
+for(const [name,handler,firstRecordsAccess] of [['export',backupGet,'if(customerPropertiesEnabled(env)'],['restore',backupPost,'if(customerPropertiesEnabled(env)']]){
+  const auth=handler.indexOf('if (!await authorized())');
+  const gate=handler.match(/if\(await numberedIdentityBackupLocked\(\)\)return (?:privateRecordsJson|Response\.json)\(\{error:NUMBERED_BACKUP_LOCK_MESSAGE\},\{status:409,headers:\{"cache-control":"no-store"\}\}\);/);
+  const access=handler.indexOf(firstRecordsAccess);
+  truth(auth>=0&&gate&&gate.index>auth&&access>gate.index,
     'Owner-authenticated '+name+' must reject unsafe numbered JSON before reading or writing records');
+  truth(!/env\.DB\.|exportPropertyRecords\(|restorePropertyRecords\(|readBoundedRecordsRestoreText\(/.test(handler.slice(auth,gate.index)),
+    'No record access before permanent-number guard: '+name);
 }
+truth(backupSource.slice(backupSource.indexOf('export async function POST(')).includes('await restoreRecords(request)'), 'POST delegates to guarded restore');
+
 truth(backupSource.includes("flags.FIRE_CUSTOMER_NUMBERS_CANDIDATE==='owner-approved-schema-v1'")&&
   backupSource.includes("flags.FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'"),
   'Both immutable identity numbering flags are protected by JSON backup/restore gate');
