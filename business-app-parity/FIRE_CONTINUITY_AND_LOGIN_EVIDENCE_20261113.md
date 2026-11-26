@@ -1,3 +1,9 @@
+## Nov 25 22:36 CST — G5-03 all targeted local functional numbering suites PASS
+
+Owner Acer screenshot confirms 28/28 actual estimate route/atomic SQLite cases on materialized 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3 and new notification cross-link regression from 843decffc378eb48f202895929b46684da40ad62 using that materialized app. Notification GET -> saved estimate/invoice -> permanent Job #, two distinct customers, mismatched invoice suppression, anonymous denial and no extra serials all passed. Combine with 91 customer assertions, job numbering, customer-facing views, 58 owner invoice checks and accepted physical DR/NEW LIVE numbering DDL. No repeats. Original G5-03 wording requires actual cross-links on migrated independent targets; local application execution plus physical schema does not establish hosted runtime cross-links. No synthetic NEW LIVE records; first real Job #0001 reserved. Remaining evidence is controlled hosted numbered DR workflow (requires exact authorization and safe serving candidate) or explicit owner acceptance of the scoped evidence with documented limitation. G5-08 remains dependent. 59/95, 5/10. No provider writes.
+
+---
+
 ## Nov 25 22:32 CST — G5-03 local application evidence
 
 Owner Acer at 23ad8ccef5f777a8599606cc5da9848c7df6fc98 passed 91 customer-numbering assertions after stale backup test correction and permanent job-number source/lookup tests. Materialized 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3 candidate passed customer-facing job-number views (inferred from fail-fast sequence advancing), 58 owner invoice rendering checks; inline numbering passed first three missing-schema assertions then ENOENT for sibling customer-numbering fixture. Only incomplete inline test needs corrected fixture paths, not repeat of passed suites. Hosted numbering DDL previously accepted; no hosted writes. G5-03 and G5-08 open; 59/95, 5/10.
