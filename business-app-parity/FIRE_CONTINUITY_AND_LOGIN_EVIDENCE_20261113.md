@@ -1,3 +1,8 @@
+## Nov 25 22:07 CST — hosted STAGING financial preflight PASS
+
+Owner Acer direct D1 query API with temporary D1 Edit token returned zero rows in each of the four reviewed stripe-ledger-preflight.sql SELECTs. Wrangler JSON formatting failure bypassed, not a database failure. All four green PASS messages and REMOTE DATABASE UNCHANGED observed. No need to repeat unless intervening writes or maintenance delay. Backup/rehearsal and migration approval remain accepted. Actual migration still pending writer quiescence and one-shot application. No other environment changes.
+
+---
 ## Nov 25 22:06 CST — STAGING migration approval and fresh backup restore/rehearsal PASS
 
 Owner explicitly authorized ONLY three outstanding reviewed migrations 0022–0024 to fire-app-staging-db UUID afb2c05a-d794-4a9a-b580-924ce01c26ad; preserve data/backups/all other environments; no activation/payment/LIVE changes. Prior Worker token D1 export returned 10000; dedicated temporary D1 Edit token resolved it. Owner Acer Wrangler 4.162.0 export succeeded, 22523 bytes, SHA256 1ECB401D552140BFF2CABE8161C711C37BD56EB77B978CAEA6FA717C0C33FC19. In-memory SQLite restore of actual export confirmed 22 journal rows, integrity/FK before and after, all three additive migrations executed and existing table counts preserved. No remote migration yet. Accept and do not repeat this backup/rehearsal. Keep backup and credentials private; do not publish signed download link. Next: immediate financial preflight and writer quiescence, exact journal and source-bound one-shot migration application and independent postread. 57/95 and 5/10 unchanged.
