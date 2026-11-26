@@ -5,7 +5,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {createHash} from 'node:crypto';
-import {prepareModules,buildPrivateVersionBody,uploadOneInactiveTestVersion} from './gate9_private_test_activation_version_upload.mjs';
+import {prepareModules,buildPrivateVersionBody,uploadOneInactiveTestVersion,sanitizedRefusalCodes} from './gate9_private_test_activation_version_upload.mjs';
 const h=x=>createHash('sha256').update(x).digest('hex');
 const root=mkdtempSync(join(tmpdir(),'fire-g9-synthetic-'));
 const worker='fire-stripe-test-20261101',db='dba421ba-fc66-4cf8-9c31-51616f8249ba',stripe='acct_1ULRIG7ND12rd1wI',prev='96e32262-fa33-4f04-a161-bee11f0353e2',origin='https://fire-stripe-test-20261101.kyle-bfc.workers.dev',entry='fire-gate9-test-activation-entry.mjs';
@@ -45,11 +45,25 @@ try{
  assert.equal(posts,0);assert.equal(reserved,false);
  const result=await uploadOneInactiveTestVersion(fake);assert.equal(result.activationPerformed,false);assert.equal(posts,1);
  await assert.rejects(uploadOneInactiveTestVersion(fake),/ATTEMPT_ALREADY_CONSUMED/);assert.equal(posts,1);
- // Refusal diagnostics must be useful, numeric only, and never permit a second POST.
+ // Refusal diagnostics must be numeric-only, bounded to 64 KiB, and never
+ // permit a second POST. This exercises the same WHATWG body stream as fetch.
+ const refusal=(status,payload)=>{
+  const data=Buffer.from(typeof payload==='string'?payload:JSON.stringify(payload));
+  return {status,body:new ReadableStream({start(controller){
+   for(let i=0;i<data.length;i+=1024)controller.enqueue(new Uint8Array(data.subarray(i,i+1024)));
+   controller.close();
+  }})};
+ };
+ assert.deepEqual(await sanitizedRefusalCodes(refusal(403,{errors:[{code:10013},{code:10013},{code:10014}]})),[10013,10014]);
+ assert.deepEqual(await sanitizedRefusalCodes(refusal(500,'not json')),[]);
+ assert.deepEqual(await sanitizedRefusalCodes(refusal(413,'X'.repeat(70000))),[]);
+ assert.deepEqual(await sanitizedRefusalCodes({status:500}),[]);
  for(const scenario of [
-  {status:403,json:async()=>({errors:[{code:10000,message:'SECRET_MUST_NOT_LEAK'},{code:10000},{code:'SECRET_MUST_NOT_LEAK'}]}),expected:'STATUS_403_CODES_10000'},
-  {status:500,json:async()=>{throw Error('SECRET_MUST_NOT_LEAK')},expected:'STATUS_500_CODES_UNKNOWN'},
-  {status:400,json:async()=>({errors:[{code:10013},{code:10014}]}),expected:'STATUS_400_CODES_10013_10014'}
+  {...refusal(403,{errors:[{code:10000,message:'SECRET_MUST_NOT_LEAK'},{code:10000},{code:'SECRET_MUST_NOT_LEAK'}]}),expected:'STATUS_403_CODES_10000'},
+  {...refusal(500,'SECRET_MUST_NOT_LEAK'),expected:'STATUS_500_CODES_UNKNOWN'},
+  {...refusal(400,{errors:[{code:10013},{code:10014}]}),expected:'STATUS_400_CODES_10013_10014'},
+  {...refusal(413,'PRIVATE_REFUSAL_BODY'.repeat(5000)),expected:'STATUS_413_CODES_UNKNOWN'},
+  {...refusal(502,{errors:[{code:-1},{code:1.5},{code:10013},{code:10013}]}),expected:'STATUS_502_CODES_10013'}
  ]){
   let consumed=false,calls=0;
   const refused={...fake,reserveOnce:async()=>{if(consumed)return false;consumed=true;return true},fetchImpl:async()=>{calls++;return scenario}};
