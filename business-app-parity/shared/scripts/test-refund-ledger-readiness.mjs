@@ -148,6 +148,21 @@ eq(forbidden.calls.queries.length,0,"Unauthorized financial reads/writes cause z
 const qa=dbFor(objects);
 const qaRefund=route("../app/api/payments/refund/route.ts",qa.db,true,"qa");
 eq((await qaRefund.exports.POST(new Request("https://synthetic.invalid/api/payments/refund",
- {method:"POST",body:"{}"}))).status,503,"QA Stripe-refund hard prohibition stays intact");
-eq(qa.calls.queries.length,0,"QA refund handler never reads hosted schema");
+ {method:"POST",body:"{}"}))).status,400,"QA validates malformed refund requests after owner and schema checks");
+eq(qa.calls.read,1,"QA checks refund schema before manual bookkeeping");
+eq(qa.calls.other,0,"Malformed QA refund never reads payment rows");
+eq(qa.calls.write,0,"Malformed QA refund never writes");
+eq(qaRefund.calls.fetch,0,"Malformed QA refund never contacts Stripe");
+const qaMissing=dbFor([]);
+const qaMissingRefund=route("../app/api/payments/refund/route.ts",qaMissing.db,true,"qa");
+eq((await qaMissingRefund.exports.POST(new Request("https://synthetic.invalid/api/payments/refund",
+ {method:"POST",body:JSON.stringify({paymentId:"synth-paid",requestId:"qa-manual",amountCents:500,externalRefundConfirmed:true})}))).status,503,"QA manual refunds fail closed on missing ledger");
+eq(qaMissing.calls.other,0,"Missing QA schema prevents payment reads");
+eq(qaMissing.calls.write,0,"Missing QA schema prevents writes");
+eq(qaMissingRefund.calls.fetch,0,"Missing QA schema prevents provider calls");
+const qaDenied=dbFor(objects);
+const qaDeniedRefund=route("../app/api/payments/refund/route.ts",qaDenied.db,false,"qa");
+eq((await qaDeniedRefund.exports.POST(new Request("https://synthetic.invalid/api/payments/refund",
+ {method:"POST",body:"{}"}))).status,401,"Unauthorized QA refund denied before schema");
+eq(qaDenied.calls.queries.length,0,"Unauthorized QA refund has zero database access");
 console.log("PASS "+passed+"/"+passed+" actual payment/refund handlers guarded without Stripe, records or writes.");
