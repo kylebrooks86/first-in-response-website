@@ -1,3 +1,12 @@
+<!-- FIRE-G4-STAGING-ID-PHYSICAL-20261125 -->
+## Nov 25 21:17 CST — [x] physical STAGING Worker name/ID mapping proven (provider GET only)
+
+- [x] Genuine owner Acer read-only screenshot SHA-256 `7c3bac40a217d871351916a5dfaa9c9f75057fdc62a0ea5754844b396fadeec7`: `FIRE_STAGING_BETA_WORKER_IDENTITY_GET_PASS`, Worker `fire-app-independent-staging`, ID `34478b20ffef45138ec3b41fa578ec5b`, name+ID crosschecked, account mapping and direct provider readback true; 2 GET requests, `providerWrites=false`, `loginAttempted=false`. Both owner downloaded helper scripts were locally hash-verified first. This **accepts the missing provider Worker-ID mapping subproof** and must **not be repeated**. [Exact evidence](../evidence/FIRE_G4_STAGING_BETA_WORKER_ID_GET_ONLY_20261125.md).
+- [ ] **Numbered G4-04 and G4-07 stay OPEN:** identity proof did not validate source bytes, MIME/package provenance, Access policy, preserved serving version, private admin hash/Stripe-disabled bindings, 3 missing physical STAGING D1 migrations, actual inactive 0%-traffic version or activation readiness. `false` flags from this narrowly scoped script mean not inspected, NOT negative results. Both prior STAGING upload locks are consumed — no retry/reset or unauthorized provider writes. Next unique work: reconcile compiled package MIME/source provenance and physical 22/25 D1 prerequisite against pinned source, then prepare a **new separately authorized** 0%-traffic inactive operation; preserve serving version/DB/other environments.
+- **Original tally unchanged: 57/95 accepted, 38 open; 5/10 gates G1/G2/G3/G7/G8 accepted.** No Stripe/Cloudflare/SQL/Access/paid R2 action, upload/activation, Git merge or LIVE change. NEW LIVE dark, Job #0001 unissued.
+
+---
+
 <!-- FIRE-G4-STAGING-BETA-ID-20261125 -->
 ## Nov 25 — [x] G4 STAGING provider Worker-ID mapping helper + regression authored (NO CLOUD WRITE)
 
