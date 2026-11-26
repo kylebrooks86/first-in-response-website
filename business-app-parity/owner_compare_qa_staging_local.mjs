@@ -83,7 +83,9 @@ async function capture(origin,target,width,theme){
   // Preserve actual QA-only synthetic banner in raw screenshot. For app
   // comparisons exclude ONLY that mandatory environment warning.
   await page.screenshot({path:join(report,target+'-'+width+'-'+theme+'-raw-home.png'),animations:'disabled',fullPage:true});
-  await page.addStyleTag({content:'.qa-test-banner{display:none!important}'});
+  // The sibling selector survives display:none; also remove the QA-only
+  // 20px sticky-header offset for the normalized comparison (not hosted CSS).
+  await page.addStyleTag({content:'.qa-test-banner{display:none!important}.qa-test-banner + .app-shell .topbar{top:0!important}'});
   for(const [id,label,selector,bottom] of sections){
    if(id!=='Home'){
     if(width<=760&&bottom)await page.locator('.bottom-nav button').filter({hasText:label}).first().click();
