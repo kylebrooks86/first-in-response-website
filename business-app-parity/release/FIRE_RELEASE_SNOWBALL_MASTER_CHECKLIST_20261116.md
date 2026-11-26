@@ -1,3 +1,13 @@
+<!-- FIRE-STAGING-BETA-PRIVATE-BRIDGE-CI-20261126 -->
+## Nov 26 early CST — [x] NEW one-shot STAGING private-bridge safety regression CI PASS (source prerequisite ONLY)
+
+- [x] New offline mock-only security tests for the *existing unexecuted* STAGING beta private bridge cover exact 100%-serving predecessor pin, no-provider-write GETs, duplicate inactive-version refusal, malformed/oversized provider reply refusal, missing/incorrect token refusal and one-time local lock consumption without resetting historical locks. Actual code/test commit [8096052](https://github.com/kylebrooks86/first-in-response-website/commit/8096052b0e9bc2273aa8bd83d8da39924e80aabc); CI wiring [76995ae](https://github.com/kylebrooks86/first-in-response-website/commit/76995aefa582533352832c26a7d55bb07a690007).
+- [x] **Exact-head GitHub Actions [STAGING beta Free/offline workflow #45765276642](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45765276642) COMPLETE SUCCESS (1/1 job)** at `76995aefa582533352832c26a7d55bb07a690007`; job `139724582259` confirms the changed-source JavaScript syntax, existing 64 MiB source guard and NEW private-bridge test step SUCCESS. This is new code safety evidence, not a reason to repeat hosted tests.
+- [ ] **Original G4-04/G4-07 not accepted:** the owner-facing STAGING `-Execute` remains deliberately disabled, transport has no CLI, two historical attempt locks are consumed, no fresh exact upload authorization has been granted for the new attempt, and no inactive physical version has been uploaded/read back. Preserve serving 100%, Stripe disabled for new candidate, private owner hash and independent D1. No paid plan/R2 or network/provider action resulted from this test.
+- **Formal original board remains 61/95 accepted, 34 open; 6/10 gates accepted G1/G2/G3/G5/G7/G8.** G4/G6/G9/G10 OPEN, NEW LIVE NO-GO, Job #0001 reserved. This is a completed release-enabling *supplemental source safety subtask*, not a numbered acceptance.
+
+---
+
 <!-- FIRE-G6-QA-THREE-DOC-SCOPE-20261125-2356 -->
 ## Nov 25 23:56 CST — [x] accepted G6 hosted document/anonymous denial subproof preserved (original numbered criteria still open)
 
