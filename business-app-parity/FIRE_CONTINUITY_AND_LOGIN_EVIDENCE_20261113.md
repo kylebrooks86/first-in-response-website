@@ -1,3 +1,10 @@
+## Nov 25 ~20:25 CST — G9 failed TEST upload GET-only provenance review, targeted CI PASS
+
+- [x] Code + regression/CI-only subtask: [canonical scoped addendum](evidence/FIRE_G9_FAILED_UPLOAD_PROVENANCE_READONLY_20261125.md), source/test/CI PR282 head `881b233`, [targeted actual step SUCCESS](https://github.com/kylebrooks86/first-in-response-website/actions/runs/45742201371). New exact-byte matcher for the six already inventoried inactive TEST version IDs; requires owner Acer existing scoped token and existing sealed local activation package. Do NOT repeat accepted G9 inventory, Cloudflare sign-in, spent upload, Stripe provider checks or accepted QA tests. No new provider readback or Gate 9 close.
+- Official **57/95, 38 open; 5/10 gates** G1/G2/G3/G7/G8; G4/G5/G6/G9/G10 OPEN, LIVE NO-GO. No provider writes or payment. G9-05 requires separate exact activation permission; G9-06..11 require authentic signed TEST evidence.
+
+---
+
 ## November 25 20:15 CST — [x] G6-03 hosted QA anonymous denial *body/privacy* subproof recorded; signed-expiry still OPEN
 
 - Actual owner Acer screenshot (private original image retained in conversation, SHA-256 `a273e34d0fe2664cec7409262745b17746b96fb842b354c0b2566d4ae0625989`) of the new QA-only `--check-denial-bodies` probe. Explicitly visible `/api/estimates`, `/api/invoices` and `/api/payments` each returned **HTTP 401**, `exactDenial=true`, `sessionPrivate=true`, `passed=true`. The preceding response's booleans are visible as true but its route/status and the top-level result were cropped; do not claim that path individually read back in this frame. The fixed reviewed source tests four endpoints in order, including `/api/customers`. No private denial body or credentials were printed in evidence.
