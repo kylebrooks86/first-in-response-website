@@ -127,3 +127,37 @@ test('one-shot private reservation never resets consumed historical locks',()=>{
       /STAGING_PRIVATE_BRIDGE_STOP_INTENT/);
   } finally {rmSync(folder,{force:true,recursive:true});}
 });
+
+
+import {verifyInactiveBindings,RECEIPT,CONSENT} from './owner_staging_beta_private_once.mjs';
+function validUploadedVersion(){
+ return {id:'bbbbbbbb-1111-4222-8333-aaaabbbbcccc',resources:{bindings:[
+  {name:'DB',type:'d1',id:PIN.db},
+  {name:'FIRE_SESSION_SECRET',type:'secret_text'},
+  {name:'STRIPE_SECRET_KEY',type:'secret_text'},
+  {name:'FIRE_ENV',type:'plain_text',text:'staging'},
+  {name:'SITE_ORIGIN',type:'plain_text',text:'https://fire-app-independent-staging.kyle-bfc.workers.dev'},
+  {name:'FIRE_STAGING_PRIVATE_ACTIVATION',type:'plain_text',text:'blocked'},
+  {name:'FIRE_STRIPE_MODE',type:'plain_text',text:'disabled'},
+  {name:'FIRE_ADMIN_PASSWORD_HASH',type:'secret_text'}
+ ]}};
+}
+test('new PowerShell/Node handoff pins exact receipt and NEW authorization phrase',()=>{
+ assert.equal(RECEIPT,'f811cc2d7e4b1c37e21d7d28d6aba31215897ac89f5a2e756fbf9e258c1d525a');
+ assert.equal(CONSENT,'I AUTHORIZE ONE NEW INACTIVE STAGING UPLOAD ONLY');
+});
+test('inactive new-version readback accepts only reviewed private/disabled/no-R2 bindings',()=>{
+ assert.equal(verifyInactiveBindings(validUploadedVersion()),true);
+ for(const defect of [
+  x=>x.resources.bindings.find(b=>b.name==='DB').id='00000000-0000-0000-0000-000000000000',
+  x=>x.resources.bindings.find(b=>b.name==='FIRE_STRIPE_MODE').text='live',
+  x=>x.resources.bindings.find(b=>b.name==='FIRE_STAGING_PRIVATE_ACTIVATION').text='enabled',
+  x=>x.resources.bindings.find(b=>b.name==='FIRE_ADMIN_PASSWORD_HASH').text='exposed',
+  x=>x.resources.bindings.push({name:'EXTRA',type:'r2_bucket'}),
+  x=>x.resources.bindings=x.resources.bindings.filter(b=>b.name!=='FIRE_SESSION_SECRET'),
+  x=>x.resources.bindings.find(b=>b.name==='SITE_ORIGIN').text='https://unrelated.example'
+ ]){
+  const broken=validUploadedVersion();defect(broken);
+  assert.throws(()=>verifyInactiveBindings(broken),/STAGING_OWNER_ONCE_STOP_/);
+ }
+});
