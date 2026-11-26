@@ -1,3 +1,9 @@
+## Nov 25 21:46 CST — owner Acer full-app offline body READY
+
+Owner screenshot: exact launcher 8421a55434f5fb027b65b0c44448c3820cc044db successfully assembled existing 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3 build. STAGING_FULLAPP_OFFLINE_BODY_READY, 242 modules, 42 client assets, requestBytes 12757184, receiptPin f811cc2d7e4b1c37e21d7d28d6aba31215897ac89f5a2e756fbf9e258c1d525a. Provider contacted=false, uploadAuthorized=false, privateHashRead=false. Accept local package/body assembly; do not repeat. No runtime/hosted acceptance or free-plan eligibility inferred. G4-04/07 open; 57/95, 5/10 unchanged. Next measure compressed module bytes, resolve free-plan limit and finish private handoff.
+
+---
+
 ## Nov 25 — integrated STAGING beta candidate
 
 New offline binding, full-app body, one-shot transport and owner bridge committed in PR282 (78e30fe through 4efb7c4). CSS/JSON text module projection implemented for current source, not runtime verified. Owner launcher now assembles existing exact 4cccaa0 dist into a new inline-asset folder and reports request size and receipt hash in one operation. No repeated materialized source test required. Actual private credential handoff, independent compiled provenance, free-plan eligibility and fresh exact upload consent remain open. No provider write. 57/95 and 5/10 unchanged.
