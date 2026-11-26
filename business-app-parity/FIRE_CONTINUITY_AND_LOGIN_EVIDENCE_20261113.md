@@ -1,3 +1,9 @@
+## Nov 25 22:26 CST — G5 physical financial schema parity and numbering DDL evidence
+
+Owner Acer direct D1 read-only query confirmed 26 normalized financial schema definitions (payments/refunds/checkout/deposit policy/deposit snapshots/invoices/revisions) identical across STAGING, DR and NEW LIVE. Separate owner full console transcript confirms identical DR/NEW LIVE numbering DDL: three tables, one explicit link index, two AUTOINCREMENT primary keys, unique customer/root estimate constraints, restrictive FKs and six immutable update/delete triggers matching 0025. No job numbers consumed. Accept these scoped proofs, never repeat. G5-02 remaining QA comparison and relationship contracts; G5-03 application cross-links remain distinct. 58/95, 5/10 unchanged. No provider writes.
+
+---
+
 ## Nov 25 22:20 CST — [x] STAGING post-migration schema and record-count preservation complete
 
 - [x] Owner Acer independent D1 readback against SHA256-pinned prechange backup: all 19 existing application table counts preserved, zero missing/extra/different normalized application schema definitions after exact reviewed 0022–0024 local replay. This completes STAGING migration verification with earlier physical 25/25 ordered journal, 9/9 new objects, zero FK violations and clean financial preflight. No repeat, no reapply. Record counts do not prove byte-for-byte row equality.
