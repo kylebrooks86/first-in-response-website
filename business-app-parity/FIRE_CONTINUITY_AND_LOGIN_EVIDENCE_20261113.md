@@ -1,3 +1,13 @@
+<!-- FIRE-G4-OWNER-OPERATOR-20261126 -->
+## Nov 26 — [x] STAGING G4 one-shot operator implemented, focused safety CI PASS (NO PROVIDER WRITE)
+
+- [x] Added real owner-only PowerShell launcher (owner_staging_beta_private_once.ps1) and Node operator (owner_staging_beta_private_once.mjs) on active integrated DRAFT PR282, commits 34e6a274 and 86d54673. Operator wires the already tested, exact SHA256-pinned 242-module/42-asset upload transport to local DPAPI private-hash release via STDIN, GET-only predecessor checks, recent inactive-version duplicate scan, single new local irrevocable lock, exactly one inactive-version POST, post-POST existing 100% deployment check and new-version binding readback. Execution requires a NEW independent exact owner authorization and typed local consent; read-only local mode is default. No login, no credentials or hash in argv, stdout, GitHub or on-disk generated file. Error/uncertain state never auto-retries.
+- [x] Extended existing private-bridge regression with valid/hostile post-upload version binding cases (foreign D1, wrong payment mode/activation/origin, plaintext secret, missing secret, extra R2 binding) and exact package receipt/consent pins; tested executable/test SHA bb6674f857ef3d2bb44bc5447c71401db6d93af0. Exact SHA GitHub Actions STAGING beta Free/offline run #45766144620 COMPLETED SUCCESS, job #139727403080 changed-source syntax/bundle guard/private bridge step SUCCESS. Source/test verification, NOT a provider upload.
+- [ ] **Original G4-04 and G4-07 OPEN**: no owner authorization to run new POST in this session, no actual new inactive hosted version or target-bound readback, no hosted parity proof. Prior two attempt locks permanently spent; new lock must be absent before approved first try. Existing STAGING 100%-serving version, D1, Stripe and credentials preserved, NEW LIVE Job #0001 unissued, no Cloudflare R2/paid service.
+- Original board stays 61/95 accepted, 6/10 gates G1/G2/G3/G5/G7/G8; G4/G6/G9/G10 OPEN, NEW LIVE NO-GO.
+
+---
+
 <!-- FIRE-STAGING-BETA-PRIVATE-BRIDGE-CI-20261126 -->
 ## Nov 26 early CST — [x] NEW one-shot STAGING private-bridge safety regression CI PASS (source prerequisite ONLY)
 
