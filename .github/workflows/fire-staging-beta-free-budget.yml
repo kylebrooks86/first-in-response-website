@@ -1,0 +1,25 @@
+name: FIRE STAGING beta Free bundle budget (offline)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/staging_beta_free_bundle_budget.mjs'
+      - 'business-app-parity/staging_beta_free_bundle_budget.test.mjs'
+      - 'business-app-parity/staging_beta_fullapp_body.mjs'
+      - 'business-app-parity/owner_staging_beta_launch_review.mjs'
+      - '.github/workflows/fire-staging-beta-free-budget.yml'
+permissions:
+  contents: read
+jobs:
+  free-bundle-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify changed-source JavaScript syntax and 64 MiB Free bundle guard
+        run: |
+          node --check business-app-parity/staging_beta_free_bundle_budget.mjs
+          node --check business-app-parity/staging_beta_fullapp_body.mjs
+          node --check business-app-parity/owner_staging_beta_launch_review.mjs
+          node --test business-app-parity/staging_beta_free_bundle_budget.test.mjs
