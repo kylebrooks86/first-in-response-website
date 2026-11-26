@@ -1,3 +1,13 @@
+<!-- FIRE-G4-STAGING-OWNER-OPERATOR-20261126 -->
+## Nov 26 — [x] G4 STAGING operator actually implemented, focused GitHub CI PASS (source-only)
+
+- [x] NEW owner Acer PowerShell + Node G4 inactive upload operator implemented in current DRAFT PR282 (34e6a274, 86d54673), reusing reviewed exact module/asset body, prior consumed locks, new irreversible one-attempt lock, owner consent, local DPAPI credential, private STDIN and provider GET-only predecessor/duplicate/readback guards. No automatic retry, no login, no R2, no deployment/activation/Stripe change.
+- [x] NEW specific binding-readback regression checks committed at bb6674f857ef3d2bb44bc5447c71401db6d93af0; targeted exact-code CI workflow #45766144620 job #139727403080 COMPLETE SUCCESS for JavaScript syntax, bundle guard and private bridge tests. Preserve older accepted checks; do not repeat.
+- [ ] G4-04/G4-07 STILL require **fresh one-shot owner POST permission**, physical inactive version creation and exact readback, plus actual hosted QA-master/STAGING parity; source and CI alone cannot close them. User must NOT run -Execute before separate express authorization. Existing serving STAGING 100%, independent D1 and NEW LIVE Job #0001 unchanged.
+- Original total remains 61/95; accepted whole gates G1/G2/G3/G5/G7/G8 = 6/10; G4/G6/G9/G10 OPEN, NEW LIVE NO-GO.
+
+---
+
 <!-- FIRE-STAGING-BETA-PRIVATE-BRIDGE-CI-20261126 -->
 ## Nov 26 early CST — [x] NEW one-shot STAGING private-bridge safety regression CI PASS (source prerequisite ONLY)
 
