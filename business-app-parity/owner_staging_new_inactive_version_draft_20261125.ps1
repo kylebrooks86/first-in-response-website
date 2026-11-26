@@ -8,6 +8,8 @@ param([Parameter(Mandatory=$true)][string]$CandidateDirectory,
   [switch]$Execute)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+# Fail before any local credential access or CLI invocation in execution mode.
+if ($Execute) { throw 'DRAFT: execution disabled pending package provenance, independent review, tests and new exact owner authorization' }
 $worker='fire-app-independent-staging'
 $account='bfc00939cfb2f8dfd8581a7a7f5f1307'
 $db='afb2c05a-d794-4a9a-b580-924ce01c26ad'
@@ -83,7 +85,7 @@ try {
   $repo=(Resolve-Path -LiteralPath $SourceReviewDirectory).Path
   $head=(& git -C $repo rev-parse HEAD | Out-String).Trim()
   Require (($LASTEXITCODE -eq 0) -and ($head -ceq $ExpectedCommit))
-  $dirty=@(& git -C $repo status --porcelain --untracked-files=no)
+  $dirty=@(& git -C $repo status --porcelain --untracked-files=all)
   Require (($LASTEXITCODE -eq 0) -and ($dirty.Count -eq 0))
   $candidate=(Resolve-Path -LiteralPath $CandidateDirectory).Path
   $expectedDirectory=Join-Path $env:LOCALAPPDATA ('FIRE-STAGING-Candidates\independent-staging-'+$ExpectedCommit)
@@ -115,6 +117,9 @@ try {
   # The recorded inventory is a change-detection baseline, not independent build attestation.
   Require ((Get-FileHash -LiteralPath $cfg -Algorithm SHA256).Hash -ceq $expectedManifest)
   $server=Join-Path $candidate 'dist\server'
+  foreach ($directory in @($candidate,(Join-Path $candidate 'dist'),$server)) {
+    Require (-not ((Get-Item -LiteralPath $directory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint))
+  }
   Require (@(Get-ChildItem -LiteralPath $server -Recurse -Force | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count -eq 0)
   $inventory=@(Get-ChildItem -LiteralPath $server -Recurse -File | Sort-Object FullName | ForEach-Object {
     $relative=$_.FullName.Substring($server.Length+1).Replace('\','/')
@@ -174,7 +179,9 @@ try {
   $oldSession=@(SelectBinding $oldBindings 'FIRE_SESSION_SECRET')
   Require (($oldSession.Count -eq 1) -and ($oldSession[0].type -ceq 'secret_text'))
   $oldPayment=@($oldBindings | Where-Object { $_.name -cne 'FIRE_STRIPE_MODE' -and $_.name -match '^(STRIPE_|PAYMENT_|FIRE_STRIPE_)' } | ForEach-Object {$_.name} | Sort-Object)
-  Require ($oldPayment.Count -eq 1)
+  Require ($oldPayment.Count -eq 1 -and $oldPayment[0] -ceq 'STRIPE_SECRET_KEY')
+  $oldStripe=@(SelectBinding $oldBindings 'STRIPE_SECRET_KEY')
+  Require ($oldStripe.Count -eq 1 -and $oldStripe[0].type -ceq 'secret_text')
   Require (@($oldBindings | Where-Object {$_.type -match '^r2_bucket'}).Count -eq 0)
 
   # Check for any configured version created since the original consumed attempt.
@@ -259,6 +266,8 @@ try {
   Require (($newDB.Count -eq 1) -and ($newDB[0].type -ceq 'd1') -and ($newDB[0].database_id -ceq $db))
   $newPayment=@($bindings | Where-Object { $_.name -cne 'FIRE_STRIPE_MODE' -and $_.name -match '^(STRIPE_|PAYMENT_|FIRE_STRIPE_)' } | ForEach-Object {$_.name} | Sort-Object)
   Require (($newPayment -join '|') -ceq ($oldPayment -join '|'))
+  $newStripe=@(SelectBinding $bindings 'STRIPE_SECRET_KEY')
+  Require ($newStripe.Count -eq 1 -and $newStripe[0].type -ceq 'secret_text')
   Require (@($bindings | Where-Object {$_.type -match '^r2_bucket'}).Count -eq 0)
   [pscustomobject]@{
     result='FIRE_STAGING_NEW_INACTIVE_VERSION_PHYSICAL_PASS'
