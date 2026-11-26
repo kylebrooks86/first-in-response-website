@@ -1,3 +1,12 @@
+<!-- FIRE-G4-STAGING-ID-PHYSICAL-20261125 -->
+## Nov 25 21:17 CST — owner Acer STAGING Cloudflare Worker ID/name physical proof PASS (no provider write)
+
+Owner Acer read-only PowerShell screenshot SHA-256 `7c3bac40a217d871351916a5dfaa9c9f75057fdc62a0ea5754844b396fadeec7` confirms both downloaded helper hashes matched (`VERIFIED`), followed by actual `node owner_staging_beta_worker_identity_read_only.mjs --capture` output `FIRE_STAGING_BETA_WORKER_IDENTITY_GET_PASS`. Cloudflare returned Worker `fire-app-independent-staging`, ID `34478b20ffef45138ec3b41fa578ec5b`. Name/ID cross-check, account mapping, supported beta Worker name lookup and direct provider readback each `true`, exactly **two GET requests**; no provider writes, login, upload or activation. This **closes the unique physical Worker-ID mapping subproof** previously pending in the 21:xx engineering checkpoint; do not ask for another mapping screenshot or retry this GET.
+
+Other tool booleans are `false` because the narrow script did not inspect them: serving-version unchanged, bytes/MIME provenance, Access policy, D1 migration parity, payment disabled mode, private admin hash, Gate4 acceptance. **G4-04/G4-07 remain OPEN** and serving STAGING is unchanged by this GET. Original STAGING upload attempt locks remain consumed; no POST/no retry/no lock reset. Remaining actual hosted work still requires review of the package/source/MIME and 22/25 migration gap, narrow new approval for any future physical upload/migration and 0%-traffic/rollback protection. [Permanent G4 evidence](evidence/FIRE_G4_STAGING_BETA_WORKER_ID_GET_ONLY_20261125.md). Original **57/95 accepted, 38 open; 5/10 formal gates G1/G2/G3/G7/G8**; LIVE NO-GO, Job #0001 unused. No paid R2/Cloudflare, Stripe, D1, Access, deploy, Git merge or production change.
+
+---
+
 <!-- FIRE-G4-STAGING-ID-MAPPING-20261125 -->
 ## Nov 25 G4 STAGING actual development — safe beta Worker ID/name GET-only checker
 
