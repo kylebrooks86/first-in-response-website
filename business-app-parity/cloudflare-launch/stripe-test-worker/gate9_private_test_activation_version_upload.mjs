@@ -66,6 +66,29 @@ export function buildPrivateVersionBody({packageRoot,receiptPin,restrictedKey,pr
  for(const [name,value] of Object.entries({FIRE_ENV:'cloudflare-staging',SITE_ORIGIN:ORIGIN,FIRE_ACCESS_REQUIRED:'enabled',FIRE_STRIPE_MODE:'disabled'}))requireTrue(b.some(x=>x.name===name&&x.type==='plain_text'&&x.text===value),'PREDECESSOR_VAR');
  return {...prepareModules(packageRoot,receiptPin),bindings:[...inherited.map(name=>({name,type:'inherit',version_id:PREDECESSOR})),...Object.entries(plain).map(([name,text])=>({name,type:'plain_text',text})),{name:'STRIPE_RESTRICTED_KEY',type:'secret_text',text:restrictedKey}]};
 }
+// Parse only a small, bounded provider refusal body. Cloudflare's error
+// message, headers, tokens and response JSON are NEVER returned or logged.
+// A missing/malformed/oversized body yields UNKNOWN; the one-shot remains spent.
+export async function sanitizedRefusalCodes(response) {
+ const reader=response?.body?.getReader?.();
+ if(!reader||typeof reader.read!=='function')return [];
+ const chunks=[];let bytes=0;
+ try{
+  for(;;){
+   const part=await reader.read();
+   if(part.done)break;
+   if(!(part.value instanceof Uint8Array))return [];
+   bytes+=part.value.byteLength;
+   if(bytes>65536){try{await reader.cancel();}catch{}return [];}
+   chunks.push(Buffer.from(part.value));
+  }
+  const parsed=JSON.parse(Buffer.concat(chunks,bytes).toString('utf8'));
+  if(!Array.isArray(parsed?.errors))return [];
+  return [...new Set(parsed.errors.map(e=>e?.code).filter(
+   code=>Number.isSafeInteger(code)&&code>=0&&code<=999999999
+  ))].slice(0,5);
+ }catch{return [];}
+}
 // No automatic execution. A version can be uploaded only through a private
 // caller with fresh exact approval, current serving-state proof and persistent
 // one-shot reservation. A rejected/uncertain request consumes the reservation.
@@ -84,11 +107,7 @@ export async function uploadOneInactiveTestVersion({packageRoot,receiptPin,restr
  if(!(response?.status>=200&&response.status<300)){
   // Never emit provider messages, response bodies, headers, request data or keys.
   const status=Number.isInteger(response?.status)&&response.status>=100&&response.status<=599?String(response.status):'UNKNOWN';
-  let codes=[];
-  try{
-   const rejected=await response.json();
-   if(Array.isArray(rejected?.errors))codes=[...new Set(rejected.errors.map(e=>e?.code).filter(c=>Number.isSafeInteger(c)&&c>=0&&c<=999999999))].slice(0,5);
-  }catch{}
+  const codes=await sanitizedRefusalCodes(response);
   throw Error('G9_UPLOAD_STOP_HTTP_REFUSAL_NO_RETRY_STATUS_'+status+'_CODES_'+(codes.length?codes.join('_'):'UNKNOWN'));
  }
  const result=await response.json();
