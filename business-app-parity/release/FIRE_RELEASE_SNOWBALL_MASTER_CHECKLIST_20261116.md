@@ -1,3 +1,12 @@
+<!-- FIRE-G9-BOUNDED-REFUSAL-20261125 -->
+## November 25 — [x] G9 future provider-refusal evidence bounded/redacted; code+tests committed (NO PROVIDER WRITE)
+
+- [x] **New real engineering safeguard, NOT an original numbered acceptance:** the consumed TEST uploader's previously unbounded `response.json()` refusal parsing has been replaced with a 64 KiB maximum streamed, in-memory parser. It returns only at most five deduplicated nonnegative integer Cloudflare codes, or UNKNOWN for missing, malformed, overflowing, or failed reads. HTTP status remains sanitized; provider error messages, response bodies, authorization and secrets are never printed. The one-shot consumed lock and rejection STOP are unchanged. Code commit [7ca36e3](https://github.com/kylebrooks86/first-in-response-website/commit/7ca36e3147e33720194d07d6046aca4dac473476).
+- [x] **Added actual offline regressions** for valid/duplicate code, malformed/missing/oversized response streams, invalid codes and second-POST refusal in [b414bdb](https://github.com/kylebrooks86/first-in-response-website/commit/b414bdba4126fc3a14385deeb68835fd452ef9c9). Exact-commit GitHub CI automatically scheduled; full PASS must be read back before asserting verification.
+- [ ] **Original G9-05..11 still OPEN**: no usable byte-identical inactive candidate was identified by the latest owner GET, and the historical failed POST status/code cannot be reconstructed. No retry of the consumed lock, Cloudflare upload/activation, Stripe charge/refund, login, D1 write, paid Cloudflare/R2, merge or production release was attempted or authorized. **Official 57/95 accepted, 38 open; 5/10 gates G1/G2/G3/G7/G8 accepted.**
+
+---
+
 ## November 25 ~20:25 CST — [x] G9 failed-upload exact-version GET-only provenance tool + changed-test CI verified (NO DEPLOY)
 
 - [x] **Additional engineering subtask complete, not original numbered checklist acceptance:** [GitHub source, regression and CI](../evidence/FIRE_G9_FAILED_UPLOAD_PROVENANCE_READONLY_20261125.md). New existing-sealed-package version-provenance collector checks actual Cloudflare GET metadata/created timestamps, exact module bytes, TEST D1, secret *names*, Stripe TEST mode and unchanged predecessor against six *already inventoried* inactive TEST version IDs. Does not rerun the old inventory, reveal secret values, use Cloudflare browser login, POST/upload/deploy, change traffic, or perform a Stripe/payment/D1 operation. Source implementation `f72d865`, UTC-date correction `c4d6f2b`, changed-test regressions `c1b7bcc`, workflow wiring `881b233`.
