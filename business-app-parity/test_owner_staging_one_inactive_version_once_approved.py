@@ -204,5 +204,57 @@ class SyntheticLocalStagingDryRunGuard(unittest.TestCase):
         self.assertIn('Remove-Item -LiteralPath $tmp -Force', s)
         self.assertIn('if ($entered) { Pop-Location }', s)
 
+
+class Nov25DraftGuard(unittest.TestCase):
+    """Static regression checks; no PowerShell, credentials or provider access."""
+    @classmethod
+    def setUpClass(cls):
+        cls.s = (Path(__file__).parent / 'owner_staging_new_inactive_version_draft_20261125.ps1').read_text()
+
+    def test_execution_hard_stop_before_any_local_or_remote_actions(self):
+        s = self.s
+        stop = s.index("if ($Execute) { throw 'DRAFT: execution disabled")
+        for marker in ('Import-Clixml', "InvokePinnedCli @('--version')", 'Invoke-RestMethod', 'FileMode]::CreateNew'):
+            self.assertLess(stop, s.index(marker))
+        self.assertLess(s.index("throw 'DRAFT: execution disabled", stop + 10), s.index('$consent=Read-Host'))
+
+    def test_both_historical_locks_and_distinct_new_lock(self):
+        s = self.s
+        for marker in ('g404-one-inactive-version-attempt-20261122.lock',
+                       'g404-new-inactive-version-attempt-20261123.lock',
+                       'g404-new-inactive-version-attempt-20261125-reviewed.lock',
+                       'Require (Test-Path -LiteralPath $originalLock -PathType Leaf)',
+                       'Require (Test-Path -LiteralPath $secondLock -PathType Leaf)',
+                       'Require (-not (Test-Path -LiteralPath $lockFile))'):
+            self.assertIn(marker, s)
+        self.assertEqual(s.count('FileMode]::CreateNew'), 1)
+        self.assertLess(s.index('FileMode]::CreateNew'), s.index('InvokePinnedCli $uploadArgs'))
+        self.assertNotRegex(s, r'Remove-Item[^\n]*\$(?:originalLock|secondLock|lockFile)')
+
+    def test_exact_candidate_and_inventory_pins_before_reservation(self):
+        s = self.s
+        for marker in (
+            '4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3',
+            '43D4D4D4008856D5541DC42B060696F8659DCFF64D95EF6C85AAF72EA91A7FAF',
+            '389EA114EE305FFF57CC7693CC3134762E361B9BD36102932003419B92250D48',
+            'e8ed3ca7f18510bfae9e46f912840e908635fba1a4c699ee1675e8ec88b0327e',
+            'Require ($inventory.Count -eq 200)',
+            'Require ($fingerprint -ceq $expectedPackage)',
+            'ReparsePoint', 'status --porcelain --untracked-files=all',
+            'Resolve-Path -LiteralPath $SourceReviewDirectory'):
+            self.assertIn(marker, s)
+            self.assertLess(s.index(marker), s.index('FileMode]::CreateNew'))
+
+    def test_existing_token_only_and_exact_payment_secret_type(self):
+        s = self.s
+        self.assertIn('$token=$previousToken', s)
+        self.assertNotIn("InvokePinnedCli @('auth','token','--json')", s)
+        self.assertIn("$oldPayment[0] -ceq 'STRIPE_SECRET_KEY'", s)
+        self.assertIn("$oldStripe[0].type -ceq 'secret_text'", s)
+        self.assertIn("$newStripe[0].type -ceq 'secret_text'", s)
+        self.assertEqual(re.findall(r'-Method\s+(\w+)', s), ['Get'])
+        self.assertEqual(s.count("'versions','upload'"), 1)
+        self.assertNotIn("'versions','deploy'", s)
+
 if __name__ == '__main__':
     unittest.main()
