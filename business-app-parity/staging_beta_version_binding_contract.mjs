@@ -15,8 +15,11 @@ export function buildStagingBindings({workerId,serving,predecessor,adminHash}={}
  }
  need(typeof adminHash==='string'&&/^[a-f0-9]{64}$/.test(adminHash));
  return [
-  ...['DB','FIRE_SESSION_SECRET','STRIPE_SECRET_KEY'].map(name=>({name,type:'inherit',version_id:PIN.version})),
+  {name:'DB',type:'d1',id:PIN.db},
+  ...['FIRE_SESSION_SECRET','STRIPE_SECRET_KEY'].map(name=>({name,type:'inherit',version_id:PIN.version})),
   {name:'FIRE_ENV',type:'plain_text',text:'staging'},
+  {name:'SITE_ORIGIN',type:'plain_text',text:'https://fire-app-independent-staging.kyle-bfc.workers.dev'},
+  {name:'FIRE_STAGING_PRIVATE_ACTIVATION',type:'plain_text',text:'blocked'},
   {name:'FIRE_STRIPE_MODE',type:'plain_text',text:'disabled'},
   {name:'FIRE_ADMIN_PASSWORD_HASH',type:'secret_text',text:adminHash}
  ];
