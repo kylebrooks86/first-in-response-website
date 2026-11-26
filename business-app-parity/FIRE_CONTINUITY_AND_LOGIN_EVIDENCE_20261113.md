@@ -1,3 +1,10 @@
+## Nov 25 22:20 CST — [x] STAGING post-migration schema and record-count preservation complete
+
+- [x] Owner Acer independent D1 readback against SHA256-pinned prechange backup: all 19 existing application table counts preserved, zero missing/extra/different normalized application schema definitions after exact reviewed 0022–0024 local replay. This completes STAGING migration verification with earlier physical 25/25 ordered journal, 9/9 new objects, zero FK violations and clean financial preflight. No repeat, no reapply. Record counts do not prove byte-for-byte row equality.
+- [x] G5-01 accepted by combining the archived QA 25 and DR/NEW LIVE 26 physical journal/schema and G4-03 binding evidence with the now-completed STAGING 25 physical schema/journal comparison. No new reads of unchanged environments. G5-02 still requires reconciliation of specific cross-target financial/relationship contracts; G5-03 numbering and G5-08 formal acceptance remain open. Original tally 58/95; 5/10 gates.
+
+---
+
 ## Nov 25 22:18 CST — independent hosted STAGING post-migration PASS, 25/25
 
 Owner Acer direct D1 API independently verified exact ordered 25-row journal, all nine expected new named objects (three indexes, two tables, four immutability triggers) and zero foreign-key violations on physical STAGING UUID afb2c05a-d794-4a9a-b580-924ce01c26ad. All 0022–0024 are now physically applied and verified; do not repeat migration or journal check. Previously accepted QA 25 and DR/NEW LIVE 26 journals remain intact. This resolves STAGING migration gap for G5-01/G5-02; complete schema definitions and hosted pre/post data comparison remain distinct, so no premature numbered acceptance. No Worker upload, payment, activation or other environment changes. 57/95 and 5/10 gates pending remaining compound conditions.
