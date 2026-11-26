@@ -1,3 +1,10 @@
+<!-- FIRE-G9-BOUNDED-REFUSAL-20261125 -->
+## Additional November 25 owner-safety engineering check — future refusal body cap
+
+The original sealed one-shot refusal is consumed and no numeric historical status/code can be recovered. On the **unmerged DRAFT source only**, the existing G9 upload adapter was updated at [7ca36e3](https://github.com/kylebrooks86/first-in-response-website/commit/7ca36e3147e33720194d07d6046aca4dac473476) to read a bounded 64 KiB error-body stream instead of unbounded `response.json()`. It emits only the sanitized numeric HTTP status and up to five unique integer error codes; missing/malformed/oversize body is UNKNOWN. Follow-up [b414bdb](https://github.com/kylebrooks86/first-in-response-website/commit/b414bdba4126fc3a14385deeb68835fd452ef9c9) adds offline stream/size/privacy/no-retry tests. Exact-head CI pending at this writing. No historical G9 acceptance, new authorization, attempt-lock reset, POST, Stripe use or deployed source is implied. Original count 57/95, 5/10 formal gates.
+
+---
+
 # FIRE G9 — consumed Nov 25 TEST upload, exact-provider-version provenance review (no provider change)
 
 **Date:** Nov 25, 2026 CST. **Active integrated review:** [draft PR #282](https://github.com/kylebrooks86/first-in-response-website/pull/282).
