@@ -48,7 +48,7 @@ async function getOnly(token,path){
  if(!response.ok||response.status!==200)stop();
  // Strict response cap, including for chunked responses without Content-Length.
  const advertised=response.headers?.get?.('content-length');
- if(advertised!=null&&(!/^\\d+$/.test(advertised)||Number(advertised)>96000))stop();
+ if(advertised!=null&&(!/^\d+$/.test(advertised)||Number(advertised)>96000))stop();
  const reader=response.body?.getReader?.();if(!reader)stop();
  const parts=[];let total=0;
  try{
@@ -64,7 +64,7 @@ async function getOnly(token,path){
  }catch{stop()}
 }
 export async function captureStagingWorkerIdentity({token,request=getOnly}={}){
- if(typeof token!=='string'||token.length<20||token.length>4096||/\\s/.test(token)||
+ if(typeof token!=='string'||token.length<20||token.length>4096||/\s/.test(token)||
     typeof request!=='function')stop();
  const nameResponse=await request(token,PREFIX+WORKER);
  const byName=unwrap(nameResponse);
