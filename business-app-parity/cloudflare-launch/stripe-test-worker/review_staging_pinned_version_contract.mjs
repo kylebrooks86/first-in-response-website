@@ -41,8 +41,14 @@ export function reviewPinnedStagingVersion(folder,currentReceiptPin){
    // Only unambiguous Worker module types. Auxiliary CSS/JSON/CJS need
    // separate runtime classification, not an automatic upload or omission.
    const ext=extname(name).toLowerCase();
+   // Preserve valid UTF-8 auxiliary data using the same text-module contract as the existing Gate9 uploader.
+   const text=bytes.toString('utf8');
+   let textOK=Buffer.from(text,'utf8').equals(bytes)&&!text.includes('\0');
+   if(ext==='.json'){try{JSON.parse(text)}catch{textOK=false;}}
+   
    const type=ext==='.js'||ext==='.mjs'?'application/javascript+module':
               ext==='.wasm'?'application/wasm':
+              (current&&textOK&&['.css','.json'].includes(ext))?'text/plain':
               /^fire-inline-assets\/asset-[0-9]{3}-[a-f0-9]{16}\.bin$/.test(name)?'application/octet-stream':null;
    if(!type){unclassified.push({name,bytes:row.bytes,sha256:row.sha256});continue;}
    // Verify base64 projection losslessly, but never persist raw request modules.
