@@ -8,6 +8,8 @@ on:
       - 'business-app-parity/owner_staging_beta_launch_review.mjs'
       - 'business-app-parity/staging_beta_private_bridge.mjs'
       - 'business-app-parity/staging_beta_private_bridge.test.mjs'
+      - 'business-app-parity/owner_staging_beta_private_once.mjs'
+      - 'business-app-parity/staging_beta_one_inactive_upload.mjs'
       - '.github/workflows/fire-staging-beta-free-budget.yml'
 permissions:
   contents: read
@@ -27,4 +29,6 @@ jobs:
           node --test business-app-parity/staging_beta_free_bundle_budget.test.mjs
           node --check business-app-parity/staging_beta_private_bridge.mjs
           node --check business-app-parity/staging_beta_private_bridge.test.mjs
+          node --check business-app-parity/owner_staging_beta_private_once.mjs
+          node --check business-app-parity/staging_beta_one_inactive_upload.mjs
           node --test business-app-parity/staging_beta_private_bridge.test.mjs
