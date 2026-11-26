@@ -363,9 +363,20 @@ try{
  const backupResponse=await request('/api/backup');const backup=await backupResponse.json();
  check(backupResponse.status()===200&&backup.tables.customers.length===1&&backup.tables.estimates.length===1,'Full records backup covers actual synthetic customer and estimate');
  check(!validateRecordIdentities(backup.tables)&&!validateBackupRelationships(backup.tables)&&!validateRefundIntegrity(backup.tables),'Actual HTTP backup passes shared identity, ownership and financial validators');
- for(const [path,body] of [['/api/payments/checkout',{estimateId:estimate.id,type:'deposit'}],['/api/payments/refund',{paymentId:'synthetic',amountCents:1}],['/api/payments/webhook',{}]]){
+ for(const [path,body] of [['/api/payments/checkout',{estimateId:estimate.id,type:'deposit'}],['/api/payments/webhook',{}]]){
   const response=await request(path,'POST',body);check(response.status()===409||response.status()===503,'Actual QA Worker refuses provider operation '+path);
  }
+ // QA refunds now allow authenticated manual bookkeeping only. Invalid and
+ // unknown refund requests must fail without altering the actual D1 ledger.
+ const badRefund=await request('/api/payments/refund','POST',{paymentId:'synthetic',amountCents:1});
+ check(badRefund.status()===400,'Actual QA refund rejects missing request identity');
+ const unknownRefund=await request('/api/payments/refund','POST',{paymentId:'synthetic-missing',requestId:'qa-missing-refund',amountCents:1,externalRefundConfirmed:true});
+ check(unknownRefund.status()===404,'Actual QA refund rejects unknown original payment');
+ const afterRejectedRefunds=await (await request('/api/backup')).json();
+ check(JSON.stringify(afterRejectedRefunds.tables.payments)===JSON.stringify(backup.tables.payments)&&JSON.stringify(afterRejectedRefunds.tables.payment_refunds)===JSON.stringify(backup.tables.payment_refunds),'Rejected QA refund requests do not change actual D1 financial ledger');
+ // Provider-backed refund denial (including configured TEST key/mode) and
+ // successful manual tip refund/replay are independently exercised against
+ // the real refund route and native SQLite in test-stripe-refunds.mjs.
  const failures=[];
  for(let i=0;i<5;i++)failures.push((await request('/api/auth/login','POST',{password:'synthetic-wrong-passphrase-00000000'})).status());
  check(failures.slice(0,4).every(status=>status===401)&&failures[4]===429,'Native D1 login limiter atomically blocks fifth failed attempt: '+JSON.stringify(failures));
