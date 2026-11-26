@@ -22,7 +22,7 @@ globalThis.__feeBackupHelpers={propertyBackupError,hasPropertyBackup,serviceLoca
 globalThis.__feeBoundedRecordsRestoreText=readBoundedRecordsRestoreText;
 globalThis.__feeOwnerBrowserWriteScope=ownerBrowserWriteScope;
 globalThis.__refundBoundedOwnerWrite=readOwnerWriteObject;
-async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
+async function load(path,deployment){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
   // The fixture strips route imports; inline the actual pure audit validator source.
   source=readFileSync(root+'/lib/deposit-audit-backup.mjs','utf8')+'\n'+readFileSync(root+'/lib/deposit-agreement-backup.mjs','utf8')+'\n'+source;
 source=`const serviceLocationsEnabled=e=>e.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
@@ -33,11 +33,12 @@ const readBoundedRecordsRestoreText=globalThis.__feeBoundedRecordsRestoreText;
 const ownerBrowserWriteScope=globalThis.__feeOwnerBrowserWriteScope;
 const exportPropertyRecords=()=>{throw Error('Unexpected property export in synthetic legacy backup')};
 const restorePropertyRecords=()=>{throw Error('Unexpected property restore in synthetic legacy backup')};
-`+source;}if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;const refundLedgerObjectsPresent=globalThis.__refundLedgerGuard.refundLedgerObjectsPresent;const refundLedgerNotReady=globalThis.__refundLedgerGuard.refundLedgerNotReady;const readOwnerWriteObject=globalThis.__refundBoundedOwnerWrite;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const LOCAL_CUSTOMER_DEPLOYMENT="'+(path.includes('webhook')?'doomsday':'live')+'";\n'+source;source='const env={DB:globalThis.__feeTestDB,SITE_ORIGIN:\"https://test\",STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",get STRIPE_RESTRICTED_KEY(){return globalThis.__stripeTestKeyUnavailable?undefined:"sk_test_fixture"},FIRE_STRIPE_MODE:"test"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
+`+source;}if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;const refundLedgerObjectsPresent=globalThis.__refundLedgerGuard.refundLedgerObjectsPresent;const refundLedgerNotReady=globalThis.__refundLedgerGuard.refundLedgerNotReady;const readOwnerWriteObject=globalThis.__refundBoundedOwnerWrite;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const LOCAL_CUSTOMER_DEPLOYMENT="'+(deployment??(path.includes('webhook')?'doomsday':'live'))+'";\n'+source;source='const env={DB:globalThis.__feeTestDB,SITE_ORIGIN:\"https://test\",STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",get STRIPE_RESTRICTED_KEY(){return globalThis.__stripeTestKeyUnavailable?undefined:"sk_test_fixture"},FIRE_STRIPE_MODE:"test"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
 const refunds=await load('lib/stripe-refunds.ts');globalThis.__refundFinalize=refunds.finalizeRefund;globalThis.__refundUpdate=refunds.recordRefundUpdate;
 
 const schemaGuard=await load('lib/refund-ledger-readiness.ts');globalThis.__refundLedgerGuard=schemaGuard;
 const route=await load('app/api/payments/refund/route.ts');
+const qaRefundRoute=await load('app/api/payments/refund/route.ts','qa');
 const webhook=await load('app/api/payments/webhook/route.ts');
 const backup=await load('app/api/backup/route.ts');
 let count=0,posts=0,failOnce=false,pending=false,networkOnce=false,lookupFailure=false,lookupCurrency='usd';
@@ -100,6 +101,42 @@ assert.equal((await event({...failedEvent,status:'pending'},'refund.updated')).s
 assert.equal(sql.prepare("SELECT status FROM payment_refunds WHERE id='failed-event'").get().status,'failed');
 const rollback=fixture(10000,0);sql.exec("CREATE TRIGGER fixture_failure BEFORE INSERT ON payments WHEN NEW.type='Refund' BEGIN SELECT RAISE(ABORT,'fixture failure'); END;");assert.equal((await refund('p-'+rollback,'rollback',1000)).status,500);assert.equal(principal(rollback),10000);sql.exec('DROP TRIGGER fixture_failure');assert.equal((await event(remote.get('fire-refund-rollback'))).status,200);assert.equal(principal(rollback),9000);
 const manual=fixture(7500,0,'cash-app-reference');sql.prepare("UPDATE payments SET type='Cash App',processing_fee_cents=210,gross_received_cents=7500,bundled_tip_cents=0,processing_method='Cash App' WHERE id=?").run('p-'+manual);assert.equal((await refund('p-'+manual,'manual',2000)).status,409);const beforePosts=posts;assert.equal((await refund('p-'+manual,'manual',2000,{externalRefundConfirmed:true})).status,200);assert.equal(principal(manual),5500);assert.equal(posts,beforePosts);assert.equal(sql.prepare('SELECT processing_fee_cents f FROM payments WHERE id=?').get('p-'+manual).f,210);
+// Regression from the actual hosted QA cash-tip refund refusal (G5-05).
+// The QA loader deliberately retains a configured TEST key/mode: even then,
+// no QA Stripe-backed refund may reserve a row or reach the provider.
+const qaJob=fixture(24000,2000,'cash-fixture');
+sql.prepare("UPDATE payments SET type='Cash' WHERE id=?").run('p-'+qaJob);
+const qaPost=(paymentId,requestId,amountCents,confirmed=true)=>qaRefundRoute.POST(new Request('https://test/api/payments/refund',{method:'POST',body:JSON.stringify({paymentId,requestId,amountCents,externalRefundConfirmed:confirmed})}));
+const qaBeforeFetch=globalThis.fetch;
+let qaProviderCalls=0;
+globalThis.fetch=async()=>{qaProviderCalls++;throw Error('QA must not contact Stripe');};
+try {
+  const qaStripeJob=fixture(24000,2000);
+  globalThis.__unauthorized=true;
+  try { assert.equal((await qaPost('t-'+qaJob,'qa-denied',500)).status,401); }
+  finally { globalThis.__unauthorized=false; }
+  assert.equal((await qaPost('t-'+qaJob,'qa-manual-tip',500,false)).status,409);
+  assert.equal((await qaPost('t-'+qaStripeJob,'qa-stripe-denied',500)).status,503);
+  assert.equal((await qaPost('p-'+qaStripeJob,'qa-stripe-principal-denied',500)).status,503);
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM payment_refunds WHERE id IN ('qa-denied','qa-stripe-denied','qa-stripe-principal-denied','qa-manual-tip')").get().n,0);
+  const qaResponse=await qaPost('t-'+qaJob,'qa-manual-tip',500);
+  assert.equal(qaResponse.status,200,await qaResponse.clone().text());
+  const qaResult=await qaResponse.json();
+  assert.equal(qaResult.mode,'manual');
+  assert.equal(qaResult.moneyMovedByFire,false);
+  assert.equal(principal(qaJob),24000);
+  assert.equal(tipTotal(qaJob),1500);
+  assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(qaJob).status,'paid');
+  assert.equal((await qaPost('t-'+qaJob,'qa-manual-tip',500)).status,200);
+  assert.equal(tipTotal(qaJob),1500);
+  assert.equal((await qaPost('t-'+qaJob,'qa-over-tip',1501)).status,409);
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM payments WHERE estimate_id=? AND type='Tip Refund'").get(qaJob).n,1);
+  assert.equal((await qaPost('p-'+qaJob,'qa-manual-principal',1000)).status,200);
+  assert.equal(principal(qaJob),23000);
+  assert.equal(tipTotal(qaJob),1500);
+  assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(qaJob).status,'partial');
+  assert.equal(qaProviderCalls,0);
+} finally {globalThis.fetch=qaBeforeFetch;}
 const external=fixture(10000,1000,'cs_external');assert.equal((await event({id:'re_external',amount:2000,status:'succeeded',payment_intent:'pi_fixture'})).status,200);assert.equal((await event({id:'re_external',amount:2000,status:'succeeded',payment_intent:'pi_fixture'})).status,200);assert.equal(principal(external),8000);assert.equal(tipTotal(external),1000);assert.equal((await event({id:'re_ambiguous',amount:8500,status:'succeeded',payment_intent:'pi_fixture'})).status,409);
 // Concurrent API attempts reserve the same original payment budget atomically.
 const concurrent=fixture(5000,0);const pair=await Promise.all([refund('p-'+concurrent,'c1',4000),refund('p-'+concurrent,'c2',4000)]);assert.deepEqual(pair.map(x=>x.status).sort(),[200,409]);assert.equal(principal(concurrent),1000);
