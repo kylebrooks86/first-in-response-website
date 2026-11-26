@@ -177,6 +177,93 @@ async function run(){
   if(failed)process.exitCode=1;
 }
 
-if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+if(process.argv.length===2&&process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   run().catch(err=>{process.stderr.write('STOP: '+String(err.message||'Failed')+'\n');process.exitCode=1;});
+}
+
+
+/**
+ * G6-03 incremental evidence only: earlier owner Acer HTTP-status denials
+ * are accepted. This checks the NEW outstanding privacy property of those
+ * exact QA owner-only GETs: small, constant, noncustomer denial bodies and
+ * session-private headers. No login, cookies, private links or provider writes.
+ * A forged cookie or an anonymous request is NOT an expired signed session.
+ */
+export const QA_DENIAL_BODY_PATHS=Object.freeze([
+  '/api/customers','/api/estimates','/api/invoices','/api/payments'
+]);
+const privateHeader=(value,part)=>typeof value==='string'&&
+  value.toLowerCase().split(',').some(v=>v.trim()===part);
+export async function inspectBoundedAnonymousDenial(response){
+  if(response?.status!==401||!response.headers||!response.body)
+    return {exactDenial:false,sessionPrivate:false};
+  const headers=response.headers;
+  const sessionPrivate=
+    privateHeader(headers.get('cache-control'),'private')&&
+    privateHeader(headers.get('cache-control'),'no-store')&&
+    privateHeader(headers.get('vary'),'cookie')&&
+    headers.get('x-content-type-options')?.toLowerCase()==='nosniff'&&
+    /^application\/json(?:\s*;|$)/i.test(headers.get('content-type')||'');
+  // Do not buffer arbitrary error bodies and NEVER print response bytes.
+  const length=headers.get('content-length');
+  if(length!==null&&(!/^\d{1,4}$/.test(length)||Number(length)>1024))
+    return {exactDenial:false,sessionPrivate:Boolean(sessionPrivate)};
+  const reader=response.body.getReader();
+  let lengthRead=0,raw='';
+  const decoder=new TextDecoder('utf-8',{fatal:true});
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      if(!(value instanceof Uint8Array))return {exactDenial:false,sessionPrivate:Boolean(sessionPrivate)};
+      lengthRead+=value.byteLength;
+      if(lengthRead>1024)return {exactDenial:false,sessionPrivate:Boolean(sessionPrivate)};
+      raw+=decoder.decode(value,{stream:true});
+    }
+    raw+=decoder.decode();
+    const json=JSON.parse(raw);
+    return {
+      exactDenial:json!==null&&typeof json==='object'&&!Array.isArray(json)&&
+        Object.keys(json).length===1&&json.error==='Unauthorized',
+      sessionPrivate:Boolean(sessionPrivate)
+    };
+  }catch{
+    return {exactDenial:false,sessionPrivate:Boolean(sessionPrivate)};
+  }finally{
+    try{await reader.cancel();}catch{}
+    try{reader.releaseLock();}catch{}
+  }
+}
+export async function captureQaAnonymousDenialBodies({fetcher=fetch}={}){
+  const evidence=[];
+  for(const path of QA_DENIAL_BODY_PATHS){
+    let status=null,exactDenial=false,sessionPrivate=false;
+    try{
+      const response=await fetcher(QA_ORIGIN+path,{
+        method:'GET',redirect:'manual',cache:'no-store',
+        credentials:'omit',headers:{Accept:'application/json'},
+        signal:AbortSignal.timeout(12000)
+      });
+      status=response.status;
+      ({exactDenial,sessionPrivate}=await inspectBoundedAnonymousDenial(response));
+    }catch{/* No error text, remote body, token or customer data in output. */}
+    evidence.push({path,status,exactDenial,sessionPrivate,
+      passed:status===401&&exactDenial&&sessionPrivate});
+  }
+  return {result:evidence.every(x=>x.passed)?
+      'G6_ANONYMOUS_DENIAL_BODY_PRIVACY_PASS':'G6_ANONYMOUS_DENIAL_BODY_PRIVACY_REVIEW',
+    target:'QA',observations:evidence.length,evidence,
+    expiredSignedSessionVerified:false,distinctNonownerVerified:false,
+    providerWrites:false,credentialsUsed:false,gate6CriterionAccepted:false};
+}
+if(process.argv.length===3&&process.argv[1]&&
+   resolve(process.argv[1])===fileURLToPath(import.meta.url)&&
+   process.argv[2]==='--check-denial-bodies'){
+  captureQaAnonymousDenialBodies().then(receipt=>{
+    process.stdout.write(JSON.stringify(receipt,null,2)+'\n');
+    if(!receipt.evidence.every(x=>x.passed))process.exitCode=2;
+  }).catch(()=>{
+    process.stderr.write('G6 ANONYMOUS BODY READ-ONLY STOP; no provider writes\n');
+    process.exitCode=1;
+  });
 }

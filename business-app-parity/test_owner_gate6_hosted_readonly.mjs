@@ -75,3 +75,53 @@ test('Acer consent prompts resolve actual trimmed answers across repeated questi
     output.destroy();
   }
 });
+
+
+test('G6 anonymous body inspection requires exact small JSON denial and private headers',async()=>{
+  const {inspectBoundedAnonymousDenial}=await import('./owner_gate6_hosted_readonly.mjs');
+  const headers={'Content-Type':'application/json; charset=utf-8',
+    'Cache-Control':'no-store, private','Vary':'Accept, Cookie',
+    'X-Content-Type-Options':'nosniff'};
+  const reply=(body,opts={})=>new Response(body,{status:401,headers:{...headers,...opts}});
+  assert.deepEqual(await inspectBoundedAnonymousDenial(reply('{"error":"Unauthorized"}')),
+    {exactDenial:true,sessionPrivate:true});
+  for(const body of ['{"error":"Unauthorized","customer":"private"}',
+                     '{"error":"Unauthorized","shareToken":"secret"}',
+                     'private HTML', 'x'.repeat(1100)]){
+    const r=await inspectBoundedAnonymousDenial(reply(body));
+    assert.equal(r.exactDenial,false);
+  }
+  const noStore=await inspectBoundedAnonymousDenial(reply('{"error":"Unauthorized"}',
+    {'Cache-Control':'public, max-age=60'}));
+  assert.equal(noStore.exactDenial,true);
+  assert.equal(noStore.sessionPrivate,false);
+  assert.equal((await inspectBoundedAnonymousDenial(
+    new Response('private',{status:200}))).exactDenial,false);
+});
+test('G6 anonymous collector is fixed-origin, no-credential, GET-only and sanitized',async()=>{
+  const {QA_DENIAL_BODY_PATHS,captureQaAnonymousDenialBodies}=
+    await import('./owner_gate6_hosted_readonly.mjs');
+  const requests=[];
+  const good=()=>new Response('{"error":"Unauthorized"}',{status:401,headers:{
+    'Content-Type':'application/json','Cache-Control':'private, no-store',
+    'Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
+  const receipt=await captureQaAnonymousDenialBodies({fetcher:async(url,init)=>{
+    requests.push({url,init});return good();
+  }});
+  assert.equal(receipt.result,'G6_ANONYMOUS_DENIAL_BODY_PRIVACY_PASS');
+  assert.equal(receipt.expiredSignedSessionVerified,false);
+  assert.equal(receipt.gate6CriterionAccepted,false);
+  assert.equal(receipt.providerWrites,false);
+  assert.equal(requests.length,QA_DENIAL_BODY_PATHS.length);
+  for(let i=0;i<requests.length;i++){
+    assert.equal(requests[i].url,QA_ORIGIN+QA_DENIAL_BODY_PATHS[i]);
+    assert.equal(requests[i].init.method,'GET');
+    assert.equal(requests[i].init.credentials,'omit');
+    assert.equal(requests[i].init.redirect,'manual');
+    assert.equal(requests[i].init.headers.Accept,'application/json');
+    assert.equal(JSON.stringify(requests[i]).includes('Cookie'),false);
+  }
+  const fail=await captureQaAnonymousDenialBodies({fetcher:async()=>{throw Error('secret cookie x');}});
+  assert.equal(fail.evidence.every(e=>e.passed),false);
+  assert.equal(JSON.stringify(fail).includes('secret cookie'),false);
+});
