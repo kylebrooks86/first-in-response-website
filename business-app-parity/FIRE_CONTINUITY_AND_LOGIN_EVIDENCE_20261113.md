@@ -1,3 +1,9 @@
+## Nov 25 22:06 CST — STAGING migration approval and fresh backup restore/rehearsal PASS
+
+Owner explicitly authorized ONLY three outstanding reviewed migrations 0022–0024 to fire-app-staging-db UUID afb2c05a-d794-4a9a-b580-924ce01c26ad; preserve data/backups/all other environments; no activation/payment/LIVE changes. Prior Worker token D1 export returned 10000; dedicated temporary D1 Edit token resolved it. Owner Acer Wrangler 4.162.0 export succeeded, 22523 bytes, SHA256 1ECB401D552140BFF2CABE8161C711C37BD56EB77B978CAEA6FA717C0C33FC19. In-memory SQLite restore of actual export confirmed 22 journal rows, integrity/FK before and after, all three additive migrations executed and existing table counts preserved. No remote migration yet. Accept and do not repeat this backup/rehearsal. Keep backup and credentials private; do not publish signed download link. Next: immediate financial preflight and writer quiescence, exact journal and source-bound one-shot migration application and independent postread. 57/95 and 5/10 unchanged.
+
+---
+
 ## Nov 25 21:46 CST — owner Acer full-app offline body READY
 
 Owner screenshot: exact launcher 8421a55434f5fb027b65b0c44448c3820cc044db successfully assembled existing 4cccaa0277b839ebd1b5cbcfe4282a7d3872cbf3 build. STAGING_FULLAPP_OFFLINE_BODY_READY, 242 modules, 42 client assets, requestBytes 12757184, receiptPin f811cc2d7e4b1c37e21d7d28d6aba31215897ac89f5a2e756fbf9e258c1d525a. Provider contacted=false, uploadAuthorized=false, privateHashRead=false. Accept local package/body assembly; do not repeat. No runtime/hosted acceptance or free-plan eligibility inferred. G4-04/07 open; 57/95, 5/10 unchanged. Next measure compressed module bytes, resolve free-plan limit and finish private handoff.
