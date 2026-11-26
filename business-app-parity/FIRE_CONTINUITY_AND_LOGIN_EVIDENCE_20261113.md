@@ -1,3 +1,9 @@
+## Nov 25 — integrated STAGING beta candidate
+
+New offline binding, full-app body, one-shot transport and owner bridge committed in PR282 (78e30fe through 4efb7c4). CSS/JSON text module projection implemented for current source, not runtime verified. Owner launcher now assembles existing exact 4cccaa0 dist into a new inline-asset folder and reports request size and receipt hash in one operation. No repeated materialized source test required. Actual private credential handoff, independent compiled provenance, free-plan eligibility and fresh exact upload consent remain open. No provider write. 57/95 and 5/10 unchanged.
+
+---
+
 ## Nov 25 — STAGING replacement draft regression hardening
 
 Actual code e2f166120e8e69d5cb42887970cd3e2ad4acb609 adds immediate Execute rejection before local credential/CLI access, package-root reparse-point guards, strict untracked checkout check and exact existing Stripe secret name/type checks. Existing static regression suite extended with four tests at fc34cea9033f2d6e2eb5b9041c32beccfa15cc95; authored, not yet declared passed. Draft remains execution-disabled. No provider write, new approval, activation, migration, payment change or old lock reset. Remaining: actual test outcome, independently verified compiled package/asset provenance and reviewed upload contract. Original 57/95, 5/10 gates; G4-04/G4-07 open.
