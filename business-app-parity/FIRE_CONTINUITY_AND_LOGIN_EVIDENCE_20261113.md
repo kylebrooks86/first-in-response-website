@@ -1,3 +1,9 @@
+## November 25 — 57/95, 38 open; G5-05/G5-06 OWNER ACCEPTED
+
+[Owner acceptance and evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180055098); [checklist commit](https://github.com/kylebrooks86/first-in-response-website/commit/6d903fc81485bd58c9a53aa2e97bfcc5ebfa0945). Prior discount/rate and customer relationship tests accepted by owner, not fresh independent inspection of missing saved records. Actual hosted QA refund and authenticated access passed on version 316984f9-07b7-4859-acc2-492e1ca951c6; ledger $240 principal/$27 net tips. No repeat. G5 remains open 4/8; G1/G2/G3/G7/G8 accepted. No provider changes. NEW LIVE dark.
+
+---
+
 ## November 25 19:28 CST — corrected QA refund runtime DEPLOYED; hosted acceptance pending
 
 [Actual owner Acer deployment receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7179819730): QA Worker fire-fullapp-qa-20261016 now serves version 316984f9-07b7-4859-acc2-492e1ca951c6 at 100%, deployment e13964eb-9fd9-4d1e-9a43-4d12088d9e7f. Runtime 4283a360b41a6766615566520fe6bfd200cb9f35; test-only successor 023818eabb2cf7ccf15f42a903eff863a056a8b7 all 28 workflows green. Rollback version 3416575e-7b58-45d4-89a9-34bc78486f14. QA D1 and synthetic-only/backup owner-review-only configuration shown retained; authentication secret names and authenticated refund not yet independently confirmed post-update. Owner deployment authorization consumed; do not redeploy. Next resume original synthetic $5 cash-tip refund once, confirm $20 original/$15 net tip, $240 paid principal and $0 balance. No real money movement. No other environment targeted. 55/95 and 5/10 unchanged.
