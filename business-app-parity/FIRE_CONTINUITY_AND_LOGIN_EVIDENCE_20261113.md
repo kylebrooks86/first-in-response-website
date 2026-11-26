@@ -1,3 +1,9 @@
+## Nov 25 — STAGING replacement draft regression hardening
+
+Actual code e2f166120e8e69d5cb42887970cd3e2ad4acb609 adds immediate Execute rejection before local credential/CLI access, package-root reparse-point guards, strict untracked checkout check and exact existing Stripe secret name/type checks. Existing static regression suite extended with four tests at fc34cea9033f2d6e2eb5b9041c32beccfa15cc95; authored, not yet declared passed. Draft remains execution-disabled. No provider write, new approval, activation, migration, payment change or old lock reset. Remaining: actual test outcome, independently verified compiled package/asset provenance and reviewed upload contract. Original 57/95, 5/10 gates; G4-04/G4-07 open.
+
+---
+
 ## Nov 25 — new STAGING uploader draft implemented (execution disabled)
 
 Owner history entry 749 confirms correct builder, -Build flag, exact commit text and Completed status, consistent with local artifact timestamps; corroborating provenance only, not independent compiled-byte attestation. New distinct draft `owner_staging_new_inactive_version_draft_20261125.ps1` at cb59e93624602ba4d79bc5c385244e02cb3ef2e6 pins exact source, manifest SHA256 and recorded 200-file package fingerprint, requires both historical locks, uses separate source checkout and new reservation path, and replaces cached OAuth lookup with existing owner token. Hard execution stop retained; no provider calls. Static source readback checks passed for these anchors; Windows execution and independent regression review NOT completed. Existing payment binding preserved by design, not physically verified. Next: independent package provenance, test new draft, review provider upload contract before requesting fresh exact authorization. G4-04/G4-07 open; 57/95, 5/10. No Cloudflare/Stripe/D1 changes, paid services or deployment.
