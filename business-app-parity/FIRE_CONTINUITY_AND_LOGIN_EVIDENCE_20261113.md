@@ -1,3 +1,9 @@
+## Nov 25 22:26 CST — [x] G5-02 physical database protection contracts accepted
+
+Owner Acer read-only D1 screenshot shows QA matches all 26 financial objects and QA/DR/NEW LIVE relationship schemas match STAGING. Together with previous DR/NEW LIVE financial comparison, verified migrated STAGING baseline, prior QA refund metadata and financial preflight, this satisfies the original schema-contract criterion G5-02. No repeat needed. Does not establish runtime payment settlement behavior or signed Stripe deliveries. G5-03 application numbering cross-links and G5-08 remain open. Original tally 59/95; 5/10 formal gates; no provider writes or job allocation.
+
+---
+
 ## Nov 25 22:26 CST — G5 physical financial schema parity and numbering DDL evidence
 
 Owner Acer direct D1 read-only query confirmed 26 normalized financial schema definitions (payments/refunds/checkout/deposit policy/deposit snapshots/invoices/revisions) identical across STAGING, DR and NEW LIVE. Separate owner full console transcript confirms identical DR/NEW LIVE numbering DDL: three tables, one explicit link index, two AUTOINCREMENT primary keys, unique customer/root estimate constraints, restrictive FKs and six immutable update/delete triggers matching 0025. No job numbers consumed. Accept these scoped proofs, never repeat. G5-02 remaining QA comparison and relationship contracts; G5-03 application cross-links remain distinct. 58/95, 5/10 unchanged. No provider writes.
