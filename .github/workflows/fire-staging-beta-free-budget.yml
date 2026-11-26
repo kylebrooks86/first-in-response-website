@@ -6,6 +6,8 @@ on:
       - 'business-app-parity/staging_beta_free_bundle_budget.test.mjs'
       - 'business-app-parity/staging_beta_fullapp_body.mjs'
       - 'business-app-parity/owner_staging_beta_launch_review.mjs'
+      - 'business-app-parity/staging_beta_private_bridge.mjs'
+      - 'business-app-parity/staging_beta_private_bridge.test.mjs'
       - '.github/workflows/fire-staging-beta-free-budget.yml'
 permissions:
   contents: read
@@ -17,9 +19,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Verify changed-source JavaScript syntax and 64 MiB Free bundle guard
+      - name: Verify changed-source JavaScript syntax, Free bundle guard and one-shot bridge
         run: |
           node --check business-app-parity/staging_beta_free_bundle_budget.mjs
           node --check business-app-parity/staging_beta_fullapp_body.mjs
           node --check business-app-parity/owner_staging_beta_launch_review.mjs
           node --test business-app-parity/staging_beta_free_bundle_budget.test.mjs
+          node --check business-app-parity/staging_beta_private_bridge.mjs
+          node --check business-app-parity/staging_beta_private_bridge.test.mjs
+          node --test business-app-parity/staging_beta_private_bridge.test.mjs
