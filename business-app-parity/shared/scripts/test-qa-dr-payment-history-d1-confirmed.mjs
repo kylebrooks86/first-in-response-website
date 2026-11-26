@@ -218,30 +218,45 @@ eq((await uncertain.json()).saveUncertain,true,'DR refund uncertainty never enco
 
 const qaRefundPath=qaPath.replace(/\\/g,'/').replace(/\/payments\/route\.ts$/,'/payments/refund/route.ts');
 assert.notEqual(qaRefundPath,qaPath,'QA-master shared refund route found');
-let qaRefundD1Reads=0,qaRefundAuthCalls=0;
-const qaRefundEnv={DB:{prepare(){qaRefundD1Reads++;throw Error('QA synthetic refund must not read D1');}}};
+let qaRefundD1Reads=0,qaRefundAuthCalls=0,qaProviderCalls=0,qaFinalizeCalls=0;
+let qaOwner=true;
+const qaRefundEnv={FIRE_STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_fixture',DB:{prepare(query){
+  qaRefundD1Reads++;
+  assert.match(query,/SELECT p\.id,p\.estimate_id/,'QA Stripe denial permits only original payment classification');
+  return {bind(){return {first:async()=>({id:'qa-stripe',estimateId:'qa-job',type:'Tip',amountCents:2000,status:'paid',providerId:'cs_test_fixture:tip',customerId:'qa-customer'})}}};
+}}};
 const qaRefundCode=ts.transpileModule(readFileSync(qaRefundPath,'utf8'),{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText;
 const qaRefundScope={exports:{},Response,Date,Intl,Number,String,Array,JSON,
+  fetch:async()=>{qaProviderCalls++;throw Error('QA must never contact Stripe');},
   require(name){
     if(name==='cloudflare:workers')return {env:qaRefundEnv};
     if(name==='../../../local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'qa'};
-    if(name==='../../../chatgpt-auth')return {getChatGPTUser:async()=>{qaRefundAuthCalls++;return {email:'kylebrooks8605@gmail.com'};}};
-    if(name==='../../../../lib/stripe-refunds')return {finalizeRefund:()=>{throw Error('QA no refunds');},recordRefundUpdate:()=>{throw Error('QA no refunds');}};
-    if(name==='../../../../lib/refund-ledger-readiness')return {refundLedgerObjectsPresent:()=>{throw Error('QA no refund ledger read');},refundLedgerNotReady:()=>{throw Error('QA no refund');}};
-    if(name==='../../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:()=>{throw Error('QA no refund body');}};
+    if(name==='../../../chatgpt-auth')return {getChatGPTUser:async()=>{qaRefundAuthCalls++;return qaOwner?{email:'kylebrooks8605@gmail.com'}:null;}};
+    if(name==='../../../../lib/stripe-refunds')return {finalizeRefund:()=>{qaFinalizeCalls++;throw Error('QA Stripe denial must not finalize');},recordRefundUpdate:()=>{qaFinalizeCalls++;throw Error('QA Stripe denial must not reconcile');}};
+    if(name==='../../../../lib/refund-ledger-readiness')return {refundLedgerObjectsPresent:async()=>true,refundLedgerNotReady:()=>{throw Error('Unexpected missing synthetic schema');}};
+    if(name==='../../../../lib/customer-write-request-guard.mjs')return {readOwnerWriteObject:async()=>({value:{paymentId:'qa-stripe',requestId:'qa-request',amountCents:500,externalRefundConfirmed:true}})};
     throw Error('Unexpected QA refund dependency '+name);
   }};
 vm.runInNewContext(qaRefundCode,qaRefundScope);
 eq(typeof qaRefundScope.exports.POST,'function','actual QA-master refund route export');
-const qaRefundDenied=await qaRefundScope.exports.POST(new Request('https://qa.invalid/api/payments/refund',{
-  method:'POST',headers:{'content-type':'application/json'},body:'{}'
-}));
-eq(qaRefundDenied.status,503,'QA synthetic refund remains disabled');
-privateResponse(qaRefundDenied,'QA synthetic refund denied');
+const qaRefundRequest=()=>new Request('https://qa.invalid/api/payments/refund',{
+  method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({paymentId:'qa-stripe',requestId:'qa-request',amountCents:500,externalRefundConfirmed:true})
+});
+qaOwner=false;
+const qaUnauthorized=await qaRefundScope.exports.POST(qaRefundRequest());
+eq(qaUnauthorized.status,401,'QA refund requires owner authorization');
+privateResponse(qaUnauthorized,'QA unauthorized refund');
+eq(qaRefundD1Reads,0,'Unauthorized QA refund makes no D1 calls');
+qaOwner=true;
+const qaRefundDenied=await qaRefundScope.exports.POST(qaRefundRequest());
+eq(qaRefundDenied.status,503,'QA Stripe-backed refund remains disabled');
+privateResponse(qaRefundDenied,'QA Stripe refund denied');
 eq((await qaRefundDenied.json()).error.includes('Synthetic QA disables'),true,'QA Stripe refund hard stop retained');
-eq(qaRefundD1Reads,0,'QA synthetic refund makes no D1 reads or writes');
-eq(qaRefundAuthCalls,0,'QA synthetic refund denies before authorization as before');
+eq(qaRefundD1Reads,1,'QA Stripe refund only reads original payment, never reserves');
+eq(qaRefundAuthCalls,2,'QA refunds always require owner authorization');
+eq(qaProviderCalls,0,'QA Stripe denial makes zero provider requests');
+eq(qaFinalizeCalls,0,'QA Stripe denial makes zero ledger finalizations');
 
 console.log('PASS '+checks+' QA-master + independent DR owner payment history verified D1/read/checkout/authorization/private receipts (actual TS routes, NO HOSTED OPERATIONS)');
