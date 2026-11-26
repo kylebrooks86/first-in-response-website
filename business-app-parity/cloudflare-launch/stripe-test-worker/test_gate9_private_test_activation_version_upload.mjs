@@ -1,5 +1,6 @@
 // Offline targeted regression for the new private upload adapter. No real credentials or network.
 import assert from 'node:assert/strict';
+import {assessExistingVersion,KNOWN_INACTIVE_IDS} from './owner_gate9_failed_upload_source_provenance_read_only.mjs';
 import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
@@ -58,5 +59,42 @@ try{
   assert.equal(calls,1);
  }
  writeFileSync(join(root,'server',entry),'tampered');assert.throws(()=>prepareModules(root,pin),/MODULE_HASH/);
+
+ // The historical failed one-shot must be reconciled by actual GET module
+ // bytes, not just a plausible inactive version ID, metadata or secret names.
+ const knownId=KNOWN_INACTIVE_IDS[0],attemptedAt='2026-11-25T20:46:08.133Z';
+ const expectedReadback={
+  id:knownId,attemptedAt,db,
+  main_module:body.main_module,compatibility_date:body.compatibility_date,
+  compatibility_flags:body.compatibility_flags,modules:body.modules,
+  secrets:['FIRE_ACCESS_AUD','FIRE_ACCESS_OWNER_EMAIL','FIRE_ACCESS_TEAM_DOMAIN',
+   'STRIPE_WEBHOOK_SECRET','STRIPE_RESTRICTED_KEY'],
+  plain:{FIRE_ENV:'cloudflare-staging',SITE_ORIGIN:origin,
+   FIRE_ACCESS_REQUIRED:'enabled',FIRE_STRIPE_MODE:'test',
+   FIRE_STRIPE_EXPECTED_ACCOUNT_ID:stripe,FIRE_GATE9_PRIVATE_ACTIVATION:'owner-approved'}
+ };
+ const resolvedBindings=body.bindings.map(b=>b.type==='inherit'?
+  (b.name==='DB'?{name:'DB',type:'d1',database_id:db}:{name:b.name,type:'secret_text'}):
+  b.type==='secret_text'?{name:b.name,type:'secret_text'}:b);
+ const provider={id:knownId,created_on:'2026-11-25T20:46:25.000Z',
+  main_module:body.main_module,compatibility_date:body.compatibility_date,
+  compatibility_flags:body.compatibility_flags,urls:[],
+  bindings:resolvedBindings,modules:body.modules};
+ const assess=(v)=>assessExistingVersion(v,expectedReadback);
+ assert.equal(assess(provider).exactAttemptCandidate,true);
+ assert.equal(assess({...provider,modules:undefined}).exactAttemptCandidate,false);
+ assert.equal(assess({...provider,created_on:'2026-11-24T20:46:25.000Z'}).exactAttemptCandidate,false);
+ assert.equal(assess({...provider,urls:['https://wrong.example']}).exactAttemptCandidate,false);
+ assert.equal(assess({...provider,assets:{jwt:'synthetic'}}).exactAttemptCandidate,false);
+ assert.equal(assess({...provider,bindings:resolvedBindings.filter(b=>b.name!=='STRIPE_RESTRICTED_KEY')}).exactAttemptCandidate,false);
+ assert.equal(assess({...provider,bindings:resolvedBindings.map(b=>b.name==='DB'?
+  {...b,database_id:'55555555-5555-4555-8555-555555555555'}:b)}).exactAttemptCandidate,false);
+ const textBody=resolvedBindings.map(b=>b.name==='FIRE_STRIPE_MODE'?{...b,text:'live'}:b);
+ assert.equal(assess({...provider,bindings:textBody}).exactAttemptCandidate,false);
+ const altered=body.modules.map((m,i)=>i===0?{...m,content_base64:Buffer.from('tampered').toString('base64')}:m);
+ assert.equal(assess({...provider,modules:altered}).exactAttemptCandidate,false);
+ assert.equal(assess({...provider,modules:body.modules.slice(1)}).exactAttemptCandidate,false);
+ assert.throws(()=>assess({...provider,id:'00000000-0000-4000-8000-000000000000'}),/VERSION_ID/);
+ assert.throws(()=>assess({...provider,created_on:'not-a-date'}),/CREATED_AT/);
  console.log('G9_UPLOAD_ADAPTER_SYNTHETIC_PASS; no provider calls');
 }finally{rmSync(root,{recursive:true,force:true})}
