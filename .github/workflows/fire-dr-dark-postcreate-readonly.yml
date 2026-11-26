@@ -13,6 +13,8 @@ on:
       - 'business-app-parity/test_owner_g4_hosted_binding_names_readonly.mjs'
       - 'business-app-parity/owner_staging_serving_version_readonly.mjs'
       - 'business-app-parity/test_owner_staging_serving_version_readonly.mjs'
+      - 'business-app-parity/owner_staging_beta_worker_identity_read_only.mjs'
+      - 'business-app-parity/test_owner_staging_beta_worker_identity_read_only.mjs'
       - 'business-app-parity/test_owner_dr_dark_postcreate_readonly.ps1'
       - '.github/workflows/fire-dr-dark-postcreate-readonly.yml'
 permissions:
@@ -49,6 +51,8 @@ jobs:
         run: node business-app-parity/test_owner_g4_hosted_binding_names_readonly.mjs
       - name: Test STAGING serving deployment and version-scoped bindings (OFFLINE MOCK, GET ONLY)
         run: node business-app-parity/test_owner_staging_serving_version_readonly.mjs
+      - name: Test exact STAGING beta Worker name/ID API mapping (OFFLINE, TWO GET MOCKS)
+        run: node business-app-parity/test_owner_staging_beta_worker_identity_read_only.mjs
   windows-npx-command-mock:
     runs-on: windows-latest
     timeout-minutes: 5
