@@ -1,3 +1,9 @@
+## Nov 25 21:23 CST — four-target hosted script-level binding evidence and exact STAGING blocker
+
+Owner Acer provided full sanitized `FIRE_G4_BINDING_NAMES_READ_ONLY_CAPTURE`: all four expected D1 identities match, zero wrong-target auth names, zero R2 and unreviewed binding types. QA both expected auth names present; STAGING session secret present, admin password hash absent; DR and NEW LIVE both expected auth names absent (remain dark). Follow-up owner screenshot of GET settings name/type projection confirms STAGING exactly `DB` (d1), `FIRE_SESSION_SECRET` and `STRIPE_SECRET_KEY` (secret_text). Stripe key mode/value NOT established; do not expose, delete or alter serving credentials. Provider reads only; no writes, no activation, no secret values output. Script-level metadata is not version-pinned or Access enforcement proof. Preserve existing serving version and consumed locks; no repeated binding checks. G4-04/G4-07 remain open; 57/95, 5/10 gates accepted. Next: reconcile exact local compiled candidate provenance and prepare fresh separately authorized inactive upload preserving DB/session and disabling Stripe for candidate only.
+
+---
+
 <!-- FIRE-G4-STAGING-ID-PHYSICAL-20261125 -->
 ## Nov 25 21:17 CST — owner Acer STAGING Cloudflare Worker ID/name physical proof PASS (no provider write)
 
