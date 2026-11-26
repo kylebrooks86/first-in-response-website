@@ -1,3 +1,11 @@
+## November 25 — G6-03 anonymous denial-body privacy probe saved (NO DEPLOY)
+
+- [x] Supplemental engineering gap addressed on active main-target DRAFT PR #282 code/test SHA [30fe9ad](https://github.com/kylebrooks86/first-in-response-website/commit/30fe9ad0181793b49a22dc012ed29698aadd02d0): owner-run QA-only `node business-app-parity/owner_gate6_hosted_readonly.mjs --check-denial-bodies` now checks four previously status-verified owner GET APIs for strict constant-size `401 {"error":"Unauthorized"}` response bodies, JSON type, private/no-store caching, session Vary and nosniff. The new proof prints only path/status/booleans, stops on oversized/malformed replies and sends no cookies, private links, logins, SQL, Stripe requests or provider writes. Companion offline tests cover positive, PII-bearing/oversized denial, nonprivate cache and network-failure cases. Original owner interactive synthetic share-link mode is preserved.
+- [ ] **Original G6-03 remains OPEN:** Nov25 earlier owner Acer 12/12 anonymous/invalid-cookie status checks were already accepted; do not repeat. New tool was authored only; hosted body/privacy result is NOT yet observed and true expired *signed* cookie denial is separately unproven. Offline CI on this commit must be independently read before PASS. No original numbered item or formal gate is newly accepted from source-only development.
+- **Official count stays 57/95 accepted, 38 remaining, 5/10 formal gates G1/G2/G3/G7/G8 accepted.** STAGING/G9 consumed attempt locks remain no-retry; no deployment, merge, Worker/Access/SQL/Stripe/payment/R2 change, new LIVE remains DARK, Job #0001 untouched.
+
+---
+
 ## November 25 — 57/95, 38 open; G5-05/G5-06 OWNER ACCEPTED
 
 [Owner acceptance and evidence](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180055098); [checklist commit](https://github.com/kylebrooks86/first-in-response-website/commit/6d903fc81485bd58c9a53aa2e97bfcc5ebfa0945). Prior discount/rate and customer relationship tests accepted by owner, not fresh independent inspection of missing saved records. Actual hosted QA refund and authenticated access passed on version 316984f9-07b7-4859-acc2-492e1ca951c6; ledger $240 principal/$27 net tips. No repeat. G5 remains open 4/8; G1/G2/G3/G7/G8 accepted. No provider changes. NEW LIVE dark.

@@ -1,3 +1,11 @@
+## November 25 — G6-03 anonymous denial-body privacy probe saved (NO DEPLOY)
+
+- [x] Supplemental engineering gap addressed on active main-target DRAFT PR #282 code/test SHA [30fe9ad](https://github.com/kylebrooks86/first-in-response-website/commit/30fe9ad0181793b49a22dc012ed29698aadd02d0): owner-run QA-only `node business-app-parity/owner_gate6_hosted_readonly.mjs --check-denial-bodies` now checks four previously status-verified owner GET APIs for strict constant-size `401 {"error":"Unauthorized"}` response bodies, JSON type, private/no-store caching, session Vary and nosniff. The new proof prints only path/status/booleans, stops on oversized/malformed replies and sends no cookies, private links, logins, SQL, Stripe requests or provider writes. Companion offline tests cover positive, PII-bearing/oversized denial, nonprivate cache and network-failure cases. Original owner interactive synthetic share-link mode is preserved.
+- [ ] **Original G6-03 remains OPEN:** Nov25 earlier owner Acer 12/12 anonymous/invalid-cookie status checks were already accepted; do not repeat. New tool was authored only; hosted body/privacy result is NOT yet observed and true expired *signed* cookie denial is separately unproven. Offline CI on this commit must be independently read before PASS. No original numbered item or formal gate is newly accepted from source-only development.
+- **Official count stays 57/95 accepted, 38 remaining, 5/10 formal gates G1/G2/G3/G7/G8 accepted.** STAGING/G9 consumed attempt locks remain no-retry; no deployment, merge, Worker/Access/SQL/Stripe/payment/R2 change, new LIVE remains DARK, Job #0001 untouched.
+
+---
+
 ## November 25 — G5-05 and G5-06 owner accepted; 57/95, 38 open, 5/10 gates
 
 https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7180055098 — Prior functional tests credited by explicit owner acceptance; no duplicate tests. Gate 5 remains open (4/8). G6 security and all other open criteria unaffected. Historical counts below preserved.
