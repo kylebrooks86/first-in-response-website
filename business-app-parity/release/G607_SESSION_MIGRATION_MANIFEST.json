@@ -1,0 +1,663 @@
+{
+  "candidate": "G6-07-session-revocation",
+  "remoteMigrationAuthorized": false,
+  "deploymentAuthorized": false,
+  "environments": {
+    "qa": {
+      "migrationCount": 26,
+      "migrations": [
+        {
+          "id": 1,
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050",
+          "gitBlobSha1": "6fe91db0c425c7af3160211278153acc720aa05a"
+        },
+        {
+          "id": 2,
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b",
+          "gitBlobSha1": "e807e23c29b428366bcf281f2b63ea0cf2ba2efb"
+        },
+        {
+          "id": 3,
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09",
+          "gitBlobSha1": "2e1da24c23cab7271d2183c66f94534af508628b"
+        },
+        {
+          "id": 4,
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0",
+          "gitBlobSha1": "b4cdefd5fb1b2a3526027d6c7b0bc52f1896c675"
+        },
+        {
+          "id": 5,
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b",
+          "gitBlobSha1": "406dc8b47511f4d4938e2700638f2aade46bd558"
+        },
+        {
+          "id": 6,
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0",
+          "gitBlobSha1": "ea58cc5fa8fe24acdce87f5c38dcc7e830598e8b"
+        },
+        {
+          "id": 7,
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde",
+          "gitBlobSha1": "f05fdb817400f4f04c6abfaa4c42a3489d323fdb"
+        },
+        {
+          "id": 8,
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda",
+          "gitBlobSha1": "a1a9cf381d5d71368fc3bbdbad75028f4f32fbe4"
+        },
+        {
+          "id": 9,
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e",
+          "gitBlobSha1": "773696b06f18e767ece661cfe94cee91f08cd8ba"
+        },
+        {
+          "id": 10,
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa",
+          "gitBlobSha1": "bb9d794f23bb036359e700197d12a4d67f981f1d"
+        },
+        {
+          "id": 11,
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95",
+          "gitBlobSha1": "af66be4021276149cb75db53943084b46c98aceb"
+        },
+        {
+          "id": 12,
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412",
+          "gitBlobSha1": "59e0bf1a3cd2b07e5f06d713c48f7d5173d79e73"
+        },
+        {
+          "id": 13,
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3",
+          "gitBlobSha1": "db700b2609f543a497b2ed0ce247c9db3aaf87cf"
+        },
+        {
+          "id": 14,
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e",
+          "gitBlobSha1": "50e9f90335b225e6f7a2bd7d83939b688cc23c20"
+        },
+        {
+          "id": 15,
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e",
+          "gitBlobSha1": "e59a4270ab9ba3779120384285b3f0b8288fe526"
+        },
+        {
+          "id": 16,
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4",
+          "gitBlobSha1": "904da8dde374eb2ec722f20b84f0b8c8564b42d0"
+        },
+        {
+          "id": 17,
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb",
+          "gitBlobSha1": "29255ce812bbef926b77a510fc7bda7a4ea49b0f"
+        },
+        {
+          "id": 18,
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37",
+          "gitBlobSha1": "138c56c30a4267790f015f3710c1ee5a944a2368"
+        },
+        {
+          "id": 19,
+          "name": "0018_payment_refunds.sql",
+          "sha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70",
+          "gitBlobSha1": "7c117a31e82849a40676b860f564d6bd9f94d57b"
+        },
+        {
+          "id": 20,
+          "name": "0019_refund_ledger_unique.sql",
+          "sha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4",
+          "gitBlobSha1": "02903910851d495ae72d264c4ab6ecb0e1cf3f4e"
+        },
+        {
+          "id": 21,
+          "name": "0020_notification_lifecycle_unique.sql",
+          "sha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb",
+          "gitBlobSha1": "e7ffba84306ce939e7f1da7ebd30fb56579943c0"
+        },
+        {
+          "id": 22,
+          "name": "0021_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2",
+          "gitBlobSha1": "bcd94bcab354e7d6566e95b367c08e2b7d53f0a3"
+        },
+        {
+          "id": 23,
+          "name": "0022_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710",
+          "gitBlobSha1": "da0f5382947984da5036273e87bbbbe9bdcb43a6"
+        },
+        {
+          "id": 24,
+          "name": "0023_deposit_policy_events.sql",
+          "sha256": "b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99",
+          "gitBlobSha1": "0b3d257ebec85e7e1abefa39051e5f808b844cc0"
+        },
+        {
+          "id": 25,
+          "name": "0024_deposit_agreement_snapshots.sql",
+          "sha256": "95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e",
+          "gitBlobSha1": "01d8405e7d44dbf0924ab819fbf82d7f9165fa8d"
+        },
+        {
+          "id": 26,
+          "name": "0025_owner_auth_sessions.sql",
+          "sha256": "6e183116a58e50c55a6225582a429c6a2b1aadbfa409b8df138c1c3a637b9e95",
+          "gitBlobSha1": "e02a210faa6f0c48c1880fe7236ed0ef708b99c1"
+        }
+      ]
+    },
+    "independent-staging": {
+      "migrationCount": 26,
+      "migrations": [
+        {
+          "id": 1,
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050",
+          "gitBlobSha1": "6fe91db0c425c7af3160211278153acc720aa05a"
+        },
+        {
+          "id": 2,
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b",
+          "gitBlobSha1": "e807e23c29b428366bcf281f2b63ea0cf2ba2efb"
+        },
+        {
+          "id": 3,
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09",
+          "gitBlobSha1": "2e1da24c23cab7271d2183c66f94534af508628b"
+        },
+        {
+          "id": 4,
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0",
+          "gitBlobSha1": "b4cdefd5fb1b2a3526027d6c7b0bc52f1896c675"
+        },
+        {
+          "id": 5,
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b",
+          "gitBlobSha1": "406dc8b47511f4d4938e2700638f2aade46bd558"
+        },
+        {
+          "id": 6,
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0",
+          "gitBlobSha1": "ea58cc5fa8fe24acdce87f5c38dcc7e830598e8b"
+        },
+        {
+          "id": 7,
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde",
+          "gitBlobSha1": "f05fdb817400f4f04c6abfaa4c42a3489d323fdb"
+        },
+        {
+          "id": 8,
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda",
+          "gitBlobSha1": "a1a9cf381d5d71368fc3bbdbad75028f4f32fbe4"
+        },
+        {
+          "id": 9,
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e",
+          "gitBlobSha1": "773696b06f18e767ece661cfe94cee91f08cd8ba"
+        },
+        {
+          "id": 10,
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa",
+          "gitBlobSha1": "bb9d794f23bb036359e700197d12a4d67f981f1d"
+        },
+        {
+          "id": 11,
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95",
+          "gitBlobSha1": "af66be4021276149cb75db53943084b46c98aceb"
+        },
+        {
+          "id": 12,
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412",
+          "gitBlobSha1": "59e0bf1a3cd2b07e5f06d713c48f7d5173d79e73"
+        },
+        {
+          "id": 13,
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3",
+          "gitBlobSha1": "db700b2609f543a497b2ed0ce247c9db3aaf87cf"
+        },
+        {
+          "id": 14,
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e",
+          "gitBlobSha1": "50e9f90335b225e6f7a2bd7d83939b688cc23c20"
+        },
+        {
+          "id": 15,
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e",
+          "gitBlobSha1": "e59a4270ab9ba3779120384285b3f0b8288fe526"
+        },
+        {
+          "id": 16,
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4",
+          "gitBlobSha1": "904da8dde374eb2ec722f20b84f0b8c8564b42d0"
+        },
+        {
+          "id": 17,
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb",
+          "gitBlobSha1": "29255ce812bbef926b77a510fc7bda7a4ea49b0f"
+        },
+        {
+          "id": 18,
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37",
+          "gitBlobSha1": "138c56c30a4267790f015f3710c1ee5a944a2368"
+        },
+        {
+          "id": 19,
+          "name": "0018_payment_refunds.sql",
+          "sha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70",
+          "gitBlobSha1": "7c117a31e82849a40676b860f564d6bd9f94d57b"
+        },
+        {
+          "id": 20,
+          "name": "0019_refund_ledger_unique.sql",
+          "sha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4",
+          "gitBlobSha1": "02903910851d495ae72d264c4ab6ecb0e1cf3f4e"
+        },
+        {
+          "id": 21,
+          "name": "0020_notification_lifecycle_unique.sql",
+          "sha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb",
+          "gitBlobSha1": "e7ffba84306ce939e7f1da7ebd30fb56579943c0"
+        },
+        {
+          "id": 22,
+          "name": "0021_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2",
+          "gitBlobSha1": "bcd94bcab354e7d6566e95b367c08e2b7d53f0a3"
+        },
+        {
+          "id": 23,
+          "name": "0022_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710",
+          "gitBlobSha1": "da0f5382947984da5036273e87bbbbe9bdcb43a6"
+        },
+        {
+          "id": 24,
+          "name": "0023_deposit_policy_events.sql",
+          "sha256": "b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99",
+          "gitBlobSha1": "0b3d257ebec85e7e1abefa39051e5f808b844cc0"
+        },
+        {
+          "id": 25,
+          "name": "0024_deposit_agreement_snapshots.sql",
+          "sha256": "95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e",
+          "gitBlobSha1": "01d8405e7d44dbf0924ab819fbf82d7f9165fa8d"
+        },
+        {
+          "id": 26,
+          "name": "0025_owner_auth_sessions.sql",
+          "sha256": "6e183116a58e50c55a6225582a429c6a2b1aadbfa409b8df138c1c3a637b9e95",
+          "gitBlobSha1": "e02a210faa6f0c48c1880fe7236ed0ef708b99c1"
+        }
+      ]
+    },
+    "independent-dr": {
+      "migrationCount": 27,
+      "migrations": [
+        {
+          "id": 1,
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050",
+          "gitBlobSha1": "6fe91db0c425c7af3160211278153acc720aa05a"
+        },
+        {
+          "id": 2,
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b",
+          "gitBlobSha1": "e807e23c29b428366bcf281f2b63ea0cf2ba2efb"
+        },
+        {
+          "id": 3,
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09",
+          "gitBlobSha1": "2e1da24c23cab7271d2183c66f94534af508628b"
+        },
+        {
+          "id": 4,
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0",
+          "gitBlobSha1": "b4cdefd5fb1b2a3526027d6c7b0bc52f1896c675"
+        },
+        {
+          "id": 5,
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b",
+          "gitBlobSha1": "406dc8b47511f4d4938e2700638f2aade46bd558"
+        },
+        {
+          "id": 6,
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0",
+          "gitBlobSha1": "ea58cc5fa8fe24acdce87f5c38dcc7e830598e8b"
+        },
+        {
+          "id": 7,
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde",
+          "gitBlobSha1": "f05fdb817400f4f04c6abfaa4c42a3489d323fdb"
+        },
+        {
+          "id": 8,
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda",
+          "gitBlobSha1": "a1a9cf381d5d71368fc3bbdbad75028f4f32fbe4"
+        },
+        {
+          "id": 9,
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e",
+          "gitBlobSha1": "773696b06f18e767ece661cfe94cee91f08cd8ba"
+        },
+        {
+          "id": 10,
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa",
+          "gitBlobSha1": "bb9d794f23bb036359e700197d12a4d67f981f1d"
+        },
+        {
+          "id": 11,
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95",
+          "gitBlobSha1": "af66be4021276149cb75db53943084b46c98aceb"
+        },
+        {
+          "id": 12,
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412",
+          "gitBlobSha1": "59e0bf1a3cd2b07e5f06d713c48f7d5173d79e73"
+        },
+        {
+          "id": 13,
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3",
+          "gitBlobSha1": "db700b2609f543a497b2ed0ce247c9db3aaf87cf"
+        },
+        {
+          "id": 14,
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e",
+          "gitBlobSha1": "50e9f90335b225e6f7a2bd7d83939b688cc23c20"
+        },
+        {
+          "id": 15,
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e",
+          "gitBlobSha1": "e59a4270ab9ba3779120384285b3f0b8288fe526"
+        },
+        {
+          "id": 16,
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4",
+          "gitBlobSha1": "904da8dde374eb2ec722f20b84f0b8c8564b42d0"
+        },
+        {
+          "id": 17,
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb",
+          "gitBlobSha1": "29255ce812bbef926b77a510fc7bda7a4ea49b0f"
+        },
+        {
+          "id": 18,
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37",
+          "gitBlobSha1": "138c56c30a4267790f015f3710c1ee5a944a2368"
+        },
+        {
+          "id": 19,
+          "name": "0018_payment_refunds.sql",
+          "sha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70",
+          "gitBlobSha1": "7c117a31e82849a40676b860f564d6bd9f94d57b"
+        },
+        {
+          "id": 20,
+          "name": "0019_refund_ledger_unique.sql",
+          "sha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4",
+          "gitBlobSha1": "02903910851d495ae72d264c4ab6ecb0e1cf3f4e"
+        },
+        {
+          "id": 21,
+          "name": "0020_notification_lifecycle_unique.sql",
+          "sha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb",
+          "gitBlobSha1": "e7ffba84306ce939e7f1da7ebd30fb56579943c0"
+        },
+        {
+          "id": 22,
+          "name": "0021_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2",
+          "gitBlobSha1": "bcd94bcab354e7d6566e95b367c08e2b7d53f0a3"
+        },
+        {
+          "id": 23,
+          "name": "0022_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710",
+          "gitBlobSha1": "da0f5382947984da5036273e87bbbbe9bdcb43a6"
+        },
+        {
+          "id": 24,
+          "name": "0023_deposit_policy_events.sql",
+          "sha256": "b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99",
+          "gitBlobSha1": "0b3d257ebec85e7e1abefa39051e5f808b844cc0"
+        },
+        {
+          "id": 25,
+          "name": "0024_deposit_agreement_snapshots.sql",
+          "sha256": "95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e",
+          "gitBlobSha1": "01d8405e7d44dbf0924ab819fbf82d7f9165fa8d"
+        },
+        {
+          "id": 26,
+          "name": "0025_independent_permanent_numbers.sql",
+          "sha256": "7d825f52cd44f1365f2633ec7bc4da1a8f0e5cc60d47b2ac64382b1d575edd34",
+          "gitBlobSha1": "a6147fb9ac22eb35a68628afd2495b6cc07be77b"
+        },
+        {
+          "id": 27,
+          "name": "0026_owner_auth_sessions.sql",
+          "sha256": "6e183116a58e50c55a6225582a429c6a2b1aadbfa409b8df138c1c3a637b9e95",
+          "gitBlobSha1": "e02a210faa6f0c48c1880fe7236ed0ef708b99c1"
+        }
+      ]
+    },
+    "independent-live": {
+      "migrationCount": 27,
+      "migrations": [
+        {
+          "id": 1,
+          "name": "0000_wise_namora.sql",
+          "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050",
+          "gitBlobSha1": "6fe91db0c425c7af3160211278153acc720aa05a"
+        },
+        {
+          "id": 2,
+          "name": "0001_elite_cammi.sql",
+          "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b",
+          "gitBlobSha1": "e807e23c29b428366bcf281f2b63ea0cf2ba2efb"
+        },
+        {
+          "id": 3,
+          "name": "0002_tearful_ink.sql",
+          "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09",
+          "gitBlobSha1": "2e1da24c23cab7271d2183c66f94534af508628b"
+        },
+        {
+          "id": 4,
+          "name": "0003_absent_dracula.sql",
+          "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0",
+          "gitBlobSha1": "b4cdefd5fb1b2a3526027d6c7b0bc52f1896c675"
+        },
+        {
+          "id": 5,
+          "name": "0004_volatile_fenris.sql",
+          "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b",
+          "gitBlobSha1": "406dc8b47511f4d4938e2700638f2aade46bd558"
+        },
+        {
+          "id": 6,
+          "name": "0005_unknown_king_cobra.sql",
+          "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0",
+          "gitBlobSha1": "ea58cc5fa8fe24acdce87f5c38dcc7e830598e8b"
+        },
+        {
+          "id": 7,
+          "name": "0006_open_solo.sql",
+          "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde",
+          "gitBlobSha1": "f05fdb817400f4f04c6abfaa4c42a3489d323fdb"
+        },
+        {
+          "id": 8,
+          "name": "0007_open_bloodaxe.sql",
+          "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda",
+          "gitBlobSha1": "a1a9cf381d5d71368fc3bbdbad75028f4f32fbe4"
+        },
+        {
+          "id": 9,
+          "name": "0008_typical_tomorrow_man.sql",
+          "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e",
+          "gitBlobSha1": "773696b06f18e767ece661cfe94cee91f08cd8ba"
+        },
+        {
+          "id": 10,
+          "name": "0009_spicy_micromax.sql",
+          "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa",
+          "gitBlobSha1": "bb9d794f23bb036359e700197d12a4d67f981f1d"
+        },
+        {
+          "id": 11,
+          "name": "0010_discount_mode.sql",
+          "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95",
+          "gitBlobSha1": "af66be4021276149cb75db53943084b46c98aceb"
+        },
+        {
+          "id": 12,
+          "name": "0011_editable_invoices.sql",
+          "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412",
+          "gitBlobSha1": "59e0bf1a3cd2b07e5f06d713c48f7d5173d79e73"
+        },
+        {
+          "id": 13,
+          "name": "0012_invoice_revisions.sql",
+          "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3",
+          "gitBlobSha1": "db700b2609f543a497b2ed0ce247c9db3aaf87cf"
+        },
+        {
+          "id": 14,
+          "name": "0013_checkout_sessions.sql",
+          "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e",
+          "gitBlobSha1": "50e9f90335b225e6f7a2bd7d83939b688cc23c20"
+        },
+        {
+          "id": 15,
+          "name": "0014_notification_resolution.sql",
+          "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e",
+          "gitBlobSha1": "e59a4270ab9ba3779120384285b3f0b8288fe526"
+        },
+        {
+          "id": 16,
+          "name": "0015_single_open_checkout.sql",
+          "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4",
+          "gitBlobSha1": "904da8dde374eb2ec722f20b84f0b8c8564b42d0"
+        },
+        {
+          "id": 17,
+          "name": "0016_notification_resolution_note.sql",
+          "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb",
+          "gitBlobSha1": "29255ce812bbef926b77a510fc7bda7a4ea49b0f"
+        },
+        {
+          "id": 18,
+          "name": "0017_one_invoice_per_estimate.sql",
+          "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37",
+          "gitBlobSha1": "138c56c30a4267790f015f3710c1ee5a944a2368"
+        },
+        {
+          "id": 19,
+          "name": "0018_payment_refunds.sql",
+          "sha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70",
+          "gitBlobSha1": "7c117a31e82849a40676b860f564d6bd9f94d57b"
+        },
+        {
+          "id": 20,
+          "name": "0019_refund_ledger_unique.sql",
+          "sha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4",
+          "gitBlobSha1": "02903910851d495ae72d264c4ab6ecb0e1cf3f4e"
+        },
+        {
+          "id": 21,
+          "name": "0020_notification_lifecycle_unique.sql",
+          "sha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb",
+          "gitBlobSha1": "e7ffba84306ce939e7f1da7ebd30fb56579943c0"
+        },
+        {
+          "id": 22,
+          "name": "0021_manual_processing_fees.sql",
+          "sha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2",
+          "gitBlobSha1": "bcd94bcab354e7d6566e95b367c08e2b7d53f0a3"
+        },
+        {
+          "id": 23,
+          "name": "0022_stripe_provider_uniqueness.sql",
+          "sha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710",
+          "gitBlobSha1": "da0f5382947984da5036273e87bbbbe9bdcb43a6"
+        },
+        {
+          "id": 24,
+          "name": "0023_deposit_policy_events.sql",
+          "sha256": "b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99",
+          "gitBlobSha1": "0b3d257ebec85e7e1abefa39051e5f808b844cc0"
+        },
+        {
+          "id": 25,
+          "name": "0024_deposit_agreement_snapshots.sql",
+          "sha256": "95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e",
+          "gitBlobSha1": "01d8405e7d44dbf0924ab819fbf82d7f9165fa8d"
+        },
+        {
+          "id": 26,
+          "name": "0025_independent_permanent_numbers.sql",
+          "sha256": "7d825f52cd44f1365f2633ec7bc4da1a8f0e5cc60d47b2ac64382b1d575edd34",
+          "gitBlobSha1": "a6147fb9ac22eb35a68628afd2495b6cc07be77b"
+        },
+        {
+          "id": 27,
+          "name": "0026_owner_auth_sessions.sql",
+          "sha256": "6e183116a58e50c55a6225582a429c6a2b1aadbfa409b8df138c1c3a637b9e95",
+          "gitBlobSha1": "e02a210faa6f0c48c1880fe7236ed0ef708b99c1"
+        }
+      ]
+    }
+  }
+}
