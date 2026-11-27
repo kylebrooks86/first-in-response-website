@@ -49,6 +49,11 @@ const trustedTriggerSql=new Map([
 let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
+const sessionSql=readFileSync(new URL(
+ '../../adapters/independent-live/drizzle/0026_owner_auth_sessions.sql',
+ import.meta.url),'utf8');
+const sessionTableSql=sessionSql.split(';')[0];
+const sessionIndexSql=sessionSql.split(';')[1].trim();
 const create=(override={})=>{
  const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:27},
   journalRows:applied.map(row=>({...row})),serialRows:0,
@@ -70,13 +75,15 @@ const create=(override={})=>{
    ({results:v.validCustomerSchema?
     ['fire_customer_numbers','fire_customer_numbers_no_update','fire_customer_numbers_no_delete'].map(name=>({name})):
     [{name:'fire_customer_numbers'}]}),first:async()=>{
+   if(sql.includes("name='owner_auth_sessions_expiry'"))
+    return {sql:v.sessionIndexSql??sessionIndexSql};
    if(sql.includes('AS tables')&&sql.includes('AS triggers'))return {
     tables:v.validSchema?2:1,triggers:v.validSchema?4:3};
    if(sql.includes('AS invalid'))return {invalid:v.validCoverage?0:1};
    if(sql.includes('AS missing'))return {missing:v.validCustomerCoverage?0:1};
    if(sql.includes('AS entries')&&sql.includes("type='table'"))
     return {entries:v.tables.map(item=>typeof item==='string'?
-     item+String.fromCharCode(31)+'CREATE TABLE '+item+' (id TEXT)':
+     item+String.fromCharCode(31)+(item==='owner_auth_sessions'?(v.sessionTableSql??sessionTableSql):'CREATE TABLE '+item+' (id TEXT)'):
      item.name+String.fromCharCode(31)+item.sql).join(String.fromCharCode(30))};
    if(sql.includes("GROUP_CONCAT(name, ',') AS names")&&sql.includes("type='trigger'"))
     return {names:v.triggers.join(',')};
@@ -281,6 +288,14 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
  rows:{d1_migrations:26}
 }).db,env),'pre-session migration journal blocks activation');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ sessionTableSql:sessionTableSql.replace('session_id TEXT NOT NULL','session_id TEXT')
+}).db,env),'nullable session identifier blocks activation');
+
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ sessionIndexSql:sessionIndexSql.replace('(expires_at)','(scope)')
+}).db,env),'incorrect session index definition blocks activation');
+
 const unavailable=create();unavailable.db.prepare=()=>{throw Error('D1 offline')};
 await blocked(()=>inspectNewLiveFirstJobCleanStart(unavailable.db,env),
  'unreadable target fails closed');

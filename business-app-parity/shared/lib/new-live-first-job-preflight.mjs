@@ -1,3 +1,4 @@
+import {assertSessionSchemaDefinitions} from './recovered-session-safety.mjs';
 /**
  * FIRE NEW LIVE #0001 PRE-ACTIVATION read-only D1 inspection.
  *
@@ -87,6 +88,14 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  if(appTables.length!==expected.length+1||!appTables.includes('d1_migrations')||
     appTables.some(name=>!known.has(name)))
   stop('unexpected or missing application tables; full migration/schema review required');
+ const sessionTable=entries.find(x=>x.name==='owner_auth_sessions');
+ const sessionIndex=await one(db,
+  "SELECT sql FROM sqlite_master WHERE type='index' AND name='owner_auth_sessions_expiry' AND tbl_name='owner_auth_sessions'");
+ try{
+  assertSessionSchemaDefinitions(sessionTable?.sql,sessionIndex?.sql);
+ }catch{
+  stop('authentication session schema differs from reviewed source');
+ }
  const trig=await one(db,
   "SELECT GROUP_CONCAT(name, ',') AS names FROM sqlite_master WHERE type='trigger'");
  if(!trig||typeof trig.names!=='string')stop('immutable trigger inventory unavailable');
