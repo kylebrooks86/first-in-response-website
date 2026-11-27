@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-18",
+  "baseCommit": "799e1986a52dbdb439089a3caca79e8a92f00d41",
+  "changes": [
+    "Shared responsive photo buttons now wrap/stack with bounded widths, readable multiline labels and 44px minimum controls; toolbar grid cannot impose a narrow-screen minimum width",
+    "Messages tab has persistent + Compose Message button opening existing MessageComposer with current customer, latest estimate, text/email templates, draft protection and same history callback",
+    "QA-only sign-in error stage and whitelisted error-code diagnostics exclude credentials, IPs, cookies, SQL and arbitrary exception details; no auth bypass/retry introduced",
+    "Atomic rollback framework fixture uses unique synthetic contact identity so new duplicate protection does not preempt deliberate rollback injection"
+  ],
+  "tests": {
+    "fullBuiltQaProfileHttpsNativeD1AndIndexedDB": {
+      "passed": 97,
+      "total": 97,
+      "widths": [
+        320,
+        390,
+        768,
+        1366
+      ],
+      "nativeIOS": false
+    },
+    "actualPhotoReactOfflineBackupRecovery": {
+      "passed": 35,
+      "total": 35
+    },
+    "actualFrameworkMessagingHistoryAndAtomicAddressSnapshots": {
+      "passed": 16,
+      "total": 16
+    },
+    "qaAuthContractsAndDiagnosticPrivacy": {
+      "passed": 33,
+      "total": 33
+    },
+    "typechecks": {
+      "passed": 4,
+      "total": 4
+    },
+    "builds": {
+      "passed": 4,
+      "total": 4
+    },
+    "processingFinancialSuites": {
+      "passed": 4,
+      "total": 4
+    },
+    "sourceParity": [
+      {
+        "candidate": "live",
+        "exactSourceFiles": 361,
+        "adapterFiles": 39,
+        "migrationFiles": 21,
+        "sourceFingerprint": "bdf1ec0d8567f63682e95e3189e1b313567b705c4c7d76873bc23640ea0ab6f7",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      },
+      {
+        "candidate": "doomsday",
+        "exactSourceFiles": 366,
+        "adapterFiles": 44,
+        "migrationFiles": 23,
+        "sourceFingerprint": "7436b65ae25fe43ebf4e643d47d4f404b2fc0c55e4850cc074a57e2616a5be03",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      },
+      {
+        "candidate": "staging",
+        "exactSourceFiles": 362,
+        "adapterFiles": 40,
+        "migrationFiles": 21,
+        "sourceFingerprint": "a64007057fef5fe9c7bed83d6552a9e5ef5c7b1a872b6b1a708c06229f7d4d77",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      },
+      {
+        "candidate": "qa",
+        "exactSourceFiles": 366,
+        "adapterFiles": 46,
+        "migrationFiles": 23,
+        "sourceFingerprint": "6720a8f4b03f926ea496f15fe40d197cd726ad37fbb3d6234c5cb5290f358c84",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      }
+    ],
+    "compiledQaSourceParity": {
+      "candidate": "qa",
+      "exactSourceFiles": 366,
+      "adapterFiles": 46,
+      "migrationFiles": 23,
+      "sourceFingerprint": "6720a8f4b03f926ea496f15fe40d197cd726ad37fbb3d6234c5cb5290f358c84",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false
+    }
+  },
+  "ciAtPreparation": {
+    "lookupCommit": "799e1986a52dbdb439089a3caca79e8a92f00d41",
+    "runId": 39102205089,
+    "successfulJobs": 6,
+    "totalJobs": 7,
+    "blockingJob": "Intermittent 503 in native QA sign-in protection, initial login or failure recording; fail-closed assertion retained; sanitized diagnostics added for next run",
+    "fullCiPassClaimed": false
+  },
+  "deployed": false,
+  "hostedDataChanged": false,
+  "stripeOrSecretsChanged": false,
+  "migrationsChanged": false,
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "scope": "FIRE Business App Doomsday build-path drift inspection; read-only",
+  "asOf": "2026-10-09",
+  "parent": "40c2de5922a5d5777706292b2baefd8a628eb9be",
+  "remoteHeadAtStart": "40c2de5922a5d5777706292b2baefd8a628eb9be",
+  "localCleanAtStart": true,
+  "deployedIdentityAttempt": {
+    "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev/api/dr-capture-identity",
+    "source": "documented authenticated capture endpoint in dr-parity-overlays/INDEPENDENT_DEPLOYMENT.md",
+    "result": "Browser reported net::ERR_BLOCKED_BY_CLIENT",
+    "classification": "browser access limitation; not site outage or bot detection; no HTTP status established",
+    "retried": false,
+    "actualDeployedCommitVerified": false
+  },
+  "cloudflareDeploymentConnectorAvailable": false,
+  "savedBuildPath": {
+    "expectedBranch": "fire-calculator-exact-live-clone",
+    "sealedRelease": "v138",
+    "prepareScript": "scripts/prepare-fire-v138-dr-no-r2.sh",
+    "deployScript": "scripts/deploy-fire-dr-staging.sh",
+    "usesCurrentParityCandidate": false,
+    "appDirectory": "fire-app-dr",
+    "remoteMigrationsAutomaticallyAppliedByDeployWrapper": true,
+    "executed": false
+  },
+  "sourceComparison": {
+    "legacyReferenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
+    "legacyReferenceIsDeployedProof": false,
+    "features": [
+      {
+        "feature": "Insights navigation/view",
+        "sharedCandidatePresent": true,
+        "legacyReferencePresent": false
+      },
+      {
+        "feature": "Home dashboard weather",
+        "sharedCandidatePresent": true,
+        "legacyReferencePresent": false
+      }
+    ],
+    "prepareApplyOverlaysScanned": 15,
+    "featureMarkerMatchesInScannedOverlays": 0,
+    "markerAbsenceLimit": "literal source markers; not execution proof or exhaustive semantic verification",
+    "candidateConsumptionGapVerified": true,
+    "meaning": "saved deployment path does not consume parity candidate; consistent with observed dashboard gaps but actual deployed cause/commit unsealed"
+  },
+  "fileHashes": {
+    "scripts/prepare-fire-v138-dr-no-r2.sh": "39742e3045da3397830b379a94f9ac58ef89a727f5a8624ecd83286e80a9047a",
+    "scripts/deploy-fire-dr-staging.sh": "87ac1ef3479520f26ac716d5498aeab61bd27a907be6755b42bb3da075654448",
+    "scripts/apply-fire-dr-capture-identity.py": "c353a824891e67e6cb324063aea7a339933db26fa770bf033289cf55457f6391",
+    "business-app-parity/shared/app/dashboard.tsx": "1c659cb55605b5ce13b212377570901b2a6b814e9da16afee26f4ae5002a6797",
+    "business-app-parity/materialize.py": "8d09877664499f0bd63c17ea4c0c725ed24025f9f743756148eab74f12c0e414"
+  },
+  "nextImplementation": "Prepare a local-only governed build bridge for current shared candidate after validating independent PIN/session adapter; preserve sealed archive and legacy rollback path; no deploy or migration execution",
+  "releaseBlockers": [
+    "Actual Worker deployment identity",
+    "Independent PIN/session compatibility",
+    "Target hosting/build configuration",
+    "Remote schema/index/journal and isolated bindings",
+    "Sandbox routing and credentials mode",
+    "Photo capability equivalence",
+    "Matching fixture mobile/light/dark interactions",
+    "Rollback seal and explicit release authorization"
+  ],
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "remoteSchemasVerified": 0,
+  "remoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "runtimeEdited": false,
+  "remoteMutation": false,
+  "applicationTestsRerun": false
+}

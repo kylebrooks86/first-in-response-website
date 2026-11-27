@@ -1,0 +1,43 @@
+{
+  "baselineCommit": "741e9326e751a5e6479332815718dca11fc7d928",
+  "officialReleaseReadiness": {
+    "accepted": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "deployed": false,
+  "hostedMutations": false,
+  "implemented": [
+    "Shared collectible/potential/deposit/principal summary preserves revised invoices, refunds and tips",
+    "Customer and Payments views exclude unapproved quotes from collectible debt",
+    "Home visible status, viewed indicator, distinct Central creation/service dates and stale-response-safe focus/visibility refresh",
+    "Immutable native workerd HTTP test runner replaces restarting Wrangler dev proxy; no mutation retries"
+  ],
+  "localEvidence": {
+    "invoiceBalanceChecksPerCandidate": 208,
+    "candidateCount": 4,
+    "typescriptAndBuilds": 4,
+    "processingFinancialSuites": 4,
+    "finalTippingSuites": 3,
+    "databasePreflightChecksPerCandidate": 59,
+    "qaAuthChecks": 33,
+    "builtQaBaselineChecks": 47,
+    "builtQaLookupChecks": 101,
+    "builtQaProfileBalanceChecks": 110,
+    "actualDashboardOfflinePhotoFallbackChecks": 12,
+    "exactSharedSourceParity": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ]
+  },
+  "limitations": [
+    "Native local compatibility date capped to pinned workerd, not hosted semantics",
+    "No physical iPhone/iPad acceptance for this new source",
+    "Existing Payments listing cap 100 remains follow-up",
+    "Deposit scheduling enforcement, owner overrides, durable activity and notification preferences pending",
+    "Owner appointment refresh/persistence acceptance remains pending"
+  ],
+  "next": "Implement atomic deposit policy and owner exception audit with backup coverage and signed-term protections before QA release."
+}

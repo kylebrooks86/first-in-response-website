@@ -1,0 +1,638 @@
+{
+  "baseCheckpoint": "98bb6767124fc5930db501d8970d725dcf1600bf",
+  "scope": "Local synthetic photo reliability, backup input byte binding, complete-table physical rollback and device review packages",
+  "officialReleaseReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "newGatesAccepted": 0
+  },
+  "sourceHashes": {
+    "business-app-parity/shared/lib/local-photo-vault.ts": "09b29b977ce47b60b212e052550be3fa34af548be5e4d67b65a2f911904ec54d",
+    "business-app-parity/shared/components/offline-customer-photos.tsx": "25af5a9176b4955f354478c04ef9746ba1b6de6e22105b617b353e029c36bee1",
+    "business-app-parity/shared/scripts/test-physical-rollback.mjs": "b15dfa6c37655534060b25af885b83259fbbba1f45815261d0e903f5e36d6102",
+    "business-app-parity/shared/scripts/test-offline-photo-ui-browser.mjs": "20f6837adbd7bc91c9ada3787a47538226b40bc20bc6157b2ee249aaf9fd6452",
+    "business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py": "056bffe75a8210a5dd37ab6304c7fcbc8333f2a3aadf53b419249224956e2e17",
+    "business-app-parity/shared/scripts/test-offline-photo-indexeddb-browser.mjs": "0dfea8af47164da735f81b78f4517997f8343d3976f0de6cddd7015d631c2780",
+    "business-app-parity/shared/scripts/plan-complete-photo-recovery.py": "7616b55e0e25616ffad2ef2cdeb759c06d765266eef3ea5b481eefde0052dd73"
+  },
+  "tests": {
+    "live": {
+      "regressionSuiteInvocations": {
+        "passed": 21,
+        "total": 21
+      },
+      "photoUI": 31,
+      "nativeIndexedDB": 48,
+      "backupPairingUnitMethods": 15,
+      "financialRegressionSuitePassed": true,
+      "recordsRecoveryChecks": 100,
+      "typecheckPassed": true,
+      "buildPassed": true,
+      "completeTablePhysicalRollbackPassed": true,
+      "commands": [
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-local-schema-audit.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-candidate-db-preflight.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-upload-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-delete-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-offline-photo-vault.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-storage-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "python3",
+            "scripts/test-plan-complete-photo-recovery.py"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-processing-fees.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-records-recovery.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-stripe-refunds.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-stripe-isolation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-checkout-atomic-reservation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-checkout-owner-reconciliation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-manual-payment-retry-state.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-refund-retry-state.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-fire-service-catalog-pricing.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-per-job-price-overrides.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-editable-line-totals.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-physical-rollback.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-parity-gate.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/verify-synthetic-pages-package.mjs"
+          ],
+          "exitCode": 0
+        }
+      ]
+    },
+    "doomsday": {
+      "regressionSuiteInvocations": {
+        "passed": 21,
+        "total": 21
+      },
+      "photoUI": 31,
+      "nativeIndexedDB": 48,
+      "backupPairingUnitMethods": 15,
+      "financialRegressionSuitePassed": true,
+      "recordsRecoveryChecks": 100,
+      "typecheckPassed": true,
+      "buildPassed": true,
+      "completeTablePhysicalRollbackPassed": true,
+      "commands": [
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-local-schema-audit.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-candidate-db-preflight.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-upload-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-delete-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-offline-photo-vault.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-storage-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "python3",
+            "scripts/test-plan-complete-photo-recovery.py"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-processing-fees.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-records-recovery.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-stripe-refunds.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-stripe-isolation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-checkout-atomic-reservation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-checkout-owner-reconciliation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-manual-payment-retry-state.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-refund-retry-state.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-fire-service-catalog-pricing.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-per-job-price-overrides.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-editable-line-totals.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-physical-rollback.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-parity-gate.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/verify-synthetic-pages-package.mjs"
+          ],
+          "exitCode": 0
+        }
+      ]
+    },
+    "staging": {
+      "regressionSuiteInvocations": {
+        "passed": 21,
+        "total": 21
+      },
+      "photoUI": 31,
+      "nativeIndexedDB": 48,
+      "backupPairingUnitMethods": 15,
+      "financialRegressionSuitePassed": true,
+      "recordsRecoveryChecks": 100,
+      "typecheckPassed": true,
+      "buildPassed": true,
+      "completeTablePhysicalRollbackPassed": true,
+      "commands": [
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-local-schema-audit.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-candidate-db-preflight.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-upload-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-delete-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-offline-photo-vault.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-photo-storage-integrity.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "python3",
+            "scripts/test-plan-complete-photo-recovery.py"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-processing-fees.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-records-recovery.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/run-ci-regression.mjs",
+            "./test-stripe-refunds.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-stripe-isolation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-checkout-atomic-reservation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-checkout-owner-reconciliation.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-manual-payment-retry-state.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-refund-retry-state.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-fire-service-catalog-pricing.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-per-job-price-overrides.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "scripts/test-editable-line-totals.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "--experimental-sqlite",
+            "scripts/test-physical-rollback.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/test-parity-gate.mjs"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "node",
+            "scripts/verify-synthetic-pages-package.mjs"
+          ],
+          "exitCode": 0
+        }
+      ]
+    }
+  },
+  "sourceParity": {
+    "live": {
+      "candidate": "live",
+      "exactSourceFiles": 341,
+      "adapterFiles": 39,
+      "migrationFiles": 21,
+      "sourceFingerprint": "6ad304daf7718225f39425ba931611438d1da6e3f589ebf6bc47e41d03bb587e",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false,
+      "builtCandidateSourceDifferences": []
+    },
+    "doomsday": {
+      "candidate": "doomsday",
+      "exactSourceFiles": 346,
+      "adapterFiles": 44,
+      "migrationFiles": 23,
+      "sourceFingerprint": "69c458c8d62fc4659f62558b2387f22995076e0577532e5a27e98fa6e8c19ff4",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false,
+      "builtCandidateSourceDifferences": []
+    },
+    "staging": {
+      "candidate": "staging",
+      "exactSourceFiles": 342,
+      "adapterFiles": 40,
+      "migrationFiles": 21,
+      "sourceFingerprint": "d8396b12318fe24a434d38a442c9e1576622d0f21aba68e6da79244c5d81516e",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false,
+      "builtCandidateSourceDifferences": []
+    }
+  },
+  "productionDeployed": false,
+  "remoteWrites": 0,
+  "physicalDeviceAcceptance": false,
+  "stripeSandboxEndToEnd": false,
+  "restoreCLIEnabled": false,
+  "deviceReview": {
+    "live": {
+      "archive": "FIRE_Device_Review_live_90515e96980d.zip",
+      "sha256": "2908ca5512d044dbbd13d95b22d943b68da93100a26c669c797c9bd78b14f02f",
+      "fileCount": 489,
+      "sourceBuildFingerprint": "90515e96980db247e7d1467a2fc771aa128fa33d36ea00ec00e3970f8c850f09",
+      "buildId": "084024e6-6e06-42a3-a59e-e990e4ebf536",
+      "hostingConfigIncluded": false,
+      "recordsIncluded": false,
+      "publicationAuthorized": false
+    },
+    "doomsday": {
+      "archive": "FIRE_Device_Review_doomsday_0eda6a2bac5e.zip",
+      "sha256": "90c382589e666b6cf4d809bcfd456a569690c165ce9c6aadb04733ef64b8d5a5",
+      "fileCount": 500,
+      "sourceBuildFingerprint": "0eda6a2bac5e0fd2480833020fdacf339d96ee673fee4f0b69e3a1dbd9c8c110",
+      "buildId": "bdf3033b-d7d7-4b47-987b-a381e8b8832d",
+      "hostingConfigIncluded": false,
+      "recordsIncluded": false,
+      "publicationAuthorized": false
+    },
+    "staging": {
+      "archive": "FIRE_Device_Review_staging_f6d76ac157ec.zip",
+      "sha256": "9088b88f75d211de967056ecc29c2f8976fe002943342370cc91589db953cc95",
+      "fileCount": 491,
+      "sourceBuildFingerprint": "f6d76ac157ecfd5df7aeca2ca4b9160e8a28cfdb404cc350007bd4aab864c1ac",
+      "buildId": "226f07b2-608d-42e7-a4c2-33905cafe5ee",
+      "hostingConfigIncluded": false,
+      "recordsIncluded": false,
+      "publicationAuthorized": false
+    },
+    "publicationAuthorized": false,
+    "installableURL": null
+  },
+  "verificationNotes": [
+    "The repository-relative governed-deploy policy test was initially invoked from materialized candidate directories and could not find the repository wrapper. It passed once from canonical repository source. No deploy wrapper executed.",
+    "Initial local Chromium was truncated and crashed before test launch. A separately downloaded temporary Chromium 141 executable passed the actual browser tests. No app dependency lockfile changed.",
+    "Candidate source verifier runs before dependencies/build artifacts are added. Fresh source assemblies verified and every expected source file matched each built candidate.",
+    "Photo mutation pause is in-session; it is not durable upload idempotency or a permanent browser-storage guarantee."
+  ]
+}

@@ -1,0 +1,45 @@
+name: FIRE STAGING draft owner CLI safety review
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_prepare_staging_upload_cli.ps1'
+      - 'business-app-parity/owner_staging_new_inactive_version_draft_20261123.ps1'
+      - 'business-app-parity/owner_staging_beta_private_once.ps1'
+      - '.github/workflows/fire-staging-draft-owner-cli-review.yml'
+permissions:
+  contents: read
+jobs:
+  windows-source-review:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Parse Windows scripts and verify old draft lock plus new owner consent
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='business-app-parity'
+          $prep=Join-Path $root 'owner_windows_prepare_staging_upload_cli.ps1'
+          $draft=Join-Path $root 'owner_staging_new_inactive_version_draft_20261123.ps1'
+          $operator=Join-Path $root 'owner_staging_beta_private_once.ps1'
+          foreach($path in @($prep,$draft,$operator)){
+            $tokens=$null
+            $errors=$null
+            $null=[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
+            if(@($errors).Count -ne 0){throw 'FIRE draft PowerShell parser STOP'}
+          }
+          $p=Get-Content $prep -Raw
+          $d=Get-Content $draft -Raw
+          $o=Get-Content $operator -Raw
+          if($p -match 'Invoke-RestMethod|Invoke-WebRequest|versions.{0,15}upload|Import-Clixml|Remove-Item.{0,80}lock'){throw 'Preparation helper has an unexpected operation'}
+          if(-not $p.Contains('wrangler@4.162.0') -or -not $p.Contains('FIRE-STAGING-Tools')){throw 'Missing isolated CLI pin'}
+          $lock='throw ''DRAFT: execution is disabled until new exact owner approval and source review'''
+          if($d.IndexOf($lock) -lt 0 -or $d.IndexOf($lock) -gt $d.IndexOf('$consent=Read-Host')){throw 'Missing fail-closed draft execution lock'}
+          if($d -match '&\s*npx|Remove-Item.{0,80}(originalLock|lockFile)'){throw 'Unexpected npx or attempt-lock removal'}
+          if(-not $d.Contains('g404-one-inactive-version-attempt-20261122.lock') -or -not $d.Contains('g404-new-inactive-version-attempt-20261123.lock') -or -not $d.Contains('[IO.FileMode]::CreateNew')){throw 'Missing independent attempt-lock contract'}
+          if(-not $o.Contains('I AUTHORIZE ONE NEW INACTIVE STAGING UPLOAD ONLY') -or -not $o.Contains('Read-Host') -or -not $o.Contains('staging-admin-hash-dpapi.xml')){throw 'Missing guarded STAGING owner consent or private record'}
+          if(-not $o.Contains('ConvertTo-Json -Compress -Depth 2') -or -not $o.Contains('owner_staging_beta_private_once.mjs')){throw 'Private stdin-only Node handoff absent'}
+          if($o -match 'Remove-Item.{0,80}(lock|attempt)' -or -not $o.Contains('g404-new-inactive-version-attempt-20261125-reviewed.lock')){throw 'One-shot lock safety guard absent or modified'}
+          Write-Host 'FIRE_STAGING_DRAFT_SOURCE_REVIEW_PASS: Windows parser and static safety checks only; no PowerShell scripts executed'

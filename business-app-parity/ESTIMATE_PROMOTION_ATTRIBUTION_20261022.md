@@ -1,0 +1,7 @@
+# Audited saved-promotion attribution (candidate)
+
+FIRE's saved promotions remain an owner-only collection. A valid verified automatic selection is saved in a **separate**, versioned owner-only metadata row \`fire:estimate-promotion-attribution:v1:<estimate-id>\`, in the same disposable/real D1 batch as the estimate and its frozen pricing breakdown. Existing financial totals and historical estimates are not backfilled. The customer estimate continues to rely on the frozen agreed prices, not changing current promotions.
+
+A selected rule's id, name, percentage basis points or flat cents, catalog revision, Tulsa date, selected qualifying service IDs, original subtotal, customer total and deposit are captured. The quote POST must re-read the live saved catalog and refuse stale revisions, expired dates, modified service names, missing rules, and mismatched discount totals. A booking-confirmation promo cannot be recorded as an automatic discount at estimate creation without a verified booking. No customer notifications, payments, or deployment are authorized.
+
+A later owner-repriced draft must **not** retain obsolete promotion attribution as if it still applied. The draft edit route removes the current attribution in the same transaction that reprices it; accepted/signed/paid quotes remain blocked against repricing. The owner can read verified current attribution using an owner-only endpoint; never infer missing evidence from present-day settings. Release gates remain 3/10, not approval to deploy.

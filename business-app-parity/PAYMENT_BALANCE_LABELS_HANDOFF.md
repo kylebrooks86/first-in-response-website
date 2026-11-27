@@ -1,0 +1,9 @@
+# Payments unpaid value labels — October 9, 2026
+
+Payments now labels its full remaining billing value explicitly: Unpaid job value, Jobs with unpaid value, Unpaid job balances, full remaining balance. Explanation says estimates and amounts not due yet are included, while Record payment uses the amount currently due. Empty state matches this meaning. Dashboard Outstanding remains the due-now metric. Preserves deferred job visibility, manual collection, deposit exceptions, tips/refunds and customer Open balance behavior.
+
+Exactly five JSX text replacements verified by reconstructing the complete file from parent bbcdf32. Calculations, handlers, APIs and CSS unchanged. Six selected suite runs pass across three candidates: balance assertions 468/468 and mobile structural checks 33/33. Shared source 119/119; completed builds 3/3. Prior TypeScript 3/3 preserved; no type/logic changes. Exact snapshots, paths and source hash recorded in evidence. Existing release manifest remains historical and stale for newer source.
+
+Overall verified readiness: 30% (3/10 release gates). Formal deployed/mobile parity 0/32; complete remote schema/journals 0/3. No deployment, remote database write, Stripe mutation or paid resource change. Actual candidate mobile wording/wrapping remains unverified.
+
+Next bounded task: Payments Total recorded and Net tips currently sum all rows, while GET returns paid, pending and failed entries. Verify real component behavior with synthetic mixed statuses and correct received-money totals to count paid ledger entries only, preserving payment history. Separately retain the edge-case discrepancy where an approved/scheduled job with an existing invoice gets full-invoice due in the UI/dashboard while manual POST enforces deposit; reproduce before choosing a change. No migration or production publication authorized. Regular chat may independently review the five text replacements and evidence read-only.

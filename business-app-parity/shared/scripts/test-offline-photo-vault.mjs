@@ -1,0 +1,359 @@
+/** Validate the REAL offline-photo ZIP implementation, restore checks and UI wiring. */
+import assert from 'node:assert/strict';
+import {assertPhotoComparisonSameJob,eligiblePhotoComparisonAfter} from '../lib/photo-comparison-layout.mjs';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {webcrypto} from 'node:crypto';
+const require=createRequire(import.meta.url),ts=require('typescript');
+let checks=0;
+const check=(value,label)=>{assert.ok(value,label);checks++;console.log('PASS: '+label);};
+function load(path,resolveImport=()=>{throw Error('Unexpected module import')}){
+ const source=readFileSync(new URL(path,import.meta.url),'utf8');
+ const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exports={};
+ new Function('require','exports','crypto',js)((name)=>resolveImport(name),exports,webcrypto);
+ return exports;
+}
+const zip=load('../lib/photo-storage-zip.ts');
+const archive=load('../lib/offline-photo-backup.ts',name=>{
+ if(name==='./photo-storage-zip')return zip;
+ throw Error('Unexpected import '+name);
+});
+const photo=(id,customerId,category='before',text='photo bytes')=>{
+ const blob=new Blob([new TextEncoder().encode(text)],{type:'image/png'});
+ return {id,customerId,category,caption:'Synthetic test',filename:id+'.png',contentType:'image/png',sizeBytes:blob.size,createdAt:'2026-10-15T03:20:00.000Z',blob};
+};
+// Test the actual job/customer preflight without IndexedDB or hosted access.
+const vaultGuards=load('../lib/local-photo-vault.ts',name=>{
+ if(name==='./offline-photo-backup')return archive;
+ if(name==='../app/local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'live'};
+ throw Error('Unexpected job preflight dependency '+name);
+});
+const verifyJobs=vaultGuards.verifyOfflinePhotoJobOwnership;
+verifyJobs([{customerId:'customer-A'}]); // Legacy customer-only ZIP requires no job inventory.
+check(true,'Existing customer-only photos retain offline restore compatibility');
+verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}],[{id:'estimate-A',customerId:'customer-A'}]);
+check(true,'Matching authenticated saved job and customer are accepted');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}]),/authenticated job\/customer inventory/);
+check(true,'Offline customer directory cannot authorize linked-job restore');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'missing'}],[{id:'estimate-A',customerId:'customer-A'}]),/unknown job ID/);
+check(true,'An unknown job ID is rejected before any photo mutation');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-B'}],[{id:'estimate-B',customerId:'customer-B'}]),/different customer/);
+check(true,'Cross-customer saved job linkage is rejected before photo mutation');
+assert.throws(()=>verifyJobs([{customerId:'customer-A',jobId:'estimate-A'}],[{id:'estimate-A',customerId:'customer-A'},{id:'estimate-A',customerId:'customer-B'}]),/invalid or ambiguous/);
+check(true,'Duplicate or contradictory owner job inventory cannot authorize restore');
+const selectJob=vaultGuards.resolveVerifiedOfflinePhotoJobSelection;
+check(selectJob('customer-A','',[])===undefined,'Legacy customer-only capture needs no job inventory');
+check(selectJob('customer-A','estimate-A',[{id:'estimate-A',customerId:'customer-A'}])?.id==='estimate-A','Same-customer numbered job passes capture preflight');
+assert.throws(()=>selectJob('customer-A','foreign',[{id:'foreign',customerId:'customer-B'}]),/different customer/);
+check(true,'Foreign-customer job rejected before any photo writes');
+assert.throws(()=>selectJob('customer-A','missing',[{id:'estimate-A',customerId:'customer-A'}]),/unknown job ID/);
+check(true,'Unknown job selection rejected before journal');
+assert.throws(()=>selectJob('customer-A','estimate-A',[{id:'estimate-A',customerId:'customer-A'},{id:'estimate-A',customerId:'customer-A'}]),/invalid or ambiguous/);
+check(true,'Duplicate job association cannot trigger save receipt');
+assert.throws(()=>selectJob('customer-A','bad id',[]),/valid saved job/);
+check(true,'Malformed selected job is denied before capture');
+const validateCapture=vaultGuards.validateOfflinePhotoCaptureFile;
+const captureFile=new File([new Uint8Array([1,2,3])],'before.png',{type:'image/png'});
+validateCapture('customer-A','before',captureFile,'estimate-A');
+check(true,'Valid original accepted by common preflight and device write guard');
+assert.throws(()=>validateCapture('customer-A','before',new File(['bad'],'script.svg',{type:'image/svg+xml'})),/image smaller/);
+check(true,'Unsupported SVG rejected before starting photo mutation');
+assert.throws(()=>validateCapture('customer-A','before',new File([],'empty.png',{type:'image/png'})),/image smaller/);
+check(true,'Zero-byte original rejected before starting photo mutation');
+assert.throws(()=>validateCapture('customer-A','property',captureFile,'bad job id'),/valid saved job/);
+check(true,'Invalid job ID cannot be written to photo vault');
+
+
+const first=photo('img-one','customer-A','before','one synthetic photo');
+const second=photo('img-two','customer-B','after','another synthetic photo');
+// The owner-facing SAVED-FILE "verified backup" status must not approve
+// checksum-valid photos linked to missing, foreign, or unauthenticated jobs.
+// Use the real inspection module with an empty synthetic device inventory.
+const backupInspection=load('../lib/offline-photo-inspection.ts',name=>{
+ if(name==='./offline-photo-backup')return archive;
+ if(name==='./local-photo-vault')return {...vaultGuards,listOfflinePhotos:async()=>[],exactSavedPhotoMatch:async()=>true};
+ throw Error('Unexpected saved-photo inspection dependency '+name);
+});
+const jobLinked={...first,jobId:'estimate-A'};
+const jobLinkedZip=await archive.exportOfflinePhotoBackup([jobLinked]);
+const unexpectedDeviceField='FIRE_INTERNAL_FIELD_MUST_NOT_BE_EXPORTED';
+const sanitizedZip=await archive.exportOfflinePhotoBackup([
+ {...jobLinked,unreviewedInternalToken:unexpectedDeviceField}
+]);
+const sanitizedPhotos=await archive.readOfflinePhotoBackup(sanitizedZip);
+check(sanitizedPhotos.length===1&&
+ !Object.hasOwn(sanitizedPhotos[0],'unreviewedInternalToken')&&
+ !(await sanitizedZip.text()).includes(unexpectedDeviceField),
+ 'Unknown IndexedDB metadata is never leaked into a saved owner photo ZIP');
+const linkedPhotoBytes=new Uint8Array(await jobLinked.blob.arrayBuffer());
+const linkedSha=Buffer.from(await webcrypto.subtle.digest('SHA-256',linkedPhotoBytes)).toString('hex');
+const forgeManifestZip=async(extraManifest={},extraPhoto={})=>{
+ const {blob,...knownMeta}=jobLinked;
+ const photoMeta={
+  id:knownMeta.id,customerId:knownMeta.customerId,jobId:knownMeta.jobId,
+  category:knownMeta.category,caption:knownMeta.caption,
+  filename:knownMeta.filename,contentType:knownMeta.contentType,
+  sizeBytes:knownMeta.sizeBytes,createdAt:knownMeta.createdAt,
+  sha256:linkedSha,...extraPhoto
+ };
+ const manifest={
+  format:'fire-offline-photo-vault',version:1,
+  exportedAt:'2026-11-17T00:00:00.000Z',
+  requiresMatchingCustomerRecords:true,photos:[photoMeta],...extraManifest
+ };
+ const stream=zip.createStoredZip(async add=>{
+  await add('photos/'+photoMeta.id,linkedPhotoBytes);
+  await add('manifest.json',new TextEncoder().encode(JSON.stringify(manifest)));
+ });
+ return new Blob([await new Response(stream).arrayBuffer()],{type:'application/zip'});
+};
+await assert.rejects(
+ archive.readOfflinePhotoBackup(await forgeManifestZip({unreviewedInternalToken:unexpectedDeviceField})),
+ /unsupported photo archive manifest fields/
+);
+check(true,'Valid-checksum ZIP with unreviewed top-level manifest fields is rejected by browser restore');
+await assert.rejects(
+ archive.readOfflinePhotoBackup(await forgeManifestZip({}, {unreviewedInternalToken:unexpectedDeviceField})),
+ /unsupported photo manifest fields/
+);
+check(true,'Valid-checksum ZIP with unreviewed per-photo fields is rejected by browser restore');
+check((await archive.readOfflinePhotoBackup(await forgeManifestZip())).length===1,
+ 'Exact job-linked manifest remains compatible with the independent saved-file format');
+await assert.rejects(
+ backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A']),
+ /authenticated job\/customer inventory/
+);
+check(true,'Saved ZIP verification refuses job-linked photos without authenticated job history');
+await assert.rejects(
+ backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A'],[{id:'estimate-A',customerId:'customer-B'}]),
+ /different customer/
+);
+check(true,'Saved ZIP verification refuses a checksum-valid photo owned by a different customer job');
+await assert.rejects(
+ backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A'],[{id:'other',customerId:'customer-A'}]),
+ /unknown job ID/
+);
+check(true,'Saved ZIP verification refuses an unknown referenced job before reporting backup completeness');
+const verifiedLinked=await backupInspection.inspectSavedOfflinePhotoZip(jobLinkedZip,['customer-A'],[{id:'estimate-A',customerId:'customer-A'}]);
+check(verifiedLinked.archivePhotoCount===1&&verifiedLinked.notYetOnDevice===1&&verifiedLinked.byteIdenticalOnDevice===0,
+ 'Saved ZIP verification accepts complete cryptographic job-linked archive only with matching owner job history');
+const verifiedLegacy=await backupInspection.inspectSavedOfflinePhotoZip(
+ await archive.exportOfflinePhotoBackup([first]),['customer-A']
+);
+check(verifiedLegacy.archivePhotoCount===1,
+ 'Legacy customer-only saved-photo backups remain verifiable without numbered jobs');
+const file=await archive.exportOfflinePhotoBackup([first,second]);
+check(file.type==='application/zip'&&file.size>0,'Real archive exporter produces ZIP bytes without Cloudflare');
+const restored=await archive.readOfflinePhotoBackup(file);
+check(restored.length===2,'ZIP reader restores every declared image');
+check(restored[0].id===first.id&&restored[1].customerId==='customer-B','Backup preserves original photo/customer relationship');
+check(restored[0].category==='before'&&restored[1].category==='after','Backup retains before/after categories');
+check((await restored[0].blob.text())==='one synthetic photo','Full photo bytes survive export/import');
+check((await restored[1].blob.text())==='another synthetic photo','Second image bytes survive archive');
+check(restored.every(row=>row.contentType==='image/png'&&row.blob.type===row.contentType&&row.blob.size===row.sizeBytes),'All restored MIME and byte lengths match manifest');
+const corrupt=new Uint8Array(await file.arrayBuffer());
+const needle=new TextEncoder().encode('one synthetic photo');
+let at=-1;outer:for(let i=0;i<corrupt.length-needle.length;i++){for(let j=0;j<needle.length;j++)if(corrupt[i+j]!==needle[j])continue outer;at=i;break;}
+check(at>=0,'Test fixture locates real photo bytes inside ZIP');
+corrupt[at]^=1;
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([corrupt])),/checksum/);
+check(true,'Tampered image is rejected before restore');
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([(await file.arrayBuffer()).slice(0,-12)])),/rejected/);
+check(true,'Truncated ZIP is rejected before restore');
+// The ZIP entry payload can be unchanged even when an adversary damages
+// its signed descriptor or hides undeclared data outside central-directory entries.
+const originalZip=new Uint8Array(await file.arrayBuffer());
+// Actual exported file bytes are the baseline for these tamper cases. Photo
+// content, central CRC and manifest SHA stay unchanged: only hidden ZIP header
+// metadata is altered. No provider, R2 or customer records are involved.
+const originalView=new DataView(originalZip.buffer),archiveEnd=originalZip.length-22;
+check(originalView.getUint32(archiveEnd,true)===0x06054b50,
+ 'FIRE ZIP fixture ends with an unspanned end-of-central-directory record');
+const archiveCentral=originalView.getUint32(archiveEnd+16,true);
+check(originalView.getUint32(archiveCentral,true)===0x02014b50,
+ 'FIRE ZIP fixture contains expected central entry');
+const mutate=(at,size,value)=>{
+ const bytes=originalZip.slice(),view=new DataView(bytes.buffer);
+ if(size===2)view.setUint16(at,value,true);else view.setUint32(at,value,true);
+ return new Blob([bytes]);
+};
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveEnd+4,2,1)),/ZIP directory/);
+check(true,'A forged multi-disk ZIP cannot masquerade as a complete offline photo backup');
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveCentral+4,2,21)),/central entry/);
+check(true,'Unapproved ZIP creator version is rejected even with valid photo checksums');
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveCentral+34,2,1)),/central entry/);
+check(true,'A forged split-disk central entry is rejected before any photo restore');
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(archiveCentral+32,2,1)),/central entry/);
+check(true,'Undeclared ZIP entry comments are refused rather than ignored');
+const originalLocal=originalView.getUint32(archiveCentral+42,true);
+await assert.rejects(archive.readOfflinePhotoBackup(mutate(originalLocal+10,2,
+ originalView.getUint16(originalLocal+10,true)^1)),/ZIP local metadata/);
+check(true,'Contradictory central/local ZIP timestamps cannot be accepted');
+const descriptorZip=originalZip.slice(),descriptorView=new DataView(descriptorZip.buffer);
+let descriptorAt=-1;
+for(let i=0;i<descriptorZip.length-16;i++){
+ if(descriptorView.getUint32(i,true)===0x08074b50){descriptorAt=i;break;}
+}
+check(descriptorAt>=0,'Fixture includes FIRE writer signed data descriptor');
+descriptorZip[descriptorAt+4]^=1; // Change descriptor CRC only; photo and central CRC remain valid.
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([descriptorZip])),/data descriptor/);
+check(true,'Forged ZIP descriptor rejected even though original photo bytes and central checksum still match');
+const prefixZip=new Uint8Array(originalZip.length+1);
+prefixZip[0]=0x21;prefixZip.set(originalZip,1);
+const prefixView=new DataView(prefixZip.buffer);
+const eocd=prefixZip.length-22;
+check(prefixView.getUint32(eocd,true)===0x06054b50,'Fixture includes a final ZIP directory record');
+let directory=prefixView.getUint32(eocd+16,true)+1;
+prefixView.setUint32(eocd+16,directory,true);
+const entries=prefixView.getUint16(eocd+10,true);
+for(let i=0;i<entries;i++){
+ check(prefixView.getUint32(directory,true)===0x02014b50,'Hidden-prefix fixture preserves a valid central record');
+ prefixView.setUint32(directory+42,prefixView.getUint32(directory+42,true)+1,true);
+ directory+=46+prefixView.getUint16(directory+28,true)+prefixView.getUint16(directory+30,true)+prefixView.getUint16(directory+32,true);
+}
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([prefixZip])),/gaps|overlapping/);
+check(true,'ZIP with undisclosed leading bytes and repaired offsets is rejected before restore');
+await assert.rejects(archive.exportOfflinePhotoBackup([first,first]),/duplicate photo/);
+check(true,'Duplicate source photo ID cannot enter archive');
+const unsafeImage=photo('svg-img','customer-A');unsafeImage.blob=new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'],{type:'image/svg+xml'});unsafeImage.contentType='image/svg+xml';unsafeImage.sizeBytes=unsafeImage.blob.size;
+await assert.rejects(archive.exportOfflinePhotoBackup([unsafeImage]),/invalid photo/);
+check(true,'Active-content SVG is rejected from image vault backups');
+const unsupported=photo('invalid id','customer-A');
+await assert.rejects(archive.exportOfflinePhotoBackup([unsupported]),/invalid photo/);
+check(true,'Unsafe photo names cannot be exported');
+const wrongBytes={...first,sizeBytes:3};
+await assert.rejects(archive.exportOfflinePhotoBackup([wrongBytes]),/incomplete stored bytes/);
+check(true,'Corrupt IndexedDB metadata cannot masquerade as a complete backup');
+const empty=await archive.exportOfflinePhotoBackup([]);
+check((await archive.readOfflinePhotoBackup(empty)).length===0,'Empty backup is valid archive but restore deliberately refuses it');
+const page=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
+const component=readFileSync(new URL('../components/offline-customer-photos.tsx',import.meta.url),'utf8');
+const vault=readFileSync(new URL('../lib/local-photo-vault.ts',import.meta.url),'utf8');
+check(page.includes('<OfflineCustomerPhotos')&&page.includes('knownCustomerIds={customers.map(item=>item.id)}'),'Actual FIRE customer profile renders the on-device vault');
+check(!page.includes('section === "photos"&&<CustomerPhotos'),'Original R2 photo panel no longer owns the customer tab');
+check(component.includes('exportLocalPhotos(')&&component.includes('restoreLocalPhotos('),'Actual photo screen exposes archive export and restore');
+
+const photoRestoreFlow=component.slice(
+ component.indexOf(' const restore=async(files:FileList|null)=>{'),
+ component.indexOf(' const comparison=async()=>{')
+);
+check(photoRestoreFlow.includes('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')&&
+ photoRestoreFlow.includes('restoreLocalPhotos(zip,knownCustomerIds,knownJobs)')&&
+ photoRestoreFlow.indexOf('verifyOfflinePhotoJobOwnership(incoming,knownJobs)')<
+ photoRestoreFlow.indexOf('mutationStarted=true')&&
+ photoRestoreFlow.indexOf('mutationStarted=true')<
+ photoRestoreFlow.indexOf("await runPhotoMutation('restore'"),
+ 'Job-linked photo restore verifies exact customer ownership before journaling or IndexedDB writes');
+const photoAddFlow=component.slice(component.indexOf(' const add=async(files:FileList|null)=>{'),component.indexOf(' const remove=async(photo:OfflinePhoto)=>{'));
+check(photoAddFlow.includes('resolveVerifiedOfflinePhotoJobSelection(customerId,selectedJobId,knownJobs)')&&
+ photoAddFlow.includes('for(const file of chosenFiles)validateOfflinePhotoCaptureFile(customerId,category,file,selectedJob?.id)')&&
+ photoAddFlow.indexOf('resolveVerifiedOfflinePhotoJobSelection(')<photoAddFlow.indexOf('mutationStarted=true')&&
+ photoAddFlow.indexOf('validateOfflinePhotoCaptureFile(')<photoAddFlow.indexOf('mutationStarted=true')&&
+ photoAddFlow.indexOf('mutationStarted=true')<photoAddFlow.indexOf("await runPhotoMutation('add'"),
+ 'Actual owner photo UI validates all job and image selections BEFORE durable mutation journal');
+check(photoAddFlow.includes('if(!mutationStarted)setError(')&&
+ photoAddFlow.includes('else{pauseForReview();')&&
+ photoAddFlow.indexOf('setPreparedBackup(null)')>photoAddFlow.indexOf('validateOfflinePhotoCaptureFile('),
+ 'Invalid preflight never freezes customer photo gallery or invalidates prepared backups');
+check(component.includes('Attach photo to job')&&component.includes('selectedJob?.id')&&
+ page.includes('knownJobs={estimates.filter('),
+ 'Actual customer photo UI receives authenticated numbered job IDs and supports deliberate optional job associations');
+
+check(component.includes('Prepare protected all-photos backup')&&component.includes('Save prepared backup to Files')&&component.includes('Download prepared backup'),'Owner has a separate native iOS share action after protected photo archive preparation');
+const prepareFlow=component.slice(component.indexOf("const prepareArchive=async(scope:'all'|'customer',protectedFile=true)=>{"),component.indexOf('const downloadPreparedArchive=()=>{'));
+const saveFlow=component.slice(component.indexOf('const savePreparedArchive=async()=>{'),component.indexOf('const restore=async('));
+const saveWithoutComments=saveFlow.replace(/\/\*[^]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
+check(prepareFlow.includes('exportLocalPhotos(scope===')&&!saveFlow.includes('exportLocalPhotos('),'The expensive photo ZIP export is done before the iOS share gesture');
+check(saveWithoutComments.includes('await navigator.share({files:[file]')&&!saveWithoutComments.slice(0,saveWithoutComments.indexOf('await navigator.share({files:[file]')).match(/\bawait\b/),'iOS share-sheet invocation runs before ANY await inside a fresh button click');
+check(saveFlow.includes('navigator.canShare')&&component.includes('downloadPreparedArchive'),'Owner retains a direct-tap download fallback if native sharing is unavailable');
+check(component.includes('setPreparedBackup(null)'),'Photo changes invalidate any staged ZIP, avoiding a false up-to-date backup');
+check(prepareFlow.includes('protectOfflinePhotoZip(zip,backupPassphrase)')&&component.includes('Private recovery passphrase (16–1024 characters)')&&component.includes('Confirm passphrase (only for a new protected backup)'),
+ 'Current QA photo backup defaults to passphrase-protected archive with explicit recovery controls');
+check(component.includes('openOwnerOfflinePhotoArchive(files[0],backupPassphrase)')&&component.includes("verifyRef.current?.click()"),
+ 'Saved protected archive must be opened and checked before any restore or success claim');
+check(component.includes('prepareArchive("customer",true)')&&component.includes('prepareArchive("all",true)')&&component.includes('prepareArchive("customer",false)')&&component.includes('prepareArchive("all",false)'),'Owner retains protected all/customer backups plus explicit legacy ZIP choices without implicit R2');
+check(vault.includes('listOfflinePhotos(customerId)')&&vault.includes('invalid customer identifier'),'Scoped backup filters the actual on-device photo vault and validates customer IDs');
+check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
+check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
+check(vault.includes("crypto.subtle.digest('SHA-256'")&&vault.includes('exactSavedPhotoMatch(stored,row)'),'Actual restore compares existing device photo bytes with cryptographic digest before skipping them');
+check(vault.includes('if(!additions.length){')&&
+  vault.includes('await verifyRestoredOfflinePhotos(rows);')&&
+  vault.includes('return {restored:0,alreadyPresent};')&&
+  vault.includes('return {restored:additions.length,alreadyPresent};'),
+  'Actual restore checks final photo bytes for no-op replay and new images before reporting success');
+check(component.includes('result.alreadyPresent')&&component.includes('result.restored'),'Actual iPhone owner UI explains both added and skipped originals');
+const inspectionCode=readFileSync(new URL('../lib/offline-photo-inspection.ts',import.meta.url),'utf8');
+check(component.includes('Verify saved photo backup')&&component.includes('verifySavedArchive=async')&&component.includes('verifyRef.current?.click()'),'Actual iPhone screen has a dedicated read-only saved Files ZIP verification action');
+check(inspectionCode.includes('readOfflinePhotoBackup(file)')&&inspectionCode.includes('exactSavedPhotoMatch(stored,photo)'),'Read-back verification checks archive hashes and exact on-device originals');
+check(inspectionCode.includes('localPhotosNotInArchive')&&component.includes('INCOMPLETE PHOTO BACKUP:')&&component.includes('are NOT in this saved ZIP'),'A stale or partial backup explicitly shows device photos missing from the saved file');
+
+check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');
+check(component.includes('Keep originals')||component.includes('Keep the originals'),'Owner UI provides backup safety guidance');
+check(component.includes('legacyCloudPhotoCount>0'),'Older server/R2 photo records remain visible as a migration warning instead of disappearing silently');
+check(vault.includes("'+LOCAL_CUSTOMER_DEPLOYMENT+'"),'Shared local photo store is partitioned by a fixed deployment identity');
+check(vault.includes('readOfflinePhotoBackup(zip)'),'Actual downloaded ZIP is verified after assembly before being offered');
+check(vault.includes('if(!await byteIdenticalOfflinePhotoInventory(checked,await listOfflinePhotos(customerId)))')&&
+  vault.includes('for(let i=0;i<archive.length;i++)if(!await exactSavedPhotoMatch(archive[i],current[i]))return false'),
+  'Actual export refuses same-size photo byte replacement using SHA-256 before offering a prepared iPhone ZIP');
+const fallback=load('../lib/offline-photo-availability.ts');
+check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:401,browserReportsOffline:true}),'HTTP 401 denies access to cached customer names even while browser reports offline');
+check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:403,browserReportsOffline:false}),'HTTP 403 is always treated as owner denial, never as offline fallback');
+check(fallback.mustClearOfflinePhotoDirectory(401)&&fallback.mustClearOfflinePhotoDirectory(403),'Explicit authentication denial must clear the device photo directory');
+check(!fallback.mustClearOfflinePhotoDirectory(503),'Temporary server outage must not erase previously authenticated customer labels');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:503,browserReportsOffline:false}),'HTTP 503 permits a photo-only recovery screen while browser claims connectivity');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:502,browserReportsOffline:false}),'HTTP 502 permits local gallery during gateway outage');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:504,browserReportsOffline:false}),'HTTP 504 permits local gallery during backend timeout');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:true,browserReportsOffline:false}),'Network connection failure permits photo-only fallback');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,browserReportsOffline:true}),'Airplane mode permits photo-only fallback');
+check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:400,browserReportsOffline:false}),'Ordinary invalid server requests do not silently expose stale customer names');
+check(page.includes('setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);')&&page.includes('setCustomers([]);setEstimates([]);setInvoices([]);'),'Actual owner UI revokes cached customer display and prior financial rows on explicit auth denial');
+check(page.includes('mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})'),'Actual FIRE Customers fallback uses the reviewed network/auth decision policy');
+check(page.includes('void load(true); }} />'),'Customer creation refreshes offline directory promptly rather than remaining undiscoverable until next login');
+const legacyBefore={id:'compare-before',customerId:'customer-A',category:'before'};
+const legacyAfter={id:'compare-after',customerId:'customer-A',category:'after'};
+assertPhotoComparisonSameJob(legacyBefore,legacyAfter);
+check(true,'Existing customer-only before/after comparison remains usable');
+assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-A'},{...legacyAfter,jobId:'estimate-A'});
+check(true,'Two original photos linked to the same saved job may be compared');
+assert.throws(()=>assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-A'},{...legacyAfter,jobId:'estimate-B'}),/different jobs/);
+check(true,'Different numbered jobs cannot be combined into a misleading before/after graphic');
+assert.throws(()=>assertPhotoComparisonSameJob({...legacyBefore,jobId:'estimate-A'},legacyAfter),/only one has a verified job/);
+check(true,'Mixed job-linked and unlinked originals require explicit same-job review');
+assert.throws(()=>assertPhotoComparisonSameJob(legacyBefore,{...legacyAfter,customerId:'customer-B'}),/same saved customer/);
+check(true,'Cross-customer before/after comparison is denied');
+const comparisonRendering=component.slice(component.indexOf(' const comparison=async()=>{'),component.indexOf(' return <section className="photo-panel"'));
+check(comparisonRendering.includes("context.fillText('firstinresponseexteriors.com',1560,930)")&&
+ !comparisonRendering.includes('fillText(customerName')&&
+ !comparisonRendering.includes('fillText(photo.customerId'),
+ 'Shareable before/after PNG overlays only public FIRE web identity, never private customer names or IDs');
+check(component.includes('assertPhotoComparisonSameJob(selectedBefore.photo,selectedAfter.photo)'),
+ 'Actual owner photo-comparison UI invokes job and customer pairing guard before canvas output');
+
+check(component.includes("setPreparedComparison({file,beforeId:selectedBefore.photo.id,afterId:selectedAfter.photo.id})")&&
+ component.includes("preparedComparison.beforeId===selectedBefore?.photo.id")&&
+ component.includes("preparedComparison.afterId===selectedAfter?.photo.id")&&
+ component.includes('Save or share comparison'),
+ 'Prepared marketing PNG sharing is bound to the originally selected same-job photo IDs');
+const nativeShareFlow=component.slice(component.indexOf(' const savePreparedComparison=async()=>{'),component.indexOf(' return <section className="photo-panel"'));
+check(nativeShareFlow.includes("await navigator.share({files:[file]")&&
+ nativeShareFlow.indexOf("await navigator.share({files:[file]")===nativeShareFlow.indexOf("await navigator.share("),
+ 'Native Files sharing is the first awaited operation in the separate iPhone button click');
+
+check(eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-A'}),
+ 'Comparison picker offers the matching saved-job AFTER image');
+check(!eligiblePhotoComparisonAfter({...legacyBefore,jobId:'estimate-A'}, {...legacyAfter,jobId:'estimate-B'}),
+ 'Comparison picker hides AFTER images from a different job');
+check(eligiblePhotoComparisonAfter(legacyBefore,legacyAfter)&&
+ !eligiblePhotoComparisonAfter(legacyBefore,{...legacyAfter,jobId:'estimate-A'}),
+ 'Legacy unlinked before/after picker remains usable without mixing linked originals');
+check(!eligiblePhotoComparisonAfter(legacyBefore,{...legacyAfter,customerId:'customer-B'})&&
+ !eligiblePhotoComparisonAfter(legacyBefore,{...legacyAfter,category:'property'}),
+ 'Comparison picker excludes other-customer and non-AFTER originals');
+check(component.includes('after.filter(item=>eligiblePhotoComparisonAfter(selectedBefore.photo,item.photo))')&&
+ component.includes('disabled={busy||!selectedAfter}')&&
+ component.includes('No AFTER photo matches this saved job.'),
+ 'Actual customer photo picker filters by matching job and disables unsupported comparison previews');
+check(component.includes("setSelectedJobId('');setBeforeId('');setAfterId('');"),
+ 'Changing customers clears a stale photo-to-job selector and comparison choices');
+console.log('PASS '+checks+' offline-photo archive and actual integrated UI checks.');

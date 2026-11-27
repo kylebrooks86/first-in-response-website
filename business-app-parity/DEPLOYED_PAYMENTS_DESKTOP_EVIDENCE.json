@@ -1,0 +1,77 @@
+{
+  "parent": "daa194b01c16bb1d0dc0b51f7b5862f45d872514",
+  "evidenceFile": "DEPLOYED_PAYMENTS_DESKTOP_EVIDENCE.json",
+  "navigationDialogObservationsCompleted": 12,
+  "navigationDialogObservationsRequired": 12,
+  "scope": "five desktop navigation/dialog observations per target plus two staging deposit observations; not formal parity acceptance",
+  "observedTargetDifferences": 2,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "realMobileEvidenceCaptured": false,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "runtimeChanged": false,
+  "deployed": false,
+  "applicationTestsRerun": false,
+  "asOf": "2026-10-09",
+  "targets": {
+    "staging": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site/",
+    "doomsday": "https://fire-app-independent-staging.kyle-bfc.workers.dev/"
+  },
+  "viewport": {
+    "width": 1363,
+    "height": 936,
+    "theme": "light",
+    "mobileViewportControlAvailable": false
+  },
+  "commonObservations": [
+    "Sidebar Payments opens and loads transaction history.",
+    "Completed-job Record payment dialog opens.",
+    "Close returns to Payments without saving.",
+    "Dashboard navigation returns to dashboard.",
+    "Header Record payments returns to loaded Payments/history."
+  ],
+  "additionalStagingObservations": [
+    "Approved-job dialog shows 75.00 deposit against 150.00 full remaining balance, default amount 75.00. Synthetic staging fixture.",
+    "Deposit dialog closes without saving."
+  ],
+  "differences": [
+    {
+      "feature": "Metrics",
+      "staging": [
+        "Total recorded",
+        "Outstanding",
+        "Open balances",
+        "Net tips"
+      ],
+      "doomsday": [
+        "Total recorded",
+        "Tip revenue",
+        "Outstanding",
+        "Open balances"
+      ],
+      "finding": "Tip label and metric order differ."
+    },
+    {
+      "feature": "Completed manual tip controls",
+      "staging": "Optional tip input only; no preset selector observed.",
+      "doomsday": "No tip, 5%, 10%, 15% and Custom controls plus custom tip input.",
+      "candidate": "Shared RecordPayment currently has plain optional tip input. Preset controls are a missing shared feature to preserve from Doomsday."
+    }
+  ],
+  "candidateDeploymentGaps": [
+    "Both deployed screens retain Outstanding/Open balances/Balances to collect labels instead of candidate unpaid-value wording.",
+    "Both deployed histories omit payment status beside transaction type; newer candidate includes it."
+  ],
+  "layoutObservation": "Both desktop screens show four metrics wrapping as three cards then one at this viewport. Staging environment banner and missing Doomsday Insights navigation remain adapter/deployed-feature differences previously recorded.",
+  "noFinancialValueComparison": "Targets hold different records; monetary totals are not compared for equality.",
+  "actualDeployedCommitIdentitiesVerified": false,
+  "screenshotsPersisted": false,
+  "privacy": "No customer contact details, payment references, raw financial records or Doomsday screenshots saved to repository. Only synthetic staging deposit values recorded.",
+  "savePaymentClicked": false,
+  "refundClicked": false,
+  "checkoutStarted": false,
+  "remoteDatabaseWrites": false,
+  "stripeMutations": false
+}

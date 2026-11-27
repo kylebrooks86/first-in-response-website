@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "side": "independent",
+  "purpose": "Persistent independent DR evidence registrations that are merged into the sealed v138 formal parity manifest after every rebuild.",
+  "entries": []
+}

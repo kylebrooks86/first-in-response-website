@@ -1,0 +1,79 @@
+{
+  "dateUtc": "2026-10-14",
+  "parentCheckpoint": "3b4b8d98cd781f5951c6aa055372a2a567b946ff",
+  "scope": "isolated development candidates only",
+  "functionality": [
+    "Explicit discard warning for changed New Estimate fields",
+    "Cancel preserves customer fields, selected services, quantities, prices and discounts",
+    "Close attempts blocked during pending save",
+    "Failed synthetic save retains entered fields",
+    "Immediate deliberate reset prevents delayed reset from erasing rapidly reopened estimate"
+  ],
+  "tests": {
+    "live": {
+      "browserPassed": 32,
+      "browserTotal": 32,
+      "financialPassed": 69,
+      "financialTotal": 69,
+      "typescriptExitCode": 0,
+      "fullBuildExitCode": 0,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "externalRequests": 0
+    },
+    "doomsday": {
+      "browserPassed": 32,
+      "browserTotal": 32,
+      "financialPassed": 69,
+      "financialTotal": 69,
+      "typescriptExitCode": 0,
+      "fullBuildExitCode": 0,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "externalRequests": 0
+    },
+    "staging": {
+      "browserPassed": 32,
+      "browserTotal": 32,
+      "financialPassed": 69,
+      "financialTotal": 69,
+      "typescriptExitCode": 0,
+      "fullBuildExitCode": 0,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "externalRequests": 0
+    }
+  },
+  "sharedFilesChecked": 131,
+  "sharedSourceParity": true,
+  "deployedParityVerified": false,
+  "initialTestFailure": "New estimate button queried while on Customers list; corrected navigation, all final reruns passed",
+  "limitations": [
+    "Draft remains in memory; reload, navigation unmount and browser closure recovery are not added",
+    "No claim of durable encrypted estimate draft recovery",
+    "Other invoice/customer edit dialogs are unchanged",
+    "Multiple properties are not implemented; historical service address prerequisite documented"
+  ],
+  "protectedScopeUnchanged": [
+    "LIVE",
+    "Doomsday",
+    "refund staging",
+    "original Home Screen apps",
+    "FIRE Calculator",
+    "device vaults and original backups",
+    "production databases",
+    "Stripe"
+  ],
+  "deployments": 0,
+  "migrations": 0,
+  "paidServices": 0,
+  "cssChanges": 0,
+  "bottomShaking": "Tracked; no unsupported layout change; installed LIVE and Doomsday reportedly smooth",
+  "officialReleaseReadinessPercent": 30,
+  "verifiedGates": 3,
+  "totalGates": 10,
+  "sourceSha256": {
+    "app/dashboard.tsx": "495a311f2b1a9d8c0af8da55c1de31ef6b6417b9ee75d40c0d2f500b196e08d4",
+    "scripts/test-local-customers-framework-browser.mjs": "866e3d8664a9ce1807c725910ea646eb79bf856984c71f6f4889bdf14cb66f4e"
+  }
+}

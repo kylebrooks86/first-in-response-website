@@ -1,0 +1,91 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "b3aaf1831b3fc07f0663342dfa725b796e1277a2",
+  "scope": "Opt-in isolated synthetic Customers DOM view; not imported into Business App routes",
+  "checks": {
+    "live": {
+      "passed": 15,
+      "total": 15,
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "syntheticOnly": true,
+      "productionActivated": false,
+      "iPhoneTested": false
+    },
+    "doomsday": {
+      "passed": 15,
+      "total": 15,
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "syntheticOnly": true,
+      "productionActivated": false,
+      "iPhoneTested": false
+    },
+    "staging": {
+      "passed": 15,
+      "total": 15,
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "syntheticOnly": true,
+      "productionActivated": false,
+      "iPhoneTested": false
+    }
+  },
+  "browserChecks": {
+    "passed": 45,
+    "total": 45
+  },
+  "focusedTypeScript": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedSourceParity": {
+    "files": 124,
+    "differences": 0,
+    "candidateCount": 3,
+    "deployedParityProven": false
+  },
+  "hashes": {
+    "components/local-customer-view.ts": "cf7970d13017a0dc5627fe407474fa76b428b5ca2c2c61aa0040ec25aa559a88",
+    "scripts/test-local-customer-view-browser.mjs": "e65d259b76d8b2b9b8ece61da556731dca3a571b1449668fa6750c2e0cd6c2fd"
+  },
+  "verifiedBehaviors": [
+    "Locked contacts hidden; locked is not empty",
+    "Unused-vault unlock never seeds a vault",
+    "Wrong phrase clears input",
+    "Current revision and pending receipts displayed",
+    "Edit prepopulation and synthetic-only save guard",
+    "Already loaded UI edits offline",
+    "Create retains local receipt",
+    "Lock clears DOM and detached fields",
+    "Stale forms cannot save after lock/unlock",
+    "Injected native IndexedDB write failure preserves records/draft and disables retry",
+    "Contact text never interpreted as markup",
+    "Disposal closes repository and clears DOM",
+    "Persistent Chromium restart locks UI and retains committed encrypted revisions",
+    "No external network requests"
+  ],
+  "limitations": [
+    "No complete Business App build: full candidate dependencies remain unavailable",
+    "No mobile visual review or iPhone/iPad execution",
+    "No installed Home Screen launch or service-worker caching claim",
+    "No server sync, financial actions, estimates/payments/notes/photos integration",
+    "No runtime account/target adapter integration",
+    "Injected quota failure is deterministic fault injection, not an actual full device",
+    "Whole-screen shaking remains unresolved"
+  ],
+  "deploymentChanged": false,
+  "publishedSyntheticDemoChanged": false,
+  "deviceVaultsTouched": false,
+  "stripeCalls": false,
+  "remoteDatabaseWrites": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}

@@ -1,0 +1,17 @@
+# Doomsday owner build/binding capture — 2026-10-09
+
+Parent 479181acd71a58c69c0c74346eb116494f0910ab. Owner supplied screenshots, copied full IDs and full build command. No command from the screenshots/message was executed. No application, adapter, migration, resource or Stripe change.
+
+Confirmed owner evidence: active Worker version 61fa32a3-3461-469d-9245-a9df6dd3f036 at 100% traffic; production DB binding to fire-app-staging-db, UUID afb2c05a-d794-4a9a-b580-924ce01c26ad. This UUID matches the historical script expectation. The captured database binding identifies Doomsday's database; it does not yet prove isolation from all other deployed targets.
+
+Configured repository kylebrooks86/first-in-response-website; branch fire-calculator-exact-live-clone; root /; builds enabled; include watch path *. Build command fetches/checks out that branch and invokes scripts/prepare-fire-v138-dr-no-r2.sh. Deploy command invokes scripts/deploy-fire-dr-staging.sh. The preparation source restores the sealed v138 archive to fire-app-dr and applies ordered Business App overlays before building. This explains the historical Business App build despite the branch name. It does not consume business-app-parity/shared or the work/fire-business-app-parity-2026-10-08 branch.
+
+Current settings may differ from those used for the active build. The fetch/checkout also follows a moving branch, so the trigger commit/link alone is not immutable proof of the bytes that were built. GitHub a1cdb94 is already confirmed documentation-only; it is not the current parity candidate. A build log tied to the active version, checked-out source SHA and built artifact/runtime evidence are still needed to seal active source identity. No repeated request to the inaccessible identity endpoint.
+
+Do not change the production branch to the development branch or rerun the legacy wrappers. They build the old release layout; the deploy wrapper also applies remote migrations. A reviewed migration/deployment packet must be explicit and separately approved. Migration 0022 remains unapplied according to preserved owner journal findings.
+
+Eight local evidence content checks passed: UUID forms, expected branch/repository/root/deploy mapping, sealed archive/build directory source match, existing D1 UUID expectation match, forbidden resource changes absent, JSON parsing/progress gate consistency, and preserved application/adapters/migrations. No application tests/builds rerun for evidence-only changes; previous verified results retained. Historical evidence/manifests preserved unchanged, with previous review manifest expected stale after inventory/progress changed.
+
+Official readiness remains 3/10 (30%), NOT READY. Resolved owner evidence gaps: full Worker version UUID, bound D1 UUID, configured build path. Remaining release gates: immutable active artifacts/runtime identity, complete remote schemas/journals, cross-target resource isolation, auth/photo/mobile/sandbox and backup/rollback. LIVE's refund table gap remains.
+
+Single most useful next step: inspect the existing successful Cloudflare build log associated with active version 61fa32a3, looking for DR_SOURCE_BRANCH=PASS with full SHA, v138 archive hash and build/deploy success. Capture non-secret lines only. This is read-only and can confirm the historical build source instead of relying solely on current configuration. Stop after saving this checkpoint.

@@ -1,0 +1,42 @@
+name: FIRE historical source archive intake (synthetic CI only)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/verify_private_expired_source_archives.py'
+      - 'business-app-parity/test_private_expired_source_archives.py'
+      - 'business-app-parity/prepare_dr_bound_noassets_worker.mjs'
+      - 'business-app-parity/prepare_dr_dark_first_create_source.mjs'
+      - 'business-app-parity/prepare_new_live_bound_dark_worker.mjs'
+      - 'business-app-parity/test_dr_bound_noassets_worker.mjs'
+      - 'business-app-parity/test_dr_dark_first_create_source.mjs'
+      - 'business-app-parity/test_new_live_bound_dark_worker.mjs'
+      - 'business-app-parity/verify_final_dark_worker_package.mjs'
+      - 'business-app-parity/dr_noassets_runtime.mjs'
+      - '.github/workflows/fire-dr-existing-d1-prehost.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-intake:
+    name: Verify archive rejection with generated fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check historical builder syntax
+        working-directory: business-app-parity
+        run: |
+          for source in prepare_dr_bound_noassets_worker prepare_dr_dark_first_create_source \
+            prepare_new_live_bound_dark_worker test_dr_bound_noassets_worker \
+            test_dr_dark_first_create_source test_new_live_bound_dark_worker \
+            verify_final_dark_worker_package dr_noassets_runtime; do
+            node --check "$source.mjs" || exit 1
+          done
+      - name: Exercise synthetic archive intake
+        working-directory: business-app-parity
+        run: python3 -m unittest -v test_private_expired_source_archives

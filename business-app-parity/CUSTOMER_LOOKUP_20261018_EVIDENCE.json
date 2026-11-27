@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-18",
+  "baseCommit": "d7afc463fbe1cc881d09f3c3a0a657288fec434d",
+  "scope": "Shared New Estimate customer lookup; local synthetic runtime only",
+  "implemented": [
+    "Single shared searchable customer combobox for Dashboard, Estimates and customer-profile entry points",
+    "Bound partial name, normalized phone, email, primary and gated property address lookup; owner authentication; no-store identity-only responses capped at 12 matches",
+    "Explicit customer selection and authoritative ID refresh; no automatic first-match selection",
+    "Customer switching confirms discard, clears contact/property/service/discount draft, re-fetches properties and validates service-property ownership",
+    "Visible Create New Customer; atomic duplicate checks by email, normalized phone or exact name plus address, including concurrent native D1 estimate creation",
+    "Stale selection and read failures block advancement; explicit read-only retry; interrupted saves remain blocked from automatic retry"
+  ],
+  "tests": {
+    "builtQaNativeD1HttpsChromium": {
+      "passed": 101,
+      "total": 101,
+      "propertyFlags": "Enabled only in disposable runtime copy",
+      "browserWidths": [
+        320,
+        390,
+        768,
+        1366
+      ],
+      "realIOSAcceptance": false
+    },
+    "builtQaWithPropertyWorkflowDisabled": {
+      "passed": 47,
+      "total": 47
+    },
+    "nativePropertyFramework": {
+      "passed": 8,
+      "total": 8
+    },
+    "actualEstimateEditorRadixCompiledCSS": {
+      "passed": 171,
+      "total": 171
+    },
+    "typechecks": {
+      "passed": 4,
+      "total": 4
+    },
+    "candidateBuilds": {
+      "passed": 4,
+      "total": 4
+    },
+    "candidateFinancialProcessingSuites": {
+      "passed": 4,
+      "total": 4
+    },
+    "customerInvoiceBalanceAssertionsPerCandidate": 156,
+    "perJobPriceAssertionsPerCandidate": 132,
+    "finalTippingSuites": {
+      "passed": 3,
+      "total": 3,
+      "targets": [
+        "live",
+        "doomsday",
+        "staging"
+      ],
+      "qaUsesProviderRefusalTests": true
+    },
+    "candidateSchemaAndDbPreflightSuites": {
+      "passed": 8,
+      "total": 8
+    },
+    "sourceParity": [
+      {
+        "candidate": "live",
+        "exactSourceFiles": 360,
+        "adapterFiles": 39,
+        "migrationFiles": 21,
+        "sourceFingerprint": "874d6ce6ec61194b17ade4da30888c19c4c6964b878b48112226db375105ad47",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      },
+      {
+        "candidate": "doomsday",
+        "exactSourceFiles": 365,
+        "adapterFiles": 44,
+        "migrationFiles": 23,
+        "sourceFingerprint": "64cf10b8f0a5f4a1883e93bb5e84db9fc348485ccff1ff83bd25498340883ecc",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      },
+      {
+        "candidate": "staging",
+        "exactSourceFiles": 361,
+        "adapterFiles": 40,
+        "migrationFiles": 21,
+        "sourceFingerprint": "c38cc2ccadb9db8acc94e58067f956d3687abd94944dbc66947fe4465bfc7870",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      },
+      {
+        "candidate": "qa",
+        "exactSourceFiles": 365,
+        "adapterFiles": 46,
+        "migrationFiles": 23,
+        "sourceFingerprint": "f4a8f7a3526f080e2fbee8347fdfef0c2bac7086c376519a2fda3600fd6237e0",
+        "identicalToSharedPlusAuthorizedAdapter": true,
+        "deployed": false,
+        "remoteSchemaVerified": false,
+        "publicationAuthorized": false
+      }
+    ],
+    "builtQaSourceParity": {
+      "candidate": "qa",
+      "exactSourceFiles": 365,
+      "adapterFiles": 46,
+      "migrationFiles": 23,
+      "sourceFingerprint": "f4a8f7a3526f080e2fbee8347fdfef0c2bac7086c376519a2fda3600fd6237e0",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false
+    }
+  },
+  "safety": {
+    "deployed": false,
+    "hostedDataReadOrChanged": false,
+    "productionResourcesChanged": false,
+    "schemaOrMigrationChanges": false,
+    "propertyCapabilityFlagsChanged": false,
+    "stripeOrCredentialsChanged": false,
+    "allNonLoopbackBrowserRequestsAborted": true,
+    "existingSyntheticProfileMapIframeInterceptedAndAborted": true,
+    "newChargesUSD": 0
+  },
+  "remaining": [
+    "Next QA code update needs fresh active Worker identity and rollback review; old publishing baseline must not be reused blindly",
+    "Physical iPhone/iPad full-app acceptance after reviewed QA release",
+    "Outstanding provider LIVE/refund-staging DB identity, hosted photo/DR and sandbox Stripe acceptance"
+  ],
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30,
+    "newGateAcceptanceClaimed": false
+  }
+}

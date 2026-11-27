@@ -1,0 +1,13 @@
+# Agreements read failures and retry — October 9, 2026
+
+Resumed clean checkpoint 893cbb3370da0fc6c95e94c541001656ac7874af matching remote before editing. FIRE Business App only.
+
+ContractsView now validates HTTP status and collection, catches network/JSON/read failures, preserves prior records and shows an accessible error with Try again. Signed/awaiting/change counters and stale editor/list are hidden on loading/error. Reload clears selection and re-enters loading, including the existing detail-change refresh callback. Search misses against loaded rows now say No matching agreements; genuinely empty results retain No agreements yet.
+
+828/828 new actual component/hook/load/retry/detail-refresh checks (276 per target): server errors, network/JSON rejection, missing/malformed collections, non-Error rejection, empty/populated failures, retained signature records, hidden stale counters/editor, retry recovery. Verify signed and pending-change badges, signature/awaiting/change counters, exclusion of declined/completed unsigned jobs from awaiting counts, numeric conversions, signer searches, selection/close callbacks and refreshing newly signed/cleared-change records. Prior component fails negative control.
+
+6/6 selected suite runs including customer/invoice balance regressions (468/468); TypeScript and builds 3/3 each. Actual materialized shared app source hashes 119/119 match and new script separately identical across targets. Snapshots/paths/hashes in AGREEMENT_LOAD_ERRORS_EVIDENCE.json. Unchanged payment/mobile/photo tests not rerun.
+
+Overall verified readiness: 30% (3/10 release gates). Formal deployed/mobile parity 0/32; complete remote schemas/journals 0/3. Mocked reads and synthetic SQLite do not verify hosted/mobile/signature integration. Signature storage/acceptance, agreement/status logic, financial calculations, API/write handlers, schema/auth/adapters/migrations unchanged. No deployment, remote write, processor mutation, paid service or production change. Historical manifests retained and do not seal newer source/review inputs.
+
+Next bounded task: dashboard refresh error/freshness signaling, preserving server-rendered data and latest good metrics when refreshing fails; verify tab switching/request cancellation and invalid data handling. Then consolidate current candidates/evidence for release-gate verification instead of continuing minor UI work indefinitely. Release remains blocked by deployed identity, complete schema/journals, sandbox isolation, auth/photo adapters, actual mobile light/dark proof and rollback/approval. Preserve historical rollback artifacts; never run wrappers that automatically migrate remote databases.

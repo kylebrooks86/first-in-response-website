@@ -1,0 +1,164 @@
+name: FIRE NEW LIVE Worker-only no-assets-upload candidate (OFFLINE)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/prepare_new_live_noassets_worker.mjs'
+      - 'business-app-parity/verify_inert_new_live_ci_artifact.mjs'
+      - 'business-app-parity/dr_noassets_runtime.mjs'
+      - 'business-app-parity/test_new_live_noassets_worker.mjs'
+      - 'business-app-parity/smoke_new_live_noassets_local_runtime.mjs'
+      - '.github/workflows/fire-new-live-worker-only-noassetupload.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-new-live-noassetupload-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  changed-logic:
+    name: Source-only client byte parity and NEW LIVE auth/Job #0001 route safety, no provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check business-app-parity/dr_noassets_runtime.mjs
+          node --check business-app-parity/prepare_new_live_noassets_worker.mjs
+          node --check business-app-parity/verify_inert_new_live_ci_artifact.mjs
+          node --check business-app-parity/test_new_live_noassets_worker.mjs
+          node --check business-app-parity/smoke_new_live_noassets_local_runtime.mjs
+          node business-app-parity/test_new_live_noassets_worker.mjs
+  actual-built-worker-only:
+    name: Build exact shared QA-master DR and dry-run alternative Worker Data modules, NO upload
+    needs: changed-logic
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build actual independent DR from canonical QA-master source (NO provider)
+        run: |
+          python3 business-app-parity/materialize.py independent-live "$RUNNER_TEMP/fire-original-new-live"
+          python3 business-app-parity/verify_materialized_candidate.py independent-live "$RUNNER_TEMP/fire-original-new-live"
+          cd "$RUNNER_TEMP/fire-original-new-live"
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm build
+      - name: Verify built source remains canonical, and create SOURCE-ONLY exact byte seal
+        run: |
+          python3 business-app-parity/verify_materialized_candidate.py independent-live "$RUNNER_TEMP/fire-original-new-live" --built
+          node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';
+          import {readdirSync,lstatSync,readFileSync,writeFileSync} from 'node:fs';
+          import {relative,join} from 'node:path';
+          const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
+          const root=process.env.RUNNER_TEMP+'/fire-original-new-live/dist';
+          const records=[];
+          function visit(folder){
+           for(const name of readdirSync(folder).sort()){
+            const file=join(folder,name),st=lstatSync(file);
+            if(st.isSymbolicLink())throw Error('No symlinks in canonical DR dist');
+            if(st.isDirectory()){visit(file);continue;}
+            if(!st.isFile())throw Error('Only plain files in DR dist');
+            const data=readFileSync(file);
+            records.push({path:relative(root,file).replaceAll('\\','/'),bytes:data.length,sha256:sha(data)});
+           }
+          }
+          visit(root);
+          records.sort((a,b)=>a.path.localeCompare(b.path,'en'));
+          const s={
+           kind:'FIRE_SOURCE_ONLY_INERT_NEW_LIVE_COMPILED_ARTIFACT_V1',
+           reviewedPullRequest:264,reviewedSourceSha:process.env.FIRE_SOURCE_SHA,
+           target:'independent-live',liveWorker:'fire-fullapp-new-live',
+           physicalDatabaseBindingAttempted:false,
+           ownerAuthenticationEnabled:false,cloudflareUploaded:false,
+           cloudflareDeployed:false,stripeActivated:false,
+           ownerApprovedDeployment:false,
+           reviewedFileCount:records.length,
+           filesDigestSha256:sha(Buffer.from(JSON.stringify(records))),files:records
+          };
+          writeFileSync(process.env.RUNNER_TEMP+'/fire-worker-only-original-seal.json',
+           JSON.stringify(s,null,2)+'\n',{flag:'wx'});
+          console.log('Original QA-master compiled NEW LIVE files source-sealed: '+records.length);
+          NODE
+      - name: Produce real Worker-only alternative from authenticated compiled source, no assets API
+        run: |
+          node business-app-parity/prepare_new_live_noassets_worker.mjs \
+            "$RUNNER_TEMP/fire-original-new-live/dist" \
+            "$RUNNER_TEMP/fire-worker-only-original-seal.json" \
+            "$FIRE_SOURCE_SHA" \
+            "$RUNNER_TEMP/fire-new-live-worker-only-alternative"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const path=process.env.RUNNER_TEMP+'/fire-new-live-worker-only-alternative';
+          const manifest=JSON.parse(readFileSync(path+'/server/wrangler.json','utf8'));
+          const proof=JSON.parse(readFileSync(path+'/alternative-receipt.json','utf8'));
+          assert.equal(Object.hasOwn(manifest,'assets'),false,'No assets-upload-session may be triggered');
+          assert.equal(manifest.main,'fire-noassets-entry.mjs');
+          assert.equal(manifest.vars.FIRE_NEW_LIVE_AUTH_ENABLED,'blocked');
+          assert.equal(manifest.d1_databases[0].database_id,
+           '00000000-0000-4000-8000-000000000000','Never bind real owner database silently');
+          assert.deepEqual(manifest.r2_buckets,[],'No R2');
+          assert.equal(proof.workerDeployed,false);
+          assert.equal(proof.firstJob0001CleanStartVerified,false);
+          assert.equal(proof.newLiveSchemaPhysicallyVerified,false);
+          assert.equal(proof.liveActivationAuthorized,false);
+          assert.equal(manifest.vars.FIRE_ENV,'new-live-prelaunch');
+          assert.equal(manifest.vars.SITE_ORIGIN,
+           'https://fire-fullapp-new-live.kyle-bfc.workers.dev');
+          assert.ok(proof.assetFileCount>=35);
+          assert.ok(proof.candidateTotalFileBytes<60*1024*1024);
+          console.log('PASS real original client assets captured as native Worker-only Data modules ('+
+           proof.assetFileCount+' files, '+proof.assetBytes+' bytes), no R2, blocked auth, no D1 binding.');
+          NODE
+      - name: Wrangler local packaging dry-run only, NEVER Cloudflare deployment
+        working-directory: ${{ runner.temp }}/fire-original-new-live
+        run: |
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --no-bundle \
+            --config "$RUNNER_TEMP/fire-new-live-worker-only-alternative/server/wrangler.json" \
+            --outdir "$RUNNER_TEMP/fire-new-live-worker-only-wrangler-preview"
+          echo 'PASS offline Wrangler packaging inspection; NOT deployed or provider-attested.'
+      - name: Boot ACTUAL alternative in isolated current workerd and prove source bytes plus auth refusal (NO Cloudflare)
+        timeout-minutes: 4
+        run: |
+          # The QA-master NEW LIVE app is pinned at compatibility_date=2026-11-13.
+          # The original locked Wrangler 4.92 CLI can dry-run but ships a
+          # workerd that tops out at 2026-05-22 and cannot start this app.
+          # Only this LOCAL isolated simulator uses current pinned CLI;
+          # do not modify app lockfiles or authorize any provider deploy.
+          npm install --prefix "$RUNNER_TEMP/fire-current-workerd" --no-save \
+            --ignore-scripts --no-audit --no-fund wrangler@4.162.0
+          node "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js" --version
+          node business-app-parity/smoke_new_live_noassets_local_runtime.mjs \
+            "$RUNNER_TEMP/fire-new-live-worker-only-alternative" \
+            "$RUNNER_TEMP/fire-current-workerd/node_modules/wrangler/bin/wrangler.js"
+      - name: Retain actual source-built no-asset-upload candidate for owner review, not deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-NEW-LIVE-WORKER-ONLY-NO-ASSETS-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fire-new-live-worker-only-alternative
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 6
+          retention-days: 3

@@ -1,0 +1,205 @@
+/** FIRE NEW LIVE ambiguous prior attempt: offline unit tests only. NO Cloudflare. */
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {
+ validateAttemptLock,validateLockedConfig,verifyPhysicalIdentity,
+ classifyRemoteInventory
+} from './owner_new_live_attempt_readonly_reconcile.mjs';
+
+const live='0f4d1c4a-9fbb-4b3d-85c1-2f43f82a3662';
+const goodLock={
+ target:'independent-live',database_name:'fire-fullapp-new-live-db',
+ database_id:live,state:'REMOTE_COMMAND_RESULT_UNCONFIRMED_NO_AUTOMATIC_RETRY',
+ sourceMigrationCount:26,physicalIdentityConfirmed:true,
+ initialApplicationTables:0,createdAt:'2026-11-14T23:30:00.000Z'
+};
+const goodConfig={d1_databases:[{
+ binding:'DB',database_name:'fire-fullapp-new-live-db',
+ database_id:live,migrations_dir:'migrations',migrations_table:'d1_migrations'
+}]};
+let checks=0;
+const pass=(value,msg)=>{assert.equal(value,true,msg);checks++};
+const reject=(fn,msg)=>{
+ assert.throws(fn,/FIRE_NEW_LIVE_ATTEMPT_READ_ONLY_STOP/,msg);
+ checks++;
+};
+pass(validateAttemptLock(goodLock),'original one-shot lock accepted, never removed');
+for(const patch of [
+ {target:'independent-dr'},
+ {database_name:'fire-fullapp-dr-db'},
+ {database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'},
+ {state:'COMPLETE'},
+ {sourceMigrationCount:25},
+ {physicalIdentityConfirmed:false},
+ {initialApplicationTables:1},
+ {createdAt:'bogus'}
+])reject(()=>validateAttemptLock({...goodLock,...patch}),'wrong lock refused');
+for(const malformed of [null,{},[],{...goodLock,createdAt:12}])
+ reject(()=>validateAttemptLock(malformed),'malformed lock refused');
+pass(validateLockedConfig(goodConfig),'only exact independent NEW LIVE config');
+for(const patch of [
+ {binding:'WRONG'}, {database_id:'5e55c5b7-cd67-4c8f-a52e-40f71b5d3145'},
+ {migrations_table:'other'}, {database_name:'fire-fullapp-dr-db'}
+])reject(()=>validateLockedConfig({d1_databases:[{...goodConfig.d1_databases[0],...patch}]}),
+ 'wrong DB config rejected');
+reject(()=>validateLockedConfig({d1_databases:[goodConfig.d1_databases[0],goodConfig.d1_databases[0]]}),
+ 'cross DB configuration rejected');
+pass(verifyPhysicalIdentity({name:'fire-fullapp-new-live-db',uuid:live}),
+ 'remote physically observed UUID must exactly match');
+for(const x of [
+ null,{name:'fire-fullapp-dr-db',uuid:live},
+ {name:'fire-fullapp-new-live-db',uuid:'wrong'}
+])reject(()=>verifyPhysicalIdentity(x),'wrong provider D1 identity refused');
+
+const provider=[{type:'table',name:'_cf_KV'}];
+const journal=[{type:'table',name:'d1_migrations'}];
+const app=[{type:'table',name:'jobs'},{type:'index',name:'some_index'}];
+let o=classifyRemoteInventory(provider,null);
+pass(o.state==='NO_JOURNAL_AND_NO_APPLICATION_OBJECTS_SEEN'&&o.journalCount===null,
+ 'no journal and no app tables is NOT a success receipt');
+o=classifyRemoteInventory([...provider,...app],null);
+pass(o.state==='APPLICATION_OBJECTS_WITHOUT_JOURNAL_NEEDS_INVESTIGATION',
+ 'app objects without journal must not be treated as clean');
+o=classifyRemoteInventory([...provider,...journal],0);
+pass(o.state==='ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION',
+ 'empty journal does NOT reauthorize a write');
+const internalSequence={type:'table',name:'sqlite_sequence'};
+o=classifyRemoteInventory([...provider,...journal,internalSequence],0);
+pass(o.state==='ZERO_JOURNAL_SQLITE_SEQUENCE_ONLY_NO_RETRY'&&
+ o.onlyInternalSqliteSequenceObserved===true&&o.fullSchemaVerified===false&&
+ o.applicationObjectCount===1,
+ 'only SQLite internal AUTOINCREMENT sequence plus empty journal is an unverified no-retry state');
+o=classifyRemoteInventory([...provider,...journal,internalSequence,{type:'table',name:'jobs'}],0);
+pass(o.state==='ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION'&&
+ o.onlyInternalSqliteSequenceObserved===false,
+ 'extra application table never passes internal-sequence-only classification');
+o=classifyRemoteInventory([...provider,...journal,{type:'index',name:'sqlite_sequence'}],0);
+pass(o.state==='ZERO_JOURNAL_ROWS_NEEDS_INVESTIGATION',
+ 'forged sqlite_sequence as index cannot be misclassified as legitimate internal table');
+o=classifyRemoteInventory([...provider,...journal],13);
+pass(o.state==='INCOMPLETE_JOURNAL_DO_NOT_RETRY',
+ 'partially applied journal blocks retry');
+o=classifyRemoteInventory([...provider,...journal,...app],26);
+pass(o.state==='COMPLETE_JOURNAL_FULL_SOURCE_PROOF_PENDING'&&
+ o.fullSchemaVerified===false,'26 rows alone DO NOT prove exact schema or first Job #0001');
+o=classifyRemoteInventory([...provider,...journal],27);
+pass(o.state==='UNEXPECTED_EXTRA_JOURNAL_ROWS_DO_NOT_RETRY',
+ 'unrecognized extra migrations block');
+for(const [rows,n] of [
+ [null,null],[[],0],[journal,null],[journal,-1],
+ [journal,1.5],[journal,'26'],
+ [[journal[0],journal[0]],26],
+ [[{type:'DROP',name:'jobs'}],null]
+])reject(()=>classifyRemoteInventory(rows,n),'unsafe or contradictory remote result refused');
+const source=readFileSync(fileURLToPath(new URL('./owner_new_live_attempt_readonly_reconcile.mjs',import.meta.url)),'utf8');
+for(const required of [
+ 'NO_JOURNAL_AND_NO_APPLICATION_OBJECTS_SEEN',
+ 'COMPLETE_JOURNAL_FULL_SOURCE_PROOF_PENDING',
+ 'ZERO_JOURNAL_SQLITE_SEQUENCE_ONLY_NO_RETRY',
+ 'inspectNewLiveFirstJobCleanStart',
+ 'oneShotAttemptLockPreserved:true',
+ 'migrationRetryAllowed:false',
+ 'remoteWritePerformed:false'
+])pass(source.includes(required),'read-only guard source retained '+required);
+pass(!source.includes("['d1','migrations','apply'"),
+ 'script has no migrations apply invocation');
+pass(!source.includes("['d1','create'"),
+ 'script has no D1 create invocation');
+pass(!source.includes("['deploy'"),
+ 'script has no Worker deploy invocation');
+
+const {assessNewLiveInitializedJournalRecoveryEvidence}=
+ await import('./new_live_initialized_journal_recovery_guard.mjs');
+const journalTable={
+ type:'table',name:'d1_migrations',
+ sql:'CREATE TABLE "d1_migrations"( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL )'
+};
+const postLockInternalSequence={
+ type:'table',name:'sqlite_sequence',sql:'CREATE TABLE sqlite_sequence(name,seq)'
+};
+const journalUnique={
+ type:'index',name:'sqlite_autoindex_d1_migrations_1',sql:null
+};
+const baseRecovery={
+ originalAttemptLock:goodLock,dedicatedD1Config:goodConfig,
+ liveD1Info:{name:'fire-fullapp-new-live-db',uuid:live},
+ originalLockPreserved:true,completionReceiptPresent:false,
+ ownerApprovedNewWrite:false,sourceReviewSqlCount:26,
+ sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique],
+ journalRows:[],sequenceRows:[]
+};
+const judge=x=>assessNewLiveInitializedJournalRecoveryEvidence(x);
+const accepted=judge(baseRecovery);
+pass(accepted.observedAppliedMigrationRows===0&&
+ accepted.observedSqliteSequenceRows===0&&
+ accepted.originalLockPreserved===true&&
+ accepted.newWriteAuthorized===false&&
+ accepted.secondMigrationExecutionPermitted===false&&
+ accepted.gate5Accepted===false,
+ 'initialized but empty journal can ONLY become a separately reviewed prewrite candidate');
+for(const patch of [
+ {originalAttemptLock:{...goodLock,state:'COMPLETE'}},
+ {dedicatedD1Config:{d1_databases:[{...goodConfig.d1_databases[0],database_id:'wrong'}]}},
+ {liveD1Info:{name:'fire-fullapp-dr-db',uuid:live}},
+ {completionReceiptPresent:true},{ownerApprovedNewWrite:true},
+ {originalLockPreserved:false},{sourceReviewSqlCount:25},
+ {journalRows:[{id:1,name:'0000_wise_namora.sql'}]},
+ {sequenceRows:[{name:'d1_migrations',seq:26}]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence]},
+ {sqliteMasterRows:[journalTable,journalUnique]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,{type:'table',name:'customers',sql:'CREATE TABLE customers(id TEXT)'}]},
+ {sqliteMasterRows:[{...journalTable,sql:'CREATE TABLE d1_migrations(id INTEGER,name TEXT)'},postLockInternalSequence,journalUnique]},
+ {sqliteMasterRows:[journalTable,{...postLockInternalSequence,type:'view'},journalUnique]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,{...journalUnique,sql:'CREATE INDEX fake ON d1_migrations(name)'}]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,journalUnique]},
+ {sqliteMasterRows:[journalTable,postLockInternalSequence,journalUnique,{type:'trigger',name:'audit',sql:'CREATE TRIGGER audit AFTER INSERT ON d1_migrations BEGIN SELECT 1; END'}]}
+]){
+ assert.throws(()=>judge({...baseRecovery,...patch}),
+  /FIRE_NEW_LIVE_POSTLOCK_RECOVERY_GUARD_REFUSED/,
+  'wrong account/lock/source, hidden data, sequence history, malformed journal or extra object blocks reauthorization readiness');
+ checks++;
+}
+
+
+const {summariseObservedJournalMetadata}=
+ await import('./owner_new_live_initialized_journal_readonly.mjs');
+const ownerMetadata={
+ objects:baseRecovery.sqliteMasterRows,
+ journal:[],sequence:[],
+ lock:goodLock,config:goodConfig,
+ info:{name:'fire-fullapp-new-live-db',uuid:live}
+};
+const summary=summariseObservedJournalMetadata(ownerMetadata);
+pass(summary.result==='FIRE_NEW_LIVE_INITIALIZED_JOURNAL_EMPTY_READ_ONLY_MATCH_NO_RETRY'&&
+ summary.exactJournalDdlAndUniqueIndexMatched===true&&
+ summary.migrationRetryPermitted===false&&
+ summary.gate5Accepted===false&&
+ summary.noDatabaseWritePerformed===true,
+ 'new owner capture pure summary cannot approve an additional migration or Gate5');
+for(const patched of [
+ {objects:[...ownerMetadata.objects,{name:'jobs',type:'table',sql:'CREATE TABLE jobs(id TEXT)'}]},
+ {journal:[{id:1,name:'0000_wise_namora.sql'}]},
+ {sequence:[{name:'d1_migrations',seq:1}]},
+ {config:{d1_databases:[{...goodConfig.d1_databases[0],database_id:'wrong'}]}},
+ {info:{name:'fire-fullapp-dr-db',uuid:live}}
+]){
+ assert.throws(()=>summariseObservedJournalMetadata({...ownerMetadata,...patched}),
+  /FIRE_NEW_LIVE_POSTLOCK_RECOVERY_GUARD_REFUSED/,
+  'physical owner data mutation / journal history / misbinding refuses');
+ checks++;
+}
+const readonlySource=readFileSync(fileURLToPath(new URL('./owner_new_live_initialized_journal_readonly.mjs',import.meta.url)),'utf8');
+for(const required of [
+ 'FIRE_NEW_LIVE_INITIALIZED_JOURNAL_OFFLINE_ONLY_NO_PROVIDER',
+ 'SELECT type,name,sql FROM sqlite_master',
+ 'SELECT name,seq FROM sqlite_sequence',
+ 'multipleProviderReadsNotAtomicSnapshot:true',
+ 'migrationRetryPermitted:false'
+])pass(readonlySource.includes(required),'owner read-only inventory capture pinned '+required);
+pass(!readonlySource.includes("['d1','migrations','apply'")&&
+ !readonlySource.includes("['d1','create'")&&
+ !readonlySource.includes("['deploy'"),
+ 'read-only owner helper has no provider write command');
+
+console.log('PASS '+checks+'/'+checks+' NEW LIVE locked-attempt READ-ONLY offline tamper checks. NO CLOUD PROVIDER USED.');

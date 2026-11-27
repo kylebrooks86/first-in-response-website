@@ -1,0 +1,66 @@
+{
+  "baselineCommit": "782efa9449ecf08b9123b32448b270c212c61009",
+  "officialReadiness": {
+    "accepted": 3,
+    "gates": 10,
+    "percent": 30
+  },
+  "scope": "Complete paginated Payments/Schedule/Agreements reads using existing authenticated estimate history API",
+  "implemented": [
+    "All 50-record pages must succeed before publishing collections or totals",
+    "Duplicate IDs, looping cursors, missing completion metadata, oversized pages and interrupted later pages fail closed",
+    "Stale reads/unmounted Schedule, Contracts and Payments cannot publish partial collections",
+    "Invalid principal/deposit/invoice amounts and unsafe financial aggregate totals hide financial actions",
+    "Authenticated history responses use Cache-Control no-store"
+  ],
+  "verified": {
+    "sharedReaderChecks": 21,
+    "paymentLoadChecks": 298,
+    "scheduleLoadChecks": 300,
+    "agreementLoadChecks": 276,
+    "builtQaNativeD1HttpsBrowserChecks": 64,
+    "syntheticEstimates": 226,
+    "historyPages": 5,
+    "viewports": [
+      320,
+      390,
+      768,
+      1366
+    ],
+    "financialAssertionsPerCandidate": 208,
+    "candidateTsBuilds": 4,
+    "processingFinancialSuites": 4,
+    "finalTippingSuites": 3,
+    "dbPreflightAssertionsPerCandidate": 59,
+    "qaAuthAssertions": 33,
+    "sourceParityCandidates": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ]
+  },
+  "oldestJobExample": {
+    "totalCents": 20000,
+    "depositCents": 10000,
+    "paidCents": 5000,
+    "collectibleCents": 15000,
+    "depositRemainingCents": 5000,
+    "separatePotentialCents": 4505000
+  },
+  "safety": {
+    "deployed": false,
+    "hostedMutations": false,
+    "migrations": false,
+    "credentialsChanged": false,
+    "paymentProviderCalls": false,
+    "realCustomerData": false
+  },
+  "limits": [
+    "Read pages reflect current server reads rather than a frozen accounting snapshot; all payment mutations still revalidate on the server",
+    "The reader fails visibly above 1000 bounded pages instead of showing truncated totals",
+    "Hosted/iPhone acceptance for this source remains pending",
+    "Default deposit scheduling enforcement, owner term exceptions, durable activity and notification preferences remain pending"
+  ],
+  "next": "Implement atomic scheduling/deposit enforcement and explicit owner exceptions, preserving signed terms and complete backup coverage."
+}

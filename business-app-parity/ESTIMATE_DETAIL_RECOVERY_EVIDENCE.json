@@ -1,0 +1,155 @@
+{
+  "parent": "2f985b621975b0d36b4831b9f8a96d9d7104481e",
+  "asOf": "2026-10-09",
+  "scope": "FIRE Business App estimate detail completion-report read effect only",
+  "candidateSnapshotCommits": {
+    "live": "a73ffcced60b62dfe4614d4688e3a8cf131b1dd1",
+    "doomsday": "331545656f314bb9aba66ebdee3384a8e21e6b3b",
+    "staging": "ed71622b49a025bcfe4fb647fdf85f28c76aa2fd"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/estimate-detail-recovery-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/estimate-detail-recovery-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/estimate-detail-recovery-staging"
+  },
+  "newChecksPerTarget": 70,
+  "newChecksPassed": 210,
+  "newChecksTotal": 210,
+  "invoiceRecoveryChecksPassed": 252,
+  "invoiceRecoveryChecksTotal": 252,
+  "suiteRunsPassed": 9,
+  "suiteRunsTotal": 9,
+  "suiteNames": [
+    "test-estimate-detail-recovery.mjs",
+    "test-invoice-editor-recovery.mjs",
+    "test-processing-fees.mjs"
+  ],
+  "resultsByTarget": {
+    "live": {
+      "detail": {
+        "exitCode": 0,
+        "result": "PASS 70/70: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads only.",
+        "logSha256": "e61ebf90d2131ce1857672b22db8550f014dd6563efcbcdada53be6544e0190b"
+      },
+      "invoice": {
+        "exitCode": 0,
+        "result": "PASS 84/84: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.",
+        "logSha256": "e942836928db4fbf39b5c7f00e4a5e2f5b02583c27010238fedb605caab24bc3"
+      },
+      "finance": {
+        "exitCode": 0,
+        "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+        "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "f6608aeaab2f2113f32929f18557b48e9272324e69f4421fa602846819b5e777"
+    },
+    "doomsday": {
+      "detail": {
+        "exitCode": 0,
+        "result": "PASS 70/70: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads only.",
+        "logSha256": "e61ebf90d2131ce1857672b22db8550f014dd6563efcbcdada53be6544e0190b"
+      },
+      "invoice": {
+        "exitCode": 0,
+        "result": "PASS 84/84: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.",
+        "logSha256": "e942836928db4fbf39b5c7f00e4a5e2f5b02583c27010238fedb605caab24bc3"
+      },
+      "finance": {
+        "exitCode": 0,
+        "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+        "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "c45f34f9dd2e13bd0719a4e5c3baaef0df7890d65051966a7017e84846dd66dc"
+    },
+    "staging": {
+      "detail": {
+        "exitCode": 0,
+        "result": "PASS 70/70: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads only.",
+        "logSha256": "e61ebf90d2131ce1857672b22db8550f014dd6563efcbcdada53be6544e0190b"
+      },
+      "invoice": {
+        "exitCode": 0,
+        "result": "PASS 84/84: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.",
+        "logSha256": "e942836928db4fbf39b5c7f00e4a5e2f5b02583c27010238fedb605caab24bc3"
+      },
+      "finance": {
+        "exitCode": 0,
+        "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+        "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "a1eff61c7c51cfe05d15af3956b790339550c0bcc6d928d7cc2991eccbcacfb8"
+    }
+  },
+  "negativeControls": {
+    "priorDetailFailsStaleReportRegression": true
+  },
+  "unchangedWriteHandlerBodiesPassed": 4,
+  "unchangedWriteHandlerBodiesTotal": 4,
+  "handlerNames": [
+    "update",
+    "completeJob",
+    "createInvoice",
+    "resolveOverpayment"
+  ],
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "sourceParity": {
+    "sharedFilesChecked": 119,
+    "roots": [
+      "/workspace/scratch/a307f8c9f987/estimate-detail-recovery-live",
+      "/workspace/scratch/a307f8c9f987/estimate-detail-recovery-doomsday",
+      "/workspace/scratch/a307f8c9f987/estimate-detail-recovery-staging"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "sharedFilesMatched": 119,
+  "sharedFilesChecked": 119,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "realMobileEvidenceCaptured": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false,
+  "cost": 0,
+  "changedFilesSha256": {
+    "shared/app/dashboard.tsx": "3434b4eccfc9f325d396dfe3f510fe57ffa342e7111054b64eba3c5ff50732eb",
+    "shared/scripts/test-estimate-detail-recovery.mjs": "92b2d08c16b9c19d9be843ac469b8ea959d68b4eb09c79d02fcb7eeb4635012b"
+  },
+  "behavior": [
+    "Switching estimate resets reportComplete before reading, so an old completed report cannot enable the new estimate completion button while pending.",
+    "Effect cleanup prevents old success/failure and delayed JSON from committing after switching, closing or unmounting.",
+    "Only successful HTTP responses with an array of reports can mark report completion; failure/malformed responses leave action disabled and a later successful read recovers."
+  ],
+  "testLimits": "Actual estimate detail function/effect/hooks and button props with deferred synthetic GETs, prior invoice editor mocked reads and local financial/build checks. No hosted/mobile/sandbox identity or full React browser lifecycle evidence.",
+  "releaseGateAccessCheck": "No connected read-only Cloudflare full-version/build/resource API capability. No repeated blocked endpoint probes, sign-in, deployment wrapper, database rows or secrets access. Owner Cloudflare findings and pending 0022 plan preserved.",
+  "preservedTests": "Previous Business/list/recovery/preflight tests retained without reruns; unchanged write handler bodies and all migrations/adapters preserved.",
+  "reviewManifestFile": "ESTIMATE_DETAIL_REVIEW_MANIFEST.json",
+  "reviewEvidenceFile": "ESTIMATE_DETAIL_REVIEW_EVIDENCE.json"
+}

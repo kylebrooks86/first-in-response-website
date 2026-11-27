@@ -1,0 +1,183 @@
+{
+  "localCandidates": {
+    "live": "6e0c3dc105d3b378392573c7918eb2df9c7b46db",
+    "doomsday": "309aeed49579d0c4a6f816b533fa6a0c433949b2",
+    "staging": "5d2c781992f0b2b172bdd6bdc98d3c0773e9030c"
+  },
+  "githubBase": "e516af3ce93368450cd3d02906d117116d090f3e",
+  "productionReady": false,
+  "deployed": false,
+  "batch2CandidateCommits": {
+    "parity-live-candidate": "c9d0e61741aaed49e4df756782db4e1932a962e3",
+    "parity-dr-candidate": "879df629c830ff1e95f2dbdeaf21b974116dda3f",
+    "parity-staging-candidate": "f604bdc05eeb4005e4bfa69c52ab40b5c8eaec25"
+  },
+  "resumeBatchCandidateCommits": {
+    "live": "8d113314b5a14e0dd63cb73e6f52397eb1c1df6d",
+    "doomsday": "73293f0743e47da61d2b4e76be79bfd9bc2803db",
+    "staging": "5d8ca1be99aacbce701f3f80fea4ce32df30a97b"
+  },
+  "photoRecoveryBatchCandidateCommits": {
+    "live": "55e0380f01a3770e114f90260efada77c2a45470",
+    "doomsday": "7a75ce4ef13aa0a2905889980603a29379eb21d4",
+    "staging": "a130a2befe0c09257e07f242a4b207fd008c3835"
+  },
+  "paymentsMobileBatchCandidateCommits": {
+    "live": "16228a4b619570a924345a089da8f1e47dce40d2",
+    "doomsday": "217478020ee6103495b1f078d994625a11110984",
+    "staging": "1cc2cf2ae7e376e32e9940bfc5b14d14fc673591"
+  },
+  "publicTipLayoutBatchCandidateCommits": {
+    "live": "8324fc877112686ccdefa9baabad32f3c06627a7",
+    "doomsday": "3e68722538cab64bbc662361c6cc0c15d5cee4d1",
+    "staging": "4b5740cfcf2e74e80b2bff774eb6d79a870a69d5"
+  },
+  "customerPaymentMobileBatchCandidateCommits": {
+    "live": "13fb0f4d2d5636aa9f4c0c16a78234edcb68f99a",
+    "doomsday": "2254c860ce3a71c103468bb5cd997092a04975be",
+    "staging": "1ce15cff1dea0f3059eaff005926da3cb8734254"
+  },
+  "invoiceRevisionMobileBatchCandidateCommits": {
+    "live": "cb345fca76c7b54e91eb18d78396eaa1d35954cf",
+    "doomsday": "85e7eda6478050cd203fbb4b22b883f4a3715a48",
+    "staging": "715e05afae2617cb7104a79138ff4f03810c2cf2"
+  },
+  "independentAuthValidationCandidateCommits": {
+    "live": "dc3fff7124adf78df439cc2ee1dda6033dcde47d",
+    "doomsday": "c227120ac685160adeda26be80cd742a34b70f70",
+    "staging": "9288aba275a6c879f5f23909e16c09c056221ea3"
+  },
+  "localDoomsdayBuildBridgeCommit": "a62478bcfc901db361e92a5b39cc3c800f711eda",
+  "independentPinFlowCandidateCommits": {
+    "live": "cf047c42e74918011699f196c53272f724255fe5",
+    "doomsday": "7b331886313f736bee704a0b04d4e7782cdc4539",
+    "staging": "c9ca5d5b2350db607e1ef031745d44b96f6713d5"
+  },
+  "candidateDbPreflightCommits": {
+    "live": "572c333ce87f74474a1d223a8fcbdfca38d38e4f",
+    "doomsday": "021847097d91178b0266be50d2d650ace1603519",
+    "staging": "8eec0c6c80b363879d1e208d8744636fb149ee3a"
+  },
+  "dashboardBalanceConsistencyCandidateCommits": {
+    "live": "d7404b2d57930606e66bc97fececbbfecce17476",
+    "doomsday": "51efb0873766e79bba94cfa023760310ea1fa385",
+    "staging": "3aaf968f7188c893dd894fbb067a4a9dc74a34bb"
+  },
+  "customerInvoiceBalanceCandidateCommits": {
+    "live": "57dc8ead100c18416aa232911ca7dd3478f7d329",
+    "doomsday": "b196178281e2653760a7a45fb0369259f4e49dc7",
+    "staging": "2df35d74f9b5d50c8f21854eafba2e7504d199a5"
+  },
+  "paymentBalanceLabelsCandidateCommits": {
+    "live": "74a14f9fd1ce3709aa75d2e0ad31ee868a7037d5",
+    "doomsday": "8ba0de2e91694b093a7a607728a56dc717fc3262",
+    "staging": "1d454a696016f0bf90f9ecb5637fa89a9bd4f61c"
+  },
+  "paymentReceivedStatusCandidateCommits": {
+    "live": "5290ffeffc7446629375210ab006e7f11a0f9772",
+    "doomsday": "76f3e5d950509a253f4547ecd44bf787d66a2c1b",
+    "staging": "ab76755b1e87d09fc81d696d3622cee0ccd80fa4"
+  },
+  "depositInvoiceDueCandidateCommits": {
+    "live": "808c64023c804cf4d2a223ce3534853e2e84f171",
+    "doomsday": "34726c190e385a7505387ba18bc695dbea4d8943",
+    "staging": "65b22b7ef146e9095718a5d7e9fccb7ba5f23bb2"
+  },
+  "manualTipPresetsCandidateCommits": {
+    "live": "147257e7eeff7001212d40f45b8f8f20e2c07410",
+    "doomsday": "516f5fd1996488c4033fd5f619f4b8e045f82183",
+    "staging": "4feee7c3bd7b7e93024b0c7f39d83063fd5256cd"
+  },
+  "manualTipThemeCandidateCommits": {
+    "live": "a4d56971ce8776cae90b5cb2a7078ad07723fa57",
+    "doomsday": "b48adf3496f194099906f911831c9efdbb24cf37",
+    "staging": "036503b02dbe1f8f6b7ec2f51771f0947595e2d2"
+  },
+  "paymentLoadErrorsCandidateCommits": {
+    "live": "489260547da1024b76e2df3d01d8ac7900deca6d",
+    "doomsday": "c77514ed8c48e796f750f7fc9998dc086db4e5e0",
+    "staging": "4a319ec4087dc8d31fd65a0a67e286aff4de0a8a"
+  },
+  "invoiceLoadErrorsCandidateCommits": {
+    "live": "11d82f298a093769ba2b7157b4e312e97efb8b04",
+    "doomsday": "62df6e90f7f210c8e9fccd68db85e8239d1b55f7",
+    "staging": "e4b01da88d4fc67560a0353bb158665ff55786fe"
+  },
+  "estimateLoadErrorsCandidateCommits": {
+    "live": "da85e2e3228dfc94a11674f84df85d9efae526d4",
+    "doomsday": "c70ebdd1deb2384684d676906fd6d478b8cb29dd",
+    "staging": "5a6a22f951a2bae6f427fa3e02311239a570c714"
+  },
+  "scheduleLoadErrorsCandidateCommits": {
+    "live": "bdafc7470976ab566e56a0d1d89cf911d5fcada9",
+    "doomsday": "7a36d51f62a975eb04264270a060a0176ca598e7",
+    "staging": "e10586e8bbe7cb6b9f5e863ef8b4df0f29ef30c9"
+  },
+  "followupLoadErrorsCandidateCommits": {
+    "live": "acd2c1c50c862e03503a2b520ca53d5e2876b384",
+    "doomsday": "164ec6d35ec3aed1b9e37de6dbb139109289bb28",
+    "staging": "55ec6a7b6f903b7961ec9fc7a5ca6e5e2ca4b073"
+  },
+  "agreementLoadErrorsCandidateCommits": {
+    "live": "a7ac8ad66572bb64b29311d803b245a535cc8274",
+    "doomsday": "fb828b52546f9f6aa9f445abd5aaabe50a01cdc4",
+    "staging": "666119a06da55fc5c43c87c6c90982c3fa9e1677"
+  },
+  "reliabilityRecoveryCandidateCommits": {
+    "live": "94a332e50e3ad7552630c877051072f5d02ebfeb",
+    "doomsday": "2dd8bf0d94449ef6d39a10adb4d05de652a69103",
+    "staging": "fbc53a361fcc98a418f5ddb780675d2c9147cb58"
+  },
+  "businessMobileAccessibilityCandidateCommits": {
+    "live": "e0815a0ddfe21a6d680ae487aaf7b1546a94c42c",
+    "doomsday": "2a8ba202a34b52658d5d4eaf3c3b8748e8456dd0",
+    "staging": "422a8db892078c8c043687df915464165d9b500e"
+  },
+  "latestVerifiedCandidateCommits": {
+    "live": "93b7b2ebe74cdcedd82f492441de0f7e4ae25bc0",
+    "doomsday": "ffbd3c4b88568f28c28d1ba5f9dbe40575f701d6",
+    "staging": "557ac637a72b99018fac1449833128acd1e56671"
+  },
+  "latestVerifiedCandidateEvidence": "SECTION_NAVIGATION_EVIDENCE.json",
+  "invoiceFieldsAccessibilityCandidateCommits": {
+    "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
+    "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
+    "staging": "d11d5100fa0f80708b93fb4bf6a7418b0734cb78"
+  },
+  "invoiceEditorRecoveryCandidateCommits": {
+    "live": "035b3c01b33cac3cc527e08ec281f7a186680119",
+    "doomsday": "67a7f58ae599572929c741306f9c674207ada958",
+    "staging": "d020149c38d962461298b035f8db623daafad3e4"
+  },
+  "estimateDetailRecoveryCandidateCommits": {
+    "live": "a73ffcced60b62dfe4614d4688e3a8cf131b1dd1",
+    "doomsday": "331545656f314bb9aba66ebdee3384a8e21e6b3b",
+    "staging": "ed71622b49a025bcfe4fb647fdf85f28c76aa2fd"
+  },
+  "customerLoadRecoveryCandidateCommits": {
+    "live": "fc545602e4dceee2781c635e4304e4bfab70de8d",
+    "doomsday": "bf6d62c314bcfd7e640f8e16237f2410614f1de5",
+    "staging": "6940453b02ad1ba7d966f67d114cc4736a212a04"
+  },
+  "jobReportRecoveryCandidateCommits": {
+    "live": "2b1180d68aa6ebff99aa412fe4209226583db249",
+    "doomsday": "898b569a878957dfe28e3032c24185895b9fbbf3",
+    "staging": "463c6c2249127891ccee1d613da5e1bd169244ed"
+  },
+  "jobCostRecoveryCandidateCommits": {
+    "live": "8b431b3145fddcc523ae9cf3cef3c8582feb7b67",
+    "doomsday": "a44aac665e6af6170c743125198376c6a98feea0",
+    "staging": "7786b45ddb34e8e847a685a3e5d93466341bbb46"
+  },
+  "releasePreflightCandidateCommits": {
+    "live": "2cf28b3ee8b73805a704a4a88bfa60647c78f830",
+    "doomsday": "d2708541c27df832b22ce2525d0c23658f694dcc",
+    "staging": "a959578358752e80b34590eaf1a9e2f4410b42e8"
+  },
+  "releasePreflightCandidateEvidence": "RELEASE_BLOCKER_CHECKPOINT_EVIDENCE.json",
+  "sectionNavigationCandidateCommits": {
+    "live": "93b7b2ebe74cdcedd82f492441de0f7e4ae25bc0",
+    "doomsday": "ffbd3c4b88568f28c28d1ba5f9dbe40575f701d6",
+    "staging": "557ac637a72b99018fac1449833128acd1e56671"
+  }
+}

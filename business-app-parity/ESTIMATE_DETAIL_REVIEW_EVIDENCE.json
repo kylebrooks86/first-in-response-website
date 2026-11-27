@@ -1,0 +1,26 @@
+{
+  "manifestFile": "ESTIMATE_DETAIL_REVIEW_MANIFEST.json",
+  "manifestSha256": "30c20f107c41f1f962edbdf187f7e53a20364095cad1953fee4bb258e3f7b8cd",
+  "manifestVerified": true,
+  "candidateSnapshotReferences": {
+    "live": "a73ffcced60b62dfe4614d4688e3a8cf131b1dd1",
+    "doomsday": "331545656f314bb9aba66ebdee3384a8e21e6b3b",
+    "staging": "ed71622b49a025bcfe4fb647fdf85f28c76aa2fd"
+  },
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30.0,
+    "meaning": "verified release gates, not effort or time remaining"
+  },
+  "productionReady": false,
+  "publicationAuthorized": false,
+  "deployed": false,
+  "historicalFilesPreservedSha256": {
+    "DOOMSDAY_0022_MIGRATION_PLAN.md": "ed4feba043c6be4d9445c163e8e9cd17e3c61fc017104c1ba916427d1958f9b6",
+    "DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json": "c160b6196b8274294f85a077df977b81ffbf6bb1f4e61f9784bd8c646168a6d5",
+    "shared/scripts/stripe-ledger-preflight.sql": "45640ec04d2a25685024a2402f9a39f7e5ff9ee3e5fb2c5a97a096a4794d2e20",
+    "shared/scripts/test-stripe-provider-migration.mjs": "293310ff26560cbc5011e49b3b19cea70fe201340bc6bc5bc6c0c7a5e1d57126"
+  },
+  "limits": "Local review only; owner Doomsday findings preserved, full artifact identity/resource/schema isolation still pending."
+}

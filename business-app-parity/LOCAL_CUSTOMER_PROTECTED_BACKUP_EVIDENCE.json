@@ -1,0 +1,127 @@
+{
+  "parent": "b22e51c97fb8ab52da43804b34ebb8ec5e9f89ed",
+  "scope": "Inactive synthetic customer backup protection; not local unlock or IDB encryption",
+  "algorithm": "PBKDF2-SHA256 600000 iterations; nonextractable AES-256-GCM; random 16-byte salt/12-byte IV; 128-bit tag; version-bound authenticated context",
+  "limits": {
+    "passphraseCharacters": [
+      16,
+      1024
+    ],
+    "plaintextBytes": 16777216
+  },
+  "targets": {
+    "live": {
+      "testResult": {
+        "passed": 22,
+        "total": 22,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "browserTested": false,
+        "iPhoneTested": false,
+        "storageEncrypted": false,
+        "uiActivated": false
+      },
+      "testLogSha256": "6ed959e45aefa6a1c8b01b0bc77bbd55601acedc4f26b58da9fb25a996f26219",
+      "buildLogSha256": "3a1faf7455edc67950644b870bd398cbdbbcf3fb81bea2c64cb2817a196b70af",
+      "exitCode": 0
+    },
+    "staging": {
+      "testResult": {
+        "passed": 22,
+        "total": 22,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "browserTested": false,
+        "iPhoneTested": false,
+        "storageEncrypted": false,
+        "uiActivated": false
+      },
+      "testLogSha256": "6ed959e45aefa6a1c8b01b0bc77bbd55601acedc4f26b58da9fb25a996f26219",
+      "buildLogSha256": "d1af8a6f6e1438f12e9b04c8e0d0953804aa37609975b44f47682b0bd6e9ca33",
+      "exitCode": 0
+    },
+    "doomsday": {
+      "testResult": {
+        "passed": 22,
+        "total": 22,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "browserTested": false,
+        "iPhoneTested": false,
+        "storageEncrypted": false,
+        "uiActivated": false
+      },
+      "testLogSha256": "6ed959e45aefa6a1c8b01b0bc77bbd55601acedc4f26b58da9fb25a996f26219",
+      "buildLogSha256": "8ccde04130f54f82b91be6fc51887a44f1493d0cc57f8890ee23c727cd1c4b3d",
+      "exitCode": 0
+    }
+  },
+  "checks": {
+    "passed": 66,
+    "total": 66
+  },
+  "typechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "builds": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedSourceParity": {
+    "sharedFilesChecked": 121,
+    "roots": [
+      "/workspace/scratch/a307f8c9f987/protected-backup-live",
+      "/workspace/scratch/a307f8c9f987/protected-backup-staging",
+      "/workspace/scratch/a307f8c9f987/protected-backup-doomsday"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "testEnvironment": "Node 24 native WebCrypto; not browser tests",
+  "limitations": [
+    "No local unlock, IDB encryption or UI activation",
+    "No native browser/iPhone crypto evidence; disposable environment was pruned",
+    "Plaintext exports remain compatible and sensitive",
+    "Forgotten phrase cannot be bypassed; phrase must be retained separately",
+    "JS string/key memory zeroization is not guaranteed",
+    "No security audit or hostile-script/XSS protection",
+    "No installed offline app cold launch",
+    "Scrolling shaking remains unresolved"
+  ],
+  "setupFailures": [
+    "Copied installer script lacked execute permission",
+    "Direct frozen install refused native postinstall scripts; established esbuild/workerd scripts ran locally and builds passed",
+    "An overlapped LIVE test log was incomplete; reran into separate final log before evidence capture"
+  ],
+  "applicationTestFailures": [],
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidOperations": false,
+  "sourceSha256": {
+    "shared/lib/local-customer-backup.ts": "0a9b77c41691dea84aa4444c86be5862acce35b333ac2b8d83f46d69d9256709",
+    "shared/scripts/test-local-customer-backup.mjs": "43f6073f083b7f758ec4cf9767d60fb766d96c9f815ce86f150d3d0549e801a2"
+  },
+  "references": [
+    "https://developer.mozilla.org/en-US/docs/Web/API/AesGcmParams",
+    "https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey"
+  ]
+}

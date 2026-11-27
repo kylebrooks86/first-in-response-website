@@ -1,0 +1,35 @@
+name: FIRE Gate 7 legacy Sites read-only records review — offline only
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/lib/legacy-sites-readonly-export.mjs'
+      - 'business-app-parity/shared/app/api/backup/legacy-review/route.ts'
+      - 'business-app-parity/shared/scripts/test-legacy-sites-readonly-export.mjs'
+      - 'business-app-parity/shared/scripts/verify-legacy-sites-review-local.mjs'
+      - 'business-app-parity/shared/scripts/test-verify-legacy-sites-review-local.mjs'
+      - 'business-app-parity/shared/scripts/rehearse-legacy-sites-review-in-memory.mjs'
+      - '.github/workflows/fire-gate7-legacy-sites-offline-export.yml'
+permissions:
+  contents: read
+jobs:
+  legacy-sqlite-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout exact reviewed source, no retained credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Node 22 local native SQLite
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real disposable SQLite source, optional missing refund table, drift and owner-only HTTP guard
+        working-directory: business-app-parity/shared
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite --test scripts/test-legacy-sites-readonly-export.mjs
+          node --experimental-sqlite --test scripts/test-verify-legacy-sites-review-local.mjs
+          echo 'OFFLINE_SQLITE_ONLY=PASS; Cloudflare/Stripe/R2/LIVE/QA WRITES=NONE'

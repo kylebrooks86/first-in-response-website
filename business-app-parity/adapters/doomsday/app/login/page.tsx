@@ -1,0 +1,68 @@
+"use client";
+
+import {useEffect, useState, type FormEvent} from "react";
+
+function safeReturnTo() {
+ const value=new URLSearchParams(window.location.search).get("return_to")||"/";
+ if(!value.startsWith("/")||value.startsWith("//"))return "/";
+ try{
+  const url=new URL(value,window.location.origin);
+  return url.origin===window.location.origin?url.pathname+url.search+url.hash:"/";
+ }catch{return "/";}
+}
+
+export default function LoginPage(){
+ const [error,setError]=useState("");
+ const [busy,setBusy]=useState(false);
+ const [mode,setMode]=useState<"loading"|"legacy"|"pin-or-passkey">("loading");
+ useEffect(()=>{
+  let active=true;
+  fetch("/api/app-version",{cache:"no-store",credentials:"same-origin"})
+   .then(r=>{if(!r.ok)throw Error("unavailable");return r.json();})
+   .then((response:unknown)=>{const r=response as {quickAuthMode?:string};if(active)setMode(r?.quickAuthMode==="pin-or-passkey"?"pin-or-passkey":"legacy");})
+   .catch(()=>{if(active)setMode("legacy");});
+  return()=>{active=false;};
+ },[]);
+ const quick=mode==="pin-or-passkey";
+ async function signIn(payload:{password?:string;method?:string;pin?:string}){
+  setBusy(true);setError("");
+  try{
+   const response=await fetch("/api/auth/login",{method:"POST",credentials:"same-origin",
+    headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
+   const result=await response.json() as {error?:string};
+   if(!response.ok)throw Error(result.error||"Sign-in denied.");
+   window.location.assign(safeReturnTo());
+  }catch(err){setError(err instanceof Error?err.message:"Sign-in unavailable.");setBusy(false);}
+ }
+ function submit(event:FormEvent<HTMLFormElement>){
+  event.preventDefault();
+  const credential=new FormData(event.currentTarget).get("password");
+  if(typeof credential!=="string"||(quick?!/^\d{4}$/.test(credential):!/^\d{4}$/.test(credential)&&(credential.length<24||credential.length>128))){
+   setError(quick?"Enter your four-digit PIN.":"Enter your private credential.");return;
+  }
+  if(quick)void signIn({method:"pin",pin:credential});
+  else void signIn({password:credential});
+ }
+ return <main className="access-page"><div className="access-card">
+  <img className="access-logo" src="/fire-app-logo.png" alt="First In Response Exteriors" />
+  <h1>Private FIRE app</h1>
+  {mode==="loading"?<p>Checking secure sign-in…</p>:<>
+   <p>{quick?"Choose your 4-digit PIN or use an enrolled Cloudflare Access passkey. Face ID / fingerprint prompts are controlled by your device.":"Enter your existing private FIRE PIN or a separate 24–128-character private passphrase."}</p>
+   {quick&&<button type="button" className="brand-button" disabled={busy}
+    onClick={()=>void signIn({method:"passkey"})}>Continue after Face ID / fingerprint sign-in</button>}
+   <form onSubmit={submit}>
+    <label className="field-label" htmlFor="owner-password">{quick?"4-digit PIN":"Private PIN or passphrase"}</label>
+    <input id="owner-password" type="password" name="password" autoComplete={quick?"off":"current-password"}
+     inputMode={quick?"numeric":"text"}
+     pattern={quick?"[0-9]{4}":undefined}
+     minLength={4} maxLength={quick?4:128}
+     required/>
+    <button type="submit" className="brand-button" disabled={busy}>
+     {busy?"Signing in…":quick?"Unlock with PIN":"Sign in"}
+    </button>
+   </form>
+   {quick&&<p>Biometric sign-in must first be enabled for this app in Cloudflare Access. A PIN by itself cannot bypass verified owner identity.</p>}
+  </>}
+  {error&&<p className="save-error" role="alert">{error}</p>}
+ </div></main>;
+}

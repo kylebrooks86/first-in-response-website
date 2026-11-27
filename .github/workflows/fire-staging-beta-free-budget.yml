@@ -1,0 +1,34 @@
+name: FIRE STAGING beta Free bundle budget (offline)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/staging_beta_free_bundle_budget.mjs'
+      - 'business-app-parity/staging_beta_free_bundle_budget.test.mjs'
+      - 'business-app-parity/staging_beta_fullapp_body.mjs'
+      - 'business-app-parity/owner_staging_beta_launch_review.mjs'
+      - 'business-app-parity/staging_beta_private_bridge.mjs'
+      - 'business-app-parity/staging_beta_private_bridge.test.mjs'
+      - 'business-app-parity/owner_staging_beta_private_once.mjs'
+      - 'business-app-parity/staging_beta_one_inactive_upload.mjs'
+      - '.github/workflows/fire-staging-beta-free-budget.yml'
+permissions:
+  contents: read
+jobs:
+  free-bundle-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify changed-source JavaScript syntax, Free bundle guard and one-shot bridge
+        run: |
+          node --check business-app-parity/staging_beta_free_bundle_budget.mjs
+          node --check business-app-parity/staging_beta_fullapp_body.mjs
+          node --check business-app-parity/owner_staging_beta_launch_review.mjs
+          node --test business-app-parity/staging_beta_free_bundle_budget.test.mjs
+          node --check business-app-parity/staging_beta_private_bridge.mjs
+          node --check business-app-parity/staging_beta_private_bridge.test.mjs
+          node --check business-app-parity/owner_staging_beta_private_once.mjs
+          node --check business-app-parity/staging_beta_one_inactive_upload.mjs
+          node --test business-app-parity/staging_beta_private_bridge.test.mjs

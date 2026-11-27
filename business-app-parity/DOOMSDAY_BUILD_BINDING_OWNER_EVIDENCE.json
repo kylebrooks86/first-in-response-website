@@ -1,0 +1,77 @@
+{
+  "asOf": "2026-10-09",
+  "capturedAtOwnerLocal": "2026-10-09T12:51:37-05:00",
+  "parent": "479181acd71a58c69c0c74346eb116494f0910ab",
+  "scope": "Owner-supplied Cloudflare deployment/build/binding evidence; read-only source reconciliation",
+  "provenance": "Owner screenshots and copied full IDs/command in this conversation. Not direct authenticated Cloudflare API access.",
+  "worker": "fire-app-independent-staging",
+  "activeVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+  "activeVersionUuidEvidence": "Owner copied full ID after screenshot IMG_1598 showed version prefix at 100% traffic.",
+  "trafficPercent": 100,
+  "binding": {
+    "name": "DB",
+    "databaseName": "fire-app-staging-db",
+    "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+    "ownerObservedUuid": true,
+    "evidence": [
+      "IMG_1599.png production binding link",
+      "Owner copied D1 database metrics URL containing UUID"
+    ],
+    "resourceIsolationFromOtherTargetsVerified": false
+  },
+  "buildConfiguration": {
+    "repository": "kylebrooks86/first-in-response-website",
+    "productionBranch": "fire-calculator-exact-live-clone",
+    "rootDirectory": "/",
+    "buildCommand": "git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculator-exact-live-clone && bash scripts/prepare-fire-v138-dr-no-r2.sh",
+    "deployCommand": "bash scripts/deploy-fire-dr-staging.sh",
+    "buildsEnabled": true,
+    "includeWatchPaths": [
+      "*"
+    ],
+    "evidence": [
+      "IMG_1606.png",
+      "IMG_1607.png",
+      "Owner copied full build command"
+    ]
+  },
+  "sourceRelationship": {
+    "githubDeploymentLinkCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+    "historicalSealedArchive": "FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip",
+    "historicalArchiveSha256": "2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca",
+    "businessAppDirectory": "fire-app-dr",
+    "preparationBehavior": "Restores sealed v138 archive, applies ordered Business App overlays, builds app and produces independent Worker configuration.",
+    "configuredToBuildCurrentParityBranch": false,
+    "currentParityBranch": "work/fire-business-app-parity-2026-10-08",
+    "buildConfigMayHaveChangedSinceActiveDeployment": true,
+    "immutableArtifactHashObserved": false,
+    "authenticatedRuntimeCaptureObserved": false,
+    "interpretation": "Configured build path explains historical Business App source despite calculator-named branch. It does not prove a specific active artifact includes current development fixes. Build command fetches a moving branch, so deployment trigger/source link alone cannot seal checked-out build bytes."
+  },
+  "scriptsReviewedSha256": {
+    "scripts/prepare-fire-v138-dr-no-r2.sh": "39742e3045da3397830b379a94f9ac58ef89a727f5a8624ecd83286e80a9047a",
+    "scripts/deploy-fire-dr-staging.sh": "87ac1ef3479520f26ac716d5498aeab61bd27a907be6755b42bb3da075654448"
+  },
+  "migrationStatus": "Owner previously verified journal 0000\u20130021; 0022 remains unapplied. No new journal query or migration.",
+  "remainingBlockers": [
+    "Active deployment build log/artifact provenance; configured settings alone are not historical execution proof",
+    "Complete remote schema/index/journal definitions per target",
+    "Immutable resource isolation across targets",
+    "LIVE payment_refunds migration gap",
+    "Auth/photo/mobile/sandbox/backup/rollback release checks"
+  ],
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "commandsExecuted": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false,
+  "screenshotsSha256": {
+    "IMG_1598.png": "6118bc609bbbb6600bd771745eb6ff807db09dcc478f27460f2a432e539730a2",
+    "IMG_1599.png": "0685c705685b440d1ef847f4017221730012d70baabb1194d6fda3f961f04320",
+    "IMG_1606.png": "2493e06fe85685d69a4c16e4a8e7b4e3898379369e42c1581cc2b8e4ee7af64a",
+    "IMG_1607.png": "70ac07a5789480a484e6e83b52b33028da9d223027df2aba7bc9cfd6f142a786"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "fire_release": "v138",
+  "generated_at": "2026-10-02T04:12:38.169Z",
+  "total_states": 32,
+  "live_captured": 11,
+  "independent_captured": 0,
+  "both_sides_captured": 0,
+  "comparison_ready": 0,
+  "verified_identical": 0,
+  "mismatches": 0,
+  "pending": 32,
+  "strict_parity_status": "NOT_YET_FULLY_VERIFIED"
+}

@@ -1,0 +1,145 @@
+{
+  "asOf": "2026-10-09",
+  "parent": "9cccc62f56a3daf86b1f06f322672b056ac0d44c",
+  "scope": "FIRE Business App main-section scroll reset; shared navigation only",
+  "candidateSnapshotCommits": {
+    "live": "93b7b2ebe74cdcedd82f492441de0f7e4ae25bc0",
+    "doomsday": "ffbd3c4b88568f28c28d1ba5f9dbe40575f701d6",
+    "staging": "557ac637a72b99018fac1449833128acd1e56671"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/mobile-nav-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/mobile-nav-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/mobile-nav-staging"
+  },
+  "candidateSnapshotsScope": "Local isolated Git snapshots; verified shared source is persisted on the GitHub development branch. These local snapshot commits are not deployed or remote branch heads.",
+  "newChecksPerTarget": 142,
+  "newChecksPassed": 426,
+  "newChecksTotal": 426,
+  "suiteRunsPassed": 9,
+  "suiteRunsTotal": 9,
+  "suiteNames": [
+    "test-section-navigation.mjs",
+    "test-business-mobile-accessibility.mjs",
+    "test-public-tip-layout.mjs"
+  ],
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "resultsByTarget": {
+    "live": {
+      "navigation": {
+        "exitCode": 0,
+        "checksPassed": 142,
+        "checksTotal": 142
+      },
+      "business": {
+        "exitCode": 0,
+        "checksPassed": 69,
+        "checksTotal": 69
+      },
+      "tipLayout": {
+        "exitCode": 0,
+        "checksPassed": 16,
+        "checksTotal": 16
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "c71b93c575372a6c0c25448ac29f2132cff118a2d334f85da2ab4f5111641d32"
+    },
+    "doomsday": {
+      "navigation": {
+        "exitCode": 0,
+        "checksPassed": 142,
+        "checksTotal": 142
+      },
+      "business": {
+        "exitCode": 0,
+        "checksPassed": 69,
+        "checksTotal": 69
+      },
+      "tipLayout": {
+        "exitCode": 0,
+        "checksPassed": 16,
+        "checksTotal": 16
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "7ff320029e030df213a496b8d33c3ae6a2087bdda7c4af0fa680a1d134b3539f"
+    },
+    "staging": {
+      "navigation": {
+        "exitCode": 0,
+        "checksPassed": 142,
+        "checksTotal": 142
+      },
+      "business": {
+        "exitCode": 0,
+        "checksPassed": 69,
+        "checksTotal": 69
+      },
+      "tipLayout": {
+        "exitCode": 0,
+        "checksPassed": 16,
+        "checksTotal": 16
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "1eb4180f5fbc798bb37f552fc5ee8b82954f5b7eba30de3ee6b2f798dfe20364"
+    }
+  },
+  "changedFilesSha256": {
+    "shared/app/dashboard.tsx": "768673d8092135587b39abf3943f0575e1fbe9fadaf13a29c8e1632775f1cc6d",
+    "shared/scripts/test-section-navigation.mjs": "15008e07e84a9384aaf096ef7faacdf64ea5465d366e6886c80f69eb3e35a3ec"
+  },
+  "sourceParity": {
+    "sharedFilesChecked": 119,
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "confirmedCause": "The shared tab transition updated Back history only and never reset document scroll. All main-section callers use setTab, leaving the previous section scroll position in the same document.",
+  "fix": "Commit-time useLayoutEffect keyed only by tab. Reset window to top/left zero instantly after a different section commits and before paint. Preserve same-tab updates and Back history. No scroll listeners, CSS suppression, viewport changes or animation changes.",
+  "recordingsReview": {
+    "scope": "Sampled still frames from both supplied videos; not a Safari performance trace or frame-by-frame causal proof",
+    "newer": {
+      "libraryFileId": "libfile_616d2e4e0cb48191941272ebf60e201e",
+      "modeObserved": "Safari browser with visible changing top/bottom browser bars",
+      "sha256": "47b3e3ddf9abce9593b8d7b92bb67fa7dde46385a014401630851a1492dcb432"
+    },
+    "original": {
+      "libraryFileId": "libfile_34412527109c8191bedc61f9a79a503a",
+      "modeObserved": "Home Screen standalone appearance without Safari browser bars",
+      "sha256": "cd1135097e0dd8db887194f809b17a44257b6cd88818abca8f88f0767e6dcd6c"
+    },
+    "customerMediaCommitted": false,
+    "limitations": "Browser versus standalone mode differs. Still-frame sampling cannot identify shaking cause or confirm momentum/compositor behavior."
+  },
+  "scrollingInvestigation": {
+    "sourceFindings": [
+      "Main document scrolling with sticky topbar and fixed bottom nav",
+      "Shell/main-area use 100vh minimums; no dynamic viewport or scroll-triggered state listener found in Dashboard",
+      "Horizontal clipping and panel/modal overflow exist; no confirmed page-wide vertical nested-scroller cause"
+    ],
+    "shakingCauseConfirmed": false,
+    "broadCssChangesApplied": false,
+    "naturalScrollingPreservedInSource": true,
+    "actualIphoneFixVerified": false
+  },
+  "tipsDeferred": true,
+  "offlineStatus": "Home Screen installation is a preference, not verified offline support. Business records use server APIs; no offline data/sync feature implemented in this batch.",
+  "limitations": [
+    "Mock window and hooks do not prove iPhone rendering or momentum",
+    "Candidate not deployed; current installed apps unchanged",
+    "No authenticated candidate browser interaction or matching-mode iPhone comparison",
+    "No overall offline Business App claim"
+  ],
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false
+}

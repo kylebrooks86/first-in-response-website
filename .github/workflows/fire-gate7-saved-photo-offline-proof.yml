@@ -1,0 +1,29 @@
+name: FIRE Gate 7 saved protected photo offline verification (SOURCE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/verify_saved_protected_photo_backup.mjs'
+      - 'business-app-parity/test_saved_protected_photo_backup.mjs'
+      - 'business-app-parity/shared/lib/protected-offline-photo-archive.mjs'
+      - '.github/workflows/fire-gate7-saved-photo-offline-proof.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-readonly-saved-file:
+    name: Saved-file SHA/CRC/AES verification; no Cloudflare or device access
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact reviewed PR source, no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22 (no application dependency installation)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline synthetic saved protected backup + CLI negatives
+        run: node business-app-parity/test_saved_protected_photo_backup.mjs

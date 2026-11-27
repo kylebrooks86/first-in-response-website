@@ -1,0 +1,46 @@
+{
+  "baseCommit": "f602a7120d3a0cd309e17bb611f9755f1d7a4a0c",
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "scope": "Shared source, disposable synthetic local candidates only; no hosted app or data changes",
+  "implemented": [
+    "Owner-only full change-request history for each estimate, including retained legacy resolved rows and original customer text/date",
+    "Explicit per-request resolution replaces unsafe bulk resolution; newer/unreviewed requests remain pending",
+    "Atomic D1 batch records one stable resolution note in existing customer history with actor, timestamp and original request, then changes only that request status",
+    "Retries/lost acknowledgements preserve one audit note; UI blocks mutation replay until a read-only history refresh",
+    "Legacy resolved requests show unknown resolution actor/time rather than fabricated backfill",
+    "Owner invoice notifications resolve invoice identity through estimate/customer relationships and focus the exact invoice; existing estimate links retained and customer-only notifications use customer focus",
+    "Height-limited scrolling for long desktop estimate details without changing mobile positioning",
+    "Step 152 invoice number 6528C9 and expanded universal-search requirements saved to existing backlog"
+  ],
+  "verification": {
+    "routeContracts": "42/42 per four candidates: authorization, ownership, legacy history, explicit confirmation, rollback, lost ack, stable replay, no pricing/payment mutation, invoice notification identity",
+    "builtQaNativeD1HttpsChromium": "65/65 including widths 320/390/768/1366, long text, explicit cancel/confirm, lost-ack read confirmation, refresh persistence, resolved/pending coexistence, invoice notification focus, complete-backup validity and no external requests/client errors",
+    "financial": "194 invoice-state and 208 customer/invoice balance checks per four candidates; processing-fee and public-document suites per four; final-tipping suite passed on LIVE candidate",
+    "customerLoadRecovery": "1460/1460 mocked read/stale/unmount checks on LIVE candidate",
+    "typeScript": "4/4 passed",
+    "builds": "4/4 final CSS builds passed",
+    "sourceParity": {
+      "qa": 390,
+      "live": 385,
+      "doomsday": 390,
+      "staging": 386
+    },
+    "visualInspection": "390px Chromium screenshot inspected; wrapped long text and 44px resolution control inside modal"
+  },
+  "limitations": [
+    "No hosted or real iPhone/Safari acceptance claimed; no deployment or migration",
+    "History above 500 requests returns unavailable rather than silently showing partial coverage; pagination remains future work",
+    "No reopen/rejection workflow in this batch; existing resolved history never receives invented resolution metadata",
+    "Resolution means owner addressed a request, not customer approval of revised scope, payment, additional charges or permission",
+    "Universal categorized/offline search remains unfinished; Step 152 is recorded, not fixed by this batch",
+    "Full notification preferences, customer timeline, deposit exceptions, broader status synchronization, hosted latency and Safari scrolling remain open"
+  ],
+  "nextBatch": "Universal search first bounded integration: authorized invoice-number/estimate result targeting while preserving customer name/address search; finish additional notification targets",
+  "deploymentPerformed": false,
+  "hostedDatabaseChanged": false,
+  "stripeOrCredentialsChanged": false
+}

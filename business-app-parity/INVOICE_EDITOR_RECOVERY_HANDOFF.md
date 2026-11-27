@@ -1,0 +1,13 @@
+# Invoice editor stale-response recovery — 2026-10-09
+
+Parent ba6a9493965baa700d18eb8df11d9564b9bf430b; clean checkout and matching remote checked before edits. FIRE Business App only. Brief capability check still found no independent D1 resource IDs/full schema/journal access. No repeated blocked endpoint probes, secret or customer-record reads. Gate not advanced; moved to confirmed candidate workflow bug.
+
+New actual-handler regression fails on the parent: older invoice hydrate can overwrite a newer reopen. Added request generation guards after JSON parsing and in catch/finally; close and unmount invalidate reads; close resets loading. Reopen starts a new generation. No unrelated loader fixes. Invoice item update/add and save handler bodies are byte-identical to parent (3/3), preserving calculations, revision payloads, due date, recorded payments and API write behavior.
+
+New recovery suite 84/84 per target, 252/252 across three candidates: older success/error, newer failure, delayed JSON, close with success/network/JSON outcomes, reopen, retry and unmount with no stale state writes. Existing revision/field accessibility suite 14/14 per target, 42/42 total; financial processing-fee/invoice/refund/backup suite passes all targets. Nine selected suite runs passed out of nine. TypeScript/builds 3/3 each. Shared app source 119/119, changed/new scripts separately synchronized. Tests are mocked local reads/PATCH and structural CSS, not real mobile screenshots or hosted/Stripe integration. Previous unchanged Business/list-loader/recovery suites retained without reruns.
+
+Latest candidate refs/evidence updated; historical snapshots, evidence, adapters and migrations preserved. Fresh INVOICE_EDITOR_REVIEW_MANIFEST.json generated and verified using updated latest-pointer tooling, with separate INVOICE_EDITOR_REVIEW_EVIDENCE.json storing its hash after progress inputs finalized. Older review manifests remain preserved and stale. No deployment, database write, migration, real Stripe call or paid resource. Cost $0.
+
+Overall verified readiness 3/10 (30%), NOT READY. Formal deployed/mobile comparisons 0/32; full remote schema/journal checks 0/3. LIVE observed missing payment_refunds; full identities/schema/isolation/auth/photo/mobile/sandbox/rollback seals remain incomplete. No production approval requested.
+
+Next bounded batch: review the nested estimate/customer detail read effects for a reproducible stale-response race; fix only confirmed behavior and verify all three isolated candidates. Independent QC is read-only: inspect generation guards and synthetic negative control; verify save handler and preserved migrations/adapters. Stop after verified development-branch save.

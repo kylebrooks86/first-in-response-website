@@ -1,0 +1,140 @@
+/** Actual EditEstimateDialog, Radix portal, inputs/selects and compiled Tailwind CSS.
+ * Local synthetic nested-dialog fixture only; no hosted data or native iOS keyboard.
+ */
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {readFileSync,readdirSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {createServer} from 'node:http';
+const require=createRequire(import.meta.url),root=process.cwd();
+const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
+const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
+const tailwind=require('@tailwindcss/postcss');
+const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
+import{FIRE_SERVICES}from'../lib/fire-services.ts';
+const source=readFileSync('app/dashboard.tsx','utf8');
+const section=(a,b)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
+const editor=section('function EditEstimateDialog(','function EditInvoiceDialog(');
+const invoiceEditor=section('function EditInvoiceDialog(','function EstimateDetail(');
+const discount=section('function discountMath(','function NewEstimate(');
+const fixture=`import React,{useState,useRef,useEffect}from'react';import{createRoot}from'react-dom/client';
+import{PenLine,Trash2,Plus,Check,ChevronRight}from'lucide-react';
+import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
+import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
+import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
+import{FIRE_SERVICES as services,serviceDescriptionFor}from'./lib/fire-services';
+import{CategorizedServiceOptions}from'./components/visual-selection-options';
+import{exactMoneyInputCents}from'./lib/exact-money-input';
+import{useEstimateBundleDiscount}from'./components/estimate-bundle-discount';
+import{useServicePricing}from'./components/service-pricing';import{EstimateLinePricing}from'./components/estimate-line-pricing';
+import{editMoneyLine,editableLineTotalCents,restoreEditableLineMoney,validEditablePrice}from'./lib/editable-line-totals';
+const money=cents=>'$'+(cents/100).toFixed(2);
+${discount}\n${editor}\n${invoiceEditor}
+const estimate={id:'synthetic-editor-only',invoiceId:'synthetic-invoice',customerId:'synthetic-editor-customer',service:services[0].name,subtotalCents:20000,totalCents:20000,paidCents:0,items:Array.from({length:16},(_,i)=>({id:'item-'+i,name:services[0].name,description:'Synthetic long description '+i+' '+('Cleaning and flushing; excluded repairs and inaccessible areas. '.repeat(6)),quantity:1,unit:'job',totalCents:1250}))};
+function Fixture(){const[theme,setTheme]=useState('dark');window.setTheme=setTheme;document.documentElement.dataset.theme=theme;
+return <Dialog defaultOpen><DialogContent className="estimate-detail sm:max-w-[650px]"><DialogTitle>Synthetic $200 estimate</DialogTitle><div style={{height:120}}>Existing synthetic estimate details</div><EditEstimateDialog estimate={estimate} onSaved={value=>window.savedEstimate=value}/><EditInvoiceDialog estimate={estimate} onSaved={value=>window.savedInvoiceCents=value}/></DialogContent></Dialog>}
+createRoot(document.getElementById('app')).render(<Fixture/>);`;
+const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'editor-fixture.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
+let compiled;
+if(process.argv.includes('--built-css')){
+ const directory='dist/client/_next/static/css';
+ const styles=readdirSync(directory).filter(n=>n.endsWith('.css')).map(n=>readFileSync(resolve(directory,n),'utf8')).filter(s=>s.includes('.estimate-edit-dialog'));
+ assert.equal(styles.length,1,'Exactly one actual production editor stylesheet');compiled={css:styles[0]};
+}else compiled=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
+let patches=0,saveStatus=503,invoiceLoadStatus=503,invoicePatches=0,releaseInvoiceSave,onInvoicePatch;
+const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
+ if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);}
+ else if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(compiled.css);}
+ else if(req.url==='/api/estimates/synthetic-editor-only/discounts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({estimateId:'synthetic-editor-only',totalCents:20000,bundleDiscountCents:0}));}
+ else if(req.url==='/api/estimate-history?focus=synthetic-editor-only'){res.setHeader('content-type','application/json');res.end(JSON.stringify({estimates:[{id:'synthetic-editor-only',customerId:'synthetic-editor-customer',subtotalCents:20000,totalCents:20000,discountCents:0,depositCents:10000,items:Array.from({length:16},(_,i)=>({id:'item-'+i,name:FIRE_SERVICES[0].name,description:'Synthetic unchanged saved service',quantity:1,unit:'job',totalCents:1250}))}]}));}
+ else if(req.url==='/api/service-pricing'){res.setHeader('content-type','application/json');res.end(JSON.stringify({rates:FIRE_SERVICES.map(s=>({id:s.id,rateCents:s.rate,revision:null}))}));}
+ else if(req.url==='/api/estimates/synthetic-editor-only'&&req.method==='PATCH'){patches++;let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);assert.equal(data.items.reduce((sum,i)=>sum+i.totalCents,0),20000);res.writeHead(saveStatus,{'content-type':'application/json'});res.end(JSON.stringify(saveStatus===200?{estimate:{id:'synthetic-editor-only',totalCents:20000,subtotalCents:20000,discountCents:0,depositCents:10000,bundleDiscountCents:0,items:data.items.map((item,i)=>({...item,id:item.id||'saved-synthetic-'+i}))}}:{error:'Synthetic save unavailable; draft retained'}));});}
+ else if(req.url==='/api/invoices/synthetic-invoice'&&req.method==='GET'){
+  res.writeHead(invoiceLoadStatus,{'content-type':'application/json'});res.end(JSON.stringify(invoiceLoadStatus===200?{invoice:{id:'synthetic-invoice',estimateId:'synthetic-editor-only',customerId:'synthetic-editor-customer',discountType:'dollar',discountValue:0,createdAt:'2026-10-19',dueAt:null,items:[{id:'synthetic-invoice-line',name:'Synthetic hourly service',description:'Synthetic fraction preserved',quantity:.5,unit:'hour',totalCents:20001}],revisions:[]}}:{error:'Synthetic load unavailable'}));
+ }
+ else if(req.url==='/api/invoices/synthetic-invoice'&&req.method==='PATCH'){
+  invoicePatches++;let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);assert.equal(data.items[0].quantity,.5);assert.equal(data.items[0].totalCents,20001);releaseInvoiceSave=()=>{res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({invoice:{id:'synthetic-invoice',totalCents:20001}}));};onInvoicePatch?.();});
+ }
+ else if(req.url==='/'){res.setHeader('content-type','text/html');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
+ else{res.statusCode=404;res.end();}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const origin=`http://127.0.0.1:${server.address().port}`;let browser,checks=0;const errors=[],outside=[];
+try{
+ browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
+ const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async dialog=>{if(dialog.type()!=='confirm'||!['Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged.','The last estimate save may already have committed. Closing discards only local editor entries. Check the saved estimate before another edit. Close?'].includes(dialog.message())){errors.push('Unexpected dialog: '+dialog.message());await dialog.dismiss();return;}await dialog.accept();});
+ await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
+ const check=(ok,label)=>{assert.ok(ok,label);checks++;}; page.setDefaultTimeout(5000);
+
+ // Inspect a real Radix portal: category rows, colors, and unchanged option count.
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
+ await page.getByRole('combobox',{name:'Choose service'}).first().click();
+ const picker=page.locator('.estimate-service-picker[data-slot="select-content"]');
+ await picker.waitFor();
+ check(await picker.locator('.fire-menu-category').count()>=7,'Service picker shows real category headings');
+ check(await picker.getByRole('option').count()===FIRE_SERVICES.length,'Real Radix list retains all service choices');
+ check(await picker.getByRole('option',{name:'Custom Service'}).count()===1,'Custom Service remains one tap away');
+ check(await picker.getByText('Gutters & Drainage',{exact:true}).count()===1,'Gutter service category is visible');
+ check(await picker.locator('.fire-menu-category[data-tone="drainage"]').evaluate(n=>getComputedStyle(n).fontWeight!=='400'),'Category header visibly emphasized');
+ check(await picker.locator('.fire-visual-option').first().evaluate(n=>getComputedStyle(n).borderLeftWidth==='4px'),'Real options have a color-coded stripe');
+ await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Close',exact:true}).last().click();
+  for(const [width,height]of [[320,568],[375,667],[390,844],[430,932],[760,900],[768,1024],[1024,800],[667,375]])for(const theme of ['light','dark']){
+  await page.setViewportSize({width,height});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
+  const trigger=page.getByRole('button',{name:'Edit estimate',exact:true});await trigger.click({timeout:5000});
+  const dialog=page.locator('.estimate-edit-dialog'),scroll=dialog.locator('.estimate-edit-scroll-area'),close=dialog.getByRole('button',{name:'Close',exact:true}),save=dialog.getByRole('button',{name:'Save estimate changes'});
+  await save.waitFor();check(await save.isDisabled(),'Unchanged estimate cannot submit a no-op save');await dialog.locator('textarea').last().fill('Synthetic edited draft preserved');await page.waitForFunction(()=>!document.querySelector('.estimate-edit-modal-footer .brand-button')?.disabled);await page.waitForTimeout(250);
+  const geometry=await dialog.evaluate(n=>{const r=n.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,translate:getComputedStyle(n).translate,transform:getComputedStyle(n).transform};});
+  check(geometry.left>=-1&&geometry.right<=width+1&&geometry.top>=-1&&geometry.bottom<=height+1,`${width}/${height}/${theme}: actual Radix bounds ${JSON.stringify(geometry)}`);
+  check(Math.abs((geometry.left+geometry.right)/2-width/2)<2,'Horizontally centered actual portal');
+  const hit=async locator=>locator.evaluate(n=>{const r=n.getBoundingClientRect(),e=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return n===e||n.contains(e);});
+  check(await hit(close)&&await hit(save),'Close and Save are visible and hit-testable');
+  check(await scroll.evaluate(n=>n.scrollHeight>n.clientHeight),'Long actual form has bounded internal scrolling');
+  await scroll.evaluate(n=>n.scrollTop=n.scrollHeight);check(await scroll.evaluate(n=>n.scrollTop>100),'Long form can reach totals/end');
+  check(await hit(close)&&await hit(save),'Close and Save remain reachable after form scroll');
+  const textarea=dialog.locator('textarea').last();await textarea.focus();await textarea.fill('Synthetic edited draft preserved');
+  check(await textarea.inputValue()==='Synthetic edited draft preserved','Editing focused input retains draft');
+  await page.keyboard.press('Tab');check(await dialog.evaluate(n=>n.contains(document.activeElement)),'Keyboard stays in nested modal');
+  await scroll.focus();await page.keyboard.press('Home');await page.keyboard.press('End');check(await scroll.evaluate(n=>n.scrollTop>0),'Keyboard scroll reaches lower form');
+  await close.click();await dialog.waitFor({state:'detached'});check(await page.getByRole('heading',{name:'Synthetic $200 estimate'}).isVisible(),'X returns to original estimate without save');
+ }
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
+ const dialog=page.locator('.estimate-edit-dialog'),save=dialog.getByRole('button',{name:'Save estimate changes'});
+ await dialog.locator('textarea').first().fill('Synthetic keyboard resize draft');
+ for(const height of [420,300,844]){
+  await page.setViewportSize({width:390,height});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  const bounds=await dialog.boundingBox();check(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=391&&bounds.y+bounds.height<=height+1,'Reduced-height '+height+' keeps modal inside viewport: '+JSON.stringify(bounds));
+  check(await dialog.locator('textarea').first().inputValue()==='Synthetic keyboard resize draft','Resize preserves focused draft');
+ }
+ await save.click();await dialog.getByRole('alert').waitFor();check(await dialog.getByRole('alert').innerText()==='Synthetic save unavailable; draft retained','Failed save keeps editor and error');
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});check(await page.getByRole('heading',{name:'Synthetic $200 estimate'}).isVisible(),'Escape closes only nested editor');
+ await page.getByRole('button',{name:'Edit estimate',exact:true}).click();check(await save.isDisabled(),'Uncertain save stays blocked after reopen');await dialog.getByRole('button',{name:'Check saved estimate',exact:true}).click();await dialog.waitFor({state:'detached'});check(patches===1,'Saved-state recovery is GET only');await page.getByRole('button',{name:'Edit estimate',exact:true}).click();saveStatus=200;await dialog.locator('textarea').first().fill('Synthetic successful retry draft');await save.click();await dialog.waitFor({state:'detached'});check(await page.evaluate(()=>window.savedEstimate?.totalCents)===20000,'Successful synthetic save preserves $200 total');
+ check(patches===2,'Only explicit synthetic save actions submit, once each');
+ for(const [width,height]of [[320,568],[390,844],[667,375]])for(const theme of ['light','dark']){
+  invoiceLoadStatus=503;await page.setViewportSize({width,height});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
+  await page.getByRole('button',{name:'Edit invoice',exact:true}).click();
+  const invoice=page.locator('.invoice-edit-fields');await invoice.getByRole('alert').waitFor();
+  check(await invoice.getByRole('button',{name:'Save invoice changes'}).count()===0,'Failed load hides stale invoice form');
+  check(await invoice.locator('textarea').count()===0,'Failed load cannot expose old services');
+  invoiceLoadStatus=200;await invoice.getByRole('button',{name:'Try loading invoice again'}).click();
+  const saveInvoice=invoice.getByRole('button',{name:'Save invoice changes'});await saveInvoice.waitFor();
+  check(await invoice.getByLabel('Quantity',{exact:true}).inputValue()==='0.5','Retry preserves fractional quantity');await invoice.getByLabel('Scope & description',{exact:true}).fill('Synthetic verified invoice scope edit');
+  const invoiceScroll=invoice.locator('.estimate-edit-scroll-area');
+  check(await invoiceScroll.evaluate(n=>getComputedStyle(n).overflowY==='auto'&&n.scrollHeight>n.clientHeight),'Long invoice uses bounded native scroll area');
+  await invoiceScroll.focus();await page.keyboard.press('End');await page.waitForTimeout(50);
+  check(await invoiceScroll.evaluate(n=>n.scrollTop>0),'Invoice terms and totals are keyboard-scrollable');
+  const reachable=await saveInvoice.evaluate(n=>{const r=n.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return n===hit||n.contains(hit);});
+  check(reachable,'Invoice Save stays visible after scrolling');
+  const previousPatches=invoicePatches,accepted=new Promise(resolve=>onInvoicePatch=resolve);
+  await saveInvoice.click();let acceptedTimer;try{await Promise.race([accepted,new Promise((_,reject)=>{acceptedTimer=setTimeout(()=>reject(Error('Synthetic invoice save was not submitted')),5000);})]);}finally{clearTimeout(acceptedTimer);}await invoice.getByRole('button',{name:'Saving…',exact:true}).waitFor();
+  check(await invoice.getByLabel('Quantity',{exact:true}).isDisabled(),'Pending invoice fields cannot change');
+  await invoice.getByRole('button',{name:'Close',exact:true}).click();await page.keyboard.press('Escape');
+  check(await invoice.isVisible(),'Pending invoice stays open after Close/Escape');
+  releaseInvoiceSave();await invoice.waitFor({state:'detached'});
+  check(invoicePatches===previousPatches+1,'One explicit invoice save sends one PATCH');
+  check(await page.evaluate(()=>window.savedInvoiceCents)===20001,'Saved invoice cents confirmed');
+ }
+ check(!outside.length&&!errors.length,'No remote requests/runtime errors');
+ console.log(JSON.stringify({passed:checks,actualEditor:true,actualRadix:true,compiledTailwind:true,productionMinifiedCSS:process.argv.includes('--built-css'),nativeIOSKeyboardTested:false,hostedDataTouched:false}));
+}finally{await browser?.close();await new Promise(r=>server.close(r));}

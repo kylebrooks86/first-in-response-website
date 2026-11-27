@@ -47,7 +47,9 @@ function resolveLocal(pagePath, rawReference) {
   return { target: target.replace(/^\//, ''), hash };
 }
 
-const allFiles = walk(root);
+// Internal Business App fixtures are not public website pages or rate-policy sources.
+// Preserve checks on every real site page, root file and approved public media.
+const allFiles = walk(root).filter((file) => !file.startsWith('business-app-parity/'));
 const fileSet = new Set(allFiles);
 const htmlFiles = allFiles.filter((file) => file.endsWith('.html'));
 const siteHtmlFiles = htmlFiles.filter((file) => !file.startsWith('calculator/'));

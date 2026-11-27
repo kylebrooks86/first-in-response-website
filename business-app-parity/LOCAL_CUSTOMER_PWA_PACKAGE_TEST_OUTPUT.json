@@ -1,0 +1,191 @@
+[
+  {
+    "candidate": "protected-backup-live",
+    "checks": [
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-package.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: static package has nine allowlisted assets and no customer records or dependencies\nPASS: repeated export preserves an existing destination\nPASS: portable server serves exact routes and rejects POST and query paths\nPASS: manifest and unchanged installation icons load and decode in Chromium\nPASS: packaged shell cold launches with server stopped and retrieves encrypted edit\nPASS: installation metadata and both icons remain available offline\nPASS: changed or missing assets fail before the portable server binds\n{\"passed\":7,\"total\":7,\"genuineOfflineColdLaunch\":true,\"serverStopped\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-cold-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: online installation controls only the isolated demo directory\nPASS: initialize and edit synthetic encrypted customer online\nPASS: cache contains only eight static assets and no saved records or phrases\nPASS: API-like, query and POST responses never enter the shell cache\nPASS: obsolete demo cache is removed without deleting an unrelated cache\nPASS: first genuine offline cold launch retrieves saved encrypted edit\nPASS: customer can be edited after offline cold launch\nPASS: interrupted offline save preserves the prior record\nPASS: second offline process restart retains record and revision\nPASS: missing cached shell fails clearly without exposing or erasing records\nPASS: no external services or Stripe requests\n{\"passed\":11,\"total\":11,\"genuineOfflineColdLaunch\":true,\"offlineProcessRestarts\":2,\"serverStopped\":true,\"networkDisabledBeforeNavigation\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false,\"obsoleteWorkerUpdateTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-shell-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: initialize encrypted synthetic record before shell failures\nPASS: missing JavaScript asset fails offline without recreating its cache entry\nPASS: reconnection repairs the missing static module\nPASS: unmarked asset response is rejected and never cached\nPASS: interrupted update download leaves old worker and complete shell active\nPASS: partial cache-write failure discards candidate cache and preserves old shell\nPASS: valid new worker waits while old client remains open\nPASS: closing one client does not prematurely activate replacement\nPASS: replacement activates after last controlled client closes and retains vault\nPASS: updated worker and retained vault remain usable without origin server\nPASS: no external service, database or Stripe requests\n{\"passed\":11,\"total\":11,\"nativeWorkerUpgrade\":true,\"partialCacheWriteFailureInjected\":true,\"interruptedDownload\":true,\"missingJavaScriptRepair\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "npx",
+          "tsc",
+          "--noEmit"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> site-creator-vinext-starter@0.1.0 build\n> node scripts/run-framework.mjs build\n\n\n  vinext build  (Vite 8.0.13)\n\n\u001b[33m\u25b2 \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1mProxy environment variables detected. We'll use your proxy for fetch requests.\u001b[0m\n\n\n[1/5] analyze client references...\n\u001b[2K\ntransforming...\u2713 284 modules transformed.\nrendering chunks...\n\u001b[33m[PLUGIN_TIMINGS] \u001b[0mYour build spent significant time in plugins. Here is a breakdown:\n  - vinext:middleware-server-only (22%)\n  - alias (18%)\n  - rsc:virtual-client-package (14%)\n  - vinext:css-data-url (12%)\n  - vinext:og-inline-fetch-assets (9%)\nSee https://rolldown.rs/options/checks#plugintimings for more details.\n\n\u2713 built in 4.83s\n[2/5] analyze server references...\n\u001b[2K\ntransforming...\u2713 268 modules transformed.\nrendering chunks...\n\u2713 built in 1.61s\n[3/5] build rsc environment...\n\u001b[2K\ntransforming...\u2713 281 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 3.08s\n[4/5] build client environment...\n\u001b[2K\ntransforming...\u2713 2024 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 3.28s\n[5/5] build ssr environment...\n\u001b[2K\ntransforming...\u2713 273 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.61s\n\u001b[0m\n  Route (app)\n  \u250c \u0192 /                                          \n  \u251c \u03bb /api/app-version                           \n  \u251c \u03bb /api/backup                                \n  \u251c \u03bb /api/backup/photos                         \n  \u251c \u03bb /api/customer-messages                     \n  \u251c \u03bb /api/customer-notes                        \n  \u251c \u03bb /api/customer-photos                       \n  \u251c \u03bb /api/customer-photos/:id                   \n  \u251c \u03bb /api/customers                             \n  \u251c \u03bb /api/dashboard-summary                     \n  \u251c \u03bb /api/estimates                             \n  \u251c \u03bb /api/estimates/:id                         \n  \u251c \u03bb /api/estimates/:id/share                   \n  \u251c \u03bb /api/expenses                              \n  \u251c \u03bb /api/invoices                              \n  \u251c \u03bb /api/invoices/:id                          \n  \u251c \u03bb /api/invoices/:id/share                    \n  \u251c \u03bb /api/job-reports                           \n  \u251c \u03bb /api/message-templates                     \n  \u251c \u03bb /api/notifications                         \n  \u251c \u03bb /api/payments                              \n  \u251c \u03bb /api/payments/checkout                     \n  \u251c \u03bb /api/payments/refund                       \n  \u251c \u03bb /api/payments/webhook                      \n  \u251c \u03bb /api/public/estimates/:token/accept        \n  \u251c \u03bb /api/public/estimates/:token/change-request\n  \u251c \u03bb /api/tasks                                 \n  \u251c \u03bb /api/weather                               \n  \u251c \u0192 /estimate/:token                           \n  \u251c \u0192 /invoice/:token                            \n  \u2514 \u0192 /pay/:id                                   \n\n  \u03bb API  \u0192 Dynamic\n\n  Build complete. Run `vinext start` to start the production server.\n\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-recovery-ui-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: first install failure shows visible retry without claiming offline readiness\nPASS: synthetic encrypted customer can be preserved during failed offline installation\nPASS: successful first-install retry preserves existing encrypted record\nPASS: missing demo.js shows locked recovery controls on offline reload\nPASS: offline retry with missing demo.js remains locked without changing data\nPASS: online retry repairs demo.js and retrieves the unchanged customer\nPASS: missing vault.js shows locked recovery controls on offline reload\nPASS: offline retry with missing vault.js remains locked without changing data\nPASS: online retry repairs vault.js and retrieves the unchanged customer\nPASS: recovery screen has mobile touch targets and fits viewport\nPASS: no external services, production database or Stripe requests\n{\"passed\":11,\"total\":11,\"firstInstallFailureInjected\":true,\"visibleMissingModuleRecovery\":true,\"unchangedEncryptedSnapshots\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: starts locked without rendering customer records\nPASS: wrong phrase never exposes records\nPASS: unlock retrieves the synthetic fixture and clears phrase field\nPASS: offline form edit saves and advances revision\nPASS: explicit lock clears rendered records and pending form values\nPASS: offline unlock retrieves retained encrypted edit\nPASS: cross-tab lock clears both screens\nPASS: simulated background locks and clears the rendered form\nPASS: lock during encryption cannot repopulate the screen on late completion\nPASS: ambiguous committed save is verified by receipt without automatic replay\nPASS: simulated expired idle deadline clears visible records without timer callback\nPASS: screen accepts only fixed synthetic name presets and fits mobile width\nPASS: no remote app, database or Stripe calls\n{\"passed\":13,\"total\":13,\"viewport\":\"390x844\",\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"syntheticOnly\":true,\"visibilityEventsSimulated\":true,\"offlineColdLaunch\":false,\"iPhoneTested\":false}\n"
+      }
+    ]
+  },
+  {
+    "candidate": "protected-backup-staging",
+    "checks": [
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-package.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: static package has nine allowlisted assets and no customer records or dependencies\nPASS: repeated export preserves an existing destination\nPASS: portable server serves exact routes and rejects POST and query paths\nPASS: manifest and unchanged installation icons load and decode in Chromium\nPASS: packaged shell cold launches with server stopped and retrieves encrypted edit\nPASS: installation metadata and both icons remain available offline\nPASS: changed or missing assets fail before the portable server binds\n{\"passed\":7,\"total\":7,\"genuineOfflineColdLaunch\":true,\"serverStopped\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-cold-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: online installation controls only the isolated demo directory\nPASS: initialize and edit synthetic encrypted customer online\nPASS: cache contains only eight static assets and no saved records or phrases\nPASS: API-like, query and POST responses never enter the shell cache\nPASS: obsolete demo cache is removed without deleting an unrelated cache\nPASS: first genuine offline cold launch retrieves saved encrypted edit\nPASS: customer can be edited after offline cold launch\nPASS: interrupted offline save preserves the prior record\nPASS: second offline process restart retains record and revision\nPASS: missing cached shell fails clearly without exposing or erasing records\nPASS: no external services or Stripe requests\n{\"passed\":11,\"total\":11,\"genuineOfflineColdLaunch\":true,\"offlineProcessRestarts\":2,\"serverStopped\":true,\"networkDisabledBeforeNavigation\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false,\"obsoleteWorkerUpdateTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-shell-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: initialize encrypted synthetic record before shell failures\nPASS: missing JavaScript asset fails offline without recreating its cache entry\nPASS: reconnection repairs the missing static module\nPASS: unmarked asset response is rejected and never cached\nPASS: interrupted update download leaves old worker and complete shell active\nPASS: partial cache-write failure discards candidate cache and preserves old shell\nPASS: valid new worker waits while old client remains open\nPASS: closing one client does not prematurely activate replacement\nPASS: replacement activates after last controlled client closes and retains vault\nPASS: updated worker and retained vault remain usable without origin server\nPASS: no external service, database or Stripe requests\n{\"passed\":11,\"total\":11,\"nativeWorkerUpgrade\":true,\"partialCacheWriteFailureInjected\":true,\"interruptedDownload\":true,\"missingJavaScriptRepair\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "npx",
+          "tsc",
+          "--noEmit"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> site-creator-vinext-starter@0.1.0 build\n> node scripts/run-framework.mjs build\n\n\n  vinext build  (Vite 8.0.13)\n\n\u001b[33m\u25b2 \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1mProxy environment variables detected. We'll use your proxy for fetch requests.\u001b[0m\n\n\n[1/5] analyze client references...\n\u001b[2K\ntransforming...\u2713 285 modules transformed.\nrendering chunks...\n\u001b[33m[PLUGIN_TIMINGS] \u001b[0mYour build spent significant time in plugins. Here is a breakdown:\n  - rsc:virtual-client-package (15%)\n  - vinext:css-data-url (14%)\n  - alias (13%)\n  - vinext:og-inline-fetch-assets (10%)\n  - vinext:jsx-in-js (8%)\nSee https://rolldown.rs/options/checks#plugintimings for more details.\n\n\u2713 built in 6.44s\n[2/5] analyze server references...\n\u001b[2K\ntransforming...\u2713 268 modules transformed.\nrendering chunks...\n\u2713 built in 1.56s\n[3/5] build rsc environment...\n\u001b[2K\ntransforming...\u2713 282 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 2.40s\n[4/5] build client environment...\n\u001b[2K\ntransforming...\u2713 2024 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[33m[PLUGIN_TIMINGS] \u001b[0mYour build spent significant time in plugins. Here is a breakdown:\n  - vinext:middleware-server-only (37%)\n  - vinext:css-data-url (12%)\n  - rsc:virtual-client-package (11%)\n  - alias (11%)\n  - vinext:jsx-in-js (7%)\nSee https://rolldown.rs/options/checks#plugintimings for more details.\n\n\u2713 built in 5.12s\n[5/5] build ssr environment...\n\u001b[2K\ntransforming...\u2713 273 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.37s\n\u001b[0m\n  Route (app)\n  \u250c \u0192 /                                          \n  \u251c \u03bb /api/app-version                           \n  \u251c \u03bb /api/backup                                \n  \u251c \u03bb /api/backup/photos                         \n  \u251c \u03bb /api/customer-messages                     \n  \u251c \u03bb /api/customer-notes                        \n  \u251c \u03bb /api/customer-photos                       \n  \u251c \u03bb /api/customer-photos/:id                   \n  \u251c \u03bb /api/customers                             \n  \u251c \u03bb /api/dashboard-summary                     \n  \u251c \u03bb /api/estimates                             \n  \u251c \u03bb /api/estimates/:id                         \n  \u251c \u03bb /api/estimates/:id/share                   \n  \u251c \u03bb /api/expenses                              \n  \u251c \u03bb /api/invoices                              \n  \u251c \u03bb /api/invoices/:id                          \n  \u251c \u03bb /api/invoices/:id/share                    \n  \u251c \u03bb /api/job-reports                           \n  \u251c \u03bb /api/message-templates                     \n  \u251c \u03bb /api/notifications                         \n  \u251c \u03bb /api/payments                              \n  \u251c \u03bb /api/payments/checkout                     \n  \u251c \u03bb /api/payments/refund                       \n  \u251c \u03bb /api/payments/webhook                      \n  \u251c \u03bb /api/public/estimates/:token/accept        \n  \u251c \u03bb /api/public/estimates/:token/change-request\n  \u251c \u03bb /api/staging-fixtures                      \n  \u251c \u03bb /api/tasks                                 \n  \u251c \u03bb /api/weather                               \n  \u251c \u0192 /estimate/:token                           \n  \u251c \u0192 /invoice/:token                            \n  \u2514 \u0192 /pay/:id                                   \n\n  \u03bb API  \u0192 Dynamic\n\n  Build complete. Run `vinext start` to start the production server.\n\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-recovery-ui-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: first install failure shows visible retry without claiming offline readiness\nPASS: synthetic encrypted customer can be preserved during failed offline installation\nPASS: successful first-install retry preserves existing encrypted record\nPASS: missing demo.js shows locked recovery controls on offline reload\nPASS: offline retry with missing demo.js remains locked without changing data\nPASS: online retry repairs demo.js and retrieves the unchanged customer\nPASS: missing vault.js shows locked recovery controls on offline reload\nPASS: offline retry with missing vault.js remains locked without changing data\nPASS: online retry repairs vault.js and retrieves the unchanged customer\nPASS: recovery screen has mobile touch targets and fits viewport\nPASS: no external services, production database or Stripe requests\n{\"passed\":11,\"total\":11,\"firstInstallFailureInjected\":true,\"visibleMissingModuleRecovery\":true,\"unchangedEncryptedSnapshots\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: starts locked without rendering customer records\nPASS: wrong phrase never exposes records\nPASS: unlock retrieves the synthetic fixture and clears phrase field\nPASS: offline form edit saves and advances revision\nPASS: explicit lock clears rendered records and pending form values\nPASS: offline unlock retrieves retained encrypted edit\nPASS: cross-tab lock clears both screens\nPASS: simulated background locks and clears the rendered form\nPASS: lock during encryption cannot repopulate the screen on late completion\nPASS: ambiguous committed save is verified by receipt without automatic replay\nPASS: simulated expired idle deadline clears visible records without timer callback\nPASS: screen accepts only fixed synthetic name presets and fits mobile width\nPASS: no remote app, database or Stripe calls\n{\"passed\":13,\"total\":13,\"viewport\":\"390x844\",\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"syntheticOnly\":true,\"visibilityEventsSimulated\":true,\"offlineColdLaunch\":false,\"iPhoneTested\":false}\n"
+      }
+    ]
+  },
+  {
+    "candidate": "customer-package-doomsday",
+    "checks": [
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-package.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: static package has nine allowlisted assets and no customer records or dependencies\nPASS: repeated export preserves an existing destination\nPASS: portable server serves exact routes and rejects POST and query paths\nPASS: manifest and unchanged installation icons load and decode in Chromium\nPASS: packaged shell cold launches with server stopped and retrieves encrypted edit\nPASS: installation metadata and both icons remain available offline\nPASS: changed or missing assets fail before the portable server binds\n{\"passed\":7,\"total\":7,\"genuineOfflineColdLaunch\":true,\"serverStopped\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-cold-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: online installation controls only the isolated demo directory\nPASS: initialize and edit synthetic encrypted customer online\nPASS: cache contains only eight static assets and no saved records or phrases\nPASS: API-like, query and POST responses never enter the shell cache\nPASS: obsolete demo cache is removed without deleting an unrelated cache\nPASS: first genuine offline cold launch retrieves saved encrypted edit\nPASS: customer can be edited after offline cold launch\nPASS: interrupted offline save preserves the prior record\nPASS: second offline process restart retains record and revision\nPASS: missing cached shell fails clearly without exposing or erasing records\nPASS: no external services or Stripe requests\n{\"passed\":11,\"total\":11,\"genuineOfflineColdLaunch\":true,\"offlineProcessRestarts\":2,\"serverStopped\":true,\"networkDisabledBeforeNavigation\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false,\"obsoleteWorkerUpdateTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-shell-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: initialize encrypted synthetic record before shell failures\nPASS: missing JavaScript asset fails offline without recreating its cache entry\nPASS: reconnection repairs the missing static module\nPASS: unmarked asset response is rejected and never cached\nPASS: interrupted update download leaves old worker and complete shell active\nPASS: partial cache-write failure discards candidate cache and preserves old shell\nPASS: valid new worker waits while old client remains open\nPASS: closing one client does not prematurely activate replacement\nPASS: replacement activates after last controlled client closes and retains vault\nPASS: updated worker and retained vault remain usable without origin server\nPASS: no external service, database or Stripe requests\n{\"passed\":11,\"total\":11,\"nativeWorkerUpgrade\":true,\"partialCacheWriteFailureInjected\":true,\"interruptedDownload\":true,\"missingJavaScriptRepair\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "npx",
+          "tsc",
+          "--noEmit"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> site-creator-vinext-starter@0.1.0 build\n> node scripts/run-framework.mjs build\n\n\n  vinext build  (Vite 8.0.13)\n\n\u001b[33m\u25b2 \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1mProxy environment variables detected. We'll use your proxy for fetch requests.\u001b[0m\n\n\n[1/5] analyze client references...\n\u001b[2K\ntransforming...\u2713 288 modules transformed.\nrendering chunks...\n\u2713 built in 2.71s\n[2/5] analyze server references...\n\u001b[2K\ntransforming...\u2713 269 modules transformed.\nrendering chunks...\n\u2713 built in 884ms\n[3/5] build rsc environment...\n\u001b[2K\ntransforming...\u2713 285 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 2.05s\n[4/5] build client environment...\n\u001b[2K\ntransforming...\u2713 2025 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 2.33s\n[5/5] build ssr environment...\n\u001b[2K\ntransforming...\u2713 274 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u2713 built in 1.04s\n\u001b[0m\n  Route (app)\n  \u250c \u0192 /                                          \n  \u251c \u03bb /api/app-version                           \n  \u251c \u03bb /api/auth/login                            \n  \u251c \u03bb /api/auth/logout                           \n  \u251c \u03bb /api/backup                                \n  \u251c \u03bb /api/backup/photos                         \n  \u251c \u03bb /api/customer-messages                     \n  \u251c \u03bb /api/customer-notes                        \n  \u251c \u03bb /api/customer-photos                       \n  \u251c \u03bb /api/customer-photos/:id                   \n  \u251c \u03bb /api/customers                             \n  \u251c \u03bb /api/dashboard-summary                     \n  \u251c \u03bb /api/estimates                             \n  \u251c \u03bb /api/estimates/:id                         \n  \u251c \u03bb /api/estimates/:id/share                   \n  \u251c \u03bb /api/expenses                              \n  \u251c \u03bb /api/invoices                              \n  \u251c \u03bb /api/invoices/:id                          \n  \u251c \u03bb /api/invoices/:id/share                    \n  \u251c \u03bb /api/job-reports                           \n  \u251c \u03bb /api/message-templates                     \n  \u251c \u03bb /api/notifications                         \n  \u251c \u03bb /api/payments                              \n  \u251c \u03bb /api/payments/checkout                     \n  \u251c \u03bb /api/payments/refund                       \n  \u251c \u03bb /api/payments/webhook                      \n  \u251c \u03bb /api/public/estimates/:token/accept        \n  \u251c \u03bb /api/public/estimates/:token/change-request\n  \u251c \u03bb /api/tasks                                 \n  \u251c \u03bb /api/weather                               \n  \u251c \u0192 /estimate/:token                           \n  \u251c \u0192 /invoice/:token                            \n  \u251c ? /login                                     \n  \u2514 \u0192 /pay/:id                                   \n\n  \u03bb API  \u0192 Dynamic  ? Unknown\n\n  ? Some routes could not be classified. vinext currently uses static analysis\n    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.\n    Automatic classification will be improved in a future release.\n\n  Build complete. Run `vinext start` to start the production server.\n\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-recovery-ui-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: first install failure shows visible retry without claiming offline readiness\nPASS: synthetic encrypted customer can be preserved during failed offline installation\nPASS: successful first-install retry preserves existing encrypted record\nPASS: missing demo.js shows locked recovery controls on offline reload\nPASS: offline retry with missing demo.js remains locked without changing data\nPASS: online retry repairs demo.js and retrieves the unchanged customer\nPASS: missing vault.js shows locked recovery controls on offline reload\nPASS: offline retry with missing vault.js remains locked without changing data\nPASS: online retry repairs vault.js and retrieves the unchanged customer\nPASS: recovery screen has mobile touch targets and fits viewport\nPASS: no external services, production database or Stripe requests\n{\"passed\":11,\"total\":11,\"firstInstallFailureInjected\":true,\"visibleMissingModuleRecovery\":true,\"unchangedEncryptedSnapshots\":true,\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"iPhoneTested\":false}\n"
+      },
+      {
+        "command": [
+          "node",
+          "scripts/test-local-customer-demo-browser.mjs"
+        ],
+        "exitCode": 0,
+        "output": "PASS: starts locked without rendering customer records\nPASS: wrong phrase never exposes records\nPASS: unlock retrieves the synthetic fixture and clears phrase field\nPASS: offline form edit saves and advances revision\nPASS: explicit lock clears rendered records and pending form values\nPASS: offline unlock retrieves retained encrypted edit\nPASS: cross-tab lock clears both screens\nPASS: simulated background locks and clears the rendered form\nPASS: lock during encryption cannot repopulate the screen on late completion\nPASS: ambiguous committed save is verified by receipt without automatic replay\nPASS: simulated expired idle deadline clears visible records without timer callback\nPASS: screen accepts only fixed synthetic name presets and fits mobile width\nPASS: no remote app, database or Stripe calls\n{\"passed\":13,\"total\":13,\"viewport\":\"390x844\",\"nativeIndexedDB\":true,\"nativeWebCrypto\":true,\"syntheticOnly\":true,\"visibilityEventsSimulated\":true,\"offlineColdLaunch\":false,\"iPhoneTested\":false}\n"
+      }
+    ]
+  }
+]

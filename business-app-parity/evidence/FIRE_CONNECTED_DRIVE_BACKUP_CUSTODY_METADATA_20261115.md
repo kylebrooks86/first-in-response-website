@@ -1,0 +1,25 @@
+# FIRE Business App — connected Google Drive backup custody, metadata-only inventory (Nov 15, 2026)
+
+Status: **READ ONLY, limited to current visible Drive search/folder metadata. NOT an owner's complete archive proof; NOT a release gate acceptance.**
+
+## Grounded retrieval scope
+
+- Searched connected Google Drive by the literal keywords `FIRE Business App Backups`, `firerecords`, `firephotos`, `firepair`, and `FIRE Gate7`. Only the first search located the folder, Google Drive folder ID `1x9ocIiI9mQMtwf0YP0Q9HqxBWn1qyIjt`. The four other queries returned no matches **in these accessible search results only**. This does **not** prove absence from every possible device, hidden/other-account Drive, unindexed folder, or provider backup.
+- A single non-mutating listing of that folder returned **31 entries**. No item in this specific listing had a name ending in **`.firerecords`, `.firephotos`, or `.firepair`**. No file bytes were fetched, decrypted, downloaded, modified, deleted, or shared and no Drive folder permissions were changed.
+- The folder includes **source-only Worker/release ZIPs** for DR, NEW LIVE and Stripe TEST. These are **not customer/operational SQLite records/photo byte exports** merely because ZIP is in their name. Latest listed DR and NEW LIVE private first-create source packages reference frozen source SHA `e27b39df06c1ed4ff63cd437e39fd3e314142eec`, stored Nov 15. The folder also includes existing receipt `FIRE_NEW_LIVE_POSTLOCK_26_OF_26.fireliveproof` (3,662 bytes) and `FIRE-DR-PHYSICAL-RECEIPTS-20261114.firedrproof` (18,268 bytes). Those remain previously accepted **bounded schema/physical identity evidence**, not full production data+photos restoration.
+- Existing `IRE-QA-Backup-2026-11-05.7z` (10,687 bytes, modified Nov 6) is visible. The file is **NOT** claimed missing, corrupt, incomplete or safe to replace. Its payload was not inspected here; older accepted encrypted QA backup and re-download checksum evidence must **not** be reopened or repeated. The listed size/name alone cannot establish this as a current full target-bound customer+photos recoverable pair.
+- The 31-folder-entry listing and keyword search do **not** verify which accounts, folders, files or provider blobs are held elsewhere, or whether the user has additional unpublished encrypted recovery files. They show only that the identified primary Drive backup folder is not currently listing the **three exact-format protected paired recovery artifacts** under those filenames.
+
+## Relevant existing source boundary
+
+- The current unmerged app candidate has offline source support for **already-obtained** owner-held encrypted `.firerecords`, `.firephotos` and optional `.firepair` files via `protected_complete_isolated_sqlite_recovery.mjs`, `recover_saved_protected_photo_zip.mjs` and `rehearse_protected_complete_records_and_photos.mjs`. These helper files do NOT on their own export/verify complete bytes from deployed Cloudflare D1 or photo storage.
+- Owner-only `GET /api/backup/numbered-v2` is **default-OFF**, guarded by an exact opt-in `FIRE_NUMBERED_V2_CORE_EXPORT_CANDIDATE=owner-review-only`, and exports **core only** (no photos/optional property and service-address tables); source UI `NumberedCoreRecordsReview({reviewEnabled:false})` is also disabled. Do not misrepresent or activate this as a full backup.
+- The existing `GET /api/backup/photos` route requires `env.BUCKET` (R2) and rejects requests with status 503 if that binding is absent. This is an **actual code-level obstacle to obtaining complete hosted photo bytes through that endpoint in the approved no-R2 architecture**, not a request to subscribe to R2. Reuse existing device photo archive and previously accepted owner export/recovery work; do not assume marketing photos or compiled release ZIPs correspond to full customer photo storage.
+
+## Real remaining blocker / next controlled operation
+
+**Gate 7 remains OPEN:** complete current target-bound business/supplemental records and ALL photo bytes require *real secure off-device owner custody* and independent physical restore with number/payment/relationship and photo SHA/ZIP verification. First identify the real supported source of those bytes using existing accepted metadata; do not rerun past provider login/export checks or assume a paid product is needed. Before any new hosted endpoint activation, D1 export, photo read from hosted R2, Cloudflare route/Access change, worker deployment or database/Stripe mutation, obtain the owner's separately scoped explicit approval of the exact operation.
+
+No paid Cloudflare, R2 subscription, SQL changes, source merge, Worker deployment, Stripe, customer data extraction, or production cutover performed. **Formally accepted G1/G2/G3/G8 = 4/10; G4/G5/G6/G7/G9/G10 OPEN; NEW LIVE DARK NO-GO.**
+
+Evidence provenance: read-only Google Drive connector metadata listing on Nov 15, 2026; exact original file list remains with provider, not copied into GitHub. No sensitive file bytes or customer data are included in this note.

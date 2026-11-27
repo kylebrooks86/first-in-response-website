@@ -1,0 +1,39 @@
+{
+  "baseCommit": "588da6d6abfe556aa7c8ac29312701373f484325",
+  "releaseFocus": "Stable core online candidate; approximately 14-day owner target is conditional, not guaranteed",
+  "releaseReadiness": {"acceptedGates": 3, "totalGates": 10, "percent": 30},
+  "implemented": [
+    "Replace false Deposit recorded entries on unapproved jobs with Approval required or Payment unavailable; identify zero required deposits accurately",
+    "Keep pending-attempt review available independently of current payment eligibility or displayed balance",
+    "Separate a GET-only receipt review from a separately confirmed retry of the original immutable request",
+    "Explain that no matching receipt does not prove an in-flight attempt failed and that displayed balances are last loaded amounts",
+    "Recheck the ledger immediately before an explicitly authorized same-ID retry",
+    "Preserve locked amount, method, reference, fee and tip inputs; retain unresolved request evidence",
+    "Use per-estimate component keys and suppress parent callbacks after payment form unmount",
+    "Repair the older invoice-loading test harness to run the loading effect and preserve refs; retain all failure/retry assertions and current owner-preview return links"
+  ],
+  "verification": {
+    "targets": ["qa", "live", "doomsday", "staging"],
+    "paymentEntryChecksPerCandidate": 60,
+    "retryIdentityChecksPerCandidate": 26,
+    "nativeSQLiteReceiptChecksPerCandidate": 46,
+    "builtQaNativeD1BrowserChecks": 69,
+    "browserViewportWidths": [320, 390, 768, 1366],
+    "nativeScenarios": ["lost write acknowledgement", "unavailable confirmation", "wrong-job receipt", "no-commit request", "read-only absence review", "explicit double-tapped same-body retry", "late commit discovered before POST", "no false unapproved-job deposit claim"],
+    "invoiceLoadRecoveryChecks": 263,
+    "paymentLoadRecoveryChecks": 298,
+    "invoiceCurrentStateChecks": 194,
+    "depositPolicyChecks": 85,
+    "processingFeeAndBackupRegressions": "passed with isolated synthetic mocks",
+    "finalTippingRegression": "passed with isolated synthetic mocks on LIVE candidate source",
+    "typescriptAndBuilds": "4/4 each passed"
+  },
+  "limitations": [
+    "The hosted synthetic $100 attempt was not inspected or changed; its actual outcome remains unknown",
+    "This batch does not establish the root cause of hosted Safari Load failed latency",
+    "Native iPhone/iPad acceptance and hosted deployment remain pending",
+    "Deposit amount overrides and persistent encrypted offline job records remain unfinished"
+  ],
+  "deployment": "None; no hosted database, customer, secret, Stripe or protected app changed",
+  "nextCoreOnlineBatch": "Owner-controlled deposit exceptions and scheduling enforcement with immutable audit, document consistency and native D1 safety; preserve existing signed and scheduled records"
+}

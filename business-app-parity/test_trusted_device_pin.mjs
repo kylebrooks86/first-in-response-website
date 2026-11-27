@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {validPin,newDeviceToken,validDeviceToken,deviceLookupKey,devicePinVerifier,verifyDevicePin} from "./shared/lib/trusted-device-pin.mjs";
+let checks=0;
+const check=(condition)=>{assert.ok(condition);checks++};
+const secret="synthetic-test-secret-not-for-hosted-use-1234567890";
+const token=newDeviceToken(),other=newDeviceToken();
+check(validDeviceToken(token));check(token!==other);
+for(const pin of ["0000","1234","9999"])check(validPin(pin));
+for(const pin of [1234,"123","12345","１２３４","1234 ","1234\n","abcd",null])check(!validPin(pin));
+const proof=await devicePinVerifier("qa",token,"0123",secret);
+const lookup=await deviceLookupKey("qa",token,secret);
+check(/^[0-9a-f]{64}$/.test(proof));check(lookup!==proof);check(lookup!==token);
+check(await verifyDevicePin("qa",token,"0123",secret,proof));
+check(!await verifyDevicePin("qa",token,"0124",secret,proof));
+check(!await verifyDevicePin("staging",token,"0123",secret,proof));
+check(!await verifyDevicePin("dr",token,"0123",secret,proof));
+check(!await verifyDevicePin("new-live",token,"0123",secret,proof));
+check(!await verifyDevicePin("qa",other,"0123",secret,proof));
+check(!await verifyDevicePin("qa",token,"0123",secret+"other",proof));
+check(!await verifyDevicePin("qa",token,"0123","short",proof));
+check(!await verifyDevicePin("qa","missing","0123",secret,proof));
+check(!await verifyDevicePin("qa",token,"12345",secret,proof));
+check(!await verifyDevicePin("qa",token,"0123",secret,"invalid"));
+check(await deviceLookupKey("qa",token,secret)!==await deviceLookupKey("staging",token,secret));
+await assert.rejects(devicePinVerifier("unknown",token,"0123",secret));checks++;
+await assert.rejects(devicePinVerifier("qa",token,"12345",secret));checks++;
+for(const env of ["qa","doomsday","independent-dr","independent-live"]){
+ const source=readFileSync(new URL("adapters/"+env+"/app/login/page.tsx",import.meta.url),"utf8");
+ check(source.includes('autoComplete={quick?"off":"current-password"}'));
+ check(source.includes('new FormData(event.currentTarget).get("password")'));
+ check(!source.includes('value={password}'));
+ check(source.includes('if(quick)void signIn({method:"pin",pin:credential})'));
+ check(source.includes('else void signIn({password:credential})'));
+}
+console.log("PASS "+checks+" trusted-device cryptography and password-autofill source assertions; no hosted login, DB, or provider operations");

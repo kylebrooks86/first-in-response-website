@@ -1,0 +1,28 @@
+name: FIRE QA v25 Private Backup Source Safety (Offline Only)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_qa_v25_current_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_v25_backup_current25.ps1'
+      - 'business-app-parity/test_owner_windows_qa_v25_backup_current25.ps1'
+      - '.github/workflows/fire-qa-v25-private-backup-offline.yml'
+concurrency:
+  # The latest candidate supersedes previous PR revisions only. Never cancel
+  # a main-branch publish, release, or recovery run automatically.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+jobs:
+  v25-private-archive-default-no-write:
+    name: Guard v25 private QA backup default dry-run, no Cloudflare or local archive writes
+    runs-on: windows-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Confirm guarded archive needs explicit opt-in and dry-run never contacts cloud
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_v25_backup_current25.ps1

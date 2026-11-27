@@ -1,0 +1,92 @@
+{
+  "parent": "7df0dbd4259855c67942421ecc279e99ebe633b9",
+  "testHarness": "shared/scripts/test-local-customer-store-browser.mjs",
+  "browser": "Chromium 153.0.8010.0",
+  "browserDistribution": {
+    "package": "@sparticuz/chromium",
+    "version": "153.0.0",
+    "localOnly": true,
+    "applicationDependencyAdded": false,
+    "executableSha256": "53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0"
+  },
+  "execution": "Real native IndexedDB under headless Chromium; local HTTP harness; isolated synthetic disposable on-disk profiles, deleted after completion",
+  "targets": {
+    "live": {
+      "exitCode": 0,
+      "passed": 15,
+      "total": 15,
+      "moduleHashMatches": true,
+      "harnessHashMatches": true,
+      "outputEvidence": "Successful tool invocation output: PASS lines plus passed:15,total:15,browser:153.0.8010.0."
+    },
+    "doomsday": {
+      "exitCode": 0,
+      "passed": 15,
+      "total": 15,
+      "moduleHashMatches": true,
+      "harnessHashMatches": true,
+      "logSha256": "416d342c23990e58d8fb9d4389a31c5b144ca193fd3643d8eac11e3a6d212a75"
+    },
+    "staging": {
+      "exitCode": 0,
+      "passed": 15,
+      "total": 15,
+      "moduleHashMatches": true,
+      "harnessHashMatches": true,
+      "logSha256": "416d342c23990e58d8fb9d4389a31c5b144ca193fd3643d8eac11e3a6d212a75"
+    }
+  },
+  "checksPassed": 45,
+  "checksTotal": 45,
+  "suitesPassed": 3,
+  "suitesTotal": 3,
+  "negativeControl": {
+    "mutation": "Resolve save before native transaction completion",
+    "exitCode": 1,
+    "detectedBy": "Native abort after record request success must reject save and roll back both stores"
+  },
+  "faultInjection": {
+    "quota": "Injected QuotaExceededError at operations.add within real native transaction; not physical disk exhaustion",
+    "interruption": "Explicit native transaction abort after customer put success; not process crash or power failure"
+  },
+  "verified": [
+    "committed customer and operation survive graceful full browser restart",
+    "concurrent tabs serialize and stale revision rejects",
+    "exact duplicate operation is idempotent and never rewinds subsequent edits",
+    "native aborted writes roll back customer and operation together",
+    "account/target namespace isolation",
+    "read/create works while browser network is offline",
+    "version change closes connection; newer schema refused"
+  ],
+  "notVerified": [
+    "Safari/iPhone",
+    "PWA offline cold launch",
+    "eviction and physical quota exhaustion",
+    "power loss/crash durability",
+    "local unlock/encryption",
+    "full backup/restore import",
+    "sync and UI integration"
+  ],
+  "realIndexedDBVerified": true,
+  "iPhoneVerified": false,
+  "appOfflineColdLaunchVerified": false,
+  "uiActivated": false,
+  "appCodeChanged": false,
+  "browserNetworkExternalRequests": 0,
+  "deployment": false,
+  "remoteDatabaseWrites": false,
+  "migrations": false,
+  "stripeCalls": false,
+  "paidOperations": false,
+  "changedFilesSha256": {
+    "shared/scripts/test-local-customer-store-browser.mjs": "c50e749d46cc7e8df5a4b66db02da4fb74dff5be9fd80c0a2b6dbfb3503f7875"
+  },
+  "testedModuleSha256": "8c9e46fe15096c6d299fc57a27cd51d24fdd0e2cb401b81891e726f90ce3f937",
+  "priorTypechecksAndBuilds": "3/3 each at parent checkpoint; not rerun because test harness/evidence only",
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "ready": false
+  }
+}

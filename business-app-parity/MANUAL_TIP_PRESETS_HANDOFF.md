@@ -1,0 +1,9 @@
+# Shared manual tip presets — October 9, 2026
+
+Preserved the manual tip feature observed in deployed Doomsday by adding equivalent choices to shared LIVE/Doomsday/staging candidates: No tip, 5%, 10%, 15%, Custom. Completed jobs only, including tip-only recording on paid jobs. No tip selected initially and after reopening. Percentages use the full revised invoice total and round to cents. Custom input remains optional; existing limits and invalid guards retained. Principal amount and fees unchanged. Reuses shared final-tip card styles (two columns and full-width Custom); no new CSS or dependency.
+
+162/162 new checks (54 per target) exercise actual component/save handlers with mocked requests: all choices, revised totals, fractional cents, invalid values, reopening, principal preservation, Venmo fee payload and tip-only recording. Prior dialog fails negative control. Public tip, mobile structural and processing-fee suites pass: 12/12 selected runs, TypeScript 3/3, completed builds 3/3; shared source 119/119. Public tip suite repaired its stale netTips fixture context to receivedPayments following earlier summary filtering; its existing coverage now executes successfully. Exact snapshots/paths/hashes in evidence. Historical manifest remains stale for newer source.
+
+Overall verified readiness: 30% (3/10 release gates). Formal deployed/mobile parity 0/32; complete remote schema/journals 0/3. No deployment, remote write, Stripe mutation or paid resource. Candidate rendering and iPhone light/dark remain unverified; equivalent choice functionality is not proof of exact deployed appearance.
+
+Next bounded task: verify manual selector light/dark styles and responsive touch targets against existing app theme rules, then prepare current candidate identity evidence without publishing. Preserve public selectors, fees and old rollback artifacts. Regular chat can independently review choices and test limits read-only.

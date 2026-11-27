@@ -1,0 +1,11 @@
+{
+  "format": "fire-qa-backup-custody-v1",
+  "backupSha256": null,
+  "restoreReceiptSha256": null,
+  "restoreReceiptRecordedUtc": null,
+  "confirmedUtc": null,
+  "copies": [
+    {"copyId":"primary","failureDomain":null,"sha256":null,"encryptedAccessControlled":false,"ownerRecoveryAccessConfirmed":false},
+    {"copyId":"secondary","failureDomain":null,"sha256":null,"encryptedAccessControlled":false,"ownerRecoveryAccessConfirmed":false}
+  ]
+}

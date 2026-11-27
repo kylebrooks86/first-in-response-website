@@ -1,0 +1,75 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {Button} from './ui/button';
+import {BookingAmendmentPreview} from './booking-amendment-preview';
+type SavedRule={id:string;name:string;type:'percent'|'dollar';valueCents:number};
+type Attribution={format:'fire-estimate-promotions-v1';estimateId:string;catalogRevision:string|null;checkedOn:string;
+ selectedServices:string[];rules:SavedRule[];subtotalCents:number;percentBasisPoints:number;flatDiscountCents:number;totalCents:number;depositCents:number;bookingConfirmedOn?:string};
+const cents=(v:number)=>'$'+(v/100).toFixed(2);
+const label=(p:SavedRule)=>p.type==='percent'?(p.valueCents/100).toFixed(2).replace(/\.00$/,'')+'%':cents(p.valueCents);
+const safe=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
+function validAttribution(v:unknown,estimateId:string,totalCents:number):v is Attribution{
+ if(!v||typeof v!=='object'||Array.isArray(v))return false;
+ const x=v as Record<string,unknown>;
+ return x.format==='fire-estimate-promotions-v1'&&x.estimateId===estimateId&&
+  typeof x.checkedOn==='string'&&/^\d{4}-\d\d-\d\d$/.test(x.checkedOn)&&
+  (x.bookingConfirmedOn===undefined||typeof x.bookingConfirmedOn==='string'&&/^\d{4}-\d\d-\d\d$/.test(x.bookingConfirmedOn)&&x.bookingConfirmedOn<=x.checkedOn)&&
+  safe(x.subtotalCents)&&safe(x.totalCents)&&x.totalCents===totalCents&&safe(x.depositCents)&&
+  Array.isArray(x.rules)&&x.rules.length<=40&&x.rules.every(p=>
+   p&&typeof p==='object'&&typeof p.id==='string'&&typeof p.name==='string'&&
+   ['percent','dollar'].includes(p.type)&&safe(p.valueCents));
+}
+export function EstimatePromotionHistory({estimateId,totalCents,estimateStatus}:{estimateId:string;totalCents:number;estimateStatus?:string}){
+ const closedEstimate=estimateStatus==='declined'||estimateStatus==='superseded';
+ const [state,setState]=useState<'loading'|'none'|'ready'|'error'>('loading'),[record,setRecord]=useState<Attribution|null>(null);
+ const [seq,setSeq]=useState(0);
+ useEffect(()=>{
+  let live=true;setState('loading');
+  // Keep verified same-estimate content mounted during an explicit refresh so
+  // expanded optional reviews do not disappear and jump the iPhone scroll.
+  // Never retain a receipt for another estimate or changed stored total.
+  setRecord(previous=>previous?.estimateId===estimateId&&previous.totalCents===totalCents?previous:null);
+  void (async()=>{
+   try{
+    const response=await fetch('/api/estimates/'+encodeURIComponent(estimateId)+'/promotions',{cache:'no-store'});
+    const data=await response.json() as {estimateId?:unknown;attribution?:unknown};
+    if(!response.ok||data.estimateId!==estimateId||!Object.prototype.hasOwnProperty.call(data,'attribution'))throw Error('Unverified promotion receipt');
+    if(data.attribution!==null&&!validAttribution(data.attribution,estimateId,totalCents))throw Error('Conflicting totals');
+    if(live){setRecord(data.attribution);setState(data.attribution===null?'none':'ready');}
+   }catch{if(live)setState('error');}
+  })();
+  return()=>{live=false;};
+ },[estimateId,totalCents,seq]);
+ if(state==='none')return null;
+ const verifiedRecord=record?.estimateId===estimateId&&record.totalCents===totalCents?record:null;
+ // Keep the saved summary unchanged during same-record refresh to avoid a
+ // one-frame "Checking" flash. Only initial reads need visible loading copy.
+ const summary=state==='error'?'Unavailable · open to retry':
+  verifiedRecord?(verifiedRecord.rules.length?verifiedRecord.rules.length+' saved offer'+(verifiedRecord.rules.length===1?'':'s'):
+   'No discount applied')+' · '+verifiedRecord.checkedOn:'Checking…';
+ return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" aria-busy={state==='loading'} className="rounded-xl border p-3">
+  <details>
+   <summary className="cursor-pointer min-h-11 py-2">
+    <strong>Promotion history</strong>
+    <span className="ml-2 text-sm text-muted-foreground">{summary}</span>
+   </summary>
+   <div className="space-y-3 pt-2">
+    {state==='loading'&&!verifiedRecord&&<p role="status" className="text-sm">Checking saved offers…</p>}
+    {state==='loading'&&verifiedRecord&&<span className="sr-only" role="status">Refreshing saved offers…</span>}
+    {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Refresh to retry.</p>}
+    {(state==='ready'||state==='loading')&&verifiedRecord&&<>
+     <p className="text-sm text-muted-foreground">Saved {verifiedRecord.checkedOn} · Total {cents(verifiedRecord.totalCents)} · Deposit {cents(verifiedRecord.depositCents)}</p>
+     {verifiedRecord.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>)}
+     {verifiedRecord.bookingConfirmedOn&&<p className="text-sm">Confirmed booking date: {verifiedRecord.bookingConfirmedOn} (owner-recorded only).</p>}
+     <p className="text-xs text-muted-foreground">Later offers do not change this saved estimate.</p>
+     {closedEstimate&&<p className="text-xs text-muted-foreground" role="status">Closed estimate. Saved offers are historical; a future booking requires a new estimate.</p>}
+     {!closedEstimate&&!verifiedRecord.bookingConfirmedOn&&<details className="rounded-lg border px-3">
+      <summary className="cursor-pointer min-h-11 py-2 font-medium">Review booking savings (optional)</summary>
+      <div className="pb-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={verifiedRecord.totalCents}/></div>
+     </details>}
+    </>}
+    <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" disabled={state==='loading'} onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
+   </div>
+  </details>
+ </section>;
+}

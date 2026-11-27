@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-16",
+  "milestone": "Owner-assisted read-only Acer Microsoft Edge recovery-target precheck",
+  "evidenceType": "OWNER_SUPPLIED_ACER_SCREENSHOT; no independent host-controlled execution",
+  "environment": "Windows Acer laptop, Microsoft Edge ordinary browsing context (owner screenshot)",
+  "urlOrigin": "https://fire-synthetic-offline-test-bfc00939.pages.dev",
+  "observedPath": "/synthetic-customer-demo/",
+  "observedQuery": "?utm_source=chatgpt.com",
+  "observedStatuses": {
+    "shell": "Offline shell ready on this browser. Storage can still be cleared or evicted.",
+    "localVault": "No stored vault snapshot found on this device. Recover before Unlock; no records changed.",
+    "screenState": "Locked",
+    "savedFile": "No file chosen"
+  },
+  "conclusion": "Read-only empty snapshot presence precheck passed on this Edge context; this does not prove independent physical device recovery, installed offline cold launch or iPhone/iPad full Business App candidate acceptance.",
+  "constraints": [
+    "Protect owner existing iPhone Revision 3 and iPad Revision 1 vaults.",
+    "Do not click Unlock (can initialize Revision 1 on an empty vault), Recover or Initialize on Acer before file verification and approval.",
+    "Transfer encrypted synthetic Revision 3 JSON backup privately to Acer local storage; never GitHub/chat upload or reveal passphrase.",
+    "Before recovery, use exact query-free canonical synthetic URL, reconfirm read-only snapshot absence, inspect shell identity and confirm persistent storage context.",
+    "Perform actual recovery only after separate owner confirmation with a reviewed, disposable empty destination; atomic add remains ultimate overwrite safeguard."
+  ],
+  "recoveryAttempted": false,
+  "dataModified": false,
+  "appInstalledOrDeleted": false,
+  "officialReadinessPercent": 30,
+  "fullBusinessAppGate8Accepted": false
+}

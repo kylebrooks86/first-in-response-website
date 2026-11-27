@@ -1,0 +1,131 @@
+{
+  "asOf": "2026-10-10",
+  "baseDevelopmentCheckpoint": "45439e244a8b955917d72391a0bfcd291304ed72",
+  "newerRemoteCommitFound": false,
+  "sourceCommit": "5279d071ec8651c0ba5e963b4aa0d3bb4c84ccc7",
+  "sourceClean": true,
+  "shellVersion": "b9cbe0f7beff59d57f092c55",
+  "expectedURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+  "receiptSha256": "e419f619a6dc66304a8255225a572f3dfb1c360fe6a6815787fa34357b3b5d91",
+  "zipFilename": "FIRE_Synthetic_Offline_Cloudflare_Upload_b9cbe0f7.zip",
+  "zipSha256": "c0df9614d2ba950baf09abfe8544c74495311b70797ab7aa1187ea18e2070578",
+  "zipBytes": 229642,
+  "uncompressedBytes": 271580,
+  "fileChecks": {
+    "passed": 13,
+    "total": 13,
+    "inventoryMatches": true,
+    "receiptMatches": true,
+    "zipCRC": true,
+    "extractedHashesPassed": 13,
+    "extractedHashesTotal": 13,
+    "wrapperDirectoryInZIP": false,
+    "topLevelFiles": [
+      "_headers",
+      "_redirects",
+      "404.html",
+      "robots.txt"
+    ],
+    "topLevelDirectory": "synthetic-customer-demo"
+  },
+  "isolationChecks": {
+    "exactOriginGuard": true,
+    "registrationAndManifestScope": "/synthetic-customer-demo/",
+    "cacheAssets": 8,
+    "getOnlySameOriginNoQuery": true,
+    "cspHashVerified": true,
+    "staticOnly": true,
+    "savedRecordsIncluded": false,
+    "secretsDetected": false,
+    "functions": [],
+    "bindings": [],
+    "stripeConnections": []
+  },
+  "files": [
+    {
+      "file": "synthetic-customer-demo/index.html",
+      "sha256": "caedc936f4567b19d264d4bcef65bbb08af44557ec07f495b221f88f7b5c6edc",
+      "bytes": 4774
+    },
+    {
+      "file": "synthetic-customer-demo/store.js",
+      "sha256": "ee59b1729d0056fe5b98d278677465ee5b62e4bb3261f6fb992109b5f71cfef5",
+      "bytes": 16601
+    },
+    {
+      "file": "synthetic-customer-demo/backup.js",
+      "sha256": "cb60be09855273596cbc509e8e63c32aa6dc35f63bcc4f43384f56ca9228742c",
+      "bytes": 4197
+    },
+    {
+      "file": "synthetic-customer-demo/vault.js",
+      "sha256": "1d71303ffa28ea65b004a1c907d2f3d7bdf53032667f0c514ca3aba9232a8216",
+      "bytes": 16668
+    },
+    {
+      "file": "synthetic-customer-demo/demo.js",
+      "sha256": "93966ed34241067dec04e8fc98624ca2a5f8cdf3c3cc8b6f866b5dd710e8c8a5",
+      "bytes": 11828
+    },
+    {
+      "file": "synthetic-customer-demo/manifest.webmanifest",
+      "sha256": "198fae91029f98d0f4dc475df522b8e5822d2a64561f5a467c86a0b12644cebe",
+      "bytes": 503
+    },
+    {
+      "file": "synthetic-customer-demo/icon-180.png",
+      "sha256": "fcbb211e73f9014a615dbaf7c279bffb1880413a3b3bb4b82eee8880d38d93ea",
+      "bytes": 32777
+    },
+    {
+      "file": "synthetic-customer-demo/icon-512.png",
+      "sha256": "81fe4d599db8af72b6bb4b6ea6f7eb0889f392c1cc589a41a49ea093350869e8",
+      "bytes": 179718
+    },
+    {
+      "file": "synthetic-customer-demo/worker.js",
+      "sha256": "d07dd58a7160f832d9211d825a8721a673c45ce1b42d9115130185736dab8d4d",
+      "bytes": 3043
+    },
+    {
+      "file": "_headers",
+      "sha256": "1b808fb4069f855d58cecf2e95418d42a06c8246d8c092534d0be91c60861081",
+      "bytes": 1329
+    },
+    {
+      "file": "_redirects",
+      "sha256": "cdecc3f7a07d3c010bba32d9a07e68ea0a2893636959b84ce62983be5ce43a13",
+      "bytes": 32
+    },
+    {
+      "file": "404.html",
+      "sha256": "63ac13e9d4ea50691f7c0ccda0d12aa5addd128c4fd7c79dda978064a6e6f7f1",
+      "bytes": 84
+    },
+    {
+      "file": "robots.txt",
+      "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "bytes": 26
+    }
+  ],
+  "ownerReportedCloudflareState": "Signed in on iPhone; exact project name accepted; Step 2 upload assets; no upload/deploy yet. Reported, not independently authenticated.",
+  "dashboardZIPSupport": "Documented ZIP or folder; actual iPhone file picker/upload not yet verified.",
+  "officialSource": "https://developers.cloudflare.com/pages/get-started/direct-upload/",
+  "publicationPerformed": false,
+  "additionalSpendingUSD": 0,
+  "appSourceChanged": false,
+  "unchangedSuitesRerun": false,
+  "actualTLSHeadersVerified": false,
+  "iPhoneOfflineRecoveryVerified": false,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "nextStep": "Owner manually selects verified ZIP, reviews exact project/asset tree/costs, deploys only approved synthetic project; then read-only hosted acceptance before iPhone install tests.",
+  "downloadArtifact": {
+    "library_file_id": "libfile_b8dedc13138c819193a3deaafedea31c",
+    "filename": "FIRE_Synthetic_Offline_Cloudflare_Upload_b9cbe0f7.zip",
+    "saved": true
+  }
+}

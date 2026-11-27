@@ -1,0 +1,22 @@
+{
+  "source": "Owner message 2026-10-19 15:04 America/Chicago; authenticated Acer Cloudflare observations",
+  "qaWorker": "fire-fullapp-qa-20261016",
+  "ownerReportedActiveVersion": "58a467fa-9dbc-45a3-971e-b5a4e478f54d",
+  "ownerReportedActiveVersionCount": 1,
+  "ownerReportedTrafficPercent": 100,
+  "historicalRollbackVersion": "5e44f843-94f0-4ea4-b80f-a889bd0830ef",
+  "qaDatabase": "fire-fullapp-qa-db-20261016",
+  "qaUuid": "8ccfb1f8-1657-4074-b1b2-47de78f95003",
+  "ownerReportedSeparateFromStaging": true,
+  "ownerReportedJournalCount": 23,
+  "ownerReportedLastMigration": "0022_stripe_provider_uniqueness.sql",
+  "ownerReported0023And0024Applied": false,
+  "reconciliation": "Supersedes older active-version expectation with exact owner-authenticated version; previous evidence retained unchanged. Strict version and traffic checks remain in force.",
+  "agentIndependentlyReadCloudflare": false,
+  "fullHostedSchemaReviewed": false,
+  "actualPrivateBackupExportedOrVerified": false,
+  "hostedMigrationAuthorized": false,
+  "publicationAuthorized": false,
+  "acceptedReleaseGates": 3,
+  "totalReleaseGates": 10
+}

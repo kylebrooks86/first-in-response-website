@@ -1,0 +1,24 @@
+name: FIRE DR Acer launcher expected 10007 stderr (OFFLINE, WINDOWS ONLY)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_dr_dark_first_create_once_approved.ps1'
+      - 'business-app-parity/test_owner_dr_launcher_native_stderr.ps1'
+      - '.github/workflows/fire-owner-dr-launcher-windows.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-dr-owner-launcher-mock-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-5-1-native-stderr:
+    runs-on: windows-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run only offline native Windows PowerShell 5.1 Wrangler-mock regression
+        shell: powershell
+        run: |
+          .\business-app-parity\test_owner_dr_launcher_native_stderr.ps1

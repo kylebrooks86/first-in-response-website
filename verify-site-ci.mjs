@@ -14,12 +14,21 @@ if (run.stderr) process.stderr.write(run.stderr);
 if (run.status === 0) process.exit(0);
 
 const combined = `${run.stdout || ''}\n${run.stderr || ''}`;
-const expectedFailure = [
-  'FAILED: 1 issue(s)',
-  'Homepage media integrity failed:',
-  'assets/masonry-before.jpg does not have a valid JPEG signature',
-  'assets/masonry-after.jpg does not have a valid JPEG signature'
-].every((text) => combined.includes(text));
+// Permit exactly the two already-reviewed masonry signature complaints.
+// Do not accept additional failed checks hidden inside the same aggregate
+// "Homepage media integrity failed" line, even when the issue count remains 1.
+const lines = combined.replaceAll('\r\n', '\n').split('\n');
+const summaries = lines.filter(line => /^FAILED: \d+ issue\(s\)$/.test(line));
+const errorLines = lines.filter(line => line.startsWith('- '));
+const approvedIssue = '- Homepage media integrity failed: ' +
+  'assets/masonry-before.jpg does not have a valid JPEG signature; ' +
+  'assets/masonry-after.jpg does not have a valid JPEG signature.';
+const expectedFailure =
+  run.status === 1 &&
+  summaries.length === 1 &&
+  summaries[0] === 'FAILED: 1 issue(s)' &&
+  errorLines.length === 1 &&
+  errorLines[0] === approvedIssue;
 
 function gitBlobSha(file) {
   const bytes = fs.readFileSync(file);

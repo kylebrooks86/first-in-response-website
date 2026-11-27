@@ -1,0 +1,116 @@
+{
+  "parent": "9b3afd6d30502827c285982b2844914b0d176ea5",
+  "scope": "Inactive encrypted customer snapshot initialization and scoped read sessions; no UI activation",
+  "sourceSha256": {
+    "business-app-parity/shared/lib/local-customer-vault.ts": "e6a343126bcda5d665eb42ff333e7c464b73b4c883fef2ba48b0e344a2be1a9d",
+    "business-app-parity/shared/scripts/test-local-customer-vault-browser.mjs": "9bb9ed3e1334bbabf8369142331cb9c4ad4fba1356d80e276f2c655baabb5f8e"
+  },
+  "targets": {
+    "live": {
+      "summary": {
+        "passed": 21,
+        "total": 21,
+        "browser": "153.0.8010.0",
+        "nativeWebCrypto": true,
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "encryptedAtRestSnapshotTested": true,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "typecheck": "PASS",
+      "build": "PASS",
+      "testOutput": "PASS: uninitialized vault fails closed instead of returning empty business data\nPASS: invalid customer archive fails before storage writes\nPASS: weak passphrase cannot initialize vault\nPASS: wrong namespace cannot initialize vault\nPASS: interrupted native initialization commits no encrypted snapshot\nPASS: quota fault preserves uninitialized state\nPASS: locking during asynchronous encryption prevents initialization\nPASS: retry commits only encrypted customer snapshot\nPASS: unlock exposes validated detached records only to its session\nPASS: wrong passphrase rejects and preserves encrypted bytes\nPASS: reinitialization cannot overwrite existing snapshot\nPASS: explicit session lock blocks all future getters and export\nPASS: vault lock revokes every outstanding session\nPASS: lock during key derivation cannot publish a late unlocked session\nPASS: account and target remain isolated\nPASS: two-tab initialization race has one winner without overwrite\nPASS: unlock and read work offline with a locked vault\nPASS: graceful browser restart retains encrypted storage and offline unlock\nPASS: ciphertext tampering fails closed without replacing stored snapshot\nPASS: close revokes access and prevents reopening through stale handle\nPASS: no external app, database or Stripe requests\n{\"passed\":21,\"total\":21,\"browser\":\"153.0.8010.0\",\"nativeWebCrypto\":true,\"realIndexedDB\":true,\"syntheticOnly\":true,\"encryptedAtRestSnapshotTested\":true,\"appOfflineColdLaunchTested\":false,\"iPhoneTested\":false}\n"
+    },
+    "staging": {
+      "summary": {
+        "passed": 21,
+        "total": 21,
+        "browser": "153.0.8010.0",
+        "nativeWebCrypto": true,
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "encryptedAtRestSnapshotTested": true,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "typecheck": "PASS",
+      "build": "PASS",
+      "testOutput": "PASS: uninitialized vault fails closed instead of returning empty business data\nPASS: invalid customer archive fails before storage writes\nPASS: weak passphrase cannot initialize vault\nPASS: wrong namespace cannot initialize vault\nPASS: interrupted native initialization commits no encrypted snapshot\nPASS: quota fault preserves uninitialized state\nPASS: locking during asynchronous encryption prevents initialization\nPASS: retry commits only encrypted customer snapshot\nPASS: unlock exposes validated detached records only to its session\nPASS: wrong passphrase rejects and preserves encrypted bytes\nPASS: reinitialization cannot overwrite existing snapshot\nPASS: explicit session lock blocks all future getters and export\nPASS: vault lock revokes every outstanding session\nPASS: lock during key derivation cannot publish a late unlocked session\nPASS: account and target remain isolated\nPASS: two-tab initialization race has one winner without overwrite\nPASS: unlock and read work offline with a locked vault\nPASS: graceful browser restart retains encrypted storage and offline unlock\nPASS: ciphertext tampering fails closed without replacing stored snapshot\nPASS: close revokes access and prevents reopening through stale handle\nPASS: no external app, database or Stripe requests\n{\"passed\":21,\"total\":21,\"browser\":\"153.0.8010.0\",\"nativeWebCrypto\":true,\"realIndexedDB\":true,\"syntheticOnly\":true,\"encryptedAtRestSnapshotTested\":true,\"appOfflineColdLaunchTested\":false,\"iPhoneTested\":false}\n"
+    },
+    "doomsday": {
+      "summary": {
+        "passed": 21,
+        "total": 21,
+        "browser": "153.0.8010.0",
+        "nativeWebCrypto": true,
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "encryptedAtRestSnapshotTested": true,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "typecheck": "PASS",
+      "build": "PASS",
+      "testOutput": "PASS: uninitialized vault fails closed instead of returning empty business data\nPASS: invalid customer archive fails before storage writes\nPASS: weak passphrase cannot initialize vault\nPASS: wrong namespace cannot initialize vault\nPASS: interrupted native initialization commits no encrypted snapshot\nPASS: quota fault preserves uninitialized state\nPASS: locking during asynchronous encryption prevents initialization\nPASS: retry commits only encrypted customer snapshot\nPASS: unlock exposes validated detached records only to its session\nPASS: wrong passphrase rejects and preserves encrypted bytes\nPASS: reinitialization cannot overwrite existing snapshot\nPASS: explicit session lock blocks all future getters and export\nPASS: vault lock revokes every outstanding session\nPASS: lock during key derivation cannot publish a late unlocked session\nPASS: account and target remain isolated\nPASS: two-tab initialization race has one winner without overwrite\nPASS: unlock and read work offline with a locked vault\nPASS: graceful browser restart retains encrypted storage and offline unlock\nPASS: ciphertext tampering fails closed without replacing stored snapshot\nPASS: close revokes access and prevents reopening through stale handle\nPASS: no external app, database or Stripe requests\n{\"passed\":21,\"total\":21,\"browser\":\"153.0.8010.0\",\"nativeWebCrypto\":true,\"realIndexedDB\":true,\"syntheticOnly\":true,\"encryptedAtRestSnapshotTested\":true,\"appOfflineColdLaunchTested\":false,\"iPhoneTested\":false}\n"
+    }
+  },
+  "checks": {
+    "passed": 63,
+    "total": 63
+  },
+  "typechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "builds": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedSourceParity": {
+    "passed": 122,
+    "total": 122,
+    "differences": []
+  },
+  "standaloneStrictModuleTypecheck": "PASS",
+  "doomsdayLocalBuildProvenance": "PASS",
+  "negativeControl": {
+    "mutation": "Scratch only: omit lock-generation check after encryption",
+    "exitCode": 1,
+    "detectedBy": "Lock during asynchronous initialization must prevent commit"
+  },
+  "verified": [
+    "Encrypted snapshot only in new vault namespace; no plaintext customer or passphrase stored by vault",
+    "Validated detached customer reads after successful passphrase decryption",
+    "Native aborted initialization and injected quota errors leave no committed snapshot",
+    "Add-only initialization cannot overwrite an existing snapshot; two-tab race has one winner",
+    "Lock cancels pending initialization and key derivation publication",
+    "Session lock blocks future getter/export calls; vault lock revokes all sessions of that handle",
+    "Account/target isolation",
+    "Offline unlock/read and encrypted storage after graceful browser restart",
+    "Tampered ciphertext fails closed without modifying snapshot"
+  ],
+  "limitations": [
+    "Read-only snapshot foundation: no encrypted updates, restore merge or passphrase rotation",
+    "Existing plaintext store/exports remain unchanged; no automatic migration",
+    "No runtime activation or real customer data",
+    "Local handle lock only: no cross-tab broadcast, app lifecycle or idle locking yet",
+    "Already returned plaintext copies and JavaScript memory cannot be reliably erased; future UI must clear rendered data",
+    "No XSS/hostile-script security guarantee or independent security review",
+    "Chromium only, no Safari/iPhone proof",
+    "Harness loaded online before offline checks; not installed PWA cold launch",
+    "Native transaction abort and graceful restart only; no physical quota, eviction or power-loss guarantee",
+    "Whole-screen shake unresolved; navigation reset preserved"
+  ],
+  "applicationFailures": [],
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "migrations": false,
+  "stripeCalls": false,
+  "paidOperations": false
+}
