@@ -1,3 +1,8 @@
+## Nov27 14:41 CST — G6-09 remaining four logging corrections acknowledged
+Owner Acer exit 0: STAGING, DR, NEW LIVE and Stripe TEST PATCH acknowledged 4/4, deployment and returned version inventories, non-observability settings and ingress unchanged, logpush false. STAGING explicit disabled in both API settings responses; DR/NEW LIVE/TEST fields not reported, dashboard confirmation pending for three. QA excluded; previous owner confirmation retained. Tail consumers/destinations not reported, not verified absent. All five authorized attempts consumed; preserve locks, no retries. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227761377). Historical logs not erased; no raw logs or exports retained; prior four private endpoints passed. G6-09 open, 68/95. No deployment, payment or database changes in this operation.
+
+---
+
 ## Nov27 — QA Workers Logs owner-confirmed disabled
 Owner reports dashboard Workers Logs disabled; no independent screenshot or proof of every observability subflag. Preserve QA attempt lock and unchanged serving version; no QA retry or re-enable. Other four authorized changes not attempted. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227718094). G6-09 open, 68/95; previous 4/4 private endpoints retained.
 
