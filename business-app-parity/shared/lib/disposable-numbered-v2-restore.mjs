@@ -11,6 +11,8 @@
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,
  validateNumberedCoreRecordsV2} from './numbered-records-v2-preflight.mjs';
 import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from './new-live-migration-journal.mjs';
+import {expectedSessionMigrationJournal} from './session-migration-journal.mjs';
+import {assertRecoveredSessionsEmpty} from './recovered-session-safety.mjs';
 
 const tables=Object.freeze([
  'customers','estimates','estimate_items','customer_notes','invoices',
@@ -157,8 +159,12 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
  // Keep QA-25 as the default: selecting NEW LIVE must be explicit and cannot
  // auto-trust a same-named journal or silently delete it during a restore.
  const profile=options.schemaProfile??'qa-25';
- if(!['qa-25','independent-live-26'].includes(profile))
+ if(!['qa-25','independent-live-26','independent-live-27'].includes(profile))
   blocked('unreviewed SQLite schema profile');
+ const sessionEnabled=profile==='independent-live-27';
+ const expectedJournal=sessionEnabled
+  ?expectedSessionMigrationJournal('independent-live')
+  :EXPECTED_NEW_LIVE_D1_MIGRATIONS;
  const interruption=options.testInterruptAfterRows;
  if(interruption!==undefined&&(!Number.isSafeInteger(interruption)||interruption<1))
   blocked('invalid synthetic interruption');
@@ -186,12 +192,12 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
  ).all().map(r=>r.name);
  const allowed=new Set([...tables,'auth_rate_limits',
-  ...(profile==='independent-live-26'?['d1_migrations']:[])]);
+  ...(profile!=='qa-25'?['d1_migrations']:[]),...(sessionEnabled?['owner_auth_sessions']:[])]);
  if(available.length!==allowed.size||available.some(name=>!allowed.has(name)))
   blocked(profile==='qa-25'
    ? 'reviewed exact QA baseline plus numbering schema is required'
    : 'reviewed exact NEW LIVE 26-migration schema and complete numbering tables required');
- if(profile==='independent-live-26'){
+ if(profile!=='qa-25'){
   // The ordered journal itself is provider/application operational metadata,
   // NOT part of the 23 customer/finance/photo records archive. It must
   // already exist from the 26 reviewed migrations, unchanged and in order;
@@ -201,9 +207,9 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
      columns[0].pk!==1||columns[1].notnull!==1)
     blocked('NEW LIVE migration journal column structure differs');
   const journal=db.prepare('SELECT id,name FROM "d1_migrations" ORDER BY id').all();
-  if(journal.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length||
+  if(journal.length!==expectedJournal.length||
      journal.some((row,i)=>row.id!==i+1||
-       row.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]))
+       row.name!==expectedJournal[i]))
     blocked('NEW LIVE exact 26-migration journal missing, reordered or forged');
  }
  const hasTriggers=db.prepare(
@@ -213,7 +219,7 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
   "'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete')"
  ).get()?.n;
  if(hasTriggers!==6)blocked('permanent identity immutability triggers missing');
- if(profile==='independent-live-26')assertIndependentLive26CriticalSchema(db);
+ if(profile!=='qa-25')assertIndependentLive26CriticalSchema(db);
  const columns=new Map();
  for(const table of tables){
   if(db.prepare('SELECT COUNT(*) AS n FROM "'+table+'"').get().n!==0)
@@ -234,6 +240,10 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
   blocked('preexisting SQLite sequence state cannot be overwritten');
  if(db.prepare('PRAGMA foreign_keys').get()?.foreign_keys!==1)
   blocked('foreign key checks must be enabled before restore');
+ if(sessionEnabled){
+  try{assertRecoveredSessionsEmpty(db);}
+  catch{blocked('destination authentication sessions must be empty');}
+ }
  let inserted=0;
  db.exec('BEGIN IMMEDIATE');
  try{
@@ -250,6 +260,7 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
   setHighWater(db,'fire_customer_numbers',archive.highWater.customer);
   setHighWater(db,'fire_job_numbers',archive.highWater.job);
   verifyRows(db,archive,columns);
+  if(sessionEnabled)assertRecoveredSessionsEmpty(db);
   db.exec('COMMIT');
   return Object.freeze({...summary,disposableOnly:true,
     schemaProfile:profile,
