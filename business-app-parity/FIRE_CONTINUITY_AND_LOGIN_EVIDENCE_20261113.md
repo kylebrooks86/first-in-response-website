@@ -1,3 +1,8 @@
+## Nov27 — QA Workers Logs owner-confirmed disabled
+Owner reports dashboard Workers Logs disabled; no independent screenshot or proof of every observability subflag. Preserve QA attempt lock and unchanged serving version; no QA retry or re-enable. Other four authorized changes not attempted. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227718094). G6-09 open, 68/95; previous 4/4 private endpoints retained.
+
+---
+
 ## Nov27 14:26 CST — G6-09 attempt lock reconciliation
 Owner Acer QA attempt lock true, all other four false. QA write-attempt stage reached; acknowledgement and effective logging state uncertain, do not retry/delete lock. Prior serving version unchanged. Optional observability fields absent, not explicit false. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227516865). Next targeted owner dashboard QA observability status only, no raw logs or changes; other four authorizations unconsumed. 68/95, G6-09 open; preserve 4/4 private endpoint evidence.
 
