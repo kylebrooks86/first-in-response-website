@@ -87,16 +87,26 @@ function cookieValue(cookieHeader: string | null) {
 
 async function sessionIsValid(value: string) {
   const parts = value.split(".");
-  if (parts.length !== 3) return false;
-  const [version, expiresText, signature] = parts;
-  if (version !== (quickUnlockEnabled() ? "v2" : "v1") || !expiresText || !signature) return false;
+  if (parts.length !== 4) return false;
+  const [version, expiresText, sessionId, signature] = parts;
+  if (version !== (quickUnlockEnabled() ? "v4" : "v3") || !expiresText || !signature) return false;
+  if (!/^[A-Za-z0-9_-]{43}$/.test(sessionId)) return false;
   const expires = Number(expiresText);
   const now = Math.floor(Date.now() / 1000);
   // A valid signature is not permission for a session longer than the
   // configured 12-hour window. Refuse forged-future expiration periods.
   if (!Number.isSafeInteger(expires) || expires <= now || expires > now + SESSION_SECONDS) return false;
-  const expected = await hmac(version + "." + expiresText);
-  return Boolean(expected && constantTimeEqual(signature, expected));
+  const expected = await hmac(version + "." + expiresText + "." + sessionId);
+  if (!expected || !constantTimeEqual(signature, expected)) return false;
+  if (!env.DB) return false;
+  try {
+    const row = await env.DB.prepare(
+      "SELECT expires_at FROM owner_auth_sessions WHERE session_id=? AND scope=? AND revoked_at IS NULL"
+    ).bind(sessionId, COOKIE_NAME).first<{ expires_at: number }>();
+    return row !== null && Number(row.expires_at) === expires;
+  } catch {
+    return false;
+  }
 }
 
 export async function verifyIndependentPassword(password: string) {
@@ -139,12 +149,41 @@ export async function verifyIndependentPin(pin:string) {
 
 export async function independentSessionCookie() {
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
-  const value = (quickUnlockEnabled() ? "v2." : "v1.") + expires;
+  const value = (quickUnlockEnabled() ? "v4." : "v3.") + expires + "." + base64Url(crypto.getRandomValues(new Uint8Array(32)));
   const signature = await hmac(value);
   if (!signature) throw new Error("FIRE_DR_SESSION_SECRET is missing or too short.");
+  if (!env.DB) throw new Error("Session storage unavailable.");
+  const sessionId = value.split(".")[2];
+  const saved = await env.DB.prepare(
+    "INSERT INTO owner_auth_sessions (session_id,scope,expires_at) VALUES (?,?,?)"
+  ).bind(sessionId, COOKIE_NAME, expires).run();
+  if (!saved.success || saved.meta?.changes !== 1) {
+    throw new Error("Session registration failed.");
+  }
   return COOKIE_NAME + "=" + value + "." + signature + "; Path=/; Max-Age=" + SESSION_SECONDS + "; HttpOnly; Secure; SameSite=Strict";
 }
 
+export async function revokeIndependentSession(cookieHeader: string | null) {
+  const value = cookieValue(cookieHeader);
+  const parts = value.split(".");
+  if (parts.length !== 4) return;
+  const [version, expiresText, id, signature] = parts;
+  if (!["v3", "v4"].includes(version)) return;
+  if (!/^[A-Za-z0-9_-]{43}$/.test(id)) return;
+  const expected = await hmac(version + "." + expiresText + "." + id);
+  if (!expected || !constantTimeEqual(signature, expected)) return;
+  if (!env.DB) throw new Error("Session storage unavailable.");
+  const sessionId = value.split(".")[2];
+  const now = Math.floor(Date.now() / 1000);
+  const result = await env.DB.prepare(
+    "UPDATE owner_auth_sessions SET revoked_at=? WHERE session_id=? AND scope=? AND revoked_at IS NULL"
+  ).bind(now, sessionId, COOKIE_NAME).run();
+  if (!result.success) throw new Error("Session revocation failed.");
+  const row = await env.DB.prepare(
+    "SELECT revoked_at FROM owner_auth_sessions WHERE session_id=? AND scope=?"
+  ).bind(sessionId, COOKIE_NAME).first<{ revoked_at: number | null }>();
+  if (!row || !row.revoked_at) throw new Error("Session revocation unconfirmed.");
+}
 export function clearedIndependentSessionCookie() {
   return COOKIE_NAME + "=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
 }
