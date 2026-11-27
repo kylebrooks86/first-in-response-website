@@ -5,6 +5,8 @@ on:
       - 'business-app-parity/shared/lib/access-passkey-identity.mjs'
       - 'business-app-parity/shared/lib/trusted-device-pin.mjs'
       - 'business-app-parity/test_trusted_device_pin.mjs'
+      - 'business-app-parity/shared/lib/trusted-device-store.mjs'
+      - 'business-app-parity/test_trusted_device_store.mjs'
       - 'business-app-parity/adapters/qa/app/owner-auth.ts'
       - 'business-app-parity/adapters/qa/app/login/page.tsx'
       - 'business-app-parity/adapters/qa/app/api/auth/login/route.ts'
@@ -42,3 +44,6 @@ jobs:
 
       - name: Verify trusted-device PIN cryptography and autofill source parity
         run: node business-app-parity/test_trusted_device_pin.mjs
+
+      - name: Exercise trusted-device persistence in isolated SQLite
+        run: node --experimental-sqlite business-app-parity/test_trusted_device_store.mjs
