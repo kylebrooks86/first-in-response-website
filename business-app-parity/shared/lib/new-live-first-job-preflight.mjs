@@ -13,11 +13,14 @@ import {immutableNumberingTriggersReady} from './numbered-immutable-trigger-cont
 import {immutableDepositHistoryTriggersReady,REQUIRED_DEPOSIT_IMMUTABILITY_TRIGGER_NAMES} from './deposit-immutability-contract.mjs';
 import {verifyNewLiveFinancialIndexes} from './new-live-financial-index-contract.mjs';
 import {verifyNewLiveNamedIndexAndViewInventory} from './new-live-index-view-contract.mjs';
-import {EXPECTED_NEW_LIVE_D1_MIGRATIONS,assertNewLiveMigrationJournal} from './new-live-migration-journal.mjs';
+import {expectedSessionMigrationJournal,assertSessionMigrationJournal} from './session-migration-journal.mjs';
+
+const EXPECTED_NEW_LIVE_D1_MIGRATIONS =
+ expectedSessionMigrationJournal('independent-live');
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from './numbered-records-v2-preflight.mjs';
 
 const stop=reason=>{throw Error('FIRE NEW LIVE clean start BLOCKED: '+reason);};
-const expected=Object.freeze([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits']);
+const expected=Object.freeze([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','owner_auth_sessions']);
 const REQUIRED_TRIGGERS=Object.freeze([
  'fire_customer_numbers_no_update','fire_customer_numbers_no_delete',
  'fire_job_numbers_no_update','fire_job_numbers_no_delete',
@@ -115,8 +118,8 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  // a source-bound read, NOT provider-attested physical execution provenance.
  const migrationJournal=await one(db,'SELECT COUNT(*) AS n FROM "d1_migrations"');
  if(naturalCount(migrationJournal?.n,'D1 migration journal')!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
-  stop('D1 migration journal must contain exactly the reviewed 26 independent migrations');
- try{await assertNewLiveMigrationJournal(db);}
+  stop('D1 migration journal must contain exactly the reviewed 27 independent migrations');
+ try{await assertSessionMigrationJournal(db,'independent-live');}
  catch{stop('D1 migration journal names, IDs or order disagree with reviewed source');}
  // Physical refund/Stripe idempotency and invoice/checkout uniqueness must
  // match source-reviewed SQL, not merely the names in d1_migrations.
@@ -128,7 +131,7 @@ export async function inspectNewLiveFirstJobCleanStart(db,vars){
  // real owner customer/estimate save despite a valid 26-row migration journal.
  // A foreign VIEW likewise is not created by any of the reviewed 26 files.
  // SQLite's automatic primary-key indexes have null SQL and are ignored.
- try{await verifyNewLiveNamedIndexAndViewInventory(db);}
+ try{await verifyNewLiveNamedIndexAndViewInventory(db,true);}
  catch{stop('unreviewed SQLite index or view detected; first LIVE activation blocked');}
  // AUTOINCREMENT can retain a high-water even after deleting all rows. That
  // would make a visibly empty NEW LIVE start at #0002 or higher. Do not use

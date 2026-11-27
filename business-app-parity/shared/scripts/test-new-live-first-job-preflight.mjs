@@ -1,11 +1,12 @@
 /** Source-only NEW LIVE #0001 clean-D1 pre-activation regression, NO D1 writes. */
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
-import {EXPECTED_NEW_LIVE_D1_MIGRATIONS} from '../lib/new-live-migration-journal.mjs';
+import {expectedSessionMigrationJournal} from '../lib/session-migration-journal.mjs';
+const EXPECTED_NEW_LIVE_D1_MIGRATIONS=expectedSessionMigrationJournal('independent-live');
 import {inspectNewLiveFirstJobCleanStart} from '../lib/new-live-first-job-preflight.mjs';
 import {REVIEWED_INDEPENDENT_D1_NAMED_INDEXES} from '../lib/new-live-index-view-contract.mjs';
 import {NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES} from '../lib/numbered-records-v2-preflight.mjs';
-const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','d1_migrations'];
+const tables=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES,'auth_rate_limits','owner_auth_sessions','d1_migrations'];
 const applied=EXPECTED_NEW_LIVE_D1_MIGRATIONS.map((name,i)=>({id:i+1,name}));
 const provider={name:'_cf_METADATA',sql:'CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY, value BLOB)'};
 const triggers=[
@@ -49,7 +50,7 @@ let checks=0;
 const ok=(value,message)=>{assert.ok(value,message);checks++;};
 const blocked=async(fn,why)=>{await assert.rejects(fn(),/BLOCKED/,why);checks++;};
 const create=(override={})=>{
- const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:26},
+ const v={tables:[...tables],triggers:[...triggers],rows:{d1_migrations:27},
   journalRows:applied.map(row=>({...row})),serialRows:0,
   financialIndexes:actualFinancialIndexes.map(row=>({...row})),
   namedSchemaObjects:reviewedNamedIndexRows.map(row=>({...row})),
@@ -95,7 +96,7 @@ const baseSql=readdirSync(new URL('../../adapters/doomsday/drizzle/',import.meta
 const isolatedSql=readdirSync(new URL('../../adapters/independent-live/drizzle/',import.meta.url))
  .filter(name=>/^\d{4}_.+\.sql$/.test(name)).sort();
 assert.equal(baseSql.length,25,'QA/STAGING source retains its original 25 migrations');
-assert.deepEqual(isolatedSql,['0025_independent_permanent_numbers.sql'],
+assert.deepEqual(isolatedSql,['0025_independent_permanent_numbers.sql','0026_owner_auth_sessions.sql'],
  'Only independent targets append numbered release schema');
 assert.deepEqual(EXPECTED_NEW_LIVE_D1_MIGRATIONS,[...baseSql,...isolatedSql],
  'Exact journal requires 25 shared plus 1 independent release migration');
@@ -117,7 +118,7 @@ const migrationIndexNames=reviewedSql.flatMap(sql=>[...sql.matchAll(
 assert.equal(new Set(migrationIndexNames).size,migrationIndexNames.length,
  'Reviewed migrations may not define duplicate named indexes');
 assert.deepEqual([...migrationIndexNames].sort(),
- [...REVIEWED_INDEPENDENT_D1_NAMED_INDEXES].sort(),
+ [...REVIEWED_INDEPENDENT_D1_NAMED_INDEXES,'owner_auth_sessions_expiry'].sort(),
  'Named-index activation allowlist must match all 26 actual reviewed SQL files');
 const reviewedNamedIndexRows=migrationIndexNames.map(name=>({type:'index',name}));
 checks++;
@@ -157,7 +158,7 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:0
  'empty D1 migration journal cannot establish a real migrated database');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:25}}).db,env),
  'older migration journal cannot claim NEW LIVE readiness');
-await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:27}}).db,env),
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{d1_migrations:28}}).db,env),
  'unreviewed new migration blocks first-use');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({journalRows:applied.slice(0,-1)}).db,env),
  'forged count with missing migration row blocks first-use');
@@ -265,6 +266,21 @@ await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{customers:[]}})
  'array D1 count cannot masquerade as empty');
 await blocked(()=>inspectNewLiveFirstJobCleanStart(create({rows:{payments:null}}).db,env),
  'missing count cannot be converted to zero');
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ tables:tables.filter(x=>x!=='owner_auth_sessions')
+}).db,env),'missing session storage blocks activation');
+
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ rows:{d1_migrations:27,owner_auth_sessions:1}
+}).db,env),'existing authentication sessions block clean start');
+
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ namedSchemaObjects:reviewedNamedIndexRows.filter(x=>x.name!=='owner_auth_sessions_expiry')
+}).db,env),'missing session expiry index blocks activation');
+
+await blocked(()=>inspectNewLiveFirstJobCleanStart(create({
+ rows:{d1_migrations:26}
+}).db,env),'pre-session migration journal blocks activation');
 const unavailable=create();unavailable.db.prepare=()=>{throw Error('D1 offline')};
 await blocked(()=>inspectNewLiveFirstJobCleanStart(unavailable.db,env),
  'unreadable target fails closed');

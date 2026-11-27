@@ -44,15 +44,16 @@ export const REVIEWED_INDEPENDENT_D1_NAMED_INDEXES=Object.freeze([
   'idx_fire_job_estimate_links_number',
 ]);
 const refuse=why=>{throw Error('FIRE independent D1 index/view inventory BLOCKED: '+why);};
-export async function verifyNewLiveNamedIndexAndViewInventory(db){
+export async function verifyNewLiveNamedIndexAndViewInventory(db,sessionEnabled=false){
  if(!db||typeof db.prepare!=='function')refuse('bound D1 reader unavailable');
  const query=db.prepare("SELECT type,name FROM sqlite_master WHERE type='view' OR (type='index' AND sql IS NOT NULL) ORDER BY type,name");
  if(!query||typeof query.all!=='function')refuse('SQL object inventory reader missing');
  const output=await query.all();
  const rows=output?.results;
- if(!Array.isArray(rows)||rows.length!==REVIEWED_INDEPENDENT_D1_NAMED_INDEXES.length)
+ const reviewed=sessionEnabled?[...REVIEWED_INDEPENDENT_D1_NAMED_INDEXES,'owner_auth_sessions_expiry']:REVIEWED_INDEPENDENT_D1_NAMED_INDEXES;
+ if(!Array.isArray(rows)||rows.length!==reviewed.length)
   refuse('unknown SQL views, missing indexes or extra indexes');
- const expected=new Set(REVIEWED_INDEPENDENT_D1_NAMED_INDEXES),seen=new Set();
+ const expected=new Set(reviewed),seen=new Set();
  for(const row of rows){
   if(!row||typeof row!=='object'||Array.isArray(row)||row.type!=='index'||
      typeof row.name!=='string'||!expected.has(row.name)||seen.has(row.name))
