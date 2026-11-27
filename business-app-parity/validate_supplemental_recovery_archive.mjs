@@ -22,6 +22,13 @@ export function validateSupplementalRecoveryArchive(snapshot,extraSchema){
  for(const [name,seq] of Object.entries(snapshot.sqliteSequence))
   if(!extras.includes(name)||!Number.isSafeInteger(seq)||seq<0)
    fail('invalid supplemental AUTOINCREMENT sequence');
+ if(extras.includes('owner_auth_sessions')){
+  if(!Array.isArray(snapshot.tables.owner_auth_sessions)||
+     snapshot.tables.owner_auth_sessions.length!==0||
+     snapshot.rowCounts.owner_auth_sessions!==0||
+     Object.hasOwn(snapshot.sqliteSequence,'owner_auth_sessions'))
+   fail('authentication sessions must never be restored from backup');
+ }
  let total=0;
  for(const table of extras){
   const rows=snapshot.tables[table];

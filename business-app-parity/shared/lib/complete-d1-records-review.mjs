@@ -1,3 +1,4 @@
+import {assertSessionSchemaDefinitions} from './recovered-session-safety.mjs';
 /** FIRE Gate7: reviewed, SOURCE-ONLY transactional complete D1 RECORDS capture.
  * The old numbered-v2 route exports just the 23 core tables and is NOT full.
  * This captures those records PLUS named supplemental tables in ONE D1.batch.
@@ -50,27 +51,32 @@ const legalRows=(data,columns,table)=>{
  * An OPTIONAL physical table without its selector is deliberately refused.
  */
 export async function captureCompleteReviewedD1RecordsReadOnly(db,
- {customerProperties=false,serviceLocations=false}={}){
+ {customerProperties=false,serviceLocations=false,sessionEnabled=false}={}){
  if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')
   stop('transactional D1 read capability required');
- if(typeof customerProperties!=='boolean'||typeof serviceLocations!=='boolean'||
+ if(typeof sessionEnabled!=='boolean'||typeof customerProperties!=='boolean'||typeof serviceLocations!=='boolean'||
     (customerProperties&&!serviceLocations))
   stop('explicit compatible optional schema selectors required');
  if(coreTables.length!==23||new Set(coreTables).size!==23)
   stop('numbered-core contract changed');
  const supplemental=[...mandatorySupplemental,
+  ...(sessionEnabled?['owner_auth_sessions']:[]),
   ...(customerProperties?propertyTables:[]),
   ...(serviceLocations?locationTables:[])];
  const tables=[...coreTables,...supplemental];
  if(new Set(tables).size!==tables.length)stop('ambiguous table inventory');
- const countSql=tables.map(x=>"SELECT '"+x+"' AS table_name, COUNT(*) AS count FROM "+quote(x)).join(' UNION ALL ');
+ const countSql=tables.map(x=>x==='owner_auth_sessions'
+  ?"SELECT 'owner_auth_sessions' AS table_name, 0 AS count"
+  :"SELECT '"+x+"' AS table_name, COUNT(*) AS count FROM "+quote(x)).join(' UNION ALL ');
  const statements=[
   db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view') AND lower(substr(name,1,7)) <> 'sqlite_' ORDER BY type,name"),
   db.prepare("SELECT name,seq FROM sqlite_sequence ORDER BY name"),
   db.prepare(countSql)
  ];
  for(const table of tables){
-  statements.push(db.prepare('SELECT * FROM '+quote(table)));
+  statements.push(db.prepare(table==='owner_auth_sessions'
+   ?'SELECT NULL AS excluded WHERE 1=0'
+   :'SELECT * FROM '+quote(table)));
   statements.push(db.prepare('PRAGMA table_xinfo('+quote(table)+')'));
  }
  // A SINGLE D1.batch is a transaction and counts as ONE D1 invocation query.
@@ -103,7 +109,15 @@ export async function captureCompleteReviewedD1RecordsReadOnly(db,
   !providerTables.has(x.name));
  if(ownedObjects.some(x=>!ident(x.name)||!ident(x.tbl_name)))
   stop('unreviewed schema object identity');
+ if(sessionEnabled){
+  const table=ownedObjects.find(x=>x.type==='table'&&x.name==='owner_auth_sessions');
+  const index=ownedObjects.find(x=>x.type==='index'&&x.name==='owner_auth_sessions_expiry');
+  try{assertSessionSchemaDefinitions(table?.sql,index?.sql);}
+  catch{stop('authentication session schema differs from reviewed source');}
+ }
  const sequenceRows=resultRows(returned[1],'original serials');
+ if(sequenceRows.some(x=>x.name==='owner_auth_sessions'))
+  stop('unexpected authentication session sequence');
  const seqs=new Map();
  for(const row of sequenceRows){
   if(!record(row)||typeof row.name!=='string'||!Number.isSafeInteger(row.seq)||

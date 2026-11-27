@@ -1,3 +1,4 @@
+import {expectedSessionMigrationJournal} from './session-migration-journal.mjs';
 /** FIRE SOURCE-ONLY: encrypt the complete transactional D1 records review
  * into the EXISTING offline FIRE .firerecords format (FIRERB01).
  *
@@ -94,6 +95,7 @@ export function validateCompleteReviewedD1Archive(review){
  // The source contract must enumerate exactly the known 2 or 3/6
  // supplemental tables; any unsupported feature needs its own review.
  const expected=['auth_rate_limits','d1_migrations'];
+ if(extras.includes('owner_auth_sessions'))expected.push('owner_auth_sessions');
  if(extras.includes('estimate_service_locations'))expected.push('estimate_service_locations');
  if(extras.includes('customer_properties')||extras.includes('estimate_property_links')||
     extras.includes('property_recovery_guard'))
@@ -106,17 +108,34 @@ export function validateCompleteReviewedD1Archive(review){
  // 0025 permanent-number schema. No invented/missing/reordered journal may
  // enter an encrypted file advertised as a FULL reviewed record archive.
  // This proves source file NAMES/ordering only, not hosted D1 execution.
- if(!Array.isArray(journal)||!Array.isArray(EXPECTED_NEW_LIVE_D1_MIGRATIONS)||
-    ![EXPECTED_NEW_LIVE_D1_MIGRATIONS.length-1,
-      EXPECTED_NEW_LIVE_D1_MIGRATIONS.length].includes(journal.length))
-  fail('physical D1 migration journal must contain exactly 25 or 26 reviewed entries');
+ if(!Array.isArray(journal))
+  fail('physical D1 migration journal unavailable');
+
+ const sessionEnabled=extras.includes('owner_auth_sessions');
+
+ const allowedJournals=sessionEnabled
+  ?[
+    expectedSessionMigrationJournal('qa'),
+    expectedSessionMigrationJournal('independent-live')
+   ]
+  :[
+    EXPECTED_NEW_LIVE_D1_MIGRATIONS.slice(0,25),
+    EXPECTED_NEW_LIVE_D1_MIGRATIONS
+   ];
+
  const sorted=journal.slice().sort((a,b)=>a?.id-b?.id);
- for(let i=0;i<sorted.length;i++){
-  const row=sorted[i];
-  if(!object(row)||!Number.isSafeInteger(row.id)||row.id!==i+1||
-     row.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i])
-   fail('migration journal has missing, substituted, or unordered reviewed source');
- }
+
+ const matched=allowedJournals.some(expected=>
+  sorted.length===expected.length&&
+  sorted.every((row,i)=>
+   object(row)&&Number.isSafeInteger(row.id)&&
+   row.id===i+1&&row.name===expected[i]
+  )
+ );
+
+ if(!matched)
+  fail('migration journal does not match an exact supported schema profile');
+
  const coreTableCount=Object.keys(core.tables).length;
  if(coreTableCount!==23||review.sourceTables!==coreTableCount+extras.length||
     identity.tables!==review.sourceTables||

@@ -41,7 +41,8 @@ export async function GET(){
   try{
    const review=await captureCompleteReviewedD1RecordsReadOnly(env.DB,{
     customerProperties:customerPropertiesEnabled(flags),
-    serviceLocations:serviceLocationsEnabled(flags)
+    serviceLocations:serviceLocationsEnabled(flags),
+    sessionEnabled:true
    });
    return Response.json({
     format:'fire-complete-d1-records-owner-review',version:1,
