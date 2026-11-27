@@ -12,7 +12,6 @@ function safeReturnTo() {
 }
 
 export default function LoginPage(){
- const [password,setPassword]=useState("");
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
  const [mode,setMode]=useState<"loading"|"legacy"|"pin-or-passkey">("loading");
@@ -38,7 +37,9 @@ export default function LoginPage(){
  function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
   const credential=new FormData(event.currentTarget).get("password");
-  if(typeof credential!=="string")return;
+  if(typeof credential!=="string"|| (quick?!/^\d{4}$/.test(credential):credential.length<24||credential.length>128)){
+   setError(quick?"Enter your four-digit PIN.":"Enter your private passphrase (24–128 characters).");return;
+  }
   if(quick)void signIn({method:"pin",pin:credential});
   else void signIn({password:credential});
  }
@@ -55,7 +56,7 @@ export default function LoginPage(){
      inputMode={quick||legacyNumeric?"numeric":undefined}
      pattern={quick||legacyNumeric?"[0-9]{4}":undefined}
      minLength={quick||legacyNumeric?4:24} maxLength={quick||legacyNumeric?4:128}
-     value={password} onChange={event=>setPassword(event.target.value)} required/>
+     required/>
     <button type="submit" className="brand-button" disabled={busy}>
      {busy?"Signing in…":quick?"Unlock with PIN":"Sign in"}
     </button>
