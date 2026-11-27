@@ -1,3 +1,8 @@
+## Nov27 — G6-06 owner-approved permanent revocable viewing links
+Owner explicitly approved permanent, revocable customer document viewing links with appropriate approval and payment action restrictions. [Decision](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227171042); [updated checklist](https://github.com/kylebrooks86/first-in-response-website/commit/82bb073f3517aa54e6807a62edc299e304cea3f5). This supersedes mandatory time-based expiry for document viewing links only; session expiry, invalid/forged/revoked token denial, exact customer scope, disallowed state changes, approval/payment eligibility and any action-specific expiry remain required. Preserve prior hosted isolation, invalid-token, genuine revocation and prohibited completed-estimate change receipts; do not repeat. G6-06 remains open pending remaining action-security coverage; 67/95, six gates accepted. No application code, database, deployment, payment or access changes authorized or performed.
+
+---
+
 ## Nov27 14:02 CST — G6-06 prohibited completed-estimate change denied
 Hosted QA exact synthetic completed estimate public change-request POST returned HTTP409; zero matching new change requests and notifications, unchanged estimate by D1 readback. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227137916). Prior accepted isolation, invalid-token and rotation evidence retained, no repeat. Reviewed deployed estimate/invoice public routes have no time-based share-token expiration enforcement; owner policy decision required, do not claim expiry verified or change customer link lifetime without decision. G6-06 open; 67/95. No Stripe or other environment changes.
 
