@@ -1,3 +1,8 @@
+## Nov27 14:02 CST — G6-06 prohibited completed-estimate change denied
+Hosted QA exact synthetic completed estimate public change-request POST returned HTTP409; zero matching new change requests and notifications, unchanged estimate by D1 readback. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227137916). Prior accepted isolation, invalid-token and rotation evidence retained, no repeat. Reviewed deployed estimate/invoice public routes have no time-based share-token expiration enforcement; owner policy decision required, do not claim expiry verified or change customer link lifetime without decision. G6-06 open; 67/95. No Stripe or other environment changes.
+
+---
+
 ## Nov27 13:59 CST — G6-06 genuine hosted estimate revocation passed
 Owner Acer confirmed authorized one-shot QA rotation: exact synthetic completed estimate verified, token rotation verified, all other estimate fields unchanged, previous link rejected and replacement works. Approval consumed; retain lock, do not repeat. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227079328). Prior 3/3 document isolation and 4/4 malformed/random token tests retained. Actual expiration and prohibited state changes remain separate; no independent whole-ledger comparison claimed. No raw tokens retained. 67/95; no Stripe, deployment or other environment changes.
 
