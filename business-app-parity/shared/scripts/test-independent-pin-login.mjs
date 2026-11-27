@@ -10,6 +10,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 const require=createRequire(import.meta.url);
 const db=new DatabaseSync(':memory:');
 db.exec(readFileSync('drizzle/0009_spicy_micromax.sql','utf8'));
+db.exec(readFileSync('drizzle/0025_owner_auth_sessions.sql','utf8'));
 let now=2000000000;
 const env={FIRE_ADMIN_PASSWORD_HASH:createHash('sha256').update('1234').digest('hex'),FIRE_SESSION_SECRET:'synthetic-only-signing-secret-'.repeat(3)};
 const binding={
@@ -17,7 +18,7 @@ const binding={
   return {bind(...args){
    return {
     async first(){const row=db.prepare(sql).get(...args)??null;await new Promise(resolve=>setImmediate(resolve));return row;},
-    async run(){db.prepare(sql).run(...args);return {success:true};}
+    async run(){const result=db.prepare(sql).run(...args);return {success:true,meta:{changes:Number(result.changes)}};}
    };
   }};
  }
@@ -102,10 +103,10 @@ try {
  const ui=readFileSync('app/login/page.tsx','utf8');
  ok(ui.includes('inputMode={quick?"numeric":"text"}'));
  ok(ui.includes('maxLength={quick?4:128}'));
- ok(ui.includes('autoComplete="off"'));
+ ok(ui.includes('autoComplete={quick?"off":"current-password"}'));
  ok(ui.includes('Private PIN or passphrase'));
- ok(ui.includes('!credentialValid'));
- ok(ui.includes('password.length>=24 && password.length<=128'));
+ ok(ui.includes('new FormData(event.currentTarget).get("password")'));
+ ok(ui.includes('credential.length<24||credential.length>128'));
  ok(ui.includes('pattern={quick?"[0-9]{4}":undefined}'));
 
  // Verify the REAL route's new opt-in quick-login behavior with a synthetic
@@ -143,7 +144,7 @@ try {
  response=await loginQuick.POST(quick({method:'passkey'},'valid-owner-access'));
  equal(response.status,200);
  const newV2Cookie=response.headers.get('set-cookie')?.split(';')[0]||'';
- ok(newV2Cookie.startsWith('fire_admin_session=v2.'));
+ ok(newV2Cookie.startsWith('fire_admin_session=v4.'));
  equal((await response.json()).ok,true);
  browserHeaders=new Headers({cookie:oldV1Cookie});
  equal(await ownerQuick.getOwnerUser(),null); // old 30-day token does NOT bypass new Access enrollment
@@ -153,7 +154,7 @@ try {
  equal(wrong.status,401);
  const validPin=await loginQuick.POST(quick({method:'pin',pin:'1234'},'valid-owner-access'));
  equal(validPin.status,200);
- ok((validPin.headers.get('set-cookie')||'').includes('v2.'));
+ ok((validPin.headers.get('set-cookie')||'').includes('v4.'));
  env.FIRE_PIN_PEPPER='short';
  equal((await loginQuick.POST(quick({method:'pin',pin:'1234'},'valid-owner-access'))).status,401);
  delete env.FIRE_PIN_HASH;delete env.FIRE_PIN_PEPPER;delete env.FIRE_QUICK_AUTH_MODE;

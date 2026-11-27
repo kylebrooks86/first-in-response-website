@@ -4,6 +4,28 @@ import {createHash,createHmac,webcrypto} from 'node:crypto';
 import vm from 'node:vm';
 import ts from 'typescript';
 const fixturePassword='synthetic-only-test';const env={FIRE_ADMIN_PASSWORD_HASH:createHash('sha256').update(fixturePassword).digest('hex'),FIRE_SESSION_SECRET:'synthetic-fixture-secret-'.repeat(3)};let cookie='';const exports={};
+const sessionRows = new Map();
+env.DB = {
+  prepare(sql) {
+    return {
+      bind(...args) {
+        return {
+          async run() {
+            if (!sql.startsWith("INSERT INTO owner_auth_sessions"))
+              throw Error("Unexpected fixture write");
+            const [id, scope, expires_at] = args;
+            sessionRows.set(scope + ":" + id, {expires_at});
+            return {success: true, meta: {changes: 1}};
+          },
+          async first() {
+            const [id, scope] = args;
+            return sessionRows.get(scope + ":" + id) ?? null;
+          }
+        };
+      }
+    };
+  }
+};
 const source=ts.transpileModule(readFileSync('app/owner-auth.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 vm.runInNewContext(source,{exports,require:name=>name==='cloudflare:workers'?{env}:name==='next/headers'?{headers:async()=>new Headers({cookie,host:'fixture.invalid'})}:{redirect:()=>{throw Error('redirect');}},process:{env:{NODE_ENV:'production'}},TextEncoder,crypto:webcrypto,btoa:value=>Buffer.from(value,'binary').toString('base64'),URL});
 assert.equal(await exports.verifyIndependentPassword(fixturePassword),true);assert.equal(await exports.verifyIndependentPassword('wrong'),false);assert.equal(await exports.verifyIndependentPassword(''),false);assert.equal(await exports.getOwnerUser(),null);
@@ -13,7 +35,9 @@ const originalHash=env.FIRE_ADMIN_PASSWORD_HASH;env.FIRE_ADMIN_PASSWORD_HASH=cre
 // Owner DR sessions cannot exceed the configured 30-day lifetime even when
 // a fixture signs a longer expiration with the otherwise correct HMAC key.
 const signedCookie=(expiry)=>{
- const payload='v1.'+expiry;
+ const id=Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+ const payload='v3.'+expiry+'.'+id;
+ sessionRows.set('fire_admin_session:'+id,{expires_at:Number(expiry)});
  return 'fire_admin_session='+payload+'.'+createHmac('sha256',env.FIRE_SESSION_SECRET).update(payload).digest('base64url');
 };
 cookie=signedCookie(Math.floor(Date.now()/1000)+31*86400);

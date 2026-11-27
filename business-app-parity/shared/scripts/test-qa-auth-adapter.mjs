@@ -13,6 +13,28 @@ const env={FIRE_QA_PASSWORD_HASH:createHash('sha256').update(good).digest('hex')
   SITE_ORIGIN:'https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev'};
 let cookie='';
 const exports={};let count=0;
+const sessionRows = new Map();
+env.DB = {
+  prepare(sql) {
+    return {
+      bind(...args) {
+        return {
+          async run() {
+            if (!sql.startsWith("INSERT INTO owner_auth_sessions"))
+              throw Error("Unexpected fixture write");
+            const [id, scope, expires_at] = args;
+            sessionRows.set(scope + ":" + id, {expires_at});
+            return {success: true, meta: {changes: 1}};
+          },
+          async first() {
+            const [id, scope] = args;
+            return sessionRows.get(scope + ":" + id) ?? null;
+          }
+        };
+      }
+    };
+  }
+};
 const source=ts.transpileModule(readFileSync('app/owner-auth.ts','utf8'),{compilerOptions:{
   target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 vm.runInNewContext(source,{
@@ -45,7 +67,9 @@ cookie=setCookie.split(';')[0];
 // Gate 6: a *genuinely signed* expired QA cookie must be rejected, not just
 // malformed/unsigned tokens. These use a disposable fixture secret only.
 const signedQaCookie=(expiry,secret=env.FIRE_QA_SESSION_SECRET)=>{
- const payload='v1.'+String(expiry);
+ const id=Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+ const payload='v3.'+String(expiry)+'.'+id;
+ sessionRows.set('fire_qa_session:'+id,{expires_at:Number(expiry)});
  return 'fire_qa_session='+payload+'.'+createHmac('sha256',secret).update(payload).digest('base64url');
 };
 const now=Math.floor(Date.now()/1000);
