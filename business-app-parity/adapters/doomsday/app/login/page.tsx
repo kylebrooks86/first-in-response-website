@@ -12,7 +12,6 @@ function safeReturnTo() {
 }
 
 export default function LoginPage(){
- const [password,setPassword]=useState("");
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
  const [mode,setMode]=useState<"loading"|"legacy"|"pin-or-passkey">("loading");
@@ -25,8 +24,6 @@ export default function LoginPage(){
   return()=>{active=false;};
  },[]);
  const quick=mode==="pin-or-passkey";
- const credentialValid=/^\d{4}$/.test(password) ||
-  (!quick && password.length>=24 && password.length<=128);
  async function signIn(payload:{password?:string;method?:string;pin?:string}){
   setBusy(true);setError("");
   try{
@@ -37,10 +34,14 @@ export default function LoginPage(){
    window.location.assign(safeReturnTo());
   }catch(err){setError(err instanceof Error?err.message:"Sign-in unavailable.");setBusy(false);}
  }
- function submit(event:FormEvent){
+ function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(quick)void signIn({method:"pin",pin:password});
-  else void signIn({password});
+  const credential=new FormData(event.currentTarget).get("password");
+  if(typeof credential!=="string"||(quick?!/^\d{4}$/.test(credential):!/^\d{4}$/.test(credential)&&(credential.length<24||credential.length>128))){
+   setError(quick?"Enter your four-digit PIN.":"Enter your private credential.");return;
+  }
+  if(quick)void signIn({method:"pin",pin:credential});
+  else void signIn({password:credential});
  }
  return <main className="access-page"><div className="access-card">
   <img className="access-logo" src="/fire-app-logo.png" alt="First In Response Exteriors" />
@@ -51,12 +52,12 @@ export default function LoginPage(){
     onClick={()=>void signIn({method:"passkey"})}>Continue after Face ID / fingerprint sign-in</button>}
    <form onSubmit={submit}>
     <label className="field-label" htmlFor="owner-password">{quick?"4-digit PIN":"Private PIN or passphrase"}</label>
-    <input id="owner-password" type="password" autoComplete="off"
+    <input id="owner-password" type="password" name="password" autoComplete={quick?"off":"current-password"}
      inputMode={quick?"numeric":"text"}
      pattern={quick?"[0-9]{4}":undefined}
      minLength={4} maxLength={quick?4:128}
-     value={password} onChange={event=>setPassword(event.target.value)} required/>
-    <button type="submit" className="brand-button" disabled={busy||!credentialValid}>
+     required/>
+    <button type="submit" className="brand-button" disabled={busy}>
      {busy?"Signing in…":quick?"Unlock with PIN":"Sign in"}
     </button>
    </form>
