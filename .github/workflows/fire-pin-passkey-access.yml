@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/lib/access-passkey-identity.mjs'
+      - 'business-app-parity/shared/lib/trusted-device-pin.mjs'
+      - 'business-app-parity/test_trusted_device_pin.mjs'
       - 'business-app-parity/adapters/qa/app/owner-auth.ts'
       - 'business-app-parity/adapters/qa/app/login/page.tsx'
       - 'business-app-parity/adapters/qa/app/api/auth/login/route.ts'
@@ -37,3 +39,6 @@ jobs:
         run: node business-app-parity/test_pin_passkey_access.mjs
       - name: Refuse all NEW LIVE owner login methods until true D1 Job number schema is verified
         run: node business-app-parity/test_new_live_numbered_login_schema.mjs
+
+      - name: Verify trusted-device PIN cryptography and autofill source parity
+        run: node business-app-parity/test_trusted_device_pin.mjs
