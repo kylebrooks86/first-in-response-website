@@ -1,3 +1,8 @@
+## Nov27 14:21 CST — G6-09 authorized logging correction STOP at QA
+All five preflights passed; owner Acer output STOP AT QA, WORKERS VERIFIED 0/5, exit 1. Exact error suppressed by command. No later Worker reached. QA write uncertain until local attempt-lock and provider readback; never rerun or delete locks. Retain prior four hosted private endpoint passes; 68/95 unchanged.
+
+---
+
 ## Nov27 14:17 CST — G6-09 private endpoint passes and hosted logging configuration gap
 Owner Acer read-only result: four QA export/diagnostic endpoints 4/4 exact denial/private/no-store/Vary Cookie/no download; no repeat. All five QA/STAGING/DR/NEW LIVE/Stripe TEST script settings report observability, logs and invocation logs enabled; traces and logpush disabled. No raw logs inspected or actual leakage established. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227376030). Historical dark logging-off package intent does not establish actual hosted settings. G6-09 open, 68/95. Proposed exact owner authorization for script-level logging-only change; preserve serving versions, independent data, blocked auth and ingress, payments and Job #0001; verify readback, tail consumer/export settings and historical retention separately. No provider changes performed.
 
