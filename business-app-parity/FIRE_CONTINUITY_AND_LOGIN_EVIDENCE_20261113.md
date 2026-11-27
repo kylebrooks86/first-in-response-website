@@ -1,3 +1,8 @@
+## Nov27 14:26 CST — G6-09 attempt lock reconciliation
+Owner Acer QA attempt lock true, all other four false. QA write-attempt stage reached; acknowledgement and effective logging state uncertain, do not retry/delete lock. Prior serving version unchanged. Optional observability fields absent, not explicit false. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227516865). Next targeted owner dashboard QA observability status only, no raw logs or changes; other four authorizations unconsumed. 68/95, G6-09 open; preserve 4/4 private endpoint evidence.
+
+---
+
 ## Nov27 14:25 CST — G6-09 read-only QA recovery
 QA remains at 100% serving version 316984f9-07b7-4859-acc2-492e1ca951c6; both settings endpoints return blank observability/logs/invocation/traces, logpush false. Blank is not explicit false. Lock line absent from screenshot; QA write remains uncertain; no retries. [Receipt](https://github.com/kylebrooks86/first-in-response-website/issues/19#issuecomment-7227497463). No provider changes from read-only check. 68/95; prior 4/4 private endpoint evidence retained.
 
