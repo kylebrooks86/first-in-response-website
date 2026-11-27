@@ -1,3 +1,5 @@
+import {expectedSessionMigrationJournal} from './shared/lib/session-migration-journal.mjs';
+import {assertRecoveredSessionsEmpty} from './shared/lib/recovered-session-safety.mjs';
 /** FIRE real offline isolated SQLite restore rehearsal (Node 22.13+).
  * Creates a NEW local database by copying a separately prepared EMPTY schema
  * template; restores every numbered-core-record v2 table and verifies actual
@@ -71,8 +73,13 @@ function assertExistingD1MigrationJournal(db,supplemental,found,extras){
  // journals. Before this guard, two independently incomplete 25/26 journals
  // could pass identity comparison even though migration #0025 was unrecorded.
  // Historic synthetic schemas with no journal retain their separate path.
- if(saved.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
-  stop('independent DR/LIVE recovery requires the complete 26-migration journal');
+ const expectedJournal=extras.includes('owner_auth_sessions')
+  ?(saved.length===26
+    ?expectedSessionMigrationJournal('qa')
+    :expectedSessionMigrationJournal('independent-live'))
+  :EXPECTED_NEW_LIVE_D1_MIGRATIONS;
+ if(saved.length!==expectedJournal.length)
+  stop('independent DR/LIVE recovery requires the complete reviewed migration journal');
  // Independent DR/LIVE environments legitimately apply the exact same
  // migrations at DIFFERENT provider times. Require every reviewed ID/name and
  // other non-clock journal field to match, but preserve each target's own
@@ -86,8 +93,8 @@ function assertExistingD1MigrationJournal(db,supplemental,found,extras){
  for(let i=0;i<orderedSource.length;i++){
   const source=orderedSource[i],target=orderedTarget[i];
   if(source.id!==i+1||target.id!==i+1||
-     source.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]||
-     target.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i])
+     source.name!==expectedJournal[i]||
+     target.name!==expectedJournal[i])
    stop('source or target D1 migration IDs/names differ from reviewed lineage');
   if(columns.includes('applied_at')&&
      (!providerClock(source.applied_at)||!providerClock(target.applied_at)))
@@ -108,6 +115,8 @@ function assertExistingD1MigrationJournal(db,supplemental,found,extras){
 }
 function restore(db,archive,supplemental){
  const {found,extras}=inspectSchema(db);
+ const sessionEnabled=extras.includes('owner_auth_sessions');
+ if(sessionEnabled)assertRecoveredSessionsEmpty(db);
  const actualSchema=fingerprintIsolatedSqliteSchema(db);
  requireSameIsolatedSchema(archive.schemaIdentity,actualSchema);
  requireSameIsolatedSchema(supplemental.schemaIdentity,actualSchema);
@@ -163,7 +172,7 @@ function restore(db,archive,supplemental){
   for(const t of orderedExtras){
    // Keep the real migration journal untouched and NEVER replay the temporary
    // recovery guard as a historical business record.
-   if(t==='d1_migrations'||t==='property_recovery_guard')continue;
+   if(t==='d1_migrations'||t==='property_recovery_guard'||t==='owner_auth_sessions')continue;
    const allowed=new Set(db.prepare('PRAGMA table_info('+q(t)+')').all().map(c=>c.name));
    for(const row of supplemental.tables[t]){
     const keys=Object.keys(row).sort();
@@ -250,6 +259,7 @@ function restore(db,archive,supplemental){
   }
   if(db.prepare('PRAGMA integrity_check').get().integrity_check!=='ok')
    stop('restored database integrity check failed before commit');
+  if(sessionEnabled)assertRecoveredSessionsEmpty(db);
   db.exec('COMMIT');
   return {restoredRows:restored,customers:archive.tables.customers.length,
    jobNumbers:archive.tables.fire_job_numbers.length,

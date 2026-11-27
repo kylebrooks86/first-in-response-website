@@ -1,3 +1,7 @@
+import {expectedSessionMigrationJournal}
+ from './shared/lib/session-migration-journal.mjs';
+import {assertRecoveredSessionsEmpty}
+ from './shared/lib/recovered-session-safety.mjs';
 /** FIRE Gate 7 single-command PRIVATE paired recovery, NO paid cloud/R2.
  *
  * Restore TWO separately authenticated owner-held encrypted files, WITHOUT
@@ -147,6 +151,19 @@ export async function verifySavedPairedRecoveredSqlite(path,core,supplemental){
   JSON.stringify(typeof value==='boolean'?Number(value):value);
  const eq=(a,b)=>stable(a)===stable(b);
  const expected={...core.tables,...supplemental.tables};
+
+ const sessionEnabled=Object.hasOwn(expected,'owner_auth_sessions');
+
+ const expectedJournal=sessionEnabled
+  ?(expected.d1_migrations?.length===26
+    ?expectedSessionMigrationJournal('qa')
+    :expectedSessionMigrationJournal('independent-live'))
+  :EXPECTED_NEW_LIVE_D1_MIGRATIONS;
+
+ if(sessionEnabled&&(
+    !Array.isArray(expected.owner_auth_sessions)||
+    expected.owner_auth_sessions.length!==0))
+  stop('archived authentication sessions cannot be restored');
  const safeName=name=>/^[a-z][a-z0-9_]*$/.test(name);
  const requiredCore=[...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES];
  if(requiredCore.some(name=>!Array.isArray(core.tables[name]))||
@@ -178,15 +195,15 @@ export async function verifySavedPairedRecoveredSqlite(path,core,supplemental){
     stop('saved recovered SQLite row count differs in '+table);
    inspectedRows+=actualRows.length;
    if(table==='d1_migrations'){
-    if(source.length!==EXPECTED_NEW_LIVE_D1_MIGRATIONS.length)
+    if(source.length!==expectedJournal.length)
      stop('saved recovered SQLite migration journal incomplete');
     const byId=rows=>[...rows].sort((a,b)=>a.id-b.id);
     const original=byId(source),saved=byId(actualRows);
     for(let i=0;i<source.length;i++){
      const left=original[i],right=saved[i];
      if(left.id!==i+1||right.id!==i+1||
-        left.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]||
-        right.name!==EXPECTED_NEW_LIVE_D1_MIGRATIONS[i]||
+        left.name!==expectedJournal[i]||
+        right.name!==expectedJournal[i]||
         !eq(Object.keys(left).sort(),Object.keys(right).sort()))
       stop('saved recovered SQLite migration lineage differs');
      for(const key of Object.keys(left))
@@ -203,6 +220,8 @@ export async function verifySavedPairedRecoveredSqlite(path,core,supplemental){
      stop('saved recovered SQLite row bytes or ownership fields differ in '+table);
    }
   }
+  if(sessionEnabled)assertRecoveredSessionsEmpty(db);
+
   const expectedSequences={...supplemental.sqliteSequence,
    fire_customer_numbers:core.highWater?.customer,
    fire_job_numbers:core.highWater?.job};

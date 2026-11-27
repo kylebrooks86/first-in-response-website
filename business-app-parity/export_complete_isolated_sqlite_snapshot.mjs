@@ -1,3 +1,4 @@
+import {assertSessionSchemaDefinitions} from './shared/lib/recovered-session-safety.mjs';
 /** FIRE OFFLINE SQLite source exporter for the isolated restore workflow.
  * Exports ALL business tables (core, identity, supplemental) from a local
  * standalone SQLite snapshot into complete, versioned private JSON archives.
@@ -37,6 +38,20 @@ export function captureCompleteIsolatedSqliteSnapshot(db){
  const result={},counts={};
  const schemaIdentity=fingerprintIsolatedSqliteSchema(db);
   for(const table of names){
+   if(table==='owner_auth_sessions'){
+    const definition=db.prepare(
+     "SELECT sql FROM sqlite_master WHERE type='table' AND name='owner_auth_sessions'"
+    ).get();
+    const index=db.prepare(
+     "SELECT sql FROM sqlite_master WHERE type='index' AND name='owner_auth_sessions_expiry' AND tbl_name='owner_auth_sessions'"
+    ).get();
+
+    assertSessionSchemaDefinitions(definition?.sql,index?.sql);
+
+    result[table]=[];
+    counts[table]=0;
+    continue;
+   }
    const rows=db.prepare('SELECT * FROM '+q(table)).all().map(row=>
     Object.fromEntries(Object.entries(row).map(([k,v])=>[k,normalized(v)])));
    result[table]=rows;counts[table]=rows.length;
