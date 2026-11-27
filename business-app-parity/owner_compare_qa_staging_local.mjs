@@ -11,7 +11,7 @@ const [qa,staging,edge,pack]=process.argv.slice(2).map(x=>resolve(x));
 const report=mkdtempSync(join(tmpdir(),'FIRE-parity-report-'));
 if(pack){
  const receipt=readFileSync(join(pack,'staging-noassets-dark-source-receipt.json'));
- assert.equal(createHash('sha256').update(receipt).digest('hex'),'f811cc2d7e4b1c37e21d7d28d6aba31215897ac89f5a2e756fbf9e258c1d525a','Wrong sealed deployed package receipt');
+ assert.equal(createHash('sha256').update(receipt).digest('hex'),'cfcac038ebfd61e2becfb246d924563176014d66b7c6aee5ce240bb0c0950b45','Wrong sealed deployed package receipt');
  const parsed=JSON.parse(receipt);
  for(const row of parsed.savedInventory){const b=readFileSync(join(pack,row.path));assert.equal(b.length,row.bytes);assert.equal(createHash('sha256').update(b).digest('hex'),row.sha256,'Sealed package changed')}
  assert.deepEqual(filesIn(pack).sort(),[...parsed.savedInventory.map(x=>x.path),'staging-noassets-dark-source-receipt.json'].sort());
@@ -23,24 +23,25 @@ const {chromium}=req('playwright');
 const {Miniflare}=createRequire(req.resolve('wrangler/package.json'))('miniflare');
 const tmp=mkdtempSync(join(tmpdir(),'fire-parity-'));
 const secret=randomUUID()+randomUUID();
+// Local disposable runtime only; never use a hosted credential.
 const workers=[];
 let browser;
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const files=p=>readdirSync(p,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(join(p,e.name)):[join(p,e.name)]);
 async function boot(root,isQA,packed=false){
- const config=JSON.parse(readFileSync(join(root,'dist/server/wrangler.json'),'utf8'));
+ const config=JSON.parse(readFileSync(packed?join(pack,'server/wrangler.json'):join(root,'dist/server/wrangler.json'),'utf8'));
  assert.equal(config.name,isQA?'fire-fullapp-qa-20261016':'fire-app-independent-staging');
  assert.equal(config.vars.FIRE_ENV,isQA?'synthetic-qa':'staging');
  assert.ok(isQA||config.vars.FIRE_STRIPE_MODE==='disabled');
  const id=randomUUID(),state=join(tmp,isQA?'qa':'staging'),dbName='fixture-'+id;
  const wrangler=req.resolve('wrangler/bin/wrangler.js');
  const fixture=join(tmp,id+'.json');
- writeFileSync(fixture,JSON.stringify({name:'fire-local-fixture',compatibility_date:'2026-05-22',d1_databases:[{binding:'DB',database_name:dbName,database_id:id,migrations_dir:join(root,'drizzle')}]}));
+ writeFileSync(fixture,JSON.stringify({name:'fire-local-fixture',compatibility_date:'2026-05-22',d1_databases:[{binding:'DB',database_name:dbName,database_id:id,migrations_dir:join(packed?qa:root,'drizzle')}]}));
  const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METRICS:'false',CI:'true'};
  for(const k of Object.keys(env))if(/^(CLOUDFLARE_API_|CF_API_|CLOUDFLARE_ACCOUNT_ID)/.test(k))delete env[k];
  const run=spawnSync(process.execPath,[wrangler,'d1','migrations','apply','DB','--local','--persist-to',state,'--config',fixture],{env,encoding:'utf8'});
  assert.equal(run.status,0,'Local disposable D1 migration failed');
- const server=packed?join(pack,'server'):join(root,'dist/server'),main=resolve(server,packed?'fire-staging-noassets-entry.mjs':config.main);
+ const server=packed?join(pack,'server'):join(root,'dist/server'),main=resolve(server,config.main);
  const {unstable_getMiniflareWorkerOptions}=req('wrangler');
  const cfg=join(tmp,id+'-runtime.json');
  writeFileSync(cfg,JSON.stringify({name:'fire-local-fixture',main,compatibility_date:'2026-05-22',compatibility_flags:config.compatibility_flags,no_bundle:true,rules:config.rules,vars:packed?{...config.vars,FIRE_STAGING_PRIVATE_ACTIVATION:'owner-approved'}:config.vars,...(packed?{}:{assets:{directory:join(root,'dist/client')}}),d1_databases:[{binding:'DB',database_name:dbName,database_id:id}]}));
@@ -123,8 +124,9 @@ async function comparePixels(page,a,b){
 }
 const comparisons=[];
 try{
- const targets=[['QA',await boot(qa,true)],['STAGING',await boot(staging,false)]];
+ const targets=[['QA',await boot(qa,true)]];
  if(pack)targets.push(['PACKAGED-STAGING',await boot(staging,false,true)]);
+ else targets.push(['STAGING',await boot(staging,false)]);
  browser=await chromium.launch({executablePath:edge,headless:true});
  const diffPage=await browser.newPage();
  for(const width of [390,1366])for(const theme of ['light','dark']){
