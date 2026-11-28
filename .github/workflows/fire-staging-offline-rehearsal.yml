@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/fire-staging-safe-migration-rehearsal-2026-10-29
+      - work/fire-g607-session-revocation-20261127
     paths:
       - 'business-app-parity/rehearse_staging_22_to_25.py'
       - 'business-app-parity/test_rehearse_staging_22_to_25.py'
@@ -37,6 +38,12 @@ on:
       - 'business-app-parity/test_owner_staging_one_inactive_version_once_approved.py'
       - 'business-app-parity/owner_windows_build_staging_inactive_candidate.ps1'
       - 'business-app-parity/test_owner_windows_build_staging_inactive_candidate.py'
+      - 'business-app-parity/test_g607_*'
+      - 'business-app-parity/release/G607_*'
+      - 'business-app-parity/test_seal_independent_d1_sql_export_private.py'
+      - 'business-app-parity/seal_independent_d1_sql_export_private.py'
+      - 'business-app-parity/adapters/independent-dr/**'
+      - 'business-app-parity/adapters/independent-live/**'
       - '.github/workflows/fire-staging-offline-rehearsal.yml'
   pull_request:
     paths:
@@ -75,6 +82,12 @@ on:
       - 'business-app-parity/test_owner_staging_one_inactive_version_once_approved.py'
       - 'business-app-parity/owner_windows_build_staging_inactive_candidate.ps1'
       - 'business-app-parity/test_owner_windows_build_staging_inactive_candidate.py'
+      - 'business-app-parity/test_g607_*'
+      - 'business-app-parity/release/G607_*'
+      - 'business-app-parity/test_seal_independent_d1_sql_export_private.py'
+      - 'business-app-parity/seal_independent_d1_sql_export_private.py'
+      - 'business-app-parity/adapters/independent-dr/**'
+      - 'business-app-parity/adapters/independent-live/**'
       - '.github/workflows/fire-staging-offline-rehearsal.yml'
 
 concurrency:
@@ -87,6 +100,58 @@ permissions:
   contents: read
 
 jobs:
+  g607-session-revocation:
+    name: G6-07 session revocation and recovery (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install isolated TypeScript test dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/g607-tools" --no-audit --no-fund --ignore-scripts typescript@5.9.3
+          echo "FIRE_G607_TS=$RUNNER_TEMP/g607-tools/node_modules/typescript/lib/typescript.js" >> "$GITHUB_ENV"
+          echo "FIRE_G607_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+
+      - name: Session security and migration contracts
+        run: |
+          set -euo pipefail
+          node business-app-parity/test_g607_session_revocation.cjs
+          node business-app-parity/test_g607_backup_route_authorization.cjs
+          python3 business-app-parity/test_g607_migration_source.py
+          node business-app-parity/test_g607_migration_journal.mjs
+          node business-app-parity/test_g607_exact_session_schema.mjs
+
+      - name: Session-safe backup and recovery
+        run: |
+          set -euo pipefail
+          node business-app-parity/test_g607_backup_session_exclusion.mjs
+          node business-app-parity/test_g607_encrypted_session_export.mjs
+          node business-app-parity/test_g607_recovered_session_safety.mjs
+          python3 business-app-parity/test_seal_independent_d1_sql_export_private.py
+
+      - name: Encrypted recovery profiles
+        working-directory: business-app-parity/shared
+        run: |
+          set -euo pipefail
+          node scripts/test-complete-d1-27-restore.mjs
+          node scripts/test-g607-qa-staging-encrypted-restore.mjs
+          node scripts/test-new-live-27-disposable-record-restore.mjs
+
   gate9-six-event-offline-contract:
     name: Gate 9 exact six-event Stripe TEST contract (offline, NO provider)
     runs-on: ubuntu-latest
