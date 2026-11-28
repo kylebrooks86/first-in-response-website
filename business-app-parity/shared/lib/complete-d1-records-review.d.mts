@@ -1,7 +1,7 @@
 /** Review-only all-table D1 capture; never a complete encrypted photo backup. */
 export declare function captureCompleteReviewedD1RecordsReadOnly(
  db:D1Database,
- options?:{customerProperties?:boolean;serviceLocations?:boolean}
+ options?:{customerProperties?:boolean;serviceLocations?:boolean;sessionEnabled?:boolean}
 ):Promise<{
  format:'fire-full-d1-records-review';version:1;
  allReviewedRecordTablesIncluded:true;
