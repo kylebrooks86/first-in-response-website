@@ -147,15 +147,23 @@ try{
  check(/HttpOnly; Secure; SameSite=Strict/.test(login.headers()['set-cookie']),'Actual HTTP response sets isolated secure owner session cookie');
  // Gate 6 session-expiry regression uses only this disposable Workerd/SQLite
  // fixture and an ephemeral signing secret. It NEVER contacts hosted QA.
- const signedSyntheticCookie=(expires,signingKey=sessionSecret)=>{
-  const payload='v1.'+String(expires);
+ const registeredCookie=login.headers()['set-cookie'].split(';')[0];
+ const registeredParts=registeredCookie.split('=')[1].split('.');
+ assert.equal(registeredParts.length,4);
+ assert.equal(registeredParts[0],'v3');
+ const registeredId=registeredParts[2];
+ const signedSyntheticCookie=(expires,signingKey=sessionSecret,id=registeredId)=>{
+  const payload='v3.'+String(expires)+'.'+id;
   return 'fire_qa_session='+payload+'.'+createHmac('sha256',signingKey).update(payload).digest('base64url');
  };
  const anonymousExpired=await browser.newContext({ignoreHTTPSErrors:true});
  try{
   const nowSeconds=Math.floor(Date.now()/1000);
   for(const [label,header,status] of [
-   ['valid HMAC positive control',signedSyntheticCookie(nowSeconds+120),200],
+   ['registered signed session positive control',registeredCookie,200],
+   ['correctly signed unregistered session',signedSyntheticCookie(nowSeconds+120,sessionSecret,createHash('sha256').update(randomUUID()).digest('base64url')),401],
+   ['registered session with altered signed expiry',signedSyntheticCookie(nowSeconds+120),401],
+   ['legacy stateless session refused','fire_qa_session=v1.'+(nowSeconds+120)+'.'+createHmac('sha256',sessionSecret).update('v1.'+(nowSeconds+120)).digest('base64url'),401],
    ['correctly signed expired session',signedSyntheticCookie(nowSeconds-60),401],
    ['correctly signed zero-life session',signedSyntheticCookie(nowSeconds-43200),401],
    ['wrong secret, valid expiry',signedSyntheticCookie(nowSeconds+120,'different-synthetic-fixture-key-'.repeat(3)),401],
