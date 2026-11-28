@@ -83,7 +83,7 @@ class PrivateD1SqlBridge(unittest.TestCase):
         source = sqlite3.connect(":memory:")
         try:
             migrated(source, sample=True)
-            self.source.write_text("\n".join(source.iterdump()) + "\n", "utf-8")
+            self.source.write_text("\n".join(source.iterdump()) + "\n", "utf-8", newline="\n")
         finally:
             source.close()
         independent = sqlite3.connect(self.template)
@@ -139,7 +139,7 @@ class PrivateD1SqlBridge(unittest.TestCase):
         conn = sqlite3.connect(":memory:")
         try:
             migrated(conn, with_last=False)
-            incomplete.write_text("\n".join(conn.iterdump()) + "\n", "utf-8")
+            incomplete.write_text("\n".join(conn.iterdump()) + "\n", "utf-8", newline="\n")
         finally:
             conn.close()
         with self.assertRaises(LocalBridgeStop):
@@ -160,7 +160,7 @@ class PrivateD1SqlBridge(unittest.TestCase):
             db.close()
         partial = Path(self.tmp.name) / "omitted-index-full-journal.sql"
         partial.write_text(self.source.read_text("utf-8") +
-                           '\nDROP INDEX "' + chosen[0] + '";\n', "utf-8")
+                           '\nDROP INDEX "' + chosen[0] + '";\n', "utf-8", newline="\n")
         with self.assertRaises(LocalBridgeStop):
             self.bridge(src=partial, digest=hashlib.sha256(partial.read_bytes()).hexdigest())
         self.assertFalse(self.output.exists())
@@ -179,7 +179,7 @@ class PrivateD1SqlBridge(unittest.TestCase):
         ):
             with self.subTest(name=name):
                 attempt = Path(self.tmp.name) / name
-                attempt.write_text(payload, "utf-8")
+                attempt.write_text(payload, "utf-8", newline="\n")
                 with self.assertRaises(sqlite3.DatabaseError):
                     self.bridge(src=attempt, digest=hashlib.sha256(attempt.read_bytes()).hexdigest())
                 self.assertFalse(self.output.exists())
@@ -193,7 +193,7 @@ class PrivateD1SqlBridge(unittest.TestCase):
         self.assertIn(expected, original)
         forged = original.replace(expected, expected + " WHEN 0", 1)
         altered = Path(self.tmp.name) / "matching-names-unsafe-trigger.sql"
-        altered.write_text(forged, "utf-8")
+        altered.write_text(forged, "utf-8", newline="\n")
         with self.assertRaises(LocalBridgeStop):
             self.bridge(src=altered, digest=hashlib.sha256(altered.read_bytes()).hexdigest())
         self.assertFalse(self.output.exists())
@@ -204,6 +204,107 @@ class PrivateD1SqlBridge(unittest.TestCase):
             self.bridge()
         self.assertEqual(self.output.read_bytes(), b"keep original private backup exactly")
 
+
+    def test_g607_session_enabled_sql_seal_and_restore(self):
+        def add_sessions(db):
+            path = BASE / "adapters/independent-live/drizzle/0026_owner_auth_sessions.sql"
+            db.executescript(path.read_text("utf-8"))
+            db.execute(
+                "INSERT INTO d1_migrations(id,name) VALUES (?,?)",
+                (27, path.name)
+            )
+            db.commit()
+
+        source = sqlite3.connect(":memory:")
+        try:
+            migrated(source, sample=True)
+            add_sessions(source)
+
+            source.executemany(
+                "INSERT INTO owner_auth_sessions VALUES (?,?,?,?)",
+                [
+                    ("synthetic-active", "fire_admin_session", 2000000000, None),
+                    ("synthetic-revoked", "fire_admin_session", 2000000000, 1900000000)
+                ]
+            )
+            source.commit()
+
+            self.source.write_text(
+                "\n".join(source.iterdump()) + "\n", "utf-8"
+            , newline="\n")
+        finally:
+            source.close()
+
+        db = sqlite3.connect(self.template)
+        try:
+            add_sessions(db)
+        finally:
+            db.close()
+
+        self.hash = hashlib.sha256(self.source.read_bytes()).hexdigest()
+
+        receipt = self.bridge()
+
+        self.assertTrue(receipt["protectedRecordsCreatedAndReadBack"])
+        self.assertEqual(receipt["reviewedMigrationCount"], 27)
+        self.assertEqual(receipt["localCustomerRowsObserved"], 1)
+        self.assertTrue(receipt["originalSqlUnmodified"])
+        self.assertFalse(receipt["remoteWritesPerformed"])
+        self.assertFalse(receipt["gate7Accepted"])
+
+        self.assertEqual(
+            self.hash,
+            hashlib.sha256(self.source.read_bytes()).hexdigest()
+        )
+
+        self.assertEqual(
+            list(Path(self.tmp.name).glob(".fire-transient-owner-records-*")),
+            []
+        )
+
+        restored = Path(self.tmp.name) / "g607-recovered.sqlite"
+
+        process = subprocess.run(
+            [
+                "node", "--experimental-sqlite",
+                str(BASE / "protected_complete_isolated_sqlite_recovery.mjs"),
+                "restore", str(self.output),
+                str(self.template), str(restored)
+            ],
+            input=PHRASE + "\n",
+            text=True, capture_output=True, timeout=120
+        )
+
+        self.assertEqual(
+            process.returncode, 0,
+            "Session-enabled protected restore failed"
+        )
+
+        db = sqlite3.connect(restored)
+        try:
+            self.assertEqual(
+                db.execute("SELECT COUNT(*) FROM owner_auth_sessions").fetchone()[0], 0
+            )
+            self.assertEqual(
+                db.execute("SELECT COUNT(*) FROM d1_migrations").fetchone()[0], 27
+            )
+            self.assertEqual(
+                db.execute("SELECT customer_number FROM fire_customer_numbers").fetchone()[0], 1
+            )
+            self.assertEqual(
+                db.execute("SELECT job_number FROM fire_job_numbers").fetchone()[0], 1
+            )
+            self.assertEqual(
+                db.execute("SELECT amount_cents FROM payment_refunds").fetchone()[0], 500
+            )
+            self.assertEqual(
+                db.execute("PRAGMA integrity_check").fetchone()[0], "ok"
+            )
+            self.assertEqual(
+                db.execute("PRAGMA foreign_key_check").fetchall(), []
+            )
+        finally:
+            db.close()
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

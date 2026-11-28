@@ -169,21 +169,34 @@ def verified_memory_sqlite(source, expected_hash, migrations):
             "WHERE type IN ('table','index','trigger','view') "
             "AND lower(substr(name,1,7)) <> 'sqlite_'"
         )}
+        if "owner_auth_sessions" in tables:
+            migrations = list(migrations) + ["0026_owner_auth_sessions.sql"]
+
         if actual_objects != expected_application_objects(migrations):
             stop("D1 SQL export omits or alters reviewed table/index/trigger definitions")
         journal = db.execute(
             'SELECT id,name FROM "d1_migrations" ORDER BY id'
         ).fetchall()
         if journal != list(enumerate(migrations, 1)):
-            stop("export lacks the exact ordered 26 independently applied migrations")
+            stop("export lacks the exact reviewed independently applied migration sequence")
         serial = db.execute(
             "SELECT seq FROM sqlite_sequence WHERE name='d1_migrations'"
         ).fetchone()
-        if serial is None or serial[0] != 26:
+        if serial is None or serial[0] != len(migrations):
             stop("independent applied migration AUTOINCREMENT high-water differs")
         # Accept a valid empty NEW LIVE before business launch, but NEVER
         # present this local count as provider-completeness attestation.
         customer_count = db.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
+        if "owner_auth_sessions" in tables:
+            # Remove sessions from the disposable memory copy only.
+            db.execute("DELETE FROM owner_auth_sessions")
+            db.commit()
+
+            if db.execute(
+                "SELECT COUNT(*) FROM owner_auth_sessions"
+            ).fetchone()[0] != 0:
+                stop("authentication sessions were not excluded")
+
         return db, digest, customer_count
     except Exception:
         db.close()
@@ -202,6 +215,11 @@ def seal_saved_full_sql_export(sql_path, output_path, expected_hash, phrase,
     temporary = None
     try:
         db, input_hash, customers = verified_memory_sqlite(source, expected_hash, migrations)
+        if db.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='owner_auth_sessions'"
+        ).fetchone()[0]:
+            migrations = list(migrations) + ["0026_owner_auth_sessions.sql"]
+
         fd, temporary = tempfile.mkstemp(
             prefix=".fire-transient-owner-records-", suffix=".sqlite", dir=private_folder
         )
@@ -293,7 +311,7 @@ def main():
         return 0
     except Exception:
         # No owner filenames, contact information, SQL, secret or temp path.
-        print("FIRE private 26-migration D1 SQL sealing BLOCKED; no cloud operation.", file=sys.stderr)
+        print("FIRE private D1 SQL sealing BLOCKED; no cloud operation.", file=sys.stderr)
         return 2
 
 
