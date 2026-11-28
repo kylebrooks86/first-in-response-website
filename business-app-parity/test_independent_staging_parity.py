@@ -45,7 +45,7 @@ class IndependentStagingParity(unittest.TestCase):
         self.assertTrue(check('qa',self.qa)['identicalToSharedPlusAuthorizedAdapter'])
         result = check('independent-staging', self.staging)
         self.assertTrue(result['identicalToSharedPlusAuthorizedAdapter'])
-        self.assertEqual(result['migrationFiles'],25)
+        self.assertEqual(result['migrationFiles'],26)
 
     def test_shared_visual_and_business_code_is_byte_identical(self):
         qa = inventory(self.qa)
@@ -75,7 +75,12 @@ class IndependentStagingParity(unittest.TestCase):
         qa_sql = {p.name:p.read_bytes() for p in (self.qa/'drizzle').glob('*.sql')}
         stage_sql = {p.name:p.read_bytes() for p in (self.staging/'drizzle').glob('*.sql')}
         self.assertEqual(qa_sql,stage_sql)
-        self.assertEqual(len(qa_sql),25)
+        self.assertEqual(len(qa_sql),26)
+        session_name = '0025_owner_auth_sessions.sql'
+        reviewed = (ROOT/'release'/'G607_OWNER_SESSION_SCHEMA_PROPOSED.sql').read_bytes()
+        self.assertIn(session_name, qa_sql)
+        self.assertEqual(qa_sql[session_name], reviewed)
+        self.assertEqual(stage_sql[session_name], reviewed)
 
     def test_page_diff_is_only_staging_environment_label(self):
         baseline = (ROOT/'adapters'/'doomsday'/'app/page.tsx').read_text()
